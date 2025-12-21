@@ -548,3 +548,158 @@ export interface TenantLifecycleStats {
   customers_churned_last_30d: number;
   customers_reactivated_last_30d: number;
 }
+
+// =============================================
+// CONTENT INTERACTION & INTENT METRICS
+// =============================================
+
+export type ContentType = 'story' | 'offer' | 'educational' | 'promotional' | 'transactional' | 'balanced';
+export type IntentLevel = 'high' | 'medium' | 'low' | 'unknown';
+export type IntentTrend = 'increasing' | 'stable' | 'decreasing';
+export type ClickTimingPattern = 'immediate' | 'considered' | 'delayed' | 'unknown';
+
+export interface CustomerContentIntentMetrics {
+  id: string;
+  customer_id: string;
+  tenant_id: string;
+  
+  // Content Type Engagement (Story vs Offer)
+  total_story_views: number;
+  total_offer_views: number;
+  total_story_clicks: number;
+  total_offer_clicks: number;
+  story_engagement_rate: number;
+  offer_engagement_rate: number;
+  preferred_content_type: ContentType;
+  
+  // Educational vs Promotional Response Ratio
+  educational_messages_received: number;
+  educational_messages_engaged: number;
+  promotional_messages_received: number;
+  promotional_messages_engaged: number;
+  educational_response_rate: number;
+  promotional_response_rate: number;
+  edu_promo_ratio: number;
+  content_preference: 'educational' | 'promotional' | 'balanced';
+  
+  // Brand Story Open Rate
+  brand_story_emails_sent: number;
+  brand_story_emails_opened: number;
+  brand_story_open_rate: number;
+  brand_story_avg_read_time_seconds: number | null;
+  
+  // CTA Interaction Frequency
+  total_ctas_viewed: number;
+  total_ctas_clicked: number;
+  cta_click_rate: number;
+  cta_clicks_last_7d: number;
+  cta_clicks_last_30d: number;
+  cta_interaction_frequency: number;
+  most_clicked_cta_type: string | null;
+  
+  // Intent Score
+  intent_score: number;
+  intent_level: IntentLevel;
+  intent_trend: IntentTrend;
+  intent_score_components: {
+    cta_frequency_component: number;
+    engagement_depth_component: number;
+    click_consistency_component: number;
+    content_preference_component: number;
+    quick_response_component: number;
+    relevance_component: number;
+  };
+  last_intent_signal_at: string | null;
+  
+  // Engagement Depth
+  total_messages_received: number;
+  total_messages_opened: number;
+  total_messages_read_deeply: number;
+  engagement_depth_score: number;
+  avg_messages_engaged_per_session: number;
+  multi_content_sessions: number;
+  single_content_sessions: number;
+  depth_ratio: number;
+  
+  // Click Pattern Consistency
+  total_click_sessions: number;
+  clicks_on_first_cta: number;
+  clicks_after_scrolling: number;
+  avg_ctas_viewed_before_click: number;
+  click_timing_pattern: ClickTimingPattern;
+  consistent_click_position: string | null;
+  click_pattern_consistency_score: number;
+  
+  // Message Relevance Score
+  total_relevant_opens: number;
+  total_delayed_opens: number;
+  quick_open_rate: number;
+  total_unsubscribe_requests: number;
+  total_spam_reports: number;
+  relevance_feedback_score: number;
+  message_relevance_score: number;
+  best_performing_content_category: string | null;
+  worst_performing_content_category: string | null;
+  
+  // Block-level
+  block_engagement_breakdown: Record<string, number>;
+  top_performing_block_types: string[];
+  avg_blocks_viewed_per_message: number;
+  
+  // Time patterns
+  peak_engagement_hour: number | null;
+  peak_engagement_day: string | null;
+  
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ContentInteractionEvent {
+  id: string;
+  tenant_id: string;
+  customer_id: string | null;
+  session_id: string;
+  campaign_id: string | null;
+  block_id: string | null;
+  message_id: string | null;
+  channel: 'email' | 'sms' | 'hub';
+  content_type: ContentType;
+  content_category: string | null;
+  block_type: string | null;
+  interaction_type: string;
+  cta_type: string | null;
+  cta_position: number | null;
+  time_spent_seconds: number | null;
+  scroll_depth_percent: number | null;
+  blocks_viewed: number | null;
+  is_deep_engagement: boolean;
+  time_since_send_seconds: number | null;
+  is_quick_response: boolean;
+  device_type: string | null;
+  created_at: string;
+}
+
+export interface TenantContentIntentStats {
+  total_customers: number;
+  avg_intent_score: number;
+  intent_level_breakdown: {
+    high: number;
+    medium: number;
+    low: number;
+    unknown: number;
+  };
+  avg_engagement_depth_score: number;
+  avg_click_pattern_consistency: number;
+  avg_message_relevance_score: number;
+  content_type_performance: {
+    story_avg_engagement: number;
+    offer_avg_engagement: number;
+  };
+  edu_vs_promo_preference: {
+    educational_preferred: number;
+    promotional_preferred: number;
+    balanced: number;
+  };
+  avg_cta_click_rate: number;
+  avg_brand_story_open_rate: number;
+}

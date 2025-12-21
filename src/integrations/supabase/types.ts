@@ -823,6 +823,98 @@ export type Database = {
         }
         Relationships: []
       }
+      campaign_content_classification: {
+        Row: {
+          ai_classification_reason: string | null
+          ai_classified: boolean | null
+          ai_confidence_score: number | null
+          block_id: string | null
+          campaign_id: string | null
+          content_category: string
+          content_type: string
+          created_at: string | null
+          crm_campaign_id: string | null
+          cta_types: string[] | null
+          has_cta: boolean | null
+          id: string
+          is_brand_story: boolean | null
+          is_educational: boolean | null
+          is_promotional: boolean | null
+          is_time_sensitive: boolean | null
+          tenant_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          ai_classification_reason?: string | null
+          ai_classified?: boolean | null
+          ai_confidence_score?: number | null
+          block_id?: string | null
+          campaign_id?: string | null
+          content_category: string
+          content_type: string
+          created_at?: string | null
+          crm_campaign_id?: string | null
+          cta_types?: string[] | null
+          has_cta?: boolean | null
+          id?: string
+          is_brand_story?: boolean | null
+          is_educational?: boolean | null
+          is_promotional?: boolean | null
+          is_time_sensitive?: boolean | null
+          tenant_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          ai_classification_reason?: string | null
+          ai_classified?: boolean | null
+          ai_confidence_score?: number | null
+          block_id?: string | null
+          campaign_id?: string | null
+          content_category?: string
+          content_type?: string
+          created_at?: string | null
+          crm_campaign_id?: string | null
+          cta_types?: string[] | null
+          has_cta?: boolean | null
+          id?: string
+          is_brand_story?: boolean | null
+          is_educational?: boolean | null
+          is_promotional?: boolean | null
+          is_time_sensitive?: boolean | null
+          tenant_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_content_classification_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_content_classification_crm_campaign_id_fkey"
+            columns: ["crm_campaign_id"]
+            isOneToOne: false
+            referencedRelation: "crm_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_content_classification_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "admin_tenant_overview"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "campaign_content_classification_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       campaign_personas: {
         Row: {
           campaign_id: string
@@ -1503,6 +1595,116 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      content_interaction_events: {
+        Row: {
+          block_id: string | null
+          block_type: string | null
+          blocks_viewed: number | null
+          campaign_id: string | null
+          channel: string
+          content_category: string | null
+          content_type: string
+          created_at: string | null
+          cta_position: number | null
+          cta_type: string | null
+          customer_id: string | null
+          device_type: string | null
+          id: string
+          interaction_type: string
+          is_deep_engagement: boolean | null
+          is_quick_response: boolean | null
+          message_id: string | null
+          metadata: Json | null
+          scroll_depth_percent: number | null
+          session_id: string
+          tenant_id: string
+          time_since_send_seconds: number | null
+          time_spent_seconds: number | null
+          user_agent: string | null
+        }
+        Insert: {
+          block_id?: string | null
+          block_type?: string | null
+          blocks_viewed?: number | null
+          campaign_id?: string | null
+          channel: string
+          content_category?: string | null
+          content_type: string
+          created_at?: string | null
+          cta_position?: number | null
+          cta_type?: string | null
+          customer_id?: string | null
+          device_type?: string | null
+          id?: string
+          interaction_type: string
+          is_deep_engagement?: boolean | null
+          is_quick_response?: boolean | null
+          message_id?: string | null
+          metadata?: Json | null
+          scroll_depth_percent?: number | null
+          session_id: string
+          tenant_id: string
+          time_since_send_seconds?: number | null
+          time_spent_seconds?: number | null
+          user_agent?: string | null
+        }
+        Update: {
+          block_id?: string | null
+          block_type?: string | null
+          blocks_viewed?: number | null
+          campaign_id?: string | null
+          channel?: string
+          content_category?: string | null
+          content_type?: string
+          created_at?: string | null
+          cta_position?: number | null
+          cta_type?: string | null
+          customer_id?: string | null
+          device_type?: string | null
+          id?: string
+          interaction_type?: string
+          is_deep_engagement?: boolean | null
+          is_quick_response?: boolean | null
+          message_id?: string | null
+          metadata?: Json | null
+          scroll_depth_percent?: number | null
+          session_id?: string
+          tenant_id?: string
+          time_since_send_seconds?: number | null
+          time_spent_seconds?: number | null
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_interaction_events_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "crm_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "content_interaction_events_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customer_360_enriched"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "content_interaction_events_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "admin_tenant_overview"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "content_interaction_events_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       content_tasks: {
         Row: {
@@ -3115,6 +3317,239 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customer_360_enriched"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      customer_content_intent_metrics: {
+        Row: {
+          avg_blocks_viewed_per_message: number | null
+          avg_ctas_viewed_before_click: number | null
+          avg_messages_engaged_per_session: number | null
+          best_performing_content_category: string | null
+          block_engagement_breakdown: Json | null
+          brand_story_avg_read_time_seconds: number | null
+          brand_story_emails_opened: number | null
+          brand_story_emails_sent: number | null
+          brand_story_open_rate: number | null
+          click_pattern_consistency_score: number | null
+          click_timing_pattern: string | null
+          clicks_after_scrolling: number | null
+          clicks_on_first_cta: number | null
+          consistent_click_position: string | null
+          content_preference: string | null
+          created_at: string | null
+          cta_click_rate: number | null
+          cta_clicks_last_30d: number | null
+          cta_clicks_last_7d: number | null
+          cta_interaction_frequency: number | null
+          customer_id: string
+          depth_ratio: number | null
+          edu_promo_ratio: number | null
+          educational_messages_engaged: number | null
+          educational_messages_received: number | null
+          educational_response_rate: number | null
+          engagement_depth_score: number | null
+          id: string
+          intent_level: string | null
+          intent_score: number | null
+          intent_score_components: Json | null
+          intent_trend: string | null
+          last_intent_signal_at: string | null
+          message_relevance_score: number | null
+          most_clicked_cta_type: string | null
+          multi_content_sessions: number | null
+          offer_engagement_rate: number | null
+          peak_engagement_day: string | null
+          peak_engagement_hour: number | null
+          preferred_content_type: string | null
+          promotional_messages_engaged: number | null
+          promotional_messages_received: number | null
+          promotional_response_rate: number | null
+          quick_open_rate: number | null
+          relevance_feedback_score: number | null
+          single_content_sessions: number | null
+          story_engagement_rate: number | null
+          tenant_id: string
+          top_performing_block_types: string[] | null
+          total_click_sessions: number | null
+          total_ctas_clicked: number | null
+          total_ctas_viewed: number | null
+          total_delayed_opens: number | null
+          total_messages_opened: number | null
+          total_messages_read_deeply: number | null
+          total_messages_received: number | null
+          total_offer_clicks: number | null
+          total_offer_views: number | null
+          total_relevant_opens: number | null
+          total_spam_reports: number | null
+          total_story_clicks: number | null
+          total_story_views: number | null
+          total_unsubscribe_requests: number | null
+          updated_at: string | null
+          worst_performing_content_category: string | null
+        }
+        Insert: {
+          avg_blocks_viewed_per_message?: number | null
+          avg_ctas_viewed_before_click?: number | null
+          avg_messages_engaged_per_session?: number | null
+          best_performing_content_category?: string | null
+          block_engagement_breakdown?: Json | null
+          brand_story_avg_read_time_seconds?: number | null
+          brand_story_emails_opened?: number | null
+          brand_story_emails_sent?: number | null
+          brand_story_open_rate?: number | null
+          click_pattern_consistency_score?: number | null
+          click_timing_pattern?: string | null
+          clicks_after_scrolling?: number | null
+          clicks_on_first_cta?: number | null
+          consistent_click_position?: string | null
+          content_preference?: string | null
+          created_at?: string | null
+          cta_click_rate?: number | null
+          cta_clicks_last_30d?: number | null
+          cta_clicks_last_7d?: number | null
+          cta_interaction_frequency?: number | null
+          customer_id: string
+          depth_ratio?: number | null
+          edu_promo_ratio?: number | null
+          educational_messages_engaged?: number | null
+          educational_messages_received?: number | null
+          educational_response_rate?: number | null
+          engagement_depth_score?: number | null
+          id?: string
+          intent_level?: string | null
+          intent_score?: number | null
+          intent_score_components?: Json | null
+          intent_trend?: string | null
+          last_intent_signal_at?: string | null
+          message_relevance_score?: number | null
+          most_clicked_cta_type?: string | null
+          multi_content_sessions?: number | null
+          offer_engagement_rate?: number | null
+          peak_engagement_day?: string | null
+          peak_engagement_hour?: number | null
+          preferred_content_type?: string | null
+          promotional_messages_engaged?: number | null
+          promotional_messages_received?: number | null
+          promotional_response_rate?: number | null
+          quick_open_rate?: number | null
+          relevance_feedback_score?: number | null
+          single_content_sessions?: number | null
+          story_engagement_rate?: number | null
+          tenant_id: string
+          top_performing_block_types?: string[] | null
+          total_click_sessions?: number | null
+          total_ctas_clicked?: number | null
+          total_ctas_viewed?: number | null
+          total_delayed_opens?: number | null
+          total_messages_opened?: number | null
+          total_messages_read_deeply?: number | null
+          total_messages_received?: number | null
+          total_offer_clicks?: number | null
+          total_offer_views?: number | null
+          total_relevant_opens?: number | null
+          total_spam_reports?: number | null
+          total_story_clicks?: number | null
+          total_story_views?: number | null
+          total_unsubscribe_requests?: number | null
+          updated_at?: string | null
+          worst_performing_content_category?: string | null
+        }
+        Update: {
+          avg_blocks_viewed_per_message?: number | null
+          avg_ctas_viewed_before_click?: number | null
+          avg_messages_engaged_per_session?: number | null
+          best_performing_content_category?: string | null
+          block_engagement_breakdown?: Json | null
+          brand_story_avg_read_time_seconds?: number | null
+          brand_story_emails_opened?: number | null
+          brand_story_emails_sent?: number | null
+          brand_story_open_rate?: number | null
+          click_pattern_consistency_score?: number | null
+          click_timing_pattern?: string | null
+          clicks_after_scrolling?: number | null
+          clicks_on_first_cta?: number | null
+          consistent_click_position?: string | null
+          content_preference?: string | null
+          created_at?: string | null
+          cta_click_rate?: number | null
+          cta_clicks_last_30d?: number | null
+          cta_clicks_last_7d?: number | null
+          cta_interaction_frequency?: number | null
+          customer_id?: string
+          depth_ratio?: number | null
+          edu_promo_ratio?: number | null
+          educational_messages_engaged?: number | null
+          educational_messages_received?: number | null
+          educational_response_rate?: number | null
+          engagement_depth_score?: number | null
+          id?: string
+          intent_level?: string | null
+          intent_score?: number | null
+          intent_score_components?: Json | null
+          intent_trend?: string | null
+          last_intent_signal_at?: string | null
+          message_relevance_score?: number | null
+          most_clicked_cta_type?: string | null
+          multi_content_sessions?: number | null
+          offer_engagement_rate?: number | null
+          peak_engagement_day?: string | null
+          peak_engagement_hour?: number | null
+          preferred_content_type?: string | null
+          promotional_messages_engaged?: number | null
+          promotional_messages_received?: number | null
+          promotional_response_rate?: number | null
+          quick_open_rate?: number | null
+          relevance_feedback_score?: number | null
+          single_content_sessions?: number | null
+          story_engagement_rate?: number | null
+          tenant_id?: string
+          top_performing_block_types?: string[] | null
+          total_click_sessions?: number | null
+          total_ctas_clicked?: number | null
+          total_ctas_viewed?: number | null
+          total_delayed_opens?: number | null
+          total_messages_opened?: number | null
+          total_messages_read_deeply?: number | null
+          total_messages_received?: number | null
+          total_offer_clicks?: number | null
+          total_offer_views?: number | null
+          total_relevant_opens?: number | null
+          total_spam_reports?: number | null
+          total_story_clicks?: number | null
+          total_story_views?: number | null
+          total_unsubscribe_requests?: number | null
+          updated_at?: string | null
+          worst_performing_content_category?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_content_intent_metrics_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: true
+            referencedRelation: "crm_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_content_intent_metrics_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: true
+            referencedRelation: "customer_360_enriched"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_content_intent_metrics_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "admin_tenant_overview"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "customer_content_intent_metrics_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
         ]
@@ -10726,6 +11161,10 @@ export type Database = {
         Args: { p_customer_id: string }
         Returns: number
       }
+      calculate_content_intent_score: {
+        Args: { p_customer_id: string }
+        Returns: Json
+      }
       calculate_tenant_perks_enrollment_rate: {
         Args: { p_tenant_id: string }
         Returns: number
@@ -10994,6 +11433,10 @@ export type Database = {
         }[]
       }
       get_sync_queue_status: { Args: never; Returns: Json }
+      get_tenant_content_intent_stats: {
+        Args: { p_tenant_id: string }
+        Returns: Json
+      }
       get_tenant_lifecycle_stats: {
         Args: { p_tenant_id: string }
         Returns: Json
@@ -11069,6 +11512,10 @@ export type Database = {
         Args: { keep_user_id: string; merge_user_id: string }
         Returns: boolean
       }
+      recalculate_content_intent_metrics: {
+        Args: { p_customer_id: string }
+        Returns: undefined
+      }
       recalculate_cross_channel_scores: {
         Args: { p_customer_id: string }
         Returns: undefined
@@ -11133,6 +11580,10 @@ export type Database = {
         Args: { p_tokens?: number; p_user_id: string }
         Returns: boolean
       }
+      refresh_all_content_intent_metrics: {
+        Args: { p_tenant_id: string }
+        Returns: number
+      }
       refresh_all_cross_channel_metrics: {
         Args: { p_tenant_id?: string }
         Returns: number
@@ -11183,6 +11634,30 @@ export type Database = {
           p_user_id: string
         }
         Returns: boolean
+      }
+      track_content_interaction: {
+        Args: {
+          p_block_id?: string
+          p_block_type?: string
+          p_blocks_viewed?: number
+          p_campaign_id?: string
+          p_channel: string
+          p_content_category?: string
+          p_content_type: string
+          p_cta_position?: number
+          p_cta_type?: string
+          p_customer_id: string
+          p_device_type?: string
+          p_interaction_type: string
+          p_message_id?: string
+          p_metadata?: Json
+          p_scroll_depth_percent?: number
+          p_session_id: string
+          p_tenant_id: string
+          p_time_since_send_seconds?: number
+          p_time_spent_seconds?: number
+        }
+        Returns: string
       }
       track_global_image_usage: {
         Args: {

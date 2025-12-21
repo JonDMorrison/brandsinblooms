@@ -40,7 +40,8 @@ import { useCustomerPurchaseMetrics } from '@/hooks/usePurchaseMetrics';
 import { useCustomerPostPurchaseMetrics, useCustomerIncentiveHistory } from '@/hooks/usePostPurchaseMetrics';
 import { useCustomerLoyaltyMetrics, useCustomerPointsHistory } from '@/hooks/useLoyaltyMetrics';
 import { useCustomerLifecycleMetrics, useCustomerLifecycleHistory, getLifecycleStageConfig } from '@/hooks/useLifecycleMetrics';
-import { Gift, Percent, Timer, Target, BarChart3, Star, Trophy, Coins, TrendingUp as ArrowTrendingUp, RefreshCw, Activity, Users, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { useCustomerContentIntentMetrics, useCustomerInteractionHistory, getIntentLevelConfig, getContentPreferenceConfig, getClickTimingConfig } from '@/hooks/useContentIntentMetrics';
+import { Gift, Percent, Timer, Target, BarChart3, Star, Trophy, Coins, TrendingUp as ArrowTrendingUp, RefreshCw, Activity, Users, ArrowUpRight, ArrowDownRight, MousePointerClick, BookOpen, Sparkles, Eye } from 'lucide-react';
 
 interface Customer360Data {
   id: string;
@@ -137,6 +138,12 @@ const Customer360Page = () => {
 
   // Fetch lifecycle history
   const { data: lifecycleHistory } = useCustomerLifecycleHistory(id);
+
+  // Fetch content intent metrics
+  const { data: contentIntentMetrics } = useCustomerContentIntentMetrics(id);
+
+  // Fetch content interaction history
+  const { data: interactionHistory } = useCustomerInteractionHistory(id, 10);
 
   // Fetch customer 360 data
   const { data: customer, isLoading } = useQuery({
@@ -1422,6 +1429,245 @@ const Customer360Page = () => {
                     <Activity className="h-12 w-12 mx-auto mb-3 opacity-30" />
                     <p>No lifecycle metrics available for this customer</p>
                     <p className="text-xs mt-1">Metrics will be calculated when the customer has activity</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Content Interaction & Intent Metrics Card */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Sparkles className="h-5 w-5" />
+                  Content Interaction & Intent Metrics
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {contentIntentMetrics ? (
+                  <>
+                    {/* Intent Score Hero */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                      <div className={`p-4 rounded-lg border-2 ${
+                        getIntentLevelConfig(contentIntentMetrics.intent_level).bgColor
+                      } ${getIntentLevelConfig(contentIntentMetrics.intent_level).color.replace('text-', 'border-')}`}>
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-medium">Intent Score</span>
+                          <Badge className={`${getIntentLevelConfig(contentIntentMetrics.intent_level).bgColor} ${getIntentLevelConfig(contentIntentMetrics.intent_level).color}`}>
+                            {getIntentLevelConfig(contentIntentMetrics.intent_level).label}
+                          </Badge>
+                        </div>
+                        <div className="flex items-end gap-2">
+                          <span className="text-3xl font-bold">{Number(contentIntentMetrics.intent_score).toFixed(0)}</span>
+                          <span className="text-lg text-muted-foreground mb-1">/100</span>
+                          {contentIntentMetrics.intent_trend === 'increasing' && (
+                            <ArrowUpRight className="h-5 w-5 text-emerald-500 mb-1" />
+                          )}
+                          {contentIntentMetrics.intent_trend === 'decreasing' && (
+                            <ArrowDownRight className="h-5 w-5 text-red-500 mb-1" />
+                          )}
+                        </div>
+                        <Progress 
+                          value={Number(contentIntentMetrics.intent_score)} 
+                          className="h-2 mt-2"
+                        />
+                      </div>
+
+                      <div className="p-4 bg-muted/50 rounded-lg">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-medium">Engagement Depth</span>
+                          <Eye className="h-4 w-4 text-muted-foreground" />
+                        </div>
+                        <span className="text-2xl font-bold">{Number(contentIntentMetrics.engagement_depth_score).toFixed(0)}%</span>
+                        <Progress 
+                          value={Number(contentIntentMetrics.engagement_depth_score)} 
+                          className="h-2 mt-2"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {contentIntentMetrics.total_messages_read_deeply} deep reads / {contentIntentMetrics.total_messages_opened} opens
+                        </p>
+                      </div>
+
+                      <div className="p-4 bg-muted/50 rounded-lg">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-medium">Message Relevance</span>
+                          <Target className="h-4 w-4 text-muted-foreground" />
+                        </div>
+                        <span className="text-2xl font-bold">{Number(contentIntentMetrics.message_relevance_score).toFixed(0)}%</span>
+                        <Progress 
+                          value={Number(contentIntentMetrics.message_relevance_score)} 
+                          className="h-2 mt-2"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Quick open rate: {Number(contentIntentMetrics.quick_open_rate).toFixed(0)}%
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Content Type Engagement */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                      <div className="p-4 bg-muted/30 rounded-lg">
+                        <h4 className="font-medium mb-3 flex items-center gap-2">
+                          <BookOpen className="h-4 w-4" />
+                          Content Type Engagement
+                        </h4>
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-muted-foreground">Story Content</span>
+                            <div className="text-right">
+                              <span className="text-sm font-medium">{contentIntentMetrics.total_story_views} views</span>
+                              <span className="text-xs text-muted-foreground ml-2">({Number(contentIntentMetrics.story_engagement_rate).toFixed(1)}% CTR)</span>
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-muted-foreground">Offer Content</span>
+                            <div className="text-right">
+                              <span className="text-sm font-medium">{contentIntentMetrics.total_offer_views} views</span>
+                              <span className="text-xs text-muted-foreground ml-2">({Number(contentIntentMetrics.offer_engagement_rate).toFixed(1)}% CTR)</span>
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between pt-2 border-t">
+                            <span className="text-sm text-muted-foreground">Preferred Type</span>
+                            <Badge variant="outline" className="capitalize">
+                              {contentIntentMetrics.preferred_content_type}
+                            </Badge>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="p-4 bg-muted/30 rounded-lg">
+                        <h4 className="font-medium mb-3 flex items-center gap-2">
+                          <BarChart3 className="h-4 w-4" />
+                          Edu vs Promo Response
+                        </h4>
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-muted-foreground">Educational</span>
+                            <div className="text-right">
+                              <span className="text-sm font-medium">{Number(contentIntentMetrics.educational_response_rate).toFixed(1)}%</span>
+                              <span className="text-xs text-muted-foreground ml-2">({contentIntentMetrics.educational_messages_engaged}/{contentIntentMetrics.educational_messages_received})</span>
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-muted-foreground">Promotional</span>
+                            <div className="text-right">
+                              <span className="text-sm font-medium">{Number(contentIntentMetrics.promotional_response_rate).toFixed(1)}%</span>
+                              <span className="text-xs text-muted-foreground ml-2">({contentIntentMetrics.promotional_messages_engaged}/{contentIntentMetrics.promotional_messages_received})</span>
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between pt-2 border-t">
+                            <span className="text-sm text-muted-foreground">Preference</span>
+                            <Badge className={`${getContentPreferenceConfig(contentIntentMetrics.content_preference as 'educational' | 'promotional' | 'balanced').bgColor} ${getContentPreferenceConfig(contentIntentMetrics.content_preference as 'educational' | 'promotional' | 'balanced').color}`}>
+                              {getContentPreferenceConfig(contentIntentMetrics.content_preference as 'educational' | 'promotional' | 'balanced').icon} {getContentPreferenceConfig(contentIntentMetrics.content_preference as 'educational' | 'promotional' | 'balanced').label}
+                            </Badge>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* CTA & Click Patterns */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                      <div className="p-3 bg-muted/50 rounded-lg">
+                        <p className="text-sm text-muted-foreground">CTA Click Rate</p>
+                        <p className="text-xl font-bold text-primary">{Number(contentIntentMetrics.cta_click_rate).toFixed(1)}%</p>
+                      </div>
+                      <div className="p-3 bg-muted/50 rounded-lg">
+                        <p className="text-sm text-muted-foreground">CTA Frequency</p>
+                        <p className="text-xl font-bold">{Number(contentIntentMetrics.cta_interaction_frequency).toFixed(2)}/msg</p>
+                      </div>
+                      <div className="p-3 bg-muted/50 rounded-lg">
+                        <p className="text-sm text-muted-foreground">Brand Story Open</p>
+                        <p className="text-xl font-bold">{Number(contentIntentMetrics.brand_story_open_rate).toFixed(1)}%</p>
+                      </div>
+                      <div className="p-3 bg-muted/50 rounded-lg">
+                        <p className="text-sm text-muted-foreground">Click Consistency</p>
+                        <p className="text-xl font-bold">{Number(contentIntentMetrics.click_pattern_consistency_score).toFixed(0)}%</p>
+                      </div>
+                    </div>
+
+                    {/* Click Pattern Details */}
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-4">
+                      <div className="p-3 bg-muted/30 rounded-lg">
+                        <p className="text-xs text-muted-foreground">Click Timing</p>
+                        <Badge className={`mt-1 ${getClickTimingConfig(contentIntentMetrics.click_timing_pattern as 'immediate' | 'considered' | 'delayed' | 'unknown').color}`}>
+                          {getClickTimingConfig(contentIntentMetrics.click_timing_pattern as 'immediate' | 'considered' | 'delayed' | 'unknown').label}
+                        </Badge>
+                      </div>
+                      <div className="p-3 bg-muted/30 rounded-lg">
+                        <p className="text-xs text-muted-foreground">Clicks (7d)</p>
+                        <p className="text-lg font-semibold">{contentIntentMetrics.cta_clicks_last_7d}</p>
+                      </div>
+                      <div className="p-3 bg-muted/30 rounded-lg">
+                        <p className="text-xs text-muted-foreground">Clicks (30d)</p>
+                        <p className="text-lg font-semibold">{contentIntentMetrics.cta_clicks_last_30d}</p>
+                      </div>
+                      <div className="p-3 bg-muted/30 rounded-lg">
+                        <p className="text-xs text-muted-foreground">Most Clicked CTA</p>
+                        <p className="text-sm font-medium capitalize">{contentIntentMetrics.most_clicked_cta_type || '-'}</p>
+                      </div>
+                      <div className="p-3 bg-muted/30 rounded-lg">
+                        <p className="text-xs text-muted-foreground">Depth Ratio</p>
+                        <p className="text-lg font-semibold">{(Number(contentIntentMetrics.depth_ratio) * 100).toFixed(0)}%</p>
+                      </div>
+                    </div>
+
+                    {/* Session Stats */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                      <div className="p-3 bg-emerald-50 dark:bg-emerald-950/30 rounded-lg border border-emerald-200 dark:border-emerald-800">
+                        <p className="text-sm text-emerald-700 dark:text-emerald-300">Multi-Content Sessions</p>
+                        <p className="text-xl font-bold text-emerald-800 dark:text-emerald-200">{contentIntentMetrics.multi_content_sessions}</p>
+                      </div>
+                      <div className="p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-800">
+                        <p className="text-sm text-blue-700 dark:text-blue-300">Single-Content Sessions</p>
+                        <p className="text-xl font-bold text-blue-800 dark:text-blue-200">{contentIntentMetrics.single_content_sessions}</p>
+                      </div>
+                      <div className="p-3 bg-purple-50 dark:bg-purple-950/30 rounded-lg border border-purple-200 dark:border-purple-800">
+                        <p className="text-sm text-purple-700 dark:text-purple-300">First CTA Clicks</p>
+                        <p className="text-xl font-bold text-purple-800 dark:text-purple-200">{contentIntentMetrics.clicks_on_first_cta}</p>
+                      </div>
+                      <div className="p-3 bg-orange-50 dark:bg-orange-950/30 rounded-lg border border-orange-200 dark:border-orange-800">
+                        <p className="text-sm text-orange-700 dark:text-orange-300">After-Scroll Clicks</p>
+                        <p className="text-xl font-bold text-orange-800 dark:text-orange-200">{contentIntentMetrics.clicks_after_scrolling}</p>
+                      </div>
+                    </div>
+
+                    {/* Interaction History */}
+                    {interactionHistory && interactionHistory.length > 0 && (
+                      <div className="mt-4 pt-4 border-t">
+                        <h4 className="font-medium mb-3 flex items-center gap-2">
+                          <MousePointerClick className="h-4 w-4" />
+                          Recent Interactions
+                        </h4>
+                        <div className="space-y-2 max-h-48 overflow-y-auto">
+                          {interactionHistory.slice(0, 5).map((event) => (
+                            <div key={event.id} className="flex items-center justify-between p-2 bg-muted/30 rounded-lg">
+                              <div className="flex items-center gap-3">
+                                <Badge variant="outline" className="capitalize">
+                                  {event.channel}
+                                </Badge>
+                                <div>
+                                  <p className="text-sm font-medium capitalize">{event.interaction_type.replace('_', ' ')}</p>
+                                  <p className="text-xs text-muted-foreground capitalize">{event.content_type} - {event.content_category || 'General'}</p>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                {event.is_deep_engagement && (
+                                  <Badge variant="default" className="text-xs bg-emerald-500">Deep</Badge>
+                                )}
+                                <p className="text-xs text-muted-foreground">
+                                  {format(new Date(event.created_at), 'MMM d, h:mm a')}
+                                </p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Sparkles className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                    <p>No content intent metrics available for this customer</p>
+                    <p className="text-xs mt-1">Metrics will be calculated when the customer interacts with content</p>
                   </div>
                 )}
               </CardContent>
