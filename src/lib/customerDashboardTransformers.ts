@@ -364,14 +364,18 @@ export interface TimelineDisplayEvent {
 export const transformToTimelineEvents = (
   events: TimelineEvent[]
 ): TimelineDisplayEvent[] => {
-  return events.map((event) => ({
-    id: event.id,
-    type: mapEventType(event.event_type, event.event_category) as TimelineDisplayEvent['type'],
-    timestamp: event.created_at,
-    title: event.title,
-    description: event.description,
-    impact: event.impact,
-  }));
+  if (!events || !Array.isArray(events)) return [];
+  
+  return events
+    .filter((event) => event?.id && event?.event_type)
+    .map((event) => ({
+      id: event.id,
+      type: mapEventType(event.event_type ?? '', event.event_category ?? '') as TimelineDisplayEvent['type'],
+      timestamp: event.created_at ?? new Date().toISOString(),
+      title: event.title ?? 'Event',
+      description: event.description ?? '',
+      impact: (event.impact as TimelineDisplayEvent['impact']) ?? 'neutral',
+    }));
 };
 
 const mapEventType = (eventType: string, category: string): string => {

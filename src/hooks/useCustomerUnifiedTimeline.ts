@@ -33,19 +33,25 @@ export const useCustomerUnifiedTimeline = (
     queryFn: async () => {
       if (!customerId) return [];
 
-      const { data, error } = await supabase.rpc('get_customer_unified_timeline', {
-        p_customer_id: customerId,
-        p_limit: limit,
-        p_offset: offset,
-        p_event_types: eventTypes,
-      });
+      try {
+        const { data, error } = await supabase.rpc('get_customer_unified_timeline', {
+          p_customer_id: customerId,
+          p_limit: limit,
+          p_offset: offset,
+          p_event_types: eventTypes,
+        });
 
-      if (error) {
-        console.error('Error fetching unified timeline:', error);
-        throw error;
+        if (error) {
+          console.error('Error fetching unified timeline:', error);
+          // Return empty array instead of throwing to prevent page crash
+          return [];
+        }
+
+        return (data || []) as TimelineEvent[];
+      } catch (err) {
+        console.error('Unexpected error in timeline fetch:', err);
+        return [];
       }
-
-      return (data || []) as TimelineEvent[];
     },
     enabled: !!customerId,
   });
