@@ -4,8 +4,6 @@ import React, {
   useEffect,
   useCallback,
   ReactNode,
-  KeyboardEvent,
-  MouseEvent,
 } from 'react';
 import { createPortal } from 'react-dom';
 import { MoreHorizontal, MoreVertical, LucideIcon } from 'lucide-react';
@@ -72,24 +70,36 @@ const isActionItem = (item: ActionMenuItemType): item is ActionMenuItem => {
 // ============================================================================
 
 function useClickOutside(
-  refs: React.RefObject<HTMLElement>[],
+  triggerRef: React.RefObject<HTMLElement | null>,
+  dropdownRef: React.RefObject<HTMLElement | null>,
   handler: () => void,
   enabled: boolean
 ) {
   useEffect(() => {
     if (!enabled) return;
 
-    const handleClick = (event: globalThis.MouseEvent) => {
+    const handleClickOutside = (event: globalThis.MouseEvent) => {
       const target = event.target as Node;
-      const isOutside = refs.every(ref => ref.current && !ref.current.contains(target));
-      if (isOutside) {
+      
+      // Check if click is outside both trigger and dropdown
+      const isOutsideTrigger = !triggerRef.current || !triggerRef.current.contains(target);
+      const isOutsideDropdown = !dropdownRef.current || !dropdownRef.current.contains(target);
+      
+      if (isOutsideTrigger && isOutsideDropdown) {
         handler();
       }
     };
 
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, [refs, handler, enabled]);
+    // Use setTimeout to avoid immediate close on the same click that opened it
+    const timeoutId = setTimeout(() => {
+      document.addEventListener('mousedown', handleClickOutside);
+    }, 0);
+    
+    return () => {
+      clearTimeout(timeoutId);
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [triggerRef, dropdownRef, handler, enabled]);
 }
 
 // ============================================================================
@@ -340,17 +350,19 @@ export const ActionMenu: React.FC<ActionMenuProps> = ({
     onConfirm: () => {},
   });
 
-  const triggerRef = useRef<HTMLButtonElement>(null);
+  const triggerRef = useRef<HTMLElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Support controlled and uncontrolled modes
-  const isOpen = controlledOpen !== undefined ? controlledOpen : internalOpen;
+  const isControlled = controlledOpen !== undefined;
+  const isOpen = isControlled ? controlledOpen : internalOpen;
+  
   const setIsOpen = useCallback((value: boolean) => {
-    if (controlledOpen === undefined) {
+    if (!isControlled) {
       setInternalOpen(value);
     }
     onOpenChange?.(value);
-  }, [controlledOpen, onOpenChange]);
+  }, [isControlled, onOpenChange]);
 
   // Flatten items for keyboard navigation
   const flattenedItems: ActionMenuItem[] = [];
@@ -396,7 +408,7 @@ export const ActionMenu: React.FC<ActionMenuProps> = ({
   }, [closeDropdown, setIsOpen]);
 
   // Handle keyboard navigation
-  const handleKeyDown = useCallback((event: KeyboardEvent<HTMLElement>) => {
+  const handleKeyDown = useCallback((event: React.KeyboardEvent<HTMLElement>) => {
     if (!isOpen) return;
 
     switch (event.key) {
@@ -426,14 +438,16 @@ export const ActionMenu: React.FC<ActionMenuProps> = ({
   }, [isOpen, flattenedItems, focusedIndex, handleItemClick, closeDropdown]);
 
   // Click outside detection
-  useClickOutside([triggerRef, dropdownRef], closeDropdown, isOpen);
+  useClickOutside(triggerRef, dropdownRef, closeDropdown, isOpen);
 
   // Dropdown positioning
   const position = useDropdownPosition(triggerRef, dropdownRef, isOpen, align, side);
 
-  // Toggle dropdown
-  const toggleDropdown = (e: MouseEvent) => {
+  // Toggle dropdown - simple click handler
+  const handleTriggerClick = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
     e.stopPropagation();
+    
     if (disabled) return;
     
     if (isOpen) {
@@ -442,7 +456,7 @@ export const ActionMenu: React.FC<ActionMenuProps> = ({
       setIsOpen(true);
       setFocusedIndex(0);
     }
-  };
+  }, [disabled, isOpen, closeDropdown, setIsOpen]);
 
   // Render trigger
   const renderTrigger = () => {
@@ -450,15 +464,15 @@ export const ActionMenu: React.FC<ActionMenuProps> = ({
       const IconComponent = trigger === 'vertical' ? MoreVertical : MoreHorizontal;
       return (
         <button
-          ref={triggerRef}
+          ref={triggerRef as React.RefObject<HTMLButtonElement>}
           type="button"
-          onClick={toggleDropdown}
+          onClick={handleTriggerClick}
           onKeyDown={handleKeyDown}
           disabled={disabled}
           aria-haspopup="menu"
           aria-expanded={isOpen}
           className={cn(
-            'inline-flex items-center justify-center rounded-md h-8 w-8 p-0 text-sm font-medium transition-colors',
+            'inline-flex items-center justify-center rounded-md h-8 w-8 p-0 text-sm font-medium transition-colors cursor-pointer',
             'hover:bg-accent hover:text-accent-foreground',
             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
             'disabled:pointer-events-none disabled:opacity-50',
@@ -474,14 +488,14 @@ export const ActionMenu: React.FC<ActionMenuProps> = ({
     // Custom trigger element
     return (
       <div
-        ref={triggerRef as any}
-        onClick={toggleDropdown}
+        ref={triggerRef as React.RefObject<HTMLDivElement>}
+        onClick={handleTriggerClick}
         onKeyDown={handleKeyDown}
         role="button"
         tabIndex={disabled ? -1 : 0}
         aria-haspopup="menu"
         aria-expanded={isOpen}
-        className={cn('cursor-pointer', disabled && 'pointer-events-none opacity-50', triggerClassName)}
+        className={cn('cursor-pointer inline-flex', disabled && 'pointer-events-none opacity-50', triggerClassName)}
       >
         {trigger}
       </div>
