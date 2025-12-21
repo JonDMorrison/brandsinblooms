@@ -11819,6 +11819,24 @@ export type Database = {
           user_id: string
         }[]
       }
+      get_customer_unified_timeline: {
+        Args: {
+          p_customer_id: string
+          p_event_types?: string[]
+          p_limit?: number
+          p_offset?: number
+        }
+        Returns: {
+          created_at: string
+          description: string
+          event_category: string
+          event_type: string
+          id: string
+          impact: string
+          metadata: Json
+          title: string
+        }[]
+      }
       get_deliverability_status: {
         Args: { p_domain_id: string }
         Returns: Json
