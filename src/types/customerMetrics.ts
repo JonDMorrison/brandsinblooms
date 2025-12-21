@@ -236,3 +236,97 @@ export interface PurchaseStats {
     vip: number;
   };
 }
+
+// =============================================
+// POST-PURCHASE BEHAVIOR METRICS
+// =============================================
+
+export interface CustomerPostPurchaseMetrics {
+  id: string;
+  customer_id: string;
+  tenant_id: string;
+  
+  // Post-purchase email engagement
+  post_purchase_emails_sent: number;
+  post_purchase_emails_opened: number;
+  post_purchase_emails_clicked: number;
+  post_purchase_email_open_rate: number;
+  post_purchase_email_ctr: number;
+  
+  // Post-purchase SMS engagement
+  post_purchase_sms_sent: number;
+  post_purchase_sms_delivered: number;
+  post_purchase_sms_clicked: number;
+  post_purchase_follow_up_ctr: number;
+  
+  // Time to next purchase
+  avg_time_to_next_purchase_days: number | null;
+  min_time_to_next_purchase_days: number | null;
+  max_time_to_next_purchase_days: number | null;
+  last_time_to_next_purchase_days: number | null;
+  
+  // Incentive & Coupon metrics
+  total_incentives_offered: number;
+  total_incentives_redeemed: number;
+  incentive_redemption_rate: number;
+  total_coupon_value_redeemed: number;
+  unique_coupons_used: number;
+  coupon_usage_frequency: number;
+  
+  // Incentive dependency
+  purchases_with_incentive: number;
+  purchases_without_incentive: number;
+  incentive_dependency_score: number;
+  
+  // Automation attribution
+  total_automation_messages: number;
+  purchases_after_automation: number;
+  automation_conversion_rate: number;
+  last_automation_purchase_at: string | null;
+  
+  // Drop-off analysis
+  incentives_expired_unused: number;
+  drop_off_after_incentive_rate: number;
+  days_since_last_incentive_redemption: number | null;
+  
+  // Aggregate scores
+  post_purchase_engagement_score: number;
+  incentive_effectiveness_score: number;
+  
+  created_at: string;
+  updated_at: string;
+}
+
+export interface IncentiveTracking {
+  id: string;
+  tenant_id: string;
+  customer_id: string;
+  incentive_type: string;
+  code: string | null;
+  value: number | null;
+  value_type: string | null;
+  source_type: string;
+  source_id: string | null;
+  automation_id: string | null;
+  campaign_id: string | null;
+  sent_at: string;
+  expires_at: string | null;
+  redeemed_at: string | null;
+  redemption_order_id: string | null;
+  redemption_amount: number | null;
+  order_total: number | null;
+  status: 'sent' | 'redeemed' | 'expired' | 'cancelled';
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PostPurchaseStats {
+  avgEmailOpenRate: number;
+  avgFollowUpCtr: number;
+  avgTimeToNextPurchase: number | null;
+  avgRedemptionRate: number;
+  avgCouponUsageFrequency: number;
+  avgIncentiveDependencyScore: number;
+  avgAutomationConversionRate: number;
+  avgDropOffRate: number;
+}

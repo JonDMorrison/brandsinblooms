@@ -3549,6 +3549,152 @@ export type Database = {
           },
         ]
       }
+      customer_post_purchase_metrics: {
+        Row: {
+          automation_conversion_rate: number | null
+          avg_time_to_next_purchase_days: number | null
+          coupon_usage_frequency: number | null
+          created_at: string | null
+          customer_id: string
+          days_since_last_incentive_redemption: number | null
+          drop_off_after_incentive_rate: number | null
+          id: string
+          incentive_dependency_score: number | null
+          incentive_effectiveness_score: number | null
+          incentive_redemption_rate: number | null
+          incentives_expired_unused: number | null
+          last_automation_purchase_at: string | null
+          last_time_to_next_purchase_days: number | null
+          max_time_to_next_purchase_days: number | null
+          min_time_to_next_purchase_days: number | null
+          post_purchase_email_ctr: number | null
+          post_purchase_email_open_rate: number | null
+          post_purchase_emails_clicked: number | null
+          post_purchase_emails_opened: number | null
+          post_purchase_emails_sent: number | null
+          post_purchase_engagement_score: number | null
+          post_purchase_follow_up_ctr: number | null
+          post_purchase_sms_clicked: number | null
+          post_purchase_sms_delivered: number | null
+          post_purchase_sms_sent: number | null
+          purchases_after_automation: number | null
+          purchases_with_incentive: number | null
+          purchases_without_incentive: number | null
+          tenant_id: string
+          total_automation_messages: number | null
+          total_coupon_value_redeemed: number | null
+          total_incentives_offered: number | null
+          total_incentives_redeemed: number | null
+          unique_coupons_used: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          automation_conversion_rate?: number | null
+          avg_time_to_next_purchase_days?: number | null
+          coupon_usage_frequency?: number | null
+          created_at?: string | null
+          customer_id: string
+          days_since_last_incentive_redemption?: number | null
+          drop_off_after_incentive_rate?: number | null
+          id?: string
+          incentive_dependency_score?: number | null
+          incentive_effectiveness_score?: number | null
+          incentive_redemption_rate?: number | null
+          incentives_expired_unused?: number | null
+          last_automation_purchase_at?: string | null
+          last_time_to_next_purchase_days?: number | null
+          max_time_to_next_purchase_days?: number | null
+          min_time_to_next_purchase_days?: number | null
+          post_purchase_email_ctr?: number | null
+          post_purchase_email_open_rate?: number | null
+          post_purchase_emails_clicked?: number | null
+          post_purchase_emails_opened?: number | null
+          post_purchase_emails_sent?: number | null
+          post_purchase_engagement_score?: number | null
+          post_purchase_follow_up_ctr?: number | null
+          post_purchase_sms_clicked?: number | null
+          post_purchase_sms_delivered?: number | null
+          post_purchase_sms_sent?: number | null
+          purchases_after_automation?: number | null
+          purchases_with_incentive?: number | null
+          purchases_without_incentive?: number | null
+          tenant_id: string
+          total_automation_messages?: number | null
+          total_coupon_value_redeemed?: number | null
+          total_incentives_offered?: number | null
+          total_incentives_redeemed?: number | null
+          unique_coupons_used?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          automation_conversion_rate?: number | null
+          avg_time_to_next_purchase_days?: number | null
+          coupon_usage_frequency?: number | null
+          created_at?: string | null
+          customer_id?: string
+          days_since_last_incentive_redemption?: number | null
+          drop_off_after_incentive_rate?: number | null
+          id?: string
+          incentive_dependency_score?: number | null
+          incentive_effectiveness_score?: number | null
+          incentive_redemption_rate?: number | null
+          incentives_expired_unused?: number | null
+          last_automation_purchase_at?: string | null
+          last_time_to_next_purchase_days?: number | null
+          max_time_to_next_purchase_days?: number | null
+          min_time_to_next_purchase_days?: number | null
+          post_purchase_email_ctr?: number | null
+          post_purchase_email_open_rate?: number | null
+          post_purchase_emails_clicked?: number | null
+          post_purchase_emails_opened?: number | null
+          post_purchase_emails_sent?: number | null
+          post_purchase_engagement_score?: number | null
+          post_purchase_follow_up_ctr?: number | null
+          post_purchase_sms_clicked?: number | null
+          post_purchase_sms_delivered?: number | null
+          post_purchase_sms_sent?: number | null
+          purchases_after_automation?: number | null
+          purchases_with_incentive?: number | null
+          purchases_without_incentive?: number | null
+          tenant_id?: string
+          total_automation_messages?: number | null
+          total_coupon_value_redeemed?: number | null
+          total_incentives_offered?: number | null
+          total_incentives_redeemed?: number | null
+          unique_coupons_used?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_post_purchase_metrics_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: true
+            referencedRelation: "crm_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_post_purchase_metrics_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: true
+            referencedRelation: "customer_360_enriched"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_post_purchase_metrics_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "admin_tenant_overview"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "customer_post_purchase_metrics_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customer_purchase_metrics: {
         Row: {
           average_order_value: number | null
@@ -5735,6 +5881,118 @@ export type Database = {
             columns: ["migration_job_id"]
             isOneToOne: false
             referencedRelation: "migration_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      incentive_tracking: {
+        Row: {
+          automation_id: string | null
+          campaign_id: string | null
+          code: string | null
+          created_at: string | null
+          customer_id: string
+          expires_at: string | null
+          id: string
+          incentive_type: string
+          order_total: number | null
+          redeemed_at: string | null
+          redemption_amount: number | null
+          redemption_order_id: string | null
+          sent_at: string
+          source_id: string | null
+          source_type: string
+          status: string | null
+          tenant_id: string
+          updated_at: string | null
+          value: number | null
+          value_type: string | null
+        }
+        Insert: {
+          automation_id?: string | null
+          campaign_id?: string | null
+          code?: string | null
+          created_at?: string | null
+          customer_id: string
+          expires_at?: string | null
+          id?: string
+          incentive_type: string
+          order_total?: number | null
+          redeemed_at?: string | null
+          redemption_amount?: number | null
+          redemption_order_id?: string | null
+          sent_at?: string
+          source_id?: string | null
+          source_type: string
+          status?: string | null
+          tenant_id: string
+          updated_at?: string | null
+          value?: number | null
+          value_type?: string | null
+        }
+        Update: {
+          automation_id?: string | null
+          campaign_id?: string | null
+          code?: string | null
+          created_at?: string | null
+          customer_id?: string
+          expires_at?: string | null
+          id?: string
+          incentive_type?: string
+          order_total?: number | null
+          redeemed_at?: string | null
+          redemption_amount?: number | null
+          redemption_order_id?: string | null
+          sent_at?: string
+          source_id?: string | null
+          source_type?: string
+          status?: string | null
+          tenant_id?: string
+          updated_at?: string | null
+          value?: number | null
+          value_type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "incentive_tracking_automation_id_fkey"
+            columns: ["automation_id"]
+            isOneToOne: false
+            referencedRelation: "crm_automations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "incentive_tracking_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "crm_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "incentive_tracking_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "crm_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "incentive_tracking_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customer_360_enriched"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "incentive_tracking_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "admin_tenant_overview"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "incentive_tracking_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
         ]
@@ -10197,6 +10455,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      mark_expired_incentives: { Args: never; Returns: number }
       mark_onboarding_completed: {
         Args: { p_company?: string }
         Returns: undefined
@@ -10212,6 +10471,10 @@ export type Database = {
       recalculate_customer_engagement: {
         Args: { p_customer_id: string }
         Returns: undefined
+      }
+      recalculate_post_purchase_metrics: {
+        Args: { p_customer_id: string }
+        Returns: boolean
       }
       recalculate_purchase_metrics: {
         Args: { p_customer_id: string }
@@ -10258,6 +10521,10 @@ export type Database = {
         Returns: boolean
       }
       refresh_all_cross_channel_metrics: {
+        Args: { p_tenant_id?: string }
+        Returns: number
+      }
+      refresh_all_post_purchase_metrics: {
         Args: { p_tenant_id?: string }
         Returns: number
       }
@@ -10314,6 +10581,30 @@ export type Database = {
           original_size_bytes: number
         }
         Returns: undefined
+      }
+      track_incentive_redeemed: {
+        Args: {
+          p_code: string
+          p_customer_id: string
+          p_discount_applied?: number
+          p_order_id?: string
+          p_order_total?: number
+        }
+        Returns: boolean
+      }
+      track_incentive_sent: {
+        Args: {
+          p_code?: string
+          p_customer_id: string
+          p_expires_at?: string
+          p_incentive_type?: string
+          p_source_id?: string
+          p_source_type?: string
+          p_tenant_id: string
+          p_value?: number
+          p_value_type?: string
+        }
+        Returns: string
       }
       update_cross_channel_metrics: {
         Args: { p_channel: string; p_customer_id: string; p_event_type: string }

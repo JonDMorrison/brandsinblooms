@@ -37,6 +37,8 @@ import { SendSMSDialog } from '@/components/crm/customer360/SendSMSDialog';
 import { AddToSegmentDialog } from '@/components/crm/customer360/AddToSegmentDialog';
 import { useCustomerCrossChannelMetrics } from '@/hooks/useCrossChannelMetrics';
 import { useCustomerPurchaseMetrics } from '@/hooks/usePurchaseMetrics';
+import { useCustomerPostPurchaseMetrics, useCustomerIncentiveHistory } from '@/hooks/usePostPurchaseMetrics';
+import { Gift, Percent, Timer, Target, BarChart3 } from 'lucide-react';
 
 interface Customer360Data {
   id: string;
@@ -115,6 +117,12 @@ const Customer360Page = () => {
 
   // Fetch purchase metrics
   const { data: purchaseMetrics } = useCustomerPurchaseMetrics(id);
+
+  // Fetch post-purchase metrics
+  const { data: postPurchaseMetrics } = useCustomerPostPurchaseMetrics(id);
+
+  // Fetch incentive history
+  const { data: incentiveHistory } = useCustomerIncentiveHistory(id);
 
   // Fetch customer 360 data
   const { data: customer, isLoading } = useQuery({
@@ -672,6 +680,210 @@ const Customer360Page = () => {
                   <div className="text-center py-8 text-muted-foreground">
                     <ShoppingCart className="h-12 w-12 mx-auto mb-3 opacity-30" />
                     <p>No purchase data available for this customer</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Post-Purchase Behavior Card */}
+            <Card className="md:col-span-2">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Gift className="h-5 w-5" />
+                  Post-Purchase Behavior
+                  {postPurchaseMetrics && postPurchaseMetrics.post_purchase_engagement_score > 0 && (
+                    <Badge variant="outline" className="ml-2">
+                      Score: {Number(postPurchaseMetrics.post_purchase_engagement_score).toFixed(0)}
+                    </Badge>
+                  )}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {postPurchaseMetrics ? (
+                  <>
+                    {/* Post-Purchase Email Engagement */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                      <div className="p-4 bg-gradient-to-br from-blue-500/10 to-blue-500/5 rounded-lg border border-blue-500/20">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Mail className="h-4 w-4 text-blue-500" />
+                          <p className="text-sm text-muted-foreground">Post-Purchase Open Rate</p>
+                        </div>
+                        <p className="text-2xl font-bold text-blue-600">
+                          {Number(postPurchaseMetrics.post_purchase_email_open_rate).toFixed(1)}%
+                        </p>
+                      </div>
+
+                      <div className="p-4 bg-gradient-to-br from-cyan-500/10 to-cyan-500/5 rounded-lg border border-cyan-500/20">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Target className="h-4 w-4 text-cyan-500" />
+                          <p className="text-sm text-muted-foreground">Follow-Up CTR</p>
+                        </div>
+                        <p className="text-2xl font-bold text-cyan-600">
+                          {Number(postPurchaseMetrics.post_purchase_follow_up_ctr).toFixed(1)}%
+                        </p>
+                      </div>
+
+                      <div className="p-4 bg-gradient-to-br from-purple-500/10 to-purple-500/5 rounded-lg border border-purple-500/20">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Timer className="h-4 w-4 text-purple-500" />
+                          <p className="text-sm text-muted-foreground">Avg Time to Next Purchase</p>
+                        </div>
+                        <p className="text-2xl font-bold text-purple-600">
+                          {postPurchaseMetrics.avg_time_to_next_purchase_days 
+                            ? `${Number(postPurchaseMetrics.avg_time_to_next_purchase_days).toFixed(0)} days`
+                            : '-'}
+                        </p>
+                      </div>
+
+                      <div className="p-4 bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 rounded-lg border border-emerald-500/20">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Percent className="h-4 w-4 text-emerald-500" />
+                          <p className="text-sm text-muted-foreground">Incentive Redemption</p>
+                        </div>
+                        <p className="text-2xl font-bold text-emerald-600">
+                          {Number(postPurchaseMetrics.incentive_redemption_rate).toFixed(1)}%
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Incentive & Automation Metrics */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                      {/* Coupon & Incentive Usage */}
+                      <div className="p-4 border rounded-lg">
+                        <h4 className="font-medium mb-3 flex items-center gap-2">
+                          <Tag className="h-4 w-4" />
+                          Coupon & Incentive Usage
+                        </h4>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <p className="text-sm text-muted-foreground">Coupons Offered</p>
+                            <p className="text-xl font-bold">{postPurchaseMetrics.total_incentives_offered}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-muted-foreground">Coupons Redeemed</p>
+                            <p className="text-xl font-bold text-emerald-600">{postPurchaseMetrics.total_incentives_redeemed}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-muted-foreground">Usage Frequency</p>
+                            <p className="text-xl font-bold">
+                              {Number(postPurchaseMetrics.coupon_usage_frequency).toFixed(2)}<span className="text-sm text-muted-foreground">/purchase</span>
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-muted-foreground">Total Saved</p>
+                            <p className="text-xl font-bold text-emerald-600">
+                              ${Number(postPurchaseMetrics.total_coupon_value_redeemed).toFixed(2)}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Dependency & Attribution */}
+                      <div className="p-4 border rounded-lg">
+                        <h4 className="font-medium mb-3 flex items-center gap-2">
+                          <BarChart3 className="h-4 w-4" />
+                          Dependency & Attribution
+                        </h4>
+                        <div className="space-y-3">
+                          <div>
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-sm text-muted-foreground">Incentive Dependency</span>
+                              <span className="text-sm font-medium">{Number(postPurchaseMetrics.incentive_dependency_score).toFixed(0)}%</span>
+                            </div>
+                            <Progress value={Number(postPurchaseMetrics.incentive_dependency_score)} className="h-2" />
+                          </div>
+                          <div>
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-sm text-muted-foreground">Automation Conversion</span>
+                              <span className="text-sm font-medium">{Number(postPurchaseMetrics.automation_conversion_rate).toFixed(0)}%</span>
+                            </div>
+                            <Progress value={Number(postPurchaseMetrics.automation_conversion_rate)} className="h-2" />
+                          </div>
+                          <div>
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-sm text-muted-foreground">Drop-off Rate</span>
+                              <span className={`text-sm font-medium ${Number(postPurchaseMetrics.drop_off_after_incentive_rate) > 50 ? 'text-red-500' : ''}`}>
+                                {Number(postPurchaseMetrics.drop_off_after_incentive_rate).toFixed(0)}%
+                              </span>
+                            </div>
+                            <Progress 
+                              value={Number(postPurchaseMetrics.drop_off_after_incentive_rate)} 
+                              className={`h-2 ${Number(postPurchaseMetrics.drop_off_after_incentive_rate) > 50 ? '[&>div]:bg-red-500' : ''}`} 
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Additional Stats Row */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div className="p-3 bg-muted/50 rounded-lg">
+                        <p className="text-sm text-muted-foreground">Purchases w/ Incentive</p>
+                        <p className="text-lg font-semibold">{postPurchaseMetrics.purchases_with_incentive}</p>
+                      </div>
+                      <div className="p-3 bg-muted/50 rounded-lg">
+                        <p className="text-sm text-muted-foreground">Purchases w/o Incentive</p>
+                        <p className="text-lg font-semibold">{postPurchaseMetrics.purchases_without_incentive}</p>
+                      </div>
+                      <div className="p-3 bg-muted/50 rounded-lg">
+                        <p className="text-sm text-muted-foreground">Expired Unused</p>
+                        <p className="text-lg font-semibold text-amber-600">{postPurchaseMetrics.incentives_expired_unused}</p>
+                      </div>
+                      <div className="p-3 bg-muted/50 rounded-lg">
+                        <p className="text-sm text-muted-foreground">Purchases After Automation</p>
+                        <p className="text-lg font-semibold text-primary">{postPurchaseMetrics.purchases_after_automation}</p>
+                      </div>
+                    </div>
+
+                    {/* Incentive History */}
+                    {incentiveHistory && incentiveHistory.length > 0 && (
+                      <div className="mt-4 pt-4 border-t">
+                        <h4 className="font-medium mb-3 flex items-center gap-2">
+                          <Gift className="h-4 w-4" />
+                          Recent Incentives
+                        </h4>
+                        <div className="space-y-2 max-h-48 overflow-y-auto">
+                          {incentiveHistory.slice(0, 5).map((incentive) => (
+                            <div key={incentive.id} className="flex items-center justify-between p-2 bg-muted/30 rounded-lg">
+                              <div className="flex items-center gap-3">
+                                <Badge variant={
+                                  incentive.status === 'redeemed' ? 'default' :
+                                  incentive.status === 'expired' ? 'secondary' :
+                                  'outline'
+                                } className={
+                                  incentive.status === 'redeemed' ? 'bg-emerald-500' :
+                                  incentive.status === 'expired' ? 'bg-muted text-muted-foreground' :
+                                  ''
+                                }>
+                                  {incentive.status}
+                                </Badge>
+                                <div>
+                                  <p className="text-sm font-medium">{incentive.code || 'No code'}</p>
+                                  <p className="text-xs text-muted-foreground capitalize">
+                                    {incentive.incentive_type} • {incentive.source_type}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                {incentive.value && (
+                                  <p className="text-sm font-medium">
+                                    {incentive.value_type === 'percentage' ? `${incentive.value}%` : `$${incentive.value}`}
+                                  </p>
+                                )}
+                                <p className="text-xs text-muted-foreground">
+                                  {format(new Date(incentive.sent_at), 'MMM d, yyyy')}
+                                </p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Gift className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                    <p>No post-purchase metrics available for this customer</p>
                   </div>
                 )}
               </CardContent>
