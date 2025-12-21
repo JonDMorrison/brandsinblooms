@@ -9989,6 +9989,10 @@ export type Database = {
         Args: { p_customer_id: string }
         Returns: undefined
       }
+      recalculate_sms_engagement_score: {
+        Args: { p_customer_id: string }
+        Returns: undefined
+      }
       record_automation_usage: {
         Args: { p_tenant_id: string }
         Returns: boolean
@@ -10077,6 +10081,15 @@ export type Database = {
       }
       update_customer_email_metrics: {
         Args: { p_customer_id: string }
+        Returns: undefined
+      }
+      update_customer_sms_metrics: {
+        Args: {
+          p_customer_id: string
+          p_event_type: string
+          p_message_sent_at?: string
+          p_response_at?: string
+        }
         Returns: undefined
       }
       update_domain_warmup: {

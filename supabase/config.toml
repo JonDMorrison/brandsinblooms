@@ -344,3 +344,6 @@ verify_jwt = true
 
 [functions.send-admin-cost-alert]
 verify_jwt = false
+
+[functions.sms-link-redirect]
+verify_jwt = false
