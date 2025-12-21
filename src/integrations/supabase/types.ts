@@ -9477,87 +9477,63 @@ export type Database = {
       }
       customer_360_enriched: {
         Row: {
-          avg_time_to_click_minutes: number | null
-          avg_time_to_open_minutes: number | null
-          channel_email_score: number | null
-          channel_purchase_score: number | null
-          channel_sms_score: number | null
           city: string | null
           country_code: string | null
           created_at: string | null
-          days_since_last_email_open: number | null
-          days_since_last_engagement: number | null
-          days_since_last_purchase: number | null
           email: string | null
           email_bounce_rate: number | null
           email_click_rate: number | null
-          email_ctor: number | null
-          email_engagement_score: number | null
+          email_last_clicked_at: string | null
+          email_last_opened_at: string | null
+          email_last_sent_at: string | null
           email_open_rate: number | null
-          email_opt_in: boolean | null
+          email_total_bounced: number | null
+          email_total_clicked: number | null
+          email_total_delivered: number | null
+          email_total_opened: number | null
+          email_total_sent: number | null
+          email_total_unsubscribes: number | null
+          engagement_email_score: number | null
           engagement_last_calculated_at: string | null
-          engagement_metrics: Json | null
+          engagement_overall_score: number | null
+          engagement_purchase_score: number | null
+          engagement_sms_score: number | null
           engagement_tier: string | null
           first_name: string | null
-          first_purchase_date: string | null
+          first_seen_at: string | null
           id: string | null
-          is_vip: boolean | null
-          last_email_bounced_at: string | null
-          last_email_clicked_at: string | null
-          last_email_delivered_at: string | null
-          last_email_opened_at: string | null
-          last_email_sent_at: string | null
-          last_engagement_at: string | null
           last_name: string | null
-          last_purchase_date: string | null
-          lat: number | null
-          lifetime_value: number | null
-          lon: number | null
-          overall_engagement_score: number | null
-          persona: string | null
-          persona_id: string | null
+          last_seen_at: string | null
           phone: string | null
           postal_code: string | null
           preferred_channel: string | null
           signup_campaign: string | null
           signup_source: string | null
+          sms_avg_response_time_minutes: number | null
           sms_click_rate: number | null
           sms_delivery_rate: number | null
+          sms_engagement_score: number | null
+          sms_last_clicked_at: string | null
+          sms_last_delivered_at: string | null
+          sms_last_opt_out_at: string | null
           sms_last_replied_at: string | null
           sms_last_sent_at: string | null
-          sms_opt_in: boolean | null
+          sms_opt_out_rate: number | null
           sms_reply_rate: number | null
           sms_total_clicked: number | null
           sms_total_delivered: number | null
           sms_total_failed: number | null
+          sms_total_opt_outs: number | null
           sms_total_replied: number | null
           sms_total_sent: number | null
           state_region: string | null
           store_id: string | null
           store_name: string | null
-          suppressed: boolean | null
-          tags: string[] | null
           tenant_id: string | null
           timezone: string | null
-          total_emails_bounced: number | null
-          total_emails_clicked: number | null
-          total_emails_delivered: number | null
-          total_emails_opened: number | null
-          total_emails_sent: number | null
-          total_hard_bounces: number | null
-          total_soft_bounces: number | null
-          total_spent: number | null
-          total_unsubscribes: number | null
           updated_at: string | null
         }
         Relationships: [
-          {
-            foreignKeyName: "crm_customers_persona_id_fkey"
-            columns: ["persona_id"]
-            isOneToOne: false
-            referencedRelation: "personas"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "crm_customers_tenant_id_fkey"
             columns: ["tenant_id"]
