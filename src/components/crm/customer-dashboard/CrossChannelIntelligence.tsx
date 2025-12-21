@@ -2,6 +2,7 @@ import React from 'react';
 import { cn } from '@/lib/utils';
 import { DashboardSection } from './DashboardSection';
 import { EngagementRadarChart } from '@/components/charts/EngagementRadarChart';
+import { EmptyChartOverlay } from '@/components/ui/empty-chart-overlay';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Layers, Mail, MessageSquare, Star, Clock, AlertTriangle } from 'lucide-react';
@@ -72,15 +73,7 @@ export const CrossChannelIntelligence: React.FC<CrossChannelIntelligenceProps> =
     metrics.preferredChannel || 'email'
   );
 
-  // Sample channel trend if not provided
-  const trendData = channelTrend.length > 0 ? channelTrend : [
-    { month: 'Jan', preferredChannel: 'email' as const },
-    { month: 'Feb', preferredChannel: 'email' as const },
-    { month: 'Mar', preferredChannel: 'email' as const },
-    { month: 'Apr', preferredChannel: 'sms' as const },
-    { month: 'May', preferredChannel: 'sms' as const },
-    { month: 'Jun', preferredChannel: 'sms' as const },
-  ];
+  const hasChannelTrendData = channelTrend.length > 0;
 
   return (
     <DashboardSection
@@ -178,24 +171,32 @@ export const CrossChannelIntelligence: React.FC<CrossChannelIntelligenceProps> =
       {/* Channel Preference Trend */}
       <div className="mt-4 p-4 rounded-lg border border-border bg-card">
         <h4 className="text-sm font-medium text-foreground mb-3">Preferred Channel Trend</h4>
-        <div className="flex items-center gap-1 overflow-x-auto pb-2">
-          {trendData.map((item, index) => (
-            <div key={index} className="flex flex-col items-center min-w-[40px]">
-              <div className={cn(
-                'h-8 w-8 rounded-full flex items-center justify-center mb-1',
-                item.preferredChannel === 'email' 
-                  ? 'bg-blue-100 text-blue-600' 
-                  : 'bg-green-100 text-green-600'
-              )}>
-                {item.preferredChannel === 'email' 
-                  ? <Mail className="h-4 w-4" /> 
-                  : <MessageSquare className="h-4 w-4" />
-                }
+        {hasChannelTrendData ? (
+          <div className="flex items-center gap-1 overflow-x-auto pb-2">
+            {channelTrend.map((item, index) => (
+              <div key={index} className="flex flex-col items-center min-w-[40px]">
+                <div className={cn(
+                  'h-8 w-8 rounded-full flex items-center justify-center mb-1',
+                  item.preferredChannel === 'email' 
+                    ? 'bg-blue-100 text-blue-600' 
+                    : 'bg-green-100 text-green-600'
+                )}>
+                  {item.preferredChannel === 'email' 
+                    ? <Mail className="h-4 w-4" /> 
+                    : <MessageSquare className="h-4 w-4" />
+                  }
+                </div>
+                <span className="text-[10px] text-muted-foreground">{item.month}</span>
               </div>
-              <span className="text-[10px] text-muted-foreground">{item.month}</span>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <EmptyChartOverlay
+            message="No channel trend data available yet"
+            icon="activity"
+            height={80}
+          />
+        )}
       </div>
 
       {/* Days Since Last Engagement */}

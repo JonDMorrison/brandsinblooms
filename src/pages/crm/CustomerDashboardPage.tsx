@@ -44,6 +44,12 @@ const CustomerDashboardPage: React.FC = () => {
     riskSignals,
     negativeEvents,
     timelineEvents,
+    engagementTimeline,
+    purchaseTimeline,
+    emailHeatmapData,
+    smsHeatmapData,
+    channelTrend,
+    engagementDecay,
     isLoading,
     isCustomerLoading,
     hasError,
@@ -123,6 +129,10 @@ const CustomerDashboardPage: React.FC = () => {
       {/* 2. Engagement Health Overview */}
       <EngagementHealthOverview
         metrics={engagementMetrics}
+        timelineData={engagementTimeline.map(d => ({
+          date: d.date,
+          engagement: d.engagement,
+        }))}
       />
 
       {/* 3. Customer Event Timeline (Hero) */}
@@ -135,16 +145,20 @@ const CustomerDashboardPage: React.FC = () => {
       <ChannelDeepDive
         emailMetrics={emailMetrics}
         smsMetrics={smsMetrics}
+        emailHeatmapData={emailHeatmapData}
+        smsHeatmapData={smsHeatmapData}
       />
 
       {/* 5. Cross-Channel Intelligence */}
       <CrossChannelIntelligence
         metrics={crossChannelDisplayMetrics}
+        channelTrend={channelTrend}
       />
 
       {/* 6. Purchase & Value Behavior */}
       <PurchaseValueBehavior
         metrics={purchaseDisplayMetrics}
+        purchaseTimeline={purchaseTimeline}
       />
 
       {/* 7. Loyalty & Incentives Impact */}
@@ -156,6 +170,7 @@ const CustomerDashboardPage: React.FC = () => {
       <RiskNegativeSignals
         metrics={riskDisplayMetrics}
         recentEvents={recentRiskEvents}
+        engagementDecay={engagementDecay}
       />
 
       {/* 9. AI Insights & Next Best Actions */}

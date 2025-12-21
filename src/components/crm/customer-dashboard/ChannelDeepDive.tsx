@@ -4,6 +4,7 @@ import { DashboardSection } from './DashboardSection';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { FunnelChart } from '@/components/charts/FunnelChart';
 import { EngagementHeatmap } from '@/components/charts/EngagementHeatmap';
+import { EmptyChartOverlay } from '@/components/ui/empty-chart-overlay';
 import { Badge } from '@/components/ui/badge';
 import { Mail, MessageSquare, Clock, TrendingUp, TrendingDown } from 'lucide-react';
 
@@ -90,16 +91,8 @@ export const ChannelDeepDive: React.FC<ChannelDeepDiveProps> = ({
     },
   ];
 
-  // Generate sample heatmap data if none provided
-  const defaultHeatmapData = [
-    { day: 'Mon', hour: 9, value: 5 },
-    { day: 'Mon', hour: 12, value: 8 },
-    { day: 'Tue', hour: 9, value: 12 },
-    { day: 'Tue', hour: 15, value: 6 },
-    { day: 'Wed', hour: 12, value: 10 },
-    { day: 'Thu', hour: 9, value: 7 },
-    { day: 'Fri', hour: 15, value: 4 },
-  ];
+  const hasEmailHeatmapData = emailHeatmapData.length > 0;
+  const hasSmsHeatmapData = smsHeatmapData.length > 0;
 
   return (
     <DashboardSection
@@ -153,10 +146,18 @@ export const ChannelDeepDive: React.FC<ChannelDeepDiveProps> = ({
               {/* Click Heatmap */}
               <div className="p-4 rounded-lg border border-border bg-card">
                 <h4 className="text-sm font-medium text-foreground mb-3">Click Activity</h4>
-                <EngagementHeatmap 
-                  data={emailHeatmapData.length > 0 ? emailHeatmapData : defaultHeatmapData} 
-                  variant="clicks"
-                />
+                {hasEmailHeatmapData ? (
+                  <EngagementHeatmap 
+                    data={emailHeatmapData} 
+                    variant="clicks"
+                  />
+                ) : (
+                  <EmptyChartOverlay
+                    message="No email click activity data yet"
+                    icon="activity"
+                    height={120}
+                  />
+                )}
               </div>
             </div>
           </div>
@@ -215,10 +216,18 @@ export const ChannelDeepDive: React.FC<ChannelDeepDiveProps> = ({
 
               <div className="p-4 rounded-lg border border-border bg-card">
                 <h4 className="text-sm font-medium text-foreground mb-3">SMS Activity</h4>
-                <EngagementHeatmap 
-                  data={smsHeatmapData.length > 0 ? smsHeatmapData : defaultHeatmapData}
-                  variant="engagement"
-                />
+                {hasSmsHeatmapData ? (
+                  <EngagementHeatmap 
+                    data={smsHeatmapData}
+                    variant="engagement"
+                  />
+                ) : (
+                  <EmptyChartOverlay
+                    message="No SMS activity data yet"
+                    icon="activity"
+                    height={120}
+                  />
+                )}
               </div>
             </div>
           </div>

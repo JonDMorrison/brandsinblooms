@@ -2,6 +2,7 @@ import React from 'react';
 import { cn } from '@/lib/utils';
 import { DashboardSection } from './DashboardSection';
 import { RadialGauge } from '@/components/ui/radial-gauge';
+import { EmptyChartOverlay } from '@/components/ui/empty-chart-overlay';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -87,8 +88,7 @@ export const RiskNegativeSignals: React.FC<RiskNegativeSignalsProps> = ({
     { key: 'bounce', label: 'Bounce Risk', score: metrics.bounceRiskScore || 0, icon: <Mail className="h-3.5 w-3.5" /> },
   ];
 
-  // Sample decay data if none provided
-  const decayData = engagementDecay.length > 0 ? engagementDecay : [100, 95, 85, 72, 58, 45, 32, 25, 20, 18];
+  const hasDecayData = engagementDecay.length > 0 && engagementDecay.some(v => v > 0);
 
   return (
     <DashboardSection
@@ -183,23 +183,33 @@ export const RiskNegativeSignals: React.FC<RiskNegativeSignalsProps> = ({
       {/* Engagement Decay Curve */}
       <div className="p-4 rounded-lg border border-border bg-card mb-4">
         <h4 className="text-sm font-medium text-foreground mb-3">Engagement Decay Curve</h4>
-        <div className="h-20 flex items-end gap-1">
-          {decayData.map((value, index) => (
-            <div 
-              key={index}
-              className="flex-1 rounded-t transition-all"
-              style={{ 
-                height: `${value}%`,
-                backgroundColor: getRiskColor(100 - value),
-                opacity: 0.7 + (index / decayData.length) * 0.3
-              }}
-            />
-          ))}
-        </div>
-        <div className="flex justify-between mt-2 text-[10px] text-muted-foreground">
-          <span>Week 1</span>
-          <span>Current</span>
-        </div>
+        {hasDecayData ? (
+          <>
+            <div className="h-20 flex items-end gap-1">
+              {engagementDecay.map((value, index) => (
+                <div 
+                  key={index}
+                  className="flex-1 rounded-t transition-all"
+                  style={{ 
+                    height: `${Math.max(value, 5)}%`,
+                    backgroundColor: getRiskColor(100 - value),
+                    opacity: 0.7 + (index / engagementDecay.length) * 0.3
+                  }}
+                />
+              ))}
+            </div>
+            <div className="flex justify-between mt-2 text-[10px] text-muted-foreground">
+              <span>Week 1</span>
+              <span>Current</span>
+            </div>
+          </>
+        ) : (
+          <EmptyChartOverlay
+            message="No engagement decay data available yet"
+            icon="bar"
+            height={100}
+          />
+        )}
       </div>
 
       {/* Recent Negative Events */}

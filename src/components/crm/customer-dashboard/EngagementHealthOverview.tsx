@@ -3,6 +3,7 @@ import { cn } from '@/lib/utils';
 import { DashboardSection } from './DashboardSection';
 import { Sparkline } from '@/components/ui/sparkline';
 import { TimelineChart } from '@/components/charts/TimelineChart';
+import { EmptyChartOverlay } from '@/components/ui/empty-chart-overlay';
 import { Activity, TrendingUp, TrendingDown, Clock } from 'lucide-react';
 
 interface EngagementHealthOverviewProps {
@@ -43,14 +44,7 @@ export const EngagementHealthOverview: React.FC<EngagementHealthOverviewProps> =
   className,
 }) => {
   const velocityTrend = (metrics.engagementVelocity || 0) >= 0;
-
-  // Generate sample timeline data if none provided
-  const chartData = timelineData.length > 0 ? timelineData : [
-    { date: 'Week 1', engagement: 75 },
-    { date: 'Week 2', engagement: 68 },
-    { date: 'Week 3', engagement: 72 },
-    { date: 'Week 4', engagement: 65 },
-  ];
+  const hasTimelineData = timelineData.length > 0 && timelineData.some(d => (d.engagement || 0) > 0);
 
   return (
     <DashboardSection
@@ -60,17 +54,25 @@ export const EngagementHealthOverview: React.FC<EngagementHealthOverviewProps> =
       className={className}
     >
       {/* Main Chart */}
-      <div className="mb-6">
-        <TimelineChart
-          data={chartData.map(d => ({
-            date: d.date,
-            engagement: d.engagement,
-          }))}
-          height={180}
-          showOrders={false}
-          showRevenue={false}
-          showEngagement={true}
-        />
+      <div className="mb-6 relative">
+        {hasTimelineData ? (
+          <TimelineChart
+            data={timelineData.map(d => ({
+              date: d.date,
+              engagement: d.engagement,
+            }))}
+            height={180}
+            showOrders={false}
+            showRevenue={false}
+            showEngagement={true}
+          />
+        ) : (
+          <EmptyChartOverlay
+            message="No engagement timeline data available yet"
+            icon="line"
+            height={180}
+          />
+        )}
       </div>
 
       {/* Metrics Cards */}
