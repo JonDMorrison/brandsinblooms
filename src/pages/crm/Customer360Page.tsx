@@ -39,7 +39,8 @@ import { useCustomerCrossChannelMetrics } from '@/hooks/useCrossChannelMetrics';
 import { useCustomerPurchaseMetrics } from '@/hooks/usePurchaseMetrics';
 import { useCustomerPostPurchaseMetrics, useCustomerIncentiveHistory } from '@/hooks/usePostPurchaseMetrics';
 import { useCustomerLoyaltyMetrics, useCustomerPointsHistory } from '@/hooks/useLoyaltyMetrics';
-import { Gift, Percent, Timer, Target, BarChart3, Star, Trophy, Coins, TrendingUp as ArrowTrendingUp } from 'lucide-react';
+import { useCustomerLifecycleMetrics, useCustomerLifecycleHistory, getLifecycleStageConfig } from '@/hooks/useLifecycleMetrics';
+import { Gift, Percent, Timer, Target, BarChart3, Star, Trophy, Coins, TrendingUp as ArrowTrendingUp, RefreshCw, Activity, Users, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 
 interface Customer360Data {
   id: string;
@@ -130,6 +131,12 @@ const Customer360Page = () => {
 
   // Fetch points history
   const { data: pointsHistory } = useCustomerPointsHistory(id);
+
+  // Fetch lifecycle metrics
+  const { data: lifecycleMetrics } = useCustomerLifecycleMetrics(id);
+
+  // Fetch lifecycle history
+  const { data: lifecycleHistory } = useCustomerLifecycleHistory(id);
 
   // Fetch customer 360 data
   const { data: customer, isLoading } = useQuery({
@@ -1130,7 +1137,296 @@ const Customer360Page = () => {
               </CardContent>
             </Card>
 
-            {/* SMS Engagement Card */}
+            {/* Time-Based & Lifecycle Metrics Card */}
+            <Card className="md:col-span-2">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Activity className="h-5 w-5 text-indigo-500" />
+                  Time-Based & Lifecycle Metrics
+                  {lifecycleMetrics && (
+                    <Badge 
+                      variant="outline" 
+                      className={`ml-2 capitalize ${getLifecycleStageConfig(lifecycleMetrics.lifecycle_stage).borderColor} ${getLifecycleStageConfig(lifecycleMetrics.lifecycle_stage).color}`}
+                    >
+                      {getLifecycleStageConfig(lifecycleMetrics.lifecycle_stage).icon} {getLifecycleStageConfig(lifecycleMetrics.lifecycle_stage).label}
+                    </Badge>
+                  )}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {lifecycleMetrics ? (
+                  <>
+                    {/* Time-Based Metrics */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                      <div className={`p-4 rounded-lg border ${
+                        (lifecycleMetrics.days_since_signup ?? 0) > 365 
+                          ? 'bg-gradient-to-br from-purple-500/10 to-purple-500/5 border-purple-500/20' 
+                          : 'bg-muted/50 border-muted'
+                      }`}>
+                        <div className="flex items-center gap-2 mb-2">
+                          <Calendar className="h-4 w-4 text-purple-500" />
+                          <p className="text-sm text-muted-foreground">Days Since Signup</p>
+                        </div>
+                        <p className="text-2xl font-bold text-purple-600">
+                          {lifecycleMetrics.days_since_signup ?? '-'}
+                        </p>
+                        {lifecycleMetrics.customer_created_at && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {format(new Date(lifecycleMetrics.customer_created_at), 'MMM d, yyyy')}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className={`p-4 rounded-lg border ${
+                        (lifecycleMetrics.days_since_last_purchase ?? 0) > 45 
+                          ? 'bg-gradient-to-br from-orange-500/10 to-orange-500/5 border-orange-500/20' 
+                          : (lifecycleMetrics.days_since_last_purchase ?? 0) > 30 
+                            ? 'bg-gradient-to-br from-yellow-500/10 to-yellow-500/5 border-yellow-500/20'
+                            : 'bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 border-emerald-500/20'
+                      }`}>
+                        <div className="flex items-center gap-2 mb-2">
+                          <ShoppingCart className={`h-4 w-4 ${
+                            (lifecycleMetrics.days_since_last_purchase ?? 0) > 45 ? 'text-orange-500' :
+                            (lifecycleMetrics.days_since_last_purchase ?? 0) > 30 ? 'text-yellow-500' :
+                            'text-emerald-500'
+                          }`} />
+                          <p className="text-sm text-muted-foreground">Days Since Purchase</p>
+                        </div>
+                        <p className={`text-2xl font-bold ${
+                          (lifecycleMetrics.days_since_last_purchase ?? 0) > 45 ? 'text-orange-600' :
+                          (lifecycleMetrics.days_since_last_purchase ?? 0) > 30 ? 'text-yellow-600' :
+                          'text-emerald-600'
+                        }`}>
+                          {lifecycleMetrics.days_since_last_purchase ?? '-'}
+                        </p>
+                        {lifecycleMetrics.last_purchase_at && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {format(new Date(lifecycleMetrics.last_purchase_at), 'MMM d, yyyy')}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className={`p-4 rounded-lg border ${
+                        (lifecycleMetrics.days_since_last_engagement ?? 0) > 30 
+                          ? 'bg-gradient-to-br from-red-500/10 to-red-500/5 border-red-500/20' 
+                          : 'bg-gradient-to-br from-blue-500/10 to-blue-500/5 border-blue-500/20'
+                      }`}>
+                        <div className="flex items-center gap-2 mb-2">
+                          <MessageSquare className={`h-4 w-4 ${
+                            (lifecycleMetrics.days_since_last_engagement ?? 0) > 30 ? 'text-red-500' : 'text-blue-500'
+                          }`} />
+                          <p className="text-sm text-muted-foreground">Days Since Engagement</p>
+                        </div>
+                        <p className={`text-2xl font-bold ${
+                          (lifecycleMetrics.days_since_last_engagement ?? 0) > 30 ? 'text-red-600' : 'text-blue-600'
+                        }`}>
+                          {lifecycleMetrics.days_since_last_engagement ?? '-'}
+                        </p>
+                        {lifecycleMetrics.last_any_engagement_at && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {format(new Date(lifecycleMetrics.last_any_engagement_at), 'MMM d, yyyy')}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="p-4 bg-muted/50 rounded-lg border border-muted">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Zap className="h-4 w-4 text-muted-foreground" />
+                          <p className="text-sm text-muted-foreground">Days Since Automation</p>
+                        </div>
+                        <p className="text-2xl font-bold">
+                          {lifecycleMetrics.days_since_last_automation ?? '-'}
+                        </p>
+                        {lifecycleMetrics.last_automation_received_at && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {format(new Date(lifecycleMetrics.last_automation_received_at), 'MMM d, yyyy')}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Lifecycle Stage & Churn Risk */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                      {/* Lifecycle Stage */}
+                      <div className="p-4 border rounded-lg">
+                        <h4 className="font-medium mb-3 flex items-center gap-2">
+                          <RefreshCw className="h-4 w-4" />
+                          Lifecycle Stage
+                        </h4>
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-muted-foreground">Current Stage</span>
+                            <Badge 
+                              className={`${getLifecycleStageConfig(lifecycleMetrics.lifecycle_stage).bgColor} ${getLifecycleStageConfig(lifecycleMetrics.lifecycle_stage).color} border-0`}
+                            >
+                              {getLifecycleStageConfig(lifecycleMetrics.lifecycle_stage).icon} {getLifecycleStageConfig(lifecycleMetrics.lifecycle_stage).label}
+                            </Badge>
+                          </div>
+                          {lifecycleMetrics.previous_lifecycle_stage && (
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm text-muted-foreground">Previous Stage</span>
+                              <span className="text-sm capitalize">{lifecycleMetrics.previous_lifecycle_stage.replace('_', ' ')}</span>
+                            </div>
+                          )}
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-muted-foreground">Days in Stage</span>
+                            <span className="text-sm font-medium">{lifecycleMetrics.days_in_current_stage}</span>
+                          </div>
+                          {lifecycleMetrics.lifecycle_stage_changed_at && (
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm text-muted-foreground">Stage Changed</span>
+                              <span className="text-sm">
+                                {formatDistanceToNow(new Date(lifecycleMetrics.lifecycle_stage_changed_at), { addSuffix: true })}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Churn Risk */}
+                      <div className="p-4 border rounded-lg">
+                        <h4 className="font-medium mb-3 flex items-center gap-2">
+                          <AlertTriangle className={`h-4 w-4 ${
+                            Number(lifecycleMetrics.churn_risk_score) >= 70 ? 'text-red-500' :
+                            Number(lifecycleMetrics.churn_risk_score) >= 40 ? 'text-orange-500' :
+                            'text-emerald-500'
+                          }`} />
+                          Churn Risk Analysis
+                        </h4>
+                        <div className="space-y-3">
+                          <div>
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-sm text-muted-foreground">Risk Score</span>
+                              <span className={`text-sm font-bold ${
+                                Number(lifecycleMetrics.churn_risk_score) >= 70 ? 'text-red-600' :
+                                Number(lifecycleMetrics.churn_risk_score) >= 40 ? 'text-orange-600' :
+                                'text-emerald-600'
+                              }`}>
+                                {Number(lifecycleMetrics.churn_risk_score).toFixed(0)}%
+                              </span>
+                            </div>
+                            <Progress 
+                              value={Number(lifecycleMetrics.churn_risk_score)} 
+                              className={`h-2 ${
+                                Number(lifecycleMetrics.churn_risk_score) >= 70 ? '[&>div]:bg-red-500' :
+                                Number(lifecycleMetrics.churn_risk_score) >= 40 ? '[&>div]:bg-orange-500' :
+                                '[&>div]:bg-emerald-500'
+                              }`}
+                            />
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-muted-foreground">Is Churned</span>
+                            <Badge variant={lifecycleMetrics.is_churned ? 'destructive' : 'outline'}>
+                              {lifecycleMetrics.is_churned ? 'Yes' : 'No'}
+                            </Badge>
+                          </div>
+                          {lifecycleMetrics.time_to_churn_days !== null && (
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm text-muted-foreground">Time to Churn</span>
+                              <span className="text-sm font-medium">{lifecycleMetrics.time_to_churn_days} days</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Reactivation & Success Stats */}
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-4">
+                      <div className="p-3 bg-muted/50 rounded-lg">
+                        <p className="text-sm text-muted-foreground">Churn Events</p>
+                        <p className="text-lg font-semibold">{lifecycleMetrics.total_churn_events}</p>
+                      </div>
+                      <div className="p-3 bg-muted/50 rounded-lg">
+                        <p className="text-sm text-muted-foreground">Reactivations</p>
+                        <p className="text-lg font-semibold text-emerald-600">{lifecycleMetrics.successful_reactivations}</p>
+                      </div>
+                      <div className={`p-3 rounded-lg ${
+                        Number(lifecycleMetrics.reactivation_success_rate) > 50 
+                          ? 'bg-emerald-50 dark:bg-emerald-950/30' 
+                          : 'bg-muted/50'
+                      }`}>
+                        <p className="text-sm text-muted-foreground">Reactivation Rate</p>
+                        <p className={`text-lg font-semibold ${Number(lifecycleMetrics.reactivation_success_rate) > 50 ? 'text-emerald-600' : ''}`}>
+                          {Number(lifecycleMetrics.reactivation_success_rate).toFixed(0)}%
+                        </p>
+                      </div>
+                      {lifecycleMetrics.time_to_reactivation_days !== null && (
+                        <div className="p-3 bg-muted/50 rounded-lg">
+                          <p className="text-sm text-muted-foreground">Time to Reactivate</p>
+                          <p className="text-lg font-semibold">{lifecycleMetrics.time_to_reactivation_days} days</p>
+                        </div>
+                      )}
+                      {lifecycleMetrics.last_reactivation_trigger && (
+                        <div className="p-3 bg-muted/50 rounded-lg">
+                          <p className="text-sm text-muted-foreground">Last Trigger</p>
+                          <p className="text-sm font-medium capitalize">{lifecycleMetrics.last_reactivation_trigger}</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Lifecycle Event History */}
+                    {lifecycleHistory && lifecycleHistory.length > 0 && (
+                      <div className="mt-4 pt-4 border-t">
+                        <h4 className="font-medium mb-3 flex items-center gap-2">
+                          <Activity className="h-4 w-4" />
+                          Lifecycle History
+                        </h4>
+                        <div className="space-y-2 max-h-48 overflow-y-auto">
+                          {lifecycleHistory.slice(0, 5).map((event) => (
+                            <div key={event.id} className="flex items-center justify-between p-2 bg-muted/30 rounded-lg">
+                              <div className="flex items-center gap-3">
+                                <Badge variant={
+                                  event.event_type === 'reactivated' ? 'default' :
+                                  event.event_type === 'churned' ? 'destructive' :
+                                  event.event_type === 'at_risk_alert' ? 'secondary' :
+                                  'outline'
+                                } className={
+                                  event.event_type === 'reactivated' ? 'bg-emerald-500' : ''
+                                }>
+                                  {event.event_type === 'stage_change' ? 'Stage Change' :
+                                   event.event_type === 'reactivated' ? 'Reactivated' :
+                                   event.event_type === 'churned' ? 'Churned' :
+                                   'At Risk'}
+                                </Badge>
+                                <div>
+                                  {event.from_stage && event.to_stage && (
+                                    <p className="text-sm font-medium flex items-center gap-1 capitalize">
+                                      {event.from_stage.replace('_', ' ')}
+                                      <ArrowUpRight className="h-3 w-3" />
+                                      {event.to_stage.replace('_', ' ')}
+                                    </p>
+                                  )}
+                                  {event.trigger_reason && (
+                                    <p className="text-xs text-muted-foreground">{event.trigger_reason}</p>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                {event.churn_risk_score_at_event !== null && (
+                                  <p className="text-sm font-medium">
+                                    Risk: {Number(event.churn_risk_score_at_event).toFixed(0)}%
+                                  </p>
+                                )}
+                                <p className="text-xs text-muted-foreground">
+                                  {format(new Date(event.created_at), 'MMM d, yyyy')}
+                                </p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Activity className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                    <p>No lifecycle metrics available for this customer</p>
+                    <p className="text-xs mt-1">Metrics will be calculated when the customer has activity</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">

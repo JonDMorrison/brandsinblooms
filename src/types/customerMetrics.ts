@@ -438,3 +438,113 @@ export interface TenantLoyaltyStats {
     non_member_email_open_rate: number;
   };
 }
+
+// =============================================
+// TIME-BASED & LIFECYCLE METRICS
+// =============================================
+
+export type LifecycleStage = 'new' | 'engaged' | 'active_buyer' | 'loyal' | 'at_risk' | 'dormant' | 'churned';
+
+export interface CustomerLifecycleMetrics {
+  id: string;
+  customer_id: string;
+  tenant_id: string;
+  
+  // Time-Based Metrics (Days Since)
+  days_since_signup: number | null;
+  days_since_last_purchase: number | null;
+  days_since_last_engagement: number | null;
+  days_since_last_automation: number | null;
+  
+  // Core Timestamps
+  customer_created_at: string | null;
+  first_purchase_at: string | null;
+  last_purchase_at: string | null;
+  last_email_engagement_at: string | null;
+  last_sms_engagement_at: string | null;
+  last_any_engagement_at: string | null;
+  last_automation_received_at: string | null;
+  
+  // Lifecycle Stage
+  lifecycle_stage: LifecycleStage;
+  previous_lifecycle_stage: string | null;
+  lifecycle_stage_changed_at: string | null;
+  days_in_current_stage: number;
+  
+  // Churn Tracking
+  is_churned: boolean;
+  churned_at: string | null;
+  time_to_churn_days: number | null;
+  churn_risk_score: number;
+  predicted_churn_date: string | null;
+  
+  // Reactivation Tracking
+  is_reactivated: boolean;
+  reactivated_at: string | null;
+  reactivation_count: number;
+  time_to_reactivation_days: number | null;
+  avg_time_to_reactivation_days: number | null;
+  last_reactivation_trigger: string | null;
+  
+  // Reactivation Success
+  total_churn_events: number;
+  successful_reactivations: number;
+  reactivation_success_rate: number;
+  
+  // Activity Metrics
+  purchases_last_30d: number;
+  purchases_last_90d: number;
+  engagements_last_30d: number;
+  engagements_last_90d: number;
+  automations_received_last_30d: number;
+  
+  // Velocity & Trends
+  engagement_velocity: number;
+  purchase_velocity: number;
+  
+  // Scores
+  lifecycle_health_score: number;
+  retention_probability: number;
+  
+  created_at: string;
+  updated_at: string;
+}
+
+export interface LifecycleEvent {
+  id: string;
+  tenant_id: string;
+  customer_id: string;
+  event_type: 'stage_change' | 'churned' | 'reactivated' | 'at_risk_alert';
+  from_stage: string | null;
+  to_stage: string | null;
+  trigger_reason: string | null;
+  trigger_source: string | null;
+  trigger_source_id: string | null;
+  days_since_last_purchase_at_event: number | null;
+  days_since_last_engagement_at_event: number | null;
+  churn_risk_score_at_event: number | null;
+  created_at: string;
+}
+
+export interface TenantLifecycleStats {
+  lifecycle_stage_breakdown: {
+    new: number;
+    engaged: number;
+    active_buyer: number;
+    loyal: number;
+    at_risk: number;
+    dormant: number;
+    churned: number;
+  };
+  avg_days_since_signup: number;
+  avg_days_since_last_purchase: number;
+  avg_days_since_last_engagement: number;
+  avg_days_since_last_automation: number;
+  overall_churn_rate: number;
+  overall_reactivation_success_rate: number;
+  avg_time_to_churn_days: number | null;
+  avg_time_to_reactivation_days: number | null;
+  at_risk_customer_count: number;
+  customers_churned_last_30d: number;
+  customers_reactivated_last_30d: number;
+}
