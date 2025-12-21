@@ -3549,6 +3549,131 @@ export type Database = {
           },
         ]
       }
+      customer_purchase_metrics: {
+        Row: {
+          average_order_value: number | null
+          avg_days_between_purchases: number | null
+          created_at: string | null
+          customer_id: string
+          customer_tier: string | null
+          days_since_last_purchase: number | null
+          discount_driven_ratio: number | null
+          favorite_products: string[] | null
+          first_purchase_date: string | null
+          id: string
+          last_purchase_date: string | null
+          lifetime_value: number | null
+          max_days_between_purchases: number | null
+          min_days_between_purchases: number | null
+          peak_purchase_month: string | null
+          product_category_affinity: Json | null
+          purchase_engagement_score: number | null
+          purchase_frequency: number | null
+          purchase_velocity: number | null
+          repeat_purchase_rate: number | null
+          revenue_per_month: number | null
+          seasonal_patterns: Json | null
+          tenant_id: string
+          top_product_categories: string[] | null
+          total_discount_amount: number | null
+          total_discounted_purchases: number | null
+          total_full_price_purchases: number | null
+          total_purchases: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          average_order_value?: number | null
+          avg_days_between_purchases?: number | null
+          created_at?: string | null
+          customer_id: string
+          customer_tier?: string | null
+          days_since_last_purchase?: number | null
+          discount_driven_ratio?: number | null
+          favorite_products?: string[] | null
+          first_purchase_date?: string | null
+          id?: string
+          last_purchase_date?: string | null
+          lifetime_value?: number | null
+          max_days_between_purchases?: number | null
+          min_days_between_purchases?: number | null
+          peak_purchase_month?: string | null
+          product_category_affinity?: Json | null
+          purchase_engagement_score?: number | null
+          purchase_frequency?: number | null
+          purchase_velocity?: number | null
+          repeat_purchase_rate?: number | null
+          revenue_per_month?: number | null
+          seasonal_patterns?: Json | null
+          tenant_id: string
+          top_product_categories?: string[] | null
+          total_discount_amount?: number | null
+          total_discounted_purchases?: number | null
+          total_full_price_purchases?: number | null
+          total_purchases?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          average_order_value?: number | null
+          avg_days_between_purchases?: number | null
+          created_at?: string | null
+          customer_id?: string
+          customer_tier?: string | null
+          days_since_last_purchase?: number | null
+          discount_driven_ratio?: number | null
+          favorite_products?: string[] | null
+          first_purchase_date?: string | null
+          id?: string
+          last_purchase_date?: string | null
+          lifetime_value?: number | null
+          max_days_between_purchases?: number | null
+          min_days_between_purchases?: number | null
+          peak_purchase_month?: string | null
+          product_category_affinity?: Json | null
+          purchase_engagement_score?: number | null
+          purchase_frequency?: number | null
+          purchase_velocity?: number | null
+          repeat_purchase_rate?: number | null
+          revenue_per_month?: number | null
+          seasonal_patterns?: Json | null
+          tenant_id?: string
+          top_product_categories?: string[] | null
+          total_discount_amount?: number | null
+          total_discounted_purchases?: number | null
+          total_full_price_purchases?: number | null
+          total_purchases?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_purchase_metrics_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: true
+            referencedRelation: "crm_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_purchase_metrics_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: true
+            referencedRelation: "customer_360_enriched"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_purchase_metrics_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "admin_tenant_overview"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "customer_purchase_metrics_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customer_segments: {
         Row: {
           assigned_at: string
@@ -10088,6 +10213,10 @@ export type Database = {
         Args: { p_customer_id: string }
         Returns: undefined
       }
+      recalculate_purchase_metrics: {
+        Args: { p_customer_id: string }
+        Returns: undefined
+      }
       recalculate_sms_engagement_score: {
         Args: { p_customer_id: string }
         Returns: undefined
@@ -10129,6 +10258,10 @@ export type Database = {
         Returns: boolean
       }
       refresh_all_cross_channel_metrics: {
+        Args: { p_tenant_id?: string }
+        Returns: number
+      }
+      refresh_all_purchase_metrics: {
         Args: { p_tenant_id?: string }
         Returns: number
       }
@@ -10188,6 +10321,14 @@ export type Database = {
       }
       update_customer_email_metrics: {
         Args: { p_customer_id: string }
+        Returns: undefined
+      }
+      update_customer_purchase_metrics: {
+        Args: {
+          p_customer_id: string
+          p_event_type?: string
+          p_order_id?: string
+        }
         Returns: undefined
       }
       update_customer_sms_metrics: {

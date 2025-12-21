@@ -184,8 +184,18 @@ Deno.serve(async (req) => {
             })
             .eq('id', customer.id);
 
-          if (!updateError && productNames.length > 0) {
-            customersWithProductTags++;
+          if (!updateError) {
+            if (productNames.length > 0) {
+              customersWithProductTags++;
+            }
+            
+            // Trigger purchase metrics recalculation
+            const { error: metricsError } = await supabaseClient.rpc('recalculate_purchase_metrics', {
+              p_customer_id: customer.id,
+            });
+            if (metricsError) {
+              console.error(`[CLOVER-SYNC-SALES] Failed to recalculate purchase metrics for ${customer.id}:`, metricsError);
+            }
           }
         }
       }

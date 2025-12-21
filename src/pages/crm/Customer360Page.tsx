@@ -21,7 +21,13 @@ import {
   MailCheck,
   Zap,
   Clock,
-  AlertTriangle
+  AlertTriangle,
+  ShoppingCart,
+  DollarSign,
+  Repeat,
+  Tag,
+  TrendingDown,
+  Crown
 } from 'lucide-react';
 import { formatDistanceToNow, format } from 'date-fns';
 import { CustomerTimeline } from '@/components/crm/customer360/CustomerTimeline';
@@ -30,6 +36,7 @@ import { CustomerActivity } from '@/components/crm/customer360/CustomerActivity'
 import { SendSMSDialog } from '@/components/crm/customer360/SendSMSDialog';
 import { AddToSegmentDialog } from '@/components/crm/customer360/AddToSegmentDialog';
 import { useCustomerCrossChannelMetrics } from '@/hooks/useCrossChannelMetrics';
+import { useCustomerPurchaseMetrics } from '@/hooks/usePurchaseMetrics';
 
 interface Customer360Data {
   id: string;
@@ -105,6 +112,9 @@ const Customer360Page = () => {
 
   // Fetch cross-channel metrics
   const { data: crossChannelMetrics } = useCustomerCrossChannelMetrics(id);
+
+  // Fetch purchase metrics
+  const { data: purchaseMetrics } = useCustomerPurchaseMetrics(id);
 
   // Fetch customer 360 data
   const { data: customer, isLoading } = useQuery({
@@ -472,6 +482,198 @@ const Customer360Page = () => {
                     </div>
                   </div>
                 ) : null}
+              </CardContent>
+            </Card>
+
+            {/* Purchase & Transaction Behavior Card */}
+            <Card className="md:col-span-2">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <ShoppingCart className="h-5 w-5" />
+                  Purchase & Transaction Behavior
+                  {purchaseMetrics?.customer_tier && (
+                    <Badge className={
+                      purchaseMetrics.customer_tier === 'vip' ? 'bg-gradient-to-r from-amber-500 to-yellow-500 text-white' :
+                      purchaseMetrics.customer_tier === 'loyal' ? 'bg-gradient-to-r from-emerald-500 to-green-500 text-white' :
+                      purchaseMetrics.customer_tier === 'regular' ? 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white' :
+                      purchaseMetrics.customer_tier === 'occasional' ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white' :
+                      'bg-muted text-muted-foreground'
+                    }>
+                      <Crown className="h-3 w-3 mr-1" />
+                      {purchaseMetrics.customer_tier.toUpperCase()}
+                    </Badge>
+                  )}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {purchaseMetrics && purchaseMetrics.total_purchases > 0 ? (
+                  <>
+                    {/* Core Metrics */}
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-4">
+                      <div className="p-4 bg-gradient-to-br from-primary/10 to-primary/5 rounded-lg border border-primary/20">
+                        <div className="flex items-center gap-2 mb-2">
+                          <ShoppingCart className="h-4 w-4 text-primary" />
+                          <p className="text-sm text-muted-foreground">Total Purchases</p>
+                        </div>
+                        <p className="text-2xl font-bold">{purchaseMetrics.total_purchases}</p>
+                      </div>
+
+                      <div className="p-4 bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 rounded-lg border border-emerald-500/20">
+                        <div className="flex items-center gap-2 mb-2">
+                          <DollarSign className="h-4 w-4 text-emerald-500" />
+                          <p className="text-sm text-muted-foreground">Lifetime Value</p>
+                        </div>
+                        <p className="text-2xl font-bold text-emerald-600">
+                          ${Number(purchaseMetrics.lifetime_value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </p>
+                      </div>
+
+                      <div className="p-4 bg-muted/50 rounded-lg">
+                        <div className="flex items-center gap-2 mb-2">
+                          <DollarSign className="h-4 w-4 text-muted-foreground" />
+                          <p className="text-sm text-muted-foreground">Avg Order Value</p>
+                        </div>
+                        <p className="text-2xl font-bold">
+                          ${Number(purchaseMetrics.average_order_value).toFixed(2)}
+                        </p>
+                      </div>
+
+                      <div className="p-4 bg-muted/50 rounded-lg">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Repeat className="h-4 w-4 text-muted-foreground" />
+                          <p className="text-sm text-muted-foreground">Purchase Freq</p>
+                        </div>
+                        <p className="text-2xl font-bold">
+                          {Number(purchaseMetrics.purchase_frequency).toFixed(1)}<span className="text-sm text-muted-foreground">/mo</span>
+                        </p>
+                      </div>
+
+                      <div className="p-4 bg-muted/50 rounded-lg">
+                        <div className="flex items-center gap-2 mb-2">
+                          {Number(purchaseMetrics.purchase_velocity) > 0 ? (
+                            <TrendingUp className="h-4 w-4 text-emerald-500" />
+                          ) : Number(purchaseMetrics.purchase_velocity) < 0 ? (
+                            <TrendingDown className="h-4 w-4 text-red-500" />
+                          ) : (
+                            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                          )}
+                          <p className="text-sm text-muted-foreground">Velocity</p>
+                        </div>
+                        <p className={`text-2xl font-bold ${
+                          Number(purchaseMetrics.purchase_velocity) > 0 ? 'text-emerald-600' :
+                          Number(purchaseMetrics.purchase_velocity) < 0 ? 'text-red-600' : ''
+                        }`}>
+                          {Number(purchaseMetrics.purchase_velocity) > 0 ? '+' : ''}{Number(purchaseMetrics.purchase_velocity).toFixed(0)}%
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Timing & Behavior */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                      <div className="p-3 bg-muted/50 rounded-lg">
+                        <p className="text-sm text-muted-foreground">First Purchase</p>
+                        <p className="text-lg font-semibold">
+                          {purchaseMetrics.first_purchase_date 
+                            ? format(new Date(purchaseMetrics.first_purchase_date), 'MMM d, yyyy')
+                            : '-'}
+                        </p>
+                      </div>
+                      <div className="p-3 bg-muted/50 rounded-lg">
+                        <p className="text-sm text-muted-foreground">Last Purchase</p>
+                        <p className="text-lg font-semibold">
+                          {purchaseMetrics.last_purchase_date 
+                            ? format(new Date(purchaseMetrics.last_purchase_date), 'MMM d, yyyy')
+                            : '-'}
+                        </p>
+                      </div>
+                      <div className="p-3 bg-muted/50 rounded-lg">
+                        <p className="text-sm text-muted-foreground">Days Since Last</p>
+                        <p className="text-lg font-semibold">
+                          {purchaseMetrics.days_since_last_purchase ?? '-'}
+                        </p>
+                      </div>
+                      <div className="p-3 bg-muted/50 rounded-lg">
+                        <p className="text-sm text-muted-foreground">Avg Days Between</p>
+                        <p className="text-lg font-semibold">
+                          {purchaseMetrics.avg_days_between_purchases 
+                            ? Number(purchaseMetrics.avg_days_between_purchases).toFixed(0)
+                            : '-'}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Discount Behavior & Product Affinity */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Discount Behavior */}
+                      <div className="p-4 border rounded-lg">
+                        <h4 className="font-medium mb-3 flex items-center gap-2">
+                          <Tag className="h-4 w-4" />
+                          Discount Behavior
+                        </h4>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <p className="text-sm text-muted-foreground">Full Price</p>
+                            <p className="text-xl font-bold">{purchaseMetrics.total_full_price_purchases}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-muted-foreground">Discounted</p>
+                            <p className="text-xl font-bold">{purchaseMetrics.total_discounted_purchases}</p>
+                          </div>
+                          <div className="col-span-2">
+                            <p className="text-sm text-muted-foreground">Discount-Driven Ratio</p>
+                            <div className="flex items-center gap-2">
+                              <Progress value={Number(purchaseMetrics.discount_driven_ratio)} className="h-2 flex-1" />
+                              <span className="text-sm font-medium">{Number(purchaseMetrics.discount_driven_ratio).toFixed(0)}%</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Product Affinity */}
+                      <div className="p-4 border rounded-lg">
+                        <h4 className="font-medium mb-3 flex items-center gap-2">
+                          <ShoppingCart className="h-4 w-4" />
+                          Product Affinity
+                        </h4>
+                        {purchaseMetrics.top_product_categories && purchaseMetrics.top_product_categories.length > 0 ? (
+                          <div className="space-y-2">
+                            <div>
+                              <p className="text-sm text-muted-foreground mb-1">Top Categories</p>
+                              <div className="flex flex-wrap gap-1">
+                                {purchaseMetrics.top_product_categories.map((cat, i) => (
+                                  <Badge key={i} variant="secondary" className="text-xs">{cat}</Badge>
+                                ))}
+                              </div>
+                            </div>
+                            {purchaseMetrics.favorite_products && purchaseMetrics.favorite_products.length > 0 && (
+                              <div>
+                                <p className="text-sm text-muted-foreground mb-1">Favorite Products</p>
+                                <div className="flex flex-wrap gap-1">
+                                  {purchaseMetrics.favorite_products.slice(0, 3).map((prod, i) => (
+                                    <Badge key={i} variant="outline" className="text-xs">{prod}</Badge>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <p className="text-sm text-muted-foreground">No product data available</p>
+                        )}
+                        {purchaseMetrics.peak_purchase_month && (
+                          <div className="mt-3 pt-3 border-t">
+                            <p className="text-sm text-muted-foreground">Peak Month</p>
+                            <p className="font-medium">{purchaseMetrics.peak_purchase_month}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <ShoppingCart className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                    <p>No purchase data available for this customer</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
