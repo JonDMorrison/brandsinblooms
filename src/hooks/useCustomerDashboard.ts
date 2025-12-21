@@ -13,6 +13,7 @@ import { useCustomerPurchaseTimeline, PurchaseTimelinePoint } from '@/hooks/useC
 import { useCustomerActivityHeatmap, HeatmapDataPoint } from '@/hooks/useCustomerActivityHeatmap';
 import { useCustomerChannelTrend, ChannelTrendPoint } from '@/hooks/useCustomerChannelTrend';
 import { useCustomerEngagementDecay } from '@/hooks/useCustomerEngagementDecay';
+import { useCustomerAIInsights, AIInsightsData, AIAction } from '@/hooks/useCustomerAIInsights';
 import type { Customer360Enriched } from '@/types/customerMetrics';
 
 // Extended type to handle both enriched view and basic customer data
@@ -143,6 +144,13 @@ export interface CustomerDashboardData {
   channelTrend: ChannelTrendPoint[];
   engagementDecay: number[];
 
+  // AI Insights
+  aiInsights: AIInsightsData | null;
+  isAILoading: boolean;
+  isAIRegenerating: boolean;
+  regenerateAIInsights: () => Promise<void>;
+  aiError: Error | null;
+
   // Loading states
   isLoading: boolean;
   isCustomerLoading: boolean;
@@ -195,6 +203,9 @@ export const useCustomerDashboard = (customerId: string | undefined): CustomerDa
   const smsHeatmapQuery = useCustomerActivityHeatmap(customerId, 'sms');
   const channelTrendQuery = useCustomerChannelTrend(customerId);
   const engagementDecayQuery = useCustomerEngagementDecay(customerId);
+
+  // AI Insights - only fetches when dashboard is open
+  const aiInsightsQuery = useCustomerAIInsights(customerId, { enabled: !!customerId });
 
   // Aggregate loading states
   const isCustomerLoading = customer360Query.isLoading;
@@ -272,6 +283,11 @@ export const useCustomerDashboard = (customerId: string | undefined): CustomerDa
     smsHeatmapData: smsHeatmapQuery.data ?? [],
     channelTrend: channelTrendQuery.data ?? [],
     engagementDecay: engagementDecayQuery.data ?? [],
+    aiInsights: aiInsightsQuery.insights,
+    isAILoading: aiInsightsQuery.isLoading,
+    isAIRegenerating: aiInsightsQuery.isRegenerating,
+    regenerateAIInsights: aiInsightsQuery.regenerate,
+    aiError: aiInsightsQuery.error,
     isLoading,
     isCustomerLoading,
     isMetricsLoading,

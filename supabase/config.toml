@@ -347,3 +347,6 @@ verify_jwt = false
 
 [functions.sms-link-redirect]
 verify_jwt = false
+
+[functions.generate-customer-insights]
+verify_jwt = true
