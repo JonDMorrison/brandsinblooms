@@ -41,7 +41,8 @@ import { useCustomerPostPurchaseMetrics, useCustomerIncentiveHistory } from '@/h
 import { useCustomerLoyaltyMetrics, useCustomerPointsHistory } from '@/hooks/useLoyaltyMetrics';
 import { useCustomerLifecycleMetrics, useCustomerLifecycleHistory, getLifecycleStageConfig } from '@/hooks/useLifecycleMetrics';
 import { useCustomerContentIntentMetrics, useCustomerInteractionHistory, getIntentLevelConfig, getContentPreferenceConfig, getClickTimingConfig } from '@/hooks/useContentIntentMetrics';
-import { Gift, Percent, Timer, Target, BarChart3, Star, Trophy, Coins, TrendingUp as ArrowTrendingUp, RefreshCw, Activity, Users, ArrowUpRight, ArrowDownRight, MousePointerClick, BookOpen, Sparkles, Eye } from 'lucide-react';
+import { useCustomerRiskSignals, useCustomerNegativeEvents, getRiskLevelConfig, getRiskTrendConfig, getRiskFactorLabel, getEventTypeConfig } from '@/hooks/useRiskSignals';
+import { Gift, Percent, Timer, Target, BarChart3, Star, Trophy, Coins, TrendingUp as ArrowTrendingUp, RefreshCw, Activity, Users, ArrowUpRight, ArrowDownRight, MousePointerClick, BookOpen, Sparkles, Eye, ShieldAlert, Ban, VolumeX, Ticket, Moon, MailX } from 'lucide-react';
 
 interface Customer360Data {
   id: string;
@@ -144,6 +145,12 @@ const Customer360Page = () => {
 
   // Fetch content interaction history
   const { data: interactionHistory } = useCustomerInteractionHistory(id, 10);
+
+  // Fetch risk signals
+  const { data: riskSignals } = useCustomerRiskSignals(id);
+
+  // Fetch negative behavior events
+  const { data: negativeEvents } = useCustomerNegativeEvents(id, 10);
 
   // Fetch customer 360 data
   const { data: customer, isLoading } = useQuery({
@@ -1668,6 +1675,284 @@ const Customer360Page = () => {
                     <Sparkles className="h-12 w-12 mx-auto mb-3 opacity-30" />
                     <p>No content intent metrics available for this customer</p>
                     <p className="text-xs mt-1">Metrics will be calculated when the customer interacts with content</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Negative Behavior & Risk Signals Card */}
+            <Card className="md:col-span-2">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <ShieldAlert className="h-5 w-5" />
+                  Negative Behavior & Risk Signals
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {riskSignals ? (
+                  <>
+                    {/* Overall Risk Assessment */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                      <div className={`p-4 rounded-lg border-2 ${
+                        getRiskLevelConfig(riskSignals.risk_level).bgColor
+                      } ${getRiskLevelConfig(riskSignals.risk_level).color.replace('text-', 'border-')}`}>
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-medium">Overall Risk Score</span>
+                          <Badge className={`${getRiskLevelConfig(riskSignals.risk_level).bgColor} ${getRiskLevelConfig(riskSignals.risk_level).color}`}>
+                            {getRiskLevelConfig(riskSignals.risk_level).icon} {getRiskLevelConfig(riskSignals.risk_level).label}
+                          </Badge>
+                        </div>
+                        <div className="flex items-end gap-2">
+                          <span className="text-3xl font-bold">{Number(riskSignals.overall_risk_score).toFixed(0)}</span>
+                          <span className="text-lg text-muted-foreground mb-1">/100</span>
+                          <span className={`text-sm mb-1 ${getRiskTrendConfig(riskSignals.risk_trend).color}`}>
+                            {getRiskTrendConfig(riskSignals.risk_trend).icon} {getRiskTrendConfig(riskSignals.risk_trend).label}
+                          </span>
+                        </div>
+                        <Progress 
+                          value={Number(riskSignals.overall_risk_score)} 
+                          className="h-2 mt-2"
+                        />
+                        <p className="text-xs text-muted-foreground mt-2">
+                          {getRiskLevelConfig(riskSignals.risk_level).description}
+                        </p>
+                      </div>
+
+                      <div className="p-4 bg-muted/50 rounded-lg">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-medium">Suppression Status</span>
+                          {riskSignals.should_suppress ? (
+                            <Ban className="h-4 w-4 text-red-500" />
+                          ) : (
+                            <ShieldAlert className="h-4 w-4 text-green-500" />
+                          )}
+                        </div>
+                        <Badge variant={riskSignals.should_suppress ? 'destructive' : 'outline'}>
+                          {riskSignals.should_suppress ? 'Suppressed' : 'Active'}
+                        </Badge>
+                        {riskSignals.suppression_reason && (
+                          <p className="text-xs text-muted-foreground mt-2">{riskSignals.suppression_reason}</p>
+                        )}
+                        {riskSignals.last_risk_assessment_at && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Last assessed: {format(new Date(riskSignals.last_risk_assessment_at), 'MMM d, h:mm a')}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="p-4 bg-muted/50 rounded-lg">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-medium">Active Risk Factors</span>
+                          <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+                        </div>
+                        {riskSignals.risk_factors && riskSignals.risk_factors.length > 0 ? (
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            {riskSignals.risk_factors.map((factor, i) => (
+                              <Badge key={i} variant="outline" className="text-xs capitalize">
+                                {getRiskFactorLabel(factor)}
+                              </Badge>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-sm text-muted-foreground">No active risk factors</p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Individual Risk Scores */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                      {/* Opt-Out Risk */}
+                      <div className="p-3 bg-muted/30 rounded-lg">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Ban className="h-4 w-4 text-red-500" />
+                          <p className="text-xs text-muted-foreground">Opt-Out Risk</p>
+                        </div>
+                        <p className="text-xl font-bold">{Number(riskSignals.opt_out_risk_score).toFixed(0)}</p>
+                        {riskSignals.is_rapid_opt_out && (
+                          <Badge variant="destructive" className="text-xs mt-1">Rapid</Badge>
+                        )}
+                      </div>
+
+                      {/* Ignore Streak Risk */}
+                      <div className="p-3 bg-muted/30 rounded-lg">
+                        <div className="flex items-center gap-2 mb-1">
+                          <VolumeX className="h-4 w-4 text-yellow-500" />
+                          <p className="text-xs text-muted-foreground">Ignore Streak</p>
+                        </div>
+                        <p className="text-xl font-bold">{Number(riskSignals.ignore_streak_risk_score).toFixed(0)}</p>
+                        <p className="text-xs text-muted-foreground">Current: {riskSignals.current_ignore_streak} msgs</p>
+                      </div>
+
+                      {/* Engagement Gap Risk */}
+                      <div className="p-3 bg-muted/30 rounded-lg">
+                        <div className="flex items-center gap-2 mb-1">
+                          <MessageSquare className="h-4 w-4 text-blue-500" />
+                          <p className="text-xs text-muted-foreground">Engagement Gap</p>
+                        </div>
+                        <p className="text-xl font-bold">{Number(riskSignals.engagement_gap_risk_score).toFixed(0)}</p>
+                        <p className="text-xs text-muted-foreground">{riskSignals.messages_since_last_engagement} since engage</p>
+                      </div>
+
+                      {/* Dormancy Risk */}
+                      <div className="p-3 bg-muted/30 rounded-lg">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Moon className="h-4 w-4 text-indigo-500" />
+                          <p className="text-xs text-muted-foreground">Dormancy</p>
+                        </div>
+                        <p className="text-xl font-bold">{Number(riskSignals.dormancy_risk_score).toFixed(0)}</p>
+                        {riskSignals.is_long_term_dormant && (
+                          <Badge variant="secondary" className="text-xs mt-1">Dormant</Badge>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Second Row of Risks */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                      {/* Coupon Dependency */}
+                      <div className="p-3 bg-muted/30 rounded-lg">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Ticket className="h-4 w-4 text-purple-500" />
+                          <p className="text-xs text-muted-foreground">Coupon Depend.</p>
+                        </div>
+                        <p className="text-xl font-bold">{Number(riskSignals.coupon_dependency_risk_score).toFixed(0)}</p>
+                        <p className="text-xs text-muted-foreground">{Number(riskSignals.coupon_only_ratio).toFixed(0)}% w/ coupon</p>
+                      </div>
+
+                      {/* Incentive Abuse */}
+                      <div className="p-3 bg-muted/30 rounded-lg">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Gift className="h-4 w-4 text-orange-500" />
+                          <p className="text-xs text-muted-foreground">Incentive Abuse</p>
+                        </div>
+                        <p className="text-xl font-bold">{Number(riskSignals.incentive_abuse_risk_score).toFixed(0)}</p>
+                        {riskSignals.is_suspected_incentive_abuser && (
+                          <Badge variant="destructive" className="text-xs mt-1">Suspected</Badge>
+                        )}
+                      </div>
+
+                      {/* Bounce Risk */}
+                      <div className="p-3 bg-muted/30 rounded-lg">
+                        <div className="flex items-center gap-2 mb-1">
+                          <MailX className="h-4 w-4 text-red-500" />
+                          <p className="text-xs text-muted-foreground">Bounce Risk</p>
+                        </div>
+                        <p className="text-xl font-bold">{Number(riskSignals.bounce_risk_score).toFixed(0)}</p>
+                        <p className="text-xs text-muted-foreground">{riskSignals.total_hard_bounces} hard bounces</p>
+                      </div>
+
+                      {/* SMS Risk */}
+                      <div className="p-3 bg-muted/30 rounded-lg">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Phone className="h-4 w-4 text-gray-500" />
+                          <p className="text-xs text-muted-foreground">SMS Risk</p>
+                        </div>
+                        <p className="text-xl font-bold">{Number(riskSignals.sms_risk_score).toFixed(0)}</p>
+                        {riskSignals.is_sms_unreachable && (
+                          <Badge variant="destructive" className="text-xs mt-1">Unreachable</Badge>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Detailed Metrics */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                      {/* Opt-Out Details */}
+                      <div className="p-4 bg-muted/30 rounded-lg">
+                        <h4 className="font-medium mb-3 flex items-center gap-2">
+                          <Ban className="h-4 w-4" />
+                          Opt-Out Details
+                        </h4>
+                        <div className="space-y-2 text-sm">
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Total Opt-Outs</span>
+                            <span className="font-medium">{riskSignals.total_opt_outs}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">SMS Opt-Outs</span>
+                            <span className="font-medium">{riskSignals.sms_opt_outs}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Email Opt-Outs</span>
+                            <span className="font-medium">{riskSignals.email_opt_outs}</span>
+                          </div>
+                          {riskSignals.messages_before_opt_out !== null && (
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Msgs Before Opt-Out</span>
+                              <span className="font-medium">{riskSignals.messages_before_opt_out}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Bounce Details */}
+                      <div className="p-4 bg-muted/30 rounded-lg">
+                        <h4 className="font-medium mb-3 flex items-center gap-2">
+                          <MailX className="h-4 w-4" />
+                          Deliverability Issues
+                        </h4>
+                        <div className="space-y-2 text-sm">
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Hard Bounces</span>
+                            <span className="font-medium">{riskSignals.total_hard_bounces}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Soft Bounces</span>
+                            <span className="font-medium">{riskSignals.total_soft_bounces}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Consecutive Hard</span>
+                            <span className="font-medium">{riskSignals.consecutive_hard_bounces}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Email Valid</span>
+                            <Badge variant={riskSignals.is_email_invalid ? 'destructive' : 'outline'} className="text-xs">
+                              {riskSignals.is_email_invalid ? 'Invalid' : 'Valid'}
+                            </Badge>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Recent Negative Events */}
+                    {negativeEvents && negativeEvents.length > 0 && (
+                      <div className="mt-4 pt-4 border-t">
+                        <h4 className="font-medium mb-3 flex items-center gap-2">
+                          <AlertTriangle className="h-4 w-4" />
+                          Recent Negative Events
+                        </h4>
+                        <div className="space-y-2 max-h-48 overflow-y-auto">
+                          {negativeEvents.slice(0, 5).map((event) => {
+                            const eventConfig = getEventTypeConfig(event.event_type);
+                            return (
+                              <div key={event.id} className="flex items-center justify-between p-2 bg-muted/30 rounded-lg">
+                                <div className="flex items-center gap-3">
+                                  <span className="text-lg">{eventConfig.icon}</span>
+                                  <div>
+                                    <p className={`text-sm font-medium ${eventConfig.color}`}>{eventConfig.label}</p>
+                                    <p className="text-xs text-muted-foreground capitalize">
+                                      {event.channel} {event.event_subtype ? `- ${event.event_subtype}` : ''}
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="text-right">
+                                  <Badge variant="outline" className="text-xs">
+                                    Impact: +{Number(event.risk_score_impact).toFixed(0)}
+                                  </Badge>
+                                  <p className="text-xs text-muted-foreground mt-1">
+                                    {format(new Date(event.created_at), 'MMM d, h:mm a')}
+                                  </p>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <ShieldAlert className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                    <p>No risk signal data available for this customer</p>
+                    <p className="text-xs mt-1">Signals will be calculated based on customer behavior</p>
                   </div>
                 )}
               </CardContent>
