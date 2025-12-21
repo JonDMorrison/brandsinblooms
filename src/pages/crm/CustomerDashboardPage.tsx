@@ -1,4 +1,5 @@
 import React from 'react';
+import { useParams } from 'react-router-dom';
 import { CustomerDashboardLayout } from '@/components/crm/customer-dashboard/CustomerDashboardLayout';
 import { CustomerSnapshot } from '@/components/crm/customer-dashboard/CustomerSnapshot';
 import { EngagementHealthOverview } from '@/components/crm/customer-dashboard/EngagementHealthOverview';
@@ -9,188 +10,159 @@ import { PurchaseValueBehavior } from '@/components/crm/customer-dashboard/Purch
 import { LoyaltyIncentivesImpact } from '@/components/crm/customer-dashboard/LoyaltyIncentivesImpact';
 import { RiskNegativeSignals } from '@/components/crm/customer-dashboard/RiskNegativeSignals';
 import { AIInsightsActions } from '@/components/crm/customer-dashboard/AIInsightsActions';
-import { useParams } from 'react-router-dom';
 import { Skeleton } from '@/components/ui/skeleton';
-
-// Sample data for demonstration - in production, these would come from hooks
-const sampleCustomer = {
-  id: '1',
-  name: 'Sarah Johnson',
-  email: 'sarah.johnson@example.com',
-  phone: '+1 555-123-4567',
-  lifecycle_stage: 'At Risk',
-  created_at: '2024-03-15',
-};
-
-const sampleMetrics = {
-  engagementHealthScore: 42,
-  engagementTrend: [65, 58, 52, 48, 42],
-  intentScore: 78,
-  intentLevel: 'warm',
-  preferredChannel: 'sms',
-  accountAgeDays: 280,
-};
-
-const sampleEvents = [
-  { id: '1', type: 'opt_out' as const, timestamp: '2024-12-19', title: 'Opted out of SMS', description: 'After 3 messages with no engagement', impact: 'negative' as const },
-  { id: '2', type: 'email_open' as const, timestamp: '2024-12-14', title: 'Opened "Summer Sale" email', description: 'Clicked 2 CTAs • Read for 45 seconds', impact: 'positive' as const },
-  { id: '3', type: 'purchase' as const, timestamp: '2024-12-11', title: 'Purchase: $127.50', description: 'Premium Rose Bush (x2), Organic Fertilizer', impact: 'positive' as const },
-  { id: '4', type: 'signup' as const, timestamp: '2024-03-15', title: 'Signup', description: 'Source: Facebook Ad • Campaign: Spring2024', impact: 'neutral' as const },
-];
+import { AlertCircle, RefreshCw } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { useCustomerDashboard } from '@/hooks/useCustomerDashboard';
+import {
+  transformToSnapshotMetrics,
+  transformToCustomerBasicInfo,
+  transformToEngagementMetrics,
+  transformToEmailMetrics,
+  transformToSmsMetrics,
+  transformToCrossChannelMetrics,
+  transformToPurchaseMetrics,
+  transformToLoyaltyMetrics,
+  transformToRiskMetrics,
+  transformToRecentRiskEvents,
+  transformToTimelineEvents,
+  transformToAIInsights,
+} from '@/lib/customerDashboardTransformers';
 
 const CustomerDashboardPage: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+  const { customerId } = useParams<{ customerId: string }>();
   const [timeRange, setTimeRange] = React.useState<'7d' | '30d' | '90d' | 'lifetime'>('30d');
-  const [loading] = React.useState(false);
 
-  if (loading) {
+  const {
+    customer,
+    crossChannelMetrics,
+    purchaseMetrics,
+    postPurchaseMetrics,
+    loyaltyMetrics,
+    lifecycleMetrics,
+    contentIntentMetrics,
+    riskSignals,
+    negativeEvents,
+    timelineEvents,
+    isLoading,
+    isCustomerLoading,
+    hasError,
+    refetch,
+  } = useCustomerDashboard(customerId);
+
+  // Transform data for components
+  const customerInfo = transformToCustomerBasicInfo(customer, lifecycleMetrics ?? null);
+  const snapshotMetrics = transformToSnapshotMetrics(customer, lifecycleMetrics ?? null, contentIntentMetrics ?? null, crossChannelMetrics ?? null);
+  const engagementMetrics = transformToEngagementMetrics(customer, crossChannelMetrics ?? null, lifecycleMetrics ?? null);
+  const emailMetrics = transformToEmailMetrics(customer);
+  const smsMetrics = transformToSmsMetrics(customer);
+  const crossChannelDisplayMetrics = transformToCrossChannelMetrics(crossChannelMetrics ?? null, customer, loyaltyMetrics ?? null);
+  const purchaseDisplayMetrics = transformToPurchaseMetrics(purchaseMetrics ?? null, postPurchaseMetrics ?? null);
+  const loyaltyDisplayMetrics = transformToLoyaltyMetrics(loyaltyMetrics ?? null, purchaseMetrics ?? null);
+  const riskDisplayMetrics = transformToRiskMetrics(riskSignals ?? null);
+  const recentRiskEvents = transformToRecentRiskEvents(negativeEvents);
+  const timelineDisplayEvents = transformToTimelineEvents(timelineEvents);
+  const aiInsights = transformToAIInsights(customer, crossChannelMetrics ?? null, purchaseMetrics ?? null, riskSignals ?? null, contentIntentMetrics ?? null);
+
+  // Loading state
+  if (isCustomerLoading) {
     return (
       <CustomerDashboardLayout customerName="Loading...">
-        <Skeleton className="h-40 w-full" />
-        <Skeleton className="h-64 w-full" />
-        <Skeleton className="h-96 w-full" />
+        <div className="space-y-6">
+          <Skeleton className="h-40 w-full rounded-lg" />
+          <Skeleton className="h-64 w-full rounded-lg" />
+          <Skeleton className="h-96 w-full rounded-lg" />
+        </div>
       </CustomerDashboardLayout>
     );
   }
 
+  // Error state
+  if (hasError || !customer) {
+    return (
+      <CustomerDashboardLayout customerName="Customer Not Found">
+        <div className="flex flex-col items-center justify-center py-16 text-center">
+          <AlertCircle className="h-16 w-16 text-muted-foreground mb-4" />
+          <h2 className="text-xl font-semibold mb-2">Unable to load customer data</h2>
+          <p className="text-muted-foreground mb-6 max-w-md">
+            {hasError 
+              ? "There was an error loading the customer data. Please try again."
+              : "The customer you're looking for could not be found."}
+          </p>
+          <Button onClick={refetch} variant="outline">
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Try Again
+          </Button>
+        </div>
+      </CustomerDashboardLayout>
+    );
+  }
+
+  const customerName = customerInfo?.name || customer.email.split('@')[0];
+
   return (
     <CustomerDashboardLayout
-      customerName={sampleCustomer.name}
-      customerId={id}
+      customerName={customerName}
+      customerId={customerId}
       selectedTimeRange={timeRange}
       onTimeRangeChange={setTimeRange}
     >
       {/* 1. Customer Snapshot (Header) */}
       <CustomerSnapshot
-        customer={sampleCustomer}
-        metrics={sampleMetrics}
+        customer={{
+          id: customer.id,
+          name: customerName,
+          email: customer.email,
+          phone: customer.phone || undefined,
+          lifecycle_stage: lifecycleMetrics?.lifecycle_stage || 'New',
+          created_at: customer.created_at,
+        }}
+        metrics={snapshotMetrics}
       />
 
       {/* 2. Engagement Health Overview */}
       <EngagementHealthOverview
-        metrics={{
-          engagementScore: 42,
-          engagementTrend: [65, 58, 52, 48, 42],
-          daysSinceLastEngagement: 14,
-          engagementVelocity: -12,
-          emailInteractions7d: 3,
-          smsInteractions7d: 1,
-        }}
+        metrics={engagementMetrics}
       />
 
       {/* 3. Customer Event Timeline (Hero) */}
       <CustomerEventTimeline
-        events={sampleEvents}
-        hasMore={true}
+        events={timelineDisplayEvents}
+        hasMore={timelineEvents.length >= 50}
       />
 
       {/* 4. Channel Deep Dive */}
       <ChannelDeepDive
-        emailMetrics={{
-          sent: 45,
-          delivered: 43,
-          opened: 28,
-          clicked: 12,
-          converted: 3,
-          openRate: 65,
-          clickRate: 28,
-          avgTimeToOpen: 138,
-          isQuickOpener: true,
-        }}
-        smsMetrics={{
-          sent: 18,
-          delivered: 17,
-          clicked: 8,
-          replied: 3,
-          deliveryRate: 94,
-          clickRate: 47,
-          replyRate: 18,
-          avgTimeToResponse: 25,
-        }}
+        emailMetrics={emailMetrics}
+        smsMetrics={smsMetrics}
       />
 
       {/* 5. Cross-Channel Intelligence */}
       <CrossChannelIntelligence
-        metrics={{
-          multiChannelScore: 72,
-          emailEngagement: 45,
-          smsEngagement: 78,
-          loyaltyEngagement: 62,
-          preferredChannel: 'sms',
-          channelFatigueEmail: 80,
-          channelFatigueSms: 30,
-          daysSinceLastEmail: 14,
-          daysSinceLastSms: 2,
-          daysSinceLastLoyalty: 45,
-        }}
+        metrics={crossChannelDisplayMetrics}
       />
 
       {/* 6. Purchase & Value Behavior */}
       <PurchaseValueBehavior
-        metrics={{
-          totalPurchases: 23,
-          totalRevenue: 1247,
-          ltv: 1247,
-          aov: 54,
-          purchaseFrequency: 1.2,
-          avgDaysBetweenPurchases: 21,
-          repeatPurchaseRate: 78,
-          fullPricePercentage: 60,
-          discountedPercentage: 40,
-          consecutiveDiscountPurchases: 4,
-          firstPurchaseDate: '2024-04-02',
-          lastPurchaseDate: '2024-12-11',
-        }}
+        metrics={purchaseDisplayMetrics}
       />
 
       {/* 7. Loyalty & Incentives Impact */}
       <LoyaltyIncentivesImpact
-        metrics={{
-          isPerksEnrolled: true,
-          currentTier: 'Gold',
-          pointsEarned: 1250,
-          pointsRedeemed: 800,
-          pointsBalance: 450,
-          avgRedemptionDelay: 12,
-          perksRevenue: 524,
-          totalRevenue: 1247,
-          nextTier: 'Platinum',
-          pointsToNextTier: 200,
-        }}
+        metrics={loyaltyDisplayMetrics}
       />
 
       {/* 8. Risk & Negative Signals */}
       <RiskNegativeSignals
-        metrics={{
-          overallRiskScore: 72,
-          riskLevel: 'high',
-          riskTrend: 'worsening',
-          optOutRiskScore: 80,
-          ignoreStreakRiskScore: 45,
-          couponDependencyRiskScore: 85,
-          bounceRiskScore: 20,
-          riskFactors: [
-            'Rapid opt-out (SMS) - 48 hours after signup',
-            'Coupon-only purchasing (85% with discount)',
-            'Message ignoring streak (5 consecutive)',
-          ],
-        }}
-        recentEvents={[
-          { id: '1', type: 'opt_out', timestamp: '2024-12-19', description: 'SMS Opt-Out (STOP keyword)' },
-          { id: '2', type: 'ignoring', timestamp: '2024-12-14', description: 'Ignored email (no open after 72h)' },
-        ]}
+        metrics={riskDisplayMetrics}
+        recentEvents={recentRiskEvents}
       />
 
       {/* 9. AI Insights & Next Best Actions */}
       <AIInsightsActions
         insights={[]}
-        keyInsight="This customer's engagement dropped 40% after your Black Friday campaign ended. They appear discount-dependent and only engage when incentives are present."
-        patterns={[
-          'High intent on product pages (78 intent score)',
-          'Responds better to SMS than email (2x click rate)',
-          'Opens brand story content but ignores promotional emails',
-          'Purchases peak in April-May (seasonal gardener)',
-        ]}
+        keyInsight={aiInsights.keyInsight}
+        patterns={aiInsights.patterns}
       />
     </CustomerDashboardLayout>
   );
