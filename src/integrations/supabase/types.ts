@@ -3507,6 +3507,250 @@ export type Database = {
           },
         ]
       }
+      customer_lifecycle_events: {
+        Row: {
+          churn_risk_score_at_event: number | null
+          created_at: string | null
+          customer_id: string
+          days_since_last_engagement_at_event: number | null
+          days_since_last_purchase_at_event: number | null
+          event_type: string
+          from_stage: string | null
+          id: string
+          tenant_id: string
+          to_stage: string | null
+          trigger_reason: string | null
+          trigger_source: string | null
+          trigger_source_id: string | null
+        }
+        Insert: {
+          churn_risk_score_at_event?: number | null
+          created_at?: string | null
+          customer_id: string
+          days_since_last_engagement_at_event?: number | null
+          days_since_last_purchase_at_event?: number | null
+          event_type: string
+          from_stage?: string | null
+          id?: string
+          tenant_id: string
+          to_stage?: string | null
+          trigger_reason?: string | null
+          trigger_source?: string | null
+          trigger_source_id?: string | null
+        }
+        Update: {
+          churn_risk_score_at_event?: number | null
+          created_at?: string | null
+          customer_id?: string
+          days_since_last_engagement_at_event?: number | null
+          days_since_last_purchase_at_event?: number | null
+          event_type?: string
+          from_stage?: string | null
+          id?: string
+          tenant_id?: string
+          to_stage?: string | null
+          trigger_reason?: string | null
+          trigger_source?: string | null
+          trigger_source_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_lifecycle_events_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "crm_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_lifecycle_events_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customer_360_enriched"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_lifecycle_events_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "admin_tenant_overview"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "customer_lifecycle_events_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      customer_lifecycle_metrics: {
+        Row: {
+          automations_received_last_30d: number | null
+          avg_time_to_reactivation_days: number | null
+          churn_risk_score: number | null
+          churned_at: string | null
+          created_at: string | null
+          customer_created_at: string | null
+          customer_id: string
+          days_in_current_stage: number | null
+          days_since_last_automation: number | null
+          days_since_last_engagement: number | null
+          days_since_last_purchase: number | null
+          days_since_signup: number | null
+          engagement_velocity: number | null
+          engagements_last_30d: number | null
+          engagements_last_90d: number | null
+          first_purchase_at: string | null
+          id: string
+          is_churned: boolean | null
+          is_reactivated: boolean | null
+          last_any_engagement_at: string | null
+          last_automation_received_at: string | null
+          last_email_engagement_at: string | null
+          last_purchase_at: string | null
+          last_reactivation_trigger: string | null
+          last_sms_engagement_at: string | null
+          lifecycle_health_score: number | null
+          lifecycle_stage: string
+          lifecycle_stage_changed_at: string | null
+          predicted_churn_date: string | null
+          previous_lifecycle_stage: string | null
+          purchase_velocity: number | null
+          purchases_last_30d: number | null
+          purchases_last_90d: number | null
+          reactivated_at: string | null
+          reactivation_count: number | null
+          reactivation_success_rate: number | null
+          retention_probability: number | null
+          successful_reactivations: number | null
+          tenant_id: string
+          time_to_churn_days: number | null
+          time_to_reactivation_days: number | null
+          total_churn_events: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          automations_received_last_30d?: number | null
+          avg_time_to_reactivation_days?: number | null
+          churn_risk_score?: number | null
+          churned_at?: string | null
+          created_at?: string | null
+          customer_created_at?: string | null
+          customer_id: string
+          days_in_current_stage?: number | null
+          days_since_last_automation?: number | null
+          days_since_last_engagement?: number | null
+          days_since_last_purchase?: number | null
+          days_since_signup?: number | null
+          engagement_velocity?: number | null
+          engagements_last_30d?: number | null
+          engagements_last_90d?: number | null
+          first_purchase_at?: string | null
+          id?: string
+          is_churned?: boolean | null
+          is_reactivated?: boolean | null
+          last_any_engagement_at?: string | null
+          last_automation_received_at?: string | null
+          last_email_engagement_at?: string | null
+          last_purchase_at?: string | null
+          last_reactivation_trigger?: string | null
+          last_sms_engagement_at?: string | null
+          lifecycle_health_score?: number | null
+          lifecycle_stage?: string
+          lifecycle_stage_changed_at?: string | null
+          predicted_churn_date?: string | null
+          previous_lifecycle_stage?: string | null
+          purchase_velocity?: number | null
+          purchases_last_30d?: number | null
+          purchases_last_90d?: number | null
+          reactivated_at?: string | null
+          reactivation_count?: number | null
+          reactivation_success_rate?: number | null
+          retention_probability?: number | null
+          successful_reactivations?: number | null
+          tenant_id: string
+          time_to_churn_days?: number | null
+          time_to_reactivation_days?: number | null
+          total_churn_events?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          automations_received_last_30d?: number | null
+          avg_time_to_reactivation_days?: number | null
+          churn_risk_score?: number | null
+          churned_at?: string | null
+          created_at?: string | null
+          customer_created_at?: string | null
+          customer_id?: string
+          days_in_current_stage?: number | null
+          days_since_last_automation?: number | null
+          days_since_last_engagement?: number | null
+          days_since_last_purchase?: number | null
+          days_since_signup?: number | null
+          engagement_velocity?: number | null
+          engagements_last_30d?: number | null
+          engagements_last_90d?: number | null
+          first_purchase_at?: string | null
+          id?: string
+          is_churned?: boolean | null
+          is_reactivated?: boolean | null
+          last_any_engagement_at?: string | null
+          last_automation_received_at?: string | null
+          last_email_engagement_at?: string | null
+          last_purchase_at?: string | null
+          last_reactivation_trigger?: string | null
+          last_sms_engagement_at?: string | null
+          lifecycle_health_score?: number | null
+          lifecycle_stage?: string
+          lifecycle_stage_changed_at?: string | null
+          predicted_churn_date?: string | null
+          previous_lifecycle_stage?: string | null
+          purchase_velocity?: number | null
+          purchases_last_30d?: number | null
+          purchases_last_90d?: number | null
+          reactivated_at?: string | null
+          reactivation_count?: number | null
+          reactivation_success_rate?: number | null
+          retention_probability?: number | null
+          successful_reactivations?: number | null
+          tenant_id?: string
+          time_to_churn_days?: number | null
+          time_to_reactivation_days?: number | null
+          total_churn_events?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_lifecycle_metrics_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: true
+            referencedRelation: "crm_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_lifecycle_metrics_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: true
+            referencedRelation: "customer_360_enriched"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_lifecycle_metrics_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "admin_tenant_overview"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "customer_lifecycle_metrics_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customer_loyalty_metrics: {
         Row: {
           avg_order_value_with_perks: number | null
@@ -9559,6 +9803,66 @@ export type Database = {
         }
         Relationships: []
       }
+      tenant_lifecycle_thresholds: {
+        Row: {
+          active_to_at_risk_days: number | null
+          active_to_loyal_days: number | null
+          at_risk_to_dormant_days: number | null
+          created_at: string | null
+          dormant_to_churned_days: number | null
+          engaged_to_active_buyer_purchase_count: number | null
+          id: string
+          new_to_engaged_engagement_count: number | null
+          reactivation_engagement_required: boolean | null
+          reactivation_purchase_required: boolean | null
+          tenant_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          active_to_at_risk_days?: number | null
+          active_to_loyal_days?: number | null
+          at_risk_to_dormant_days?: number | null
+          created_at?: string | null
+          dormant_to_churned_days?: number | null
+          engaged_to_active_buyer_purchase_count?: number | null
+          id?: string
+          new_to_engaged_engagement_count?: number | null
+          reactivation_engagement_required?: boolean | null
+          reactivation_purchase_required?: boolean | null
+          tenant_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          active_to_at_risk_days?: number | null
+          active_to_loyal_days?: number | null
+          at_risk_to_dormant_days?: number | null
+          created_at?: string | null
+          dormant_to_churned_days?: number | null
+          engaged_to_active_buyer_purchase_count?: number | null
+          id?: string
+          new_to_engaged_engagement_count?: number | null
+          reactivation_engagement_required?: boolean | null
+          reactivation_purchase_required?: boolean | null
+          tenant_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_lifecycle_thresholds_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
+            referencedRelation: "admin_tenant_overview"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "tenant_lifecycle_thresholds_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tenants: {
         Row: {
           archived_at: string | null
@@ -10418,6 +10722,10 @@ export type Database = {
       bundle_approved_counts: { Args: { j: Json }; Returns: Json }
       bundle_channels: { Args: { j: Json }; Returns: string[] }
       bundle_first_media_url: { Args: { j: Json }; Returns: string }
+      calculate_churn_risk_score: {
+        Args: { p_customer_id: string }
+        Returns: number
+      }
       calculate_tenant_perks_enrollment_rate: {
         Args: { p_tenant_id: string }
         Returns: number
@@ -10539,6 +10847,10 @@ export type Database = {
         Returns: {
           deleted_count: number
         }[]
+      }
+      determine_lifecycle_stage: {
+        Args: { p_customer_id: string }
+        Returns: string
       }
       enable_crm_for_user: {
         Args: { target_user_id: string }
@@ -10682,6 +10994,10 @@ export type Database = {
         }[]
       }
       get_sync_queue_status: { Args: never; Returns: Json }
+      get_tenant_lifecycle_stats: {
+        Args: { p_tenant_id: string }
+        Returns: Json
+      }
       get_token_balance: {
         Args: { p_user_id: string }
         Returns: {
@@ -10761,6 +11077,10 @@ export type Database = {
         Args: { p_customer_id: string }
         Returns: undefined
       }
+      recalculate_lifecycle_metrics: {
+        Args: { p_customer_id: string }
+        Returns: undefined
+      }
       recalculate_loyalty_metrics: {
         Args: { p_customer_id: string }
         Returns: undefined
@@ -10815,6 +11135,10 @@ export type Database = {
       }
       refresh_all_cross_channel_metrics: {
         Args: { p_tenant_id?: string }
+        Returns: number
+      }
+      refresh_all_lifecycle_metrics: {
+        Args: { p_tenant_id: string }
         Returns: number
       }
       refresh_all_loyalty_metrics: {
