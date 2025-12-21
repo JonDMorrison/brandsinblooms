@@ -176,3 +176,63 @@ export interface CrossChannelStats {
   };
   avgDaysSinceLastEngagement: number;
 }
+
+export interface CustomerPurchaseMetrics {
+  id: string;
+  customer_id: string;
+  tenant_id: string;
+  
+  // Core metrics
+  total_purchases: number;
+  first_purchase_date: string | null;
+  last_purchase_date: string | null;
+  
+  // Frequency metrics
+  purchase_frequency: number;
+  avg_days_between_purchases: number | null;
+  min_days_between_purchases: number | null;
+  max_days_between_purchases: number | null;
+  
+  // Value metrics
+  average_order_value: number;
+  lifetime_value: number;
+  revenue_per_month: number;
+  
+  // Behavior metrics
+  repeat_purchase_rate: number;
+  purchase_velocity: number;
+  days_since_last_purchase: number | null;
+  
+  // Discount behavior
+  total_discounted_purchases: number;
+  total_full_price_purchases: number;
+  discount_driven_ratio: number;
+  total_discount_amount: number;
+  
+  // Patterns
+  seasonal_patterns: Record<string, number>;
+  peak_purchase_month: string | null;
+  product_category_affinity: Record<string, number>;
+  top_product_categories: string[];
+  favorite_products: string[];
+  
+  // Scores
+  purchase_engagement_score: number;
+  customer_tier: 'new' | 'occasional' | 'regular' | 'loyal' | 'vip';
+  
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PurchaseStats {
+  avgAOV: number;
+  totalLTV: number;
+  avgPurchaseFrequency: number;
+  tierBreakdown: {
+    new: number;
+    occasional: number;
+    regular: number;
+    loyal: number;
+    vip: number;
+  };
+}

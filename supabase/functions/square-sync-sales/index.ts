@@ -142,6 +142,14 @@ async function updateCustomerPurchaseData(
     console.error(`[SQUARE-SYNC-SALES] Failed to update metrics for ${customerEmail}:`, updateError);
   } else {
     console.log(`[SQUARE-SYNC-SALES] Updated ${customerEmail}: LTV=$${cumulativeLifetimeValue}, orders=${mergedHistory.length}, tags=${mergedTags.length}`);
+    
+    // Trigger purchase metrics recalculation
+    const { error: metricsError } = await supabase.rpc('recalculate_purchase_metrics', {
+      p_customer_id: customer.id,
+    });
+    if (metricsError) {
+      console.error(`[SQUARE-SYNC-SALES] Failed to recalculate purchase metrics for ${customer.id}:`, metricsError);
+    }
   }
 }
 
