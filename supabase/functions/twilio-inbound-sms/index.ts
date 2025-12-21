@@ -102,6 +102,16 @@ Deno.serve(async (req) => {
         } else {
           console.log('[twilio-inbound-sms] Updated SMS metrics for opt-out, customer:', customerId);
         }
+
+        // Update cross-channel metrics
+        const { error: crossChannelError } = await supabase.rpc('update_cross_channel_metrics', {
+          p_customer_id: customerId,
+          p_channel: 'sms',
+          p_event_type: 'opt_out',
+        });
+        if (crossChannelError) {
+          console.error('[twilio-inbound-sms] Error updating cross-channel metrics:', crossChannelError);
+        }
       }
 
       // Respond to Twilio with confirmation message
@@ -271,6 +281,16 @@ Deno.serve(async (req) => {
         console.error('[twilio-inbound-sms] Error updating SMS metrics for reply:', metricsError);
       } else {
         console.log('[twilio-inbound-sms] Updated SMS metrics for reply, customer:', customerId);
+      }
+
+      // Update cross-channel metrics for reply
+      const { error: crossChannelError } = await supabase.rpc('update_cross_channel_metrics', {
+        p_customer_id: customerId,
+        p_channel: 'sms',
+        p_event_type: 'replied',
+      });
+      if (crossChannelError) {
+        console.error('[twilio-inbound-sms] Error updating cross-channel metrics:', crossChannelError);
       }
     }
 
