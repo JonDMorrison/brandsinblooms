@@ -3498,58 +3498,73 @@ export type Database = {
       }
       customer_sms_metrics: {
         Row: {
+          avg_time_to_response_minutes: number | null
           click_rate: number | null
           created_at: string | null
           customer_id: string
           delivery_rate: number | null
+          engagement_score: number | null
           id: string
           last_clicked_at: string | null
           last_delivered_at: string | null
+          last_opt_out_at: string | null
           last_replied_at: string | null
           last_sent_at: string | null
+          opt_out_rate: number | null
           reply_rate: number | null
           tenant_id: string
           total_clicked: number | null
           total_delivered: number | null
           total_failed: number | null
+          total_opt_outs: number | null
           total_replied: number | null
           total_sent: number | null
           updated_at: string | null
         }
         Insert: {
+          avg_time_to_response_minutes?: number | null
           click_rate?: number | null
           created_at?: string | null
           customer_id: string
           delivery_rate?: number | null
+          engagement_score?: number | null
           id?: string
           last_clicked_at?: string | null
           last_delivered_at?: string | null
+          last_opt_out_at?: string | null
           last_replied_at?: string | null
           last_sent_at?: string | null
+          opt_out_rate?: number | null
           reply_rate?: number | null
           tenant_id: string
           total_clicked?: number | null
           total_delivered?: number | null
           total_failed?: number | null
+          total_opt_outs?: number | null
           total_replied?: number | null
           total_sent?: number | null
           updated_at?: string | null
         }
         Update: {
+          avg_time_to_response_minutes?: number | null
           click_rate?: number | null
           created_at?: string | null
           customer_id?: string
           delivery_rate?: number | null
+          engagement_score?: number | null
           id?: string
           last_clicked_at?: string | null
           last_delivered_at?: string | null
+          last_opt_out_at?: string | null
           last_replied_at?: string | null
           last_sent_at?: string | null
+          opt_out_rate?: number | null
           reply_rate?: number | null
           tenant_id?: string
           total_clicked?: number | null
           total_delivered?: number | null
           total_failed?: number | null
+          total_opt_outs?: number | null
           total_replied?: number | null
           total_sent?: number | null
           updated_at?: string | null
