@@ -40,6 +40,7 @@ import CRMSegmentsBetaPage from '@/pages/crm/CRMSegmentsBetaPage';
 import { CRMPersonasPage } from '@/pages/crm/CRMPersonasPage';
 import AddCustomer from '@/pages/crm/AddCustomer';
 import { CustomerDetailPage } from '@/pages/crm/CustomerDetailPage';
+import CustomerDashboardPage from '@/pages/crm/CustomerDashboardPage';
 import CRMAnalytics from '@/pages/crm/CRMAnalytics';
 import CRMAutomations from '@/pages/crm/CRMAutomations';
 import AnalyticsPage from '@/pages/AnalyticsPage';
@@ -232,7 +233,7 @@ function App() {
           <Route path="/crm/customers/:customerId" element={
             <ProtectedRoute>
               <SidebarLayout>
-                <CustomerDetailPage />
+                <CustomerDashboardPage />
               </SidebarLayout>
             </ProtectedRoute>
           } />
