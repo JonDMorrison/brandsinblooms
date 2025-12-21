@@ -4642,6 +4642,281 @@ export type Database = {
           },
         ]
       }
+      customer_risk_signals: {
+        Row: {
+          auto_suppressed_at: string | null
+          avg_ignore_streak_length: number | null
+          avg_incentive_value_used: number | null
+          avg_order_value_with_coupon: number | null
+          avg_order_value_without_coupon: number | null
+          bounce_categories: string[] | null
+          bounce_risk_score: number | null
+          consecutive_coupon_purchases: number | null
+          consecutive_hard_bounces: number | null
+          coupon_dependency_risk_score: number | null
+          coupon_only_ratio: number | null
+          created_at: string | null
+          current_ignore_streak: number | null
+          customer_id: string
+          days_since_first_message: number | null
+          days_since_last_engagement: number | null
+          days_since_last_purchase: number | null
+          dormancy_duration_days: number | null
+          dormancy_risk_score: number | null
+          dormancy_start_date: string | null
+          dormant_reactivation_attempts: number | null
+          dormant_reactivation_responses: number | null
+          email_opt_outs: number | null
+          engagement_gap_risk_score: number | null
+          engagement_gap_threshold: number | null
+          first_hard_bounce_at: string | null
+          hard_bounce_rate: number | null
+          id: string
+          ignore_streak_risk_score: number | null
+          ignore_streak_started_at: string | null
+          incentive_abuse_risk_score: number | null
+          incentive_abuse_signals: Json | null
+          incentives_shared: number | null
+          incentives_stacked: number | null
+          incentives_used_at_expiry: number | null
+          is_coupon_dependent: boolean | null
+          is_email_invalid: boolean | null
+          is_ignoring_messages: boolean | null
+          is_long_term_dormant: boolean | null
+          is_no_engagement_alert: boolean | null
+          is_rapid_opt_out: boolean | null
+          is_sms_unreachable: boolean | null
+          is_suspected_incentive_abuser: boolean | null
+          last_engagement_at: string | null
+          last_hard_bounce_at: string | null
+          last_opt_out_at: string | null
+          last_risk_assessment_at: string | null
+          max_consecutive_coupon_purchases: number | null
+          max_ignore_streak: number | null
+          max_incentive_value_used: number | null
+          messages_before_opt_out: number | null
+          messages_since_last_engagement: number | null
+          opt_out_risk_score: number | null
+          opt_out_sources: string[] | null
+          opt_out_speed_days: number | null
+          overall_risk_score: number | null
+          purchases_with_coupon: number | null
+          purchases_without_coupon: number | null
+          risk_factors: string[] | null
+          risk_level: string | null
+          risk_trend: string | null
+          should_suppress: boolean | null
+          sms_carrier_blocks: number | null
+          sms_delivery_failures: number | null
+          sms_invalid_number_flags: number | null
+          sms_opt_outs: number | null
+          sms_risk_score: number | null
+          sms_spam_reports: number | null
+          suppression_reason: string | null
+          tenant_id: string
+          total_hard_bounces: number | null
+          total_incentives_used: number | null
+          total_messages_engaged: number | null
+          total_messages_ignored: number | null
+          total_messages_sent: number | null
+          total_opt_outs: number | null
+          total_purchases: number | null
+          total_soft_bounces: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          auto_suppressed_at?: string | null
+          avg_ignore_streak_length?: number | null
+          avg_incentive_value_used?: number | null
+          avg_order_value_with_coupon?: number | null
+          avg_order_value_without_coupon?: number | null
+          bounce_categories?: string[] | null
+          bounce_risk_score?: number | null
+          consecutive_coupon_purchases?: number | null
+          consecutive_hard_bounces?: number | null
+          coupon_dependency_risk_score?: number | null
+          coupon_only_ratio?: number | null
+          created_at?: string | null
+          current_ignore_streak?: number | null
+          customer_id: string
+          days_since_first_message?: number | null
+          days_since_last_engagement?: number | null
+          days_since_last_purchase?: number | null
+          dormancy_duration_days?: number | null
+          dormancy_risk_score?: number | null
+          dormancy_start_date?: string | null
+          dormant_reactivation_attempts?: number | null
+          dormant_reactivation_responses?: number | null
+          email_opt_outs?: number | null
+          engagement_gap_risk_score?: number | null
+          engagement_gap_threshold?: number | null
+          first_hard_bounce_at?: string | null
+          hard_bounce_rate?: number | null
+          id?: string
+          ignore_streak_risk_score?: number | null
+          ignore_streak_started_at?: string | null
+          incentive_abuse_risk_score?: number | null
+          incentive_abuse_signals?: Json | null
+          incentives_shared?: number | null
+          incentives_stacked?: number | null
+          incentives_used_at_expiry?: number | null
+          is_coupon_dependent?: boolean | null
+          is_email_invalid?: boolean | null
+          is_ignoring_messages?: boolean | null
+          is_long_term_dormant?: boolean | null
+          is_no_engagement_alert?: boolean | null
+          is_rapid_opt_out?: boolean | null
+          is_sms_unreachable?: boolean | null
+          is_suspected_incentive_abuser?: boolean | null
+          last_engagement_at?: string | null
+          last_hard_bounce_at?: string | null
+          last_opt_out_at?: string | null
+          last_risk_assessment_at?: string | null
+          max_consecutive_coupon_purchases?: number | null
+          max_ignore_streak?: number | null
+          max_incentive_value_used?: number | null
+          messages_before_opt_out?: number | null
+          messages_since_last_engagement?: number | null
+          opt_out_risk_score?: number | null
+          opt_out_sources?: string[] | null
+          opt_out_speed_days?: number | null
+          overall_risk_score?: number | null
+          purchases_with_coupon?: number | null
+          purchases_without_coupon?: number | null
+          risk_factors?: string[] | null
+          risk_level?: string | null
+          risk_trend?: string | null
+          should_suppress?: boolean | null
+          sms_carrier_blocks?: number | null
+          sms_delivery_failures?: number | null
+          sms_invalid_number_flags?: number | null
+          sms_opt_outs?: number | null
+          sms_risk_score?: number | null
+          sms_spam_reports?: number | null
+          suppression_reason?: string | null
+          tenant_id: string
+          total_hard_bounces?: number | null
+          total_incentives_used?: number | null
+          total_messages_engaged?: number | null
+          total_messages_ignored?: number | null
+          total_messages_sent?: number | null
+          total_opt_outs?: number | null
+          total_purchases?: number | null
+          total_soft_bounces?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          auto_suppressed_at?: string | null
+          avg_ignore_streak_length?: number | null
+          avg_incentive_value_used?: number | null
+          avg_order_value_with_coupon?: number | null
+          avg_order_value_without_coupon?: number | null
+          bounce_categories?: string[] | null
+          bounce_risk_score?: number | null
+          consecutive_coupon_purchases?: number | null
+          consecutive_hard_bounces?: number | null
+          coupon_dependency_risk_score?: number | null
+          coupon_only_ratio?: number | null
+          created_at?: string | null
+          current_ignore_streak?: number | null
+          customer_id?: string
+          days_since_first_message?: number | null
+          days_since_last_engagement?: number | null
+          days_since_last_purchase?: number | null
+          dormancy_duration_days?: number | null
+          dormancy_risk_score?: number | null
+          dormancy_start_date?: string | null
+          dormant_reactivation_attempts?: number | null
+          dormant_reactivation_responses?: number | null
+          email_opt_outs?: number | null
+          engagement_gap_risk_score?: number | null
+          engagement_gap_threshold?: number | null
+          first_hard_bounce_at?: string | null
+          hard_bounce_rate?: number | null
+          id?: string
+          ignore_streak_risk_score?: number | null
+          ignore_streak_started_at?: string | null
+          incentive_abuse_risk_score?: number | null
+          incentive_abuse_signals?: Json | null
+          incentives_shared?: number | null
+          incentives_stacked?: number | null
+          incentives_used_at_expiry?: number | null
+          is_coupon_dependent?: boolean | null
+          is_email_invalid?: boolean | null
+          is_ignoring_messages?: boolean | null
+          is_long_term_dormant?: boolean | null
+          is_no_engagement_alert?: boolean | null
+          is_rapid_opt_out?: boolean | null
+          is_sms_unreachable?: boolean | null
+          is_suspected_incentive_abuser?: boolean | null
+          last_engagement_at?: string | null
+          last_hard_bounce_at?: string | null
+          last_opt_out_at?: string | null
+          last_risk_assessment_at?: string | null
+          max_consecutive_coupon_purchases?: number | null
+          max_ignore_streak?: number | null
+          max_incentive_value_used?: number | null
+          messages_before_opt_out?: number | null
+          messages_since_last_engagement?: number | null
+          opt_out_risk_score?: number | null
+          opt_out_sources?: string[] | null
+          opt_out_speed_days?: number | null
+          overall_risk_score?: number | null
+          purchases_with_coupon?: number | null
+          purchases_without_coupon?: number | null
+          risk_factors?: string[] | null
+          risk_level?: string | null
+          risk_trend?: string | null
+          should_suppress?: boolean | null
+          sms_carrier_blocks?: number | null
+          sms_delivery_failures?: number | null
+          sms_invalid_number_flags?: number | null
+          sms_opt_outs?: number | null
+          sms_risk_score?: number | null
+          sms_spam_reports?: number | null
+          suppression_reason?: string | null
+          tenant_id?: string
+          total_hard_bounces?: number | null
+          total_incentives_used?: number | null
+          total_messages_engaged?: number | null
+          total_messages_ignored?: number | null
+          total_messages_sent?: number | null
+          total_opt_outs?: number | null
+          total_purchases?: number | null
+          total_soft_bounces?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_risk_signals_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: true
+            referencedRelation: "crm_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_risk_signals_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: true
+            referencedRelation: "customer_360_enriched"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_risk_signals_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "admin_tenant_overview"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "customer_risk_signals_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customer_segments: {
         Row: {
           assigned_at: string
@@ -7459,6 +7734,101 @@ export type Database = {
         }
         Relationships: []
       }
+      negative_behavior_events: {
+        Row: {
+          abuse_type: string | null
+          automation_id: string | null
+          bounce_reason: string | null
+          bounce_type: string | null
+          campaign_id: string | null
+          channel: string
+          created_at: string | null
+          customer_id: string | null
+          event_subtype: string | null
+          event_type: string
+          id: string
+          ignore_streak_length: number | null
+          message_id: string | null
+          messages_received_before: number | null
+          metadata: Json | null
+          opt_out_source: string | null
+          risk_score_impact: number | null
+          tenant_id: string
+          time_since_last_message_seconds: number | null
+        }
+        Insert: {
+          abuse_type?: string | null
+          automation_id?: string | null
+          bounce_reason?: string | null
+          bounce_type?: string | null
+          campaign_id?: string | null
+          channel: string
+          created_at?: string | null
+          customer_id?: string | null
+          event_subtype?: string | null
+          event_type: string
+          id?: string
+          ignore_streak_length?: number | null
+          message_id?: string | null
+          messages_received_before?: number | null
+          metadata?: Json | null
+          opt_out_source?: string | null
+          risk_score_impact?: number | null
+          tenant_id: string
+          time_since_last_message_seconds?: number | null
+        }
+        Update: {
+          abuse_type?: string | null
+          automation_id?: string | null
+          bounce_reason?: string | null
+          bounce_type?: string | null
+          campaign_id?: string | null
+          channel?: string
+          created_at?: string | null
+          customer_id?: string | null
+          event_subtype?: string | null
+          event_type?: string
+          id?: string
+          ignore_streak_length?: number | null
+          message_id?: string | null
+          messages_received_before?: number | null
+          metadata?: Json | null
+          opt_out_source?: string | null
+          risk_score_impact?: number | null
+          tenant_id?: string
+          time_since_last_message_seconds?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "negative_behavior_events_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "crm_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "negative_behavior_events_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customer_360_enriched"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "negative_behavior_events_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "admin_tenant_overview"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "negative_behavior_events_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       oauth_code_usage: {
         Row: {
           code_hash: string
@@ -10145,6 +10515,99 @@ export type Database = {
           },
         ]
       }
+      suppression_list: {
+        Row: {
+          auto_suppressed: boolean | null
+          channel: string
+          created_at: string | null
+          customer_id: string | null
+          email: string | null
+          expires_at: string | null
+          id: string
+          lifted_at: string | null
+          lifted_by: string | null
+          phone: string | null
+          reason: string | null
+          source_event_id: string | null
+          suppressed_at: string | null
+          suppression_type: string
+          tenant_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          auto_suppressed?: boolean | null
+          channel: string
+          created_at?: string | null
+          customer_id?: string | null
+          email?: string | null
+          expires_at?: string | null
+          id?: string
+          lifted_at?: string | null
+          lifted_by?: string | null
+          phone?: string | null
+          reason?: string | null
+          source_event_id?: string | null
+          suppressed_at?: string | null
+          suppression_type: string
+          tenant_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          auto_suppressed?: boolean | null
+          channel?: string
+          created_at?: string | null
+          customer_id?: string | null
+          email?: string | null
+          expires_at?: string | null
+          id?: string
+          lifted_at?: string | null
+          lifted_by?: string | null
+          phone?: string | null
+          reason?: string | null
+          source_event_id?: string | null
+          suppressed_at?: string | null
+          suppression_type?: string
+          tenant_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "suppression_list_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "crm_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "suppression_list_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customer_360_enriched"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "suppression_list_source_event_id_fkey"
+            columns: ["source_event_id"]
+            isOneToOne: false
+            referencedRelation: "negative_behavior_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "suppression_list_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "admin_tenant_overview"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "suppression_list_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       system_config: {
         Row: {
           description: string | null
@@ -11441,6 +11904,7 @@ export type Database = {
         Args: { p_tenant_id: string }
         Returns: Json
       }
+      get_tenant_risk_stats: { Args: { p_tenant_id: string }; Returns: Json }
       get_token_balance: {
         Args: { p_user_id: string }
         Returns: {
@@ -11540,6 +12004,10 @@ export type Database = {
         Args: { p_customer_id: string }
         Returns: undefined
       }
+      recalculate_risk_signals: {
+        Args: { p_customer_id: string }
+        Returns: undefined
+      }
       recalculate_sms_engagement_score: {
         Args: { p_customer_id: string }
         Returns: undefined
@@ -11602,6 +12070,10 @@ export type Database = {
       }
       refresh_all_purchase_metrics: {
         Args: { p_tenant_id?: string }
+        Returns: number
+      }
+      refresh_all_risk_signals: {
+        Args: { p_tenant_id: string }
         Returns: number
       }
       reserve_sms_send_tokens: {
@@ -11706,6 +12178,20 @@ export type Database = {
         Args: {
           p_customer_id: string
           p_enrollment_source?: string
+          p_tenant_id: string
+        }
+        Returns: string
+      }
+      track_negative_behavior_event: {
+        Args: {
+          p_automation_id?: string
+          p_campaign_id?: string
+          p_channel?: string
+          p_customer_id: string
+          p_event_subtype?: string
+          p_event_type: string
+          p_message_id?: string
+          p_metadata?: Json
           p_tenant_id: string
         }
         Returns: string

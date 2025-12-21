@@ -703,3 +703,158 @@ export interface TenantContentIntentStats {
   avg_cta_click_rate: number;
   avg_brand_story_open_rate: number;
 }
+
+// =============================================
+// NEGATIVE BEHAVIOR & RISK SIGNALS
+// =============================================
+
+export type RiskLevel = 'minimal' | 'low' | 'moderate' | 'high' | 'critical';
+export type RiskTrend = 'improving' | 'stable' | 'worsening';
+
+export interface CustomerRiskSignals {
+  id: string;
+  customer_id: string;
+  tenant_id: string;
+  
+  // ◆ Rapid Opt-Outs
+  total_opt_outs: number;
+  sms_opt_outs: number;
+  email_opt_outs: number;
+  opt_out_speed_days: number | null;
+  messages_before_opt_out: number | null;
+  is_rapid_opt_out: boolean;
+  last_opt_out_at: string | null;
+  opt_out_sources: string[];
+  opt_out_risk_score: number;
+  
+  // ◆ Message Ignoring Streak
+  current_ignore_streak: number;
+  max_ignore_streak: number;
+  total_messages_ignored: number;
+  ignore_streak_started_at: string | null;
+  is_ignoring_messages: boolean;
+  avg_ignore_streak_length: number;
+  ignore_streak_risk_score: number;
+  
+  // ◆ No Engagement After X Messages
+  total_messages_sent: number;
+  total_messages_engaged: number;
+  messages_since_last_engagement: number;
+  last_engagement_at: string | null;
+  engagement_gap_threshold: number;
+  is_no_engagement_alert: boolean;
+  engagement_gap_risk_score: number;
+  
+  // ◆ Incentive Abuse Patterns
+  total_incentives_used: number;
+  incentives_stacked: number;
+  incentives_shared: number;
+  incentives_used_at_expiry: number;
+  avg_incentive_value_used: number;
+  max_incentive_value_used: number;
+  incentive_abuse_signals: Record<string, unknown>;
+  is_suspected_incentive_abuser: boolean;
+  incentive_abuse_risk_score: number;
+  
+  // ◆ Coupon-Only Purchasing
+  total_purchases: number;
+  purchases_with_coupon: number;
+  purchases_without_coupon: number;
+  coupon_only_ratio: number;
+  consecutive_coupon_purchases: number;
+  max_consecutive_coupon_purchases: number;
+  avg_order_value_with_coupon: number;
+  avg_order_value_without_coupon: number;
+  is_coupon_dependent: boolean;
+  coupon_dependency_risk_score: number;
+  
+  // ◆ Long-Term Dormant State
+  days_since_last_purchase: number | null;
+  days_since_last_engagement: number | null;
+  days_since_first_message: number | null;
+  dormancy_start_date: string | null;
+  dormancy_duration_days: number;
+  is_long_term_dormant: boolean;
+  dormant_reactivation_attempts: number;
+  dormant_reactivation_responses: number;
+  dormancy_risk_score: number;
+  
+  // ◆ Hard Bounce History
+  total_hard_bounces: number;
+  total_soft_bounces: number;
+  consecutive_hard_bounces: number;
+  first_hard_bounce_at: string | null;
+  last_hard_bounce_at: string | null;
+  hard_bounce_rate: number;
+  is_email_invalid: boolean;
+  bounce_categories: string[];
+  bounce_risk_score: number;
+  
+  // SMS Risk
+  sms_delivery_failures: number;
+  sms_carrier_blocks: number;
+  sms_spam_reports: number;
+  sms_invalid_number_flags: number;
+  is_sms_unreachable: boolean;
+  sms_risk_score: number;
+  
+  // Aggregate Risk
+  overall_risk_score: number;
+  risk_level: RiskLevel;
+  risk_factors: string[];
+  risk_trend: RiskTrend;
+  last_risk_assessment_at: string | null;
+  
+  // Suppression
+  should_suppress: boolean;
+  suppression_reason: string | null;
+  auto_suppressed_at: string | null;
+  
+  created_at: string;
+  updated_at: string;
+}
+
+export interface NegativeBehaviorEvent {
+  id: string;
+  tenant_id: string;
+  customer_id: string | null;
+  event_type: 'opt_out' | 'ignore' | 'bounce' | 'abuse' | 'complaint' | 'undeliverable';
+  event_subtype: string | null;
+  channel: 'email' | 'sms';
+  campaign_id: string | null;
+  message_id: string | null;
+  automation_id: string | null;
+  opt_out_source: string | null;
+  bounce_type: string | null;
+  bounce_reason: string | null;
+  ignore_streak_length: number | null;
+  abuse_type: string | null;
+  messages_received_before: number | null;
+  time_since_last_message_seconds: number | null;
+  risk_score_impact: number;
+  metadata: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface TenantRiskStats {
+  total_customers: number;
+  risk_level_breakdown: {
+    minimal: number;
+    low: number;
+    moderate: number;
+    high: number;
+    critical: number;
+  };
+  avg_overall_risk_score: number;
+  rapid_opt_out_count: number;
+  avg_ignore_streak: number;
+  coupon_dependent_count: number;
+  long_term_dormant_count: number;
+  hard_bounce_count: number;
+  suppressed_count: number;
+  risk_trend_distribution: {
+    improving: number;
+    stable: number;
+    worsening: number;
+  };
+}
