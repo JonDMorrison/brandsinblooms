@@ -38,35 +38,24 @@ export const DashboardSection: React.FC<DashboardSectionProps> = ({
   const [isOpen, setIsOpen] = useState(defaultOpen);
 
   const headerContent = (
-    <div className="flex items-center justify-between w-full">
-      <div className="flex items-center gap-2">
-        {icon && (
-          <div className="text-muted-foreground">
-            {icon}
-          </div>
-        )}
-        <h3 className="font-semibold text-foreground">{title}</h3>
-        {tooltip && (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
-              </TooltipTrigger>
-              <TooltipContent side="right" className="max-w-xs">
-                <p className="text-xs">{tooltip}</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        )}
-        {badge}
-      </div>
-      {collapsible && (
-        <ChevronDown 
-          className={cn(
-            'h-4 w-4 text-muted-foreground transition-transform duration-200',
-            isOpen && 'rotate-180'
-          )} 
-        />
+    <div className="flex items-center gap-2">
+      {icon && (
+        <div className="text-muted-foreground">
+          {icon}
+        </div>
+      )}
+      <h3 className="font-semibold text-foreground">{title}</h3>
+      {tooltip && (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+            </TooltipTrigger>
+            <TooltipContent side="right" className="max-w-xs">
+              <p className="text-xs">{tooltip}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       )}
     </div>
   );
@@ -80,7 +69,10 @@ export const DashboardSection: React.FC<DashboardSectionProps> = ({
           className
         )}
       >
-        <div className="mb-4">{headerContent}</div>
+        <div className="flex items-center justify-between mb-4">
+          {headerContent}
+          {badge && <div onClick={(e) => e.stopPropagation()}>{badge}</div>}
+        </div>
         {children}
       </section>
     );
@@ -95,11 +87,20 @@ export const DashboardSection: React.FC<DashboardSectionProps> = ({
           className
         )}
       >
-        <CollapsibleTrigger asChild>
-          <button className="w-full p-4 sm:p-5 text-left hover:bg-muted/30 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset">
-            {headerContent}
-          </button>
-        </CollapsibleTrigger>
+        <div className="flex items-center justify-between p-4 sm:p-5">
+          <CollapsibleTrigger asChild>
+            <button className="flex items-center gap-2 text-left hover:bg-muted/30 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-lg -m-2 p-2">
+              {headerContent}
+              <ChevronDown 
+                className={cn(
+                  'h-4 w-4 text-muted-foreground transition-transform duration-200',
+                  isOpen && 'rotate-180'
+                )} 
+              />
+            </button>
+          </CollapsibleTrigger>
+          {badge && <div onClick={(e) => e.stopPropagation()}>{badge}</div>}
+        </div>
         <CollapsibleContent>
           <div className="px-4 sm:px-5 pb-4 sm:pb-5 pt-0">
             {children}
