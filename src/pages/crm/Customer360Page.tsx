@@ -38,7 +38,8 @@ import { AddToSegmentDialog } from '@/components/crm/customer360/AddToSegmentDia
 import { useCustomerCrossChannelMetrics } from '@/hooks/useCrossChannelMetrics';
 import { useCustomerPurchaseMetrics } from '@/hooks/usePurchaseMetrics';
 import { useCustomerPostPurchaseMetrics, useCustomerIncentiveHistory } from '@/hooks/usePostPurchaseMetrics';
-import { Gift, Percent, Timer, Target, BarChart3 } from 'lucide-react';
+import { useCustomerLoyaltyMetrics, useCustomerPointsHistory } from '@/hooks/useLoyaltyMetrics';
+import { Gift, Percent, Timer, Target, BarChart3, Star, Trophy, Coins, TrendingUp as ArrowTrendingUp } from 'lucide-react';
 
 interface Customer360Data {
   id: string;
@@ -123,6 +124,12 @@ const Customer360Page = () => {
 
   // Fetch incentive history
   const { data: incentiveHistory } = useCustomerIncentiveHistory(id);
+
+  // Fetch loyalty metrics
+  const { data: loyaltyMetrics } = useCustomerLoyaltyMetrics(id);
+
+  // Fetch points history
+  const { data: pointsHistory } = useCustomerPointsHistory(id);
 
   // Fetch customer 360 data
   const { data: customer, isLoading } = useQuery({
@@ -884,6 +891,240 @@ const Customer360Page = () => {
                   <div className="text-center py-8 text-muted-foreground">
                     <Gift className="h-12 w-12 mx-auto mb-3 opacity-30" />
                     <p>No post-purchase metrics available for this customer</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Loyalty & Perks Program Card */}
+            <Card className="md:col-span-2">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Trophy className="h-5 w-5 text-amber-500" />
+                  Loyalty & Perks Program
+                  {loyaltyMetrics?.is_perks_member && (
+                    <Badge 
+                      variant="outline" 
+                      className={`ml-2 capitalize ${
+                        loyaltyMetrics.current_loyalty_tier === 'platinum' ? 'border-purple-500 text-purple-600' :
+                        loyaltyMetrics.current_loyalty_tier === 'gold' ? 'border-amber-500 text-amber-600' :
+                        loyaltyMetrics.current_loyalty_tier === 'silver' ? 'border-slate-400 text-slate-600' :
+                        'border-orange-400 text-orange-600'
+                      }`}
+                    >
+                      <Star className="h-3 w-3 mr-1" />
+                      {loyaltyMetrics.current_loyalty_tier}
+                    </Badge>
+                  )}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {loyaltyMetrics ? (
+                  <>
+                    {/* Membership Status */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                      <div className={`p-4 rounded-lg border ${
+                        loyaltyMetrics.is_perks_member 
+                          ? 'bg-gradient-to-br from-amber-500/10 to-amber-500/5 border-amber-500/20' 
+                          : 'bg-muted/50 border-muted'
+                      }`}>
+                        <div className="flex items-center gap-2 mb-2">
+                          <Star className={`h-4 w-4 ${loyaltyMetrics.is_perks_member ? 'text-amber-500' : 'text-muted-foreground'}`} />
+                          <p className="text-sm text-muted-foreground">Member Status</p>
+                        </div>
+                        <p className={`text-xl font-bold ${loyaltyMetrics.is_perks_member ? 'text-amber-600' : 'text-muted-foreground'}`}>
+                          {loyaltyMetrics.is_perks_member ? 'Active Member' : 'Not Enrolled'}
+                        </p>
+                        {loyaltyMetrics.perks_enrolled_at && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Since {format(new Date(loyaltyMetrics.perks_enrolled_at), 'MMM d, yyyy')}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="p-4 bg-gradient-to-br from-purple-500/10 to-purple-500/5 rounded-lg border border-purple-500/20">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Clock className="h-4 w-4 text-purple-500" />
+                          <p className="text-sm text-muted-foreground">Time to Join</p>
+                        </div>
+                        <p className="text-2xl font-bold text-purple-600">
+                          {loyaltyMetrics.time_to_join_perks_days !== null 
+                            ? `${loyaltyMetrics.time_to_join_perks_days} days`
+                            : '-'}
+                        </p>
+                        <p className="text-xs text-muted-foreground">after signup</p>
+                      </div>
+
+                      <div className="p-4 bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 rounded-lg border border-emerald-500/20">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Coins className="h-4 w-4 text-emerald-500" />
+                          <p className="text-sm text-muted-foreground">Current Balance</p>
+                        </div>
+                        <p className="text-2xl font-bold text-emerald-600">
+                          {loyaltyMetrics.current_points_balance.toLocaleString()}
+                        </p>
+                        <p className="text-xs text-muted-foreground">points</p>
+                      </div>
+
+                      <div className="p-4 bg-gradient-to-br from-blue-500/10 to-blue-500/5 rounded-lg border border-blue-500/20">
+                        <div className="flex items-center gap-2 mb-2">
+                          <ArrowTrendingUp className="h-4 w-4 text-blue-500" />
+                          <p className="text-sm text-muted-foreground">Engagement Score</p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <p className="text-2xl font-bold text-blue-600">
+                            {Number(loyaltyMetrics.loyalty_engagement_score).toFixed(0)}
+                          </p>
+                          <Progress value={Number(loyaltyMetrics.loyalty_engagement_score)} className="h-2 flex-1" />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Points Activity & Redemption */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                      {/* Points Activity */}
+                      <div className="p-4 border rounded-lg">
+                        <h4 className="font-medium mb-3 flex items-center gap-2">
+                          <Coins className="h-4 w-4" />
+                          Points Activity
+                        </h4>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <p className="text-sm text-muted-foreground">Lifetime Earned</p>
+                            <p className="text-xl font-bold text-emerald-600">
+                              {loyaltyMetrics.total_points_earned.toLocaleString()}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-muted-foreground">Lifetime Redeemed</p>
+                            <p className="text-xl font-bold text-blue-600">
+                              {loyaltyMetrics.total_points_redeemed.toLocaleString()}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-muted-foreground">Non-Redeemed Ratio</p>
+                            <p className={`text-xl font-bold ${Number(loyaltyMetrics.non_redeemed_points_ratio) > 70 ? 'text-amber-600' : ''}`}>
+                              {Number(loyaltyMetrics.non_redeemed_points_ratio).toFixed(0)}%
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-muted-foreground">Risk Score</p>
+                            <p className={`text-xl font-bold ${
+                              Number(loyaltyMetrics.loyalty_risk_score) >= 50 ? 'text-red-600' :
+                              Number(loyaltyMetrics.loyalty_risk_score) >= 30 ? 'text-amber-600' :
+                              'text-emerald-600'
+                            }`}>
+                              {Number(loyaltyMetrics.loyalty_risk_score).toFixed(0)}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Redemption Behavior */}
+                      <div className="p-4 border rounded-lg">
+                        <h4 className="font-medium mb-3 flex items-center gap-2">
+                          <Repeat className="h-4 w-4" />
+                          Redemption Behavior
+                        </h4>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <p className="text-sm text-muted-foreground">Total Redemptions</p>
+                            <p className="text-xl font-bold">{loyaltyMetrics.total_redemptions}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-muted-foreground">Frequency</p>
+                            <p className="text-xl font-bold">
+                              {Number(loyaltyMetrics.redemption_frequency).toFixed(2)}<span className="text-sm text-muted-foreground">/mo</span>
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-muted-foreground">Avg Delay (Earn → Redeem)</p>
+                            <p className="text-xl font-bold">
+                              {loyaltyMetrics.avg_redemption_delay_days 
+                                ? `${Number(loyaltyMetrics.avg_redemption_delay_days).toFixed(0)} days`
+                                : '-'}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-muted-foreground">Last Redemption</p>
+                            <p className="text-sm font-medium">
+                              {loyaltyMetrics.last_redemption_at 
+                                ? formatDistanceToNow(new Date(loyaltyMetrics.last_redemption_at), { addSuffix: true })
+                                : 'Never'}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Perks-Driven Revenue & Tier Progression */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                      <div className="p-3 bg-muted/50 rounded-lg">
+                        <p className="text-sm text-muted-foreground">Perks-Driven Revenue</p>
+                        <p className="text-lg font-semibold text-emerald-600">
+                          ${Number(loyaltyMetrics.total_perks_driven_revenue).toFixed(2)}
+                        </p>
+                      </div>
+                      <div className="p-3 bg-muted/50 rounded-lg">
+                        <p className="text-sm text-muted-foreground">Revenue %</p>
+                        <p className="text-lg font-semibold">
+                          {Number(loyaltyMetrics.perks_revenue_percentage).toFixed(0)}%
+                        </p>
+                      </div>
+                      <div className="p-3 bg-muted/50 rounded-lg">
+                        <p className="text-sm text-muted-foreground">Tier Progression</p>
+                        <p className="text-lg font-semibold">
+                          {loyaltyMetrics.tier_progression_speed_days 
+                            ? `${loyaltyMetrics.tier_progression_speed_days} days`
+                            : '-'}
+                        </p>
+                      </div>
+                      <div className="p-3 bg-muted/50 rounded-lg">
+                        <p className="text-sm text-muted-foreground">Tier Upgrades</p>
+                        <p className="text-lg font-semibold">{loyaltyMetrics.tier_upgrade_count}</p>
+                      </div>
+                    </div>
+
+                    {/* Points History */}
+                    {pointsHistory && pointsHistory.length > 0 && (
+                      <div className="mt-4 pt-4 border-t">
+                        <h4 className="font-medium mb-3 flex items-center gap-2">
+                          <Coins className="h-4 w-4" />
+                          Recent Points Activity
+                        </h4>
+                        <div className="space-y-2 max-h-48 overflow-y-auto">
+                          {pointsHistory.slice(0, 5).map((txn) => (
+                            <div key={txn.id} className="flex items-center justify-between p-2 bg-muted/30 rounded-lg">
+                              <div className="flex items-center gap-3">
+                                <Badge variant={txn.transaction_type === 'earn' ? 'default' : 'secondary'}
+                                  className={txn.transaction_type === 'earn' ? 'bg-emerald-500' : ''}>
+                                  {txn.transaction_type}
+                                </Badge>
+                                <div>
+                                  <p className="text-sm font-medium capitalize">{txn.source_type}</p>
+                                  {txn.description && (
+                                    <p className="text-xs text-muted-foreground">{txn.description}</p>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <p className={`text-sm font-medium ${txn.points_amount > 0 ? 'text-emerald-600' : 'text-blue-600'}`}>
+                                  {txn.points_amount > 0 ? '+' : ''}{txn.points_amount}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {format(new Date(txn.created_at), 'MMM d, yyyy')}
+                                </p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Trophy className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                    <p>No loyalty program data available for this customer</p>
                   </div>
                 )}
               </CardContent>
