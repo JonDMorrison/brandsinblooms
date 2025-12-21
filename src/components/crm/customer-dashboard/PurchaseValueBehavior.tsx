@@ -2,6 +2,7 @@ import React from 'react';
 import { cn } from '@/lib/utils';
 import { DashboardSection } from './DashboardSection';
 import { TimelineChart } from '@/components/charts/TimelineChart';
+import { EmptyChartOverlay } from '@/components/ui/empty-chart-overlay';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { ShoppingCart, TrendingUp, Calendar, Tag, DollarSign } from 'lucide-react';
@@ -61,23 +62,8 @@ export const PurchaseValueBehavior: React.FC<PurchaseValueBehaviorProps> = ({
 }) => {
   const isVIP = (metrics.ltv || 0) > 500;
   const hasDiscountDependency = (metrics.consecutiveDiscountPurchases || 0) >= 3;
-
-  // Sample data if none provided
-  const timelineData = purchaseTimeline.length > 0 ? purchaseTimeline : [
-    { date: 'Jan', orders: 2, revenue: 125 },
-    { date: 'Feb', orders: 1, revenue: 67 },
-    { date: 'Mar', orders: 3, revenue: 215 },
-    { date: 'Apr', orders: 2, revenue: 142 },
-    { date: 'May', orders: 4, revenue: 298 },
-    { date: 'Jun', orders: 2, revenue: 178 },
-  ];
-
-  const categories = categoryAffinity.length > 0 ? categoryAffinity : [
-    { category: 'Perennials', percentage: 45, revenue: 520 },
-    { category: 'Fertilizers', percentage: 28, revenue: 324 },
-    { category: 'Tools', percentage: 18, revenue: 208 },
-    { category: 'Seeds', percentage: 9, revenue: 104 },
-  ];
+  const hasPurchaseData = purchaseTimeline.length > 0 && purchaseTimeline.some(d => d.orders > 0 || d.revenue > 0);
+  const hasCategoryData = categoryAffinity.length > 0;
 
   return (
     <DashboardSection
@@ -102,12 +88,20 @@ export const PurchaseValueBehavior: React.FC<PurchaseValueBehaviorProps> = ({
             <span className="text-xs text-muted-foreground ml-1">LTV</span>
           </div>
         </div>
-        <TimelineChart
-          data={timelineData}
-          height={180}
-          showOrders={true}
-          showRevenue={true}
-        />
+        {hasPurchaseData ? (
+          <TimelineChart
+            data={purchaseTimeline}
+            height={180}
+            showOrders={true}
+            showRevenue={true}
+          />
+        ) : (
+          <EmptyChartOverlay
+            message="No purchase history available yet"
+            icon="bar"
+            height={180}
+          />
+        )}
       </div>
 
       {/* Key Metrics */}
@@ -192,20 +186,28 @@ export const PurchaseValueBehavior: React.FC<PurchaseValueBehaviorProps> = ({
         <div className="p-4 rounded-lg border border-border bg-card">
           <h4 className="text-sm font-medium text-foreground mb-3">Product Category Affinity</h4>
           
-          <div className="space-y-2">
-            {categories.slice(0, 4).map((cat, index) => (
-              <div key={index}>
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs text-foreground">{cat.category}</span>
-                  <span className="text-xs text-muted-foreground">{cat.percentage}%</span>
+          {hasCategoryData ? (
+            <div className="space-y-2">
+              {categoryAffinity.slice(0, 4).map((cat, index) => (
+                <div key={index}>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs text-foreground">{cat.category}</span>
+                    <span className="text-xs text-muted-foreground">{cat.percentage}%</span>
+                  </div>
+                  <Progress 
+                    value={cat.percentage} 
+                    className="h-1.5"
+                  />
                 </div>
-                <Progress 
-                  value={cat.percentage} 
-                  className="h-1.5"
-                />
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <EmptyChartOverlay
+              message="No category affinity data yet"
+              icon="bar"
+              height={100}
+            />
+          )}
         </div>
       </div>
 

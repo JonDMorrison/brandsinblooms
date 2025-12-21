@@ -8,6 +8,11 @@ import { useCustomerLifecycleMetrics } from '@/hooks/useLifecycleMetrics';
 import { useCustomerContentIntentMetrics } from '@/hooks/useContentIntentMetrics';
 import { useCustomerRiskSignals, useCustomerNegativeEvents } from '@/hooks/useRiskSignals';
 import { useCustomerUnifiedTimeline, TimelineEvent } from '@/hooks/useCustomerUnifiedTimeline';
+import { useCustomerEngagementTimeline, EngagementTimelinePoint } from '@/hooks/useCustomerEngagementTimeline';
+import { useCustomerPurchaseTimeline, PurchaseTimelinePoint } from '@/hooks/useCustomerPurchaseTimeline';
+import { useCustomerActivityHeatmap, HeatmapDataPoint } from '@/hooks/useCustomerActivityHeatmap';
+import { useCustomerChannelTrend, ChannelTrendPoint } from '@/hooks/useCustomerChannelTrend';
+import { useCustomerEngagementDecay } from '@/hooks/useCustomerEngagementDecay';
 import type { Customer360Enriched } from '@/types/customerMetrics';
 
 // Extended type to handle both enriched view and basic customer data
@@ -130,10 +135,19 @@ export interface CustomerDashboardData {
   negativeEvents: ReturnType<typeof useCustomerNegativeEvents>['data'];
   timelineEvents: TimelineEvent[];
 
+  // Chart data
+  engagementTimeline: EngagementTimelinePoint[];
+  purchaseTimeline: PurchaseTimelinePoint[];
+  emailHeatmapData: HeatmapDataPoint[];
+  smsHeatmapData: HeatmapDataPoint[];
+  channelTrend: ChannelTrendPoint[];
+  engagementDecay: number[];
+
   // Loading states
   isLoading: boolean;
   isCustomerLoading: boolean;
   isMetricsLoading: boolean;
+  isChartDataLoading: boolean;
 
   // Error states
   hasError: boolean;
@@ -174,6 +188,14 @@ export const useCustomerDashboard = (customerId: string | undefined): CustomerDa
   // Unified timeline
   const timelineQuery = useCustomerUnifiedTimeline(customerId, { limit: 50 });
 
+  // Chart data hooks
+  const engagementTimelineQuery = useCustomerEngagementTimeline(customerId);
+  const purchaseTimelineQuery = useCustomerPurchaseTimeline(customerId);
+  const emailHeatmapQuery = useCustomerActivityHeatmap(customerId, 'email');
+  const smsHeatmapQuery = useCustomerActivityHeatmap(customerId, 'sms');
+  const channelTrendQuery = useCustomerChannelTrend(customerId);
+  const engagementDecayQuery = useCustomerEngagementDecay(customerId);
+
   // Aggregate loading states
   const isCustomerLoading = customer360Query.isLoading;
   const isMetricsLoading =
@@ -186,6 +208,14 @@ export const useCustomerDashboard = (customerId: string | undefined): CustomerDa
     riskQuery.isLoading ||
     negativeEventsQuery.isLoading ||
     timelineQuery.isLoading;
+
+  const isChartDataLoading =
+    engagementTimelineQuery.isLoading ||
+    purchaseTimelineQuery.isLoading ||
+    emailHeatmapQuery.isLoading ||
+    smsHeatmapQuery.isLoading ||
+    channelTrendQuery.isLoading ||
+    engagementDecayQuery.isLoading;
 
   const isLoading = isCustomerLoading || isMetricsLoading;
 
@@ -217,6 +247,12 @@ export const useCustomerDashboard = (customerId: string | undefined): CustomerDa
     riskQuery.refetch();
     negativeEventsQuery.refetch();
     timelineQuery.refetch();
+    engagementTimelineQuery.refetch();
+    purchaseTimelineQuery.refetch();
+    emailHeatmapQuery.refetch();
+    smsHeatmapQuery.refetch();
+    channelTrendQuery.refetch();
+    engagementDecayQuery.refetch();
   };
 
   return {
@@ -230,9 +266,16 @@ export const useCustomerDashboard = (customerId: string | undefined): CustomerDa
     riskSignals: riskQuery.data,
     negativeEvents: negativeEventsQuery.data ?? [],
     timelineEvents: timelineQuery.data ?? [],
+    engagementTimeline: engagementTimelineQuery.data ?? [],
+    purchaseTimeline: purchaseTimelineQuery.data ?? [],
+    emailHeatmapData: emailHeatmapQuery.data ?? [],
+    smsHeatmapData: smsHeatmapQuery.data ?? [],
+    channelTrend: channelTrendQuery.data ?? [],
+    engagementDecay: engagementDecayQuery.data ?? [],
     isLoading,
     isCustomerLoading,
     isMetricsLoading,
+    isChartDataLoading,
     hasError,
     errors,
     refetch,

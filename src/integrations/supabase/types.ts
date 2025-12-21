@@ -11819,6 +11819,45 @@ export type Database = {
           user_id: string
         }[]
       }
+      get_customer_activity_heatmap: {
+        Args: { p_channel?: string; p_customer_id: string }
+        Returns: {
+          day_of_week: number
+          event_count: number
+          hour_of_day: number
+        }[]
+      }
+      get_customer_channel_trend: {
+        Args: { p_customer_id: string; p_months?: number }
+        Returns: {
+          month_label: string
+          preferred_channel: string
+        }[]
+      }
+      get_customer_engagement_decay: {
+        Args: { p_customer_id: string }
+        Returns: {
+          engagement_percentage: number
+          week_number: number
+        }[]
+      }
+      get_customer_engagement_timeline: {
+        Args: { p_customer_id: string; p_months?: number }
+        Returns: {
+          email_events: number
+          engagement_score: number
+          period_date: string
+          sms_events: number
+        }[]
+      }
+      get_customer_purchase_timeline: {
+        Args: { p_customer_id: string; p_months?: number }
+        Returns: {
+          order_count: number
+          period_date: string
+          total_revenue: number
+        }[]
+      }
       get_customer_unified_timeline: {
         Args: {
           p_customer_id: string
