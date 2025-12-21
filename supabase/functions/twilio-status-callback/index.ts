@@ -56,6 +56,13 @@ Deno.serve(async (req) => {
         status = messageStatus;
     }
 
+    // First get the message to find the customer_id
+    const { data: message } = await supabase
+      .from('sms_messages')
+      .select('id, customer_id, sent_at')
+      .eq('twilio_sid', messageSid)
+      .maybeSingle();
+
     // Update the message status in our database
     const { error: updateError } = await supabase
       .from('sms_messages')
@@ -74,6 +81,29 @@ Deno.serve(async (req) => {
 
     if (updateError) {
       console.error('Error updating message status:', updateError);
+    }
+
+    // Update customer SMS metrics
+    if (message?.customer_id) {
+      if (messageStatus === 'delivered') {
+        const { error: metricsError } = await supabase.rpc('update_customer_sms_metrics', {
+          p_customer_id: message.customer_id,
+          p_event_type: 'delivered',
+        });
+        if (metricsError) {
+          console.error('Error updating SMS metrics for delivered:', metricsError);
+        } else {
+          console.log('Updated SMS metrics for delivered message, customer:', message.customer_id);
+        }
+      } else if (status === 'failed') {
+        const { error: metricsError } = await supabase.rpc('update_customer_sms_metrics', {
+          p_customer_id: message.customer_id,
+          p_event_type: 'failed',
+        });
+        if (metricsError) {
+          console.error('Error updating SMS metrics for failed:', metricsError);
+        }
+      }
     }
 
     // If message failed due to 30034, log it prominently

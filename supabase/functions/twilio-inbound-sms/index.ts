@@ -91,6 +91,19 @@ Deno.serve(async (req) => {
           });
       }
 
+      // Update customer SMS metrics for opt-out
+      if (customerId) {
+        const { error: metricsError } = await supabase.rpc('update_customer_sms_metrics', {
+          p_customer_id: customerId,
+          p_event_type: 'opt_out',
+        });
+        if (metricsError) {
+          console.error('[twilio-inbound-sms] Error updating SMS metrics for opt-out:', metricsError);
+        } else {
+          console.log('[twilio-inbound-sms] Updated SMS metrics for opt-out, customer:', customerId);
+        }
+      }
+
       // Respond to Twilio with confirmation message
       const twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
@@ -218,7 +231,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Log all other inbound messages
+    // Log all other inbound messages (regular replies)
     await supabase
       .from('sms_messages')
       .insert({
@@ -234,6 +247,32 @@ Deno.serve(async (req) => {
           to: to
         }
       });
+
+    // Track reply metrics for customer
+    if (customerId) {
+      // Find the last outbound message to calculate response time
+      const { data: lastMessage } = await supabase
+        .from('sms_messages')
+        .select('sent_at')
+        .eq('customer_id', customerId)
+        .eq('direction', 'outbound')
+        .order('sent_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      const { error: metricsError } = await supabase.rpc('update_customer_sms_metrics', {
+        p_customer_id: customerId,
+        p_event_type: 'replied',
+        p_message_sent_at: lastMessage?.sent_at || null,
+        p_response_at: new Date().toISOString(),
+      });
+
+      if (metricsError) {
+        console.error('[twilio-inbound-sms] Error updating SMS metrics for reply:', metricsError);
+      } else {
+        console.log('[twilio-inbound-sms] Updated SMS metrics for reply, customer:', customerId);
+      }
+    }
 
     // Default response (empty - no auto-reply)
     const twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
