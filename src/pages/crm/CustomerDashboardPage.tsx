@@ -26,7 +26,6 @@ import {
   transformToRiskMetrics,
   transformToRecentRiskEvents,
   transformToTimelineEvents,
-  transformToAIInsights,
 } from '@/lib/customerDashboardTransformers';
 
 const CustomerDashboardPage: React.FC = () => {
@@ -50,6 +49,10 @@ const CustomerDashboardPage: React.FC = () => {
     smsHeatmapData,
     channelTrend,
     engagementDecay,
+    aiInsights,
+    isAILoading,
+    isAIRegenerating,
+    regenerateAIInsights,
     isLoading,
     isCustomerLoading,
     hasError,
@@ -68,7 +71,6 @@ const CustomerDashboardPage: React.FC = () => {
   const riskDisplayMetrics = transformToRiskMetrics(riskSignals ?? null);
   const recentRiskEvents = transformToRecentRiskEvents(negativeEvents);
   const timelineDisplayEvents = transformToTimelineEvents(timelineEvents);
-  const aiInsights = transformToAIInsights(customer, crossChannelMetrics ?? null, purchaseMetrics ?? null, riskSignals ?? null, contentIntentMetrics ?? null);
 
   // Loading state
   if (isCustomerLoading) {
@@ -175,9 +177,10 @@ const CustomerDashboardPage: React.FC = () => {
 
       {/* 9. AI Insights & Next Best Actions */}
       <AIInsightsActions
-        insights={[]}
-        keyInsight={aiInsights.keyInsight}
-        patterns={aiInsights.patterns}
+        insights={aiInsights}
+        loading={isAILoading}
+        regenerating={isAIRegenerating}
+        onRegenerate={regenerateAIInsights}
       />
     </CustomerDashboardLayout>
   );

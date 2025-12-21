@@ -3276,6 +3276,69 @@ export type Database = {
           },
         ]
       }
+      customer_ai_insights: {
+        Row: {
+          behavioral_patterns: Json | null
+          completion_tokens: number | null
+          created_at: string | null
+          customer_id: string
+          expires_at: string | null
+          generated_at: string | null
+          has_sufficient_data: boolean | null
+          id: string
+          key_insight: string
+          model_used: string | null
+          prompt_tokens: number | null
+          recommended_actions: Json | null
+          tenant_id: string
+        }
+        Insert: {
+          behavioral_patterns?: Json | null
+          completion_tokens?: number | null
+          created_at?: string | null
+          customer_id: string
+          expires_at?: string | null
+          generated_at?: string | null
+          has_sufficient_data?: boolean | null
+          id?: string
+          key_insight: string
+          model_used?: string | null
+          prompt_tokens?: number | null
+          recommended_actions?: Json | null
+          tenant_id: string
+        }
+        Update: {
+          behavioral_patterns?: Json | null
+          completion_tokens?: number | null
+          created_at?: string | null
+          customer_id?: string
+          expires_at?: string | null
+          generated_at?: string | null
+          has_sufficient_data?: boolean | null
+          id?: string
+          key_insight?: string
+          model_used?: string | null
+          prompt_tokens?: number | null
+          recommended_actions?: Json | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_ai_insights_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: true
+            referencedRelation: "crm_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_ai_insights_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: true
+            referencedRelation: "customer_360_enriched"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customer_consents: {
         Row: {
           channel: string
