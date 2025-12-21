@@ -136,3 +136,43 @@ export interface SmsEngagementStats {
   optOutRate: number;
   avgResponseTimeMinutes: number | null;
 }
+
+export interface CustomerCrossChannelMetrics {
+  id: string;
+  customer_id: string;
+  tenant_id: string;
+  multi_channel_score: number;
+  preferred_channel: 'email' | 'sms' | 'equal' | 'unknown';
+  email_fatigue_score: number;
+  sms_fatigue_score: number;
+  fatigue_status: 'none' | 'low' | 'moderate' | 'high' | 'critical';
+  last_engaged_channel: 'email' | 'sms' | null;
+  last_engagement_at: string | null;
+  days_since_last_engagement: number;
+  email_interactions_7d: number;
+  sms_interactions_7d: number;
+  email_interactions_30d: number;
+  sms_interactions_30d: number;
+  email_messages_received_7d: number;
+  sms_messages_received_7d: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CrossChannelStats {
+  avgMultiChannelScore: number;
+  preferredChannelBreakdown: {
+    email: number;
+    sms: number;
+    equal: number;
+    unknown: number;
+  };
+  fatigueStatusBreakdown: {
+    none: number;
+    low: number;
+    moderate: number;
+    high: number;
+    critical: number;
+  };
+  avgDaysSinceLastEngagement: number;
+}

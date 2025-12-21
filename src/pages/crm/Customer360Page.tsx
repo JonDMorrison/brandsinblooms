@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Progress } from '@/components/ui/progress';
 import { 
   ArrowLeft, 
   Mail, 
@@ -17,7 +18,10 @@ import {
   Calendar,
   TrendingUp,
   MessageCircle,
-  MailCheck
+  MailCheck,
+  Zap,
+  Clock,
+  AlertTriangle
 } from 'lucide-react';
 import { formatDistanceToNow, format } from 'date-fns';
 import { CustomerTimeline } from '@/components/crm/customer360/CustomerTimeline';
@@ -25,6 +29,7 @@ import { CustomerInsights } from '@/components/crm/customer360/CustomerInsights'
 import { CustomerActivity } from '@/components/crm/customer360/CustomerActivity';
 import { SendSMSDialog } from '@/components/crm/customer360/SendSMSDialog';
 import { AddToSegmentDialog } from '@/components/crm/customer360/AddToSegmentDialog';
+import { useCustomerCrossChannelMetrics } from '@/hooks/useCrossChannelMetrics';
 
 interface Customer360Data {
   id: string;
@@ -97,6 +102,9 @@ const Customer360Page = () => {
   const navigate = useNavigate();
   const [showSendSMS, setShowSendSMS] = useState(false);
   const [showAddToSegment, setShowAddToSegment] = useState(false);
+
+  // Fetch cross-channel metrics
+  const { data: crossChannelMetrics } = useCustomerCrossChannelMetrics(id);
 
   // Fetch customer 360 data
   const { data: customer, isLoading } = useQuery({
@@ -352,6 +360,121 @@ const Customer360Page = () => {
 
         <TabsContent value="engagement">
           <div className="grid gap-6 md:grid-cols-2">
+            {/* Cross-Channel Engagement Card */}
+            <Card className="md:col-span-2">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Zap className="h-5 w-5" />
+                  Cross-Channel Engagement
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                  {/* Multi-Channel Score */}
+                  <div className="p-4 bg-gradient-to-br from-primary/10 to-primary/5 rounded-lg border border-primary/20">
+                    <div className="flex items-center gap-2 mb-2">
+                      <TrendingUp className="h-4 w-4 text-primary" />
+                      <p className="text-sm text-muted-foreground">Multi-Channel Score</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <p className="text-2xl font-bold">
+                        {crossChannelMetrics?.multi_channel_score?.toFixed(0) || 0}
+                      </p>
+                      <Progress 
+                        value={Number(crossChannelMetrics?.multi_channel_score) || 0} 
+                        className="h-2 flex-1"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Preferred Channel */}
+                  <div className="p-4 bg-muted/50 rounded-lg">
+                    <div className="flex items-center gap-2 mb-2">
+                      {crossChannelMetrics?.preferred_channel === 'email' ? (
+                        <Mail className="h-4 w-4 text-blue-500" />
+                      ) : crossChannelMetrics?.preferred_channel === 'sms' ? (
+                        <MessageCircle className="h-4 w-4 text-green-500" />
+                      ) : (
+                        <Zap className="h-4 w-4 text-muted-foreground" />
+                      )}
+                      <p className="text-sm text-muted-foreground">Preferred Channel</p>
+                    </div>
+                    <p className="text-xl font-bold capitalize">
+                      {crossChannelMetrics?.preferred_channel || 'Unknown'}
+                    </p>
+                  </div>
+
+                  {/* Fatigue Status */}
+                  <div className="p-4 bg-muted/50 rounded-lg">
+                    <div className="flex items-center gap-2 mb-2">
+                      <AlertTriangle className={`h-4 w-4 ${
+                        crossChannelMetrics?.fatigue_status === 'critical' ? 'text-red-500' :
+                        crossChannelMetrics?.fatigue_status === 'high' ? 'text-orange-500' :
+                        crossChannelMetrics?.fatigue_status === 'moderate' ? 'text-yellow-500' :
+                        'text-green-500'
+                      }`} />
+                      <p className="text-sm text-muted-foreground">Fatigue Status</p>
+                    </div>
+                    <Badge variant={
+                      crossChannelMetrics?.fatigue_status === 'critical' ? 'destructive' :
+                      crossChannelMetrics?.fatigue_status === 'high' ? 'destructive' :
+                      crossChannelMetrics?.fatigue_status === 'moderate' ? 'secondary' :
+                      'outline'
+                    } className="capitalize">
+                      {crossChannelMetrics?.fatigue_status || 'None'}
+                    </Badge>
+                  </div>
+
+                  {/* Last Engaged Channel */}
+                  <div className="p-4 bg-muted/50 rounded-lg">
+                    <div className="flex items-center gap-2 mb-2">
+                      <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                      <p className="text-sm text-muted-foreground">Last Engaged</p>
+                    </div>
+                    <p className="text-xl font-bold capitalize">
+                      {crossChannelMetrics?.last_engaged_channel || '-'}
+                    </p>
+                    {crossChannelMetrics?.last_engagement_at && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {formatDistanceToNow(new Date(crossChannelMetrics.last_engagement_at), { addSuffix: true })}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Days Since Last Engagement */}
+                  <div className="p-4 bg-muted/50 rounded-lg">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Clock className="h-4 w-4 text-muted-foreground" />
+                      <p className="text-sm text-muted-foreground">Days Inactive</p>
+                    </div>
+                    <p className="text-2xl font-bold">
+                      {crossChannelMetrics?.days_since_last_engagement ?? '-'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Fatigue Details */}
+                {(crossChannelMetrics?.email_fatigue_score ?? 0) > 0 || (crossChannelMetrics?.sms_fatigue_score ?? 0) > 0 ? (
+                  <div className="mt-4 pt-4 border-t grid grid-cols-2 gap-4">
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-sm text-muted-foreground">Email Fatigue</span>
+                        <span className="text-sm font-medium">{crossChannelMetrics?.email_fatigue_score ?? 0}%</span>
+                      </div>
+                      <Progress value={crossChannelMetrics?.email_fatigue_score ?? 0} className="h-2" />
+                    </div>
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-sm text-muted-foreground">SMS Fatigue</span>
+                        <span className="text-sm font-medium">{crossChannelMetrics?.sms_fatigue_score ?? 0}%</span>
+                      </div>
+                      <Progress value={crossChannelMetrics?.sms_fatigue_score ?? 0} className="h-2" />
+                    </div>
+                  </div>
+                ) : null}
+              </CardContent>
+            </Card>
+
             {/* SMS Engagement Card */}
             <Card>
               <CardHeader>
@@ -380,21 +503,21 @@ const Customer360Page = () => {
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="p-3 bg-emerald-50 rounded-lg border border-emerald-200">
-                    <p className="text-sm text-emerald-700">Delivery Rate</p>
-                    <p className="text-xl font-bold text-emerald-800">{customer.sms_delivery_rate.toFixed(1)}%</p>
+                  <div className="p-3 bg-emerald-50 dark:bg-emerald-950/30 rounded-lg border border-emerald-200 dark:border-emerald-800">
+                    <p className="text-sm text-emerald-700 dark:text-emerald-300">Delivery Rate</p>
+                    <p className="text-xl font-bold text-emerald-800 dark:text-emerald-200">{customer.sms_delivery_rate.toFixed(1)}%</p>
                   </div>
-                  <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
-                    <p className="text-sm text-blue-700">Reply Rate</p>
-                    <p className="text-xl font-bold text-blue-800">{customer.sms_reply_rate.toFixed(1)}%</p>
+                  <div className="p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-800">
+                    <p className="text-sm text-blue-700 dark:text-blue-300">Reply Rate</p>
+                    <p className="text-xl font-bold text-blue-800 dark:text-blue-200">{customer.sms_reply_rate.toFixed(1)}%</p>
                   </div>
-                  <div className="p-3 bg-purple-50 rounded-lg border border-purple-200">
-                    <p className="text-sm text-purple-700">Click Rate</p>
-                    <p className="text-xl font-bold text-purple-800">{customer.sms_click_rate.toFixed(1)}%</p>
+                  <div className="p-3 bg-purple-50 dark:bg-purple-950/30 rounded-lg border border-purple-200 dark:border-purple-800">
+                    <p className="text-sm text-purple-700 dark:text-purple-300">Click Rate</p>
+                    <p className="text-xl font-bold text-purple-800 dark:text-purple-200">{customer.sms_click_rate.toFixed(1)}%</p>
                   </div>
-                  <div className="p-3 bg-orange-50 rounded-lg border border-orange-200">
-                    <p className="text-sm text-orange-700">Avg Response</p>
-                    <p className="text-xl font-bold text-orange-800">
+                  <div className="p-3 bg-orange-50 dark:bg-orange-950/30 rounded-lg border border-orange-200 dark:border-orange-800">
+                    <p className="text-sm text-orange-700 dark:text-orange-300">Avg Response</p>
+                    <p className="text-xl font-bold text-orange-800 dark:text-orange-200">
                       {customer.sms_avg_response_time_minutes > 0 
                         ? `${customer.sms_avg_response_time_minutes.toFixed(0)} min` 
                         : '-'}
@@ -402,9 +525,9 @@ const Customer360Page = () => {
                   </div>
                 </div>
                 {customer.sms_total_opt_outs > 0 && (
-                  <div className="p-3 bg-red-50 rounded-lg border border-red-200">
-                    <p className="text-sm text-red-700">Opt-Out Rate</p>
-                    <p className="text-xl font-bold text-red-800">{customer.sms_opt_out_rate.toFixed(1)}%</p>
+                  <div className="p-3 bg-red-50 dark:bg-red-950/30 rounded-lg border border-red-200 dark:border-red-800">
+                    <p className="text-sm text-red-700 dark:text-red-300">Opt-Out Rate</p>
+                    <p className="text-xl font-bold text-red-800 dark:text-red-200">{customer.sms_opt_out_rate.toFixed(1)}%</p>
                   </div>
                 )}
               </CardContent>
@@ -438,19 +561,19 @@ const Customer360Page = () => {
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="p-3 bg-emerald-50 rounded-lg border border-emerald-200">
-                    <p className="text-sm text-emerald-700">Open Rate</p>
-                    <p className="text-xl font-bold text-emerald-800">{customer.email_open_rate.toFixed(1)}%</p>
+                  <div className="p-3 bg-emerald-50 dark:bg-emerald-950/30 rounded-lg border border-emerald-200 dark:border-emerald-800">
+                    <p className="text-sm text-emerald-700 dark:text-emerald-300">Open Rate</p>
+                    <p className="text-xl font-bold text-emerald-800 dark:text-emerald-200">{customer.email_open_rate.toFixed(1)}%</p>
                   </div>
-                  <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
-                    <p className="text-sm text-blue-700">Click Rate</p>
-                    <p className="text-xl font-bold text-blue-800">{customer.email_click_rate.toFixed(1)}%</p>
+                  <div className="p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-800">
+                    <p className="text-sm text-blue-700 dark:text-blue-300">Click Rate</p>
+                    <p className="text-xl font-bold text-blue-800 dark:text-blue-200">{customer.email_click_rate.toFixed(1)}%</p>
                   </div>
                 </div>
                 {customer.email_total_unsubscribes > 0 && (
-                  <div className="p-3 bg-red-50 rounded-lg border border-red-200">
-                    <p className="text-sm text-red-700">Unsubscribes</p>
-                    <p className="text-xl font-bold text-red-800">{customer.email_total_unsubscribes}</p>
+                  <div className="p-3 bg-red-50 dark:bg-red-950/30 rounded-lg border border-red-200 dark:border-red-800">
+                    <p className="text-sm text-red-700 dark:text-red-300">Unsubscribes</p>
+                    <p className="text-xl font-bold text-red-800 dark:text-red-200">{customer.email_total_unsubscribes}</p>
                   </div>
                 )}
               </CardContent>

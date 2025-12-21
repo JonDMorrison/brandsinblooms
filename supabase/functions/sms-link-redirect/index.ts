@@ -92,6 +92,16 @@ Deno.serve(async (req) => {
       } else {
         console.log('[sms-link-redirect] Updated SMS metrics for customer:', linkRecord.customer_id);
       }
+
+      // Update cross-channel metrics
+      const { error: crossChannelError } = await supabase.rpc('update_cross_channel_metrics', {
+        p_customer_id: linkRecord.customer_id,
+        p_channel: 'sms',
+        p_event_type: 'clicked',
+      });
+      if (crossChannelError) {
+        console.error('[sms-link-redirect] Error updating cross-channel metrics:', crossChannelError);
+      }
     }
 
     console.log('[sms-link-redirect] Redirecting to:', linkRecord.original_url);

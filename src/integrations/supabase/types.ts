@@ -3119,6 +3119,101 @@ export type Database = {
           },
         ]
       }
+      customer_cross_channel_metrics: {
+        Row: {
+          created_at: string | null
+          customer_id: string
+          days_since_last_engagement: number | null
+          email_fatigue_score: number | null
+          email_interactions_30d: number | null
+          email_interactions_7d: number | null
+          email_messages_received_7d: number | null
+          fatigue_status: string | null
+          id: string
+          last_engaged_channel: string | null
+          last_engagement_at: string | null
+          multi_channel_score: number | null
+          preferred_channel: string | null
+          sms_fatigue_score: number | null
+          sms_interactions_30d: number | null
+          sms_interactions_7d: number | null
+          sms_messages_received_7d: number | null
+          tenant_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          customer_id: string
+          days_since_last_engagement?: number | null
+          email_fatigue_score?: number | null
+          email_interactions_30d?: number | null
+          email_interactions_7d?: number | null
+          email_messages_received_7d?: number | null
+          fatigue_status?: string | null
+          id?: string
+          last_engaged_channel?: string | null
+          last_engagement_at?: string | null
+          multi_channel_score?: number | null
+          preferred_channel?: string | null
+          sms_fatigue_score?: number | null
+          sms_interactions_30d?: number | null
+          sms_interactions_7d?: number | null
+          sms_messages_received_7d?: number | null
+          tenant_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          customer_id?: string
+          days_since_last_engagement?: number | null
+          email_fatigue_score?: number | null
+          email_interactions_30d?: number | null
+          email_interactions_7d?: number | null
+          email_messages_received_7d?: number | null
+          fatigue_status?: string | null
+          id?: string
+          last_engaged_channel?: string | null
+          last_engagement_at?: string | null
+          multi_channel_score?: number | null
+          preferred_channel?: string | null
+          sms_fatigue_score?: number | null
+          sms_interactions_30d?: number | null
+          sms_interactions_7d?: number | null
+          sms_messages_received_7d?: number | null
+          tenant_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_cross_channel_metrics_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: true
+            referencedRelation: "crm_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_cross_channel_metrics_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: true
+            referencedRelation: "customer_360_enriched"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_cross_channel_metrics_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "admin_tenant_overview"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "customer_cross_channel_metrics_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customer_email_metrics: {
         Row: {
           avg_time_to_click_minutes: number | null
@@ -9985,6 +10080,10 @@ export type Database = {
         Args: { keep_user_id: string; merge_user_id: string }
         Returns: boolean
       }
+      recalculate_cross_channel_scores: {
+        Args: { p_customer_id: string }
+        Returns: undefined
+      }
       recalculate_customer_engagement: {
         Args: { p_customer_id: string }
         Returns: undefined
@@ -10028,6 +10127,10 @@ export type Database = {
       refill_tokens: {
         Args: { p_tokens?: number; p_user_id: string }
         Returns: boolean
+      }
+      refresh_all_cross_channel_metrics: {
+        Args: { p_tenant_id?: string }
+        Returns: number
       }
       reserve_sms_send_tokens: {
         Args: {
@@ -10077,6 +10180,10 @@ export type Database = {
           compressed_size_bytes: number
           original_size_bytes: number
         }
+        Returns: undefined
+      }
+      update_cross_channel_metrics: {
+        Args: { p_channel: string; p_customer_id: string; p_event_type: string }
         Returns: undefined
       }
       update_customer_email_metrics: {

@@ -83,7 +83,7 @@ Deno.serve(async (req) => {
       console.error('Error updating message status:', updateError);
     }
 
-    // Update customer SMS metrics
+    // Update customer SMS metrics and cross-channel metrics
     if (message?.customer_id) {
       if (messageStatus === 'delivered') {
         const { error: metricsError } = await supabase.rpc('update_customer_sms_metrics', {
@@ -95,6 +95,16 @@ Deno.serve(async (req) => {
         } else {
           console.log('Updated SMS metrics for delivered message, customer:', message.customer_id);
         }
+
+        // Update cross-channel metrics
+        const { error: crossChannelError } = await supabase.rpc('update_cross_channel_metrics', {
+          p_customer_id: message.customer_id,
+          p_channel: 'sms',
+          p_event_type: 'delivered',
+        });
+        if (crossChannelError) {
+          console.error('Error updating cross-channel metrics:', crossChannelError);
+        }
       } else if (status === 'failed') {
         const { error: metricsError } = await supabase.rpc('update_customer_sms_metrics', {
           p_customer_id: message.customer_id,
@@ -102,6 +112,16 @@ Deno.serve(async (req) => {
         });
         if (metricsError) {
           console.error('Error updating SMS metrics for failed:', metricsError);
+        }
+
+        // Update cross-channel metrics for failed
+        const { error: crossChannelError } = await supabase.rpc('update_cross_channel_metrics', {
+          p_customer_id: message.customer_id,
+          p_channel: 'sms',
+          p_event_type: 'failed',
+        });
+        if (crossChannelError) {
+          console.error('Error updating cross-channel metrics:', crossChannelError);
         }
       }
     }
