@@ -1,28 +1,20 @@
-import React, { useState } from 'react';
-import { LucideIcon, MoreHorizontal, MoreVertical } from 'lucide-react';
+import React, {
+  useState,
+  useRef,
+  useEffect,
+  useCallback,
+  ReactNode,
+  KeyboardEvent,
+  MouseEvent,
+} from 'react';
+import { createPortal } from 'react-dom';
+import { MoreHorizontal, MoreVertical, LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-  DropdownMenuShortcut,
-} from '@/components/ui/dropdown-menu';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
 
+// ============================================================================
 // Types
+// ============================================================================
+
 export interface ActionMenuItem {
   label: string;
   icon?: LucideIcon;
@@ -49,7 +41,7 @@ export type ActionMenuItemType = ActionMenuItem | ActionMenuSeparator | ActionMe
 
 export interface ActionMenuProps {
   items: ActionMenuItemType[];
-  trigger?: 'horizontal' | 'vertical' | React.ReactNode;
+  trigger?: 'horizontal' | 'vertical' | ReactNode;
   triggerClassName?: string;
   contentClassName?: string;
   align?: 'start' | 'center' | 'end';
@@ -59,7 +51,10 @@ export interface ActionMenuProps {
   onOpenChange?: (open: boolean) => void;
 }
 
-// Type guards
+// ============================================================================
+// Type Guards
+// ============================================================================
+
 const isSeparator = (item: ActionMenuItemType): item is ActionMenuSeparator => {
   return 'type' in item && item.type === 'separator';
 };
@@ -72,14 +67,251 @@ const isActionItem = (item: ActionMenuItemType): item is ActionMenuItem => {
   return 'label' in item && !('items' in item);
 };
 
-// Confirmation state interface
-interface ConfirmationState {
+// ============================================================================
+// Custom Hook: Click Outside Detection
+// ============================================================================
+
+function useClickOutside(
+  refs: React.RefObject<HTMLElement>[],
+  handler: () => void,
+  enabled: boolean
+) {
+  useEffect(() => {
+    if (!enabled) return;
+
+    const handleClick = (event: globalThis.MouseEvent) => {
+      const target = event.target as Node;
+      const isOutside = refs.every(ref => ref.current && !ref.current.contains(target));
+      if (isOutside) {
+        handler();
+      }
+    };
+
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [refs, handler, enabled]);
+}
+
+// ============================================================================
+// Custom Hook: Dropdown Positioning
+// ============================================================================
+
+function useDropdownPosition(
+  triggerRef: React.RefObject<HTMLElement>,
+  dropdownRef: React.RefObject<HTMLElement>,
+  isOpen: boolean,
+  align: 'start' | 'center' | 'end',
+  side: 'top' | 'right' | 'bottom' | 'left'
+) {
+  const [position, setPosition] = useState({ top: 0, left: 0 });
+
+  useEffect(() => {
+    if (!isOpen || !triggerRef.current) return;
+
+    const updatePosition = () => {
+      const trigger = triggerRef.current;
+      if (!trigger) return;
+
+      const rect = trigger.getBoundingClientRect();
+      const dropdown = dropdownRef.current;
+      const dropdownWidth = dropdown?.offsetWidth || 200;
+      const dropdownHeight = dropdown?.offsetHeight || 200;
+
+      let top = 0;
+      let left = 0;
+
+      // Calculate vertical position
+      if (side === 'bottom') {
+        top = rect.bottom + 4;
+        if (top + dropdownHeight > window.innerHeight) {
+          top = rect.top - dropdownHeight - 4;
+        }
+      } else if (side === 'top') {
+        top = rect.top - dropdownHeight - 4;
+        if (top < 0) {
+          top = rect.bottom + 4;
+        }
+      } else if (side === 'left' || side === 'right') {
+        top = rect.top;
+      }
+
+      // Calculate horizontal position
+      if (side === 'left') {
+        left = rect.left - dropdownWidth - 4;
+      } else if (side === 'right') {
+        left = rect.right + 4;
+      } else {
+        if (align === 'start') {
+          left = rect.left;
+        } else if (align === 'end') {
+          left = rect.right - dropdownWidth;
+        } else {
+          left = rect.left + (rect.width - dropdownWidth) / 2;
+        }
+      }
+
+      // Keep within viewport bounds
+      left = Math.max(8, Math.min(left, window.innerWidth - dropdownWidth - 8));
+      top = Math.max(8, Math.min(top, window.innerHeight - dropdownHeight - 8));
+
+      setPosition({ top, left });
+    };
+
+    updatePosition();
+    window.addEventListener('scroll', updatePosition, true);
+    window.addEventListener('resize', updatePosition);
+
+    return () => {
+      window.removeEventListener('scroll', updatePosition, true);
+      window.removeEventListener('resize', updatePosition);
+    };
+  }, [isOpen, triggerRef, dropdownRef, align, side]);
+
+  return position;
+}
+
+// ============================================================================
+// Confirmation Modal Component (Fully Custom)
+// ============================================================================
+
+interface ConfirmationModalProps {
   isOpen: boolean;
   title: string;
   description: string;
   actionLabel: string;
   onConfirm: () => void;
+  onCancel: () => void;
 }
+
+function ConfirmationModal({
+  isOpen,
+  title,
+  description,
+  actionLabel,
+  onConfirm,
+  onCancel,
+}: ConfirmationModalProps) {
+  const modalRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (e: globalThis.KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onCancel();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    
+    // Focus the cancel button
+    const firstButton = modalRef.current?.querySelector('button');
+    firstButton?.focus();
+
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onCancel]);
+
+  if (!isOpen) return null;
+
+  return createPortal(
+    <div 
+      className="fixed inset-0 z-[1000050] flex items-center justify-center"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="confirm-title"
+    >
+      {/* Backdrop */}
+      <div 
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200"
+        onClick={onCancel}
+      />
+      
+      {/* Modal */}
+      <div 
+        ref={modalRef}
+        className="relative z-10 w-full max-w-md mx-4 bg-background border border-border rounded-lg shadow-xl animate-in fade-in zoom-in-95 duration-200"
+      >
+        <div className="p-6">
+          <h3 id="confirm-title" className="text-lg font-semibold text-foreground">
+            {title}
+          </h3>
+          <p className="mt-2 text-sm text-muted-foreground">
+            {description}
+          </p>
+        </div>
+        
+        <div className="flex justify-end gap-3 px-6 pb-6">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="px-4 py-2 text-sm font-medium rounded-md border border-border bg-background text-foreground hover:bg-accent focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            className="px-4 py-2 text-sm font-medium rounded-md bg-destructive text-destructive-foreground hover:bg-destructive/90 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 transition-colors"
+          >
+            {actionLabel}
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+// ============================================================================
+// Menu Item Component
+// ============================================================================
+
+interface MenuItemButtonProps {
+  item: ActionMenuItem;
+  isFocused: boolean;
+  onSelect: () => void;
+  onFocus: () => void;
+}
+
+function MenuItemButton({ item, isFocused, onSelect, onFocus }: MenuItemButtonProps) {
+  const Icon = item.icon;
+  
+  return (
+    <button
+      type="button"
+      role="menuitem"
+      tabIndex={isFocused ? 0 : -1}
+      disabled={item.disabled}
+      onClick={(e) => {
+        e.stopPropagation();
+        if (!item.disabled) onSelect();
+      }}
+      onMouseEnter={onFocus}
+      onFocus={onFocus}
+      className={cn(
+        'flex w-full items-center gap-2 px-3 py-2 text-sm rounded-md outline-none transition-colors',
+        'focus:bg-accent focus:text-accent-foreground',
+        isFocused && 'bg-accent text-accent-foreground',
+        item.disabled && 'opacity-50 cursor-not-allowed',
+        item.variant === 'destructive' 
+          ? 'text-destructive focus:bg-destructive/10 focus:text-destructive hover:bg-destructive/10 hover:text-destructive' 
+          : 'text-foreground hover:bg-accent hover:text-accent-foreground'
+      )}
+    >
+      {Icon && <Icon className="h-4 w-4 shrink-0" />}
+      <span className="flex-1 text-left">{item.label}</span>
+      {item.shortcut && (
+        <span className="ml-auto text-xs text-muted-foreground opacity-60">
+          {item.shortcut}
+        </span>
+      )}
+    </button>
+  );
+}
+
+// ============================================================================
+// Main ActionMenu Component (Fully Custom - No External Dependencies)
+// ============================================================================
 
 export const ActionMenu: React.FC<ActionMenuProps> = ({
   items,
@@ -87,12 +319,20 @@ export const ActionMenu: React.FC<ActionMenuProps> = ({
   triggerClassName,
   contentClassName,
   align = 'end',
-  side,
+  side = 'bottom',
   disabled = false,
-  open,
+  open: controlledOpen,
   onOpenChange,
 }) => {
-  const [confirmationState, setConfirmationState] = useState<ConfirmationState>({
+  const [internalOpen, setInternalOpen] = useState(false);
+  const [focusedIndex, setFocusedIndex] = useState(-1);
+  const [confirmationState, setConfirmationState] = useState<{
+    isOpen: boolean;
+    title: string;
+    description: string;
+    actionLabel: string;
+    onConfirm: () => void;
+  }>({
     isOpen: false,
     title: '',
     description: '',
@@ -100,7 +340,43 @@ export const ActionMenu: React.FC<ActionMenuProps> = ({
     onConfirm: () => {},
   });
 
-  const handleItemClick = (item: ActionMenuItem) => {
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Support controlled and uncontrolled modes
+  const isOpen = controlledOpen !== undefined ? controlledOpen : internalOpen;
+  const setIsOpen = useCallback((value: boolean) => {
+    if (controlledOpen === undefined) {
+      setInternalOpen(value);
+    }
+    onOpenChange?.(value);
+  }, [controlledOpen, onOpenChange]);
+
+  // Flatten items for keyboard navigation
+  const flattenedItems: ActionMenuItem[] = [];
+  items.forEach(item => {
+    if (isGroup(item)) {
+      item.items.forEach(subItem => {
+        if (isActionItem(subItem)) {
+          flattenedItems.push(subItem);
+        }
+      });
+    } else if (isActionItem(item)) {
+      flattenedItems.push(item);
+    }
+  });
+
+  // Close dropdown
+  const closeDropdown = useCallback(() => {
+    setIsOpen(false);
+    setFocusedIndex(-1);
+    triggerRef.current?.focus();
+  }, [setIsOpen]);
+
+  // Handle item selection
+  const handleItemClick = useCallback((item: ActionMenuItem) => {
+    if (item.disabled) return;
+
     if (item.requiresConfirmation) {
       setConfirmationState({
         isOpen: true,
@@ -112,81 +388,166 @@ export const ActionMenu: React.FC<ActionMenuProps> = ({
           setConfirmationState(prev => ({ ...prev, isOpen: false }));
         },
       });
+      setIsOpen(false);
     } else {
       item.onClick?.();
+      closeDropdown();
+    }
+  }, [closeDropdown, setIsOpen]);
+
+  // Handle keyboard navigation
+  const handleKeyDown = useCallback((event: KeyboardEvent<HTMLElement>) => {
+    if (!isOpen) return;
+
+    switch (event.key) {
+      case 'ArrowDown':
+        event.preventDefault();
+        setFocusedIndex(prev => (prev < flattenedItems.length - 1 ? prev + 1 : 0));
+        break;
+      case 'ArrowUp':
+        event.preventDefault();
+        setFocusedIndex(prev => (prev > 0 ? prev - 1 : flattenedItems.length - 1));
+        break;
+      case 'Enter':
+      case ' ':
+        event.preventDefault();
+        if (focusedIndex >= 0 && flattenedItems[focusedIndex]) {
+          handleItemClick(flattenedItems[focusedIndex]);
+        }
+        break;
+      case 'Escape':
+        event.preventDefault();
+        closeDropdown();
+        break;
+      case 'Tab':
+        closeDropdown();
+        break;
+    }
+  }, [isOpen, flattenedItems, focusedIndex, handleItemClick, closeDropdown]);
+
+  // Click outside detection
+  useClickOutside([triggerRef, dropdownRef], closeDropdown, isOpen);
+
+  // Dropdown positioning
+  const position = useDropdownPosition(triggerRef, dropdownRef, isOpen, align, side);
+
+  // Toggle dropdown
+  const toggleDropdown = (e: MouseEvent) => {
+    e.stopPropagation();
+    if (disabled) return;
+    
+    if (isOpen) {
+      closeDropdown();
+    } else {
+      setIsOpen(true);
+      setFocusedIndex(0);
     }
   };
 
+  // Render trigger
   const renderTrigger = () => {
     if (typeof trigger === 'string') {
       const IconComponent = trigger === 'vertical' ? MoreVertical : MoreHorizontal;
       return (
-        <Button
-          variant="ghost"
-          size="sm"
-          className={cn('h-8 w-8 p-0', triggerClassName)}
+        <button
+          ref={triggerRef}
+          type="button"
+          onClick={toggleDropdown}
+          onKeyDown={handleKeyDown}
           disabled={disabled}
+          aria-haspopup="menu"
+          aria-expanded={isOpen}
+          className={cn(
+            'inline-flex items-center justify-center rounded-md h-8 w-8 p-0 text-sm font-medium transition-colors',
+            'hover:bg-accent hover:text-accent-foreground',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+            'disabled:pointer-events-none disabled:opacity-50',
+            triggerClassName
+          )}
         >
           <IconComponent className="h-4 w-4" />
           <span className="sr-only">Open menu</span>
-        </Button>
+        </button>
       );
     }
-    return trigger;
-  };
 
-  const renderMenuItem = (item: ActionMenuItem, index: number) => {
-    const Icon = item.icon;
-    const isDestructive = item.variant === 'destructive';
-
+    // Custom trigger element
     return (
-      <DropdownMenuItem
-        key={`item-${index}-${item.label}`}
-        onClick={() => handleItemClick(item)}
-        disabled={item.disabled}
-        className={cn(
-          isDestructive && 'text-destructive focus:text-destructive focus:bg-destructive/10'
-        )}
+      <div
+        ref={triggerRef as any}
+        onClick={toggleDropdown}
+        onKeyDown={handleKeyDown}
+        role="button"
+        tabIndex={disabled ? -1 : 0}
+        aria-haspopup="menu"
+        aria-expanded={isOpen}
+        className={cn('cursor-pointer', disabled && 'pointer-events-none opacity-50', triggerClassName)}
       >
-        {Icon && <Icon className="h-4 w-4 mr-2" />}
-        {item.label}
-        {item.shortcut && (
-          <DropdownMenuShortcut>{item.shortcut}</DropdownMenuShortcut>
-        )}
-      </DropdownMenuItem>
+        {trigger}
+      </div>
     );
   };
 
-  const renderItems = (itemList: ActionMenuItemType[]) => {
-    return itemList.map((item, index) => {
+  // Track flattened index for keyboard navigation
+  let currentFlatIndex = -1;
+
+  // Render menu items
+  const renderItems = () => {
+    return items.map((item, index) => {
       if (isSeparator(item)) {
-        return <DropdownMenuSeparator key={`separator-${index}`} />;
+        return (
+          <div
+            key={`separator-${index}`}
+            className="my-1 h-px bg-border"
+            role="separator"
+          />
+        );
       }
 
       if (isGroup(item)) {
         return (
-          <React.Fragment key={`group-${index}`}>
-            {index > 0 && <DropdownMenuSeparator />}
+          <div key={`group-${index}`} className="py-1">
+            {index > 0 && <div className="my-1 h-px bg-border" role="separator" />}
             {item.label && (
-              <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
+              <div className="px-3 py-1.5 text-xs font-normal text-muted-foreground">
                 {item.label}
-              </DropdownMenuLabel>
+              </div>
             )}
-            {item.items.map((groupItem, groupIndex) => {
-              if (isSeparator(groupItem)) {
-                return <DropdownMenuSeparator key={`group-${index}-separator-${groupIndex}`} />;
+            {item.items.map((subItem, subIndex) => {
+              if (isSeparator(subItem)) {
+                return <div key={`group-${index}-sep-${subIndex}`} className="my-1 h-px bg-border" role="separator" />;
               }
-              if (isActionItem(groupItem)) {
-                return renderMenuItem(groupItem, groupIndex);
+              if (isActionItem(subItem)) {
+                currentFlatIndex++;
+                const flatIdx = currentFlatIndex;
+                return (
+                  <MenuItemButton
+                    key={`group-${index}-item-${subIndex}`}
+                    item={subItem}
+                    isFocused={focusedIndex === flatIdx}
+                    onSelect={() => handleItemClick(subItem)}
+                    onFocus={() => setFocusedIndex(flatIdx)}
+                  />
+                );
               }
               return null;
             })}
-          </React.Fragment>
+          </div>
         );
       }
 
       if (isActionItem(item)) {
-        return renderMenuItem(item, index);
+        currentFlatIndex++;
+        const flatIdx = currentFlatIndex;
+        return (
+          <MenuItemButton
+            key={`item-${index}`}
+            item={item}
+            isFocused={focusedIndex === flatIdx}
+            onSelect={() => handleItemClick(item)}
+            onFocus={() => setFocusedIndex(flatIdx)}
+          />
+        );
       }
 
       return null;
@@ -195,43 +556,40 @@ export const ActionMenu: React.FC<ActionMenuProps> = ({
 
   return (
     <>
-      <DropdownMenu open={open} onOpenChange={onOpenChange}>
-        <DropdownMenuTrigger asChild>
-          {renderTrigger()}
-        </DropdownMenuTrigger>
-        <DropdownMenuContent
-          align={align}
-          side={side}
-          className={cn('z-[1000020] bg-popover', contentClassName)}
-        >
-          {renderItems(items)}
-        </DropdownMenuContent>
-      </DropdownMenu>
+      <div className="relative inline-block">
+        {renderTrigger()}
 
-      <AlertDialog
-        open={confirmationState.isOpen}
-        onOpenChange={(isOpen) =>
-          setConfirmationState(prev => ({ ...prev, isOpen }))
-        }
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{confirmationState.title}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {confirmationState.description}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={confirmationState.onConfirm}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {confirmationState.actionLabel}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        {isOpen && createPortal(
+          <div
+            ref={dropdownRef}
+            role="menu"
+            aria-orientation="vertical"
+            onKeyDown={handleKeyDown}
+            className={cn(
+              'fixed z-[1000040] min-w-[180px] overflow-hidden rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-lg',
+              'animate-in fade-in-0 zoom-in-95 duration-150',
+              contentClassName
+            )}
+            style={{
+              top: position.top,
+              left: position.left,
+            }}
+          >
+            {renderItems()}
+          </div>,
+          document.body
+        )}
+      </div>
+
+      {/* Custom Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={confirmationState.isOpen}
+        title={confirmationState.title}
+        description={confirmationState.description}
+        actionLabel={confirmationState.actionLabel}
+        onConfirm={confirmationState.onConfirm}
+        onCancel={() => setConfirmationState(prev => ({ ...prev, isOpen: false }))}
+      />
     </>
   );
 };
