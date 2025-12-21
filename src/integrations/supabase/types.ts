@@ -3507,6 +3507,149 @@ export type Database = {
           },
         ]
       }
+      customer_loyalty_metrics: {
+        Row: {
+          avg_order_value_with_perks: number | null
+          avg_order_value_without_perks: number | null
+          avg_redemption_delay_days: number | null
+          created_at: string | null
+          current_loyalty_tier: string | null
+          current_points_balance: number | null
+          customer_created_at: string | null
+          customer_id: string
+          id: string
+          is_perks_member: boolean | null
+          last_redemption_at: string | null
+          loyalty_engagement_score: number | null
+          loyalty_risk_score: number | null
+          max_redemption_delay_days: number | null
+          member_email_open_rate: number | null
+          member_engagement_score: number | null
+          member_purchase_frequency: number | null
+          member_sms_click_rate: number | null
+          min_redemption_delay_days: number | null
+          non_redeemed_points_ratio: number | null
+          perks_enrolled_at: string | null
+          perks_revenue_percentage: number | null
+          previous_loyalty_tier: string | null
+          redemption_frequency: number | null
+          tenant_id: string
+          tier_progression_speed_days: number | null
+          tier_upgrade_count: number | null
+          tier_upgraded_at: string | null
+          time_to_join_perks_days: number | null
+          total_non_perks_revenue: number | null
+          total_perks_driven_revenue: number | null
+          total_points_earned: number | null
+          total_points_redeemed: number | null
+          total_redemptions: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          avg_order_value_with_perks?: number | null
+          avg_order_value_without_perks?: number | null
+          avg_redemption_delay_days?: number | null
+          created_at?: string | null
+          current_loyalty_tier?: string | null
+          current_points_balance?: number | null
+          customer_created_at?: string | null
+          customer_id: string
+          id?: string
+          is_perks_member?: boolean | null
+          last_redemption_at?: string | null
+          loyalty_engagement_score?: number | null
+          loyalty_risk_score?: number | null
+          max_redemption_delay_days?: number | null
+          member_email_open_rate?: number | null
+          member_engagement_score?: number | null
+          member_purchase_frequency?: number | null
+          member_sms_click_rate?: number | null
+          min_redemption_delay_days?: number | null
+          non_redeemed_points_ratio?: number | null
+          perks_enrolled_at?: string | null
+          perks_revenue_percentage?: number | null
+          previous_loyalty_tier?: string | null
+          redemption_frequency?: number | null
+          tenant_id: string
+          tier_progression_speed_days?: number | null
+          tier_upgrade_count?: number | null
+          tier_upgraded_at?: string | null
+          time_to_join_perks_days?: number | null
+          total_non_perks_revenue?: number | null
+          total_perks_driven_revenue?: number | null
+          total_points_earned?: number | null
+          total_points_redeemed?: number | null
+          total_redemptions?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          avg_order_value_with_perks?: number | null
+          avg_order_value_without_perks?: number | null
+          avg_redemption_delay_days?: number | null
+          created_at?: string | null
+          current_loyalty_tier?: string | null
+          current_points_balance?: number | null
+          customer_created_at?: string | null
+          customer_id?: string
+          id?: string
+          is_perks_member?: boolean | null
+          last_redemption_at?: string | null
+          loyalty_engagement_score?: number | null
+          loyalty_risk_score?: number | null
+          max_redemption_delay_days?: number | null
+          member_email_open_rate?: number | null
+          member_engagement_score?: number | null
+          member_purchase_frequency?: number | null
+          member_sms_click_rate?: number | null
+          min_redemption_delay_days?: number | null
+          non_redeemed_points_ratio?: number | null
+          perks_enrolled_at?: string | null
+          perks_revenue_percentage?: number | null
+          previous_loyalty_tier?: string | null
+          redemption_frequency?: number | null
+          tenant_id?: string
+          tier_progression_speed_days?: number | null
+          tier_upgrade_count?: number | null
+          tier_upgraded_at?: string | null
+          time_to_join_perks_days?: number | null
+          total_non_perks_revenue?: number | null
+          total_perks_driven_revenue?: number | null
+          total_points_earned?: number | null
+          total_points_redeemed?: number | null
+          total_redemptions?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_loyalty_metrics_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: true
+            referencedRelation: "crm_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_loyalty_metrics_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: true
+            referencedRelation: "customer_360_enriched"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_loyalty_metrics_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "admin_tenant_overview"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "customer_loyalty_metrics_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customer_personas: {
         Row: {
           created_at: string
@@ -6373,6 +6516,86 @@ export type Database = {
           },
         ]
       }
+      loyalty_points_transactions: {
+        Row: {
+          created_at: string | null
+          customer_id: string
+          description: string | null
+          external_transaction_id: string | null
+          id: string
+          order_id: string | null
+          order_total: number | null
+          points_amount: number
+          points_balance_after: number | null
+          redemption_value: number | null
+          source_id: string | null
+          source_type: string
+          tenant_id: string
+          transaction_type: string
+        }
+        Insert: {
+          created_at?: string | null
+          customer_id: string
+          description?: string | null
+          external_transaction_id?: string | null
+          id?: string
+          order_id?: string | null
+          order_total?: number | null
+          points_amount: number
+          points_balance_after?: number | null
+          redemption_value?: number | null
+          source_id?: string | null
+          source_type: string
+          tenant_id: string
+          transaction_type: string
+        }
+        Update: {
+          created_at?: string | null
+          customer_id?: string
+          description?: string | null
+          external_transaction_id?: string | null
+          id?: string
+          order_id?: string | null
+          order_total?: number | null
+          points_amount?: number
+          points_balance_after?: number | null
+          redemption_value?: number | null
+          source_id?: string | null
+          source_type?: string
+          tenant_id?: string
+          transaction_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "loyalty_points_transactions_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "crm_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "loyalty_points_transactions_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customer_360_enriched"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "loyalty_points_transactions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "admin_tenant_overview"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "loyalty_points_transactions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       master_campaign_templates: {
         Row: {
           content_ideas: string | null
@@ -6770,6 +6993,68 @@ export type Database = {
           },
           {
             foreignKeyName: "org_usage_counters_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      perks_enrollment_events: {
+        Row: {
+          created_at: string | null
+          customer_id: string
+          enrollment_source: string | null
+          event_type: string
+          id: string
+          new_tier: string | null
+          previous_tier: string | null
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          customer_id: string
+          enrollment_source?: string | null
+          event_type: string
+          id?: string
+          new_tier?: string | null
+          previous_tier?: string | null
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string | null
+          customer_id?: string
+          enrollment_source?: string | null
+          event_type?: string
+          id?: string
+          new_tier?: string | null
+          previous_tier?: string | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "perks_enrollment_events_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "crm_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "perks_enrollment_events_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customer_360_enriched"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "perks_enrollment_events_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "admin_tenant_overview"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "perks_enrollment_events_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -10133,6 +10418,10 @@ export type Database = {
       bundle_approved_counts: { Args: { j: Json }; Returns: Json }
       bundle_channels: { Args: { j: Json }; Returns: string[] }
       bundle_first_media_url: { Args: { j: Json }; Returns: string }
+      calculate_tenant_perks_enrollment_rate: {
+        Args: { p_tenant_id: string }
+        Returns: number
+      }
       can_run_automation: { Args: { p_tenant_id: string }; Returns: string }
       can_run_sync:
         | {
@@ -10472,6 +10761,10 @@ export type Database = {
         Args: { p_customer_id: string }
         Returns: undefined
       }
+      recalculate_loyalty_metrics: {
+        Args: { p_customer_id: string }
+        Returns: undefined
+      }
       recalculate_post_purchase_metrics: {
         Args: { p_customer_id: string }
         Returns: boolean
@@ -10522,6 +10815,10 @@ export type Database = {
       }
       refresh_all_cross_channel_metrics: {
         Args: { p_tenant_id?: string }
+        Returns: number
+      }
+      refresh_all_loyalty_metrics: {
+        Args: { p_tenant_id: string }
         Returns: number
       }
       refresh_all_post_purchase_metrics: {
@@ -10606,6 +10903,38 @@ export type Database = {
         }
         Returns: string
       }
+      track_loyalty_enrollment: {
+        Args: {
+          p_customer_id: string
+          p_enrollment_source?: string
+          p_tenant_id: string
+        }
+        Returns: string
+      }
+      track_points_earned: {
+        Args: {
+          p_customer_id: string
+          p_description?: string
+          p_order_id?: string
+          p_points: number
+          p_source_id?: string
+          p_source_type: string
+          p_tenant_id: string
+        }
+        Returns: string
+      }
+      track_points_redeemed: {
+        Args: {
+          p_customer_id: string
+          p_description?: string
+          p_order_id?: string
+          p_order_total?: number
+          p_points: number
+          p_redemption_value?: number
+          p_tenant_id: string
+        }
+        Returns: string
+      }
       update_cross_channel_metrics: {
         Args: { p_channel: string; p_customer_id: string; p_event_type: string }
         Returns: undefined
@@ -10642,6 +10971,10 @@ export type Database = {
           p_job_id: string
           p_progress_percentage: number
         }
+        Returns: undefined
+      }
+      update_loyalty_tier: {
+        Args: { p_customer_id: string; p_new_tier: string; p_tenant_id: string }
         Returns: undefined
       }
       update_pos_sync_progress: {

@@ -330,3 +330,111 @@ export interface PostPurchaseStats {
   avgAutomationConversionRate: number;
   avgDropOffRate: number;
 }
+
+// =============================================
+// LOYALTY & PERKS PROGRAM BEHAVIOR METRICS
+// =============================================
+
+export interface CustomerLoyaltyMetrics {
+  id: string;
+  customer_id: string;
+  tenant_id: string;
+  
+  // Enrollment & Timing
+  is_perks_member: boolean;
+  perks_enrolled_at: string | null;
+  customer_created_at: string | null;
+  time_to_join_perks_days: number | null;
+  
+  // Points Activity
+  total_points_earned: number;
+  total_points_redeemed: number;
+  current_points_balance: number;
+  non_redeemed_points_ratio: number;
+  
+  // Redemption Behavior
+  total_redemptions: number;
+  redemption_frequency: number;
+  avg_redemption_delay_days: number | null;
+  min_redemption_delay_days: number | null;
+  max_redemption_delay_days: number | null;
+  last_redemption_at: string | null;
+  
+  // Revenue Attribution
+  total_perks_driven_revenue: number;
+  total_non_perks_revenue: number;
+  perks_revenue_percentage: number;
+  avg_order_value_with_perks: number | null;
+  avg_order_value_without_perks: number | null;
+  
+  // Tier Progression
+  current_loyalty_tier: 'bronze' | 'silver' | 'gold' | 'platinum';
+  previous_loyalty_tier: string | null;
+  tier_upgraded_at: string | null;
+  tier_progression_speed_days: number | null;
+  tier_upgrade_count: number;
+  
+  // Engagement
+  member_engagement_score: number;
+  member_email_open_rate: number | null;
+  member_sms_click_rate: number | null;
+  member_purchase_frequency: number | null;
+  
+  // Aggregate Scores
+  loyalty_engagement_score: number;
+  loyalty_risk_score: number;
+  
+  created_at: string;
+  updated_at: string;
+}
+
+export interface LoyaltyPointsTransaction {
+  id: string;
+  tenant_id: string;
+  customer_id: string;
+  transaction_type: 'earn' | 'redeem' | 'expire' | 'adjust';
+  points_amount: number;
+  points_balance_after: number | null;
+  source_type: string;
+  source_id: string | null;
+  order_id: string | null;
+  order_total: number | null;
+  redemption_value: number | null;
+  description: string | null;
+  external_transaction_id: string | null;
+  created_at: string;
+}
+
+export interface PerksEnrollmentEvent {
+  id: string;
+  tenant_id: string;
+  customer_id: string;
+  event_type: 'enrolled' | 'tier_upgraded' | 'tier_downgraded' | 'cancelled';
+  previous_tier: string | null;
+  new_tier: string | null;
+  enrollment_source: string | null;
+  created_at: string;
+}
+
+export interface TenantLoyaltyStats {
+  perks_enrollment_rate: number;
+  avg_time_to_join_days: number | null;
+  avg_points_earned: number;
+  avg_points_redeemed: number;
+  avg_redemption_frequency: number;
+  avg_redemption_delay_days: number | null;
+  total_perks_driven_revenue: number;
+  avg_non_redeemed_ratio: number;
+  tier_breakdown: {
+    bronze: number;
+    silver: number;
+    gold: number;
+    platinum: number;
+  };
+  engagement_difference: {
+    member_avg_purchase_frequency: number;
+    non_member_avg_purchase_frequency: number;
+    member_email_open_rate: number;
+    non_member_email_open_rate: number;
+  };
+}
