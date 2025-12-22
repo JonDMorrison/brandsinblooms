@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,6 +7,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Switch } from '@/components/ui/switch';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
 import { 
   Plus, 
@@ -18,14 +25,31 @@ import {
   Sparkles,
   Mail,
   MessageSquare,
-  MousePointer,
-  TrendingUp
+  ShoppingCart,
+  User,
+  AlertTriangle,
+  Share2,
+  TrendingUp,
+  Award,
+  Info,
+  Lock,
+  UsersRound,
+  Globe
 } from 'lucide-react';
+
+import { 
+  METRICS_CATALOG, 
+  getCategories, 
+  getMetricDefinition,
+  getOperatorLabel 
+} from '@/lib/segmentation/metricsCatalog';
+import { useEvaluateSegments } from '@/hooks/useSegmentEvaluation';
+import type { SegmentType, SegmentVisibility, ConditionOperator } from '@/types/segmentation';
 
 interface SegmentRule {
   id: string;
   field: string;
-  operator: string;
+  operator: ConditionOperator;
   value: string | number;
   logicalOperator?: 'AND' | 'OR';
 }
@@ -35,118 +59,47 @@ interface SegmentBuilderProps {
   initialData?: any;
 }
 
-// Field options organized by category
-const FIELD_CATEGORIES = [
-  {
-    label: '🆔 Identity & Profile',
-    fields: [
-      { value: 'signup_source', label: 'Signup Source', type: 'select', options: ['manual', 'organic', 'paid', 'referral', 'qr_code', 'pos_square', 'pos_clover', 'import', 'api', 'event', 'walk_in'] },
-      { value: 'preferred_channel', label: 'Preferred Channel', type: 'select', options: ['email', 'sms', 'both', 'none'] },
-      { value: 'created_at', label: 'Signup Date', type: 'date' },
-      { value: 'sms_opt_in_at', label: 'SMS Opt-In Date', type: 'date' },
-      { value: 'email_opt_in_at', label: 'Email Opt-In Date', type: 'date' },
-      { value: 'sms_opt_out_at', label: 'SMS Opt-Out Date', type: 'date' },
-      { value: 'email_opt_out_at', label: 'Email Opt-Out Date', type: 'date' },
-      { value: 'city', label: 'City', type: 'text' },
-      { value: 'state_region', label: 'State / Region', type: 'text' },
-      { value: 'postal_code', label: 'Postal Code', type: 'text' },
-      { value: 'store_id', label: 'Store ID', type: 'text' },
-      { value: 'store_name', label: 'Store Name', type: 'text' },
-    ]
-  },
-  {
-    label: '📊 Purchase Behavior',
-    fields: [
-      { value: 'enriched_total_spent', label: 'Total Spent', type: 'number' },
-      { value: 'order_count', label: 'Order Count', type: 'number' },
-      { value: 'last_order_date', label: 'Last Order Date', type: 'date' },
-      { value: 'first_order_date', label: 'First Order Date', type: 'date' },
-      { value: 'avg_order_value', label: 'Average Order Value', type: 'number' },
-    ]
-  },
-  {
-    label: '👤 Customer Profile',
-    fields: [
-      { value: 'loyalty_status', label: 'Loyalty Status', type: 'select', options: ['New', 'Regular', 'Loyal', 'VIP'] },
-      { value: 'customer_status', label: 'Customer Status', type: 'select', options: ['Prospect', 'Active', 'At Risk', 'Churned'] },
-      { value: 'pos_source', label: 'POS Source', type: 'select', options: ['shopify', 'square', 'clover'] },
-      { value: 'tags', label: 'Tags', type: 'text' },
-      { value: 'product_categories', label: 'Product Categories', type: 'text' },
-    ]
-  },
-  {
-    label: '📧 Email Engagement',
-    fields: [
-      { value: 'engagement_metrics->email->>open_rate', label: 'Email Open Rate (%)', type: 'number', icon: Mail },
-      { value: 'engagement_metrics->email->>total_opened', label: 'Emails Opened (count)', type: 'number', icon: Mail },
-      { value: 'engagement_metrics->email->>total_clicked', label: 'Emails Clicked (count)', type: 'number', icon: MousePointer },
-      { value: 'engagement_metrics->email->>click_rate', label: 'Email Click Rate (%)', type: 'number', icon: MousePointer },
-      { value: 'engagement_metrics->email->>last_opened_at', label: 'Last Email Open Date', type: 'date', icon: Mail },
-    ]
-  },
-  {
-    label: '💬 SMS Engagement',
-    fields: [
-      { value: 'engagement_metrics->sms->>total_sent', label: 'SMS Received (count)', type: 'number', icon: MessageSquare },
-      { value: 'engagement_metrics->sms->>total_replied', label: 'SMS Replied (count)', type: 'number', icon: MessageSquare },
-      { value: 'engagement_metrics->sms->>reply_rate', label: 'SMS Reply Rate (%)', type: 'number', icon: MessageSquare },
-    ]
-  },
-  {
-    label: '⭐ Overall Engagement',
-    fields: [
-      { value: 'engagement_metrics->overall->>engagement_score', label: 'Engagement Score (0-100)', type: 'number', icon: Sparkles },
-      { value: 'engagement_metrics->overall->>engagement_tier', label: 'Engagement Tier', type: 'select', options: ['hot', 'warm', 'cold', 'dormant'], icon: TrendingUp },
-      { value: 'engagement_metrics->overall->>last_engagement_at', label: 'Last Any Engagement Date', type: 'date', icon: Sparkles },
-      { value: 'days_since_last_engagement', label: 'Days Since Engagement', type: 'number', icon: Sparkles },
-    ]
-  },
-];
-
-// Flatten for easy lookup
-const FIELD_OPTIONS = FIELD_CATEGORIES.flatMap(cat => cat.fields);
-
-const OPERATOR_OPTIONS = {
-  number: [
-    { value: '>', label: 'Greater than' },
-    { value: '<', label: 'Less than' },
-    { value: '>=', label: 'Greater than or equal' },
-    { value: '<=', label: 'Less than or equal' },
-    { value: '=', label: 'Equal to' },
-    { value: '!=', label: 'Not equal to' },
-    { value: 'between', label: 'Between' },
-  ],
-  text: [
-    { value: 'contains', label: 'Contains' },
-    { value: 'not_contains', label: 'Does not contain' },
-    { value: 'starts_with', label: 'Starts with' },
-    { value: 'ends_with', label: 'Ends with' },
-    { value: '=', label: 'Equals' },
-    { value: '!=', label: 'Not equals' },
-  ],
-  date: [
-    { value: 'before', label: 'Before' },
-    { value: 'after', label: 'After' },
-    { value: 'within_days', label: 'Within days' },
-    { value: 'older_than_days', label: 'Older than days' },
-  ],
-  select: [
-    { value: '=', label: 'Is' },
-    { value: '!=', label: 'Is not' },
-    { value: 'in', label: 'In list' },
-    { value: 'not_in', label: 'Not in list' },
-  ],
+// Category icons mapping
+const CATEGORY_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
+  identity: User,
+  email_engagement: Mail,
+  sms_engagement: MessageSquare,
+  cross_channel: Share2,
+  purchase: ShoppingCart,
+  loyalty: Award,
+  lifecycle: TrendingUp,
+  risk: AlertTriangle,
 };
+
+// Category labels for display
+const CATEGORY_LABELS: Record<string, string> = {
+  identity: '👤 Identity & Profile',
+  email_engagement: '📧 Email Engagement',
+  sms_engagement: '💬 SMS Engagement',
+  cross_channel: '🔗 Cross-Channel',
+  purchase: '🛒 Purchase Behavior',
+  loyalty: '⭐ Loyalty & Perks',
+  lifecycle: '📈 Lifecycle',
+  risk: '⚠️ Risk Signals',
+};
+
+// Group metrics by category for dropdown
+const GROUPED_METRICS = getCategories().map(cat => ({
+  ...cat,
+  fields: METRICS_CATALOG.filter(m => m.category === cat.id)
+})).filter(cat => cat.fields.length > 0);
 
 export const SmartSegmentBuilderBeta = ({ onSave, initialData }: SegmentBuilderProps) => {
   const [name, setName] = useState(initialData?.name || '');
   const [description, setDescription] = useState(initialData?.description || '');
+  const [segmentType, setSegmentType] = useState<SegmentType>(initialData?.segment_type || 'dynamic');
+  const [visibility, setVisibility] = useState<SegmentVisibility>(initialData?.visibility || 'private');
   const [rules, setRules] = useState<SegmentRule[]>(
     initialData?.rules || [
       {
         id: crypto.randomUUID(),
-        field: 'enriched_total_spent',
-        operator: '>',
+        field: 'total_spent',
+        operator: 'greater_than' as ConditionOperator,
         value: 100,
       }
     ]
@@ -156,9 +109,22 @@ export const SmartSegmentBuilderBeta = ({ onSave, initialData }: SegmentBuilderP
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const evaluateSegments = useEvaluateSegments();
 
   const saveSegmentMutation = useMutation({
-    mutationFn: async ({ name, description, rules }: { name: string; description: string; rules: SegmentRule[] }) => {
+    mutationFn: async ({ 
+      name, 
+      description, 
+      rules,
+      segmentType,
+      visibility
+    }: { 
+      name: string; 
+      description: string; 
+      rules: SegmentRule[];
+      segmentType: SegmentType;
+      visibility: SegmentVisibility;
+    }) => {
       const { data: userData } = await supabase.auth.getUser();
       if (!userData.user) throw new Error('User not authenticated');
 
@@ -171,8 +137,12 @@ export const SmartSegmentBuilderBeta = ({ onSave, initialData }: SegmentBuilderP
       if (!userRecord) throw new Error('User record not found');
 
       const queryJson = {
-        rules,
-        logic: 'AND'
+        logic: 'AND',
+        conditions: rules.map(r => ({
+          field: r.field,
+          operator: r.operator,
+          value: r.value
+        }))
       };
 
       const { data, error } = await supabase
@@ -184,6 +154,9 @@ export const SmartSegmentBuilderBeta = ({ onSave, initialData }: SegmentBuilderP
           tenant_id: userRecord.tenant_id,
           user_id: userData.user.id,
           customer_count: previewCount || 0,
+          segment_type: segmentType,
+          visibility,
+          is_active: true,
         })
         .select()
         .single();
@@ -191,12 +164,35 @@ export const SmartSegmentBuilderBeta = ({ onSave, initialData }: SegmentBuilderP
       if (error) throw error;
       return data;
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       toast({
         title: "Segment Created",
         description: `"${data.name}" has been saved successfully`,
       });
       queryClient.invalidateQueries({ queryKey: ['segments'] });
+      queryClient.invalidateQueries({ queryKey: ['crm_segments'] });
+      
+      // Trigger evaluation for dynamic segments
+      if (segmentType === 'dynamic') {
+        toast({
+          title: "Evaluating Segment",
+          description: "Running initial segment evaluation...",
+        });
+        
+        try {
+          await evaluateSegments.mutateAsync({ 
+            tenantId: data.tenant_id, 
+            segmentId: data.id 
+          });
+          toast({
+            title: "Evaluation Complete",
+            description: "Segment membership has been calculated",
+          });
+        } catch (err) {
+          console.error('Evaluation error:', err);
+        }
+      }
+      
       onSave?.(data);
     },
     onError: (error: any) => {
@@ -209,11 +205,12 @@ export const SmartSegmentBuilderBeta = ({ onSave, initialData }: SegmentBuilderP
   });
 
   const addRule = () => {
+    const firstMetric = METRICS_CATALOG[0];
     const newRule: SegmentRule = {
       id: crypto.randomUUID(),
-      field: 'enriched_total_spent',
-      operator: '>',
-      value: 100,
+      field: firstMetric.field,
+      operator: firstMetric.defaultOperator,
+      value: '',
       logicalOperator: 'AND',
     };
     setRules([...rules, newRule]);
@@ -224,9 +221,24 @@ export const SmartSegmentBuilderBeta = ({ onSave, initialData }: SegmentBuilderP
   };
 
   const updateRule = (ruleId: string, updates: Partial<SegmentRule>) => {
-    setRules(rules.map(rule => 
-      rule.id === ruleId ? { ...rule, ...updates } : rule
-    ));
+    setRules(rules.map(rule => {
+      if (rule.id !== ruleId) return rule;
+      
+      // If field changed, update operator to default for that field
+      if (updates.field && updates.field !== rule.field) {
+        const metric = getMetricDefinition(updates.field);
+        if (metric) {
+          return { 
+            ...rule, 
+            ...updates, 
+            operator: metric.defaultOperator,
+            value: '' 
+          };
+        }
+      }
+      
+      return { ...rule, ...updates };
+    }));
   };
 
   const previewSegment = useCallback(async () => {
@@ -237,20 +249,16 @@ export const SmartSegmentBuilderBeta = ({ onSave, initialData }: SegmentBuilderP
 
     setIsLoadingPreview(true);
     try {
-      // For beta, we'll do a simpler count - just count all customers
-      // Real query building will come in Phase 2
       const { count, error } = await supabase
         .from('customer_360_enriched')
         .select('*', { count: 'exact', head: true });
 
       if (error) throw error;
-      
-      // For now, show a mock preview (engagement fields not yet populated)
       setPreviewCount(count || 0);
       
       toast({
-        title: "Preview Note",
-        description: "Engagement metrics not yet populated. Showing estimated count.",
+        title: "Preview Ready",
+        description: "Showing estimated count based on current data.",
       });
     } catch (error) {
       console.error('Preview error:', error);
@@ -279,236 +287,357 @@ export const SmartSegmentBuilderBeta = ({ onSave, initialData }: SegmentBuilderP
       return;
     }
 
-    saveSegmentMutation.mutate({ name, description, rules });
+    saveSegmentMutation.mutate({ name, description, rules, segmentType, visibility });
   };
 
-  const getFieldType = (fieldValue: string) => {
-    const field = FIELD_OPTIONS.find(f => f.value === fieldValue);
-    return field?.type || 'text';
+  const getFieldMetric = (fieldValue: string) => {
+    return getMetricDefinition(fieldValue);
   };
 
-  const getFieldOptions = (fieldValue: string) => {
-    const field = FIELD_OPTIONS.find(f => f.value === fieldValue);
-    return (field as any)?.options || [];
-  };
+  const renderValueInput = (rule: SegmentRule, metric: ReturnType<typeof getMetricDefinition>) => {
+    if (!metric) return null;
 
-  const isEngagementField = (fieldValue: string) => {
-    return fieldValue.includes('engagement_metrics');
+    // Boolean operators don't need value input
+    if (metric.type === 'boolean') {
+      return (
+        <div className="flex items-center h-10 px-3 text-sm text-muted-foreground bg-muted rounded-md">
+          {rule.operator === 'is_true' ? 'Yes' : 'No'}
+        </div>
+      );
+    }
+
+    // Empty/not empty operators don't need value
+    if (rule.operator === 'is_empty' || rule.operator === 'is_not_empty') {
+      return (
+        <div className="flex items-center h-10 px-3 text-sm text-muted-foreground bg-muted rounded-md">
+          N/A
+        </div>
+      );
+    }
+
+    // Select options if available
+    if (metric.valueOptions && metric.valueOptions.length > 0) {
+      return (
+        <select
+          value={String(rule.value)}
+          onChange={(e) => updateRule(rule.id, { value: e.target.value })}
+          className="w-full h-10 px-3 py-2 text-sm border rounded-md bg-background"
+        >
+          <option value="">Select value</option>
+          {metric.valueOptions.map(opt => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
+      );
+    }
+
+    // Number input
+    if (metric.type === 'number') {
+      return (
+        <div className="flex items-center gap-2">
+          {metric.unit === '$' && <span className="text-muted-foreground">$</span>}
+          <Input
+            type="number"
+            value={rule.value}
+            onChange={(e) => updateRule(rule.id, { value: Number(e.target.value) })}
+            placeholder={metric.placeholder || "Enter value"}
+            className="text-sm"
+          />
+          {metric.unit && metric.unit !== '$' && (
+            <span className="text-muted-foreground text-sm">{metric.unit}</span>
+          )}
+        </div>
+      );
+    }
+
+    // Date type with days operators
+    if (metric.type === 'date') {
+      return (
+        <div className="flex items-center gap-2">
+          <Input
+            type="number"
+            value={rule.value}
+            onChange={(e) => updateRule(rule.id, { value: Number(e.target.value) })}
+            placeholder="Days"
+            className="text-sm"
+          />
+          <span className="text-muted-foreground text-sm">days</span>
+        </div>
+      );
+    }
+
+    // Default text input
+    return (
+      <Input
+        type="text"
+        value={rule.value}
+        onChange={(e) => updateRule(rule.id, { value: e.target.value })}
+        placeholder={metric.placeholder || "Enter value"}
+        className="text-sm"
+      />
+    );
   };
 
   return (
-    <Card className="w-full">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Filter className="h-5 w-5" />
-          Smart Segment Builder
-          <Badge variant="secondary" className="ml-2">Beta</Badge>
-        </CardTitle>
-      </CardHeader>
+    <TooltipProvider>
+      <Card className="w-full">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Filter className="h-5 w-5" />
+            Smart Segment Builder
+            <Badge variant="secondary" className="ml-2">Phase 1</Badge>
+          </CardTitle>
+        </CardHeader>
 
-      <CardContent className="space-y-6">
-        {/* Basic Info */}
-        <div className="grid gap-4 md:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="segment-name">Segment Name *</Label>
-            <Input
-              id="segment-name"
-              placeholder="e.g., High Value Customers"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="segment-description">Description</Label>
-            <Input
-              id="segment-description"
-              placeholder="Brief description of this segment"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-            />
-          </div>
-        </div>
-
-        <Separator />
-
-        {/* Rules */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold">Segment Rules</h3>
-            <Button variant="outline" size="sm" onClick={addRule}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Rule
-            </Button>
+        <CardContent className="space-y-6">
+          {/* Basic Info */}
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="segment-name">Segment Name *</Label>
+              <Input
+                id="segment-name"
+                placeholder="e.g., High Value Customers"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="segment-description">Description</Label>
+              <Input
+                id="segment-description"
+                placeholder="Brief description of this segment"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+              />
+            </div>
           </div>
 
-          <div className="space-y-3">
-            {rules.map((rule, index) => (
-              <div 
-                key={rule.id} 
-                className={`p-4 border rounded-lg space-y-3 ${
-                  isEngagementField(rule.field) ? 'border-primary/30 bg-primary/5' : ''
-                }`}
+          {/* Segment Type & Visibility */}
+          <div className="grid gap-6 md:grid-cols-2 p-4 border rounded-lg bg-muted/30">
+            {/* Dynamic/Frozen Toggle */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Label className="font-medium">Segment Type</Label>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs">
+                    <p><strong>Dynamic:</strong> Automatically updates as customer data changes</p>
+                    <p className="mt-1"><strong>Frozen:</strong> Locks membership at creation time</p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+              <div className="flex items-center gap-3">
+                <Switch
+                  checked={segmentType === 'dynamic'}
+                  onCheckedChange={(checked) => setSegmentType(checked ? 'dynamic' : 'frozen')}
+                />
+                <span className="text-sm">
+                  {segmentType === 'dynamic' ? (
+                    <span className="flex items-center gap-1 text-primary">
+                      <RefreshCw className="h-3 w-3" /> Dynamic (auto-updates)
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-1 text-muted-foreground">
+                      <Lock className="h-3 w-3" /> Frozen (static membership)
+                    </span>
+                  )}
+                </span>
+              </div>
+            </div>
+
+            {/* Visibility Selector */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Label className="font-medium">Visibility</Label>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs">
+                    <p><strong>Private:</strong> Only you can see this segment</p>
+                    <p className="mt-1"><strong>Team:</strong> Your team members can use it</p>
+                    <p className="mt-1"><strong>Public:</strong> All organization users can use it</p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+              <select
+                value={visibility}
+                onChange={(e) => setVisibility(e.target.value as SegmentVisibility)}
+                className="w-full h-10 px-3 py-2 text-sm border rounded-md bg-background"
               >
-                {index > 0 && (
-                  <div className="flex items-center gap-2">
-                    <select
-                      value={rule.logicalOperator || 'AND'}
-                      onChange={(e) => updateRule(rule.id, { logicalOperator: e.target.value as 'AND' | 'OR' })}
-                      className="px-2 py-1 text-sm border rounded bg-background"
-                    >
-                      <option value="AND">AND</option>
-                      <option value="OR">OR</option>
-                    </select>
-                    <span className="text-sm text-muted-foreground">this rule</span>
-                  </div>
-                )}
+                <option value="private">🔒 Private</option>
+                <option value="team">👥 Team</option>
+                <option value="public">🌐 Public</option>
+              </select>
+            </div>
+          </div>
 
-                <div className="grid gap-3 md:grid-cols-4">
-                  {/* Field - Grouped Select */}
-                  <div className="space-y-1">
-                    <Label className="text-xs">Field</Label>
-                    <select
-                      value={rule.field}
-                      onChange={(e) => updateRule(rule.id, { field: e.target.value })}
-                      className="w-full px-3 py-2 text-sm border rounded bg-background"
-                    >
-                      {FIELD_CATEGORIES.map(category => (
-                        <optgroup key={category.label} label={category.label}>
-                          {category.fields.map(field => (
-                            <option key={field.value} value={field.value}>
-                              {field.label}
+          <Separator />
+
+          {/* Rules */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold">Segment Rules</h3>
+              <Button variant="outline" size="sm" onClick={addRule}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Rule
+              </Button>
+            </div>
+
+            <div className="space-y-3">
+              {rules.map((rule, index) => {
+                const metric = getFieldMetric(rule.field);
+                const CategoryIcon = metric ? CATEGORY_ICONS[metric.category] || Sparkles : Sparkles;
+
+                return (
+                  <div 
+                    key={rule.id} 
+                    className={`p-4 border rounded-lg space-y-3 ${
+                      metric?.category === 'risk' ? 'border-destructive/30 bg-destructive/5' : 
+                      metric?.category === 'email_engagement' ? 'border-primary/30 bg-primary/5' : ''
+                    }`}
+                  >
+                    {index > 0 && (
+                      <div className="flex items-center gap-2">
+                        <select
+                          value={rule.logicalOperator || 'AND'}
+                          onChange={(e) => updateRule(rule.id, { logicalOperator: e.target.value as 'AND' | 'OR' })}
+                          className="px-2 py-1 text-sm border rounded bg-background"
+                        >
+                          <option value="AND">AND</option>
+                          <option value="OR">OR</option>
+                        </select>
+                        <span className="text-sm text-muted-foreground">this rule</span>
+                      </div>
+                    )}
+
+                    <div className="grid gap-3 md:grid-cols-4">
+                      {/* Field - Grouped Select */}
+                      <div className="space-y-1">
+                        <Label className="text-xs flex items-center gap-1">
+                          <CategoryIcon className="h-3 w-3" />
+                          Field
+                        </Label>
+                        <select
+                          value={rule.field}
+                          onChange={(e) => updateRule(rule.id, { field: e.target.value })}
+                          className="w-full h-10 px-3 py-2 text-sm border rounded-md bg-background"
+                        >
+                          {GROUPED_METRICS.map(category => (
+                            <optgroup key={category.id} label={CATEGORY_LABELS[category.id] || category.label}>
+                              {category.fields.map(field => (
+                                <option key={field.field} value={field.field}>
+                                  {field.label}
+                                </option>
+                              ))}
+                            </optgroup>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Operator */}
+                      <div className="space-y-1">
+                        <Label className="text-xs">Operator</Label>
+                        <select
+                          value={rule.operator}
+                          onChange={(e) => updateRule(rule.id, { operator: e.target.value as ConditionOperator })}
+                          className="w-full h-10 px-3 py-2 text-sm border rounded-md bg-background"
+                        >
+                          {metric?.operators.map(op => (
+                            <option key={op} value={op}>
+                              {getOperatorLabel(op)}
                             </option>
                           ))}
-                        </optgroup>
-                      ))}
-                    </select>
-                  </div>
+                        </select>
+                      </div>
 
-                  {/* Operator */}
-                  <div className="space-y-1">
-                    <Label className="text-xs">Operator</Label>
-                    <select
-                      value={rule.operator}
-                      onChange={(e) => updateRule(rule.id, { operator: e.target.value })}
-                      className="w-full px-3 py-2 text-sm border rounded bg-background"
-                    >
-                      {OPERATOR_OPTIONS[getFieldType(rule.field) as keyof typeof OPERATOR_OPTIONS]?.map(op => (
-                        <option key={op.value} value={op.value}>
-                          {op.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                      {/* Value */}
+                      <div className="space-y-1">
+                        <Label className="text-xs">Value</Label>
+                        {renderValueInput(rule, metric)}
+                      </div>
 
-                  {/* Value */}
-                  <div className="space-y-1">
-                    <Label className="text-xs">Value</Label>
-                    {getFieldType(rule.field) === 'select' ? (
-                      <select
-                        value={rule.value}
-                        onChange={(e) => updateRule(rule.id, { value: e.target.value })}
-                        className="w-full px-3 py-2 text-sm border rounded bg-background"
-                      >
-                        {getFieldOptions(rule.field).map((option: string) => (
-                          <option key={option} value={option}>
-                            {option}
-                          </option>
-                        ))}
-                      </select>
-                    ) : getFieldType(rule.field) === 'date' ? (
-                      <Input
-                        type={rule.operator.includes('days') ? 'number' : 'date'}
-                        value={rule.value}
-                        onChange={(e) => updateRule(rule.id, { value: e.target.value })}
-                        className="text-sm"
-                      />
-                    ) : (
-                      <Input
-                        type={getFieldType(rule.field) === 'number' ? 'number' : 'text'}
-                        value={rule.value}
-                        onChange={(e) => updateRule(rule.id, { 
-                          value: getFieldType(rule.field) === 'number' ? Number(e.target.value) : e.target.value 
-                        })}
-                        placeholder="Enter value"
-                        className="text-sm"
-                      />
+                      {/* Remove */}
+                      <div className="space-y-1">
+                        <Label className="text-xs opacity-0">Remove</Label>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => removeRule(rule.id)}
+                          disabled={rules.length === 1}
+                          className="w-full h-10"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Category indicator */}
+                    {metric && (
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <CategoryIcon className="h-3 w-3" />
+                        <span>{metric.description}</span>
+                        {metric.unit && <Badge variant="outline" className="text-xs">{metric.unit}</Badge>}
+                      </div>
                     )}
                   </div>
-
-                  {/* Remove */}
-                  <div className="space-y-1">
-                    <Label className="text-xs opacity-0">Remove</Label>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => removeRule(rule.id)}
-                      disabled={rules.length === 1}
-                      className="w-full"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Engagement field indicator */}
-                {isEngagementField(rule.field) && (
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <Sparkles className="h-3 w-3 text-primary" />
-                    <span>Engagement metric - Data will be populated in Phase 1</span>
-                  </div>
-                )}
-              </div>
-            ))}
+                );
+              })}
+            </div>
           </div>
-        </div>
 
-        <Separator />
+          <Separator />
 
-        {/* Preview */}
-        <div className="flex items-center gap-4">
-          <Button
-            variant="outline"
-            onClick={previewSegment}
-            disabled={isLoadingPreview}
-          >
-            {isLoadingPreview ? (
-              <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <Users className="h-4 w-4 mr-2" />
+          {/* Preview */}
+          <div className="flex items-center gap-4">
+            <Button
+              variant="outline"
+              onClick={previewSegment}
+              disabled={isLoadingPreview}
+            >
+              {isLoadingPreview ? (
+                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Users className="h-4 w-4 mr-2" />
+              )}
+              Preview Segment
+            </Button>
+
+            {previewCount !== null && (
+              <Badge variant="secondary" className="text-base px-3 py-1">
+                {previewCount.toLocaleString()} customers match
+              </Badge>
             )}
-            Preview Segment
-          </Button>
+          </div>
 
-          {previewCount !== null && (
-            <Badge variant="secondary" className="text-base px-3 py-1">
-              {previewCount.toLocaleString()} customers match
-            </Badge>
-          )}
-        </div>
-
-        {/* Actions */}
-        <div className="flex gap-3 justify-end">
-          <Button
-            variant="outline"
-            onClick={() => window.history.back()}
-          >
-            Cancel
-          </Button>
-          <Button
-            onClick={handleSave}
-            disabled={saveSegmentMutation.isPending || !name.trim() || rules.length === 0}
-          >
-            {saveSegmentMutation.isPending ? (
-              <>Saving...</>
-            ) : (
-              <>
-                <Save className="h-4 w-4 mr-2" />
-                Save Segment
-              </>
-            )}
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+          {/* Actions */}
+          <div className="flex gap-3 justify-end">
+            <Button
+              variant="outline"
+              onClick={() => window.history.back()}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSave}
+              disabled={saveSegmentMutation.isPending || !name.trim() || rules.length === 0}
+            >
+              {saveSegmentMutation.isPending ? (
+                <>Saving...</>
+              ) : (
+                <>
+                  <Save className="h-4 w-4 mr-2" />
+                  Save Segment
+                </>
+              )}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </TooltipProvider>
   );
 };
