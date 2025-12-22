@@ -1,11 +1,12 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import {
   Tooltip,
@@ -16,33 +17,34 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { 
   Plus, 
+  Trash2, 
   Users, 
+  Filter,
   RefreshCw,
   Save,
   Sparkles,
+  Mail,
+  MessageSquare,
+  ShoppingCart,
+  User,
+  AlertTriangle,
+  Share2,
+  TrendingUp,
+  Award,
   Info,
   Lock,
-  Globe,
   UsersRound,
-  Zap,
-  Eye
+  Globe
 } from 'lucide-react';
 
 import { 
   METRICS_CATALOG, 
   getCategories, 
   getMetricDefinition,
+  getOperatorLabel 
 } from '@/lib/segmentation/metricsCatalog';
 import { useEvaluateSegments } from '@/hooks/useSegmentEvaluation';
 import type { SegmentType, SegmentVisibility, ConditionOperator } from '@/types/segmentation';
-
-// Import new builder components
-import {
-  AutomationRuleBlock,
-  InlineLogicConnector,
-  SegmentPreviewPanel,
-  type ComboboxGroup,
-} from './builder';
 
 interface SegmentRule {
   id: string;
@@ -57,34 +59,35 @@ interface SegmentBuilderProps {
   initialData?: any;
 }
 
+// Category icons mapping
+const CATEGORY_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
+  identity: User,
+  email_engagement: Mail,
+  sms_engagement: MessageSquare,
+  cross_channel: Share2,
+  purchase: ShoppingCart,
+  loyalty: Award,
+  lifecycle: TrendingUp,
+  risk: AlertTriangle,
+};
+
 // Category labels for display
 const CATEGORY_LABELS: Record<string, string> = {
   identity: '👤 Identity & Profile',
   email_engagement: '📧 Email Engagement',
   sms_engagement: '💬 SMS Engagement',
   cross_channel: '🔗 Cross-Channel',
-  purchase: '💰 Purchase Behavior',
+  purchase: '🛒 Purchase Behavior',
   loyalty: '⭐ Loyalty & Perks',
   lifecycle: '📈 Lifecycle',
   risk: '⚠️ Risk Signals',
 };
 
-// Group metrics by category for the combobox
-const getGroupedMetrics = (): ComboboxGroup[] => {
-  return getCategories().map(cat => ({
-    id: cat.id,
-    label: CATEGORY_LABELS[cat.id] || cat.label,
-    options: METRICS_CATALOG
-      .filter(m => m.category === cat.id)
-      .map(m => ({
-        value: m.field,
-        label: m.label,
-        description: m.description,
-        unit: m.unit,
-        category: m.category,
-      }))
-  })).filter(cat => cat.options.length > 0);
-};
+// Group metrics by category for dropdown
+const GROUPED_METRICS = getCategories().map(cat => ({
+  ...cat,
+  fields: METRICS_CATALOG.filter(m => m.category === cat.id)
+})).filter(cat => cat.fields.length > 0);
 
 export const SmartSegmentBuilderBeta = ({ onSave, initialData }: SegmentBuilderProps) => {
   const [name, setName] = useState(initialData?.name || '');
@@ -102,14 +105,11 @@ export const SmartSegmentBuilderBeta = ({ onSave, initialData }: SegmentBuilderP
     ]
   );
   const [previewCount, setPreviewCount] = useState<number | null>(null);
-  const [totalCustomers, setTotalCustomers] = useState<number>(0);
   const [isLoadingPreview, setIsLoadingPreview] = useState(false);
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const evaluateSegments = useEvaluateSegments();
-  
-  const groupedMetrics = useMemo(() => getGroupedMetrics(), []);
 
   const saveSegmentMutation = useMutation({
     mutationFn: async ({ 
@@ -172,6 +172,7 @@ export const SmartSegmentBuilderBeta = ({ onSave, initialData }: SegmentBuilderP
       queryClient.invalidateQueries({ queryKey: ['segments'] });
       queryClient.invalidateQueries({ queryKey: ['crm_segments'] });
       
+      // Trigger evaluation for dynamic segments
       if (segmentType === 'dynamic') {
         toast({
           title: "Evaluating Segment",
@@ -223,6 +224,7 @@ export const SmartSegmentBuilderBeta = ({ onSave, initialData }: SegmentBuilderP
     setRules(rules.map(rule => {
       if (rule.id !== ruleId) return rule;
       
+      // If field changed, update operator to default for that field
       if (updates.field && updates.field !== rule.field) {
         const metric = getMetricDefinition(updates.field);
         if (metric) {
@@ -239,9 +241,11 @@ export const SmartSegmentBuilderBeta = ({ onSave, initialData }: SegmentBuilderP
     }));
   };
 
+  // Build a filter condition for a single rule
   const buildFilterCondition = (rule: SegmentRule) => {
     const { field, operator, value } = rule;
     
+    // Map our operators to Supabase filter methods
     switch (operator) {
       case 'equals':
       case 'eq':
@@ -284,10 +288,12 @@ export const SmartSegmentBuilderBeta = ({ onSave, initialData }: SegmentBuilderP
       case 'is_false':
         return { method: 'eq', field, value: false };
       case 'days_ago_less_than':
+        // Value is number of days, we want records within that many days
         const withinDate = new Date();
         withinDate.setDate(withinDate.getDate() - Number(value));
         return { method: 'gte', field, value: withinDate.toISOString() };
       case 'days_ago_greater_than':
+        // Value is number of days, we want records older than that
         const olderDate = new Date();
         olderDate.setDate(olderDate.getDate() - Number(value));
         return { method: 'lt', field, value: olderDate.toISOString() };
@@ -304,6 +310,7 @@ export const SmartSegmentBuilderBeta = ({ onSave, initialData }: SegmentBuilderP
 
     setIsLoadingPreview(true);
     try {
+      // Get current user's tenant_id
       const { data: userData } = await supabase.auth.getUser();
       if (!userData.user) throw new Error('User not authenticated');
 
@@ -315,20 +322,55 @@ export const SmartSegmentBuilderBeta = ({ onSave, initialData }: SegmentBuilderP
 
       if (!userRecord?.tenant_id) throw new Error('Tenant not found');
 
-      // Get total count first
-      const { count: total } = await supabase
-        .from('customer_360_enriched')
-        .select('*', { count: 'exact', head: true })
-        .eq('tenant_id', userRecord.tenant_id);
+      // Build filter conditions for each rule
+      const filterConditions: string[] = [];
       
-      setTotalCustomers(total || 0);
+      for (const rule of rules) {
+        const filter = buildFilterCondition(rule);
+        const { field, value } = filter;
+        
+        switch (filter.method) {
+          case 'eq':
+            filterConditions.push(`${field}.eq.${value}`);
+            break;
+          case 'neq':
+            filterConditions.push(`${field}.neq.${value}`);
+            break;
+          case 'gt':
+            filterConditions.push(`${field}.gt.${value}`);
+            break;
+          case 'gte':
+            filterConditions.push(`${field}.gte.${value}`);
+            break;
+          case 'lt':
+            filterConditions.push(`${field}.lt.${value}`);
+            break;
+          case 'lte':
+            filterConditions.push(`${field}.lte.${value}`);
+            break;
+          case 'ilike':
+            filterConditions.push(`${field}.ilike.${value}`);
+            break;
+          case 'not.ilike':
+            filterConditions.push(`${field}.not.ilike.${value}`);
+            break;
+          case 'is':
+            filterConditions.push(`${field}.is.null`);
+            break;
+          case 'not.is':
+            filterConditions.push(`${field}.not.is.null`);
+            break;
+        }
+      }
 
-      // Build query with filters
+      // Build query with AND logic - use 'any' to avoid excessive type depth
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let query: any = supabase
         .from('customer_360_enriched')
         .select('*', { count: 'exact', head: true })
         .eq('tenant_id', userRecord.tenant_id);
       
+      // Apply filters one by one (AND logic)
       for (const rule of rules) {
         const filter = buildFilterCondition(rule);
         
@@ -399,261 +441,354 @@ export const SmartSegmentBuilderBeta = ({ onSave, initialData }: SegmentBuilderP
     saveSegmentMutation.mutate({ name, description, rules, segmentType, visibility });
   };
 
-  // Generate warnings based on segment size
-  const getWarnings = () => {
-    const warnings: string[] = [];
-    if (previewCount !== null && previewCount < 10) {
-      warnings.push('Very small segment (<10 customers). Consider broadening your criteria.');
-    }
-    if (previewCount !== null && totalCustomers > 0 && previewCount / totalCustomers > 0.9) {
-      warnings.push('This segment includes most of your customers. Consider narrowing your criteria.');
-    }
-    return warnings;
+  const getFieldMetric = (fieldValue: string) => {
+    return getMetricDefinition(fieldValue);
   };
 
-  const visibilityOptions = [
-    { value: 'private', label: 'Private', icon: Lock, description: 'Only you' },
-    { value: 'team', label: 'Team', icon: UsersRound, description: 'Your team' },
-    { value: 'public', label: 'Public', icon: Globe, description: 'Everyone' },
-  ];
+  const renderValueInput = (rule: SegmentRule, metric: ReturnType<typeof getMetricDefinition>) => {
+    if (!metric) return null;
+
+    // Boolean operators don't need value input
+    if (metric.type === 'boolean') {
+      return (
+        <div className="flex items-center h-10 px-3 text-sm text-muted-foreground bg-muted rounded-md">
+          {rule.operator === 'is_true' ? 'Yes' : 'No'}
+        </div>
+      );
+    }
+
+    // Empty/not empty operators don't need value
+    if (rule.operator === 'is_empty' || rule.operator === 'is_not_empty') {
+      return (
+        <div className="flex items-center h-10 px-3 text-sm text-muted-foreground bg-muted rounded-md">
+          N/A
+        </div>
+      );
+    }
+
+    // Select options if available
+    if (metric.valueOptions && metric.valueOptions.length > 0) {
+      return (
+        <select
+          value={String(rule.value)}
+          onChange={(e) => updateRule(rule.id, { value: e.target.value })}
+          className="w-full h-10 px-3 py-2 text-sm border rounded-md bg-background"
+        >
+          <option value="">Select value</option>
+          {metric.valueOptions.map(opt => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
+      );
+    }
+
+    // Number input
+    if (metric.type === 'number') {
+      return (
+        <div className="flex items-center gap-2">
+          {metric.unit === '$' && <span className="text-muted-foreground">$</span>}
+          <Input
+            type="number"
+            value={rule.value}
+            onChange={(e) => updateRule(rule.id, { value: Number(e.target.value) })}
+            placeholder={metric.placeholder || "Enter value"}
+            className="text-sm"
+          />
+          {metric.unit && metric.unit !== '$' && (
+            <span className="text-muted-foreground text-sm">{metric.unit}</span>
+          )}
+        </div>
+      );
+    }
+
+    // Date type with days operators
+    if (metric.type === 'date') {
+      return (
+        <div className="flex items-center gap-2">
+          <Input
+            type="number"
+            value={rule.value}
+            onChange={(e) => updateRule(rule.id, { value: Number(e.target.value) })}
+            placeholder="Days"
+            className="text-sm"
+          />
+          <span className="text-muted-foreground text-sm">days</span>
+        </div>
+      );
+    }
+
+    // Default text input
+    return (
+      <Input
+        type="text"
+        value={rule.value}
+        onChange={(e) => updateRule(rule.id, { value: e.target.value })}
+        placeholder={metric.placeholder || "Enter value"}
+        className="text-sm"
+      />
+    );
+  };
 
   return (
     <TooltipProvider>
-      <div className="w-full min-h-screen bg-gradient-to-br from-background via-muted/20 to-background">
-        {/* Header */}
-        <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-lg border-b">
-          <div className="max-w-7xl mx-auto px-4 py-4">
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10">
-                  <Sparkles className="h-6 w-6 text-primary" />
-                </div>
-                <div>
-                  <h1 className="text-xl font-bold">Smart Segment Builder</h1>
-                  <p className="text-sm text-muted-foreground">Design powerful customer segments visually</p>
-                </div>
-                <Badge className="bg-gradient-to-r from-violet-500 to-purple-500 text-white border-0">
-                  <Zap className="h-3 w-3 mr-1" />
-                  Beta
-                </Badge>
-              </div>
-              
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => window.history.back()}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={handleSave}
-                  disabled={saveSegmentMutation.isPending || !name.trim() || rules.length === 0}
-                  className="gap-2"
-                >
-                  {saveSegmentMutation.isPending ? (
-                    <RefreshCw className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Save className="h-4 w-4" />
-                  )}
-                  Save Segment
-                </Button>
-              </div>
+      <Card className="w-full">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Filter className="h-5 w-5" />
+            Smart Segment Builder
+            <Badge variant="secondary" className="ml-2">Phase 1</Badge>
+          </CardTitle>
+        </CardHeader>
+
+        <CardContent className="space-y-6">
+          {/* Basic Info */}
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="segment-name">Segment Name *</Label>
+              <Input
+                id="segment-name"
+                placeholder="e.g., High Value Customers"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="segment-description">Description</Label>
+              <Input
+                id="segment-description"
+                placeholder="Brief description of this segment"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+              />
             </div>
           </div>
-        </div>
 
-        {/* Main Content - Two Panel Layout */}
-        <div className="max-w-7xl mx-auto px-4 py-6">
-          <div className="grid lg:grid-cols-[1fr,380px] gap-6">
-            {/* Left Panel - Builder */}
-            <div className="space-y-6">
-              {/* Segment Info Card */}
-              <Card className="border-2">
-                <CardContent className="p-6 space-y-4">
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label htmlFor="segment-name" className="text-sm font-medium">
-                        Segment Name *
-                      </Label>
-                      <Input
-                        id="segment-name"
-                        placeholder="e.g., High Value Customers"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        className="h-11 border-2 hover:border-primary/40 transition-colors"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="segment-description" className="text-sm font-medium">
-                        Description
-                      </Label>
-                      <Input
-                        id="segment-description"
-                        placeholder="Brief description of this segment"
-                        value={description}
-                        onChange={(e) => setDescription(e.target.value)}
-                        className="h-11 border-2 hover:border-primary/40 transition-colors"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Settings Row */}
-                  <div className="flex flex-wrap items-center gap-6 pt-2">
-                    {/* Segment Type Toggle */}
-                    <div className="flex items-center gap-3">
-                      <div className="flex items-center gap-2">
-                        <Label className="text-sm font-medium">Type</Label>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Info className="h-4 w-4 text-muted-foreground cursor-help" />
-                          </TooltipTrigger>
-                          <TooltipContent className="max-w-xs">
-                            <p><strong>Dynamic:</strong> Auto-updates as customer data changes</p>
-                            <p className="mt-1"><strong>Frozen:</strong> Locks membership at creation</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </div>
-                      <div className="flex items-center gap-2 p-1 rounded-lg bg-muted/50">
-                        <button
-                          type="button"
-                          onClick={() => setSegmentType('dynamic')}
-                          className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
-                            segmentType === 'dynamic'
-                              ? 'bg-primary text-primary-foreground shadow'
-                              : 'text-muted-foreground hover:text-foreground'
-                          }`}
-                        >
-                          <RefreshCw className="h-3 w-3 inline mr-1" />
-                          Dynamic
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setSegmentType('frozen')}
-                          className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
-                            segmentType === 'frozen'
-                              ? 'bg-primary text-primary-foreground shadow'
-                              : 'text-muted-foreground hover:text-foreground'
-                          }`}
-                        >
-                          <Lock className="h-3 w-3 inline mr-1" />
-                          Frozen
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Visibility */}
-                    <div className="flex items-center gap-3">
-                      <Label className="text-sm font-medium">Visibility</Label>
-                      <div className="flex items-center gap-1 p-1 rounded-lg bg-muted/50">
-                        {visibilityOptions.map((opt) => {
-                          const Icon = opt.icon;
-                          return (
-                            <Tooltip key={opt.value}>
-                              <TooltipTrigger asChild>
-                                <button
-                                  type="button"
-                                  onClick={() => setVisibility(opt.value as SegmentVisibility)}
-                                  className={`p-2 rounded-md transition-all ${
-                                    visibility === opt.value
-                                      ? 'bg-primary text-primary-foreground shadow'
-                                      : 'text-muted-foreground hover:text-foreground hover:bg-accent'
-                                  }`}
-                                >
-                                  <Icon className="h-4 w-4" />
-                                </button>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p className="font-medium">{opt.label}</p>
-                                <p className="text-xs text-muted-foreground">{opt.description}</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Rules Section */}
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-lg font-semibold flex items-center gap-2">
-                      <Users className="h-5 w-5 text-primary" />
-                      Segment Rules
-                    </h2>
-                    <p className="text-sm text-muted-foreground">
-                      Define conditions to filter your customers
-                    </p>
-                  </div>
-                </div>
-
-                {/* Rules List */}
-                <div className="space-y-2">
-                  {rules.map((rule, index) => {
-                    const metric = getMetricDefinition(rule.field);
-                    
-                    return (
-                      <div key={rule.id}>
-                        {index > 0 && (
-                          <InlineLogicConnector
-                            value={rule.logicalOperator || 'AND'}
-                            onChange={(value) => updateRule(rule.id, { logicalOperator: value })}
-                          />
-                        )}
-                        <AutomationRuleBlock
-                          rule={rule}
-                          index={index}
-                          metric={metric}
-                          groupedMetrics={groupedMetrics}
-                          onUpdate={(updates) => updateRule(rule.id, updates)}
-                          onRemove={() => removeRule(rule.id)}
-                          canRemove={rules.length > 1}
-                        />
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Add Rule Button */}
-                <Button
-                  variant="outline"
-                  onClick={addRule}
-                  className="w-full border-dashed border-2 h-12 hover:border-primary hover:bg-primary/5"
-                >
-                  <Plus className="h-5 w-5 mr-2" />
-                  Add Another Rule
-                </Button>
+          {/* Segment Type & Visibility */}
+          <div className="grid gap-6 md:grid-cols-2 p-4 border rounded-lg bg-muted/30">
+            {/* Dynamic/Frozen Toggle */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Label className="font-medium">Segment Type</Label>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs">
+                    <p><strong>Dynamic:</strong> Automatically updates as customer data changes</p>
+                    <p className="mt-1"><strong>Frozen:</strong> Locks membership at creation time</p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+              <div className="flex items-center gap-3">
+                <Switch
+                  checked={segmentType === 'dynamic'}
+                  onCheckedChange={(checked) => setSegmentType(checked ? 'dynamic' : 'frozen')}
+                />
+                <span className="text-sm">
+                  {segmentType === 'dynamic' ? (
+                    <span className="flex items-center gap-1 text-primary">
+                      <RefreshCw className="h-3 w-3" /> Dynamic (auto-updates)
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-1 text-muted-foreground">
+                      <Lock className="h-3 w-3" /> Frozen (static membership)
+                    </span>
+                  )}
+                </span>
               </div>
             </div>
 
-            {/* Right Panel - Preview */}
-            <div className="lg:sticky lg:top-24 lg:self-start space-y-4">
-              <SegmentPreviewPanel
-                matchCount={previewCount}
-                totalCount={totalCustomers}
-                isLoading={isLoadingPreview}
-                warnings={getWarnings()}
-              />
-              
-              <Button
-                onClick={previewSegment}
-                disabled={isLoadingPreview || rules.length === 0}
-                className="w-full h-12 gap-2"
-                variant="secondary"
+            {/* Visibility Selector */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Label className="font-medium">Visibility</Label>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs">
+                    <p><strong>Private:</strong> Only you can see this segment</p>
+                    <p className="mt-1"><strong>Team:</strong> Your team members can use it</p>
+                    <p className="mt-1"><strong>Public:</strong> All organization users can use it</p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+              <select
+                value={visibility}
+                onChange={(e) => setVisibility(e.target.value as SegmentVisibility)}
+                className="w-full h-10 px-3 py-2 text-sm border rounded-md bg-background"
               >
-                {isLoadingPreview ? (
-                  <RefreshCw className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Eye className="h-4 w-4" />
-                )}
-                Preview Segment
+                <option value="private">🔒 Private</option>
+                <option value="team">👥 Team</option>
+                <option value="public">🌐 Public</option>
+              </select>
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* Rules */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold">Segment Rules</h3>
+              <Button variant="outline" size="sm" onClick={addRule}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Rule
               </Button>
             </div>
+
+            <div className="space-y-3">
+              {rules.map((rule, index) => {
+                const metric = getFieldMetric(rule.field);
+                const CategoryIcon = metric ? CATEGORY_ICONS[metric.category] || Sparkles : Sparkles;
+
+                return (
+                  <div 
+                    key={rule.id} 
+                    className={`p-4 border rounded-lg space-y-3 ${
+                      metric?.category === 'risk' ? 'border-destructive/30 bg-destructive/5' : 
+                      metric?.category === 'email_engagement' ? 'border-primary/30 bg-primary/5' : ''
+                    }`}
+                  >
+                    {index > 0 && (
+                      <div className="flex items-center gap-2">
+                        <select
+                          value={rule.logicalOperator || 'AND'}
+                          onChange={(e) => updateRule(rule.id, { logicalOperator: e.target.value as 'AND' | 'OR' })}
+                          className="px-2 py-1 text-sm border rounded bg-background"
+                        >
+                          <option value="AND">AND</option>
+                          <option value="OR">OR</option>
+                        </select>
+                        <span className="text-sm text-muted-foreground">this rule</span>
+                      </div>
+                    )}
+
+                    <div className="grid gap-3 md:grid-cols-4">
+                      {/* Field - Grouped Select */}
+                      <div className="space-y-1">
+                        <Label className="text-xs flex items-center gap-1">
+                          <CategoryIcon className="h-3 w-3" />
+                          Field
+                        </Label>
+                        <select
+                          value={rule.field}
+                          onChange={(e) => updateRule(rule.id, { field: e.target.value })}
+                          className="w-full h-10 px-3 py-2 text-sm border rounded-md bg-background"
+                        >
+                          {GROUPED_METRICS.map(category => (
+                            <optgroup key={category.id} label={CATEGORY_LABELS[category.id] || category.label}>
+                              {category.fields.map(field => (
+                                <option key={field.field} value={field.field}>
+                                  {field.label}
+                                </option>
+                              ))}
+                            </optgroup>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Operator */}
+                      <div className="space-y-1">
+                        <Label className="text-xs">Operator</Label>
+                        <select
+                          value={rule.operator}
+                          onChange={(e) => updateRule(rule.id, { operator: e.target.value as ConditionOperator })}
+                          className="w-full h-10 px-3 py-2 text-sm border rounded-md bg-background"
+                        >
+                          {metric?.operators.map(op => (
+                            <option key={op} value={op}>
+                              {getOperatorLabel(op)}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Value */}
+                      <div className="space-y-1">
+                        <Label className="text-xs">Value</Label>
+                        {renderValueInput(rule, metric)}
+                      </div>
+
+                      {/* Remove */}
+                      <div className="space-y-1">
+                        <Label className="text-xs opacity-0">Remove</Label>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => removeRule(rule.id)}
+                          disabled={rules.length === 1}
+                          className="w-full h-10"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Category indicator */}
+                    {metric && (
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <CategoryIcon className="h-3 w-3" />
+                        <span>{metric.description}</span>
+                        {metric.unit && <Badge variant="outline" className="text-xs">{metric.unit}</Badge>}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
-        </div>
-      </div>
+
+          <Separator />
+
+          {/* Preview */}
+          <div className="flex items-center gap-4">
+            <Button
+              variant="outline"
+              onClick={previewSegment}
+              disabled={isLoadingPreview}
+            >
+              {isLoadingPreview ? (
+                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Users className="h-4 w-4 mr-2" />
+              )}
+              Preview Segment
+            </Button>
+
+            {previewCount !== null && (
+              <Badge variant="secondary" className="text-base px-3 py-1">
+                {previewCount.toLocaleString()} customers match
+              </Badge>
+            )}
+          </div>
+
+          {/* Actions */}
+          <div className="flex gap-3 justify-end">
+            <Button
+              variant="outline"
+              onClick={() => window.history.back()}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSave}
+              disabled={saveSegmentMutation.isPending || !name.trim() || rules.length === 0}
+            >
+              {saveSegmentMutation.isPending ? (
+                <>Saving...</>
+              ) : (
+                <>
+                  <Save className="h-4 w-4 mr-2" />
+                  Save Segment
+                </>
+              )}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     </TooltipProvider>
   );
 };
