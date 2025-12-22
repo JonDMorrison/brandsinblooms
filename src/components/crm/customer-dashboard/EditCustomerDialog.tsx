@@ -56,8 +56,9 @@ export const EditCustomerDialog: React.FC<EditCustomerDialogProps> = ({
     register,
     handleSubmit,
     control,
-    formState: { errors, isDirty },
+    formState: { errors, isDirty, dirtyFields },
     reset,
+    watch,
   } = useForm<EditCustomerFormData>({
     resolver: zodResolver(editCustomerSchema),
     defaultValues: {
@@ -68,7 +69,18 @@ export const EditCustomerDialog: React.FC<EditCustomerDialogProps> = ({
       email_opt_in: initialData.email_opt_in ?? false,
       sms_opt_in: initialData.sms_opt_in ?? false,
     },
+    mode: 'onChange',
   });
+  
+  // Watch opt-in fields to detect changes
+  const watchedEmailOptIn = watch('email_opt_in');
+  const watchedSmsOptIn = watch('sms_opt_in');
+  
+  // Check if form has any changes (including opt-in toggles)
+  const hasChanges = isDirty || 
+    Object.keys(dirtyFields).length > 0 ||
+    watchedEmailOptIn !== (initialData.email_opt_in ?? false) ||
+    watchedSmsOptIn !== (initialData.sms_opt_in ?? false);
 
   // Reset form when dialog opens with new data
   React.useEffect(() => {
@@ -220,7 +232,7 @@ export const EditCustomerDialog: React.FC<EditCustomerDialogProps> = ({
             </Button>
             <Button
               type="submit"
-              disabled={updateCustomer.isPending || !isDirty}
+              disabled={updateCustomer.isPending || !hasChanges}
             >
               {updateCustomer.isPending ? (
                 <>
