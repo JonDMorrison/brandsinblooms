@@ -66,7 +66,7 @@ const isActionItem = (item: ActionMenuItemType): item is ActionMenuItem => {
 };
 
 // ============================================================================
-// Custom Hook: Click Outside Detection
+// Custom Hook: Click Outside Detection (Fixed)
 // ============================================================================
 
 function useClickOutside(
@@ -75,10 +75,25 @@ function useClickOutside(
   handler: () => void,
   enabled: boolean
 ) {
+  const isJustOpenedRef = useRef(false);
+
+  useEffect(() => {
+    if (enabled) {
+      // Mark that we just opened - ignore the first click
+      isJustOpenedRef.current = true;
+    }
+  }, [enabled]);
+
   useEffect(() => {
     if (!enabled) return;
 
     const handleClickOutside = (event: globalThis.MouseEvent) => {
+      // Skip if we just opened (this prevents immediate close)
+      if (isJustOpenedRef.current) {
+        isJustOpenedRef.current = false;
+        return;
+      }
+
       const target = event.target as Node;
       
       // Check if click is outside both trigger and dropdown
@@ -90,13 +105,10 @@ function useClickOutside(
       }
     };
 
-    // Use setTimeout to avoid immediate close on the same click that opened it
-    const timeoutId = setTimeout(() => {
-      document.addEventListener('mousedown', handleClickOutside);
-    }, 0);
+    // Add listener immediately but skip first click via flag
+    document.addEventListener('mousedown', handleClickOutside);
     
     return () => {
-      clearTimeout(timeoutId);
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [triggerRef, dropdownRef, handler, enabled]);
@@ -107,8 +119,8 @@ function useClickOutside(
 // ============================================================================
 
 function useDropdownPosition(
-  triggerRef: React.RefObject<HTMLElement>,
-  dropdownRef: React.RefObject<HTMLElement>,
+  triggerRef: React.RefObject<HTMLElement | null>,
+  dropdownRef: React.RefObject<HTMLElement | null>,
   isOpen: boolean,
   align: 'start' | 'center' | 'end',
   side: 'top' | 'right' | 'bottom' | 'left'
@@ -116,7 +128,7 @@ function useDropdownPosition(
   const [position, setPosition] = useState({ top: 0, left: 0 });
 
   useEffect(() => {
-    if (!isOpen || !triggerRef.current) return;
+    if (!isOpen) return;
 
     const updatePosition = () => {
       const trigger = triggerRef.current;
@@ -167,7 +179,11 @@ function useDropdownPosition(
       setPosition({ top, left });
     };
 
-    updatePosition();
+    // Use requestAnimationFrame to ensure DOM is ready
+    requestAnimationFrame(() => {
+      updatePosition();
+    });
+
     window.addEventListener('scroll', updatePosition, true);
     window.addEventListener('resize', updatePosition);
 
@@ -350,13 +366,17 @@ export const ActionMenu: React.FC<ActionMenuProps> = ({
     onConfirm: () => {},
   });
 
-  const triggerRef = useRef<HTMLElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const customTriggerRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Support controlled and uncontrolled modes
   const isControlled = controlledOpen !== undefined;
   const isOpen = isControlled ? controlledOpen : internalOpen;
   
+  // Get the active trigger ref
+  const activeTriggerRef = typeof trigger === 'string' ? triggerRef : customTriggerRef;
+
   const setIsOpen = useCallback((value: boolean) => {
     if (!isControlled) {
       setInternalOpen(value);
@@ -382,7 +402,6 @@ export const ActionMenu: React.FC<ActionMenuProps> = ({
   const closeDropdown = useCallback(() => {
     setIsOpen(false);
     setFocusedIndex(-1);
-    triggerRef.current?.focus();
   }, [setIsOpen]);
 
   // Handle item selection
@@ -409,7 +428,15 @@ export const ActionMenu: React.FC<ActionMenuProps> = ({
 
   // Handle keyboard navigation
   const handleKeyDown = useCallback((event: React.KeyboardEvent<HTMLElement>) => {
-    if (!isOpen) return;
+    if (!isOpen) {
+      // Open on arrow down or enter/space when closed
+      if (event.key === 'ArrowDown' || event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        setIsOpen(true);
+        setFocusedIndex(0);
+      }
+      return;
+    }
 
     switch (event.key) {
       case 'ArrowDown':
@@ -435,36 +462,34 @@ export const ActionMenu: React.FC<ActionMenuProps> = ({
         closeDropdown();
         break;
     }
-  }, [isOpen, flattenedItems, focusedIndex, handleItemClick, closeDropdown]);
+  }, [isOpen, flattenedItems, focusedIndex, handleItemClick, closeDropdown, setIsOpen]);
 
   // Click outside detection
-  useClickOutside(triggerRef, dropdownRef, closeDropdown, isOpen);
+  useClickOutside(activeTriggerRef, dropdownRef, closeDropdown, isOpen);
 
   // Dropdown positioning
-  const position = useDropdownPosition(triggerRef, dropdownRef, isOpen, align, side);
+  const position = useDropdownPosition(activeTriggerRef, dropdownRef, isOpen, align, side);
 
-  // Toggle dropdown - simple click handler
-  const handleTriggerClick = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
+  // Toggle dropdown - simplified click handler
+  const handleTriggerClick = useCallback(() => {
     if (disabled) return;
     
-    if (isOpen) {
-      closeDropdown();
-    } else {
-      setIsOpen(true);
+    const newState = !isOpen;
+    setIsOpen(newState);
+    if (newState) {
       setFocusedIndex(0);
+    } else {
+      setFocusedIndex(-1);
     }
-  }, [disabled, isOpen, closeDropdown, setIsOpen]);
+  }, [disabled, isOpen, setIsOpen]);
 
-  // Render trigger
+  // Render trigger button for string triggers
   const renderTrigger = () => {
     if (typeof trigger === 'string') {
       const IconComponent = trigger === 'vertical' ? MoreVertical : MoreHorizontal;
       return (
         <button
-          ref={triggerRef as React.RefObject<HTMLButtonElement>}
+          ref={triggerRef}
           type="button"
           onClick={handleTriggerClick}
           onKeyDown={handleKeyDown}
@@ -472,7 +497,7 @@ export const ActionMenu: React.FC<ActionMenuProps> = ({
           aria-haspopup="menu"
           aria-expanded={isOpen}
           className={cn(
-            'inline-flex items-center justify-center rounded-md h-8 w-8 p-0 text-sm font-medium transition-colors cursor-pointer',
+            'inline-flex items-center justify-center rounded-md h-8 w-8 p-0 text-sm font-medium transition-colors',
             'hover:bg-accent hover:text-accent-foreground',
             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
             'disabled:pointer-events-none disabled:opacity-50',
@@ -488,14 +513,18 @@ export const ActionMenu: React.FC<ActionMenuProps> = ({
     // Custom trigger element
     return (
       <div
-        ref={triggerRef as React.RefObject<HTMLDivElement>}
+        ref={customTriggerRef}
         onClick={handleTriggerClick}
         onKeyDown={handleKeyDown}
         role="button"
         tabIndex={disabled ? -1 : 0}
         aria-haspopup="menu"
         aria-expanded={isOpen}
-        className={cn('cursor-pointer inline-flex', disabled && 'pointer-events-none opacity-50', triggerClassName)}
+        className={cn(
+          'cursor-pointer inline-flex',
+          disabled && 'pointer-events-none opacity-50',
+          triggerClassName
+        )}
       >
         {trigger}
       </div>
@@ -570,30 +599,28 @@ export const ActionMenu: React.FC<ActionMenuProps> = ({
 
   return (
     <>
-      <div className="relative inline-block">
-        {renderTrigger()}
+      {renderTrigger()}
 
-        {isOpen && createPortal(
-          <div
-            ref={dropdownRef}
-            role="menu"
-            aria-orientation="vertical"
-            onKeyDown={handleKeyDown}
-            className={cn(
-              'fixed z-[1000040] min-w-[180px] overflow-hidden rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-lg',
-              'animate-in fade-in-0 zoom-in-95 duration-150',
-              contentClassName
-            )}
-            style={{
-              top: position.top,
-              left: position.left,
-            }}
-          >
-            {renderItems()}
-          </div>,
-          document.body
-        )}
-      </div>
+      {isOpen && createPortal(
+        <div
+          ref={dropdownRef}
+          role="menu"
+          aria-orientation="vertical"
+          onKeyDown={handleKeyDown}
+          className={cn(
+            'fixed z-[1000040] min-w-[180px] overflow-hidden rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-lg',
+            'animate-in fade-in-0 zoom-in-95 duration-150',
+            contentClassName
+          )}
+          style={{
+            top: position.top,
+            left: position.left,
+          }}
+        >
+          {renderItems()}
+        </div>,
+        document.body
+      )}
 
       {/* Custom Confirmation Modal */}
       <ConfirmationModal
