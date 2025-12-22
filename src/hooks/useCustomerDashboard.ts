@@ -74,6 +74,10 @@ export interface CustomerData {
   sms_last_replied_at?: string | null;
   sms_last_opt_out_at?: string | null;
   
+  // Opt-in status
+  email_opt_in?: boolean | null;
+  sms_opt_in?: boolean | null;
+  
   // Engagement summary
   engagement_overall_score?: number;
   engagement_email_score?: number;

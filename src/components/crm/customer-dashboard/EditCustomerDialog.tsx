@@ -1,5 +1,5 @@
 import React from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import {
@@ -13,7 +13,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2 } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Loader2, Mail, MessageSquare } from 'lucide-react';
 import { useUpdateCustomer } from '@/hooks/useUpdateCustomer';
 
 const editCustomerSchema = z.object({
@@ -21,6 +22,8 @@ const editCustomerSchema = z.object({
   last_name: z.string().trim().max(100, 'Last name must be less than 100 characters').optional(),
   email: z.string().trim().email('Invalid email address').max(255, 'Email must be less than 255 characters'),
   phone: z.string().trim().max(20, 'Phone must be less than 20 characters').optional(),
+  email_opt_in: z.boolean().optional(),
+  sms_opt_in: z.boolean().optional(),
 });
 
 type EditCustomerFormData = z.infer<typeof editCustomerSchema>;
@@ -34,6 +37,8 @@ interface EditCustomerDialogProps {
     last_name?: string | null;
     email: string;
     phone?: string | null;
+    email_opt_in?: boolean | null;
+    sms_opt_in?: boolean | null;
   };
   onSuccess?: () => void;
 }
@@ -50,6 +55,7 @@ export const EditCustomerDialog: React.FC<EditCustomerDialogProps> = ({
   const {
     register,
     handleSubmit,
+    control,
     formState: { errors, isDirty },
     reset,
   } = useForm<EditCustomerFormData>({
@@ -59,6 +65,8 @@ export const EditCustomerDialog: React.FC<EditCustomerDialogProps> = ({
       last_name: initialData.last_name || '',
       email: initialData.email,
       phone: initialData.phone || '',
+      email_opt_in: initialData.email_opt_in ?? false,
+      sms_opt_in: initialData.sms_opt_in ?? false,
     },
   });
 
@@ -70,6 +78,8 @@ export const EditCustomerDialog: React.FC<EditCustomerDialogProps> = ({
         last_name: initialData.last_name || '',
         email: initialData.email,
         phone: initialData.phone || '',
+        email_opt_in: initialData.email_opt_in ?? false,
+        sms_opt_in: initialData.sms_opt_in ?? false,
       });
     }
   }, [open, initialData, reset]);
@@ -83,6 +93,8 @@ export const EditCustomerDialog: React.FC<EditCustomerDialogProps> = ({
           last_name: data.last_name || null,
           email: data.email,
           phone: data.phone || null,
+          email_opt_in: data.email_opt_in ?? false,
+          sms_opt_in: data.sms_opt_in ?? false,
         },
       });
       onOpenChange(false);
@@ -150,6 +162,51 @@ export const EditCustomerDialog: React.FC<EditCustomerDialogProps> = ({
               {errors.phone && (
                 <p className="text-sm text-destructive">{errors.phone.message}</p>
               )}
+            </div>
+            
+            {/* Opt-in Preferences */}
+            <div className="border-t pt-4 mt-4">
+              <Label className="text-sm font-medium mb-3 block">Communication Preferences</Label>
+              <div className="space-y-3">
+                <Controller
+                  name="email_opt_in"
+                  control={control}
+                  render={({ field }) => (
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Mail className="h-4 w-4 text-muted-foreground" />
+                        <Label htmlFor="email_opt_in" className="text-sm font-normal cursor-pointer">
+                          Email Marketing
+                        </Label>
+                      </div>
+                      <Switch
+                        id="email_opt_in"
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </div>
+                  )}
+                />
+                <Controller
+                  name="sms_opt_in"
+                  control={control}
+                  render={({ field }) => (
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                        <Label htmlFor="sms_opt_in" className="text-sm font-normal cursor-pointer">
+                          SMS Marketing
+                        </Label>
+                      </div>
+                      <Switch
+                        id="sms_opt_in"
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </div>
+                  )}
+                />
+              </div>
             </div>
           </div>
           <DialogFooter>

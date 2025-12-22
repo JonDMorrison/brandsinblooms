@@ -199,6 +199,8 @@ const CustomerDashboardPage: React.FC = () => {
             last_name: customer.last_name,
             email: customer.email,
             phone: customer.phone,
+            email_opt_in: customer.email_opt_in,
+            sms_opt_in: customer.sms_opt_in,
           }}
           onSuccess={refetch}
         />
