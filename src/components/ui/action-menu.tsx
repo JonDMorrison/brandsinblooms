@@ -307,12 +307,12 @@ function MenuItemButton({ item, isFocused, onSelect, onFocus }: MenuItemButtonPr
       onFocus={onFocus}
       className={cn(
         'flex w-full items-center gap-2 px-3 py-2 text-sm rounded-md outline-none transition-colors',
-        'focus:bg-accent focus:text-accent-foreground',
-        isFocused && 'bg-accent text-accent-foreground',
+        'focus:bg-brand-teal-mint/15 focus:text-brand-steel-blue',
+        isFocused && 'bg-brand-teal-mint/15 text-brand-steel-blue',
         item.disabled && 'opacity-50 cursor-not-allowed',
         item.variant === 'destructive' 
           ? 'text-destructive focus:bg-destructive/10 focus:text-destructive hover:bg-destructive/10 hover:text-destructive' 
-          : 'text-foreground hover:bg-accent hover:text-accent-foreground'
+          : 'text-foreground hover:bg-brand-teal-mint/15 hover:text-brand-steel-blue'
       )}
     >
       {Icon && <Icon className="h-4 w-4 shrink-0" />}
@@ -493,8 +493,8 @@ export const ActionMenu: React.FC<ActionMenuProps> = ({
           aria-expanded={isOpen}
           className={cn(
             'inline-flex items-center justify-center rounded-md h-8 w-8 p-0 text-sm font-medium transition-colors',
-            'hover:bg-accent hover:text-accent-foreground',
-            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+            'hover:bg-brand-teal-mint/15 hover:text-brand-steel-blue',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-teal-mint focus-visible:ring-offset-2',
             'disabled:pointer-events-none disabled:opacity-50',
             triggerClassName
           )}
@@ -605,7 +605,7 @@ export const ActionMenu: React.FC<ActionMenuProps> = ({
           aria-orientation="vertical"
           onKeyDown={handleKeyDown}
           className={cn(
-            'fixed z-[1000040] min-w-[180px] overflow-hidden rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-lg',
+            'fixed z-[1000040] min-w-[180px] overflow-hidden rounded-md border border-brand-teal-mint/30 bg-popover p-1 text-popover-foreground shadow-lg shadow-brand-teal-mint/10',
             'animate-in fade-in-0 zoom-in-95 duration-150',
             contentClassName
           )}
