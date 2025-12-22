@@ -17,17 +17,21 @@ export const useUpdateCustomer = () => {
 
   return useMutation({
     mutationFn: async ({ customerId, data }: { customerId: string; data: UpdateCustomerData }) => {
-      const { error } = await supabase
+      const { data: result, error } = await supabase
         .from('crm_customers')
         .update(data)
-        .eq('id', customerId);
+        .eq('id', customerId)
+        .select()
+        .single();
       
       if (error) throw error;
+      return result;
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['customers'] });
       queryClient.invalidateQueries({ queryKey: ['crm-customers'] });
       queryClient.invalidateQueries({ queryKey: ['customer-dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['customer-360', variables.customerId] });
       toast({
         title: "Customer updated",
         description: "Customer details have been saved successfully.",
