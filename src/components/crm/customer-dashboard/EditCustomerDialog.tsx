@@ -92,9 +92,9 @@ export const EditCustomerDialog: React.FC<EditCustomerDialogProps> = ({
         phone: initialData.phone || '',
         email_opt_in: initialData.email_opt_in ?? false,
         sms_opt_in: initialData.sms_opt_in ?? false,
-      });
+      }, { keepDirty: false, keepDirtyValues: false });
     }
-  }, [open, initialData, reset]);
+  }, [open, initialData.first_name, initialData.last_name, initialData.email, initialData.phone, initialData.email_opt_in, initialData.sms_opt_in, reset]);
 
   const onSubmit = async (data: EditCustomerFormData) => {
     try {
