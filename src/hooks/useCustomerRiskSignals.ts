@@ -33,35 +33,6 @@ export function useCalculateRiskSignals() {
       return data as RiskCalculationResult;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['customers'] });
-    }
-  });
-}
-
-/**
- * Get risk level label and color based on score
- */
-export function getRiskLevelConfig(riskScore: number): {
-  level: 'low' | 'medium' | 'high' | 'critical';
-  label: string;
-  color: string;
-  bgColor: string;
-} {
-  if (riskScore >= 80) {
-    return { level: 'critical', label: 'Critical Risk', color: 'text-red-700', bgColor: 'bg-red-100' };
-  }
-  if (riskScore >= 60) {
-    return { level: 'high', label: 'High Risk', color: 'text-orange-700', bgColor: 'bg-orange-100' };
-  }
-  if (riskScore >= 40) {
-    return { level: 'medium', label: 'Medium Risk', color: 'text-yellow-700', bgColor: 'bg-yellow-100' };
-  }
-  return { level: 'low', label: 'Low Risk', color: 'text-green-700', bgColor: 'bg-green-100' };
-}
-
-      return data as RiskCalculationResult;
-    },
-    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['customer-risk-signals'] });
       queryClient.invalidateQueries({ queryKey: ['at-risk-customers-signals'] });
       queryClient.invalidateQueries({ queryKey: ['tenant-risk-stats'] });
