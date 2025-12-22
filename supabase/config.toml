@@ -356,3 +356,6 @@ verify_jwt = false
 
 [functions.calculate-risk-signals]
 verify_jwt = false
+
+[functions.evaluate-customer-segments]
+verify_jwt = false
