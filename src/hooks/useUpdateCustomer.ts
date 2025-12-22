@@ -21,17 +21,64 @@ export const useUpdateCustomer = () => {
         .from('crm_customers')
         .update(data)
         .eq('id', customerId)
-        .select()
+        .select('*, tenant_id')
         .single();
       
       if (error) throw error;
       return result;
     },
-    onSuccess: (_, variables) => {
+    onSuccess: async (result, variables) => {
+      // Invalidate customer queries
       queryClient.invalidateQueries({ queryKey: ['customers'] });
       queryClient.invalidateQueries({ queryKey: ['crm-customers'] });
       queryClient.invalidateQueries({ queryKey: ['customer-dashboard'] });
       queryClient.invalidateQueries({ queryKey: ['customer-360', variables.customerId] });
+
+      // Trigger real-time segment evaluation for this customer
+      try {
+        const { data: evalResult, error: evalError } = await supabase.functions.invoke('evaluate-customer-segments', {
+          body: {
+            customer_id: variables.customerId,
+            tenant_id: result.tenant_id
+          }
+        });
+
+        if (evalError) {
+          console.error('[useUpdateCustomer] Segment evaluation error:', evalError);
+        } else if (evalResult) {
+          console.log('[useUpdateCustomer] Segment evaluation result:', evalResult);
+          
+          // Invalidate segment queries to refresh UI
+          queryClient.invalidateQueries({ queryKey: ['segments'] });
+          queryClient.invalidateQueries({ queryKey: ['crm_segments'] });
+          queryClient.invalidateQueries({ queryKey: ['crm-segments'] });
+          queryClient.invalidateQueries({ queryKey: ['customer-segments'] });
+          queryClient.invalidateQueries({ queryKey: ['dynamic-segments'] });
+
+          // Show enhanced toast with segment changes
+          const joinedCount = evalResult.segments_joined?.length || 0;
+          const leftCount = evalResult.segments_left?.length || 0;
+          
+          let description = "Customer details have been saved successfully.";
+          if (joinedCount > 0 && leftCount > 0) {
+            description = `Added to ${joinedCount} segment(s), removed from ${leftCount} segment(s).`;
+          } else if (joinedCount > 0) {
+            description = `Added to ${joinedCount} segment(s): ${evalResult.segments_joined.join(', ')}`;
+          } else if (leftCount > 0) {
+            description = `Removed from ${leftCount} segment(s): ${evalResult.segments_left.join(', ')}`;
+          }
+
+          toast({
+            title: "Customer updated",
+            description,
+          });
+          return;
+        }
+      } catch (err) {
+        console.error('[useUpdateCustomer] Failed to evaluate segments:', err);
+      }
+
+      // Default toast if segment evaluation didn't provide feedback
       toast({
         title: "Customer updated",
         description: "Customer details have been saved successfully.",
