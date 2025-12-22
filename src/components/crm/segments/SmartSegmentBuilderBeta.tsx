@@ -669,10 +669,7 @@ export const SmartSegmentBuilderBeta = ({ onSave, initialData }: SegmentBuilderP
                     <div className="grid gap-3 md:grid-cols-4">
                       {/* Field - Grouped Select */}
                       <div className="space-y-1">
-                        <Label className="text-xs flex items-center gap-1">
-                          <CategoryIcon className="h-3 w-3" />
-                          Field
-                        </Label>
+                        <Label className="text-xs">Field</Label>
                         <select
                           value={rule.field}
                           onChange={(e) => updateRule(rule.id, { field: e.target.value })}
