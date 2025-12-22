@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, Download, Edit, Mail, MessageSquare, FileText, StickyNote, Trash2 } from 'lucide-react';
+import { ArrowLeft, Edit, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { ActionMenu, ActionMenuItem } from '@/components/ui/action-menu';
 import { useToast } from '@/hooks/use-toast';
@@ -129,13 +129,7 @@ export const CustomerDashboardLayout: React.FC<CustomerDashboardLayoutProps> = (
   };
 
   const menuItems: ActionMenuItem[] = [
-    { label: 'Export Report', icon: Download, onClick: handleExport },
     { label: 'Edit Customer', icon: Edit, onClick: handleEdit },
-    { label: 'Send Email', icon: Mail, onClick: handleSendEmail },
-    { label: 'Send SMS', icon: MessageSquare, onClick: handleSendSMS },
-    { label: 'View Activity Log', icon: FileText, onClick: handleViewActivityLog },
-    { label: 'Add Note', icon: StickyNote, onClick: handleAddNote },
-    { type: 'separator' } as any,
     {
       label: 'Delete Customer',
       icon: Trash2,
