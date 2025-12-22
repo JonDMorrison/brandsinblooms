@@ -4714,6 +4714,7 @@ export type Database = {
           avg_order_value_without_coupon: number | null
           bounce_categories: string[] | null
           bounce_risk_score: number | null
+          churn_probability: number | null
           consecutive_coupon_purchases: number | null
           consecutive_hard_bounces: number | null
           coupon_dependency_risk_score: number | null
@@ -4795,6 +4796,7 @@ export type Database = {
           avg_order_value_without_coupon?: number | null
           bounce_categories?: string[] | null
           bounce_risk_score?: number | null
+          churn_probability?: number | null
           consecutive_coupon_purchases?: number | null
           consecutive_hard_bounces?: number | null
           coupon_dependency_risk_score?: number | null
@@ -4876,6 +4878,7 @@ export type Database = {
           avg_order_value_without_coupon?: number | null
           bounce_categories?: string[] | null
           bounce_risk_score?: number | null
+          churn_probability?: number | null
           consecutive_coupon_purchases?: number | null
           consecutive_hard_bounces?: number | null
           coupon_dependency_risk_score?: number | null
