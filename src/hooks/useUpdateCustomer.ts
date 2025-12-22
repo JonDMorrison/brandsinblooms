@@ -7,6 +7,8 @@ export interface UpdateCustomerData {
   last_name?: string | null;
   email?: string;
   phone?: string | null;
+  email_opt_in?: boolean;
+  sms_opt_in?: boolean;
 }
 
 export const useUpdateCustomer = () => {
