@@ -20,9 +20,8 @@ interface Segment {
   id: string;
   name: string;
   tenant_id: string;
-  segment_type: string;
+  auto_update: boolean;
   conditions: SegmentRule | null;
-  is_active: boolean;
   customer_count: number;
 }
 
@@ -48,12 +47,11 @@ Deno.serve(async (req) => {
 
     console.log(`[evaluate-segments] Starting evaluation for tenant: ${tenant_id || 'all'}, segment: ${segment_id || 'all'}`);
 
-    // Fetch segments to evaluate
+    // Fetch segments to evaluate (auto_update = true means dynamic)
     let segmentsQuery = supabase
       .from('crm_segments')
-      .select('id, name, tenant_id, segment_type, conditions, is_active, customer_count')
-      .eq('segment_type', 'dynamic')
-      .eq('is_active', true);
+      .select('id, name, tenant_id, auto_update, conditions, customer_count')
+      .eq('auto_update', true);
 
     if (tenant_id) {
       segmentsQuery = segmentsQuery.eq('tenant_id', tenant_id);
@@ -88,10 +86,9 @@ Deno.serve(async (req) => {
 
         // Get current membership
         const { data: currentMembers, error: membersError } = await supabase
-          .from('customer_segment_membership')
+          .from('customer_segments')
           .select('customer_id')
-          .eq('segment_id', segment.id)
-          .eq('is_active', true);
+          .eq('segment_id', segment.id);
 
         if (membersError) {
           console.error(`[evaluate-segments] Error fetching members for segment ${segment.id}:`, membersError);
@@ -144,23 +141,19 @@ Deno.serve(async (req) => {
 
         console.log(`[evaluate-segments] Segment ${segment.name}: ${customersEntering.length} entering, ${customersExiting.length} exiting`);
 
-        // Process entries
+        // Process entries - insert into customer_segments
         if (customersEntering.length > 0) {
           const entryRecords = customersEntering.map(customerId => ({
             customer_id: customerId,
             segment_id: segment.id,
-            tenant_id: segment.tenant_id,
-            entered_at: new Date().toISOString(),
-            is_active: true,
-            is_manual: false,
-            entry_reason: { evaluated_at: new Date().toISOString(), matched_conditions: true }
+            assigned_at: new Date().toISOString(),
           }));
 
           const { error: insertError } = await supabase
-            .from('customer_segment_membership')
+            .from('customer_segments')
             .upsert(entryRecords, { 
               onConflict: 'customer_id,segment_id',
-              ignoreDuplicates: false 
+              ignoreDuplicates: true 
             });
 
           if (insertError) {
@@ -168,20 +161,16 @@ Deno.serve(async (req) => {
           }
         }
 
-        // Process exits
+        // Process exits - delete from customer_segments
         if (customersExiting.length > 0) {
           const { error: exitError } = await supabase
-            .from('customer_segment_membership')
-            .update({
-              is_active: false,
-              exited_at: new Date().toISOString(),
-              exit_reason: { evaluated_at: new Date().toISOString(), no_longer_matches: true }
-            })
+            .from('customer_segments')
+            .delete()
             .eq('segment_id', segment.id)
             .in('customer_id', customersExiting);
 
           if (exitError) {
-            console.error(`[evaluate-segments] Error updating exits:`, exitError);
+            console.error(`[evaluate-segments] Error removing exited customers:`, exitError);
           }
         }
 
@@ -190,9 +179,7 @@ Deno.serve(async (req) => {
           .from('crm_segments')
           .update({
             customer_count: matchingCustomerIds.size,
-            last_evaluated_at: new Date().toISOString(),
-            entry_count: (segment as any).entry_count + customersEntering.length,
-            exit_count: (segment as any).exit_count + customersExiting.length
+            updated_at: new Date().toISOString()
           })
           .eq('id', segment.id);
 
@@ -200,24 +187,9 @@ Deno.serve(async (req) => {
           console.error(`[evaluate-segments] Error updating segment:`, updateError);
         }
 
-        // Log the evaluation
+        // Log the evaluation duration
         const evaluationDuration = Date.now() - segmentStartTime;
-        const { error: logError } = await supabase
-          .from('segment_evaluation_logs')
-          .insert({
-            segment_id: segment.id,
-            tenant_id: segment.tenant_id,
-            previous_count: currentMemberIds.size,
-            new_count: matchingCustomerIds.size,
-            customers_entered: customersEntering,
-            customers_exited: customersExiting,
-            evaluation_duration_ms: evaluationDuration,
-            rules_evaluated: segment.conditions
-          });
-
-        if (logError) {
-          console.error(`[evaluate-segments] Error logging evaluation:`, logError);
-        }
+        console.log(`[evaluate-segments] Segment ${segment.name} evaluated in ${evaluationDuration}ms`);
 
         results.push({
           segment_id: segment.id,
