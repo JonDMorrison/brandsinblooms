@@ -12,12 +12,12 @@ iframe[src*="chat"] {
 }
 
 /* Ensure no unwanted floating elements appear */
-body > div:last-child:not(#root):not([id]):not([class*="sonner"]):not([data-radix]) {
+body > div:last-child:not(#root):not([id]):not([class*="sonner"]):not([data-radix]):not([data-app-portal]) {
   display: none !important;
 }
 
 /* Hide any potential third-party floating elements */
-div[style*="position: fixed"]:not([data-app]):not([class*="sonner"]):not([data-radix]) {
+div[style*="position: fixed"]:not([data-app]):not([class*="sonner"]):not([data-radix]):not([data-app-portal]) {
   display: none !important;
 }
 

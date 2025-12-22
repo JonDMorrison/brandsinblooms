@@ -231,6 +231,7 @@ function ConfirmationModal({
 
   return createPortal(
     <div 
+      data-app-portal="confirmation-modal"
       className="fixed inset-0 z-[1000050] flex items-center justify-center"
       role="dialog"
       aria-modal="true"
@@ -599,6 +600,7 @@ export const ActionMenu: React.FC<ActionMenuProps> = ({
       {isOpen && createPortal(
         <div
           ref={dropdownRef}
+          data-app-portal="action-menu"
           role="menu"
           aria-orientation="vertical"
           onKeyDown={handleKeyDown}
