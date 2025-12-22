@@ -241,6 +241,67 @@ export const SmartSegmentBuilderBeta = ({ onSave, initialData }: SegmentBuilderP
     }));
   };
 
+  // Build a filter condition for a single rule
+  const buildFilterCondition = (rule: SegmentRule) => {
+    const { field, operator, value } = rule;
+    
+    // Map our operators to Supabase filter methods
+    switch (operator) {
+      case 'equals':
+      case 'eq':
+      case '=':
+        return { method: 'eq', field, value };
+      case 'not_equals':
+      case 'neq':
+      case '!=':
+        return { method: 'neq', field, value };
+      case 'greater_than':
+      case 'gt':
+      case '>':
+        return { method: 'gt', field, value };
+      case 'greater_than_or_equal':
+      case 'gte':
+      case '>=':
+        return { method: 'gte', field, value };
+      case 'less_than':
+      case 'lt':
+      case '<':
+        return { method: 'lt', field, value };
+      case 'less_than_or_equal':
+      case 'lte':
+      case '<=':
+        return { method: 'lte', field, value };
+      case 'contains':
+        return { method: 'ilike', field, value: `%${value}%` };
+      case 'not_contains':
+        return { method: 'not.ilike', field, value: `%${value}%` };
+      case 'starts_with':
+        return { method: 'ilike', field, value: `${value}%` };
+      case 'ends_with':
+        return { method: 'ilike', field, value: `%${value}` };
+      case 'is_empty':
+        return { method: 'is', field, value: null };
+      case 'is_not_empty':
+        return { method: 'not.is', field, value: null };
+      case 'is_true':
+        return { method: 'eq', field, value: true };
+      case 'is_false':
+        return { method: 'eq', field, value: false };
+      case 'days_ago_less_than':
+        // Value is number of days, we want records within that many days
+        const withinDate = new Date();
+        withinDate.setDate(withinDate.getDate() - Number(value));
+        return { method: 'gte', field, value: withinDate.toISOString() };
+      case 'days_ago_greater_than':
+        // Value is number of days, we want records older than that
+        const olderDate = new Date();
+        olderDate.setDate(olderDate.getDate() - Number(value));
+        return { method: 'lt', field, value: olderDate.toISOString() };
+      default:
+        return { method: 'eq', field, value };
+    }
+  };
+
   const previewSegment = useCallback(async () => {
     if (rules.length === 0) {
       setPreviewCount(0);
@@ -261,21 +322,97 @@ export const SmartSegmentBuilderBeta = ({ onSave, initialData }: SegmentBuilderP
 
       if (!userRecord?.tenant_id) throw new Error('Tenant not found');
 
-      // Filter by tenant_id for proper data isolation
-      const { count, error } = await supabase
+      // Build filter conditions for each rule
+      const filterConditions: string[] = [];
+      
+      for (const rule of rules) {
+        const filter = buildFilterCondition(rule);
+        const { field, value } = filter;
+        
+        switch (filter.method) {
+          case 'eq':
+            filterConditions.push(`${field}.eq.${value}`);
+            break;
+          case 'neq':
+            filterConditions.push(`${field}.neq.${value}`);
+            break;
+          case 'gt':
+            filterConditions.push(`${field}.gt.${value}`);
+            break;
+          case 'gte':
+            filterConditions.push(`${field}.gte.${value}`);
+            break;
+          case 'lt':
+            filterConditions.push(`${field}.lt.${value}`);
+            break;
+          case 'lte':
+            filterConditions.push(`${field}.lte.${value}`);
+            break;
+          case 'ilike':
+            filterConditions.push(`${field}.ilike.${value}`);
+            break;
+          case 'not.ilike':
+            filterConditions.push(`${field}.not.ilike.${value}`);
+            break;
+          case 'is':
+            filterConditions.push(`${field}.is.null`);
+            break;
+          case 'not.is':
+            filterConditions.push(`${field}.not.is.null`);
+            break;
+        }
+      }
+
+      // Build query with AND logic - use 'any' to avoid excessive type depth
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let query: any = supabase
         .from('customer_360_enriched')
         .select('*', { count: 'exact', head: true })
         .eq('tenant_id', userRecord.tenant_id);
+      
+      // Apply filters one by one (AND logic)
+      for (const rule of rules) {
+        const filter = buildFilterCondition(rule);
+        
+        if (filter.method === 'eq') {
+          query = query.eq(filter.field, filter.value);
+        } else if (filter.method === 'neq') {
+          query = query.neq(filter.field, filter.value);
+        } else if (filter.method === 'gt') {
+          query = query.gt(filter.field, filter.value);
+        } else if (filter.method === 'gte') {
+          query = query.gte(filter.field, filter.value);
+        } else if (filter.method === 'lt') {
+          query = query.lt(filter.field, filter.value);
+        } else if (filter.method === 'lte') {
+          query = query.lte(filter.field, filter.value);
+        } else if (filter.method === 'ilike') {
+          query = query.ilike(filter.field, String(filter.value));
+        } else if (filter.method === 'not.ilike') {
+          query = query.not(filter.field, 'ilike', String(filter.value));
+        } else if (filter.method === 'is') {
+          query = query.is(filter.field, null);
+        } else if (filter.method === 'not.is') {
+          query = query.not(filter.field, 'is', null);
+        }
+      }
+
+      const { count, error } = await query;
 
       if (error) throw error;
       setPreviewCount(count || 0);
       
       toast({
         title: "Preview Ready",
-        description: "Showing estimated count based on current data.",
+        description: `${count || 0} customers match your criteria.`,
       });
     } catch (error) {
       console.error('Preview error:', error);
+      toast({
+        title: "Preview Error",
+        description: "Could not preview segment. Check your rules.",
+        variant: "destructive",
+      });
       setPreviewCount(0);
     } finally {
       setIsLoadingPreview(false);
