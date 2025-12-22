@@ -104,7 +104,17 @@ export const useCustomer360 = (customerId: string | undefined) => {
         .maybeSingle();
 
       if (!enrichedError && enriched) {
-        return enriched as unknown as CustomerData;
+        // customer_360_enriched does not include opt-in fields; merge from base table
+        const { data: baseCustomer } = await supabase
+          .from('crm_customers')
+          .select('email_opt_in, sms_opt_in')
+          .eq('id', customerId)
+          .maybeSingle();
+
+        return {
+          ...(enriched as unknown as CustomerData),
+          ...(baseCustomer ?? {}),
+        } as CustomerData;
       }
 
       // Fallback to basic customer data
