@@ -73,45 +73,35 @@ function useClickOutside(
   triggerRef: React.RefObject<HTMLElement | null>,
   dropdownRef: React.RefObject<HTMLElement | null>,
   handler: () => void,
-  enabled: boolean
+  enabled: boolean,
+  ignoreNextRef?: React.MutableRefObject<boolean>
 ) {
-  const isJustOpenedRef = useRef(false);
-
-  useEffect(() => {
-    if (enabled) {
-      // Mark that we just opened - ignore the first click
-      isJustOpenedRef.current = true;
-    }
-  }, [enabled]);
-
   useEffect(() => {
     if (!enabled) return;
 
-    const handleClickOutside = (event: globalThis.MouseEvent) => {
-      // Skip if we just opened (this prevents immediate close)
-      if (isJustOpenedRef.current) {
-        isJustOpenedRef.current = false;
+    const handlePointerDown = (event: globalThis.PointerEvent) => {
+      if (ignoreNextRef?.current) {
+        ignoreNextRef.current = false;
         return;
       }
 
       const target = event.target as Node;
-      
-      // Check if click is outside both trigger and dropdown
+
       const isOutsideTrigger = !triggerRef.current || !triggerRef.current.contains(target);
       const isOutsideDropdown = !dropdownRef.current || !dropdownRef.current.contains(target);
-      
+
       if (isOutsideTrigger && isOutsideDropdown) {
         handler();
       }
     };
 
-    // Add listener immediately but skip first click via flag
-    document.addEventListener('mousedown', handleClickOutside);
-    
+    // Capture = true prevents edge-cases where other handlers stop propagation.
+    document.addEventListener('pointerdown', handlePointerDown, true);
+
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('pointerdown', handlePointerDown, true);
     };
-  }, [triggerRef, dropdownRef, handler, enabled]);
+  }, [triggerRef, dropdownRef, handler, enabled, ignoreNextRef]);
 }
 
 // ============================================================================
@@ -369,6 +359,7 @@ export const ActionMenu: React.FC<ActionMenuProps> = ({
   const triggerRef = useRef<HTMLButtonElement>(null);
   const customTriggerRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const ignoreNextDocPointerDownRef = useRef(false);
 
   // Support controlled and uncontrolled modes
   const isControlled = controlledOpen !== undefined;
@@ -465,7 +456,7 @@ export const ActionMenu: React.FC<ActionMenuProps> = ({
   }, [isOpen, flattenedItems, focusedIndex, handleItemClick, closeDropdown, setIsOpen]);
 
   // Click outside detection
-  useClickOutside(activeTriggerRef, dropdownRef, closeDropdown, isOpen);
+  useClickOutside(activeTriggerRef, dropdownRef, closeDropdown, isOpen, ignoreNextDocPointerDownRef);
 
   // Dropdown positioning
   const position = useDropdownPosition(activeTriggerRef, dropdownRef, isOpen, align, side);
@@ -473,8 +464,10 @@ export const ActionMenu: React.FC<ActionMenuProps> = ({
   // Toggle dropdown - simplified click handler
   const handleTriggerClick = useCallback(() => {
     if (disabled) return;
-    
+
     const newState = !isOpen;
+    console.log('[ActionMenu] toggle', { newState, wasOpen: isOpen });
+
     setIsOpen(newState);
     if (newState) {
       setFocusedIndex(0);
@@ -491,6 +484,7 @@ export const ActionMenu: React.FC<ActionMenuProps> = ({
         <button
           ref={triggerRef}
           type="button"
+          onPointerDownCapture={() => { ignoreNextDocPointerDownRef.current = true; }}
           onClick={handleTriggerClick}
           onKeyDown={handleKeyDown}
           disabled={disabled}
@@ -514,6 +508,7 @@ export const ActionMenu: React.FC<ActionMenuProps> = ({
     return (
       <div
         ref={customTriggerRef}
+        onPointerDownCapture={() => { ignoreNextDocPointerDownRef.current = true; }}
         onClick={handleTriggerClick}
         onKeyDown={handleKeyDown}
         role="button"
