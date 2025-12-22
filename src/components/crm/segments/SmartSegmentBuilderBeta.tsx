@@ -154,9 +154,7 @@ export const SmartSegmentBuilderBeta = ({ onSave, initialData }: SegmentBuilderP
           tenant_id: userRecord.tenant_id,
           user_id: userData.user.id,
           customer_count: previewCount || 0,
-          segment_type: segmentType,
-          visibility,
-          is_active: true,
+          auto_update: segmentType === 'dynamic',
         })
         .select()
         .single();
