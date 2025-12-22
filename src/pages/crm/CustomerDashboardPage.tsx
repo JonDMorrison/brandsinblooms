@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { CustomerDashboardLayout } from '@/components/crm/customer-dashboard/CustomerDashboardLayout';
 import { CustomerSnapshot } from '@/components/crm/customer-dashboard/CustomerSnapshot';
@@ -10,6 +10,7 @@ import { PurchaseValueBehavior } from '@/components/crm/customer-dashboard/Purch
 import { LoyaltyIncentivesImpact } from '@/components/crm/customer-dashboard/LoyaltyIncentivesImpact';
 import { RiskNegativeSignals } from '@/components/crm/customer-dashboard/RiskNegativeSignals';
 import { AIInsightsActions } from '@/components/crm/customer-dashboard/AIInsightsActions';
+import { EditCustomerDialog } from '@/components/crm/customer-dashboard/EditCustomerDialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AlertCircle, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -30,7 +31,8 @@ import {
 
 const CustomerDashboardPage: React.FC = () => {
   const { customerId } = useParams<{ customerId: string }>();
-  const [timeRange, setTimeRange] = React.useState<'7d' | '30d' | '90d' | 'lifetime'>('30d');
+  const [timeRange, setTimeRange] = useState<'7d' | '30d' | '90d' | 'lifetime'>('30d');
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
   const {
     customer,
@@ -109,80 +111,99 @@ const CustomerDashboardPage: React.FC = () => {
   const customerName = customerInfo?.name || customer.email.split('@')[0];
 
   return (
-    <CustomerDashboardLayout
-      customerName={customerName}
-      customerId={customerId}
-      selectedTimeRange={timeRange}
-      onTimeRangeChange={setTimeRange}
-    >
-      {/* 1. Customer Snapshot (Header) */}
-      <CustomerSnapshot
-        customer={{
-          id: customer.id,
-          name: customerName,
-          email: customer.email,
-          phone: customer.phone || undefined,
-          lifecycle_stage: lifecycleMetrics?.lifecycle_stage || 'New',
-          created_at: customer.created_at,
-        }}
-        metrics={snapshotMetrics}
-      />
+    <>
+      <CustomerDashboardLayout
+        customerName={customerName}
+        customerId={customerId}
+        selectedTimeRange={timeRange}
+        onTimeRangeChange={setTimeRange}
+        onEditCustomer={() => setIsEditDialogOpen(true)}
+      >
+        {/* 1. Customer Snapshot (Header) */}
+        <CustomerSnapshot
+          customer={{
+            id: customer.id,
+            name: customerName,
+            email: customer.email,
+            phone: customer.phone || undefined,
+            lifecycle_stage: lifecycleMetrics?.lifecycle_stage || 'New',
+            created_at: customer.created_at,
+          }}
+          metrics={snapshotMetrics}
+        />
 
-      {/* 2. Engagement Health Overview */}
-      <EngagementHealthOverview
-        metrics={engagementMetrics}
-        timelineData={engagementTimeline.map(d => ({
-          date: d.date,
-          engagement: d.engagement,
-        }))}
-      />
+        {/* 2. Engagement Health Overview */}
+        <EngagementHealthOverview
+          metrics={engagementMetrics}
+          timelineData={engagementTimeline.map(d => ({
+            date: d.date,
+            engagement: d.engagement,
+          }))}
+        />
 
-      {/* 3. Customer Event Timeline (Hero) */}
-      <CustomerEventTimeline
-        events={timelineDisplayEvents}
-        hasMore={timelineEvents.length >= 50}
-      />
+        {/* 3. Customer Event Timeline (Hero) */}
+        <CustomerEventTimeline
+          events={timelineDisplayEvents}
+          hasMore={timelineEvents.length >= 50}
+        />
 
-      {/* 4. Channel Deep Dive */}
-      <ChannelDeepDive
-        emailMetrics={emailMetrics}
-        smsMetrics={smsMetrics}
-        emailHeatmapData={emailHeatmapData}
-        smsHeatmapData={smsHeatmapData}
-      />
+        {/* 4. Channel Deep Dive */}
+        <ChannelDeepDive
+          emailMetrics={emailMetrics}
+          smsMetrics={smsMetrics}
+          emailHeatmapData={emailHeatmapData}
+          smsHeatmapData={smsHeatmapData}
+        />
 
-      {/* 5. Cross-Channel Intelligence */}
-      <CrossChannelIntelligence
-        metrics={crossChannelDisplayMetrics}
-        channelTrend={channelTrend}
-      />
+        {/* 5. Cross-Channel Intelligence */}
+        <CrossChannelIntelligence
+          metrics={crossChannelDisplayMetrics}
+          channelTrend={channelTrend}
+        />
 
-      {/* 6. Purchase & Value Behavior */}
-      <PurchaseValueBehavior
-        metrics={purchaseDisplayMetrics}
-        purchaseTimeline={purchaseTimeline}
-      />
+        {/* 6. Purchase & Value Behavior */}
+        <PurchaseValueBehavior
+          metrics={purchaseDisplayMetrics}
+          purchaseTimeline={purchaseTimeline}
+        />
 
-      {/* 7. Loyalty & Incentives Impact */}
-      <LoyaltyIncentivesImpact
-        metrics={loyaltyDisplayMetrics}
-      />
+        {/* 7. Loyalty & Incentives Impact */}
+        <LoyaltyIncentivesImpact
+          metrics={loyaltyDisplayMetrics}
+        />
 
-      {/* 8. Risk & Negative Signals */}
-      <RiskNegativeSignals
-        metrics={riskDisplayMetrics}
-        recentEvents={recentRiskEvents}
-        engagementDecay={engagementDecay}
-      />
+        {/* 8. Risk & Negative Signals */}
+        <RiskNegativeSignals
+          metrics={riskDisplayMetrics}
+          recentEvents={recentRiskEvents}
+          engagementDecay={engagementDecay}
+        />
 
-      {/* 9. AI Insights & Next Best Actions */}
-      <AIInsightsActions
-        insights={aiInsights}
-        loading={isAILoading}
-        regenerating={isAIRegenerating}
-        onRegenerate={regenerateAIInsights}
-      />
-    </CustomerDashboardLayout>
+        {/* 9. AI Insights & Next Best Actions */}
+        <AIInsightsActions
+          insights={aiInsights}
+          loading={isAILoading}
+          regenerating={isAIRegenerating}
+          onRegenerate={regenerateAIInsights}
+        />
+      </CustomerDashboardLayout>
+
+      {/* Edit Customer Dialog */}
+      {customerId && (
+        <EditCustomerDialog
+          open={isEditDialogOpen}
+          onOpenChange={setIsEditDialogOpen}
+          customerId={customerId}
+          initialData={{
+            first_name: customer.first_name,
+            last_name: customer.last_name,
+            email: customer.email,
+            phone: customer.phone,
+          }}
+          onSuccess={refetch}
+        />
+      )}
+    </>
   );
 };
 
