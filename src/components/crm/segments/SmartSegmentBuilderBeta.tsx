@@ -249,9 +249,23 @@ export const SmartSegmentBuilderBeta = ({ onSave, initialData }: SegmentBuilderP
 
     setIsLoadingPreview(true);
     try {
+      // Get current user's tenant_id
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData.user) throw new Error('User not authenticated');
+
+      const { data: userRecord } = await supabase
+        .from('users')
+        .select('tenant_id')
+        .eq('id', userData.user.id)
+        .single();
+
+      if (!userRecord?.tenant_id) throw new Error('Tenant not found');
+
+      // Filter by tenant_id for proper data isolation
       const { count, error } = await supabase
         .from('customer_360_enriched')
-        .select('*', { count: 'exact', head: true });
+        .select('*', { count: 'exact', head: true })
+        .eq('tenant_id', userRecord.tenant_id);
 
       if (error) throw error;
       setPreviewCount(count || 0);
