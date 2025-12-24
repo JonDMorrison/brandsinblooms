@@ -17,7 +17,8 @@ import {
   Target,
   Clock,
   CheckCircle,
-  ArrowRight
+  ArrowRight,
+  Zap
 } from 'lucide-react';
 
 export const FeaturesPage = () => {
@@ -56,16 +57,29 @@ export const FeaturesPage = () => {
     },
     {
       icon: Users,
-      title: "Customer Personas & Segments",
-      description: "Understand your customers better with detailed personas and smart segmentation tools.",
+      title: "Smart Customer Segmentation",
+      description: "Automatically group customers based on their behavior, preferences, and engagement — segments update in real-time as customer data changes.",
       features: [
-        "Automatic customer segmentation by purchase history",
-        "Seasonal shopper behavior analysis",
-        "Plant preference tracking and recommendations",
-        "Geographic and demographic insights",
-        "Custom persona creation with AI assistance"
+        "Dynamic segments that update automatically when customers change",
+        "Rule-based segmentation (email opt-in, SMS opt-in, purchase history)",
+        "Pre-built system segments for VIPs, new customers, and at-risk buyers",
+        "Custom segments with flexible AND/OR conditions",
+        "Real-time segment evaluation — no waiting for batch updates"
       ],
       gradient: "from-purple-500 to-indigo-600"
+    },
+    {
+      icon: Zap,
+      title: "Intelligent Marketing Automations",
+      description: "Set up automated marketing workflows that trigger based on customer actions and segment membership — then sit back while BloomSuite does the work.",
+      features: [
+        "12 automation triggers including purchases, birthdays, and abandoned carts",
+        "Segment-based automations — send campaigns when customers join a segment",
+        "Multi-channel workflows (email + SMS in one automation)",
+        "Loyalty program enrollment and milestone automations",
+        "Seasonal and holiday promotional sequences"
+      ],
+      gradient: "from-amber-500 to-orange-600"
     },
     {
       icon: Database,
@@ -137,8 +151,8 @@ export const FeaturesPage = () => {
     },
     {
       icon: Clock,
-      title: "Automation Workflows",
-      description: "Set up complex marketing sequences that run automatically."
+      title: "Trigger-Based Automations",
+      description: "Automate emails and SMS based on purchases, birthdays, segment membership, and more."
     }
   ];
 

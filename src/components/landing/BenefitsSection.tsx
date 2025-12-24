@@ -10,8 +10,8 @@ export const BenefitsSection = () => {
     iconColor: "#47B881"
   }, {
     icon: Users,
-    title: "Customer Management (CRM)",
-    description: "Track customer interactions, preferences, and purchase history. Build stronger relationships with personalized communication.",
+    title: "Smart Customer Segments",
+    description: "Automatically group customers by behavior, opt-ins, and purchase history. Segments update in real-time — no manual work required.",
     bg: "#FEF3C7",
     iconColor: "#F4C430"
   }, {
@@ -22,8 +22,8 @@ export const BenefitsSection = () => {
     iconColor: "#F28C8C"
   }, {
     icon: Zap,
-    title: "Marketing Automation",
-    description: "Set up automated email sequences, welcome series, and follow-up campaigns that nurture customers automatically.",
+    title: "Trigger-Based Automations",
+    description: "Launch automated campaigns when customers make purchases, join segments, have birthdays, or hit loyalty milestones — all on autopilot.",
     bg: "#E0F2FE",
     iconColor: "#0EA5E9"
   }, {
