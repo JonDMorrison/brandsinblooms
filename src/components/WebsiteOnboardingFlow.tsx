@@ -11,7 +11,7 @@ import { LandingPageHeader } from "./landing/LandingPageHeader";
 import { OnboardingContentLoader } from "./onboarding/OnboardingContentLoader";
 import { OnboardingProgressManager } from "./onboarding/OnboardingProgressManager";
 import { useWebsiteAnalysis } from "@/hooks/useWebsiteAnalysis";
-import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
+import { useOnboardingStatus } from "@/contexts/OnboardingStatusContext";
 import { useOnboardingProgress } from "@/hooks/useOnboardingProgress";
 import { useOnboardingCompletion } from "./onboarding/OnboardingCompletion";
 

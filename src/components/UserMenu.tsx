@@ -37,7 +37,7 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase, signOutCompletely } from "@/integrations/supabase/client";
-import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
+import { useOnboardingStatus } from "@/contexts/OnboardingStatusContext";
 import { useIsSuperAdmin } from "@/hooks/useIsSuperAdmin";
 import { useAdmin } from "@/contexts/AdminContext";
 
