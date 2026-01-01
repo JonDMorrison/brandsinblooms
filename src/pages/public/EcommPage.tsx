@@ -28,12 +28,88 @@ import {
 import heroImage from '@/assets/ecomm-hero.jpg';
 import builtForGcImage from '@/assets/ecomm-built-for-gc.jpg';
 import sellerOfRecordImage from '@/assets/ecomm-seller-of-record.jpg';
-import howItWorksImage from '@/assets/ecomm-how-it-works.jpg';
 import nurseryMapImage from '@/assets/ecomm-nursery-map.jpg';
-import pricingImage from '@/assets/ecomm-pricing.jpg';
 import followupImage from '@/assets/ecomm-followup.jpg';
 import supportImage from '@/assets/ecomm-support.jpg';
 import ctaImage from '@/assets/ecomm-cta.jpg';
+
+// CSS-based Flow Diagram Component
+const HowItWorksFlow = () => {
+  const steps = [
+    { icon: ShoppingCart, label: 'Customer shops' },
+    { icon: CreditCard, label: 'Secure checkout' },
+    { icon: Calculator, label: 'Tax calculated' },
+    { icon: Truck, label: 'Order routed' },
+    { icon: Package, label: 'Nursery ships' },
+    { icon: Users, label: 'Customer saved' },
+  ];
+
+  return (
+    <div className="bg-gradient-to-r from-primary/5 via-primary/10 to-primary/5 rounded-2xl p-8 border border-primary/20">
+      <div className="flex flex-wrap lg:flex-nowrap items-center justify-center gap-2 lg:gap-0">
+        {steps.map((step, index) => (
+          <div key={index} className="flex items-center">
+            <div className="flex flex-col items-center">
+              <div className="w-16 h-16 rounded-full bg-primary/10 border-2 border-primary flex items-center justify-center mb-2">
+                <step.icon className="h-7 w-7 text-primary" />
+              </div>
+              <span className="text-sm font-medium text-foreground text-center max-w-[80px]">{step.label}</span>
+            </div>
+            {index < steps.length - 1 && (
+              <div className="hidden lg:block w-12 h-0.5 bg-gradient-to-r from-primary to-primary/50 mx-2" />
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// CSS-based Pricing Visualization Component
+const PricingVisualization = () => {
+  return (
+    <div className="bg-background rounded-2xl border border-border p-8 shadow-lg">
+      <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+        {/* Wholesale */}
+        <div className="flex-1 text-center p-6 rounded-xl bg-muted/50">
+          <div className="text-sm text-muted-foreground mb-2">Wholesale Price</div>
+          <div className="text-3xl font-bold text-foreground">$15</div>
+          <div className="text-xs text-muted-foreground mt-1">Set by nursery</div>
+        </div>
+        
+        {/* Arrow */}
+        <ArrowRight className="h-8 w-8 text-primary hidden md:block" />
+        <div className="md:hidden text-primary">+</div>
+        
+        {/* Your Markup */}
+        <div className="flex-1 text-center p-6 rounded-xl bg-primary/10 border-2 border-primary">
+          <div className="text-sm text-primary mb-2">Your Markup</div>
+          <div className="text-3xl font-bold text-primary">+$10</div>
+          <div className="text-xs text-muted-foreground mt-1">You control this</div>
+        </div>
+        
+        {/* Arrow */}
+        <ArrowRight className="h-8 w-8 text-primary hidden md:block" />
+        <div className="md:hidden text-primary">=</div>
+        
+        {/* Retail Price */}
+        <div className="flex-1 text-center p-6 rounded-xl bg-muted/50">
+          <div className="text-sm text-muted-foreground mb-2">Retail Price</div>
+          <div className="text-3xl font-bold text-foreground">$25</div>
+          <div className="text-xs text-muted-foreground mt-1">Customer pays</div>
+        </div>
+      </div>
+      
+      {/* Platform fee callout */}
+      <div className="mt-6 pt-6 border-t border-border flex items-center justify-center gap-3">
+        <div className="text-sm text-muted-foreground">
+          Platform fee: <span className="font-semibold text-foreground">5% of $15 = $0.75</span>
+        </div>
+        <div className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">Infrastructure, not ownership</div>
+      </div>
+    </div>
+  );
+};
 
 export const EcommPage = () => {
   const navigate = useNavigate();
@@ -214,11 +290,7 @@ export const EcommPage = () => {
 
           {/* Visual Flow Diagram */}
           <div className="mb-16">
-            <img 
-              src={howItWorksImage} 
-              alt="Order fulfillment flow diagram" 
-              className="w-full max-w-4xl mx-auto rounded-2xl shadow-lg"
-            />
+            <HowItWorksFlow />
           </div>
 
           {/* Step Cards */}
@@ -293,11 +365,7 @@ export const EcommPage = () => {
         <div className="max-w-7xl mx-auto">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div className="order-2 lg:order-1">
-              <img 
-                src={pricingImage} 
-                alt="Pricing structure visualization" 
-                className="rounded-2xl shadow-xl w-full"
-              />
+              <PricingVisualization />
             </div>
             <div className="order-1 lg:order-2">
               <div className="flex items-center gap-3 mb-4">
