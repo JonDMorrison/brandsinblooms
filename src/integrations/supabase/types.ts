@@ -572,6 +572,96 @@ export type Database = {
         }
         Relationships: []
       }
+      automation_runs: {
+        Row: {
+          automation_id: string
+          completed_at: string | null
+          created_at: string
+          current_step_index: number
+          customer_id: string
+          error_message: string | null
+          id: string
+          metadata: Json | null
+          next_step_scheduled_at: string | null
+          started_at: string
+          status: string
+          tenant_id: string
+          total_steps: number
+          trigger_data: Json | null
+          updated_at: string
+        }
+        Insert: {
+          automation_id: string
+          completed_at?: string | null
+          created_at?: string
+          current_step_index?: number
+          customer_id: string
+          error_message?: string | null
+          id?: string
+          metadata?: Json | null
+          next_step_scheduled_at?: string | null
+          started_at?: string
+          status?: string
+          tenant_id: string
+          total_steps?: number
+          trigger_data?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          automation_id?: string
+          completed_at?: string | null
+          created_at?: string
+          current_step_index?: number
+          customer_id?: string
+          error_message?: string | null
+          id?: string
+          metadata?: Json | null
+          next_step_scheduled_at?: string | null
+          started_at?: string
+          status?: string
+          tenant_id?: string
+          total_steps?: number
+          trigger_data?: Json | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automation_runs_automation_id_fkey"
+            columns: ["automation_id"]
+            isOneToOne: false
+            referencedRelation: "crm_automations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automation_runs_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "crm_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automation_runs_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customer_360_enriched"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automation_runs_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "admin_tenant_overview"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "automation_runs_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       automation_templates: {
         Row: {
           category: string
@@ -2750,18 +2840,23 @@ export type Database = {
       crm_outbox: {
         Row: {
           automation_id: string | null
+          automation_run_id: string | null
           content: string
           created_at: string | null
           customer_id: string
           error_message: string | null
           id: string
+          locked_by: string | null
+          locked_until: string | null
           max_retries: number | null
           message_type: string
+          priority: number | null
           recipient: string
           retry_count: number | null
           scheduled_at: string | null
           sent_at: string | null
           status: string | null
+          step_index: number | null
           subject: string | null
           template_data: Json | null
           tenant_id: string
@@ -2769,18 +2864,23 @@ export type Database = {
         }
         Insert: {
           automation_id?: string | null
+          automation_run_id?: string | null
           content: string
           created_at?: string | null
           customer_id: string
           error_message?: string | null
           id?: string
+          locked_by?: string | null
+          locked_until?: string | null
           max_retries?: number | null
           message_type: string
+          priority?: number | null
           recipient: string
           retry_count?: number | null
           scheduled_at?: string | null
           sent_at?: string | null
           status?: string | null
+          step_index?: number | null
           subject?: string | null
           template_data?: Json | null
           tenant_id: string
@@ -2788,24 +2888,37 @@ export type Database = {
         }
         Update: {
           automation_id?: string | null
+          automation_run_id?: string | null
           content?: string
           created_at?: string | null
           customer_id?: string
           error_message?: string | null
           id?: string
+          locked_by?: string | null
+          locked_until?: string | null
           max_retries?: number | null
           message_type?: string
+          priority?: number | null
           recipient?: string
           retry_count?: number | null
           scheduled_at?: string | null
           sent_at?: string | null
           status?: string | null
+          step_index?: number | null
           subject?: string | null
           template_data?: Json | null
           tenant_id?: string
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "crm_outbox_automation_run_id_fkey"
+            columns: ["automation_run_id"]
+            isOneToOne: false
+            referencedRelation: "automation_runs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       crm_persona_campaign_templates: {
         Row: {
@@ -11682,6 +11795,10 @@ export type Database = {
       admin_toggle_tenant_active: {
         Args: { p_active: boolean; p_tenant_id: string }
         Returns: undefined
+      }
+      advance_automation_step: {
+        Args: { p_next_scheduled_at?: string; p_run_id: string }
+        Returns: boolean
       }
       bundle_approved_counts: { Args: { j: Json }; Returns: Json }
       bundle_channels: { Args: { j: Json }; Returns: string[] }
