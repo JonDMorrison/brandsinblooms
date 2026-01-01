@@ -9,7 +9,7 @@ import {
   Users, 
   Database, 
   Sparkles, 
-  Globe, 
+  ShoppingCart, 
   BarChart3, 
   MessageSquare,
   Mail,
@@ -18,7 +18,10 @@ import {
   Clock,
   CheckCircle,
   ArrowRight,
-  Zap
+  Zap,
+  Store,
+  Truck,
+  Heart
 } from 'lucide-react';
 
 export const FeaturesPage = () => {
@@ -108,18 +111,17 @@ export const FeaturesPage = () => {
       gradient: "from-pink-500 to-rose-600"
     },
     {
-      icon: Globe,
-      title: "Coming Soon: Build And Manage Your Website In Minutes",
-      description: "Professional garden center websites with integrated e-commerce and inventory management.",
+      icon: ShoppingCart,
+      title: "E-Commerce Built for Garden Centers",
+      description: "Sell plants online without giving away your margin, your brand, or your customers.",
       features: [
-        "Garden center-specific website templates",
-        "Integrated plant care guides and blogs",
-        "E-commerce with seasonal product catalogs",
-        "Workshop and event booking system",
-        "Mobile-optimized plant identification tools"
+        "You stay the seller of record — customers buy from YOU",
+        "Ship-on-demand from approved nursery partners",
+        "Set your own pricing and keep your margins",
+        "Automatic sales tax calculation and compliance",
+        "Built-in customer follow-up and seasonal marketing"
       ],
-      gradient: "from-teal-500 to-green-600",
-      comingSoon: true
+      gradient: "from-teal-500 to-green-600"
     }
   ];
 
@@ -192,12 +194,7 @@ export const FeaturesPage = () => {
 
           <div className="grid lg:grid-cols-2 gap-12">
             {mainFeatures.map((feature, index) => (
-              <Card key={index} className="relative overflow-hidden group hover:shadow-xl transition-shadow">
-                {feature.comingSoon && (
-                  <div className="absolute top-4 right-4 bg-primary text-primary-foreground px-3 py-1 rounded-full text-sm font-medium z-10">
-                    Coming Soon
-                  </div>
-                )}
+            <Card key={index} className="relative overflow-hidden group hover:shadow-xl transition-shadow">
                 <CardHeader className="pb-4">
                   <div className={`w-16 h-16 rounded-lg bg-gradient-to-r ${feature.gradient} flex items-center justify-center mb-4`}>
                     <feature.icon className="h-8 w-8 text-white" />
@@ -217,6 +214,69 @@ export const FeaturesPage = () => {
                 </CardContent>
               </Card>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* E-Commerce Highlight Section */}
+      <section className="py-20 px-6 bg-gradient-to-br from-teal-50 to-green-50">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-12">
+            <h2 className="text-4xl font-bold text-foreground mb-4">
+              E-Commerce Built for Garden Centers
+            </h2>
+            <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
+              Sell online without giving away your margin, your brand, or your customers.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-8 mb-12">
+            <Card className="p-8 text-center bg-white/80 backdrop-blur border-teal-200 hover:shadow-lg transition-shadow">
+              <CardContent className="p-0">
+                <div className="w-16 h-16 bg-gradient-to-r from-teal-500 to-green-600 rounded-lg flex items-center justify-center mx-auto mb-4">
+                  <Store className="h-8 w-8 text-white" />
+                </div>
+                <h3 className="text-xl font-bold text-foreground mb-3">You Stay the Seller of Record</h3>
+                <p className="text-muted-foreground">
+                  Customers buy from your garden center. Your brand is on the receipt. You control pricing, refunds, and service.
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="p-8 text-center bg-white/80 backdrop-blur border-teal-200 hover:shadow-lg transition-shadow">
+              <CardContent className="p-0">
+                <div className="w-16 h-16 bg-gradient-to-r from-teal-500 to-green-600 rounded-lg flex items-center justify-center mx-auto mb-4">
+                  <Truck className="h-8 w-8 text-white" />
+                </div>
+                <h3 className="text-xl font-bold text-foreground mb-3">Ship-On-Demand Fulfillment</h3>
+                <p className="text-muted-foreground">
+                  No inventory to manage. Orders route to approved nursery partners who ship directly to your customers.
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="p-8 text-center bg-white/80 backdrop-blur border-teal-200 hover:shadow-lg transition-shadow">
+              <CardContent className="p-0">
+                <div className="w-16 h-16 bg-gradient-to-r from-teal-500 to-green-600 rounded-lg flex items-center justify-center mx-auto mb-4">
+                  <Heart className="h-8 w-8 text-white" />
+                </div>
+                <h3 className="text-xl font-bold text-foreground mb-3">Keep Your Customers Forever</h3>
+                <p className="text-muted-foreground">
+                  Customer data belongs to you. Automatic follow-up emails after purchase. Seasonal reminders and promotions.
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="text-center">
+            <Button 
+              onClick={() => navigate('/ecomm')}
+              size="lg"
+              className="bg-gradient-to-r from-teal-500 to-green-600 hover:from-teal-600 hover:to-green-700 text-white px-8 py-3 text-lg"
+            >
+              Learn More About E-Commerce
+              <ArrowRight className="ml-2 h-5 w-5" />
+            </Button>
           </div>
         </div>
       </section>
