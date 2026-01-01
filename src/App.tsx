@@ -1,5 +1,6 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { HelmetProvider } from 'react-helmet-async';
 import { Toaster } from 'sonner';
 import { Toaster as ShadcnToaster } from "@/components/ui/toaster";
 import { ErrorBoundary } from '@/components/ErrorBoundary';
@@ -21,7 +22,7 @@ import { CRMCampaignBuilderPage } from '@/pages/CRMCampaignBuilderPage';
 import { CRMAutomationBuilderPage } from '@/pages/crm/CRMAutomationBuilderPage';
 import { CRMAutomationGuidePage } from '@/pages/crm/CRMAutomationGuidePage';
 import { AutomationWizardLandingPage } from '@/pages/crm/AutomationWizardLandingPage';
-import OnboardingPage from '@/pages/OnboardingPage'; // Force refresh
+import OnboardingPage from '@/pages/OnboardingPage';
 import { BloomSuiteDashboard } from '@/pages/BloomSuiteDashboard';
 import { NewslettersPage } from '@/pages/NewslettersPage';
 import { NewsletterNewPage } from '@/pages/NewsletterNewPage';
@@ -98,6 +99,12 @@ import EmailSendingSettings from '@/pages/crm/EmailSendingSettings';
 import UsagePage from '@/pages/UsagePage';
 import EmailPreferences from '@/pages/EmailPreferences';
 import { ProductsPage, ProductDetailPage } from '@/pages/products';
+
+// Public compliance pages
+import { SmsPage } from '@/pages/public/SmsPage';
+import { PrivacyPage } from '@/pages/public/PrivacyPage';
+import { TermsPage } from '@/pages/public/TermsPage';
+import { TwilioCopyPage } from '@/pages/admin/TwilioCopyPage';
 
 
 function App() {
