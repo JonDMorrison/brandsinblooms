@@ -29,10 +29,10 @@ export const LandingPageHeader = ({ onLogin, showUserMenu = true }: LandingPageH
 
   const navItems = [
     { name: "Home", href: "/" },
-    { name: "About", href: "/about" },
     { name: "Features", href: "/features" },
     { name: "Pricing", href: "/pricing" },
     { name: "FAQ", href: "/faq" },
+    { name: "Contact", href: "/contact" },
   ];
 
   const isActiveRoute = (href: string) => {
