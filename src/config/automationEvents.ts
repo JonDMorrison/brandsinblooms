@@ -11,6 +11,21 @@ export const CORE_EVENTS: CoreEvent[] = [
     description: 'Triggers when a new contact is added to the system'
   },
   {
+    id: 'contact.updated',
+    label: 'Contact Updated',
+    description: 'Triggers when contact information is modified'
+  },
+  {
+    id: 'segment.added',
+    label: 'Added to Segment',
+    description: 'Triggers when a contact is added to any segment'
+  },
+  {
+    id: 'persona.assigned',
+    label: 'Persona Assigned',
+    description: 'Triggers when a contact is assigned to any persona'
+  },
+  {
     id: 'loyalty.signup',
     label: 'Customer joins Loyalty Program',
     description: 'Triggers when a customer enrolls in the loyalty program'
@@ -19,11 +34,6 @@ export const CORE_EVENTS: CoreEvent[] = [
     id: 'order.completed',
     label: 'Order Completed',
     description: 'Triggers when a customer completes a purchase'
-  },
-  {
-    id: 'contact.updated',
-    label: 'Contact Updated',
-    description: 'Triggers when contact information is modified'
   },
   {
     id: 'email.opened',
