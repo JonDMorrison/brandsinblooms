@@ -3,6 +3,7 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { NativeSelect } from '@/components/ui/native-select';
+import { triggerCatalog } from '@/lib/automation/triggerCatalog';
 
 interface TriggerNodeData {
   triggerType: string;
@@ -16,39 +17,6 @@ interface TriggerNodeEditorProps {
   onCancel: () => void;
 }
 
-const triggerTypes = [
-  { 
-    value: 'loyalty_join', 
-    label: 'Loyalty Program Sign-up',
-    description: 'When customer joins loyalty program'
-  },
-  { 
-    value: 'first_purchase', 
-    label: 'First Purchase',
-    description: 'After customer first purchase'
-  },
-  { 
-    value: 'birthday', 
-    label: 'Customer Birthday',
-    description: 'On customer birthday'
-  },
-  { 
-    value: 'cart_abandonment', 
-    label: 'Cart Abandonment',
-    description: 'When cart is abandoned'
-  },
-  { 
-    value: 'repeat_purchase', 
-    label: 'Repeat Purchase',
-    description: 'When customer makes another purchase'
-  },
-  { 
-    value: 'inactivity', 
-    label: 'Customer Inactivity',
-    description: 'When customer becomes inactive'
-  }
-];
-
 export const TriggerNodeEditor: React.FC<TriggerNodeEditorProps> = ({
   data,
   onSave,
@@ -61,7 +29,7 @@ export const TriggerNodeEditor: React.FC<TriggerNodeEditorProps> = ({
   }, [data.triggerType]);
 
   const handleSave = () => {
-    const selectedTrigger = triggerTypes.find(t => t.value === triggerType);
+    const selectedTrigger = triggerCatalog.find(t => t.id === triggerType);
     onSave({
       triggerType,
       label: selectedTrigger?.label || 'Trigger',
@@ -77,7 +45,7 @@ export const TriggerNodeEditor: React.FC<TriggerNodeEditorProps> = ({
     }
   };
 
-  const selectedTrigger = triggerTypes.find(t => t.value === triggerType);
+  const selectedTrigger = triggerCatalog.find(t => t.id === triggerType);
 
   return (
     <Card className="w-full max-w-md" onKeyDown={handleKeyDown}>
@@ -95,8 +63,8 @@ export const TriggerNodeEditor: React.FC<TriggerNodeEditorProps> = ({
             onChange={(e) => setTriggerType(e.target.value)}
             autoFocus
           >
-            {triggerTypes.map((trigger) => (
-              <option key={trigger.value} value={trigger.value}>
+            {triggerCatalog.map((trigger) => (
+              <option key={trigger.id} value={trigger.id}>
                 {trigger.label}
               </option>
             ))}
