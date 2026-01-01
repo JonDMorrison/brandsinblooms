@@ -1,7 +1,8 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Lightbulb, Users, Zap, Mail, MessageSquare, CheckCircle, ArrowRight } from 'lucide-react';
+import { Lightbulb, Users, Zap, Mail, MessageSquare, CheckCircle, ArrowRight, Info } from 'lucide-react';
 import { Node } from '@xyflow/react';
+import { triggerRequiresAudience } from '@/lib/automation/triggerCatalog';
 
 interface AIGuidancePanelProps {
   nodes: Node[];
@@ -25,7 +26,12 @@ export const AIGuidancePanel: React.FC<AIGuidancePanelProps> = ({
   const hasTrigger = nodes.some(n => n.type === 'trigger');
   const hasActions = nodes.some(n => n.type === 'email' || n.type === 'sms' || n.type === 'delay');
   
-  const steps = [
+  // Get current trigger type to determine if audience is required
+  const triggerNode = nodes.find(n => n.type === 'trigger');
+  const currentTriggerType = triggerNode?.data?.triggerType as string || '';
+  const audienceRequired = !currentTriggerType || triggerRequiresAudience(currentTriggerType);
+  
+  const baseSteps = [
     {
       id: 'trigger',
       title: 'Add a Trigger',
@@ -43,7 +49,12 @@ export const AIGuidancePanel: React.FC<AIGuidancePanelProps> = ({
       action: () => onAddNode('email'),
       actionLabel: 'Add Email Action',
       icon: Mail
-    },
+    }
+  ];
+  
+  // Only add audience step if required by trigger type
+  const steps = audienceRequired ? [
+    ...baseSteps,
     {
       id: 'audience',
       title: 'Select Audience',
@@ -53,7 +64,7 @@ export const AIGuidancePanel: React.FC<AIGuidancePanelProps> = ({
       actionLabel: 'Select Audience',
       icon: Users
     }
-  ];
+  ] : baseSteps;
 
   const currentStep = steps.find(step => !step.completed);
   const completedSteps = steps.filter(step => step.completed).length;
@@ -131,6 +142,18 @@ export const AIGuidancePanel: React.FC<AIGuidancePanelProps> = ({
             </div>
           );
         })}
+        
+        {/* Show info when audience is not required */}
+        {!audienceRequired && hasTrigger && (
+          <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-start gap-2 text-blue-700">
+              <Info className="w-4 h-4 mt-0.5 flex-shrink-0" />
+              <span className="text-xs">
+                This automation targets the specific customer who triggers the event. No additional audience selection is needed.
+              </span>
+            </div>
+          </div>
+        )}
         
         {isReadyToLaunch && (
           <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">

@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/drawer';
 import { Lightbulb } from 'lucide-react';
 import { AIGuidancePanel } from './AIGuidancePanel';
+import { triggerRequiresAudience } from '@/lib/automation/triggerCatalog';
 import type { Node } from '@xyflow/react';
 
 interface AIAssistantProps {
@@ -38,7 +39,16 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({
     () => nodes?.some((n: any) => ['email', 'sms', 'delay'].includes(n.type)),
     [nodes]
   );
-  const completed = (hasTrigger ? 1 : 0) + (hasActions ? 1 : 0) + (hasAudience ? 1 : 0);
+  
+  // Get current trigger type to determine if audience is required
+  const triggerNode = nodes?.find((n: any) => n.type === 'trigger');
+  const currentTriggerType = triggerNode?.data?.triggerType as string || '';
+  const audienceRequired = !currentTriggerType || triggerRequiresAudience(currentTriggerType);
+  
+  // Calculate completion based on whether audience is required
+  const totalSteps = audienceRequired ? 3 : 2;
+  const audienceComplete = !audienceRequired || hasAudience;
+  const completed = (hasTrigger ? 1 : 0) + (hasActions ? 1 : 0) + (audienceComplete && audienceRequired ? 1 : 0);
 
   useEffect(() => {
     const saved = localStorage.getItem('ai_assistant_open');
@@ -61,7 +71,7 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({
           <span className="sr-only">AI Assistant</span>
           <Lightbulb className="h-5 w-5" />
           <span className="absolute -top-1 -right-1 flex items-center justify-center h-5 min-w-[20px] rounded-full text-[10px] px-1 bg-primary text-primary-foreground">
-            {completed}/3
+            {completed}/{totalSteps}
           </span>
         </Button>
       </DrawerTrigger>
