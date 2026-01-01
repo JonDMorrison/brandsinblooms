@@ -11266,6 +11266,60 @@ export type Database = {
           },
         ]
       }
+      user_agreement_acceptances: {
+        Row: {
+          accepted_at: string
+          agreement_name: string
+          agreement_version: string
+          business_name: string | null
+          created_at: string
+          id: string
+          ip_address: string | null
+          tenant_id: string | null
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          accepted_at?: string
+          agreement_name: string
+          agreement_version: string
+          business_name?: string | null
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          tenant_id?: string | null
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          accepted_at?: string
+          agreement_name?: string
+          agreement_version?: string
+          business_name?: string | null
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          tenant_id?: string | null
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_agreement_acceptances_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "admin_tenant_overview"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "user_agreement_acceptances_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_integrations: {
         Row: {
           created_at: string | null
