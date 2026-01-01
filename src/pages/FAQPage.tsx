@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowUp, Calendar, MessageCircle, Sprout, DollarSign, Shield, Users, Settings } from "lucide-react";
+import { ArrowUp, Calendar, MessageCircle, Sprout, DollarSign, Shield, Users, Settings, ShoppingCart, MessageSquare, Zap } from "lucide-react";
 import { LandingPageHeader } from "@/components/landing/LandingPageHeader";
 import { useNavigate } from "react-router-dom";
 import { VideoModal } from "@/components/ui/video-modal";
@@ -44,6 +44,9 @@ const FAQPage = () => {
     }, {
       question: "What if my team isn't tech-savvy?",
       answer: "That's exactly why we built BloomSuite. We keep things simple, and our support team is only a call or email away when you need help."
+    }, {
+      question: "How do I import my existing contacts from Mailchimp or Klaviyo?",
+      answer: "Our AI-powered migration wizard connects directly to your existing platform, previews your data, and suggests intelligent persona and segment mappings. It automatically imports your contacts, preserving tags, purchase history, and consent records — typically in under 15 minutes."
     }]
   }, {
     id: "pricing",
@@ -65,6 +68,28 @@ const FAQPage = () => {
       answer: "Everything is included. The only usage-based costs are SMS carrier fees (usually pennies per message), and you'll see estimates before sending."
     }]
   }, {
+    id: "ecommerce",
+    title: "E-Commerce",
+    icon: ShoppingCart,
+    cta: {
+      text: "Ready to start selling plants online?",
+      action: "Learn more about E-Commerce",
+      onClick: () => navigate('/ecomm')
+    },
+    questions: [{
+      question: "What is BloomSuite E-Commerce?",
+      answer: "BloomSuite E-Commerce is a ship-on-demand model where you sell plants online through your own branded storefront, while our network of approved nursery partners handles fulfillment. You get all the benefits of online sales without managing inventory, packing, or shipping."
+    }, {
+      question: "What does 'seller of record' mean?",
+      answer: "You remain the seller of record — customers buy from your garden center's brand, not BloomSuite. You control pricing, maintain customer relationships, and keep all customer data. We simply provide the platform and fulfillment network."
+    }, {
+      question: "Do I need to manage inventory?",
+      answer: "No. Orders are automatically routed to approved nursery partners who ship directly to your customers. You never touch the product — just focus on marketing and customer service."
+    }, {
+      question: "How does pricing work with E-Commerce?",
+      answer: "Nurseries set wholesale prices, and you set your own retail markup and margins. BloomSuite charges a simple 5% platform fee on product subtotals only — not on shipping or taxes. You keep the rest."
+    }]
+  }, {
     id: "features",
     title: "Features & Benefits",
     icon: Settings,
@@ -78,13 +103,22 @@ const FAQPage = () => {
       answer: "Yes, your site runs on your own domain with SSL security included."
     }, {
       question: "Can I sell online?",
-      answer: "Yes. BloomSuite integrates with Shopify and Square so you can take payments and sync sales data."
+      answer: "Yes. BloomSuite integrates with Shopify and Square so you can take payments and sync sales data. Plus, our new E-Commerce feature lets you sell plants ship-on-demand without managing inventory."
     }, {
       question: "What's included in the CRM?",
       answer: "A full customer database with personas, segments, and purchase history (when connected to your POS). Perfect for sending the right message to the right people."
     }, {
       question: "What about content?",
       answer: "BloomSuite includes a seasonal marketing calendar and ready-to-use content blocks you can customize for your brand."
+    }, {
+      question: "What SMS features are included?",
+      answer: "BloomSuite includes promotional and transactional SMS messaging with automated opt-in/opt-out handling, carrier compliance (10DLC registration), customizable message frequency controls, and real-time delivery tracking. Send flash sales, appointment reminders, or order updates."
+    }, {
+      question: "Can I automate my marketing?",
+      answer: "Absolutely. Our automation engine lets you create workflows triggered by purchases, loyalty enrollments, segment additions, birthdays, and more. Set up welcome series, win-back campaigns, or VIP rewards — all running automatically."
+    }, {
+      question: "Which POS systems does BloomSuite integrate with?",
+      answer: "We integrate with Square and Clover, automatically syncing customer data, purchase history, and loyalty program activity. Connect your POS in minutes and start seeing real customer insights immediately."
     }]
   }, {
     id: "security",
@@ -104,6 +138,9 @@ const FAQPage = () => {
     }, {
       question: "Is BloomSuite compliant with privacy laws?",
       answer: "Yes. We support GDPR, CCPA, and PIPEDA requirements, including consent management and easy opt-outs."
+    }, {
+      question: "Is BloomSuite compliant with SMS carrier regulations?",
+      answer: "Yes. We handle A2P 10DLC registration, automatic STOP/HELP keyword responses, carrier-approved messaging practices, and maintain a compliance dashboard so you can monitor opt-in rates and delivery health."
     }]
   }, {
     id: "support",
@@ -138,7 +175,7 @@ const FAQPage = () => {
           <p className="text-xl text-muted-foreground mb-8 leading-relaxed">Everything you need to know about BloomSuite.</p>
           
           {/* Quick Navigation */}
-          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 mt-12">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mt-12">
             {faqCategories.map(category => {
             const IconComponent = category.icon;
             return <Button key={category.id} variant="outline" onClick={() => scrollToCategory(category.id)} className="flex flex-col items-center gap-2 h-auto py-4 px-3 bg-card hover:bg-primary/5 border-2 hover:border-primary/20 transition-all group">
