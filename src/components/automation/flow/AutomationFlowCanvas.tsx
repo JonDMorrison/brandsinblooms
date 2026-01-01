@@ -37,6 +37,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { compileFlow } from '@/lib/automation/compiler';
 import { normalizeTriggerId } from '@/lib/automation/normalize';
+import { triggerRequiresAudience } from '@/lib/automation/triggerCatalog';
 
 const nodeTypes: NodeTypes = {
   trigger: TriggerNode,
@@ -369,10 +370,16 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
     totalContacts: totalAudienceContacts
   };
 
+  // Get current trigger type to determine if audience is required
+  const triggerNode = nodes.find(n => n.type === 'trigger');
+  const currentTriggerType = triggerNode?.data?.triggerType as string || '';
+  const audienceRequired = !currentTriggerType || triggerRequiresAudience(currentTriggerType);
+
   const hasValidFlow = nodes.some(n => n.type === 'trigger') && 
                      nodes.some(n => n.type === 'email' || n.type === 'sms');
   const hasAudience = selectedPersonas.length > 0 || selectedSegments.length > 0;
-  const isReadyToLaunch = hasValidFlow && hasAudience;
+  // For event-based triggers, audience is not required
+  const isReadyToLaunch = hasValidFlow && (!audienceRequired || hasAudience);
 
   return (
     <div className={`relative w-full h-full flex flex-col overflow-hidden ${className}`}>
@@ -445,26 +452,29 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
                 </Tooltip>
               </TooltipProvider>
               
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowAudienceSelector(true)}
-                      className="flex items-center gap-2 bg-background backdrop-blur-sm hover:bg-teal-600 hover:text-white focus:bg-teal-600 focus:text-white focus:ring-2 focus:ring-teal-600 focus:outline-none mt-2"
-                    >
-                      <Users className="w-4 h-4" />
-                      <span className="hidden sm:inline">
-                        {selectedPersonas.length > 0 || selectedSegments.length > 0 
-                          ? `${selectedPersonas.length + selectedSegments.length} Selected` 
-                          : 'Select Audience'}
-                      </span>
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Choose target audience for this automation</TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              {/* Only show audience selector when required by trigger type */}
+              {audienceRequired && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowAudienceSelector(true)}
+                        className="flex items-center gap-2 bg-background backdrop-blur-sm hover:bg-teal-600 hover:text-white focus:bg-teal-600 focus:text-white focus:ring-2 focus:ring-teal-600 focus:outline-none mt-2"
+                      >
+                        <Users className="w-4 h-4" />
+                        <span className="hidden sm:inline">
+                          {selectedPersonas.length > 0 || selectedSegments.length > 0 
+                            ? `${selectedPersonas.length + selectedSegments.length} Selected` 
+                            : 'Select Audience'}
+                        </span>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Choose target audience for this automation</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
             </div>
           </ReactFlow>
         </div>

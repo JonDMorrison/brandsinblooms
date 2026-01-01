@@ -7,6 +7,14 @@ export interface TriggerMeta {
   goalHint: string;
   description: string;
   conditions?: Record<string, any>;
+  /** 'event' = targets the triggering customer (no audience needed), 'batch' = needs audience selection */
+  audienceType: 'event' | 'batch';
+}
+
+/** Returns true if the trigger requires audience selection */
+export function triggerRequiresAudience(triggerId: string): boolean {
+  const trigger = getTriggerById(triggerId);
+  return trigger?.audienceType === 'batch';
 }
 
 export const triggerCatalog: TriggerMeta[] = [
@@ -17,7 +25,8 @@ export const triggerCatalog: TriggerMeta[] = [
     defaultDelayMin: 5,
     channels: ['sms', 'email'],
     goalHint: 'Welcome Series',
-    description: 'Triggered when customer enrolls in Square Loyalty program'
+    description: 'Triggered when customer enrolls in Square Loyalty program',
+    audienceType: 'event'
   },
   {
     id: 'first_purchase',
@@ -26,7 +35,8 @@ export const triggerCatalog: TriggerMeta[] = [
     defaultDelayMin: 60,
     channels: ['sms', 'email'],
     goalHint: 'Welcome Series',
-    description: 'First POS transaction recorded for customer'
+    description: 'First POS transaction recorded for customer',
+    audienceType: 'event'
   },
   {
     id: 'order.completed',
@@ -35,7 +45,8 @@ export const triggerCatalog: TriggerMeta[] = [
     defaultDelayMin: 30,
     channels: ['sms', 'email'],
     goalHint: 'Purchase Follow-up',
-    description: 'Triggered immediately when any Square purchase is completed'
+    description: 'Triggered immediately when any Square purchase is completed',
+    audienceType: 'event'
   },
   {
     id: 'order.ready_for_pickup',
@@ -44,7 +55,8 @@ export const triggerCatalog: TriggerMeta[] = [
     defaultDelayMin: 0,
     channels: ['sms', 'email'],
     goalHint: 'Order Notifications',
-    description: 'Order is ready for customer pickup at store'
+    description: 'Order is ready for customer pickup at store',
+    audienceType: 'event'
   },
   {
     id: 'order.shipped',
@@ -53,7 +65,8 @@ export const triggerCatalog: TriggerMeta[] = [
     defaultDelayMin: 0,
     channels: ['sms', 'email'],
     goalHint: 'Order Notifications',
-    description: 'Order has been shipped to customer'
+    description: 'Order has been shipped to customer',
+    audienceType: 'event'
   },
   {
     id: 'refund.created',
@@ -62,7 +75,8 @@ export const triggerCatalog: TriggerMeta[] = [
     defaultDelayMin: 30,
     channels: ['sms', 'email'],
     goalHint: 'Service Recovery',
-    description: 'Refund has been processed - opportunity for service recovery'
+    description: 'Refund has been processed - opportunity for service recovery',
+    audienceType: 'event'
   },
   {
     id: 'repeat_purchase_90d',
@@ -71,7 +85,8 @@ export const triggerCatalog: TriggerMeta[] = [
     defaultDelayMin: 1440,
     channels: ['sms', 'email'],
     goalHint: 'Re-engagement',
-    description: 'Customer hasn\'t purchased in 90 days (daily job)'
+    description: 'Customer hasn\'t purchased in 90 days (daily job)',
+    audienceType: 'batch'
   },
   {
     id: 'plant_care_reminder',
@@ -80,7 +95,8 @@ export const triggerCatalog: TriggerMeta[] = [
     defaultDelayMin: 14400,
     channels: ['sms', 'email'],
     goalHint: 'Care Tips',
-    description: 'Tag-based reminder for plant care (e.g., tomato seedlings)'
+    description: 'Tag-based reminder for plant care (e.g., tomato seedlings)',
+    audienceType: 'batch'
   },
   {
     id: 'birthday',
@@ -89,7 +105,8 @@ export const triggerCatalog: TriggerMeta[] = [
     defaultDelayMin: 0,
     channels: ['sms', 'email'],
     goalHint: 'Birthday Celebration',
-    description: 'Customer\'s birthday matches today (daily job)'
+    description: 'Customer\'s birthday matches today (daily job)',
+    audienceType: 'batch'
   },
   {
     id: 'new_product_drop',
@@ -98,7 +115,8 @@ export const triggerCatalog: TriggerMeta[] = [
     defaultDelayMin: 0,
     channels: ['sms', 'email'],
     goalHint: 'Product Announcement',
-    description: 'Scheduled for manual product release date'
+    description: 'Scheduled for manual product release date',
+    audienceType: 'batch'
   },
   {
     id: 'event_registration',
@@ -107,7 +125,8 @@ export const triggerCatalog: TriggerMeta[] = [
     defaultDelayMin: 30,
     channels: ['sms', 'email'],
     goalHint: 'Event Confirmation',
-    description: 'Customer signs up for workshop or event'
+    description: 'Customer signs up for workshop or event',
+    audienceType: 'event'
   },
   {
     id: 'abandoned_cart',
@@ -116,7 +135,8 @@ export const triggerCatalog: TriggerMeta[] = [
     defaultDelayMin: 120,
     channels: ['sms', 'email'],
     goalHint: 'Cart Recovery',
-    description: 'E-commerce cart abandoned for 2+ hours'
+    description: 'E-commerce cart abandoned for 2+ hours',
+    audienceType: 'event'
   },
   {
     id: 'review_request',
@@ -125,7 +145,8 @@ export const triggerCatalog: TriggerMeta[] = [
     defaultDelayMin: 7200,
     channels: ['sms', 'email'],
     goalHint: 'Review Collection',
-    description: 'Request review 5 days after purchase completion'
+    description: 'Request review 5 days after purchase completion',
+    audienceType: 'event'
   },
   {
     id: 'garden_tips_subscription',
@@ -134,7 +155,8 @@ export const triggerCatalog: TriggerMeta[] = [
     defaultDelayMin: 0,
     channels: ['email'],
     goalHint: 'Educational Content',
-    description: 'Weekly garden tips subscription'
+    description: 'Weekly garden tips subscription',
+    audienceType: 'batch'
   },
   {
     id: 'holiday_promo',
@@ -143,7 +165,8 @@ export const triggerCatalog: TriggerMeta[] = [
     defaultDelayMin: 0,
     channels: ['sms', 'email'],
     goalHint: 'Seasonal Marketing',
-    description: 'Fixed calendar date range promotions'
+    description: 'Fixed calendar date range promotions',
+    audienceType: 'batch'
   },
   {
     id: 'custom_webhook',
@@ -152,7 +175,8 @@ export const triggerCatalog: TriggerMeta[] = [
     defaultDelayMin: 0,
     channels: ['sms', 'email'],
     goalHint: 'Custom Integration',
-    description: 'Triggered by POST to /webhooks/automation'
+    description: 'Triggered by POST to /webhooks/automation',
+    audienceType: 'event'
   },
   {
     id: 'loyalty_members_segment',
@@ -161,7 +185,8 @@ export const triggerCatalog: TriggerMeta[] = [
     defaultDelayMin: 0,
     channels: ['sms', 'email'],
     goalHint: 'Welcome Series',
-    description: 'Triggered when a contact is added to the Loyalty Members segment via POS sync or manual addition'
+    description: 'Triggered when a contact is added to the Loyalty Members segment via POS sync or manual addition',
+    audienceType: 'event'
   },
   {
     id: 'segment.added',
@@ -170,7 +195,8 @@ export const triggerCatalog: TriggerMeta[] = [
     defaultDelayMin: 0,
     channels: ['sms', 'email'],
     goalHint: 'Segmentation',
-    description: 'Triggered when a contact is added to a specific segment. Select the target segment after choosing this trigger.'
+    description: 'Triggered when a contact is added to a specific segment. Select the target segment after choosing this trigger.',
+    audienceType: 'event'
   },
   {
     id: 'persona.assigned',
@@ -179,7 +205,8 @@ export const triggerCatalog: TriggerMeta[] = [
     defaultDelayMin: 0,
     channels: ['sms', 'email'],
     goalHint: 'Personalization',
-    description: 'Triggered when a contact is assigned to a specific persona. Select the target persona after choosing this trigger.'
+    description: 'Triggered when a contact is assigned to a specific persona. Select the target persona after choosing this trigger.',
+    audienceType: 'event'
   }
 ];
 
