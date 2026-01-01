@@ -105,6 +105,7 @@ import { SmsPage } from '@/pages/public/SmsPage';
 import { PrivacyPage } from '@/pages/public/PrivacyPage';
 import { TermsPage } from '@/pages/public/TermsPage';
 import { PlatformAgreementPage } from '@/pages/public/PlatformAgreementPage';
+import { EcommPage } from '@/pages/public/EcommPage';
 import { TwilioCopyPage } from '@/pages/admin/TwilioCopyPage';
 
 
@@ -156,6 +157,7 @@ function App() {
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/terms" element={<TermsPage />} />
           <Route path="/platform-agreement" element={<PlatformAgreementPage />} />
+          <Route path="/ecomm" element={<EcommPage />} />
           <Route path="/features" element={<FeaturesPage />} />
           <Route path="/home1" element={<Home1Page />} />
           <Route path="/email-preferences" element={<EmailPreferences />} />
