@@ -3,6 +3,8 @@ import { LandingPageHeader } from '@/components/landing/LandingPageHeader';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import featuresHero from '@/assets/features-hero.jpg';
+import featuresCta from '@/assets/features-cta.jpg';
 import { 
   Calendar, 
   Share2, 
@@ -163,12 +165,22 @@ export const FeaturesPage = () => {
       <LandingPageHeader onLogin={handleLogin} showUserMenu={false} />
       
       {/* Hero Section */}
-      <section className="py-20 px-6 bg-gradient-to-br from-green-50 to-blue-50">
-        <div className="max-w-4xl mx-auto text-center">
-          <h1 className="text-5xl font-bold text-foreground mb-6">
+      <section className="relative py-20 px-6 overflow-hidden">
+        {/* Background Image */}
+        <div className="absolute inset-0">
+          <img 
+            src={featuresHero} 
+            alt="Garden center greenhouse" 
+            className="w-full h-full object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/50 to-black/30" />
+        </div>
+        
+        <div className="relative max-w-4xl mx-auto text-center">
+          <h1 className="text-5xl font-bold text-white mb-6">
             Everything Your Garden Center Needs to Thrive
           </h1>
-          <p className="text-xl text-muted-foreground mb-8 max-w-3xl mx-auto">
+          <p className="text-xl text-white/90 mb-8 max-w-3xl mx-auto">
             From marketing automation to customer management, BloomSuite provides all the tools you need to grow your business and nurture customer relationships.
           </p>
           <Button 
@@ -346,12 +358,22 @@ export const FeaturesPage = () => {
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 px-6 bg-gradient-to-r from-primary/10 to-primary/5">
-        <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-4xl font-bold text-foreground mb-6">
+      <section className="relative py-20 px-6 overflow-hidden">
+        {/* Background Image */}
+        <div className="absolute inset-0">
+          <img 
+            src={featuresCta} 
+            alt="Garden center owner success" 
+            className="w-full h-full object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/60 to-black/50" />
+        </div>
+        
+        <div className="relative max-w-4xl mx-auto text-center">
+          <h2 className="text-4xl font-bold text-white mb-6">
             Ready to Transform Your Garden Center Marketing?
           </h2>
-          <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
+          <p className="text-xl text-white/90 mb-8 max-w-2xl mx-auto">
             Join hundreds of garden centers already using BloomSuite to grow their business. 
             Start your free trial today and see the difference specialized tools can make.
           </p>
@@ -368,7 +390,7 @@ export const FeaturesPage = () => {
               onClick={() => navigate('/pricing')}
               variant="outline"
               size="lg"
-              className="border-primary text-primary hover:bg-primary/10 px-8 py-3 text-lg"
+              className="border-white text-white hover:bg-white/20 px-8 py-3 text-lg"
             >
               View Pricing
             </Button>
