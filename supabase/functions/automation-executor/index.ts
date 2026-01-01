@@ -345,6 +345,27 @@ async function getEligibleCustomers(supabase: any, automation: any) {
       const updateOneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
       query = query.gte('updated_at', updateOneDayAgo);
       break;
+
+    case 'segment.added':
+      // Handle segment-based triggers
+      // Get the target segment ID from trigger_conditions
+      const targetSegmentId = automation.trigger_conditions?.segment_id;
+      if (!targetSegmentId) {
+        console.log(`⚠️ No segment_id specified for segment.added trigger`);
+        return [];
+      }
+      // Query customers who were added to this segment recently
+      return await getCustomersAddedToSegment(supabase, tenant_id, targetSegmentId);
+
+    case 'persona.assigned':
+      // Handle persona-based triggers
+      const targetPersonaId = automation.trigger_conditions?.persona_id;
+      if (!targetPersonaId) {
+        console.log(`⚠️ No persona_id specified for persona.assigned trigger`);
+        return [];
+      }
+      // Query customers who were assigned this persona recently
+      return await getCustomersAssignedToPersona(supabase, tenant_id, targetPersonaId);
       
     default:
       console.log(`⚠️ Trigger type ${trigger_type} not implemented yet`);
@@ -460,6 +481,80 @@ function personalizeMessage(template: string, customer: any, automation: any): s
   
   // Render with unified engine
   return renderMergeTags(normalized, mergeTagData);
+}
+
+// Helper function to get customers recently added to a segment
+async function getCustomersAddedToSegment(supabase: any, tenantId: string, segmentId: string) {
+  const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  
+  // Query customer_segments junction table for recent additions
+  const { data: segmentMembers, error: segmentError } = await supabase
+    .from('customer_segments')
+    .select('customer_id, created_at')
+    .eq('segment_id', segmentId)
+    .gte('created_at', oneDayAgo);
+
+  if (segmentError) {
+    console.error(`❌ Error fetching segment members:`, segmentError);
+    return [];
+  }
+
+  if (!segmentMembers || segmentMembers.length === 0) {
+    return [];
+  }
+
+  // Get full customer data for matched customers
+  const customerIds = segmentMembers.map((m: any) => m.customer_id);
+  const { data: customers, error: customersError } = await supabase
+    .from('crm_customers')
+    .select('*')
+    .eq('tenant_id', tenantId)
+    .in('id', customerIds);
+
+  if (customersError) {
+    console.error(`❌ Error fetching customers for segment:`, customersError);
+    return [];
+  }
+
+  console.log(`📊 Found ${customers?.length || 0} customers added to segment ${segmentId} in last 24h`);
+  return customers || [];
+}
+
+// Helper function to get customers recently assigned to a persona
+async function getCustomersAssignedToPersona(supabase: any, tenantId: string, personaId: string) {
+  const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  
+  // Query customer_personas junction table for recent assignments
+  const { data: personaMembers, error: personaError } = await supabase
+    .from('customer_personas')
+    .select('customer_id, created_at')
+    .eq('persona_id', personaId)
+    .gte('created_at', oneDayAgo);
+
+  if (personaError) {
+    console.error(`❌ Error fetching persona members:`, personaError);
+    return [];
+  }
+
+  if (!personaMembers || personaMembers.length === 0) {
+    return [];
+  }
+
+  // Get full customer data for matched customers
+  const customerIds = personaMembers.map((m: any) => m.customer_id);
+  const { data: customers, error: customersError } = await supabase
+    .from('crm_customers')
+    .select('*')
+    .eq('tenant_id', tenantId)
+    .in('id', customerIds);
+
+  if (customersError) {
+    console.error(`❌ Error fetching customers for persona:`, customersError);
+    return [];
+  }
+
+  console.log(`👤 Found ${customers?.length || 0} customers assigned to persona ${personaId} in last 24h`);
+  return customers || [];
 }
 
 serve(handler);

@@ -162,6 +162,24 @@ export const triggerCatalog: TriggerMeta[] = [
     channels: ['sms', 'email'],
     goalHint: 'Welcome Series',
     description: 'Triggered when a contact is added to the Loyalty Members segment via POS sync or manual addition'
+  },
+  {
+    id: 'segment.added',
+    label: '📊 Added to Segment',
+    icon: '📊',
+    defaultDelayMin: 0,
+    channels: ['sms', 'email'],
+    goalHint: 'Segmentation',
+    description: 'Triggered when a contact is added to a specific segment. Select the target segment after choosing this trigger.'
+  },
+  {
+    id: 'persona.assigned',
+    label: '👤 Persona Assigned',
+    icon: '👤',
+    defaultDelayMin: 0,
+    channels: ['sms', 'email'],
+    goalHint: 'Personalization',
+    description: 'Triggered when a contact is assigned to a specific persona. Select the target persona after choosing this trigger.'
   }
 ];
 
