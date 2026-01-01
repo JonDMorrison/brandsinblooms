@@ -520,7 +520,9 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
         onOpenChange={setShowReviewModal}
         automation={{
           name: automationName,
-          triggerType: normalizeTriggerId(triggerType),
+          triggerType: normalizeTriggerId(
+            String(nodes.find(n => n.type === 'trigger')?.data?.triggerType || triggerType || 'loyalty_join')
+          ),
           flowSteps: nodes.filter(n => n.type !== 'trigger'),
           selectedAudience
         }}

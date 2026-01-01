@@ -3,6 +3,7 @@ import { Handle, Position, NodeProps } from '@xyflow/react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Zap, Settings, Trash2 } from 'lucide-react';
+import { getTriggerById } from '@/lib/automation/triggerCatalog';
 
 export interface TriggerNodeData {
   triggerType: string;
@@ -74,10 +75,7 @@ const TriggerNode: React.FC<TriggerNodeProps> = ({
         <div>
           <h3 className="font-medium text-sm mb-1">{nodeData.label}</h3>
           <p className="text-xs text-muted-foreground">
-            {nodeData.triggerType === 'loyalty_join' && 'When customer joins loyalty program'}
-            {nodeData.triggerType === 'first_purchase' && 'After customer first purchase'}
-            {nodeData.triggerType === 'birthday' && 'On customer birthday'}
-            {nodeData.triggerType === 'cart_abandonment' && 'When cart is abandoned'}
+            {getTriggerById(nodeData.triggerType)?.description || `Trigger: ${nodeData.triggerType}`}
           </p>
         </div>
 
