@@ -109,10 +109,11 @@ import { TwilioCopyPage } from '@/pages/admin/TwilioCopyPage';
 
 function App() {
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <ErrorBoundary>
-        <NavigationTracker />
-        <Routes>
+    <HelmetProvider>
+      <div className="min-h-screen bg-background text-foreground">
+        <ErrorBoundary>
+          <NavigationTracker />
+          <Routes>
           {/* Public routes */}
           <Route path="/auth" element={
             <PublicRoute>
@@ -148,6 +149,11 @@ function App() {
           <Route path="/faq" element={<FAQPage />} />
           <Route path="/contact" element={<ContactPage />} />
           <Route path="/about" element={<AboutPage />} />
+          
+          {/* Public compliance pages */}
+          <Route path="/sms-program" element={<SmsPage />} />
+          <Route path="/privacy" element={<PrivacyPage />} />
+          <Route path="/terms" element={<TermsPage />} />
           <Route path="/features" element={<FeaturesPage />} />
           <Route path="/home1" element={<Home1Page />} />
           <Route path="/email-preferences" element={<EmailPreferences />} />
@@ -661,6 +667,13 @@ function App() {
               </SidebarLayout>
             </ProtectedRoute>
           } />
+          <Route path="/admin/twilio-copy" element={
+            <ProtectedRoute>
+              <SidebarLayout>
+                <TwilioCopyPage />
+              </SidebarLayout>
+            </ProtectedRoute>
+          } />
           <Route path="/community" element={
             <ProtectedRoute>
               <SidebarLayout>
@@ -679,6 +692,7 @@ function App() {
         <ShadcnToaster />
       </ErrorBoundary>
     </div>
+    </HelmetProvider>
   );
 }
 
