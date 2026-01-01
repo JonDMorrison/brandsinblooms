@@ -7,6 +7,7 @@ import { ArrowUp, Calendar, MessageCircle, Sprout, DollarSign, Shield, Users, Se
 import { LandingPageHeader } from "@/components/landing/LandingPageHeader";
 import { useNavigate } from "react-router-dom";
 import { VideoModal } from "@/components/ui/video-modal";
+import faqHero from "@/assets/faq-hero.jpg";
 const FAQPage = () => {
   const navigate = useNavigate();
   const [activeCategory, setActiveCategory] = useState<string>("");
@@ -167,12 +168,22 @@ const FAQPage = () => {
       <LandingPageHeader onLogin={() => navigate('/auth')} />
       
       {/* Hero Section */}
-      <section className="py-16 px-6 text-center">
-        <div className="max-w-4xl mx-auto">
-          <h1 className="text-4xl md:text-5xl font-bold text-accent mb-6">
+      <section className="relative py-20 px-6 overflow-hidden">
+        {/* Background Image */}
+        <div className="absolute inset-0">
+          <img 
+            src={faqHero} 
+            alt="Garden center customer service" 
+            className="w-full h-full object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/50 to-black/30" />
+        </div>
+        
+        <div className="relative max-w-4xl mx-auto text-center">
+          <h1 className="text-4xl md:text-5xl font-bold text-white mb-6">
             Frequently Asked Questions
           </h1>
-          <p className="text-xl text-muted-foreground mb-8 leading-relaxed">Everything you need to know about BloomSuite.</p>
+          <p className="text-xl text-white/90 mb-8 leading-relaxed">Everything you need to know about BloomSuite.</p>
           
           {/* Quick Navigation */}
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mt-12">
