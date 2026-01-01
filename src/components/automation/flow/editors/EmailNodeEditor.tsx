@@ -1,6 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,6 +8,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { regenerateEmailContent } from '@/utils/aiContentRegenerator';
 import { toast } from '@/utils/toast';
 import { MediaSelectorImage } from '@/components/crm/MediaSelectorImage';
+import { InputWithMergeTags } from '@/components/ui/input-with-merge-tags';
+import { TextareaWithMergeTags } from '@/components/ui/textarea-with-merge-tags';
 
 interface EmailNodeData {
   subject: string;
@@ -239,12 +239,12 @@ export const EmailNodeEditor: React.FC<EmailNodeEditorProps> = ({
               </Button>
             </div>
           </div>
-          <Input
+          <InputWithMergeTags
             id="subject"
             placeholder="Enter email subject..."
             value={formData.subject}
-            onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-            className={errors.subject ? 'border-destructive' : ''}
+            onChange={(value) => setFormData({ ...formData, subject: value })}
+            inputClassName={errors.subject ? 'border-destructive' : ''}
             autoFocus
           />
           {errors.subject && (
@@ -288,12 +288,12 @@ export const EmailNodeEditor: React.FC<EmailNodeEditorProps> = ({
               </Button>
             </div>
           </div>
-          <Textarea
+          <TextareaWithMergeTags
             id="content"
             placeholder="Select a template above to generate content, or write your own..."
             value={formData.content}
-            onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-            className={`min-h-[200px] ${errors.content ? 'border-destructive' : ''}`}
+            onChange={(value) => setFormData({ ...formData, content: value })}
+            textareaClassName={`min-h-[200px] ${errors.content ? 'border-destructive' : ''}`}
           />
           {errors.content && (
             <p className="text-sm text-destructive">{errors.content}</p>

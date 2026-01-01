@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { TextareaWithMergeTags } from '@/components/ui/textarea-with-merge-tags';
 
 interface SMSNodeData {
   content: string;
@@ -55,13 +55,13 @@ export const SMSNodeEditor: React.FC<SMSNodeEditorProps> = ({
       <CardContent className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="sms-content">SMS Message *</Label>
-          <Textarea
+          <TextareaWithMergeTags
             id="sms-content"
             placeholder="Enter your SMS message..."
             value={content}
-            onChange={(e) => setContent(e.target.value)}
-            className={`min-h-[120px] ${isOverLimit ? 'border-destructive' : ''}`}
-            autoFocus
+            onChange={setContent}
+            excludeCategories={['system']}
+            textareaClassName={`min-h-[120px] ${isOverLimit ? 'border-destructive' : ''}`}
           />
           
           <div className="flex justify-between text-sm">
@@ -83,7 +83,7 @@ export const SMSNodeEditor: React.FC<SMSNodeEditorProps> = ({
         <div className="bg-muted/50 rounded-lg p-3">
           <p className="text-xs text-muted-foreground">
             💡 <strong>Tip:</strong> Keep messages under 160 characters to avoid split charges. 
-            Use personalization tokens like {'{name}'} for better engagement.
+            Use the Personalize button to add customer-specific content.
           </p>
         </div>
 
