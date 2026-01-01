@@ -2,6 +2,9 @@ project_id = "udldmkqwnxhdeztyqcau"
 
 # Note: connect-meta function was removed (deprecated)
 
+[functions.process-automation-outbox]
+verify_jwt = false
+
 [functions.seed-demo-customers]
 verify_jwt = false
 
