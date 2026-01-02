@@ -13,6 +13,8 @@ export interface EmailDomain {
   status: 'pending' | 'pending_dns' | 'verifying' | 'active' | 'failed' | 'error';
   env?: 'prod' | 'dev';
   is_sandbox?: boolean;
+  is_entri_managed?: boolean;
+  entri_provider?: string;
   error?: string;
   report_email?: string;
   // Verification retry fields
@@ -23,6 +25,14 @@ export interface EmailDomain {
   verified_at?: string;
   resend_status?: {
     status?: string;
+    records?: Array<{
+      record?: string;
+      name?: string;
+      type?: string;
+      value?: string;
+      status?: string;
+      priority?: number;
+    }>;
     dkim_verified?: boolean;
     spf_verified?: boolean;
     return_path_verified?: boolean;
