@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.10';
 import { renderMergeTags, convertLegacyTags, createMergeTagDataFromCustomer, GLOBAL_FALLBACKS } from "../_shared/mergeTagEngine.ts";
+import { resolveSender, type SenderConfig } from "../_shared/senderResolver.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -126,7 +127,7 @@ const handler = async (req: Request): Promise<Response> => {
   }
 };
 
-async function checkProviderReadiness(supabase: any, automation: any): Promise<{ canProcess: boolean; reason?: string }> {
+async function checkProviderReadiness(supabase: any, automation: any): Promise<{ canProcess: boolean; reason?: string; senderConfig?: SenderConfig }> {
   const workflowSteps: WorkflowStep[] = automation.workflow_steps || [];
   const hasEmailSteps = workflowSteps.some(step => step.type === 'email');
   const hasSMSSteps = workflowSteps.some(step => step.type === 'sms');
@@ -134,7 +135,7 @@ async function checkProviderReadiness(supabase: any, automation: any): Promise<{
   // Check company profile for tenant
   const { data: companyProfile, error: profileError } = await supabase
     .from('company_profiles')
-    .select('dns_records_verified, feature_flags')
+    .select('feature_flags')
     .eq('tenant_id', automation.tenant_id)
     .single();
 
@@ -142,11 +143,16 @@ async function checkProviderReadiness(supabase: any, automation: any): Promise<{
     console.error(`❌ Error fetching company profile for tenant ${automation.tenant_id}:`, profileError);
   }
 
-  // Check Email provider (Resend) readiness
+  // Check Email provider readiness using senderResolver (always available with fallback)
+  let senderConfig: SenderConfig | undefined;
   if (hasEmailSteps) {
-    const emailReady = companyProfile?.dns_records_verified === true;
-    if (!emailReady) {
-      return { canProcess: false, reason: 'Email domain not verified' };
+    try {
+      senderConfig = await resolveSender(supabase, automation.tenant_id, {});
+      console.log(`📧 [ProviderCheck] Email sender resolved: ${senderConfig.deliveryMethod} (${senderConfig.fromEmail})`);
+      // Email is always ready because we have fallback senders
+    } catch (error) {
+      console.error(`❌ Error resolving sender for tenant ${automation.tenant_id}:`, error);
+      return { canProcess: false, reason: 'Failed to resolve email sender' };
     }
   }
 
@@ -172,7 +178,7 @@ async function checkProviderReadiness(supabase: any, automation: any): Promise<{
     }
   }
 
-  return { canProcess: true };
+  return { canProcess: true, senderConfig };
 }
 
 async function processAutomation(supabase: any, automation: any) {
@@ -422,7 +428,18 @@ async function enqueueMessage(
   const personalizedContent = personalizeMessage(step.text, customer, automation);
   const personalizedSubject = step.subject ? personalizeMessage(step.subject, customer, automation) : undefined;
 
-  // Insert into outbox with automation_run_id
+  // Resolve sender for email steps
+  let senderConfig: SenderConfig | null = null;
+  if (step.type === 'email') {
+    try {
+      senderConfig = await resolveSender(supabase, automation.tenant_id, {});
+      console.log(`📧 [Enqueue] Resolved sender: ${senderConfig.deliveryMethod} (${senderConfig.fromEmail})`);
+    } catch (error) {
+      console.error(`❌ Failed to resolve sender for tenant ${automation.tenant_id}:`, error);
+    }
+  }
+
+  // Insert into outbox with automation_run_id and sender config
   const { error: outboxError } = await supabase
     .from('crm_outbox')
     .insert({
@@ -440,7 +457,14 @@ async function enqueueMessage(
         step_index: stepIndex,
         customer_data: customer,
         step_type: step.type,
-        trigger_type: automation.trigger_type
+        trigger_type: automation.trigger_type,
+        // Include sender configuration for email processing
+        sender_config: senderConfig ? {
+          from_email: senderConfig.fromEmail,
+          from_name: senderConfig.fromName,
+          delivery_method: senderConfig.deliveryMethod,
+          domain_id: senderConfig.domainId || null
+        } : null
       },
       scheduled_at: scheduledAt.toISOString(),
       status: 'pending',
@@ -465,7 +489,7 @@ async function enqueueMessage(
       created_at: new Date().toISOString()
     });
 
-  console.log(`✅ Enqueued ${step.type} for ${customer.email} (step ${stepIndex + 1}, scheduled: ${scheduledAt.toISOString()})`);
+  console.log(`✅ Enqueued ${step.type} for ${customer.email} (step ${stepIndex + 1}, scheduled: ${scheduledAt.toISOString()}, sender: ${senderConfig?.deliveryMethod || 'sms'})`);
 }
 
 function personalizeMessage(template: string, customer: any, automation: any): string {

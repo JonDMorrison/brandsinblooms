@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.10";
+import { resolveSender, buildFromAddress, type SenderConfig } from "../_shared/senderResolver.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -244,26 +245,50 @@ async function sendEmail(
   message: OutboxMessage
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    // Get tenant's email configuration
+    // Check if sender config was pre-resolved and stored in template_data
+    const templateData = message.template_data || {};
+    let senderConfig: SenderConfig;
+
+    if (templateData.sender_config?.from_email) {
+      // Use pre-resolved sender from template_data
+      senderConfig = {
+        fromEmail: templateData.sender_config.from_email,
+        fromName: templateData.sender_config.from_name,
+        deliveryMethod: templateData.sender_config.delivery_method,
+        domainId: templateData.sender_config.domain_id,
+      } as SenderConfig;
+      console.log(`📧 [SendEmail] Using pre-resolved sender: ${senderConfig.deliveryMethod} (${senderConfig.fromEmail})`);
+    } else {
+      // Resolve sender dynamically using three-tier priority
+      senderConfig = await resolveSender(supabase, message.tenant_id, {});
+      console.log(`📧 [SendEmail] Dynamically resolved sender: ${senderConfig.deliveryMethod} (${senderConfig.fromEmail})`);
+    }
+
+    // Get company name for display
     const { data: companyProfile } = await supabase
       .from("company_profiles")
-      .select("company_name, custom_sender_email, dns_records_verified")
+      .select("company_name")
       .eq("tenant_id", message.tenant_id)
       .single();
 
-    if (!companyProfile?.dns_records_verified) {
-      return { success: false, error: "Email domain not verified" };
-    }
+    const companyName = companyProfile?.company_name || "Your Business";
+    
+    // Adjust from name based on delivery method
+    const fromName = senderConfig.deliveryMethod === 'custom_domain' 
+      ? companyName 
+      : `${companyName} via BloomSuite`;
 
-    // Call the send-email-campaign function
+    // Call the send-email-campaign function with resolved sender
     const { data, error } = await supabase.functions.invoke("send-email-campaign", {
       body: {
         tenant_id: message.tenant_id,
         to: message.recipient,
         subject: message.subject || "Message from automation",
         html_content: message.content,
-        from_name: companyProfile?.company_name || "Your Business",
-        from_email: companyProfile?.custom_sender_email,
+        from_name: fromName,
+        from_email: senderConfig.fromEmail,
+        domain_id: senderConfig.domainId || null,
+        delivery_method: senderConfig.deliveryMethod,
         automation_id: message.automation_id,
         customer_id: message.customer_id,
       },
@@ -277,8 +302,10 @@ async function sendEmail(
       return { success: false, error: data.error };
     }
 
+    console.log(`✅ [SendEmail] Email sent via ${senderConfig.deliveryMethod}: ${message.recipient}`);
     return { success: true };
   } catch (err) {
+    console.error(`❌ [SendEmail] Failed:`, err);
     return { success: false, error: err instanceof Error ? err.message : "Email send failed" };
   }
 }
