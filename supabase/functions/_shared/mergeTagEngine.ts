@@ -37,6 +37,10 @@ export interface MergeTagData {
     preferences_url?: string | null;
     current_year?: string | null;
     current_date?: string | null;
+    date_plus_3?: string | null;
+    date_plus_7?: string | null;
+    date_plus_14?: string | null;
+    date_plus_30?: string | null;
   };
   
   // Allow additional fields
@@ -129,16 +133,31 @@ function formatValue(value: unknown): string {
 }
 
 /**
+ * Add days to a date and return the result
+ */
+function addDays(date: Date, days: number): Date {
+  const result = new Date(date);
+  result.setDate(result.getDate() + days);
+  return result;
+}
+
+/**
  * Main merge tag rendering function
  */
 export function renderMergeTags(template: string, data: MergeTagData): string {
   if (!template) return '';
   
+  const now = new Date();
+  
   const enrichedData: MergeTagData = {
     ...data,
     system: {
-      current_year: new Date().getFullYear().toString(),
-      current_date: new Date().toLocaleDateString(),
+      current_year: now.getFullYear().toString(),
+      current_date: now.toLocaleDateString(),
+      date_plus_3: addDays(now, 3).toLocaleDateString(),
+      date_plus_7: addDays(now, 7).toLocaleDateString(),
+      date_plus_14: addDays(now, 14).toLocaleDateString(),
+      date_plus_30: addDays(now, 30).toLocaleDateString(),
       ...data.system,
     },
   };
