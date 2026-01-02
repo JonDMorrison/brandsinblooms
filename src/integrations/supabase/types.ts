@@ -11035,6 +11035,9 @@ export type Database = {
           city: string | null
           country: string | null
           created_at: string
+          fallback_from_name: string | null
+          fallback_sender_created_at: string | null
+          fallback_sender_email: string | null
           id: string
           is_active: boolean
           last_event_at: string | null
@@ -11050,6 +11053,9 @@ export type Database = {
           city?: string | null
           country?: string | null
           created_at?: string
+          fallback_from_name?: string | null
+          fallback_sender_created_at?: string | null
+          fallback_sender_email?: string | null
           id?: string
           is_active?: boolean
           last_event_at?: string | null
@@ -11065,6 +11071,9 @@ export type Database = {
           city?: string | null
           country?: string | null
           created_at?: string
+          fallback_from_name?: string | null
+          fallback_sender_created_at?: string | null
+          fallback_sender_email?: string | null
           id?: string
           is_active?: boolean
           last_event_at?: string | null
