@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { 
   CheckCircle, 
   AlertCircle, 
@@ -14,10 +15,22 @@ import {
   Edit,
   Save,
   X,
-  TestTube
+  TestTube,
+  Trash2
 } from 'lucide-react';
 import { useEmailDomains, EmailDomain, EmailDnsRecord, EmailDnsCheck } from '@/hooks/useEmailDomains';
 import { toast } from 'sonner';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface EmailDomainDetailsProps {
   domainId: string;
@@ -31,7 +44,9 @@ export const EmailDomainDetails = ({ domainId, open, onOpenChange }: EmailDomain
     getDomainRecords, 
     getDomainChecks, 
     verifyEmailDomain,
-    updateEmailDomain 
+    updateEmailDomain,
+    deleteEmailDomain,
+    refetch
   } = useEmailDomains();
   
   const [domain, setDomain] = useState<EmailDomain | null>(null);
@@ -39,6 +54,7 @@ export const EmailDomainDetails = ({ domainId, open, onOpenChange }: EmailDomain
   const [checks, setChecks] = useState<EmailDnsCheck[]>([]);
   const [loading, setLoading] = useState(true);
   const [verifying, setVerifying] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [editingReportEmail, setEditingReportEmail] = useState(false);
   const [reportEmail, setReportEmail] = useState('');
 
@@ -114,6 +130,20 @@ export const EmailDomainDetails = ({ domainId, open, onOpenChange }: EmailDomain
       await loadDomainData();
     } catch (error: any) {
       toast.error(error.message || 'Failed to update report email');
+    }
+  };
+
+  const handleDelete = async () => {
+    try {
+      setDeleting(true);
+      await deleteEmailDomain(domainId);
+      toast.success('Domain deleted successfully');
+      onOpenChange(false);
+      refetch();
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to delete domain');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -384,7 +414,34 @@ export const EmailDomainDetails = ({ domainId, open, onOpenChange }: EmailDomain
              </div>
            )}
 
-          <div className="flex justify-end">
+          <div className="flex justify-between">
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" size="sm" className="flex items-center gap-2">
+                  <Trash2 className="w-4 h-4" />
+                  Delete Domain
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete {domain.domain}?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will permanently remove this domain and all its DNS records. 
+                    You will no longer be able to send emails from this domain.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleDelete}
+                    disabled={deleting}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    {deleting ? 'Deleting...' : 'Delete'}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Close
             </Button>
