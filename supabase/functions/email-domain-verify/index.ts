@@ -12,6 +12,7 @@ interface VerifyDomainRequest {
 interface DNSCheck {
   check_name: string;
   ok: boolean;
+  dns_verified?: boolean; // Independent DNS lookup result
   details: any;
 }
 
@@ -22,6 +23,75 @@ interface ResendRecord {
   value?: string;
   status?: string;
   priority?: number;
+}
+
+// =========================================================
+// Independent DNS Verification via Cloudflare DoH
+// =========================================================
+
+async function verifyDNSRecordDirectly(
+  name: string, 
+  type: 'TXT' | 'CNAME' | 'MX', 
+  expectedValue: string,
+  priority?: number
+): Promise<{ found: boolean; actualValues: string[] }> {
+  try {
+    const dnsType = type === 'TXT' ? 16 : type === 'CNAME' ? 5 : 15;
+    const url = `https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(name)}&type=${dnsType}`;
+    
+    const response = await fetch(url, {
+      headers: { 'Accept': 'application/dns-json' }
+    });
+    
+    if (!response.ok) {
+      console.log(`⚠️ DNS lookup failed for ${name}: HTTP ${response.status}`);
+      return { found: false, actualValues: [] };
+    }
+    
+    const data = await response.json();
+    const answers = data.Answer || [];
+    const actualValues: string[] = [];
+    
+    for (const answer of answers) {
+      let value = answer.data || '';
+      
+      // TXT records come quoted, remove quotes
+      if (type === 'TXT' && value.startsWith('"') && value.endsWith('"')) {
+        value = value.slice(1, -1);
+      }
+      
+      // CNAME records may have trailing dot
+      if (type === 'CNAME' && value.endsWith('.')) {
+        value = value.slice(0, -1);
+      }
+      
+      actualValues.push(value);
+      
+      // For MX, check priority matches too
+      if (type === 'MX') {
+        const parts = value.split(' ');
+        const mxPriority = parseInt(parts[0], 10);
+        const mxHost = parts[1]?.replace(/\.$/, '') || '';
+        
+        if (priority !== undefined && mxPriority === priority && mxHost === expectedValue) {
+          return { found: true, actualValues };
+        }
+        if (mxHost === expectedValue || value.includes(expectedValue)) {
+          return { found: true, actualValues };
+        }
+      } else {
+        // For TXT/CNAME, check if value contains expected
+        if (value === expectedValue || value.includes(expectedValue) || expectedValue.includes(value)) {
+          return { found: true, actualValues };
+        }
+      }
+    }
+    
+    return { found: false, actualValues };
+  } catch (error: any) {
+    console.error(`❌ DNS lookup error for ${name}:`, error?.message);
+    return { found: false, actualValues: [] };
+  }
 }
 
 function getNextVerifyInterval(attempts: number): number {
@@ -313,7 +383,85 @@ const handler = async (req: Request): Promise<Response> => {
       checks.push(verificationCheck);
       if (!verificationCheck.ok) allPassed = false;
 
-      console.log(`📊 Verification results: DKIM=${dkimVerified}, SPF=${spfVerified}, ReturnPath=${returnPathVerified}, Overall=${domainStatus.status}`);
+      console.log(`📊 Resend verification results: DKIM=${dkimVerified}, SPF=${spfVerified}, ReturnPath=${returnPathVerified}, Overall=${domainStatus.status}`);
+
+      // =========================================================
+      // PHASE 2: Independent DNS verification for pending records
+      // This catches cases where DNS is correct but Resend hasn't updated
+      // =========================================================
+      console.log(`🔍 Running independent DNS verification for pending records...`);
+      
+      let dkimDnsVerified = dkimVerified;
+      let spfDnsVerified = spfVerified;
+      let mxDnsVerified = mxVerified;
+      
+      for (const record of resendRecords) {
+        const recordType = (record.record_type || record.type || '').toUpperCase();
+        const recordName = record.name || '';
+        const recordValue = record.value || '';
+        const recordStatus = record.status;
+        
+        // Only check records that Resend says are pending
+        if (recordStatus === 'verified') continue;
+        
+        console.log(`  🔎 Checking ${recordType} ${recordName} via DNS...`);
+        
+        if (recordType === 'TXT') {
+          const { found, actualValues } = await verifyDNSRecordDirectly(recordName, 'TXT', recordValue);
+          if (found) {
+            console.log(`    ✅ TXT record found in DNS! Values: ${actualValues.join(', ')}`);
+            if (recordName.includes('_domainkey') || recordName.includes('dkim')) {
+              dkimDnsVerified = true;
+            } else {
+              spfDnsVerified = true;
+            }
+          } else {
+            console.log(`    ❌ TXT record NOT found in DNS. Expected: ${recordValue}`);
+          }
+        } else if (recordType === 'CNAME') {
+          const { found, actualValues } = await verifyDNSRecordDirectly(recordName, 'CNAME', recordValue);
+          if (found) {
+            console.log(`    ✅ CNAME record found in DNS! Values: ${actualValues.join(', ')}`);
+            if (recordName.includes('_domainkey') || recordName.includes('dkim')) {
+              dkimDnsVerified = true;
+            }
+          } else {
+            console.log(`    ❌ CNAME record NOT found in DNS. Expected: ${recordValue}`);
+          }
+        } else if (recordType === 'MX') {
+          const { found, actualValues } = await verifyDNSRecordDirectly(recordName, 'MX', recordValue, record.priority);
+          if (found) {
+            console.log(`    ✅ MX record found in DNS! Values: ${actualValues.join(', ')}`);
+            mxDnsVerified = true;
+          } else {
+            console.log(`    ❌ MX record NOT found in DNS. Expected: ${recordValue}`);
+          }
+        }
+      }
+      
+      const allDnsVerified = dkimDnsVerified && spfDnsVerified && mxDnsVerified;
+      console.log(`📊 Independent DNS results: DKIM=${dkimDnsVerified}, SPF=${spfDnsVerified}, MX=${mxDnsVerified}, AllDNS=${allDnsVerified}`);
+      
+      // Update checks with DNS verification status
+      checks.find(c => c.check_name === 'dkim')!.dns_verified = dkimDnsVerified;
+      checks.find(c => c.check_name === 'spf')!.dns_verified = spfDnsVerified;
+      checks.find(c => c.check_name === 'return_path')!.dns_verified = mxDnsVerified;
+      
+      // Add a combined DNS verification check
+      const dnsVerificationCheck: DNSCheck = {
+        check_name: 'dns_direct',
+        ok: allDnsVerified,
+        dns_verified: allDnsVerified,
+        details: {
+          dkim_dns_verified: dkimDnsVerified,
+          spf_dns_verified: spfDnsVerified,
+          mx_dns_verified: mxDnsVerified,
+          message: allDnsVerified 
+            ? 'All DNS records verified via direct lookup' 
+            : 'Some DNS records not yet propagated'
+        }
+      };
+      checks.push(dnsVerificationCheck);
 
     } catch (resendError: any) {
       console.error('❌ Resend verification error:', resendError);
@@ -424,9 +572,16 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log(`🎉 Domain verification completed: ${emailDomain.domain} -> ${newStatus}`);
 
+    // Compute DNS verification summary
+    const dnsDirectCheck = checks.find(c => c.check_name === 'dns_direct');
+    const allDnsVerified = dnsDirectCheck?.ok || false;
+    const dnsVerifiedButResendPending = allDnsVerified && !allPassed;
+
     const response = {
       ok: allPassed,
       allVerified: allPassed,
+      dns_verified: allDnsVerified,
+      dns_verified_resend_pending: dnsVerifiedButResendPending,
       status: newStatus,
       domain: emailDomain.domain,
       verify_attempts: newAttempts,
@@ -435,20 +590,28 @@ const handler = async (req: Request): Promise<Response> => {
       verified_at: updateData.verified_at || null,
       message: allPassed 
         ? 'Domain verification successful! All DNS records verified.' 
-        : errorMessage || 'Some verification checks failed',
+        : dnsVerifiedButResendPending
+          ? 'DNS records verified! Waiting for Resend to confirm (this can take up to a few hours).'
+          : errorMessage || 'Some verification checks failed',
       checks: checks.map(c => ({
         name: c.check_name,
         passed: c.ok,
+        dns_verified: c.dns_verified,
         details: c.details
       })),
       resend_status: updateData.resend_status,
-      // Include pending records for UI display
+      // Include pending records for UI display with DNS status
       pending_records: resendRecords
         .filter((r: ResendRecord) => r.status !== 'verified')
         .map((r: ResendRecord) => ({
           type: r.record_type || r.type,
           name: r.name,
-          status: r.status
+          status: r.status,
+          dns_verified: checks.find(c => 
+            (c.check_name === 'dkim' && ((r.name?.includes('dkim') || r.name?.includes('_domainkey')))) ||
+            (c.check_name === 'spf' && r.record_type === 'TXT' && !r.name?.includes('_domainkey')) ||
+            (c.check_name === 'return_path' && r.record_type === 'MX')
+          )?.dns_verified || false
         }))
     };
 

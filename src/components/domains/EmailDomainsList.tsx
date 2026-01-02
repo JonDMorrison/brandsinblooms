@@ -96,9 +96,10 @@ export const EmailDomainsList = () => {
     }
   };
 
-  const getPendingRecords = (domain: EmailDomain): { pending: string[]; verified: string[] } => {
+  const getPendingRecords = (domain: EmailDomain): { pending: string[]; verified: string[]; dnsVerifiedPending: string[] } => {
     const pending: string[] = [];
     const verified: string[] = [];
+    const dnsVerifiedPending: string[] = []; // DNS verified but Resend pending
     
     // Parse from resend_status.records array (the actual Resend API format)
     const resendStatus = domain.resend_status as any;
@@ -107,13 +108,16 @@ export const EmailDomainsList = () => {
         const label = rec.record || rec.type || 'Unknown';
         if (rec.status === 'verified') {
           verified.push(label);
+        } else if (rec.dns_verified) {
+          // DNS is correct but Resend hasn't confirmed yet
+          dnsVerifiedPending.push(`${label} (${rec.name})`);
         } else {
           pending.push(`${label} (${rec.name})`);
         }
       }
     }
     
-    return { pending, verified };
+    return { pending, verified, dnsVerifiedPending };
   };
 
   // Repair domain by re-opening Entri with current DNS records
@@ -222,11 +226,12 @@ export const EmailDomainsList = () => {
             <div className="space-y-4">
               {emailDomains.map((domain) => {
                 const lastChecked = getLastCheckedText(domain);
-                const { pending: pendingRecords, verified: verifiedRecords } = getPendingRecords(domain);
+                const { pending: pendingRecords, verified: verifiedRecords, dnsVerifiedPending } = getPendingRecords(domain);
                 const isVerifying = verifyingDomains.has(domain.id);
                 const isRepairing = repairingDomains.has(domain.id);
                 const isFailed = domain.status === 'failed';
                 const needsRepair = domain.status === 'pending_dns' && pendingRecords.length > 0;
+                const isDnsVerifiedAwaitingResend = dnsVerifiedPending.length > 0 && pendingRecords.length === 0;
 
                 return (
                   <div
@@ -270,14 +275,31 @@ export const EmailDomainsList = () => {
                           </div>
                         )}
 
-                        {/* Show pending records */}
+                        {/* Show DNS verified but awaiting Resend confirmation */}
+                        {dnsVerifiedPending.length > 0 && domain.status !== 'active' && (
+                          <div className="flex items-center gap-1 mt-1 flex-wrap">
+                            <CheckCircle className="w-3 h-3 text-blue-600" />
+                            <span className="text-xs text-blue-700">
+                              DNS Correct (awaiting provider): {dnsVerifiedPending.join(', ')}
+                            </span>
+                          </div>
+                        )}
+
+                        {/* Show pending records (not yet in DNS) */}
                         {pendingRecords.length > 0 && domain.status !== 'active' && (
                           <div className="flex items-center gap-1 mt-1 flex-wrap">
                             <AlertCircle className="w-3 h-3 text-amber-600" />
                             <span className="text-xs text-amber-700">
-                              Pending: {pendingRecords.join(', ')}
+                              Not Found in DNS: {pendingRecords.join(', ')}
                             </span>
                           </div>
+                        )}
+
+                        {/* Show helpful message when DNS is correct but Resend is lagging */}
+                        {isDnsVerifiedAwaitingResend && domain.status !== 'active' && (
+                          <p className="text-xs text-blue-600 mt-1">
+                            ✓ Your DNS records are correctly configured. Resend is still verifying (can take up to a few hours).
+                          </p>
                         )}
 
                         {/* Show error message */}
