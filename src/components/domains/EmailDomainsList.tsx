@@ -96,28 +96,55 @@ export const EmailDomainsList = () => {
     }
   };
 
-  const getPendingRecords = (domain: EmailDomain): { pending: string[]; verified: string[]; dnsVerifiedPending: string[] } => {
+  const getPendingRecords = (domain: EmailDomain): { 
+    pending: string[]; 
+    verified: string[]; 
+    dnsVerifiedPending: string[];
+    hasConflict: boolean;
+    conflictHostnames: string[];
+  } => {
     const pending: string[] = [];
     const verified: string[] = [];
     const dnsVerifiedPending: string[] = []; // DNS verified but Resend pending
+    let hasConflict = false;
+    const conflictHostnames: string[] = [];
     
     // Parse from resend_status.records array (the actual Resend API format)
     const resendStatus = domain.resend_status as any;
-    if (resendStatus?.records && Array.isArray(resendStatus.records)) {
-      for (const rec of resendStatus.records) {
-        const label = rec.record || rec.type || 'Unknown';
-        if (rec.status === 'verified') {
-          verified.push(label);
-        } else if (rec.dns_verified) {
-          // DNS is correct but Resend hasn't confirmed yet
-          dnsVerifiedPending.push(`${label} (${rec.name})`);
-        } else {
-          pending.push(`${label} (${rec.name})`);
+    
+    // Check for DNS conflict at domain level
+    if (resendStatus?.dns_conflict_detected) {
+      hasConflict = true;
+      if (resendStatus?.dns_conflict_details && Array.isArray(resendStatus.dns_conflict_details)) {
+        for (const detail of resendStatus.dns_conflict_details) {
+          conflictHostnames.push(detail.hostname);
         }
       }
     }
     
-    return { pending, verified, dnsVerifiedPending };
+    if (resendStatus?.records && Array.isArray(resendStatus.records)) {
+      for (const rec of resendStatus.records) {
+        const label = rec.record || rec.type || 'Unknown';
+        const fqdn = rec.fqdn_queried || rec.name;
+        
+        if (rec.status === 'verified') {
+          verified.push(label);
+        } else if (rec.has_conflict) {
+          // Record has a conflict - don't show as pending, show conflict instead
+          hasConflict = true;
+          if (fqdn && !conflictHostnames.includes(fqdn)) {
+            conflictHostnames.push(fqdn);
+          }
+        } else if (rec.dns_verified) {
+          // DNS is correct but Resend hasn't confirmed yet
+          dnsVerifiedPending.push(`${label} (${fqdn})`);
+        } else {
+          pending.push(`${label} (${fqdn})`);
+        }
+      }
+    }
+    
+    return { pending, verified, dnsVerifiedPending, hasConflict, conflictHostnames };
   };
 
   // Repair domain by re-opening Entri with current DNS records
@@ -226,12 +253,12 @@ export const EmailDomainsList = () => {
             <div className="space-y-4">
               {emailDomains.map((domain) => {
                 const lastChecked = getLastCheckedText(domain);
-                const { pending: pendingRecords, verified: verifiedRecords, dnsVerifiedPending } = getPendingRecords(domain);
+                const { pending: pendingRecords, verified: verifiedRecords, dnsVerifiedPending, hasConflict, conflictHostnames } = getPendingRecords(domain);
                 const isVerifying = verifyingDomains.has(domain.id);
                 const isRepairing = repairingDomains.has(domain.id);
                 const isFailed = domain.status === 'failed';
-                const needsRepair = domain.status === 'pending_dns' && pendingRecords.length > 0;
-                const isDnsVerifiedAwaitingResend = dnsVerifiedPending.length > 0 && pendingRecords.length === 0;
+                const needsRepair = domain.status === 'pending_dns' && (pendingRecords.length > 0 || hasConflict);
+                const isDnsVerifiedAwaitingResend = dnsVerifiedPending.length > 0 && pendingRecords.length === 0 && !hasConflict;
 
                 return (
                   <div
@@ -275,8 +302,18 @@ export const EmailDomainsList = () => {
                           </div>
                         )}
 
+                        {/* Show DNS conflict warning - highest priority */}
+                        {hasConflict && domain.status !== 'active' && (
+                          <div className="flex items-center gap-1 mt-1 flex-wrap">
+                            <XCircle className="w-3 h-3 text-red-600" />
+                            <span className="text-xs text-red-700 font-medium">
+                              DNS Conflict: CNAME conflicts with MX/TXT at {conflictHostnames.join(', ')}
+                            </span>
+                          </div>
+                        )}
+
                         {/* Show DNS verified but awaiting Resend confirmation */}
-                        {dnsVerifiedPending.length > 0 && domain.status !== 'active' && (
+                        {dnsVerifiedPending.length > 0 && domain.status !== 'active' && !hasConflict && (
                           <div className="flex items-center gap-1 mt-1 flex-wrap">
                             <CheckCircle className="w-3 h-3 text-blue-600" />
                             <span className="text-xs text-blue-700">
@@ -286,7 +323,7 @@ export const EmailDomainsList = () => {
                         )}
 
                         {/* Show pending records (not yet in DNS) */}
-                        {pendingRecords.length > 0 && domain.status !== 'active' && (
+                        {pendingRecords.length > 0 && domain.status !== 'active' && !hasConflict && (
                           <div className="flex items-center gap-1 mt-1 flex-wrap">
                             <AlertCircle className="w-3 h-3 text-amber-600" />
                             <span className="text-xs text-amber-700">
@@ -314,21 +351,25 @@ export const EmailDomainsList = () => {
                     <div className="flex items-center gap-2 flex-shrink-0 ml-2">
                       {domain.status !== 'active' && (
                         <>
-                          {/* Repair with Entri button - for pending_dns with missing records */}
+                          {/* Repair/Fix Conflict button - for pending_dns with missing records or conflicts */}
                           {needsRepair && domain.is_entri_managed && (
                             <Button
                               variant="outline"
                               size="sm"
                               onClick={() => handleRepairDomain(domain)}
                               disabled={isRepairing || entriLoading}
-                              className="flex items-center gap-2 border-amber-400 text-amber-700 hover:bg-amber-50"
+                              className={`flex items-center gap-2 ${
+                                hasConflict 
+                                  ? 'border-red-400 text-red-700 hover:bg-red-50' 
+                                  : 'border-amber-400 text-amber-700 hover:bg-amber-50'
+                              }`}
                             >
                               {isRepairing ? (
                                 <RefreshCw className="w-4 h-4 animate-spin" />
                               ) : (
                                 <Wrench className="w-4 h-4" />
                               )}
-                              {isRepairing ? 'Applying...' : 'Repair DNS'}
+                              {isRepairing ? 'Fixing...' : hasConflict ? 'Fix DNS Conflict' : 'Repair DNS'}
                             </Button>
                           )}
                           
