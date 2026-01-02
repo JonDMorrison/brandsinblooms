@@ -364,3 +364,6 @@ verify_jwt = false
 
 [functions.evaluate-customer-segments]
 verify_jwt = false
+
+[functions.automation-executor]
+verify_jwt = false

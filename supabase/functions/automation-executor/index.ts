@@ -45,7 +45,7 @@ const handler = async (req: Request): Promise<Response> => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // 1. Query active automations with compiled workflow_steps
+    // 1. Query active automations with workflow_steps
     const { data: activeAutomations, error: automationsError } = await supabase
       .from('crm_automations')
       .select(`
@@ -55,8 +55,7 @@ const handler = async (req: Request): Promise<Response> => {
         trigger_conditions,
         workflow_steps,
         name,
-        version,
-        compiled_at
+        version
       `)
       .eq('is_active', true);
 
