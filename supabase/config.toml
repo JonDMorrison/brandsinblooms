@@ -370,3 +370,6 @@ verify_jwt = false
 
 [functions.domain-verify-cron]
 verify_jwt = false
+
+[functions.email-domain-repair]
+verify_jwt = true
