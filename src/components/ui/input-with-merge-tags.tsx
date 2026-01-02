@@ -1,6 +1,7 @@
-import React, { useRef } from 'react';
+import React, { useRef, useCallback, useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { MergeTagPicker } from '@/components/shared/MergeTagPicker';
+import { MergeTagCommandPalette } from '@/components/shared/MergeTagCommandPalette';
 import type { MergeTagCategory } from '@/lib/mergeTagDefinitions';
 import { cn } from '@/lib/utils';
 
@@ -23,8 +24,9 @@ export const InputWithMergeTags: React.FC<InputWithMergeTagsProps> = ({
   ...inputProps
 }) => {
   const inputRef = useRef<HTMLInputElement>(null);
+  const [paletteOpen, setPaletteOpen] = useState(false);
 
-  const handleInsertTag = (tag: string) => {
+  const handleInsertTag = useCallback((tag: string) => {
     const input = inputRef.current;
     if (!input) {
       // Fallback: append to end
@@ -45,7 +47,16 @@ export const InputWithMergeTags: React.FC<InputWithMergeTagsProps> = ({
       const newCursorPos = start + tag.length;
       input.setSelectionRange(newCursorPos, newCursorPos);
     }, 0);
-  };
+  }, [value, onChange]);
+
+  // Handle keyboard shortcut for command palette
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    // Ctrl/Cmd + K opens command palette
+    if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+      e.preventDefault();
+      setPaletteOpen(true);
+    }
+  }, []);
 
   return (
     <div className={cn("relative flex items-center gap-1 w-full", className)}>
@@ -53,6 +64,7 @@ export const InputWithMergeTags: React.FC<InputWithMergeTagsProps> = ({
         ref={inputRef}
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        onKeyDown={handleKeyDown}
         className={cn("flex-1 pr-10", inputClassName)}
         {...inputProps}
       />
@@ -67,6 +79,14 @@ export const InputWithMergeTags: React.FC<InputWithMergeTagsProps> = ({
           />
         </div>
       )}
+
+      {/* Command Palette */}
+      <MergeTagCommandPalette
+        open={paletteOpen}
+        onOpenChange={setPaletteOpen}
+        onSelectTag={handleInsertTag}
+        excludeCategories={excludeCategories}
+      />
     </div>
   );
 };

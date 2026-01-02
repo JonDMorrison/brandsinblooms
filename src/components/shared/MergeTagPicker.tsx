@@ -3,6 +3,7 @@
  * 
  * A dropdown UI for selecting and inserting merge tags into email/SMS content.
  * Uses DropdownMenu with subcategories for better portal/focus handling.
+ * Now includes search functionality and category color coding.
  */
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -18,6 +19,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import {
   User,
   ShoppingCart,
@@ -25,16 +27,20 @@ import {
   Settings,
   Building2,
   Sparkles,
+  Search,
 } from 'lucide-react';
 import {
   getMergeTagsByCategory,
   CATEGORY_LABELS,
   CATEGORY_ORDER,
+  CATEGORY_COLORS,
   formatTagWithDefault,
+  searchMergeTags,
   type MergeTagCategory,
   type MergeTagDefinition,
 } from '@/lib/mergeTagDefinitions';
 import { registerEditOverlay, unregisterEditOverlay } from '@/components/crm/click-to-edit/editOverlayRegistry';
+import { useMergeTagFavorites } from '@/hooks/useMergeTagFavorites';
 
 interface MergeTagPickerProps {
   onSelectTag: (tag: string) => void;
@@ -61,24 +67,43 @@ export function MergeTagPicker({
   className,
 }: MergeTagPickerProps) {
   const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const { addRecentTag } = useMergeTagFavorites();
 
   const tagsByCategory = useMemo(() => getMergeTagsByCategory(), []);
 
-  const filteredCategories = useMemo(() => {
-    return CATEGORY_ORDER.filter(cat => !excludeCategories.includes(cat));
-  }, [excludeCategories]);
+  // Filter by search and excluded categories
+  const filteredTags = useMemo(() => {
+    const searched = searchMergeTags(search);
+    return searched.filter((tag) => !excludeCategories.includes(tag.category));
+  }, [search, excludeCategories]);
 
-  // Register/unregister overlay on open state change
+  const filteredTagsByCategory = useMemo(() => {
+    const grouped: Record<MergeTagCategory, MergeTagDefinition[]> = {
+      contact: [], purchase: [], loyalty: [], custom: [], company: [], system: [],
+    };
+    for (const tag of filteredTags) {
+      grouped[tag.category].push(tag);
+    }
+    return grouped;
+  }, [filteredTags]);
+
+  const filteredCategories = useMemo(() => {
+    return CATEGORY_ORDER.filter(cat => 
+      !excludeCategories.includes(cat) && filteredTagsByCategory[cat].length > 0
+    );
+  }, [excludeCategories, filteredTagsByCategory]);
+
   const handleOpenChange = (nextOpen: boolean) => {
     setOpen(nextOpen);
     if (nextOpen) {
       registerEditOverlay('merge-tag-picker');
+      setSearch('');
     } else {
       unregisterEditOverlay('merge-tag-picker');
     }
   };
 
-  // Cleanup on unmount to prevent stuck overlay state
   useEffect(() => {
     return () => {
       unregisterEditOverlay('merge-tag-picker');
@@ -87,6 +112,7 @@ export function MergeTagPicker({
 
   const handleSelectTag = (tag: MergeTagDefinition) => {
     const formattedTag = formatTagWithDefault(tag.key);
+    addRecentTag(tag.key);
     onSelectTag(formattedTag);
     setOpen(false);
   };
@@ -130,49 +156,77 @@ export function MergeTagPicker({
         )}
       </DropdownMenuTrigger>
       <DropdownMenuContent
-        className="w-64"
+        className="w-72"
         align="start"
         side="bottom"
         data-merge-tag-picker="true"
         data-click-to-edit-allowed-overlay="true"
       >
-        {filteredCategories.map((category, index) => (
-          <React.Fragment key={category}>
-            {index > 0 && <DropdownMenuSeparator />}
-            <DropdownMenuSub>
-              <DropdownMenuSubTrigger className="gap-2">
-                {CATEGORY_ICONS[category]}
-                <span>{CATEGORY_LABELS[category]}</span>
-                <Badge variant="secondary" className="ml-auto text-xs">
-                  {tagsByCategory[category].length}
-                </Badge>
-              </DropdownMenuSubTrigger>
-              <DropdownMenuSubContent 
-                className="w-64 max-h-[300px] overflow-y-auto"
-                data-merge-tag-picker="true"
-                data-click-to-edit-allowed-overlay="true"
-              >
-                {tagsByCategory[category].map((tag) => (
-                  <DropdownMenuItem
-                    key={tag.key}
-                    onClick={() => handleSelectTag(tag)}
-                    className="flex flex-col items-start gap-0.5 py-2"
-                  >
-                    <div className="flex items-center justify-between w-full">
-                      <span className="font-medium text-sm">{tag.label}</span>
-                      <code className="text-xs text-muted-foreground bg-muted px-1 rounded">
-                        {`{{ ${tag.key} }}`}
-                      </code>
-                    </div>
-                    <span className="text-xs text-muted-foreground">
-                      {tag.description}
+        {/* Search Input */}
+        <div className="p-2 border-b border-border">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder="Search tags..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="h-8 pl-8 text-sm"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+        </div>
+
+        <div className="max-h-[300px] overflow-y-auto">
+          {filteredCategories.length === 0 ? (
+            <div className="py-4 text-center text-sm text-muted-foreground">
+              No tags found
+            </div>
+          ) : (
+            filteredCategories.map((category, index) => (
+              <React.Fragment key={category}>
+                {index > 0 && <DropdownMenuSeparator />}
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger className="gap-2">
+                    <span className={`p-1 rounded ${CATEGORY_COLORS[category].bg}`}>
+                      {CATEGORY_ICONS[category]}
                     </span>
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuSubContent>
-            </DropdownMenuSub>
-          </React.Fragment>
-        ))}
+                    <span>{CATEGORY_LABELS[category]}</span>
+                    <Badge variant="secondary" className="ml-auto text-xs">
+                      {filteredTagsByCategory[category].length}
+                    </Badge>
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent 
+                    className="w-64 max-h-[300px] overflow-y-auto"
+                    data-merge-tag-picker="true"
+                    data-click-to-edit-allowed-overlay="true"
+                  >
+                    {filteredTagsByCategory[category].map((tag) => (
+                      <DropdownMenuItem
+                        key={tag.key}
+                        onClick={() => handleSelectTag(tag)}
+                        className="flex flex-col items-start gap-0.5 py-2"
+                      >
+                        <div className="flex items-center justify-between w-full">
+                          <span className="font-medium text-sm">{tag.label}</span>
+                          <Badge 
+                            variant="secondary" 
+                            className={`text-[10px] ${CATEGORY_COLORS[category].bg} ${CATEGORY_COLORS[category].text} border-0`}
+                          >
+                            {tag.example}
+                          </Badge>
+                        </div>
+                        <span className="text-xs text-muted-foreground">
+                          {tag.description}
+                        </span>
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+              </React.Fragment>
+            ))
+          )}
+        </div>
         
         <DropdownMenuSeparator />
         <div className="px-2 py-1.5">
