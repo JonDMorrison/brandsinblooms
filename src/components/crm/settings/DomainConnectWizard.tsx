@@ -25,7 +25,7 @@ type WizardStep = 'enter_domain' | 'choose_method' | 'provisioning' | 'dns_pendi
 
 export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({ open, onClose }) => {
   const { provisionDomain, refetch } = useEmailDomainManagement();
-  const { openEntriSetup, convertToEntriRecords, validateDnsRecords, isEntriConfigured, isLoading: entriLoading } = useEntriConnect();
+  const { openEntriSetup, sanitizeAndConvertRecords, isEntriConfigured, isLoading: entriLoading } = useEntriConnect();
   const { tenant } = useTenant();
   
   const [step, setStep] = useState<WizardStep>('enter_domain');
@@ -101,38 +101,47 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({ open, 
       
       console.log(`📋 Received ${backendRecords.length} DNS records from backend`);
       
-      // Step 3: Convert to Entri format
-      const entriRecords = convertToEntriRecords(cleanDomain, backendRecords);
+      // Step 3: Sanitize and convert to Entri format using new sanitizer
+      const { records: entriRecords, validation } = sanitizeAndConvertRecords(cleanDomain, backendRecords);
       
-      // Step 4: Validate we have required records (especially Return-Path)
-      const validation = validateDnsRecords(entriRecords);
-      
+      // Step 4: STRICT validation - block if required records are missing
       if (!validation.valid) {
-        const missingStr = validation.missing.join(', ');
-        console.error(`❌ Missing required DNS records: ${missingStr}`);
-        setError(`Missing required DNS records: ${missingStr}. Please contact support.`);
+        const errorMsg = validation.errors.join('\n• ');
+        console.error(`❌ DNS validation FAILED:`, validation.errors);
+        setError(`DNS record validation failed:\n• ${errorMsg}\n\nPlease contact support.`);
         setLoading(false);
         return;
       }
       
-      console.log(`✅ All required DNS records present. Opening Entri...`);
+      // Log warnings but continue
+      if (validation.warnings.length > 0) {
+        console.warn(`⚠️ DNS validation warnings:`, validation.warnings);
+      }
+      
+      // Step 5: Final logging before Entri
+      console.log(`✅ All required DNS records present. Opening Entri with ${entriRecords.length} records:`);
+      console.log(`📋 Records for Entri:`, JSON.stringify(entriRecords, null, 2));
+      console.log(`📋 Validation details:`, validation.details);
+      
       setLoading(false);
       
-      // Step 5: Open Entri with the real records from Resend
+      // Step 6: Open Entri with sanitized records
       setIsEntriModalOpen(true);
       
       openEntriSetup(
         cleanDomain,
         tenant.id,
-        entriRecords, // Pass real records from Resend API
+        entriRecords,
         // onSuccess
         () => {
+          console.log(`✅ Entri setup completed for ${cleanDomain}`);
           setIsEntriModalOpen(false);
           refetch();
           setStep('entri_success');
         },
         // onCancel - fall back to manual
         () => {
+          console.log(`⚠️ Entri setup cancelled for ${cleanDomain}, falling back to manual`);
           setIsEntriModalOpen(false);
           setStep('dns_pending'); // Show manual DNS setup since domain is provisioned
         }

@@ -2,6 +2,12 @@ import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { emailDomainsConfig } from '@/lib/config/emailDomainsConfig';
+import { 
+  prepareRecordsForEntri, 
+  validateCanonicalRecords,
+  DnsRecord,
+  ValidationResult 
+} from '@/lib/email/dnsRecordSanitizer';
 
 // Declare Entri global types
 declare global {
@@ -18,7 +24,7 @@ interface EntriConfig {
   dnsRecords: EntriDnsRecord[];
 }
 
-interface EntriDnsRecord {
+export interface EntriDnsRecord {
   type: 'TXT' | 'CNAME' | 'MX' | 'A' | 'AAAA';
   host: string;
   value: string;
@@ -48,8 +54,8 @@ interface EntriBrowserEventDetail {
   lastStatus?: string;
 }
 
-// Default DNS records - only used as absolute fallback
-// These should come from the backend (Resend API) for accuracy
+// Fallback DNS records - ONLY used when backend fails
+// These include the canonical Resend records
 const FALLBACK_EMAIL_DNS_RECORDS: EntriDnsRecord[] = [
   {
     type: 'TXT',
@@ -60,7 +66,7 @@ const FALLBACK_EMAIL_DNS_RECORDS: EntriDnsRecord[] = [
   {
     type: 'CNAME',
     host: 'resend._domainkey',
-    value: 'resend._domainkey.resend.dev',
+    value: 'resend._domainkey.resend.com',
     ttl: 3600
   },
   {
@@ -290,72 +296,50 @@ export const useEntriConnect = () => {
   }, [loadEntriScript, normalizeDomain]);
 
   /**
-   * Convert backend DNS records to Entri format
-   * Backend records have: { name, type, value, purpose }
-   * Entri needs: { type, host, value, ttl }
+   * Sanitize and convert backend DNS records to Entri format.
+   * Enforces Resend's canonical model: DKIM CNAME only, single SPF, Return-Path CNAME.
+   * 
+   * @returns Object with sanitized records and validation result
    */
-  const convertToEntriRecords = useCallback((domain: string, backendRecords: Array<{name: string; type: string; value: string; purpose?: string}>): EntriDnsRecord[] => {
-    console.log(`📋 Converting ${backendRecords.length} backend records to Entri format for domain: ${domain}`);
+  const sanitizeAndConvertRecords = useCallback((
+    domain: string, 
+    backendRecords: Array<{name: string; type: string; value: string; purpose?: string}>
+  ): { records: EntriDnsRecord[]; validation: ValidationResult } => {
+    console.log(`🧹 Sanitizing ${backendRecords.length} DNS records for domain: ${domain}`);
     
-    const entriRecords: EntriDnsRecord[] = [];
+    // Use the centralized sanitizer
+    const { records, validation } = prepareRecordsForEntri(domain, backendRecords);
     
-    for (const record of backendRecords) {
-      // Convert full domain name to host (relative to domain)
-      let host = record.name;
-      
-      // Remove the domain suffix to get relative host
-      if (host.endsWith(`.${domain}`)) {
-        host = host.replace(`.${domain}`, '');
-      } else if (host === domain) {
-        host = '@';
-      }
-      
-      const entriRecord: EntriDnsRecord = {
-        type: record.type as 'TXT' | 'CNAME' | 'MX' | 'A' | 'AAAA',
-        host,
-        value: record.value,
-        ttl: 3600
-      };
-      
-      entriRecords.push(entriRecord);
-      console.log(`  ✓ ${entriRecord.type} ${entriRecord.host} -> ${entriRecord.value.substring(0, 50)}...`);
-    }
+    // Convert to Entri format (already done by sanitizer, just cast types)
+    const entriRecords: EntriDnsRecord[] = records.map(r => ({
+      type: r.type,
+      host: r.host,
+      value: r.value,
+      ttl: r.ttl || 3600
+    }));
     
-    return entriRecords;
+    return { records: entriRecords, validation };
   }, []);
 
   /**
-   * Validate that required DNS records are present
+   * Validate Entri-format records strictly
    */
-  const validateDnsRecords = useCallback((records: EntriDnsRecord[]): { valid: boolean; missing: string[] } => {
-    const missing: string[] = [];
+  const validateRecordsStrict = useCallback((records: EntriDnsRecord[]): ValidationResult => {
+    // Convert to DnsRecord format for validation
+    const dnsRecords: DnsRecord[] = records.map(r => ({
+      type: r.type,
+      host: r.host,
+      value: r.value,
+      ttl: r.ttl
+    }));
     
-    // Check for SPF (TXT record at @ or domain root with spf)
-    const hasSpf = records.some(r => r.type === 'TXT' && r.value.includes('spf'));
-    if (!hasSpf) missing.push('SPF');
-    
-    // Check for DKIM (CNAME or TXT with domainkey)
-    const hasDkim = records.some(r => r.host.includes('domainkey') || r.host.includes('dkim'));
-    if (!hasDkim) missing.push('DKIM');
-    
-    // Check for Return-Path (CNAME for send or return subdomain)
-    const hasReturnPath = records.some(r => 
-      r.type === 'CNAME' && (r.host === 'send' || r.host === 'return' || r.value.includes('send.resend'))
-    );
-    if (!hasReturnPath) missing.push('Return-Path');
-    
-    console.log(`📋 DNS validation: SPF=${hasSpf}, DKIM=${hasDkim}, Return-Path=${hasReturnPath}`);
-    
-    return {
-      valid: missing.length === 0,
-      missing
-    };
+    return validateCanonicalRecords(dnsRecords);
   }, []);
 
   return {
     openEntriSetup,
-    convertToEntriRecords,
-    validateDnsRecords,
+    sanitizeAndConvertRecords,
+    validateRecordsStrict,
     isLoading,
     isScriptLoaded,
     isEntriConfigured: emailDomainsConfig.isEntriConfigured(),
