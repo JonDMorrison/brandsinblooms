@@ -6,7 +6,7 @@ import { corsHeaders, handleCorsPrelight, corsJsonResponse } from "../_shared/co
 interface VerifyDomainRequest {
   domainId?: string;
   email_domain_id?: string;
-  reset_attempts?: boolean; // Used when retrying a failed domain
+  reset_attempts?: boolean;
 }
 
 interface DNSCheck {
@@ -15,23 +15,29 @@ interface DNSCheck {
   details: any;
 }
 
-// Retry policy: interval based on attempt number
-function getNextVerifyInterval(attempts: number): number {
-  if (attempts <= 3) return 2 * 60 * 1000; // 2 minutes
-  if (attempts <= 6) return 5 * 60 * 1000; // 5 minutes
-  return 15 * 60 * 1000; // 15 minutes
+interface ResendRecord {
+  type?: string;
+  record_type?: string;
+  name?: string;
+  value?: string;
+  status?: string;
+  priority?: number;
 }
 
-// Calculate next verify time
+function getNextVerifyInterval(attempts: number): number {
+  if (attempts <= 3) return 2 * 60 * 1000;
+  if (attempts <= 6) return 5 * 60 * 1000;
+  return 15 * 60 * 1000;
+}
+
 function calculateNextVerifyAt(attempts: number, allPassed: boolean): Date | null {
-  if (allPassed) return null; // No retry needed if verified
-  if (attempts >= 10) return null; // Max attempts reached
+  if (allPassed) return null;
+  if (attempts >= 10) return null;
   
   const interval = getNextVerifyInterval(attempts + 1);
   return new Date(Date.now() + interval);
 }
 
-// Map Resend status to our status
 function mapResendStatus(resendStatus: string, allChecksPassed: boolean): string {
   if (allChecksPassed && resendStatus === 'verified') return 'active';
   if (resendStatus === 'pending' || resendStatus === 'not_started') return 'pending_dns';
@@ -39,28 +45,27 @@ function mapResendStatus(resendStatus: string, allChecksPassed: boolean): string
   return 'verifying';
 }
 
-// Build human-readable error message
-function buildVerificationError(checks: DNSCheck[], resendStatus: any): string {
+// Build human-readable error message based on actual record verification status
+function buildVerificationError(checks: DNSCheck[], resendRecords: ResendRecord[]): string {
   const failedChecks = checks.filter(c => !c.ok);
   if (failedChecks.length === 0) return '';
   
-  const checkNames = failedChecks.map(c => c.check_name).join(', ');
+  const issues: string[] = [];
   
-  // Check for domain mismatch
-  if (resendStatus?.records) {
-    const records = resendStatus.records;
-    for (const record of records) {
-      if (record.name && record.status !== 'verified') {
-        // This could indicate a mismatch
-        const recordHost = record.name.split('.')[0];
-        if (recordHost === 'send' || recordHost === 'mail') {
-          return `DNS records not verified for ${record.name}. Check: ${checkNames}. Ensure DNS records are applied to the correct subdomain.`;
-        }
-      }
+  // Analyze which specific records are failing
+  for (const record of resendRecords) {
+    if (record.status && record.status !== 'verified') {
+      const recordType = record.record_type || record.type || 'Unknown';
+      const recordName = record.name || 'Unknown';
+      issues.push(`${recordType} at ${recordName}: ${record.status}`);
     }
   }
   
-  return `Verification incomplete: ${checkNames} failed. DNS records may still be propagating (can take up to 48 hours).`;
+  if (issues.length > 0) {
+    return `Pending DNS records: ${issues.join(', ')}. DNS changes may still be propagating (up to 48 hours).`;
+  }
+  
+  return `Verification incomplete: ${failedChecks.map(c => c.check_name).join(', ')} pending. DNS changes may still be propagating.`;
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -75,7 +80,6 @@ const handler = async (req: Request): Promise<Response> => {
   try {
     console.log("🔍 Starting email domain verification");
     
-    // Check for Authorization header (could be user JWT or service role for cron)
     const authHeader = req.headers.get('Authorization');
     let userId: string | null = null;
     let isServiceRole = false;
@@ -83,12 +87,10 @@ const handler = async (req: Request): Promise<Response> => {
     if (authHeader) {
       const token = authHeader.replace('Bearer ', '');
       
-      // Check if it's a service role call (from cron)
       if (token === Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')) {
         isServiceRole = true;
         console.log("🔑 Service role access - cron job");
       } else {
-        // Verify user authentication
         const { data: { user }, error: authError } = await supabase.auth.getUser(token);
         if (authError || !user) {
           return corsJsonResponse({ error: 'Invalid authorization' }, { status: 401 });
@@ -108,7 +110,6 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log(`🔍 Verifying domain: ${finalDomainId}, reset_attempts: ${reset_attempts}`);
 
-    // Get domain information
     const { data: emailDomain, error: domainError } = await supabase
       .from('email_domains')
       .select('*')
@@ -120,7 +121,6 @@ const handler = async (req: Request): Promise<Response> => {
       return corsJsonResponse({ error: 'Domain not found' }, { status: 404 });
     }
 
-    // Verify user has access to this domain's tenant (unless service role)
     if (!isServiceRole && userId) {
       const { data: userTenant } = await supabase
         .from('users')
@@ -133,14 +133,12 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
-    // Reset attempts if requested (retry button for failed domains)
     let currentAttempts = emailDomain.verify_attempts || 0;
     if (reset_attempts) {
       currentAttempts = 0;
       console.log("🔄 Resetting verification attempts to 0");
     }
 
-    // Check if max attempts reached
     if (currentAttempts >= 10 && !reset_attempts) {
       console.log("⚠️ Max verification attempts reached");
       return corsJsonResponse({
@@ -159,7 +157,6 @@ const handler = async (req: Request): Promise<Response> => {
       }, { status: 400 });
     }
 
-    // Setup Resend
     const resendApiKey = Deno.env.get('RESEND_API_KEY');
     if (!resendApiKey) {
       return corsJsonResponse({ 
@@ -172,6 +169,7 @@ const handler = async (req: Request): Promise<Response> => {
     const checks: DNSCheck[] = [];
     let allPassed = true;
     let resendDomainStatus: any = null;
+    let resendRecords: ResendRecord[] = [];
 
     try {
       console.log(`📧 Triggering Resend verification for: ${emailDomain.resend_domain_id}`);
@@ -189,7 +187,7 @@ const handler = async (req: Request): Promise<Response> => {
         console.log(`⚠️ Resend verify call failed:`, verifyError?.message);
       }
       
-      // Step 2: Wait for Resend to process (2 seconds)
+      // Step 2: Wait for Resend to process
       await new Promise(resolve => setTimeout(resolve, 2000));
       
       // Step 3: Get updated domain status from Resend
@@ -206,63 +204,120 @@ const handler = async (req: Request): Promise<Response> => {
       }
 
       resendDomainStatus = domainStatus;
+      resendRecords = domainStatus.records || [];
       console.log(`📊 Resend domain status:`, JSON.stringify(domainStatus, null, 2));
 
-      // Step 4: Build DNS check results
+      // =========================================================
+      // CRITICAL: Compute verification status from per-record statuses
+      // Not from top-level fields that may not exist
+      // =========================================================
       
-      // Check DKIM status
+      // Analyze records directly from Resend response
+      let dkimVerified = false;
+      let spfVerified = false;
+      let mxVerified = false;
+      let returnPathVerified = false;
+      
+      for (const record of resendRecords) {
+        const recordType = record.record_type || record.type || '';
+        const recordName = record.name || '';
+        const recordStatus = record.status;
+        const isVerified = recordStatus === 'verified';
+        
+        // Check DKIM (usually a CNAME or TXT with domainkey in the name)
+        if (recordName.includes('_domainkey') || recordName.includes('dkim')) {
+          if (isVerified) dkimVerified = true;
+          console.log(`  DKIM record: ${recordName} = ${recordStatus}`);
+        }
+        
+        // Check SPF (TXT record with spf in value, typically on send subdomain)
+        if (recordType === 'TXT' && !recordName.includes('_domainkey')) {
+          if (isVerified) spfVerified = true;
+          console.log(`  SPF/TXT record: ${recordName} = ${recordStatus}`);
+        }
+        
+        // Check MX (for return-path / bounce handling)
+        if (recordType === 'MX') {
+          if (isVerified) {
+            mxVerified = true;
+            returnPathVerified = true; // MX is the return-path mechanism
+          }
+          console.log(`  MX record: ${recordName} = ${recordStatus}`);
+        }
+        
+        // Check CNAME for return-path (some setups use CNAME)
+        if (recordType === 'CNAME' && !recordName.includes('_domainkey')) {
+          if (isVerified) returnPathVerified = true;
+          console.log(`  CNAME record: ${recordName} = ${recordStatus}`);
+        }
+      }
+      
+      // Also check top-level status fields as fallback (Resend sometimes provides these)
+      if (domainStatus.status === 'verified') {
+        dkimVerified = true;
+        spfVerified = true;
+        returnPathVerified = true;
+      }
+      
+      // Build DNS check results
       const dkimCheck: DNSCheck = {
         check_name: 'dkim',
-        ok: domainStatus.status === 'verified' || domainStatus.dkim_verified === true,
+        ok: dkimVerified,
         details: {
-          status: domainStatus.status,
-          dkim_verified: domainStatus.dkim_verified,
-          records: domainStatus.records?.filter((r: any) => r.type === 'DKIM' || r.name?.includes('dkim'))
+          status: dkimVerified ? 'verified' : 'pending',
+          records: resendRecords.filter((r: ResendRecord) => 
+            (r.name?.includes('dkim') || r.name?.includes('_domainkey'))
+          )
         }
       };
       checks.push(dkimCheck);
       if (!dkimCheck.ok) allPassed = false;
 
-      // Check SPF status
       const spfCheck: DNSCheck = {
         check_name: 'spf',
-        ok: domainStatus.spf_verified === true,
+        ok: spfVerified,
         details: {
-          spf_verified: domainStatus.spf_verified,
-          spf_record: domainStatus.records?.find((r: any) => r.record_type === 'TXT' && r.value?.includes('spf1'))
+          status: spfVerified ? 'verified' : 'pending',
+          records: resendRecords.filter((r: ResendRecord) => 
+            r.record_type === 'TXT' || r.type === 'TXT'
+          )
         }
       };
       checks.push(spfCheck);
       if (!spfCheck.ok) allPassed = false;
 
-      // Check return path (CNAME) status
       const returnPathCheck: DNSCheck = {
         check_name: 'return_path',
-        ok: domainStatus.return_path_verified === true,
+        ok: returnPathVerified,
         details: {
-          return_path_verified: domainStatus.return_path_verified,
-          return_path_record: domainStatus.records?.find((r: any) => r.record_type === 'CNAME')
+          status: returnPathVerified ? 'verified' : 'pending',
+          mx_verified: mxVerified,
+          records: resendRecords.filter((r: ResendRecord) => 
+            r.record_type === 'MX' || r.type === 'MX' || 
+            (r.record_type === 'CNAME' && !r.name?.includes('_domainkey'))
+          )
         }
       };
       checks.push(returnPathCheck);
       if (!returnPathCheck.ok) allPassed = false;
 
-      // Check overall domain verification
       const verificationCheck: DNSCheck = {
         check_name: 'domain_verification',
         ok: domainStatus.status === 'verified',
         details: {
-          status: domainStatus.status,
-          verification_record: domainStatus.records?.find((r: any) => r.name?.includes('_resend'))
+          resend_status: domainStatus.status,
+          all_records_count: resendRecords.length,
+          verified_count: resendRecords.filter((r: ResendRecord) => r.status === 'verified').length
         }
       };
       checks.push(verificationCheck);
       if (!verificationCheck.ok) allPassed = false;
 
+      console.log(`📊 Verification results: DKIM=${dkimVerified}, SPF=${spfVerified}, ReturnPath=${returnPathVerified}, Overall=${domainStatus.status}`);
+
     } catch (resendError: any) {
       console.error('❌ Resend verification error:', resendError);
       
-      // Create a generic error check
       const errorCheck: DNSCheck = {
         check_name: 'resend_api',
         ok: false,
@@ -297,7 +352,7 @@ const handler = async (req: Request): Promise<Response> => {
     // Step 6: Calculate new status and retry info
     const newAttempts = currentAttempts + 1;
     const newStatus = mapResendStatus(resendDomainStatus?.status, allPassed);
-    const errorMessage = allPassed ? null : buildVerificationError(checks, resendDomainStatus);
+    const errorMessage = allPassed ? null : buildVerificationError(checks, resendRecords);
     const nextVerifyAt = calculateNextVerifyAt(newAttempts, allPassed);
 
     console.log(`📊 Status update: ${emailDomain.status} -> ${newStatus}, attempts: ${newAttempts}, next_verify: ${nextVerifyAt?.toISOString() || 'none'}`);
@@ -309,12 +364,16 @@ const handler = async (req: Request): Promise<Response> => {
       last_verify_attempt_at: new Date().toISOString(),
       verify_attempts: newAttempts,
       last_verify_error: errorMessage,
-      resend_status: resendDomainStatus,
+      resend_status: {
+        status: resendDomainStatus?.status,
+        dkim_verified: checks.find(c => c.check_name === 'dkim')?.ok || false,
+        spf_verified: checks.find(c => c.check_name === 'spf')?.ok || false,
+        return_path_verified: checks.find(c => c.check_name === 'return_path')?.ok || false
+      },
       next_verify_at: nextVerifyAt?.toISOString() || null,
       updated_at: new Date().toISOString()
     };
 
-    // Set verified_at if newly verified
     if (allPassed && !emailDomain.verified_at) {
       updateData.verified_at = new Date().toISOString();
     }
@@ -334,7 +393,6 @@ const handler = async (req: Request): Promise<Response> => {
     if (allPassed && newStatus === 'active') {
       console.log(`📝 Syncing verified domain to company_profiles...`);
       
-      // Get primary user for this tenant
       const { data: tenantUser } = await supabase
         .from('users')
         .select('id')
@@ -366,7 +424,6 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log(`🎉 Domain verification completed: ${emailDomain.domain} -> ${newStatus}`);
 
-    // Build response
     const response = {
       ok: allPassed,
       allVerified: allPassed,
@@ -384,12 +441,15 @@ const handler = async (req: Request): Promise<Response> => {
         passed: c.ok,
         details: c.details
       })),
-      resend_status: {
-        status: resendDomainStatus?.status,
-        dkim_verified: resendDomainStatus?.dkim_verified,
-        spf_verified: resendDomainStatus?.spf_verified,
-        return_path_verified: resendDomainStatus?.return_path_verified
-      }
+      resend_status: updateData.resend_status,
+      // Include pending records for UI display
+      pending_records: resendRecords
+        .filter((r: ResendRecord) => r.status !== 'verified')
+        .map((r: ResendRecord) => ({
+          type: r.record_type || r.type,
+          name: r.name,
+          status: r.status
+        }))
     };
 
     return corsJsonResponse(response);
