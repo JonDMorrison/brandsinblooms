@@ -29,6 +29,7 @@ export interface EntriDnsRecord {
   host: string;
   value: string;
   ttl?: number;
+  priority?: number; // Required for MX records
 }
 
 interface EntriSuccessResult {
@@ -55,14 +56,8 @@ interface EntriBrowserEventDetail {
 }
 
 // Fallback DNS records - ONLY used when backend fails
-// These include the canonical Resend records
+// These include the canonical Resend records WITH MX priority
 const FALLBACK_EMAIL_DNS_RECORDS: EntriDnsRecord[] = [
-  {
-    type: 'TXT',
-    host: '@',
-    value: 'v=spf1 include:_spf.resend.com ~all',
-    ttl: 3600
-  },
   {
     type: 'CNAME',
     host: 'resend._domainkey',
@@ -70,9 +65,16 @@ const FALLBACK_EMAIL_DNS_RECORDS: EntriDnsRecord[] = [
     ttl: 3600
   },
   {
-    type: 'CNAME',
+    type: 'MX',
     host: 'send',
-    value: 'send.resend.com',
+    value: 'feedback-smtp.us-east-1.amazonses.com',
+    priority: 10,
+    ttl: 3600
+  },
+  {
+    type: 'TXT',
+    host: 'send',
+    value: 'v=spf1 include:amazonses.com ~all',
     ttl: 3600
   },
   {
@@ -121,10 +123,8 @@ export const useEntriConnect = () => {
     }
 
     return new Promise((resolve) => {
-      // Check if script already exists
       const existingScript = document.querySelector(`script[src="${ENTRI_SCRIPT_URL}"]`);
       if (existingScript) {
-        // Wait for it to load
         existingScript.addEventListener('load', () => {
           setIsScriptLoaded(true);
           resolve(true);
@@ -168,12 +168,9 @@ export const useEntriConnect = () => {
   ) => {
     setIsLoading(true);
 
-    // Track whether this session completed successfully.
-    // Entri may call onClose after onSuccess; we must not treat that as a cancel.
     let didComplete = false;
 
     try {
-      // Ensure script is loaded
       const loaded = await loadEntriScript();
       if (!loaded || !window.entri) {
         toast.error('Failed to load DNS setup tool. Please try manual setup.');
@@ -191,15 +188,24 @@ export const useEntriConnect = () => {
       const normalizedDomain = normalizeDomain(domain);
 
       // Use provided DNS records or fallback defaults
-      // IMPORTANT: Records should come from backend (Resend API) for accuracy
       if (!dnsRecords || dnsRecords.length === 0) {
-        console.warn('⚠️ No DNS records provided to Entri, using fallback records. Return-Path may be missing!');
+        console.warn('⚠️ No DNS records provided to Entri, using fallback records.');
       }
       const records = dnsRecords && dnsRecords.length > 0 ? dnsRecords : FALLBACK_EMAIL_DNS_RECORDS;
       
       // Log records being sent to Entri for debugging
       console.log(`📋 Opening Entri for domain: ${normalizedDomain}`);
       console.log(`📋 DNS records being applied (${records.length}):`, JSON.stringify(records, null, 2));
+      
+      // Verify MX records have priority
+      const mxRecords = records.filter(r => r.type === 'MX');
+      for (const mx of mxRecords) {
+        if (mx.priority === undefined) {
+          console.error(`❌ MX record "${mx.host}" is missing priority!`);
+        } else {
+          console.log(`✅ MX record "${mx.host}" has priority: ${mx.priority}`);
+        }
+      }
 
       // Fetch authenticated JWT token from server
       const tokenData = await fetchEntriToken();
@@ -210,12 +216,10 @@ export const useEntriConnect = () => {
         return;
       }
 
-      // Entri recommends listening for browser callback events (CustomEvent)
       const successEventName = 'onSuccess';
       const closeEventName = 'onEntriClose';
 
       const handleCompletion = async (detail: EntriBrowserEventDetail) => {
-        // Mark complete immediately so close isn't treated as cancel.
         didComplete = true;
 
         const domainFromEntri = normalizeDomain(detail.domain || normalizedDomain);
@@ -255,7 +259,6 @@ export const useEntriConnect = () => {
 
       const onSuccessEvent = (evt: Event) => {
         const detail = (evt as CustomEvent).detail as EntriBrowserEventDetail;
-        // Fire-and-forget; close event can follow quickly.
         void handleCompletion(detail);
       };
 
@@ -263,7 +266,6 @@ export const useEntriConnect = () => {
         const detail = (evt as CustomEvent).detail as EntriBrowserEventDetail;
         console.log('Entri modal closed:', detail);
 
-        // If we didn't already handle success, use close payload to decide.
         if (!didComplete) {
           if (detail?.success) {
             void handleCompletion(detail);
@@ -276,7 +278,6 @@ export const useEntriConnect = () => {
         window.removeEventListener(closeEventName, onCloseEvent as EventListener);
       };
 
-      // Register listeners before opening the modal
       window.addEventListener(successEventName, onSuccessEvent as EventListener);
       window.addEventListener(closeEventName, onCloseEvent as EventListener);
 
@@ -297,26 +298,35 @@ export const useEntriConnect = () => {
 
   /**
    * Sanitize and convert backend DNS records to Entri format.
-   * Enforces Resend's canonical model: DKIM CNAME only, single SPF, Return-Path CNAME.
+   * Enforces Resend's canonical model: DKIM CNAME only, MX with priority.
    * 
    * @returns Object with sanitized records and validation result
    */
   const sanitizeAndConvertRecords = useCallback((
     domain: string, 
-    backendRecords: Array<{name: string; type: string; value: string; purpose?: string}>
+    backendRecords: Array<{name: string; type: string; value: string; priority?: number; purpose?: string}>
   ): { records: EntriDnsRecord[]; validation: ValidationResult } => {
     console.log(`🧹 Sanitizing ${backendRecords.length} DNS records for domain: ${domain}`);
     
     // Use the centralized sanitizer
     const { records, validation } = prepareRecordsForEntri(domain, backendRecords);
     
-    // Convert to Entri format (already done by sanitizer, just cast types)
-    const entriRecords: EntriDnsRecord[] = records.map(r => ({
-      type: r.type,
-      host: r.host,
-      value: r.value,
-      ttl: r.ttl || 3600
-    }));
+    // Convert to Entri format, preserving priority
+    const entriRecords: EntriDnsRecord[] = records.map(r => {
+      const entri: EntriDnsRecord = {
+        type: r.type,
+        host: r.host,
+        value: r.value,
+        ttl: r.ttl || 3600
+      };
+      
+      // Include priority for MX records
+      if (r.type === 'MX' && r.priority !== undefined) {
+        entri.priority = r.priority;
+      }
+      
+      return entri;
+    });
     
     return { records: entriRecords, validation };
   }, []);
@@ -330,7 +340,8 @@ export const useEntriConnect = () => {
       type: r.type,
       host: r.host,
       value: r.value,
-      ttl: r.ttl
+      ttl: r.ttl,
+      priority: r.priority
     }));
     
     return validateCanonicalRecords(dnsRecords);

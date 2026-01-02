@@ -6097,9 +6097,11 @@ export type Database = {
           email_domain_id: string
           id: string
           name: string
+          priority: number | null
           provider_record_id: string | null
           purpose: string
           required: boolean
+          source: string | null
           type: string
           value: string
         }
@@ -6111,9 +6113,11 @@ export type Database = {
           email_domain_id: string
           id?: string
           name: string
+          priority?: number | null
           provider_record_id?: string | null
           purpose: string
           required?: boolean
+          source?: string | null
           type: string
           value: string
         }
@@ -6125,9 +6129,11 @@ export type Database = {
           email_domain_id?: string
           id?: string
           name?: string
+          priority?: number | null
           provider_record_id?: string | null
           purpose?: string
           required?: boolean
+          source?: string | null
           type?: string
           value?: string
         }

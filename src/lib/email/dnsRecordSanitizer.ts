@@ -3,11 +3,12 @@
  * 
  * Enforces Resend's canonical DNS model:
  * - DKIM: CNAME only (resend._domainkey → resend._domainkey.resend.com)
- * - SPF: Single TXT record on root domain (@)
- * - Return-Path: CNAME send → send.resend.com AND MX send → feedback-smtp...
- * - DMARC: TXT _dmarc
+ * - SPF: TXT record on send subdomain (Resend's current model)
+ * - MX: MX record on send subdomain WITH PRIORITY (required for bounce handling)
+ * - DMARC: TXT _dmarc (optional but recommended)
  * 
- * Prevents conflicts like duplicate DKIM (CNAME+TXT) or multiple SPF records.
+ * CRITICAL: Does NOT add synthetic CNAME for return-path
+ * Resend uses MX + SPF TXT on 'send' subdomain, not CNAME
  */
 
 export interface DnsRecord {
@@ -15,6 +16,7 @@ export interface DnsRecord {
   host: string;
   value: string;
   ttl?: number;
+  priority?: number; // Required for MX records
   purpose?: string;
 }
 
@@ -33,52 +35,98 @@ export interface ValidationResult {
     dkimType: 'CNAME' | 'TXT' | null;
     hasSpf: boolean;
     spfCount: number;
-    hasReturnPath: boolean;
+    hasMx: boolean;
+    mxHasPriority: boolean;
     hasDmarc: boolean;
   };
 }
 
 /**
+ * Normalize host from FQDN to relative host label.
+ * e.g., "send.example.com" -> "send" when domain is "example.com"
+ */
+function normalizeHost(host: string, domain: string): string {
+  const lowerHost = host.toLowerCase();
+  const lowerDomain = domain.toLowerCase();
+  
+  // Remove trailing dot if present
+  const cleanHost = lowerHost.replace(/\.$/, '');
+  const cleanDomain = lowerDomain.replace(/\.$/, '');
+  
+  // If host equals domain, return @
+  if (cleanHost === cleanDomain) {
+    return '@';
+  }
+  
+  // If host ends with .domain, strip it
+  const suffix = `.${cleanDomain}`;
+  if (cleanHost.endsWith(suffix)) {
+    return cleanHost.slice(0, -suffix.length);
+  }
+  
+  return cleanHost;
+}
+
+/**
  * Sanitize DNS records to enforce Resend's canonical model.
- * Removes conflicting records and ensures only valid combinations exist.
+ * - Removes conflicting records (CNAME + MX/TXT on same host)
+ * - Ensures only valid combinations exist
+ * - Preserves MX priority
  */
 export function sanitizeDnsRecords(records: DnsRecord[], domain: string): SanitizationResult {
   const dropped: DnsRecord[] = [];
   const warnings: string[] = [];
   const sanitized: DnsRecord[] = [];
   
-  // Normalize hosts - remove domain suffix for comparison
-  const normalizeHost = (host: string): string => {
-    if (host.endsWith(`.${domain}`)) {
-      return host.replace(`.${domain}`, '');
-    }
-    if (host === domain) {
-      return '@';
-    }
-    return host;
-  };
-
+  // Group records by normalized host
+  const recordsByHost: Map<string, DnsRecord[]> = new Map();
+  
   // Group records by purpose
   const dkimRecords: DnsRecord[] = [];
   const spfRecords: DnsRecord[] = [];
-  const returnPathRecords: DnsRecord[] = [];
+  const mxRecords: DnsRecord[] = [];
   const dmarcRecords: DnsRecord[] = [];
   const otherRecords: DnsRecord[] = [];
 
   for (const record of records) {
-    const host = normalizeHost(record.host);
+    const normalizedHost = normalizeHost(record.host, domain);
+    const normalizedRecord = { ...record, host: normalizedHost };
+    
+    // Track by host for conflict detection
+    if (!recordsByHost.has(normalizedHost)) {
+      recordsByHost.set(normalizedHost, []);
+    }
+    recordsByHost.get(normalizedHost)!.push(normalizedRecord);
     
     // Categorize records
-    if (host.includes('domainkey') || host.includes('dkim')) {
-      dkimRecords.push({ ...record, host });
+    if (normalizedHost.includes('domainkey') || normalizedHost.includes('dkim')) {
+      dkimRecords.push(normalizedRecord);
+    } else if (record.type === 'MX') {
+      mxRecords.push(normalizedRecord);
     } else if (record.type === 'TXT' && record.value.includes('spf')) {
-      spfRecords.push({ ...record, host });
-    } else if (host === '_dmarc' || record.value.includes('DMARC')) {
-      dmarcRecords.push({ ...record, host });
-    } else if (host === 'send' || host === 'return' || record.value.includes('send.resend')) {
-      returnPathRecords.push({ ...record, host });
+      spfRecords.push(normalizedRecord);
+    } else if (normalizedHost === '_dmarc' || record.value.includes('DMARC')) {
+      dmarcRecords.push(normalizedRecord);
     } else {
-      otherRecords.push({ ...record, host });
+      otherRecords.push(normalizedRecord);
+    }
+  }
+
+  // === Check for CNAME conflicts ===
+  // A CNAME on a host cannot coexist with MX/TXT/A on the same host
+  for (const [host, hostRecords] of recordsByHost) {
+    const hasCname = hostRecords.some(r => r.type === 'CNAME');
+    const hasOther = hostRecords.some(r => r.type !== 'CNAME');
+    
+    if (hasCname && hasOther && host !== '@') {
+      // Conflict! CNAME cannot coexist with other records
+      // For Resend, prefer MX/TXT over CNAME (except for DKIM)
+      if (!host.includes('domainkey')) {
+        warnings.push(`CNAME at "${host}" conflicts with MX/TXT records. Dropping CNAME.`);
+        // Remove CNAME from consideration for this host
+        const cnameRecords = hostRecords.filter(r => r.type === 'CNAME');
+        dropped.push(...cnameRecords);
+      }
     }
   }
 
@@ -92,14 +140,12 @@ export function sanitizeDnsRecords(records: DnsRecord[], domain: string): Saniti
   }
   
   if (dkimCnames.length > 0) {
-    // Keep only the first CNAME (should be resend._domainkey)
     sanitized.push(dkimCnames[0]);
     if (dkimCnames.length > 1) {
       warnings.push(`Found ${dkimCnames.length} DKIM CNAME records. Keeping first selector only.`);
       dropped.push(...dkimCnames.slice(1));
     }
   } else if (dkimTxts.length > 0) {
-    // No CNAME available, use TXT as fallback (not ideal but better than nothing)
     warnings.push('No DKIM CNAME found. Using TXT record as fallback.');
     sanitized.push(dkimTxts[0]);
     if (dkimTxts.length > 1) {
@@ -107,42 +153,32 @@ export function sanitizeDnsRecords(records: DnsRecord[], domain: string): Saniti
     }
   }
 
-  // === SPF: Keep only one TXT record on @ ===
-  if (spfRecords.length > 0) {
-    // Prefer root domain (@) record
-    const rootSpf = spfRecords.find(r => r.host === '@' || r.host === domain || r.host === '');
-    if (rootSpf) {
-      sanitized.push({ ...rootSpf, host: '@' });
-      const extras = spfRecords.filter(r => r !== rootSpf);
-      if (extras.length > 0) {
-        warnings.push(`Found ${spfRecords.length} SPF records. Keeping root domain only.`);
-        dropped.push(...extras);
-      }
+  // === MX: Keep all MX records with priority ===
+  for (const mx of mxRecords) {
+    if (mx.priority === undefined || mx.priority === null) {
+      // MX without priority - add default
+      warnings.push(`MX record "${mx.host}" missing priority. Setting to 10.`);
+      sanitized.push({ ...mx, priority: 10 });
     } else {
-      // No root SPF, keep first one
-      sanitized.push(spfRecords[0]);
-      if (spfRecords.length > 1) {
-        warnings.push(`Found ${spfRecords.length} SPF records. Keeping first only.`);
-        dropped.push(...spfRecords.slice(1));
-      }
+      sanitized.push(mx);
     }
   }
 
-  // === Return-Path: Keep CNAME and MX for 'send' subdomain ===
-  const returnPathCname = returnPathRecords.find(r => r.type === 'CNAME' && r.host === 'send');
-  const returnPathMx = returnPathRecords.find(r => r.type === 'MX' && r.host === 'send');
-  
-  if (returnPathCname) {
-    sanitized.push(returnPathCname);
+  // === SPF: Keep TXT records (Resend uses SPF on send subdomain) ===
+  for (const spf of spfRecords) {
+    // Check if this host has a conflicting CNAME
+    const host = spf.host;
+    const wasDropped = dropped.some(d => d.host === host && d.type === 'CNAME');
+    
+    // Add SPF record
+    sanitized.push(spf);
   }
-  if (returnPathMx) {
-    sanitized.push(returnPathMx);
-  }
   
-  // Track other return-path records as dropped
-  for (const r of returnPathRecords) {
-    if (r !== returnPathCname && r !== returnPathMx) {
-      dropped.push(r);
+  if (spfRecords.length > 1) {
+    // Multiple SPF records - warn but keep all (they may be on different hosts)
+    const hosts = new Set(spfRecords.map(r => r.host));
+    if (hosts.size === 1) {
+      warnings.push(`Found ${spfRecords.length} SPF records on same host. This may cause issues.`);
     }
   }
 
@@ -158,8 +194,15 @@ export function sanitizeDnsRecords(records: DnsRecord[], domain: string): Saniti
     }
   }
 
-  // === Other records pass through ===
-  sanitized.push(...otherRecords);
+  // === Other records: Only add if not conflicting ===
+  for (const other of otherRecords) {
+    // Skip CNAMEs that were dropped due to conflict
+    if (other.type === 'CNAME') {
+      const hasConflict = dropped.some(d => d.host === other.host && d.type === 'CNAME');
+      if (hasConflict) continue;
+    }
+    sanitized.push(other);
+  }
 
   console.log(`🧹 DNS Sanitization complete for ${domain}:`);
   console.log(`   ✓ Kept: ${sanitized.length} records`);
@@ -180,42 +223,38 @@ export function validateCanonicalRecords(records: DnsRecord[]): ValidationResult
   const warnings: string[] = [];
   
   // Find DKIM records
-  const dkimCnames = records.filter(r => 
-    (r.host.includes('domainkey') || r.host.includes('dkim')) && r.type === 'CNAME'
+  const dkimRecords = records.filter(r => 
+    r.host.includes('domainkey') || r.host.includes('dkim')
   );
-  const dkimTxts = records.filter(r => 
-    (r.host.includes('domainkey') || r.host.includes('dkim')) && r.type === 'TXT'
-  );
+  const dkimCnames = dkimRecords.filter(r => r.type === 'CNAME');
+  const dkimTxts = dkimRecords.filter(r => r.type === 'TXT');
   
-  const hasDkim = dkimCnames.length > 0 || dkimTxts.length > 0;
+  const hasDkim = dkimRecords.length > 0;
   const dkimType = dkimCnames.length > 0 ? 'CNAME' : (dkimTxts.length > 0 ? 'TXT' : null);
   
   if (!hasDkim) {
     errors.push('Missing DKIM record (required for email signing)');
   } else if (dkimCnames.length > 0 && dkimTxts.length > 0) {
     errors.push('Conflicting DKIM records: both CNAME and TXT present. Use CNAME only.');
-  } else if (dkimCnames.length > 1) {
-    errors.push(`Multiple DKIM CNAME selectors found (${dkimCnames.length}). Use single selector.`);
   }
 
-  // Find SPF records
+  // Find MX records
+  const mxRecords = records.filter(r => r.type === 'MX');
+  const hasMx = mxRecords.length > 0;
+  const mxHasPriority = mxRecords.every(r => r.priority !== undefined && r.priority !== null);
+  
+  if (!hasMx) {
+    errors.push('Missing MX record (required for bounce handling)');
+  } else if (!mxHasPriority) {
+    errors.push('MX record missing priority (required for DNS)');
+  }
+
+  // Find SPF records (TXT with spf in value)
   const spfRecords = records.filter(r => r.type === 'TXT' && r.value.includes('spf'));
   const hasSpf = spfRecords.length > 0;
   
   if (!hasSpf) {
     errors.push('Missing SPF record (required for sender verification)');
-  } else if (spfRecords.length > 1) {
-    errors.push(`Multiple SPF records found (${spfRecords.length}). Only one SPF record allowed per domain.`);
-  }
-
-  // Find Return-Path (CNAME for send subdomain)
-  const returnPathCname = records.find(r => 
-    r.type === 'CNAME' && (r.host === 'send' || r.value.includes('send.resend'))
-  );
-  const hasReturnPath = !!returnPathCname;
-  
-  if (!hasReturnPath) {
-    errors.push('Missing Return-Path CNAME (send → send.resend.com). Required for bounce handling.');
   }
 
   // Find DMARC
@@ -235,8 +274,8 @@ export function validateCanonicalRecords(records: DnsRecord[]): ValidationResult
 
   console.log(`✅ DNS Validation: ${valid ? 'PASSED' : 'FAILED'}`);
   console.log(`   DKIM: ${hasDkim ? `✓ (${dkimType})` : '✗'}`);
-  console.log(`   SPF: ${hasSpf ? `✓ (${spfRecords.length} record${spfRecords.length > 1 ? 's - ERROR' : ''})` : '✗'}`);
-  console.log(`   Return-Path: ${hasReturnPath ? '✓' : '✗'}`);
+  console.log(`   MX: ${hasMx ? `✓ (${mxRecords.length} record${mxRecords.length > 1 ? 's' : ''}, priority: ${mxHasPriority ? '✓' : '✗'})` : '✗'}`);
+  console.log(`   SPF: ${hasSpf ? `✓` : '✗'}`);
   console.log(`   DMARC: ${hasDmarc ? '✓' : '⚠️ (optional)'}`);
   if (errors.length > 0) {
     console.error(`   Errors:`, errors);
@@ -251,7 +290,8 @@ export function validateCanonicalRecords(records: DnsRecord[]): ValidationResult
       dkimType,
       hasSpf,
       spfCount: spfRecords.length,
-      hasReturnPath,
+      hasMx,
+      mxHasPriority,
       hasDmarc
     }
   };
@@ -263,19 +303,28 @@ export function validateCanonicalRecords(records: DnsRecord[]): ValidationResult
  */
 export function prepareRecordsForEntri(
   domain: string, 
-  backendRecords: Array<{name: string; type: string; value: string; purpose?: string}>
+  backendRecords: Array<{name: string; type: string; value: string; priority?: number; purpose?: string}>
 ): { records: DnsRecord[]; validation: ValidationResult } {
   
   console.log(`📋 Preparing ${backendRecords.length} records for Entri (domain: ${domain})`);
   
-  // Convert to internal format
-  const converted: DnsRecord[] = backendRecords.map(r => ({
-    type: r.type as DnsRecord['type'],
-    host: r.name,
-    value: r.value,
-    ttl: 3600,
-    purpose: r.purpose
-  }));
+  // Convert to internal format, preserving priority
+  const converted: DnsRecord[] = backendRecords.map(r => {
+    const record: DnsRecord = {
+      type: r.type as DnsRecord['type'],
+      host: r.name,
+      value: r.value,
+      ttl: 3600,
+      purpose: r.purpose
+    };
+    
+    // Preserve MX priority
+    if (r.priority !== undefined && r.priority !== null) {
+      record.priority = r.priority;
+    }
+    
+    return record;
+  });
   
   // Sanitize to enforce canonical model
   const { records: sanitized, dropped, warnings: sanitizeWarnings } = sanitizeDnsRecords(converted, domain);

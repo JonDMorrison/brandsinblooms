@@ -10,14 +10,27 @@ interface CreateDomainRequest {
   provider?: string;
   providerAuth?: any;
   useSandbox?: boolean;
-  existingDomainId?: string; // optional: continue provisioning for an existing record
+  existingDomainId?: string;
 }
 
 interface CloudflareRecord {
   name: string;
   type: string;
-  value: string;
+  content: string;
   proxied?: boolean;
+  priority?: number;
+  ttl?: number;
+}
+
+// Normalized DNS record from Resend
+interface NormalizedDnsRecord {
+  name: string;
+  type: 'TXT' | 'CNAME' | 'MX';
+  value: string;
+  priority?: number;
+  purpose: string;
+  required: boolean;
+  source: 'resend' | 'system';
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -37,7 +50,6 @@ const handler = async (req: Request): Promise<Response> => {
       return corsJsonResponse({ error: 'Authorization required' }, { status: 401 });
     }
 
-    // Verify user authentication
     const { data: { user }, error: authError } = await supabase.auth.getUser(authHeader.replace('Bearer ', ''));
     if (authError || !user) {
       return corsJsonResponse({ error: 'Invalid authorization' }, { status: 401 });
@@ -56,7 +68,6 @@ const handler = async (req: Request): Promise<Response> => {
     let is_sandbox: boolean;
     let finalProvider: string;
 
-    // Determine domain configuration
     if (useSandbox) {
       const sandboxRoot = Deno.env.get('DEV_TEST_ROOT_DOMAIN');
       if (!sandboxRoot) {
@@ -66,7 +77,6 @@ const handler = async (req: Request): Promise<Response> => {
         }, { status: 503 });
       }
       
-      // Generate random subdomain
       const subdomain = Array.from(crypto.getRandomValues(new Uint8Array(4)))
         .map(b => b.toString(36))
         .join('').substring(0, 8);
@@ -74,7 +84,7 @@ const handler = async (req: Request): Promise<Response> => {
       finalDomain = `${subdomain}.${sandboxRoot}`;
       env = 'dev';
       is_sandbox = true;
-      finalProvider = 'cloudflare'; // Force cloudflare for sandbox
+      finalProvider = 'cloudflare';
       
       console.log(`🧪 Generated sandbox domain: ${finalDomain}`);
     } else {
@@ -98,7 +108,6 @@ const handler = async (req: Request): Promise<Response> => {
       return corsJsonResponse({ error: 'Database error checking domain' }, { status: 500 });
     }
 
-    // Check if domain exists for another tenant
     const otherTenantDomain = existingDomains?.find(d => d.tenant_id !== tenantId);
     if (otherTenantDomain) {
       return corsJsonResponse({ 
@@ -107,8 +116,6 @@ const handler = async (req: Request): Promise<Response> => {
       }, { status: 409 });
     }
 
-    // Check if domain exists for same tenant
-    // If it exists but isn't fully provisioned (missing resend_domain_id), continue provisioning.
     const sameTenantDomain = existingDomains?.find(d => d.tenant_id === tenantId);
     let existingDomainRecord: any | null = null;
 
@@ -124,7 +131,6 @@ const handler = async (req: Request): Promise<Response> => {
         return corsJsonResponse({ error: 'Failed to fetch existing domain' }, { status: 500 });
       }
 
-      // If already provisioned in Resend, return as-is
       if (existingDomain.resend_domain_id) {
         console.log(`✅ Domain already exists for tenant, returning existing configuration`);
         return corsJsonResponse({
@@ -152,7 +158,6 @@ const handler = async (req: Request): Promise<Response> => {
 
     const resend = new Resend(resendApiKey);
 
-    // Check if domain exists in Resend
     console.log(`📧 Checking Resend for existing domain: ${finalDomain}`);
     let resendDomainId: string;
     let resendDomainData: any = null;
@@ -170,14 +175,12 @@ const handler = async (req: Request): Promise<Response> => {
         resendDomainId = existingResendDomain.id;
         console.log(`✅ Found existing Resend domain: ${resendDomainId}`);
         
-        // Fetch full domain details including DNS records
         const { data: domainDetails, error: getError } = await resend.domains.get(resendDomainId);
         if (!getError && domainDetails) {
           resendDomainData = domainDetails;
           console.log(`📋 Fetched domain details with ${domainDetails.records?.length || 0} DNS records`);
         }
       } else {
-        // Create new domain in Resend
         console.log(`📧 Creating new domain in Resend: ${finalDomain}`);
         const { data: createResult, error: createError } = await resend.domains.create({ 
           name: finalDomain,
@@ -196,10 +199,8 @@ const handler = async (req: Request): Promise<Response> => {
         resendDomainId = createResult.id;
         console.log(`✅ Created new Resend domain: ${resendDomainId}`);
         
-        // Wait a moment for Resend to generate records
         await new Promise(resolve => setTimeout(resolve, 1000));
         
-        // Fetch full domain details including DNS records
         const { data: domainDetails, error: getError } = await resend.domains.get(resendDomainId);
         if (!getError && domainDetails) {
           resendDomainData = domainDetails;
@@ -241,7 +242,6 @@ const handler = async (req: Request): Promise<Response> => {
       emailDomain = updatedDomain;
       console.log(`✅ Updated email domain record: ${emailDomain.id}`);
 
-      // Remove any stale DNS records before re-inserting
       await supabase
         .from('email_dns_records')
         .delete()
@@ -270,57 +270,96 @@ const handler = async (req: Request): Promise<Response> => {
       console.log(`✅ Created email domain record: ${emailDomain.id}`);
     }
 
-    // Build DNS records from Resend API response (real records, not hardcoded)
-    const dnsRecords: Array<{name: string; type: string; value: string; purpose: string; required: boolean}> = [];
+    // =========================================================
+    // CRITICAL: Build DNS records from Resend API response EXACTLY
+    // - Preserve MX priority
+    // - DO NOT add synthetic CNAME for return-path
+    // - Only use records Resend actually requires
+    // =========================================================
+    const dnsRecords: NormalizedDnsRecord[] = [];
     
     if (resendDomainData?.records && Array.isArray(resendDomainData.records)) {
       console.log(`📋 Processing ${resendDomainData.records.length} DNS records from Resend API`);
+      console.log(`📋 Raw Resend records:`, JSON.stringify(resendDomainData.records, null, 2));
       
       for (const record of resendDomainData.records) {
         let purpose = 'verification';
+        const recordType = record.record_type || record.type || 'TXT';
+        const recordName = record.name || record.host || '';
+        const recordValue = record.value || record.data || record.record || '';
+        const recordPriority = record.priority; // Preserve MX priority from Resend
         
         // Determine purpose based on record characteristics
-        if (record.record_type === 'MX' || record.type === 'MX') {
+        if (recordType === 'MX') {
           purpose = 'mx';
-        } else if (record.name?.includes('_domainkey') || record.record?.includes('DKIM')) {
+        } else if (recordName?.includes('_domainkey') || recordName?.includes('dkim')) {
           purpose = 'dkim';
-        } else if (record.value?.includes('spf') || record.record?.includes('spf')) {
+        } else if (recordValue?.includes('spf') || recordValue?.includes('v=spf1')) {
           purpose = 'spf';
-        } else if (record.name?.includes('_dmarc')) {
+        } else if (recordName?.includes('_dmarc')) {
           purpose = 'dmarc';
-        } else if (record.record_type === 'CNAME' || record.type === 'CNAME') {
-          // CNAME records for return path / bounce tracking
+        } else if (recordType === 'CNAME' && !recordName?.includes('_domainkey')) {
+          // CNAME that's not DKIM - could be return-path
           purpose = 'return_path';
-        } else if (record.name?.includes('_resend')) {
+        } else if (recordName?.includes('_resend')) {
           purpose = 'verification';
         }
         
-        const recordName = record.name || record.host || '';
-        const recordType = record.record_type || record.type || 'TXT';
-        const recordValue = record.value || record.data || record.record || '';
-        
         if (recordName && recordValue) {
-          dnsRecords.push({
+          const normalized: NormalizedDnsRecord = {
             name: recordName,
-            type: recordType,
+            type: recordType as 'TXT' | 'CNAME' | 'MX',
             value: recordValue,
             purpose,
-            required: purpose !== 'dmarc'
-          });
-          console.log(`  ✓ ${recordType} ${recordName} (${purpose})`);
+            required: purpose !== 'dmarc',
+            source: 'resend'
+          };
+          
+          // Preserve MX priority
+          if (recordType === 'MX' && recordPriority !== undefined) {
+            normalized.priority = recordPriority;
+            console.log(`  ✓ MX ${recordName} (priority: ${recordPriority})`);
+          } else {
+            console.log(`  ✓ ${recordType} ${recordName} (${purpose})`);
+          }
+          
+          dnsRecords.push(normalized);
         }
       }
     }
     
-    // If Resend didn't return records, log a warning but use fallback
+    // If Resend didn't return records, log a warning and use fallback
     if (dnsRecords.length === 0) {
       console.warn(`⚠️ No DNS records returned from Resend API, using fallback records`);
       
-      // Fallback: Basic records structure (less accurate but functional)
+      // Fallback: Basic Resend records structure
+      // Note: These are approximations - real records should come from Resend
       dnsRecords.push(
-        { name: `resend._domainkey.${finalDomain}`, type: 'CNAME', value: 'resend._domainkey.resend.dev', purpose: 'dkim', required: true },
-        { name: `send.${finalDomain}`, type: 'CNAME', value: 'send.resend.com', purpose: 'return_path', required: true },
-        { name: finalDomain, type: 'TXT', value: 'v=spf1 include:_spf.resend.com ~all', purpose: 'spf', required: true }
+        { 
+          name: `resend._domainkey.${finalDomain}`, 
+          type: 'CNAME', 
+          value: 'resend._domainkey.resend.dev', 
+          purpose: 'dkim', 
+          required: true,
+          source: 'system'
+        },
+        { 
+          name: `send.${finalDomain}`, 
+          type: 'MX', 
+          value: 'feedback-smtp.us-east-1.amazonses.com', 
+          priority: 10,
+          purpose: 'mx', 
+          required: true,
+          source: 'system'
+        },
+        { 
+          name: `send.${finalDomain}`, 
+          type: 'TXT', 
+          value: 'v=spf1 include:amazonses.com ~all', 
+          purpose: 'spf', 
+          required: true,
+          source: 'system'
+        }
       );
     }
     
@@ -332,32 +371,33 @@ const handler = async (req: Request): Promise<Response> => {
         type: 'TXT', 
         value: `v=DMARC1; p=quarantine; rua=mailto:dmarc@bloomsuite.app${reportEmail ? `,mailto:${reportEmail}` : ''}`, 
         purpose: 'dmarc', 
-        required: false 
+        required: false,
+        source: 'system'
       });
     }
+    
+    // === CRITICAL: Do NOT add synthetic return-path CNAME ===
+    // Resend's model uses MX + SPF TXT on the 'send' subdomain, not a CNAME
+    // Adding a CNAME conflicts with MX/TXT records on the same hostname
     
     // Validate that we have required records
-    const hasReturnPath = dnsRecords.some(r => r.purpose === 'return_path');
+    const hasMx = dnsRecords.some(r => r.type === 'MX');
     const hasDkim = dnsRecords.some(r => r.purpose === 'dkim');
-    const hasSpf = dnsRecords.some(r => r.purpose === 'spf');
+    const hasSpf = dnsRecords.some(r => r.purpose === 'spf' || (r.type === 'TXT' && r.value.includes('spf')));
     
-    console.log(`📋 Final DNS record check: DKIM=${hasDkim}, SPF=${hasSpf}, Return-Path=${hasReturnPath}, DMARC=${hasDmarc || true}`);
-    
-    if (!hasReturnPath) {
-      console.warn(`⚠️ No Return-Path CNAME found, adding default`);
-      dnsRecords.push({
-        name: `send.${finalDomain}`,
-        type: 'CNAME',
-        value: 'send.resend.com',
-        purpose: 'return_path',
-        required: true
-      });
-    }
+    console.log(`📋 Final DNS record check: DKIM=${hasDkim}, SPF=${hasSpf}, MX=${hasMx}, DMARC=${hasDmarc || true}`);
+    console.log(`📋 Total records to save: ${dnsRecords.length}`);
 
-    // Insert DNS records
+    // Insert DNS records (including priority)
     const recordInserts = dnsRecords.map(record => ({
       email_domain_id: emailDomain.id,
-      ...record
+      name: record.name,
+      type: record.type,
+      value: record.value,
+      priority: record.priority || null,
+      purpose: record.purpose,
+      required: record.required,
+      source: record.source
     }));
 
     const { error: recordsError } = await supabase
@@ -381,7 +421,6 @@ const handler = async (req: Request): Promise<Response> => {
           let zoneId: string | null = null;
           
           if (is_sandbox) {
-            // For sandbox, find zone for DEV_TEST_ROOT_DOMAIN
             const rootDomain = Deno.env.get('DEV_TEST_ROOT_DOMAIN');
             if (rootDomain) {
               const zoneResponse = await fetch(`https://api.cloudflare.com/client/v4/zones?name=${rootDomain}`, {
@@ -393,7 +432,6 @@ const handler = async (req: Request): Promise<Response> => {
               }
             }
           } else {
-            // For production, try to detect parent zone
             const domainParts = finalDomain.split('.');
             for (let i = 0; i < domainParts.length - 1; i++) {
               const testDomain = domainParts.slice(i).join('.');
@@ -411,15 +449,24 @@ const handler = async (req: Request): Promise<Response> => {
           if (zoneId) {
             console.log(`☁️ Found Cloudflare zone: ${zoneId}`);
             
-            // Apply DNS records to Cloudflare
             for (const record of dnsRecords) {
               try {
                 const cfRecord: CloudflareRecord = {
                   name: record.name,
                   type: record.type,
-                  value: record.value,
-                  proxied: record.type === 'CNAME' ? false : undefined
+                  content: record.value,
+                  ttl: 3600
                 };
+                
+                // Add priority for MX records
+                if (record.type === 'MX' && record.priority !== undefined) {
+                  cfRecord.priority = record.priority;
+                }
+                
+                // CNAME records should not be proxied for email
+                if (record.type === 'CNAME') {
+                  cfRecord.proxied = false;
+                }
 
                 const createResponse = await fetch(`https://api.cloudflare.com/client/v4/zones/${zoneId}/dns_records`, {
                   method: 'POST',
@@ -433,7 +480,6 @@ const handler = async (req: Request): Promise<Response> => {
                 const createResult = await createResponse.json();
                 
                 if (createResult.success) {
-                  // Update DNS record with Cloudflare info
                   await supabase
                     .from('email_dns_records')
                     .update({
@@ -446,7 +492,7 @@ const handler = async (req: Request): Promise<Response> => {
                     .eq('name', record.name)
                     .eq('type', record.type);
                   
-                  console.log(`✅ Applied Cloudflare DNS: ${record.name} (${record.type})`);
+                  console.log(`✅ Applied Cloudflare DNS: ${record.name} (${record.type}${record.priority ? ` priority:${record.priority}` : ''})`);
                 } else {
                   console.log(`⚠️ Cloudflare DNS failed for ${record.name}: ${createResult.errors?.[0]?.message || 'Unknown error'}`);
                 }
@@ -465,13 +511,23 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log(`🎉 Domain creation completed successfully: ${finalDomain}`);
 
+    // Return records with priority for frontend
+    const responseRecords = dnsRecords.map(r => ({
+      name: r.name,
+      type: r.type,
+      value: r.value,
+      priority: r.priority,
+      purpose: r.purpose,
+      required: r.required
+    }));
+
     return corsJsonResponse({
       email_domain_id: emailDomain.id,
       resend_domain_id: resendDomainId,
       domain: finalDomain,
       env,
       is_sandbox,
-      records: dnsRecords,
+      records: responseRecords,
       message: 'Domain created successfully'
     });
 
