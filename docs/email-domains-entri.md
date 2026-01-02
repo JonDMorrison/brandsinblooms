@@ -4,6 +4,22 @@
 
 BloomSuite uses [Entri Connect](https://www.goentri.com/) for one-click DNS setup, allowing users to configure SPF, DKIM, and DMARC records automatically without manually editing DNS settings.
 
+## Environment Variables
+
+| Variable | Location | Required | Description |
+|----------|----------|----------|-------------|
+| `VITE_ENTRI_APPLICATION_ID` | Vercel/Lovable | **Yes in prod** | Entri publishable Application ID (safe for frontend) |
+| `ENTRI_APPLICATION_ID` | Supabase Secrets | No (has fallback) | Same value, for edge function |
+| `ENTRI_API_KEY` | Supabase Secrets | **Yes** | Entri secret key (server-only, never expose) |
+| `RESEND_API_KEY` | Supabase Secrets | **Yes** | Resend API key for email domain provisioning |
+
+### Configuration Notes
+
+- `VITE_ENTRI_APPLICATION_ID` is a **publishable key** - safe for frontend
+- In development, if not set, falls back to `'bloomsuite'` with a console warning
+- In production, missing `VITE_ENTRI_APPLICATION_ID` throws an error (fail loudly)
+- `ENTRI_API_KEY` is a **secret key** - must stay server-side only
+
 ## Architecture
 
 ### Components
@@ -18,12 +34,16 @@ BloomSuite uses [Entri Connect](https://www.goentri.com/) for one-click DNS setu
    - Creates/updates email_domains record
    - Triggers Resend domain provisioning
 
-3. **Domain Service**: `src/lib/email/domainProvisioning.ts`
+3. **Token Edge Function**: `supabase/functions/entri-get-token/index.ts`
+   - Fetches JWT token from Entri API
+   - Uses `ENTRI_APPLICATION_ID` and `ENTRI_API_KEY`
+
+4. **Domain Service**: `src/lib/email/domainProvisioning.ts`
    - `upsertEmailDomainFromEntriCallback()` - Handles Entri success data
    - `ensureResendDomainForEmailDomain()` - Provisions Resend domain
    - `refreshResendVerificationStatus()` - Checks verification status
 
-4. **UI Component**: `src/components/crm/settings/DomainConnectWizard.tsx`
+5. **UI Component**: `src/components/crm/settings/DomainConnectWizard.tsx`
    - "Automatic Setup" button using Entri
    - "Manual Setup" fallback option
 
@@ -36,20 +56,10 @@ Entri configuration is managed in `src/lib/config/emailDomainsConfig.ts`:
 ```typescript
 export const emailDomainsConfig = {
   entriEnabled: true,
-  entriAppId: 'bloomsuite',  // Entri Application ID (public key)
+  entriAppId: getEntriAppId(),  // Reads from VITE_ENTRI_APPLICATION_ID
   entriScriptUrl: 'https://cdn.goentri.com/entri.js',
   autoSetupRecommended: true,
 };
-```
-
-### Backend (Supabase Edge Function Secrets)
-
-```env
-# Required: Entri API key for server-side operations
-ENTRI_API_KEY=your-entri-api-key
-
-# Required: Resend API key for email domain provisioning
-RESEND_API_KEY=your-resend-api-key
 ```
 
 ## Database Schema
