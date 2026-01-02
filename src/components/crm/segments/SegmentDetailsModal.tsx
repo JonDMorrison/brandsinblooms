@@ -7,6 +7,8 @@ import { Users, Target, Search, Plus, X, Loader2, Upload } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { EnhancedSegmentImportDialog } from './EnhancedSegmentImportDialog';
+import { usePaginatedCustomers } from '@/hooks/usePaginatedCustomers';
+import { LazyCustomerList } from '@/components/shared/LazyCustomerList';
 
 interface Customer {
   id: string;
@@ -40,22 +42,55 @@ export const SegmentDetailsModal: React.FC<SegmentDetailsModalProps> = ({
   segment,
   onSegmentUpdate
 }) => {
-  const [segmentCustomers, setSegmentCustomers] = useState<Customer[]>([]);
-  const [availableCustomers, setAvailableCustomers] = useState<Customer[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [assignedSearchTerm, setAssignedSearchTerm] = useState('');
+  const [availableSearchTerm, setAvailableSearchTerm] = useState('');
   const [loadingCustomerId, setLoadingCustomerId] = useState<string | null>(null);
   const [showBulkImport, setShowBulkImport] = useState(false);
   const [tenantId, setTenantId] = useState<string>('');
   const [userId, setUserId] = useState<string>('');
   const { toast } = useToast();
 
+  const isCustomSegment = segment?.id ? segment.id.length > 10 : false;
+
+  // Lazy loaded customers in segment
+  const {
+    customers: segmentCustomers,
+    isLoading: segmentLoading,
+    isFetchingNextPage: segmentFetchingMore,
+    hasNextPage: hasMoreSegmentCustomers,
+    fetchNextPage: loadMoreSegmentCustomers,
+    totalCount: segmentTotalCount,
+    refetch: refetchSegmentCustomers,
+    isSearching: isSearchingSegment,
+  } = usePaginatedCustomers({
+    segmentId: isCustomSegment ? segment?.id : undefined,
+    searchTerm: assignedSearchTerm,
+    pageSize: 25,
+    enabled: open && !!segment && isCustomSegment,
+  });
+
+  // Lazy loaded available customers (not in segment)
+  const {
+    customers: availableCustomers,
+    isLoading: availableLoading,
+    isFetchingNextPage: availableFetchingMore,
+    hasNextPage: hasMoreAvailable,
+    fetchNextPage: loadMoreAvailable,
+    totalCount: availableTotalCount,
+    refetch: refetchAvailableCustomers,
+    isSearching: isSearchingAvailable,
+  } = usePaginatedCustomers({
+    excludeSegmentId: isCustomSegment ? segment?.id : undefined,
+    searchTerm: availableSearchTerm,
+    pageSize: 25,
+    enabled: open && !!segment && isCustomSegment,
+  });
+
   useEffect(() => {
     const fetchUserData = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         setUserId(user.id);
-        // Get tenant_id from users table
         const { data: userData } = await supabase
           .from('users')
           .select('tenant_id')
@@ -69,73 +104,16 @@ export const SegmentDetailsModal: React.FC<SegmentDetailsModalProps> = ({
     fetchUserData();
   }, []);
 
+  // Reset search when dialog closes
   useEffect(() => {
-    if (open && segment) {
-      loadSegmentData();
+    if (!open) {
+      setAssignedSearchTerm('');
+      setAvailableSearchTerm('');
     }
-  }, [open, segment]);
-
-  const loadSegmentData = async () => {
-    if (!segment) return;
-    
-    setLoading(true);
-    try {
-      const isCustomSegment = segment.id.length > 10; // Custom segments have UUID format
-      
-      let customers: Customer[] = [];
-      
-      if (isCustomSegment) {
-        // Get customers assigned to custom segment
-        const { data: segmentCustomerData, error: segmentError } = await supabase
-          .from('customer_segments')
-          .select(`
-            customer_id,
-            crm_customers(id, email, first_name, last_name, phone, total_spent)
-          `)
-          .eq('segment_id', segment.id);
-
-        if (segmentError) throw segmentError;
-        customers = segmentCustomerData?.map(item => item.crm_customers).filter(Boolean) || [];
-      } else {
-        // For predefined segments, show empty for now
-        customers = [];
-      }
-      
-      setSegmentCustomers(customers as Customer[]);
-
-      // Get all available customers for adding
-      const { data: allCustomers, error: customersError } = await supabase
-        .from('crm_customers')
-        .select('id, email, first_name, last_name, phone, total_spent')
-        .order('email');
-
-      if (customersError) throw customersError;
-
-      // Filter out customers already in segment
-      const customerIds = new Set(customers.map(c => c.id));
-      const available = (allCustomers || []).filter(c => !customerIds.has(c.id));
-      setAvailableCustomers(available);
-
-    } catch (error) {
-      console.error('Error loading segment data:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load segment data",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [open]);
 
   const addCustomerToSegment = async (customerId: string) => {
-    if (!segment || loadingCustomerId) return;
-
-    const isCustomSegment = segment.id.length > 10;
-    
-    if (!isCustomSegment) {
-      return;
-    }
+    if (!segment || loadingCustomerId || !isCustomSegment) return;
 
     setLoadingCustomerId(customerId);
 
@@ -149,12 +127,9 @@ export const SegmentDetailsModal: React.FC<SegmentDetailsModalProps> = ({
 
       if (error) throw error;
 
-      // Update local state
-      const customerToMove = availableCustomers.find(c => c.id === customerId);
-      if (customerToMove) {
-        setSegmentCustomers(prev => [...prev, customerToMove]);
-        setAvailableCustomers(prev => prev.filter(c => c.id !== customerId));
-      }
+      // Refetch both lists to update counts
+      refetchSegmentCustomers();
+      refetchAvailableCustomers();
 
     } catch (error) {
       console.error('Error adding customer:', error);
@@ -164,13 +139,7 @@ export const SegmentDetailsModal: React.FC<SegmentDetailsModalProps> = ({
   };
 
   const removeCustomerFromSegment = async (customerId: string) => {
-    if (!segment || loadingCustomerId) return;
-
-    const isCustomSegment = segment.id.length > 10;
-    
-    if (!isCustomSegment) {
-      return;
-    }
+    if (!segment || loadingCustomerId || !isCustomSegment) return;
 
     setLoadingCustomerId(customerId);
 
@@ -183,12 +152,9 @@ export const SegmentDetailsModal: React.FC<SegmentDetailsModalProps> = ({
 
       if (error) throw error;
 
-      // Update local state
-      const customerToMove = segmentCustomers.find(c => c.id === customerId);
-      if (customerToMove) {
-        setAvailableCustomers(prev => [...prev, customerToMove]);
-        setSegmentCustomers(prev => prev.filter(c => c.id !== customerId));
-      }
+      // Refetch both lists to update counts
+      refetchSegmentCustomers();
+      refetchAvailableCustomers();
 
     } catch (error) {
       console.error('Error removing customer:', error);
@@ -203,7 +169,6 @@ export const SegmentDetailsModal: React.FC<SegmentDetailsModalProps> = ({
     try {
       console.log('🔄 Bulk adding', customerIds.length, 'customers to segment', segment.id);
       
-      // Process in batches to avoid database limits
       const BATCH_SIZE = 500;
       let totalAdded = 0;
       
@@ -238,10 +203,10 @@ export const SegmentDetailsModal: React.FC<SegmentDetailsModalProps> = ({
 
       console.log('✅ Successfully bulk added all customers, refreshing data...');
 
-      // Refresh the segment data to show newly added customers
-      await loadSegmentData();
+      // Refresh both customer lists
+      refetchSegmentCustomers();
+      refetchAvailableCustomers();
       
-      // Also notify parent if callback provided
       if (onSegmentUpdate) {
         onSegmentUpdate();
       }
@@ -261,13 +226,6 @@ export const SegmentDetailsModal: React.FC<SegmentDetailsModalProps> = ({
       throw error;
     }
   };
-
-  const filteredAvailableCustomers = availableCustomers.filter(customer =>
-    customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    `${customer.first_name} ${customer.last_name}`.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const isCustomSegment = segment?.id.length > 10;
 
   if (!segment) return null;
 
@@ -294,7 +252,7 @@ export const SegmentDetailsModal: React.FC<SegmentDetailsModalProps> = ({
           <div className="flex items-center gap-4 p-4 bg-muted/50 rounded-lg">
             <div className="flex items-center gap-2">
               <Users className="h-5 w-5 text-primary" />
-              <span className="font-semibold">{segmentCustomers.length} Customers</span>
+              <span className="font-semibold">{segmentTotalCount} Customers</span>
             </div>
             {segment.auto_update && (
               <Badge variant="outline">Auto-update</Badge>
@@ -302,17 +260,6 @@ export const SegmentDetailsModal: React.FC<SegmentDetailsModalProps> = ({
             <div className="text-xs text-muted-foreground ml-auto">
               Created {new Date(segment.created_at).toLocaleDateString()}
             </div>
-          </div>
-
-          {/* Search Bar */}
-          <div className="flex items-center gap-2 mb-3">
-            <Search className="h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search customers..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="flex-1"
-            />
           </div>
 
           {!isCustomSegment && (
@@ -325,77 +272,79 @@ export const SegmentDetailsModal: React.FC<SegmentDetailsModalProps> = ({
 
           {/* Two Column Layout */}
           <div className="flex-1 min-h-0">
-            <div className="grid grid-cols-2 gap-6 h-[400px]">
+            <div className="grid grid-cols-2 gap-6">
               {/* Left Column - Assigned Customers */}
               <div className="flex flex-col min-h-0">
-                <h3 className="font-semibold mb-3 flex items-center gap-2">
+                <h3 className="font-semibold mb-2 flex items-center gap-2">
                   <Users className="h-4 w-4" />
-                  Assigned Customers ({segmentCustomers.length})
+                  Assigned Customers
                 </h3>
                 
-                <div className="flex-1 overflow-y-auto border rounded-lg">
-                  {loading ? (
-                    <div className="space-y-2 p-4">
-                      {[...Array(3)].map((_, i) => (
-                        <div key={i} className="h-12 bg-muted animate-pulse rounded" />
-                      ))}
-                    </div>
-                  ) : segmentCustomers.length === 0 ? (
-                    <div className="text-center py-8 text-muted-foreground p-4">
-                      <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                      <p>No customers assigned yet</p>
-                      {isCustomSegment && (
-                        <p className="text-sm">Add customers from the available list</p>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="p-2">
-                      {segmentCustomers.map(customer => (
-                        <div key={customer.id} className="flex items-center justify-between p-3 hover:bg-muted/50 rounded-lg mb-1">
-                          <div className="flex-1 min-w-0">
-                            <div className="font-medium truncate">{customer.email}</div>
-                            <div className="text-sm text-muted-foreground">
-                              {customer.first_name || customer.last_name 
-                                ? `${customer.first_name || ''} ${customer.last_name || ''}`.trim()
-                                : 'No name provided'
-                              }
-                              {customer.total_spent !== undefined && (
-                                <span className="ml-2">• ${customer.total_spent.toFixed(2)}</span>
-                              )}
-                            </div>
-                          </div>
-                          {isCustomSegment && (
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                removeCustomerFromSegment(customer.id);
-                              }}
-                              disabled={loadingCustomerId === customer.id}
-                              className="text-destructive hover:text-destructive flex-shrink-0 ml-2"
-                            >
-                              {loadingCustomerId === customer.id ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : (
-                                <X className="h-4 w-4" />
-                              )}
-                            </Button>
+                {/* Search for assigned */}
+                <div className="relative mb-3">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search assigned..."
+                    value={assignedSearchTerm}
+                    onChange={(e) => setAssignedSearchTerm(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
+                
+                <LazyCustomerList
+                  customers={segmentCustomers}
+                  isLoading={segmentLoading}
+                  isFetchingNextPage={segmentFetchingMore}
+                  hasNextPage={hasMoreSegmentCustomers}
+                  onLoadMore={() => loadMoreSegmentCustomers()}
+                  totalCount={segmentTotalCount}
+                  emptyMessage={isCustomSegment ? "No customers assigned yet. Add from available list." : "No customers in this segment."}
+                  searchTerm={assignedSearchTerm}
+                  isSearching={isSearchingSegment}
+                  renderCustomer={(customer) => (
+                    <div className="flex items-center justify-between p-3 hover:bg-muted/50 rounded-lg mb-1">
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium truncate text-sm">{customer.email}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {customer.first_name || customer.last_name 
+                            ? `${customer.first_name || ''} ${customer.last_name || ''}`.trim()
+                            : 'No name'
+                          }
+                          {customer.total_spent !== undefined && customer.total_spent > 0 && (
+                            <span className="ml-2">• ${customer.total_spent.toFixed(2)}</span>
                           )}
                         </div>
-                      ))}
+                      </div>
+                      {isCustomSegment && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            removeCustomerFromSegment(customer.id);
+                          }}
+                          disabled={loadingCustomerId === customer.id}
+                          className="text-destructive hover:text-destructive flex-shrink-0 ml-2 h-8 w-8 p-0"
+                        >
+                          {loadingCustomerId === customer.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <X className="h-4 w-4" />
+                          )}
+                        </Button>
+                      )}
                     </div>
                   )}
-                </div>
+                />
               </div>
 
               {/* Right Column - Available Customers */}
               <div className="flex flex-col min-h-0">
-                <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center justify-between mb-2">
                   <h3 className="font-semibold flex items-center gap-2">
                     <Plus className="h-4 w-4" />
-                    Available Customers ({filteredAvailableCustomers.length})
+                    Available Customers
                   </h3>
                   <div className="flex items-center gap-2">
                     {isCustomSegment && (
@@ -403,10 +352,10 @@ export const SegmentDetailsModal: React.FC<SegmentDetailsModalProps> = ({
                         size="sm"
                         variant="outline"
                         onClick={() => setShowBulkImport(true)}
-                        className="gap-2"
+                        className="gap-1 h-7 text-xs"
                       >
                         <Upload className="h-3 w-3" />
-                        Bulk Import
+                        Import
                       </Button>
                     )}
                     {!isCustomSegment && (
@@ -417,53 +366,64 @@ export const SegmentDetailsModal: React.FC<SegmentDetailsModalProps> = ({
                   </div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto border rounded-lg">
-                  {filteredAvailableCustomers.length === 0 ? (
-                    <div className="text-center py-8 text-muted-foreground p-4">
-                      <Search className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                      <p>{searchTerm ? 'No customers found matching your search' : 'No customers available to add'}</p>
-                    </div>
-                  ) : (
-                    <div className="p-2">
-                      {filteredAvailableCustomers.map(customer => (
-                        <div key={customer.id} className="flex items-center justify-between p-3 hover:bg-muted/50 rounded-lg mb-1">
-                          <div className="flex-1 min-w-0">
-                            <div className="font-medium truncate">{customer.email}</div>
-                            <div className="text-sm text-muted-foreground">
-                              {(customer.first_name || customer.last_name) ? (
-                                <span>({customer.first_name} {customer.last_name})</span>
-                              ) : (
-                                'No name provided'
-                              )}
-                              {customer.total_spent !== undefined && (
-                                <span className="ml-2">• ${customer.total_spent.toFixed(2)}</span>
-                              )}
-                            </div>
-                          </div>
-                          {isCustomSegment && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                addCustomerToSegment(customer.id);
-                              }}
-                              disabled={loadingCustomerId === customer.id}
-                              className="flex-shrink-0 ml-2"
-                            >
-                              {loadingCustomerId === customer.id ? (
-                                <Loader2 className="h-3 w-3 animate-spin" />
-                              ) : (
-                                <Plus className="h-3 w-3" />
-                              )}
-                            </Button>
+                {/* Search for available */}
+                <div className="relative mb-3">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search available..."
+                    value={availableSearchTerm}
+                    onChange={(e) => setAvailableSearchTerm(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
+
+                <LazyCustomerList
+                  customers={availableCustomers}
+                  isLoading={availableLoading}
+                  isFetchingNextPage={availableFetchingMore}
+                  hasNextPage={hasMoreAvailable}
+                  onLoadMore={() => loadMoreAvailable()}
+                  totalCount={availableTotalCount}
+                  emptyMessage="No customers available to add"
+                  searchTerm={availableSearchTerm}
+                  isSearching={isSearchingAvailable}
+                  renderCustomer={(customer) => (
+                    <div className="flex items-center justify-between p-3 hover:bg-muted/50 rounded-lg mb-1">
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium truncate text-sm">{customer.email}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {(customer.first_name || customer.last_name) ? (
+                            <span>{customer.first_name} {customer.last_name}</span>
+                          ) : (
+                            'No name'
+                          )}
+                          {customer.total_spent !== undefined && customer.total_spent > 0 && (
+                            <span className="ml-2">• ${customer.total_spent.toFixed(2)}</span>
                           )}
                         </div>
-                      ))}
+                      </div>
+                      {isCustomSegment && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            addCustomerToSegment(customer.id);
+                          }}
+                          disabled={loadingCustomerId === customer.id}
+                          className="flex-shrink-0 ml-2 h-8 w-8 p-0"
+                        >
+                          {loadingCustomerId === customer.id ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <Plus className="h-3 w-3" />
+                          )}
+                        </Button>
+                      )}
                     </div>
                   )}
-                </div>
+                />
               </div>
             </div>
           </div>
@@ -491,12 +451,13 @@ export const SegmentDetailsModal: React.FC<SegmentDetailsModalProps> = ({
       onOpenChange={setShowBulkImport}
       segmentId={segment?.id}
       segmentName={segment?.name}
-      onImportComplete={() => {
-        loadSegmentData();
-        if (onSegmentUpdate) {
-          onSegmentUpdate();
-        }
-      }}
+        onImportComplete={() => {
+          refetchSegmentCustomers();
+          refetchAvailableCustomers();
+          if (onSegmentUpdate) {
+            onSegmentUpdate();
+          }
+        }}
     />
   </>
   );

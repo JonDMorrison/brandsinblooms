@@ -1,14 +1,13 @@
-import React from "react";
+import React, { useState, useMemo } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { X, Users, UserPlus, Search } from "lucide-react";
-import { useCRMCustomers } from "@/hooks/useCRMCustomers";
+import { X, Users, UserPlus, Search, Loader2 } from "lucide-react";
+import { usePaginatedCustomers } from "@/hooks/usePaginatedCustomers";
+import { LazyCustomerList } from "@/components/shared/LazyCustomerList";
 import { useCustomerPersonas } from "@/hooks/useCustomerPersonas";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { useState, useMemo } from "react";
 
 interface PersonaDetailsDialogProps {
   open: boolean;
@@ -32,29 +31,19 @@ const CustomerPersonaManager: React.FC<{
   }, [assignedPersonaIds, persona.id]);
 
   const handleAssign = async () => {
-    console.log('🔄 Starting assign action...');
     setIsActionLoading(true);
     const success = await assignPersona(persona.id, persona.is_custom);
-    console.log('✅ Assign action completed:', success);
     if (success) {
-      console.log('✅ Customer assigned to persona successfully');
       onAssignmentChange();
-    } else {
-      console.error('❌ Failed to assign customer to persona');
     }
     setIsActionLoading(false);
   };
 
   const handleUnassign = async () => {
-    console.log('🔄 Starting unassign action...');
     setIsActionLoading(true);
     const success = await unassignPersona(persona.id, persona.is_custom);
-    console.log('✅ Unassign action completed:', success);
     if (success) {
-      console.log('✅ Customer removed from persona successfully');
       onAssignmentChange();
-    } else {
-      console.error('❌ Failed to remove customer from persona');
     }
     setIsActionLoading(false);
   };
@@ -70,29 +59,38 @@ export const PersonaDetailsDialog: React.FC<PersonaDetailsDialogProps> = ({
 }) => {
   const [customerSearchTerm, setCustomerSearchTerm] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
-  const { customers, loading: customersLoading } = useCRMCustomers();
   const isMobile = useIsMobile();
+
+  // Use lazy loaded customers
+  const {
+    customers,
+    isLoading: customersLoading,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
+    totalCount,
+    isSearching,
+  } = usePaginatedCustomers({
+    searchTerm: customerSearchTerm,
+    pageSize: 25,
+    enabled: open && !!persona,
+  });
 
   const handleAssignmentChange = () => {
     setRefreshKey(prev => prev + 1);
     onAssignmentChange?.();
   };
 
+  // Reset search when dialog closes
+  React.useEffect(() => {
+    if (!open) {
+      setCustomerSearchTerm('');
+    }
+  }, [open]);
+
   if (!persona) {
-    console.log('🔍 PersonaDetailsDialog: No persona provided');
     return null;
   }
-
-  // Filter customers based on search term
-  const getFilteredCustomers = () => {
-    if (!customerSearchTerm) return customers;
-    
-    return customers.filter(customer => 
-      customer.email.toLowerCase().includes(customerSearchTerm.toLowerCase()) ||
-      (customer.first_name?.toLowerCase().includes(customerSearchTerm.toLowerCase())) ||
-      (customer.last_name?.toLowerCase().includes(customerSearchTerm.toLowerCase()))
-    );
-  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -143,7 +141,7 @@ export const PersonaDetailsDialog: React.FC<PersonaDetailsDialogProps> = ({
             
             {/* Search */}
             <div className="relative">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search customers..."
                 value={customerSearchTerm}
@@ -152,68 +150,62 @@ export const PersonaDetailsDialog: React.FC<PersonaDetailsDialogProps> = ({
               />
             </div>
 
-            {customersLoading ? (
-              <div className="flex items-center justify-center py-4">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {/* Customer List */}
-                <ScrollArea className="h-64 border rounded-md p-4">
-                  <div className="space-y-2">
-                    {getFilteredCustomers().map((customer) => (
-                      <CustomerPersonaManager
-                        key={customer.id}
-                        customerId={customer.id}
-                        persona={persona}
-                        onAssignmentChange={handleAssignmentChange}
-                      >
-                        {(isAssigned, assign, unassign, isLoading, isActionLoading) => (
-                          <div className={`flex items-center justify-between p-3 rounded-md border ${
-                            isAssigned ? 'bg-green-50 border-green-200' : 'bg-background'
-                          }`}>
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2">
-                                <p className="font-medium">
-                                  {customer.first_name} {customer.last_name}
-                                </p>
-                                {!isLoading && isAssigned && (
-                                  <Badge variant="secondary" className="text-xs">
-                                    Assigned
-                                  </Badge>
-                                )}
-                              </div>
-                              <p className="text-xs text-muted-foreground">{customer.email}</p>
-                            </div>
-                            {!isLoading && (
-                              <Button
-                                variant={isAssigned ? "destructive" : "default"}
-                                size="sm"
-                                onClick={isAssigned ? unassign : assign}
-                                className="h-8 w-8 p-0 flex-shrink-0"
-                                title={isAssigned ? "Remove from persona" : "Assign to persona"}
-                                disabled={isActionLoading}
-                              >
-                                {isActionLoading ? (
-                                  <div className="animate-spin rounded-full h-3 w-3 border-2 border-current border-t-transparent"></div>
-                                ) : (
-                                  isAssigned ? <X className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />
-                                )}
-                              </Button>
-                            )}
-                          </div>
-                        )}
-                      </CustomerPersonaManager>
-                    ))}
-                    {getFilteredCustomers().length === 0 && (
-                      <p className="text-sm text-muted-foreground text-center py-4">
-                        {customerSearchTerm ? 'No customers found matching your search' : 'No customers available'}
-                      </p>
-                    )}
-                  </div>
-                </ScrollArea>
-              </div>
-            )}
+            {/* Customer List with Lazy Loading */}
+            <LazyCustomerList
+              customers={customers}
+              isLoading={customersLoading}
+              isFetchingNextPage={isFetchingNextPage}
+              hasNextPage={hasNextPage}
+              onLoadMore={() => fetchNextPage()}
+              totalCount={totalCount}
+              emptyMessage="No customers available"
+              searchTerm={customerSearchTerm}
+              isSearching={isSearching}
+              height="h-64"
+              renderCustomer={(customer) => (
+                <CustomerPersonaManager
+                  customerId={customer.id}
+                  persona={persona}
+                  onAssignmentChange={handleAssignmentChange}
+                >
+                  {(isAssigned, assign, unassign, isLoading, isActionLoading) => (
+                    <div className={`flex items-center justify-between p-3 rounded-md border mb-2 ${
+                      isAssigned ? 'bg-green-50 border-green-200' : 'bg-background'
+                    }`}>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium text-sm truncate">
+                            {customer.first_name} {customer.last_name}
+                          </p>
+                          {!isLoading && isAssigned && (
+                            <Badge variant="secondary" className="text-xs">
+                              Assigned
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground truncate">{customer.email}</p>
+                      </div>
+                      {!isLoading && (
+                        <Button
+                          variant={isAssigned ? "destructive" : "default"}
+                          size="sm"
+                          onClick={isAssigned ? unassign : assign}
+                          className="h-8 w-8 p-0 flex-shrink-0 ml-2"
+                          title={isAssigned ? "Remove from persona" : "Assign to persona"}
+                          disabled={isActionLoading}
+                        >
+                          {isActionLoading ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            isAssigned ? <X className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />
+                          )}
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </CustomerPersonaManager>
+              )}
+            />
           </div>
         </div>
 
