@@ -59,8 +59,18 @@ const handler = async (req: Request): Promise<Response> => {
     let totalProcessed = 0;
     let totalEnqueued = 0;
 
-    // 2. Process each automation
+    // 1.5. Process pending trigger events from the queue (real-time segment/persona triggers)
+    const { eventsProcessed, eventsEnqueued } = await processPendingTriggerEvents(supabase);
+    totalProcessed += eventsProcessed;
+    totalEnqueued += eventsEnqueued;
+
+    // 2. Process each automation (for time-based triggers like loyalty_join, birthday, etc.)
     for (const automation of activeAutomations || []) {
+      // Skip segment.added and persona.assigned triggers - they're handled by the event queue
+      if (['segment.added', 'segment_added', 'persona.assigned', 'persona_assigned'].includes(automation.trigger_type)) {
+        continue;
+      }
+      
       console.log(`🔄 Processing automation: ${automation.name} (${automation.trigger_type})`);
       
       try {
@@ -555,6 +565,153 @@ async function getCustomersAssignedToPersona(supabase: any, tenantId: string, pe
 
   console.log(`👤 Found ${customers?.length || 0} customers assigned to persona ${personaId} in last 24h`);
   return customers || [];
+}
+
+// Process pending trigger events from the automation_trigger_events queue
+async function processPendingTriggerEvents(supabase: any): Promise<{ eventsProcessed: number; eventsEnqueued: number }> {
+  let eventsProcessed = 0;
+  let eventsEnqueued = 0;
+
+  try {
+    // Fetch unprocessed trigger events
+    const { data: events, error: eventsError } = await supabase
+      .from('automation_trigger_events')
+      .select(`
+        id,
+        automation_id,
+        customer_id,
+        segment_id,
+        persona_id,
+        tenant_id,
+        event_type,
+        created_at
+      `)
+      .is('processed_at', null)
+      .order('created_at', { ascending: true })
+      .limit(100);
+
+    if (eventsError) {
+      console.error('❌ Failed to fetch trigger events:', eventsError);
+      return { eventsProcessed: 0, eventsEnqueued: 0 };
+    }
+
+    if (!events || events.length === 0) {
+      console.log('📭 No pending trigger events to process');
+      return { eventsProcessed: 0, eventsEnqueued: 0 };
+    }
+
+    console.log(`📬 Processing ${events.length} pending trigger events`);
+
+    for (const event of events) {
+      try {
+        // Fetch the automation
+        const { data: automation, error: automationError } = await supabase
+          .from('crm_automations')
+          .select('*')
+          .eq('id', event.automation_id)
+          .eq('is_active', true)
+          .single();
+
+        if (automationError || !automation) {
+          console.log(`⚠️ Automation ${event.automation_id} not found or inactive, marking event as processed`);
+          await markEventProcessed(supabase, event.id, 'Automation not found or inactive');
+          continue;
+        }
+
+        // Fetch the customer
+        const { data: customer, error: customerError } = await supabase
+          .from('crm_customers')
+          .select('*')
+          .eq('id', event.customer_id)
+          .single();
+
+        if (customerError || !customer) {
+          console.log(`⚠️ Customer ${event.customer_id} not found, marking event as processed`);
+          await markEventProcessed(supabase, event.id, 'Customer not found');
+          continue;
+        }
+
+        // Check provider readiness
+        const providerCheck = await checkProviderReadiness(supabase, automation);
+        if (!providerCheck.canProcess) {
+          console.log(`⚠️ Provider not ready for automation ${automation.name}: ${providerCheck.reason}`);
+          await markEventProcessed(supabase, event.id, providerCheck.reason);
+          continue;
+        }
+
+        // Check for existing active run
+        const { data: existingRun } = await supabase
+          .from('automation_runs')
+          .select('id')
+          .eq('automation_id', automation.id)
+          .eq('customer_id', customer.id)
+          .in('status', ['active', 'paused'])
+          .maybeSingle();
+
+        if (existingRun) {
+          console.log(`⏭️ Customer ${customer.email} already has active run for automation ${automation.name}`);
+          await markEventProcessed(supabase, event.id, 'Customer already in active run');
+          continue;
+        }
+
+        // Process the automation for this customer
+        const workflowSteps: WorkflowStep[] = automation.workflow_steps || [];
+        if (workflowSteps.length === 0) {
+          console.log(`⚠️ No workflow steps for automation ${automation.id}`);
+          await markEventProcessed(supabase, event.id, 'No workflow steps defined');
+          continue;
+        }
+
+        // Create automation run
+        const runId = await createAutomationRun(supabase, automation, customer, workflowSteps.length);
+        if (!runId) {
+          await markEventProcessed(supabase, event.id, 'Failed to create automation run');
+          continue;
+        }
+
+        // Schedule the first step
+        const firstStep = workflowSteps[0];
+        const scheduledAt = calculateScheduledTime(firstStep.delayMin, automation, customer);
+
+        await enqueueMessage(supabase, automation, customer, firstStep, 0, runId, scheduledAt);
+
+        // Update run with next scheduled time
+        await supabase
+          .from('automation_runs')
+          .update({ next_step_scheduled_at: scheduledAt.toISOString() })
+          .eq('id', runId);
+
+        // Mark event as processed
+        await markEventProcessed(supabase, event.id);
+
+        eventsProcessed++;
+        eventsEnqueued++;
+
+        console.log(`✅ Processed trigger event for customer ${customer.email} in automation ${automation.name}`);
+
+      } catch (eventError) {
+        console.error(`❌ Error processing trigger event ${event.id}:`, eventError);
+        await markEventProcessed(supabase, event.id, eventError instanceof Error ? eventError.message : 'Unknown error');
+      }
+    }
+
+  } catch (error) {
+    console.error('❌ Error in processPendingTriggerEvents:', error);
+  }
+
+  return { eventsProcessed, eventsEnqueued };
+}
+
+async function markEventProcessed(supabase: any, eventId: string, errorMessage?: string) {
+  const updateData: any = { processed_at: new Date().toISOString() };
+  if (errorMessage) {
+    updateData.error_message = errorMessage;
+  }
+  
+  await supabase
+    .from('automation_trigger_events')
+    .update(updateData)
+    .eq('id', eventId);
 }
 
 serve(handler);

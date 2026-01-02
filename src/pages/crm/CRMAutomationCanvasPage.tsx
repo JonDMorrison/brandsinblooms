@@ -14,6 +14,7 @@ import { ConflictBanner } from '@/components/autosave/ConflictBanner';
 import { AutoSaveIndicator } from '@/components/crm/AutoSaveIndicator';
 import { compileFlow } from '@/lib/automation/compiler';
 import { normalizeTriggerId } from '@/lib/automation/normalize';
+import { extractTriggerConditions } from '@/lib/automation/extractTriggerConditions';
 
 export const CRMAutomationCanvasPage: React.FC = () => {
   const { id: automationId } = useParams();
@@ -101,11 +102,14 @@ export const CRMAutomationCanvasPage: React.FC = () => {
     const triggerNode = flowState.nodes.find((n: any) => n.type === 'trigger');
     const normalizedTrigger = triggerNode ? normalizeTriggerId(String(triggerNode.data?.triggerType) || 'loyalty_join') : 'loyalty_join';
     
+    // Extract trigger conditions (segment_id, persona_id, etc.) from flow state
+    const triggerConditions = extractTriggerConditions(flowState);
+    
     const payload: any = {
       name: automationName,
       is_active: false,
       trigger_type: normalizedTrigger,
-      trigger_conditions: {},
+      trigger_conditions: triggerConditions,
       workflow_steps: compilation.steps,
       flow_state: flowState,
       user_id: user?.id,
@@ -143,11 +147,14 @@ export const CRMAutomationCanvasPage: React.FC = () => {
     const triggerNode = flowState.nodes.find((n: any) => n.type === 'trigger');
     const normalizedTrigger = triggerNode ? normalizeTriggerId(String(triggerNode.data?.triggerType) || 'loyalty_join') : 'loyalty_join';
     
+    // Extract trigger conditions (segment_id, persona_id, etc.) from flow state
+    const triggerConditions = extractTriggerConditions(flowState);
+    
     const payload: any = {
       name: automationName,
       is_active: true,
       trigger_type: normalizedTrigger,
-      trigger_conditions: {},
+      trigger_conditions: triggerConditions,
       workflow_steps: compilation.steps,
       flow_state: flowState,
       user_id: user?.id,
