@@ -17,6 +17,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { getTriggerById } from '@/lib/automation/triggerCatalog';
 import { compileFlow } from '@/lib/automation/compiler';
+import { extractTriggerConditions, validateTriggerConditions } from '@/lib/automation/extractTriggerConditions';
 
 interface ReviewLaunchModalProps {
   open: boolean;
@@ -86,6 +87,27 @@ export const ReviewLaunchModal: React.FC<ReviewLaunchModalProps> = ({
   const { user } = useAuth();
   const { toast } = useToast();
 
+  // Build flow state from automation data for trigger condition extraction
+  const flowStateForExtraction = {
+    nodes: [
+      { 
+        id: 'trigger', 
+        type: 'trigger', 
+        position: { x: 0, y: 0 }, 
+        data: { 
+          triggerType: automation.triggerType,
+          conditions: (automation as any).triggerConditions || {}
+        } 
+      },
+      ...automation.flowSteps
+    ],
+    edges: []
+  };
+  
+  // Extract and validate trigger conditions
+  const triggerConditions = extractTriggerConditions(flowStateForExtraction);
+  const validation = validateTriggerConditions(automation.triggerType, triggerConditions);
+
   // Fallback: if parent didn't provide onLaunch, activate directly here
   const defaultActivate = async () => {
     if (!user?.id) {
@@ -96,6 +118,17 @@ export const ReviewLaunchModal: React.FC<ReviewLaunchModalProps> = ({
       toast({ title: 'Missing name', description: 'Please give your automation a name before activating.', variant: 'destructive' });
       return;
     }
+    
+    // Validate trigger conditions before activating
+    if (!validation.valid) {
+      toast({ 
+        title: 'Missing Configuration', 
+        description: validation.message || 'Please complete the trigger configuration.', 
+        variant: 'destructive' 
+      });
+      return;
+    }
+    
     setActivating(true);
 
     // Fetch tenant_id for RLS
@@ -116,7 +149,7 @@ export const ReviewLaunchModal: React.FC<ReviewLaunchModalProps> = ({
       name: automation.name,
       is_active: true,
       trigger_type: automation.triggerType || 'manual',
-      trigger_conditions: {},
+      trigger_conditions: triggerConditions,
       workflow_steps: automation.flowSteps || [],
       user_id: user.id,
       tenant_id: tenantRow?.tenant_id,
