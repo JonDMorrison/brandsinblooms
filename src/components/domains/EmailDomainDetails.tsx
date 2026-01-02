@@ -58,6 +58,18 @@ export const EmailDomainDetails = ({ domainId, open, onOpenChange }: EmailDomain
   const [editingReportEmail, setEditingReportEmail] = useState(false);
   const [reportEmail, setReportEmail] = useState('');
 
+  // Sync domain from hook whenever emailDomains updates
+  useEffect(() => {
+    if (domainId && emailDomains.length > 0) {
+      const domainData = emailDomains.find(d => d.id === domainId);
+      if (domainData) {
+        setDomain(domainData);
+        setReportEmail(domainData.report_email || '');
+      }
+    }
+  }, [domainId, emailDomains]);
+
+  // Load records and checks when dialog opens
   useEffect(() => {
     if (domainId && open) {
       loadDomainData();
@@ -67,12 +79,6 @@ export const EmailDomainDetails = ({ domainId, open, onOpenChange }: EmailDomain
   const loadDomainData = async () => {
     try {
       setLoading(true);
-      
-      const domainData = emailDomains.find(d => d.id === domainId);
-      if (domainData) {
-        setDomain(domainData);
-        setReportEmail(domainData.report_email || '');
-      }
 
       const [recordsData, checksData] = await Promise.all([
         getDomainRecords(domainId),
