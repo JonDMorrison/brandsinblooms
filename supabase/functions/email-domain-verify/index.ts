@@ -330,6 +330,40 @@ const handler = async (req: Request): Promise<Response> => {
       console.error('❌ Failed to update domain status:', updateError);
     }
 
+    // Step 8: Sync to company_profiles when domain becomes active
+    if (allPassed && newStatus === 'active') {
+      console.log(`📝 Syncing verified domain to company_profiles...`);
+      
+      // Get primary user for this tenant
+      const { data: tenantUser } = await supabase
+        .from('users')
+        .select('id')
+        .eq('tenant_id', emailDomain.tenant_id)
+        .order('created_at', { ascending: true })
+        .limit(1)
+        .single();
+      
+      if (tenantUser?.id) {
+        const { error: profileError } = await supabase
+          .from('company_profiles')
+          .update({
+            email_auth_status: 'verified',
+            email_domain: emailDomain.domain,
+            custom_sender_email: `mail@${emailDomain.domain}`,
+            dns_records_verified: true,
+            email_auth_setup_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          })
+          .eq('user_id', tenantUser.id);
+        
+        if (profileError) {
+          console.error('⚠️ Failed to sync to company_profiles:', profileError);
+        } else {
+          console.log(`✅ Synced domain ${emailDomain.domain} to company_profile for user ${tenantUser.id}`);
+        }
+      }
+    }
+
     console.log(`🎉 Domain verification completed: ${emailDomain.domain} -> ${newStatus}`);
 
     // Build response
