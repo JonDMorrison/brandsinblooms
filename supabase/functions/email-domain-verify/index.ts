@@ -373,6 +373,9 @@ const handler = async (req: Request): Promise<Response> => {
     // Track conflicts
     let dnsConflictDetected = false;
     const conflictDetails: ConflictDetail[] = [];
+    
+    // Track per-record DNS verification status (declared here so it's accessible after the try block)
+    const recordDnsStatus: Record<string, { found: boolean; actualValues: string[]; fqdn: string; hasConflict?: boolean }> = {};
 
     try {
       console.log(`📧 Triggering Resend verification for: ${emailDomain.resend_domain_id}`);
@@ -530,8 +533,6 @@ const handler = async (req: Request): Promise<Response> => {
       let spfDnsVerified = spfVerified;
       let mxDnsVerified = mxVerified;
       
-      // Track per-record DNS verification status
-      const recordDnsStatus: Record<string, { found: boolean; actualValues: string[]; fqdn: string; hasConflict?: boolean }> = {};
       
       for (const record of resendRecords) {
         const recordType = (record.record_type || record.type || '').toUpperCase();
