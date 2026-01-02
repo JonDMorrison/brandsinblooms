@@ -774,9 +774,6 @@ const handler = async (req: Request): Promise<Response> => {
       updated_at: new Date().toISOString()
     };
 
-    // Track recordDnsStatus in closure for the map above
-    const recordDnsStatus: Record<string, { found: boolean; actualValues: string[]; fqdn: string }> = {};
-
     if (allPassed && !emailDomain.verified_at) {
       updateData.verified_at = new Date().toISOString();
     }
