@@ -40,6 +40,29 @@ export const CATEGORY_ORDER: MergeTagCategory[] = [
 ];
 
 /**
+ * Category color classes for visual distinction
+ * Uses semantic Tailwind classes with HSL colors
+ */
+export const CATEGORY_COLORS: Record<MergeTagCategory, { bg: string; text: string; border: string }> = {
+  contact: { bg: 'bg-blue-100', text: 'text-blue-700', border: 'border-blue-200' },
+  purchase: { bg: 'bg-emerald-100', text: 'text-emerald-700', border: 'border-emerald-200' },
+  loyalty: { bg: 'bg-purple-100', text: 'text-purple-700', border: 'border-purple-200' },
+  custom: { bg: 'bg-orange-100', text: 'text-orange-700', border: 'border-orange-200' },
+  company: { bg: 'bg-slate-100', text: 'text-slate-700', border: 'border-slate-200' },
+  system: { bg: 'bg-pink-100', text: 'text-pink-700', border: 'border-pink-200' },
+};
+
+/**
+ * Default quick access tags for the QuickBar
+ */
+export const DEFAULT_QUICK_ACCESS_TAGS: string[] = [
+  'first_name',
+  'company.name',
+  'system.date_plus_7',
+  'system.unsubscribe_url',
+];
+
+/**
  * All available merge tags
  */
 export const MERGE_TAG_DEFINITIONS: MergeTagDefinition[] = [
@@ -317,4 +340,24 @@ export function formatTagWithDefault(key: string): string {
  */
 export function formatTagSimple(key: string): string {
   return `{{ ${key} }}`;
+}
+
+/**
+ * Search merge tags by query (fuzzy search)
+ */
+export function searchMergeTags(query: string): MergeTagDefinition[] {
+  if (!query.trim()) {
+    return MERGE_TAG_DEFINITIONS;
+  }
+  
+  const lowerQuery = query.toLowerCase().trim();
+  
+  return MERGE_TAG_DEFINITIONS.filter((tag) => {
+    return (
+      tag.label.toLowerCase().includes(lowerQuery) ||
+      tag.key.toLowerCase().includes(lowerQuery) ||
+      tag.description.toLowerCase().includes(lowerQuery) ||
+      tag.category.toLowerCase().includes(lowerQuery)
+    );
+  });
 }
