@@ -367,3 +367,6 @@ verify_jwt = false
 
 [functions.automation-executor]
 verify_jwt = false
+
+[functions.domain-verify-cron]
+verify_jwt = false

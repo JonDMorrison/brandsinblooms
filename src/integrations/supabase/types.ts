@@ -6238,16 +6238,22 @@ export type Database = {
           is_sandbox: boolean | null
           last_daily_reset_at: string | null
           last_stage_updated_at: string | null
+          last_verify_attempt_at: string | null
+          last_verify_error: string | null
           manual_pause: boolean | null
+          next_verify_at: string | null
           notes: string | null
           report_email: string | null
           resend_domain_id: string | null
+          resend_status: Json | null
           status: string
           tenant_id: string
           total_bounces_30d: number | null
           total_complaints_30d: number | null
           total_sent_30d: number | null
           updated_at: string | null
+          verified_at: string | null
+          verify_attempts: number | null
           warmup_stage: number | null
           warmup_started_at: string | null
         }
@@ -6272,16 +6278,22 @@ export type Database = {
           is_sandbox?: boolean | null
           last_daily_reset_at?: string | null
           last_stage_updated_at?: string | null
+          last_verify_attempt_at?: string | null
+          last_verify_error?: string | null
           manual_pause?: boolean | null
+          next_verify_at?: string | null
           notes?: string | null
           report_email?: string | null
           resend_domain_id?: string | null
+          resend_status?: Json | null
           status?: string
           tenant_id: string
           total_bounces_30d?: number | null
           total_complaints_30d?: number | null
           total_sent_30d?: number | null
           updated_at?: string | null
+          verified_at?: string | null
+          verify_attempts?: number | null
           warmup_stage?: number | null
           warmup_started_at?: string | null
         }
@@ -6306,16 +6318,22 @@ export type Database = {
           is_sandbox?: boolean | null
           last_daily_reset_at?: string | null
           last_stage_updated_at?: string | null
+          last_verify_attempt_at?: string | null
+          last_verify_error?: string | null
           manual_pause?: boolean | null
+          next_verify_at?: string | null
           notes?: string | null
           report_email?: string | null
           resend_domain_id?: string | null
+          resend_status?: Json | null
           status?: string
           tenant_id?: string
           total_bounces_30d?: number | null
           total_complaints_30d?: number | null
           total_sent_30d?: number | null
           updated_at?: string | null
+          verified_at?: string | null
+          verify_attempts?: number | null
           warmup_stage?: number | null
           warmup_started_at?: string | null
         }
