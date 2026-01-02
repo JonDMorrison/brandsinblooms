@@ -12,18 +12,25 @@ import {
   Mail,
   RefreshCw,
   RotateCcw,
-  XCircle
+  XCircle,
+  Wrench
 } from 'lucide-react';
 import { DomainConnectWizard } from '@/components/crm/settings/DomainConnectWizard';
 import { EmailDomainDetails } from './EmailDomainDetails';
 import { useEmailDomains, EmailDomain } from '@/hooks/useEmailDomains';
+import { useEntriConnect, EntriDnsRecord } from '@/hooks/useEntriConnect';
+import { useTenant } from '@/hooks/useTenant';
 import { formatDistanceToNow } from 'date-fns';
+import { toast } from 'sonner';
 
 export const EmailDomainsList = () => {
-  const { emailDomains, loading, verifyEmailDomain, retryEmailDomain, refetch } = useEmailDomains();
+  const { emailDomains, loading, verifyEmailDomain, retryEmailDomain, getDomainRecords, refetch } = useEmailDomains();
+  const { openEntriSetup, sanitizeAndConvertRecords, isLoading: entriLoading } = useEntriConnect();
+  const { tenant } = useTenant();
   const [showWizard, setShowWizard] = useState(false);
   const [selectedDomain, setSelectedDomain] = useState<string | null>(null);
   const [verifyingDomains, setVerifyingDomains] = useState<Set<string>>(new Set());
+  const [repairingDomains, setRepairingDomains] = useState<Set<string>>(new Set());
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -89,13 +96,90 @@ export const EmailDomainsList = () => {
     }
   };
 
-  const getFailedChecks = (domain: EmailDomain) => {
-    if (!domain.resend_status) return [];
-    const failed: string[] = [];
-    if (domain.resend_status.dkim_verified === false) failed.push('DKIM');
-    if (domain.resend_status.spf_verified === false) failed.push('SPF');
-    if (domain.resend_status.return_path_verified === false) failed.push('Return Path');
-    return failed;
+  const getPendingRecords = (domain: EmailDomain): { pending: string[]; verified: string[] } => {
+    const pending: string[] = [];
+    const verified: string[] = [];
+    
+    // Parse from resend_status.records array (the actual Resend API format)
+    const resendStatus = domain.resend_status as any;
+    if (resendStatus?.records && Array.isArray(resendStatus.records)) {
+      for (const rec of resendStatus.records) {
+        const label = rec.record || rec.type || 'Unknown';
+        if (rec.status === 'verified') {
+          verified.push(label);
+        } else {
+          pending.push(`${label} (${rec.name})`);
+        }
+      }
+    }
+    
+    return { pending, verified };
+  };
+
+  // Repair domain by re-opening Entri with current DNS records
+  const handleRepairDomain = async (domain: EmailDomain) => {
+    if (!tenant?.id) return;
+    
+    try {
+      setRepairingDomains(prev => new Set(prev).add(domain.id));
+      
+      // Fetch current DNS records from database
+      const records = await getDomainRecords(domain.id);
+      
+      if (!records || records.length === 0) {
+        toast.error('No DNS records found. Please delete and re-add this domain.');
+        return;
+      }
+      
+      // Convert to Entri format
+      const backendRecords = records.map(r => ({
+        name: r.name,
+        type: r.type,
+        value: r.value,
+        priority: (r as any).priority,
+        purpose: r.purpose
+      }));
+      
+      const { records: entriRecords, validation } = sanitizeAndConvertRecords(domain.domain, backendRecords);
+      
+      if (!validation.valid) {
+        toast.error(`Invalid DNS configuration: ${validation.errors.join(', ')}`);
+        return;
+      }
+      
+      console.log('🔧 Repairing domain with Entri:', domain.domain, entriRecords);
+      
+      // Open Entri to apply records
+      await openEntriSetup(
+        domain.domain,
+        tenant.id,
+        entriRecords,
+        async () => {
+          toast.success('DNS records applied! Running verification...');
+          // Trigger verification after Entri completes
+          setTimeout(async () => {
+            try {
+              await verifyEmailDomain(domain.id);
+              refetch();
+            } catch (e) {
+              console.error('Post-repair verification failed:', e);
+            }
+          }, 2000);
+        },
+        () => {
+          toast.info('DNS repair cancelled');
+        }
+      );
+    } catch (error: any) {
+      console.error('Error repairing domain:', error);
+      toast.error(error.message || 'Failed to repair domain');
+    } finally {
+      setRepairingDomains(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(domain.id);
+        return newSet;
+      });
+    }
   };
 
   if (loading) {
@@ -138,9 +222,11 @@ export const EmailDomainsList = () => {
             <div className="space-y-4">
               {emailDomains.map((domain) => {
                 const lastChecked = getLastCheckedText(domain);
-                const failedChecks = getFailedChecks(domain);
+                const { pending: pendingRecords, verified: verifiedRecords } = getPendingRecords(domain);
                 const isVerifying = verifyingDomains.has(domain.id);
+                const isRepairing = repairingDomains.has(domain.id);
                 const isFailed = domain.status === 'failed';
+                const needsRepair = domain.status === 'pending_dns' && pendingRecords.length > 0;
 
                 return (
                   <div
@@ -174,12 +260,22 @@ export const EmailDomainsList = () => {
                           )}
                         </div>
 
-                        {/* Show failed checks */}
-                        {failedChecks.length > 0 && domain.status !== 'active' && (
+                        {/* Show verified records */}
+                        {verifiedRecords.length > 0 && domain.status !== 'active' && (
+                          <div className="flex items-center gap-1 mt-1 flex-wrap">
+                            <CheckCircle className="w-3 h-3 text-green-600" />
+                            <span className="text-xs text-green-700">
+                              Verified: {verifiedRecords.join(', ')}
+                            </span>
+                          </div>
+                        )}
+
+                        {/* Show pending records */}
+                        {pendingRecords.length > 0 && domain.status !== 'active' && (
                           <div className="flex items-center gap-1 mt-1 flex-wrap">
                             <AlertCircle className="w-3 h-3 text-amber-600" />
                             <span className="text-xs text-amber-700">
-                              Missing: {failedChecks.join(', ')}
+                              Pending: {pendingRecords.join(', ')}
                             </span>
                           </div>
                         )}
@@ -195,37 +291,57 @@ export const EmailDomainsList = () => {
                     
                     <div className="flex items-center gap-2 flex-shrink-0 ml-2">
                       {domain.status !== 'active' && (
-                        isFailed ? (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleVerifyDomain(domain.id, true)}
-                            disabled={isVerifying}
-                            className="flex items-center gap-2"
-                          >
-                            {isVerifying ? (
-                              <RefreshCw className="w-4 h-4 animate-spin" />
-                            ) : (
-                              <RotateCcw className="w-4 h-4" />
-                            )}
-                            {isVerifying ? 'Retrying...' : 'Retry'}
-                          </Button>
-                        ) : (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleVerifyDomain(domain.id)}
-                            disabled={isVerifying}
-                            className="flex items-center gap-2"
-                          >
-                            {isVerifying ? (
-                              <RefreshCw className="w-4 h-4 animate-spin" />
-                            ) : (
-                              <CheckCircle className="w-4 h-4" />
-                            )}
-                            {isVerifying ? 'Verifying...' : 'Verify Now'}
-                          </Button>
-                        )
+                        <>
+                          {/* Repair with Entri button - for pending_dns with missing records */}
+                          {needsRepair && domain.is_entri_managed && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleRepairDomain(domain)}
+                              disabled={isRepairing || entriLoading}
+                              className="flex items-center gap-2 border-amber-400 text-amber-700 hover:bg-amber-50"
+                            >
+                              {isRepairing ? (
+                                <RefreshCw className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <Wrench className="w-4 h-4" />
+                              )}
+                              {isRepairing ? 'Applying...' : 'Repair DNS'}
+                            </Button>
+                          )}
+                          
+                          {isFailed ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleVerifyDomain(domain.id, true)}
+                              disabled={isVerifying}
+                              className="flex items-center gap-2"
+                            >
+                              {isVerifying ? (
+                                <RefreshCw className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <RotateCcw className="w-4 h-4" />
+                              )}
+                              {isVerifying ? 'Retrying...' : 'Retry'}
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleVerifyDomain(domain.id)}
+                              disabled={isVerifying}
+                              className="flex items-center gap-2"
+                            >
+                              {isVerifying ? (
+                                <RefreshCw className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <CheckCircle className="w-4 h-4" />
+                              )}
+                              {isVerifying ? 'Verifying...' : 'Verify Now'}
+                            </Button>
+                          )}
+                        </>
                       )}
                       <Button
                         variant="ghost"
