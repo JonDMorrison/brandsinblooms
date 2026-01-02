@@ -13,18 +13,24 @@ serve(async (req) => {
   }
 
   try {
-    const ENTRI_APPLICATION_ID = "bloomsuite";
+    // Entri Application ID (publishable key, safe in response)
+    // Can be set via ENTRI_APPLICATION_ID env var or defaults to 'bloomsuite'
+    const ENTRI_APPLICATION_ID = Deno.env.get("ENTRI_APPLICATION_ID") || "bloomsuite";
     const ENTRI_SECRET_KEY = Deno.env.get("ENTRI_API_KEY");
 
+    if (!ENTRI_APPLICATION_ID || ENTRI_APPLICATION_ID === "bloomsuite") {
+      console.warn("[entri-get-token] ENTRI_APPLICATION_ID not set, using default 'bloomsuite'");
+    }
+
     if (!ENTRI_SECRET_KEY) {
-      console.error("ENTRI_API_KEY not configured");
+      console.error("[entri-get-token] ENTRI_API_KEY not configured");
       return new Response(
-        JSON.stringify({ error: "Entri not configured" }),
+        JSON.stringify({ error: "Missing ENTRI_API_KEY" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    console.log("Fetching Entri JWT token...");
+    console.log("[entri-get-token] Fetching JWT token with applicationId:", ENTRI_APPLICATION_ID);
 
     // Fetch JWT from Entri API
     const response = await fetch("https://api.goentri.com/token", {
@@ -40,7 +46,7 @@ serve(async (req) => {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("Entri token fetch failed:", response.status, errorText);
+      console.error("[entri-get-token] Token fetch failed:", response.status, errorText);
       return new Response(
         JSON.stringify({ error: "Failed to fetch Entri token", details: errorText }),
         { status: response.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -48,7 +54,7 @@ serve(async (req) => {
     }
 
     const data = await response.json();
-    console.log("Entri token fetched successfully");
+    console.log("[entri-get-token] Token fetched successfully");
 
     return new Response(
       JSON.stringify({ 
@@ -61,7 +67,7 @@ serve(async (req) => {
       }
     );
   } catch (error: any) {
-    console.error("Error in entri-get-token:", error);
+    console.error("[entri-get-token] Error:", error);
     return new Response(
       JSON.stringify({ error: error.message }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }

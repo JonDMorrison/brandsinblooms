@@ -3,10 +3,32 @@
  * Centralized configuration for email domain setup including Entri Connect integration
  */
 
+/**
+ * Get Entri Application ID from environment variable
+ * This is a publishable key, safe for frontend usage
+ */
+const getEntriAppId = (): string => {
+  const appId = import.meta.env.VITE_ENTRI_APPLICATION_ID?.trim();
+  
+  if (appId) {
+    return appId;
+  }
+  
+  // Development fallback with warning
+  if (import.meta.env.DEV) {
+    console.warn('[emailDomainsConfig] VITE_ENTRI_APPLICATION_ID not set. Using fallback "bloomsuite" (dev only).');
+    return 'bloomsuite';
+  }
+  
+  // Production: fail loudly
+  throw new Error('Missing VITE_ENTRI_APPLICATION_ID in production environment.');
+};
+
 export const emailDomainsConfig = {
   // Entri Connect configuration
   entriEnabled: true,
-  entriAppId: 'bloomsuite',
+  // This is a publishable key, safe for frontend
+  entriAppId: getEntriAppId(),
   entriScriptUrl: 'https://cdn.goentri.com/entri.js',
   
   // Feature flags
