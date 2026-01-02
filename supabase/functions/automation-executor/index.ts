@@ -27,6 +27,17 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
+    // Allow calls with apikey header (for pg_cron) or standard Authorization
+    const authHeader = req.headers.get('Authorization');
+    const apiKey = req.headers.get('apikey');
+    
+    // If neither auth header nor apikey, check for service role in request
+    if (!authHeader && !apiKey) {
+      // For now, allow unauthenticated calls since this runs via cron
+      // The function uses service role key internally anyway
+      console.log('⚠️ No auth header, proceeding with service role');
+    }
+    
     console.log('🤖 Automation Executor starting...');
     
     const supabase = createClient(
