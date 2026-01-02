@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "https://esm.sh/resend@2";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { generateServerFooterHtml, type CompanyProfileData } from "../_shared/footerGenerator.ts";
+import { resolveSender, buildFromAddress, type SenderConfig } from "../_shared/senderResolver.ts";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
@@ -158,15 +159,37 @@ const handler = async (req: Request): Promise<Response> => {
       linkedin: companyProfile?.linkedin_url ? '✓' : '✗',
     });
 
+    // Get tenant ID for the user
+    const { data: userRecord } = await supabaseClient
+      .from('users')
+      .select('tenant_id')
+      .eq('id', user.id)
+      .single();
+    
+    const tenantId = userRecord?.tenant_id;
+
+    // Use unified sender resolver for determining sender
+    let senderConfig: SenderConfig | null = null;
+    if (tenantId) {
+      senderConfig = await resolveSender(supabaseClient, tenantId, { userId: user.id });
+      console.log("📧 Resolved sender config:", senderConfig);
+    }
+
     // Determine reply-to email and sender name
     const replyToEmail = companyProfile?.custom_sender_email || user.email;
     const senderName = companyProfile?.company_name || 'BloomSuite';
     
-    // Use bulk domain for "from" address
-    const BULK_DOMAIN = 'notify.bloomsuite.app';
-    const fromAddress = `${senderName} <hello@${BULK_DOMAIN}>`;
+    // Use sender resolver config if available, otherwise fallback to default
+    let fromAddress: string;
+    if (senderConfig) {
+      fromAddress = buildFromAddress(senderConfig);
+    } else {
+      // Fallback for cases where tenant is not found
+      const BULK_DOMAIN = 'notify.bloomsuite.app';
+      fromAddress = `${senderName} <hello@${BULK_DOMAIN}>`;
+    }
     
-    console.log("📤 Email config:", { fromAddress, replyToEmail, senderName });
+    console.log("📤 Email config:", { fromAddress, replyToEmail, senderName, deliveryMethod: senderConfig?.deliveryMethod || 'fallback' });
 
     let emailResponse;
 

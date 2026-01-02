@@ -2,6 +2,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { Resend } from "https://esm.sh/resend@2";
+import { resolveSender, buildFromAddress } from "../_shared/senderResolver.ts";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
@@ -46,6 +47,23 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const companyName = profile?.company_name || 'there';
+
+    // Get tenant for the user to resolve sender
+    const { data: userRecord } = await supabase
+      .from('users')
+      .select('tenant_id')
+      .eq('id', user_id)
+      .single();
+
+    // Resolve sender (trial reminders are system emails, so we use BloomSuite branding)
+    // But we still want to use tenant's fallback if available for consistency
+    let fromAddress = "BloomSuite <support@bloomsuite.com>";
+    if (userRecord?.tenant_id) {
+      const senderConfig = await resolveSender(supabase, userRecord.tenant_id, { userId: user_id });
+      console.log('[TRIAL-REMINDER] Resolved sender:', senderConfig);
+      // For trial reminders, always use BloomSuite branding but with the resolved email
+      fromAddress = `BloomSuite <${senderConfig.fromEmail}>`;
+    }
 
     // Generate email content based on email type
     let subject: string;
@@ -165,7 +183,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const emailResponse = await resend.emails.send({
-      from: "BloomSuite <support@bloomsuite.com>",
+      from: fromAddress,
       to: [email],
       subject: subject,
       html: htmlContent,
