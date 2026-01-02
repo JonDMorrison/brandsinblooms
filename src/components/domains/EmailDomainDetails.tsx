@@ -160,23 +160,27 @@ export const EmailDomainDetails = ({ domainId, open, onOpenChange }: EmailDomain
     return value.substring(0, maxLength) + '...';
   };
 
-  if (!domain) return null;
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[800px] max-h-[80vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Mail className="w-5 h-5" />
-            {domain.domain}
-            <Badge 
-              variant={domain.status === 'active' ? 'default' : 'outline'}
-              className={domain.status === 'active' ? 'bg-green-100 text-green-800' : ''}
-            >
-              {domain.status}
-            </Badge>
-          </DialogTitle>
-        </DialogHeader>
+        {!domain ? (
+          <div className="flex items-center justify-center py-12">
+            <RefreshCw className="w-6 h-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : (
+          <>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Mail className="w-5 h-5" />
+                {domain.domain}
+                <Badge 
+                  variant={domain.status === 'active' ? 'default' : 'outline'}
+                  className={domain.status === 'active' ? 'bg-green-100 text-green-800' : ''}
+                >
+                  {domain.status}
+                </Badge>
+              </DialogTitle>
+            </DialogHeader>
 
         <div className="space-y-6">
            {/* Domain Info */}
@@ -447,6 +451,8 @@ export const EmailDomainDetails = ({ domainId, open, onOpenChange }: EmailDomain
             </Button>
           </div>
         </div>
+          </>
+        )}
       </DialogContent>
     </Dialog>
   );
