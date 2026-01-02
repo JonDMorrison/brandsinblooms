@@ -76,9 +76,27 @@ const handler = async (req: Request): Promise<Response> => {
     let allPassed = true;
 
     try {
-      console.log(`📧 Retrieving Resend domain status: ${emailDomain.resend_domain_id}`);
+      console.log(`📧 Verifying domain with Resend: ${emailDomain.resend_domain_id}`);
       
-      // Get domain status from Resend
+      // FIRST: Trigger Resend to re-check DNS records
+      try {
+        console.log(`🔄 Triggering Resend verification for: ${emailDomain.resend_domain_id}`);
+        const { data: verifyResult, error: verifyError } = await resend.domains.verify(emailDomain.resend_domain_id);
+        
+        if (verifyError) {
+          console.log(`⚠️ Resend verify returned error:`, verifyError);
+        } else {
+          console.log(`✅ Resend verify triggered successfully:`, verifyResult);
+        }
+      } catch (verifyError) {
+        console.log(`⚠️ Resend verify call failed:`, verifyError.message);
+      }
+      
+      // Brief delay to allow Resend to process the verification
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // THEN: Get updated domain status from Resend
+      console.log(`📊 Fetching updated domain status...`);
       const { data: domainStatus, error: statusError } = await resend.domains.get(emailDomain.resend_domain_id);
       
       if (statusError) {
@@ -90,7 +108,7 @@ const handler = async (req: Request): Promise<Response> => {
         }, { status: 400 });
       }
 
-      console.log(`📊 Resend domain status:`, domainStatus);
+      console.log(`📊 Resend domain status:`, JSON.stringify(domainStatus, null, 2));
 
       // Check DKIM status
       const dkimCheck: DNSCheck = {
@@ -111,7 +129,7 @@ const handler = async (req: Request): Promise<Response> => {
         ok: domainStatus.spf_verified === true,
         details: {
           spf_verified: domainStatus.spf_verified,
-          spf_record: domainStatus.records?.find(r => r.record_type === 'TXT' && r.value?.includes('spf1'))
+          spf_record: domainStatus.records?.find((r: any) => r.record_type === 'TXT' && r.value?.includes('spf1'))
         }
       };
       checks.push(spfCheck);
@@ -123,7 +141,7 @@ const handler = async (req: Request): Promise<Response> => {
         ok: domainStatus.return_path_verified === true,
         details: {
           return_path_verified: domainStatus.return_path_verified,
-          return_path_record: domainStatus.records?.find(r => r.record_type === 'CNAME')
+          return_path_record: domainStatus.records?.find((r: any) => r.record_type === 'CNAME')
         }
       };
       checks.push(returnPathCheck);
@@ -135,21 +153,11 @@ const handler = async (req: Request): Promise<Response> => {
         ok: domainStatus.status === 'verified',
         details: {
           status: domainStatus.status,
-          verification_record: domainStatus.records?.find(r => r.name?.includes('_resend'))
+          verification_record: domainStatus.records?.find((r: any) => r.name?.includes('_resend'))
         }
       };
       checks.push(verificationCheck);
       if (!verificationCheck.ok) allPassed = false;
-
-      // Try to call verify if available (some Resend versions support this)
-      try {
-        if (resend.domains.verify && typeof resend.domains.verify === 'function') {
-          console.log(`🔄 Triggering Resend verification for: ${emailDomain.resend_domain_id}`);
-          await resend.domains.verify(emailDomain.resend_domain_id);
-        }
-      } catch (verifyError) {
-        console.log(`⚠️ Resend verify method not available or failed: ${verifyError.message}`);
-      }
 
     } catch (resendError) {
       console.error('❌ Resend verification error:', resendError);
