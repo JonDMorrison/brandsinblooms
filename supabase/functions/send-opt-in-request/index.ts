@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { resolveSender, buildFromAddress } from "../_shared/senderResolver.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -46,6 +47,10 @@ serve(async (req) => {
 
     const companyName = companyProfile?.company_name || tenant?.name || "Our Company";
     const companyAddress = companyProfile?.location_info || "";
+
+    // Resolve sender using the unified sender resolver
+    const senderConfig = await resolveSender(supabase, tenantId);
+    console.log("[send-opt-in-request] Resolved sender:", senderConfig);
 
     // Get customers with unknown consent
     const { data: customers, error: customersError } = await supabase
@@ -141,9 +146,14 @@ serve(async (req) => {
 </body>
 </html>`;
 
-        // Send email via Resend
+        // Send email via Resend using resolved sender
         const resendApiKey = Deno.env.get("RESEND_API_KEY");
         if (resendApiKey) {
+          const fromAddress = buildFromAddress({
+            ...senderConfig,
+            fromName: companyName // Override with company name for opt-in emails
+          });
+          
           const emailResponse = await fetch("https://api.resend.com/emails", {
             method: "POST",
             headers: {
@@ -151,7 +161,7 @@ serve(async (req) => {
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
-              from: `${companyName} <noreply@bloomsuite.app>`,
+              from: fromAddress,
               to: [customer.email],
               subject: "Can we send you garden updates?",
               html: emailHtml,

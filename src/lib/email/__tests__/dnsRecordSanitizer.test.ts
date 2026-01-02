@@ -92,7 +92,7 @@ describe('dnsRecordSanitizer', () => {
       expect(result.details.hasDkim).toBe(true);
       expect(result.details.dkimType).toBe('CNAME');
       expect(result.details.hasSpf).toBe(true);
-      expect(result.details.hasReturnPath).toBe(true);
+      expect(result.details.hasMx).toBe(true);
       expect(result.details.hasDmarc).toBe(true);
     });
 
