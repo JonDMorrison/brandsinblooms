@@ -16,9 +16,6 @@ interface EntriConfig {
   applicationId: string;
   token?: string;
   dnsRecords: EntriDnsRecord[];
-  onSuccess?: (result: EntriSuccessResult) => void;
-  onError?: (error: EntriError) => void;
-  onClose?: () => void;
 }
 
 interface EntriDnsRecord {
@@ -38,6 +35,17 @@ interface EntriSuccessResult {
 interface EntriError {
   message: string;
   code?: string;
+}
+
+// Entri browser callback event payload (CustomEvent.detail)
+interface EntriBrowserEventDetail {
+  domain?: string;
+  provider?: string;
+  setupType?: string;
+  success?: boolean;
+  connectionId?: string;
+  setupToken?: string;
+  lastStatus?: string;
 }
 
 // DNS records required for email authentication
@@ -181,52 +189,81 @@ export const useEntriConnect = () => {
         return;
       }
 
+      // Entri recommends listening for browser callback events (CustomEvent)
+      const successEventName = 'onSuccess';
+      const closeEventName = 'onEntriClose';
+
+      const handleCompletion = async (detail: EntriBrowserEventDetail) => {
+        // Mark complete immediately so close isn't treated as cancel.
+        didComplete = true;
+
+        const domainFromEntri = normalizeDomain(detail.domain || normalizedDomain);
+        const entriProvider = detail.provider || detail.setupType || 'entri';
+        const entriConnectionId = detail.connectionId || detail.setupToken || detail.lastStatus || 'entri-success';
+
+        console.log('Entri setup completed:', {
+          domain: domainFromEntri,
+          entriProvider,
+          entriConnectionId,
+          detail,
+        });
+
+        try {
+          const { error } = await supabase.functions.invoke('entri-domain-callback', {
+            body: {
+              accountId,
+              domain: domainFromEntri,
+              entriConnectionId,
+              entriProvider,
+            },
+          });
+
+          if (error) {
+            console.error('Error saving Entri connection:', error);
+            toast.error('DNS configured but failed to save in BloomSuite. Please refresh and try again.');
+            return;
+          }
+
+          toast.success(`DNS configured via ${entriProvider}! Verifying...`);
+          onSuccess?.();
+        } catch (err) {
+          console.error('Error in Entri completion handler:', err);
+          toast.error('DNS configured but encountered an error saving in BloomSuite. Please refresh.');
+        }
+      };
+
+      const onSuccessEvent = (evt: Event) => {
+        const detail = (evt as CustomEvent).detail as EntriBrowserEventDetail;
+        // Fire-and-forget; close event can follow quickly.
+        void handleCompletion(detail);
+      };
+
+      const onCloseEvent = (evt: Event) => {
+        const detail = (evt as CustomEvent).detail as EntriBrowserEventDetail;
+        console.log('Entri modal closed:', detail);
+
+        // If we didn't already handle success, use close payload to decide.
+        if (!didComplete) {
+          if (detail?.success) {
+            void handleCompletion(detail);
+          } else {
+            onCancel?.();
+          }
+        }
+
+        window.removeEventListener(successEventName, onSuccessEvent as EventListener);
+        window.removeEventListener(closeEventName, onCloseEvent as EventListener);
+      };
+
+      // Register listeners before opening the modal
+      window.addEventListener(successEventName, onSuccessEvent as EventListener);
+      window.addEventListener(closeEventName, onCloseEvent as EventListener);
+
       // Open Entri modal with authenticated token
       window.entri.showEntri({
         applicationId: tokenData.applicationId,
         token: tokenData.token,
         dnsRecords: records,
-        onSuccess: async (result: EntriSuccessResult) => {
-          didComplete = true;
-
-          const domainFromEntri = normalizeDomain(result.domain || normalizedDomain);
-          console.log('Entri setup successful:', { ...result, domain: domainFromEntri });
-
-          try {
-            // Call our edge function to save the Entri connection
-            const { data, error } = await supabase.functions.invoke('entri-domain-callback', {
-              body: {
-                accountId,
-                domain: domainFromEntri,
-                entriConnectionId: result.connectionId || result.setupToken || 'entri-success',
-                entriProvider: result.provider
-              }
-            });
-
-            if (error) {
-              console.error('Error saving Entri connection:', error);
-              toast.error('DNS configured but failed to save. Please refresh and check status.');
-            } else {
-              toast.success(`DNS configured via ${result.provider}! Verifying...`);
-              onSuccess?.();
-            }
-          } catch (err) {
-            console.error('Error in Entri success callback:', err);
-            toast.error('DNS configured but encountered an error. Please refresh.');
-          }
-        },
-        onError: (error: EntriError) => {
-          console.error('Entri setup error:', error);
-          toast.error(error.message || 'DNS setup failed. You can try manual setup.');
-          onCancel?.();
-        },
-        onClose: () => {
-          console.log('Entri modal closed by user');
-          if (!didComplete) {
-            // Only treat close as cancel if the session did not complete.
-            onCancel?.();
-          }
-        }
       });
     } catch (err: any) {
       console.error('Error opening Entri:', err);

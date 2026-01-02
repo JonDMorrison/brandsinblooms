@@ -173,7 +173,11 @@ serve(async (req) => {
             domain: normalizedDomain,
             provider: 'entri',
             existingDomainId: domainRecord.id
-          }
+          },
+          // email-domain-create validates a *user* JWT; pass through the caller's auth
+          headers: {
+            Authorization: authHeader,
+          },
         });
 
         if (provisionError) {
