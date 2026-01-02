@@ -230,6 +230,38 @@ export const MERGE_TAG_DEFINITIONS: MergeTagDefinition[] = [
     defaultFallback: '',
     example: 'December 5, 2024',
   },
+  {
+    key: 'system.date_plus_3',
+    label: 'Date + 3 Days',
+    description: 'Current date plus 3 days',
+    category: 'system',
+    defaultFallback: '',
+    example: 'December 8, 2024',
+  },
+  {
+    key: 'system.date_plus_7',
+    label: 'Date + 7 Days',
+    description: 'Current date plus 1 week',
+    category: 'system',
+    defaultFallback: '',
+    example: 'December 12, 2024',
+  },
+  {
+    key: 'system.date_plus_14',
+    label: 'Date + 14 Days',
+    description: 'Current date plus 2 weeks',
+    category: 'system',
+    defaultFallback: '',
+    example: 'December 19, 2024',
+  },
+  {
+    key: 'system.date_plus_30',
+    label: 'Date + 30 Days',
+    description: 'Current date plus 30 days',
+    category: 'system',
+    defaultFallback: '',
+    example: 'January 4, 2025',
+  },
 ];
 
 /**
