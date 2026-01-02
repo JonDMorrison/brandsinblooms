@@ -50,26 +50,31 @@ serve(async (req) => {
     const body: EntriCallbackRequest = await req.json();
     const { accountId, domain, entriConnectionId, entriProvider } = body;
 
-    console.log('Entri callback received:', { accountId, domain, entriProvider });
+    const normalizedDomain = domain
+      .toLowerCase()
+      .trim()
+      .replace(/^(https?:\/\/)?(www\.)?/, '');
+
+    console.log('Entri callback received:', { accountId, domain: normalizedDomain, entriProvider });
 
     // Validate required fields
-    if (!accountId || !domain || !entriConnectionId || !entriProvider) {
+    if (!accountId || !normalizedDomain || !entriConnectionId || !entriProvider) {
       return new Response(
         JSON.stringify({ error: 'Missing required fields: accountId, domain, entriConnectionId, entriProvider' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Verify user has access to this tenant
-    const { data: membership, error: memberError } = await supabase
-      .from('tenant_memberships')
+    // Verify user has access to this tenant (users table is the source of truth)
+    const { data: tenantUser, error: tenantUserError } = await supabase
+      .from('users')
       .select('id')
+      .eq('id', user.id)
       .eq('tenant_id', accountId)
-      .eq('user_id', user.id)
       .maybeSingle();
 
-    if (memberError || !membership) {
-      console.error('Membership check failed:', memberError);
+    if (tenantUserError || !tenantUser) {
+      console.error('Tenant access check failed:', tenantUserError);
       return new Response(
         JSON.stringify({ error: 'Access denied to this workspace' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -81,7 +86,7 @@ serve(async (req) => {
       .from('email_domains')
       .select('*')
       .eq('tenant_id', accountId)
-      .eq('domain', domain.toLowerCase())
+      .eq('domain', normalizedDomain)
       .maybeSingle();
 
     if (fetchError) {
@@ -125,7 +130,7 @@ serve(async (req) => {
         .from('email_domains')
         .insert({
           tenant_id: accountId,
-          domain: domain.toLowerCase(),
+          domain: normalizedDomain,
           entri_connection_id: entriConnectionId,
           entri_provider: entriProvider,
           is_entri_managed: true,
@@ -157,15 +162,15 @@ serve(async (req) => {
 
     // If no Resend domain ID, provision one via the email-domain-create function
     if (!domainRecord.resend_domain_id) {
-      console.log('Provisioning Resend domain for:', domain);
-      
+      console.log('Provisioning Resend domain for:', normalizedDomain);
+
       // Call the existing email-domain-create function internally
       // This will create the domain in Resend and update dns_records
       try {
         const { data: provisionData, error: provisionError } = await supabase.functions.invoke('email-domain-create', {
           body: {
             tenantId: accountId,
-            domain: domain.toLowerCase(),
+            domain: normalizedDomain,
             provider: 'entri',
             existingDomainId: domainRecord.id
           }
@@ -173,12 +178,30 @@ serve(async (req) => {
 
         if (provisionError) {
           console.warn('Resend provisioning warning (non-blocking):', provisionError);
-          // Don't fail - the domain is created, Resend can be provisioned later
+
+          // Surface the error on the domain record so the UI can show it
+          await supabase
+            .from('email_domains')
+            .update({
+              status: 'error',
+              error: provisionError.message || 'Resend provisioning failed',
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', domainRecord.id);
         } else {
           console.log('Resend domain provisioned successfully');
         }
-      } catch (provisionErr) {
+      } catch (provisionErr: any) {
         console.warn('Resend provisioning error (non-blocking):', provisionErr);
+
+        await supabase
+          .from('email_domains')
+          .update({
+            status: 'error',
+            error: provisionErr?.message || 'Resend provisioning failed',
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', domainRecord.id);
       }
     }
 

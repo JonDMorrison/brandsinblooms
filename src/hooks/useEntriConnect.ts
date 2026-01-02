@@ -131,6 +131,10 @@ export const useEntriConnect = () => {
     loadEntriScript();
   }, [loadEntriScript]);
 
+  const normalizeDomain = useCallback((value: string) => {
+    return value.trim().toLowerCase().replace(/^(https?:\/\/)?(www\.)?/, '');
+  }, []);
+
   /**
    * Open Entri setup modal for automatic DNS configuration
    */
@@ -142,6 +146,10 @@ export const useEntriConnect = () => {
     onCancel?: () => void
   ) => {
     setIsLoading(true);
+
+    // Track whether this session completed successfully.
+    // Entri may call onClose after onSuccess; we must not treat that as a cancel.
+    let didComplete = false;
 
     try {
       // Ensure script is loaded
@@ -158,6 +166,8 @@ export const useEntriConnect = () => {
         onCancel?.();
         return;
       }
+
+      const normalizedDomain = normalizeDomain(domain);
 
       // Use provided DNS records or default email authentication records
       const records = dnsRecords || EMAIL_DNS_RECORDS;
@@ -177,14 +187,17 @@ export const useEntriConnect = () => {
         token: tokenData.token,
         dnsRecords: records,
         onSuccess: async (result: EntriSuccessResult) => {
-          console.log('Entri setup successful:', result);
-          
+          didComplete = true;
+
+          const domainFromEntri = normalizeDomain(result.domain || normalizedDomain);
+          console.log('Entri setup successful:', { ...result, domain: domainFromEntri });
+
           try {
             // Call our edge function to save the Entri connection
             const { data, error } = await supabase.functions.invoke('entri-domain-callback', {
               body: {
                 accountId,
-                domain: result.domain || domain,
+                domain: domainFromEntri,
                 entriConnectionId: result.connectionId || result.setupToken || 'entri-success',
                 entriProvider: result.provider
               }
@@ -209,8 +222,10 @@ export const useEntriConnect = () => {
         },
         onClose: () => {
           console.log('Entri modal closed by user');
-          // Call onCancel to restore the parent dialog when user closes Entri
-          onCancel?.();
+          if (!didComplete) {
+            // Only treat close as cancel if the session did not complete.
+            onCancel?.();
+          }
         }
       });
     } catch (err: any) {
@@ -220,7 +235,7 @@ export const useEntriConnect = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [loadEntriScript]);
+  }, [loadEntriScript, normalizeDomain]);
 
   /**
    * Generate custom DNS records based on domain-specific requirements

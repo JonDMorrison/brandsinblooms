@@ -10,6 +10,7 @@ interface CreateDomainRequest {
   provider?: string;
   providerAuth?: any;
   useSandbox?: boolean;
+  existingDomainId?: string; // optional: continue provisioning for an existing record
 }
 
 interface CloudflareRecord {
@@ -106,12 +107,12 @@ const handler = async (req: Request): Promise<Response> => {
       }, { status: 409 });
     }
 
-    // Check if domain exists for same tenant (idempotent)
+    // Check if domain exists for same tenant
+    // If it exists but isn't fully provisioned (missing resend_domain_id), continue provisioning.
     const sameTenantDomain = existingDomains?.find(d => d.tenant_id === tenantId);
+    let existingDomainRecord: any | null = null;
+
     if (sameTenantDomain) {
-      console.log(`✅ Domain already exists for tenant, returning existing configuration`);
-      
-      // Return existing domain data
       const { data: existingDomain, error: fetchError } = await supabase
         .from('email_domains')
         .select('*')
@@ -123,14 +124,21 @@ const handler = async (req: Request): Promise<Response> => {
         return corsJsonResponse({ error: 'Failed to fetch existing domain' }, { status: 500 });
       }
 
-      return corsJsonResponse({
-        email_domain_id: existingDomain.id,
-        resend_domain_id: existingDomain.resend_domain_id,
-        domain: finalDomain,
-        env,
-        is_sandbox,
-        message: 'Domain configuration already exists'
-      });
+      // If already provisioned in Resend, return as-is
+      if (existingDomain.resend_domain_id) {
+        console.log(`✅ Domain already exists for tenant, returning existing configuration`);
+        return corsJsonResponse({
+          email_domain_id: existingDomain.id,
+          resend_domain_id: existingDomain.resend_domain_id,
+          domain: finalDomain,
+          env,
+          is_sandbox,
+          message: 'Domain configuration already exists'
+        });
+      }
+
+      console.log(`⚠️ Domain exists but is missing Resend provisioning; continuing provisioning...`);
+      existingDomainRecord = existingDomain;
     }
 
     // Setup Resend
@@ -189,27 +197,60 @@ const handler = async (req: Request): Promise<Response> => {
       }, { status: 500 });
     }
 
-    // Create email domain record
-    const { data: emailDomain, error: createDomainError } = await supabase
-      .from('email_domains')
-      .insert({
-        tenant_id: tenantId,
-        domain: finalDomain,
-        env,
-        is_sandbox,
-        resend_domain_id: resendDomainId,
-        status: 'verifying',
-        report_email: reportEmail
-      })
-      .select()
-      .single();
+    // Create or update email domain record
+    let emailDomain: any | null = null;
 
-    if (createDomainError || !emailDomain) {
-      console.error('❌ Failed to create email domain:', createDomainError);
-      return corsJsonResponse({ error: 'Failed to create domain record' }, { status: 500 });
+    if (existingDomainRecord) {
+      const { data: updatedDomain, error: updateError } = await supabase
+        .from('email_domains')
+        .update({
+          env,
+          is_sandbox,
+          resend_domain_id: resendDomainId,
+          status: 'verifying',
+          report_email: reportEmail,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', existingDomainRecord.id)
+        .select()
+        .single();
+
+      if (updateError || !updatedDomain) {
+        console.error('❌ Failed to update existing email domain:', updateError);
+        return corsJsonResponse({ error: 'Failed to update domain record' }, { status: 500 });
+      }
+
+      emailDomain = updatedDomain;
+      console.log(`✅ Updated email domain record: ${emailDomain.id}`);
+
+      // Remove any stale DNS records before re-inserting
+      await supabase
+        .from('email_dns_records')
+        .delete()
+        .eq('email_domain_id', emailDomain.id);
+    } else {
+      const { data: createdDomain, error: createDomainError } = await supabase
+        .from('email_domains')
+        .insert({
+          tenant_id: tenantId,
+          domain: finalDomain,
+          env,
+          is_sandbox,
+          resend_domain_id: resendDomainId,
+          status: 'verifying',
+          report_email: reportEmail
+        })
+        .select()
+        .single();
+
+      if (createDomainError || !createdDomain) {
+        console.error('❌ Failed to create email domain:', createDomainError);
+        return corsJsonResponse({ error: 'Failed to create domain record' }, { status: 500 });
+      }
+
+      emailDomain = createdDomain;
+      console.log(`✅ Created email domain record: ${emailDomain.id}`);
     }
-
-    console.log(`✅ Created email domain record: ${emailDomain.id}`);
 
     // Generate and insert DNS records
     const dnsRecords = [
