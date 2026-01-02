@@ -22,6 +22,56 @@ interface WorkflowStep {
   text: string;
 }
 
+// Normalize workflow_steps from either array format or React Flow object format
+function normalizeWorkflowSteps(workflowSteps: any): WorkflowStep[] {
+  // If it's already an array, return as-is
+  if (Array.isArray(workflowSteps)) {
+    return workflowSteps;
+  }
+  
+  // If it's React Flow format with nodes/edges
+  if (workflowSteps && typeof workflowSteps === 'object' && Array.isArray(workflowSteps.nodes)) {
+    console.log(`🔄 Converting React Flow format (${workflowSteps.nodes.length} nodes)`);
+    return workflowSteps.nodes
+      .filter((node: any) => node.type === 'email' || node.type === 'sms')
+      .map((node: any, index: number) => {
+        // Find delay from preceding delay node or use 0
+        const delayMin = node.data?.delay ? parseDelayToMinutes(node.data.delay) : 0;
+        return {
+          type: node.type as 'email' | 'sms',
+          delayMin,
+          subject: node.data?.subject || '',
+          text: node.data?.content || node.data?.text || ''
+        };
+      });
+  }
+  
+  // Fallback: return empty array
+  console.log(`⚠️ Unknown workflow_steps format, returning empty array`);
+  return [];
+}
+
+// Parse delay string like "1 day", "2 hours", "30 minutes" to minutes
+function parseDelayToMinutes(delay: string | number): number {
+  if (typeof delay === 'number') return delay;
+  if (!delay || delay === 'Immediate') return 0;
+  
+  const lower = delay.toLowerCase();
+  const match = lower.match(/(\d+)\s*(minute|hour|day|week)/);
+  if (!match) return 0;
+  
+  const value = parseInt(match[1], 10);
+  const unit = match[2];
+  
+  switch (unit) {
+    case 'minute': return value;
+    case 'hour': return value * 60;
+    case 'day': return value * 60 * 24;
+    case 'week': return value * 60 * 24 * 7;
+    default: return 0;
+  }
+}
+
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -128,7 +178,7 @@ const handler = async (req: Request): Promise<Response> => {
 };
 
 async function checkProviderReadiness(supabase: any, automation: any): Promise<{ canProcess: boolean; reason?: string; senderConfig?: SenderConfig }> {
-  const workflowSteps: WorkflowStep[] = automation.workflow_steps || [];
+  const workflowSteps: WorkflowStep[] = normalizeWorkflowSteps(automation.workflow_steps);
   const hasEmailSteps = workflowSteps.some(step => step.type === 'email');
   const hasSMSSteps = workflowSteps.some(step => step.type === 'sms');
 
@@ -186,8 +236,8 @@ async function processAutomation(supabase: any, automation: any) {
   let enqueued = 0;
 
   try {
-    // Get workflow steps
-    const workflowSteps: WorkflowStep[] = automation.workflow_steps || [];
+    // Get workflow steps (handles both array and React Flow formats)
+    const workflowSteps: WorkflowStep[] = normalizeWorkflowSteps(automation.workflow_steps);
     if (workflowSteps.length === 0) {
       console.log(`⚠️ No workflow steps defined for automation ${automation.id}`);
       return { processed: 0, enqueued: 0 };
@@ -688,8 +738,8 @@ async function processPendingTriggerEvents(supabase: any): Promise<{ eventsProce
           continue;
         }
 
-        // Process the automation for this customer
-        const workflowSteps: WorkflowStep[] = automation.workflow_steps || [];
+        // Process the automation for this customer (handles both array and React Flow formats)
+        const workflowSteps: WorkflowStep[] = normalizeWorkflowSteps(automation.workflow_steps);
         if (workflowSteps.length === 0) {
           console.log(`⚠️ No workflow steps for automation ${automation.id}`);
           await markEventProcessed(supabase, event.id, 'No workflow steps defined');
