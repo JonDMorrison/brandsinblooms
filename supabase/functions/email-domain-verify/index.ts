@@ -6,6 +6,7 @@ import { corsHeaders, handleCorsPrelight, corsJsonResponse } from "../_shared/co
 interface VerifyDomainRequest {
   domainId?: string;
   email_domain_id?: string;
+  reset_attempts?: boolean; // Used when retrying a failed domain
 }
 
 interface DNSCheck {
@@ -14,37 +15,98 @@ interface DNSCheck {
   details: any;
 }
 
+// Retry policy: interval based on attempt number
+function getNextVerifyInterval(attempts: number): number {
+  if (attempts <= 3) return 2 * 60 * 1000; // 2 minutes
+  if (attempts <= 6) return 5 * 60 * 1000; // 5 minutes
+  return 15 * 60 * 1000; // 15 minutes
+}
+
+// Calculate next verify time
+function calculateNextVerifyAt(attempts: number, allPassed: boolean): Date | null {
+  if (allPassed) return null; // No retry needed if verified
+  if (attempts >= 10) return null; // Max attempts reached
+  
+  const interval = getNextVerifyInterval(attempts + 1);
+  return new Date(Date.now() + interval);
+}
+
+// Map Resend status to our status
+function mapResendStatus(resendStatus: string, allChecksPassed: boolean): string {
+  if (allChecksPassed && resendStatus === 'verified') return 'active';
+  if (resendStatus === 'pending' || resendStatus === 'not_started') return 'pending_dns';
+  if (resendStatus === 'failed') return 'failed';
+  return 'verifying';
+}
+
+// Build human-readable error message
+function buildVerificationError(checks: DNSCheck[], resendStatus: any): string {
+  const failedChecks = checks.filter(c => !c.ok);
+  if (failedChecks.length === 0) return '';
+  
+  const checkNames = failedChecks.map(c => c.check_name).join(', ');
+  
+  // Check for domain mismatch
+  if (resendStatus?.records) {
+    const records = resendStatus.records;
+    for (const record of records) {
+      if (record.name && record.status !== 'verified') {
+        // This could indicate a mismatch
+        const recordHost = record.name.split('.')[0];
+        if (recordHost === 'send' || recordHost === 'mail') {
+          return `DNS records not verified for ${record.name}. Check: ${checkNames}. Ensure DNS records are applied to the correct subdomain.`;
+        }
+      }
+    }
+  }
+  
+  return `Verification incomplete: ${checkNames} failed. DNS records may still be propagating (can take up to 48 hours).`;
+}
+
 const handler = async (req: Request): Promise<Response> => {
   const corsResponse = handleCorsPrelight(req);
   if (corsResponse) return corsResponse;
 
+  const supabase = createClient(
+    Deno.env.get('SUPABASE_URL') ?? '',
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+  );
+
   try {
     console.log("🔍 Starting email domain verification");
     
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-    );
-
+    // Check for Authorization header (could be user JWT or service role for cron)
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
+    let userId: string | null = null;
+    let isServiceRole = false;
+    
+    if (authHeader) {
+      const token = authHeader.replace('Bearer ', '');
+      
+      // Check if it's a service role call (from cron)
+      if (token === Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')) {
+        isServiceRole = true;
+        console.log("🔑 Service role access - cron job");
+      } else {
+        // Verify user authentication
+        const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+        if (authError || !user) {
+          return corsJsonResponse({ error: 'Invalid authorization' }, { status: 401 });
+        }
+        userId = user.id;
+      }
+    } else {
       return corsJsonResponse({ error: 'Authorization required' }, { status: 401 });
     }
 
-    // Verify user authentication
-    const { data: { user }, error: authError } = await supabase.auth.getUser(authHeader.replace('Bearer ', ''));
-    if (authError || !user) {
-      return corsJsonResponse({ error: 'Invalid authorization' }, { status: 401 });
-    }
-
-    const { domainId, email_domain_id }: VerifyDomainRequest = await req.json();
+    const { domainId, email_domain_id, reset_attempts }: VerifyDomainRequest = await req.json();
     const finalDomainId = domainId || email_domain_id;
 
     if (!finalDomainId) {
       return corsJsonResponse({ error: 'Domain ID is required' }, { status: 400 });
     }
 
-    console.log(`🔍 Verifying domain: ${finalDomainId}`);
+    console.log(`🔍 Verifying domain: ${finalDomainId}, reset_attempts: ${reset_attempts}`);
 
     // Get domain information
     const { data: emailDomain, error: domainError } = await supabase
@@ -58,8 +120,43 @@ const handler = async (req: Request): Promise<Response> => {
       return corsJsonResponse({ error: 'Domain not found' }, { status: 404 });
     }
 
+    // Verify user has access to this domain's tenant (unless service role)
+    if (!isServiceRole && userId) {
+      const { data: userTenant } = await supabase
+        .from('users')
+        .select('tenant_id')
+        .eq('id', userId)
+        .single();
+      
+      if (userTenant?.tenant_id !== emailDomain.tenant_id) {
+        return corsJsonResponse({ error: 'Access denied to this domain' }, { status: 403 });
+      }
+    }
+
+    // Reset attempts if requested (retry button for failed domains)
+    let currentAttempts = emailDomain.verify_attempts || 0;
+    if (reset_attempts) {
+      currentAttempts = 0;
+      console.log("🔄 Resetting verification attempts to 0");
+    }
+
+    // Check if max attempts reached
+    if (currentAttempts >= 10 && !reset_attempts) {
+      console.log("⚠️ Max verification attempts reached");
+      return corsJsonResponse({
+        ok: false,
+        status: 'failed',
+        message: 'Maximum verification attempts (10) reached. Click "Retry" to reset and try again.',
+        domain: emailDomain.domain,
+        verify_attempts: currentAttempts
+      });
+    }
+
     if (!emailDomain.resend_domain_id) {
-      return corsJsonResponse({ error: 'No Resend domain ID found' }, { status: 400 });
+      return corsJsonResponse({ 
+        error: 'No Resend domain ID found. Domain may not be properly provisioned.',
+        status: emailDomain.status
+      }, { status: 400 });
     }
 
     // Setup Resend
@@ -74,42 +171,45 @@ const handler = async (req: Request): Promise<Response> => {
     const resend = new Resend(resendApiKey);
     const checks: DNSCheck[] = [];
     let allPassed = true;
+    let resendDomainStatus: any = null;
 
     try {
-      console.log(`📧 Verifying domain with Resend: ${emailDomain.resend_domain_id}`);
+      console.log(`📧 Triggering Resend verification for: ${emailDomain.resend_domain_id}`);
       
-      // FIRST: Trigger Resend to re-check DNS records
+      // Step 1: Trigger Resend to re-check DNS records
       try {
-        console.log(`🔄 Triggering Resend verification for: ${emailDomain.resend_domain_id}`);
         const { data: verifyResult, error: verifyError } = await resend.domains.verify(emailDomain.resend_domain_id);
         
         if (verifyError) {
-          console.log(`⚠️ Resend verify returned error:`, verifyError);
+          console.log(`⚠️ Resend verify returned error:`, JSON.stringify(verifyError));
         } else {
-          console.log(`✅ Resend verify triggered successfully:`, verifyResult);
+          console.log(`✅ Resend verify triggered successfully`);
         }
-      } catch (verifyError) {
-        console.log(`⚠️ Resend verify call failed:`, verifyError.message);
+      } catch (verifyError: any) {
+        console.log(`⚠️ Resend verify call failed:`, verifyError?.message);
       }
       
-      // Brief delay to allow Resend to process the verification
+      // Step 2: Wait for Resend to process (2 seconds)
       await new Promise(resolve => setTimeout(resolve, 2000));
       
-      // THEN: Get updated domain status from Resend
+      // Step 3: Get updated domain status from Resend
       console.log(`📊 Fetching updated domain status...`);
       const { data: domainStatus, error: statusError } = await resend.domains.get(emailDomain.resend_domain_id);
       
       if (statusError) {
-        console.error('❌ Resend status error:', statusError);
+        console.error('❌ Resend status error:', JSON.stringify(statusError));
         return corsJsonResponse({ 
           error: 'Failed to verify domain',
-          message: 'Unable to check domain status. Please try again.',
+          message: 'Unable to check domain status with Resend. Please try again.',
           details: statusError
         }, { status: 400 });
       }
 
+      resendDomainStatus = domainStatus;
       console.log(`📊 Resend domain status:`, JSON.stringify(domainStatus, null, 2));
 
+      // Step 4: Build DNS check results
+      
       // Check DKIM status
       const dkimCheck: DNSCheck = {
         check_name: 'dkim',
@@ -117,7 +217,7 @@ const handler = async (req: Request): Promise<Response> => {
         details: {
           status: domainStatus.status,
           dkim_verified: domainStatus.dkim_verified,
-          records: domainStatus.records
+          records: domainStatus.records?.filter((r: any) => r.type === 'DKIM' || r.name?.includes('dkim'))
         }
       };
       checks.push(dkimCheck);
@@ -159,7 +259,7 @@ const handler = async (req: Request): Promise<Response> => {
       checks.push(verificationCheck);
       if (!verificationCheck.ok) allPassed = false;
 
-    } catch (resendError) {
+    } catch (resendError: any) {
       console.error('❌ Resend verification error:', resendError);
       
       // Create a generic error check
@@ -167,7 +267,7 @@ const handler = async (req: Request): Promise<Response> => {
         check_name: 'resend_api',
         ok: false,
         details: {
-          error: resendError.message,
+          error: resendError?.message || 'Unknown error',
           timestamp: new Date().toISOString()
         }
       };
@@ -175,7 +275,7 @@ const handler = async (req: Request): Promise<Response> => {
       allPassed = false;
     }
 
-    // Insert/update DNS checks in database
+    // Step 5: Insert/update DNS checks in database
     for (const check of checks) {
       const { error: checkError } = await supabase
         .from('email_dns_checks')
@@ -194,26 +294,37 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
-    // Update domain status
-    let newStatus = 'verifying';
-    let errorMessage = null;
+    // Step 6: Calculate new status and retry info
+    const newAttempts = currentAttempts + 1;
+    const newStatus = mapResendStatus(resendDomainStatus?.status, allPassed);
+    const errorMessage = allPassed ? null : buildVerificationError(checks, resendDomainStatus);
+    const nextVerifyAt = calculateNextVerifyAt(newAttempts, allPassed);
 
-    if (allPassed) {
-      newStatus = 'active';
-      console.log(`✅ All checks passed - domain is active`);
-    } else {
-      const failedChecks = checks.filter(c => !c.ok);
-      errorMessage = `Verification incomplete: ${failedChecks.map(c => c.check_name).join(', ')} failed`;
-      console.log(`⚠️ Some checks failed: ${errorMessage}`);
+    console.log(`📊 Status update: ${emailDomain.status} -> ${newStatus}, attempts: ${newAttempts}, next_verify: ${nextVerifyAt?.toISOString() || 'none'}`);
+
+    // Step 7: Update domain status with all retry fields
+    const updateData: any = {
+      status: newStatus,
+      error: errorMessage,
+      last_verify_attempt_at: new Date().toISOString(),
+      verify_attempts: newAttempts,
+      last_verify_error: errorMessage,
+      resend_status: resendDomainStatus,
+      next_verify_at: nextVerifyAt?.toISOString() || null,
+      updated_at: new Date().toISOString()
+    };
+
+    // Set verified_at if newly verified
+    if (allPassed && !emailDomain.verified_at) {
+      updateData.verified_at = new Date().toISOString();
     }
 
-    const { error: updateError } = await supabase
+    const { error: updateError, data: updatedDomain } = await supabase
       .from('email_domains')
-      .update({
-        status: newStatus,
-        error: errorMessage
-      })
-      .eq('id', emailDomain.id);
+      .update(updateData)
+      .eq('id', emailDomain.id)
+      .select()
+      .single();
 
     if (updateError) {
       console.error('❌ Failed to update domain status:', updateError);
@@ -221,23 +332,39 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log(`🎉 Domain verification completed: ${emailDomain.domain} -> ${newStatus}`);
 
-    return corsJsonResponse({
+    // Build response
+    const response = {
       ok: allPassed,
+      allVerified: allPassed,
       status: newStatus,
+      domain: emailDomain.domain,
+      verify_attempts: newAttempts,
+      last_verify_attempt_at: updateData.last_verify_attempt_at,
+      next_verify_at: updateData.next_verify_at,
+      verified_at: updateData.verified_at || null,
+      message: allPassed 
+        ? 'Domain verification successful! All DNS records verified.' 
+        : errorMessage || 'Some verification checks failed',
       checks: checks.map(c => ({
         name: c.check_name,
         passed: c.ok,
         details: c.details
       })),
-      domain: emailDomain.domain,
-      message: allPassed ? 'Domain verification successful' : 'Some verification checks failed'
-    });
+      resend_status: {
+        status: resendDomainStatus?.status,
+        dkim_verified: resendDomainStatus?.dkim_verified,
+        spf_verified: resendDomainStatus?.spf_verified,
+        return_path_verified: resendDomainStatus?.return_path_verified
+      }
+    };
 
-  } catch (error) {
+    return corsJsonResponse(response);
+
+  } catch (error: any) {
     console.error('❌ Email domain verification error:', error);
     return corsJsonResponse({ 
       error: 'Internal server error',
-      message: 'Something went wrong during verification. Please try again or contact support.'
+      message: error?.message || 'Something went wrong during verification. Please try again or contact support.'
     }, { status: 500 });
   }
 };

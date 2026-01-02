@@ -10,12 +10,23 @@ export interface EmailDomain {
   domain: string;
   resend_domain_id?: string;
   provider?: 'domain_connect' | 'cloudflare' | 'manual';
-  status: 'pending' | 'verifying' | 'active' | 'error';
+  status: 'pending' | 'pending_dns' | 'verifying' | 'active' | 'failed' | 'error';
   env?: 'prod' | 'dev';
   is_sandbox?: boolean;
   error?: string;
   report_email?: string;
-  last_error?: string;
+  // Verification retry fields
+  last_verify_attempt_at?: string;
+  verify_attempts?: number;
+  last_verify_error?: string;
+  next_verify_at?: string;
+  verified_at?: string;
+  resend_status?: {
+    status?: string;
+    dkim_verified?: boolean;
+    spf_verified?: boolean;
+    return_path_verified?: boolean;
+  };
   created_at: string;
   updated_at: string;
 }
@@ -148,21 +159,26 @@ export const useEmailDomains = () => {
     }
   };
 
-  const verifyEmailDomain = async (domainId: string) => {
+  const verifyEmailDomain = async (domainId: string, resetAttempts = false) => {
     try {
       const { data, error } = await supabase.functions.invoke('email-domain-verify', {
-        body: { email_domain_id: domainId }
+        body: { 
+          email_domain_id: domainId,
+          reset_attempts: resetAttempts
+        }
       });
 
       if (error) throw error;
       
       const isSuccess = data?.ok || data?.status === 'active';
       
-      toast[isSuccess ? 'success' : 'warning'](
-        data?.message || (isSuccess 
-          ? "Domain is now active and ready to send emails"
-          : "Some DNS records are still pending verification")
-      );
+      if (isSuccess) {
+        toast.success(data?.message || "Domain is now active and ready to send emails");
+      } else if (data?.status === 'failed') {
+        toast.error(data?.message || "Domain verification failed after maximum attempts. Click 'Retry' to try again.");
+      } else {
+        toast.warning(data?.message || "Some DNS records are still pending verification");
+      }
       
       await fetchEmailDomains();
       return data;
@@ -171,6 +187,11 @@ export const useEmailDomains = () => {
       toast.error(error.message || 'Failed to verify email domain');
       throw error;
     }
+  };
+
+  // Retry a failed domain (resets attempts and tries again)
+  const retryEmailDomain = async (domainId: string) => {
+    return verifyEmailDomain(domainId, true);
   };
 
   // Auto-poll verification status
@@ -253,6 +274,7 @@ export const useEmailDomains = () => {
     loading,
     createEmailDomain,
     verifyEmailDomain,
+    retryEmailDomain,
     pollVerification,
     updateEmailDomain,
     deleteEmailDomain,
