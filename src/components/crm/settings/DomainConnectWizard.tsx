@@ -25,7 +25,7 @@ type WizardStep = 'enter_domain' | 'choose_method' | 'provisioning' | 'dns_pendi
 
 export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({ open, onClose }) => {
   const { provisionDomain, refetch } = useEmailDomainManagement();
-  const { openEntriSetup, isEntriConfigured, isLoading: entriLoading } = useEntriConnect();
+  const { openEntriSetup, convertToEntriRecords, validateDnsRecords, isEntriConfigured, isLoading: entriLoading } = useEntriConnect();
   const { tenant } = useTenant();
   
   const [step, setStep] = useState<WizardStep>('enter_domain');
@@ -71,26 +71,77 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({ open, 
     }
 
     const cleanDomain = cleanDomainInput(domain);
+    setError(null);
+    setLoading(true);
     
-    // Hide our dialog while Entri modal is active
-    setIsEntriModalOpen(true);
+    console.log(`🚀 Starting Entri setup for domain: ${cleanDomain}`);
     
-    openEntriSetup(
-      cleanDomain,
-      tenant.id,
-      undefined, // Use default DNS records
-      // onSuccess
-      () => {
-        setIsEntriModalOpen(false);
-        refetch();
-        setStep('entri_success');
-      },
-      // onCancel - fall back to manual
-      () => {
-        setIsEntriModalOpen(false);
-        setStep('choose_method');
+    try {
+      // Step 1: Provision domain in Resend FIRST to get real DNS records
+      console.log(`📧 Provisioning domain in Resend to get DNS records...`);
+      const result = await provisionDomain(cleanDomain);
+      
+      if (!result.success) {
+        setError(result.error || 'Failed to provision domain');
+        setLoading(false);
+        return;
       }
-    );
+      
+      setProvisionedData(result.data);
+      
+      // Step 2: Extract DNS records from backend response
+      const backendRecords = result.data?.records;
+      
+      if (!backendRecords || !Array.isArray(backendRecords) || backendRecords.length === 0) {
+        console.error('❌ No DNS records returned from backend');
+        setError('Failed to get DNS records from email service. Please try manual setup.');
+        setLoading(false);
+        return;
+      }
+      
+      console.log(`📋 Received ${backendRecords.length} DNS records from backend`);
+      
+      // Step 3: Convert to Entri format
+      const entriRecords = convertToEntriRecords(cleanDomain, backendRecords);
+      
+      // Step 4: Validate we have required records (especially Return-Path)
+      const validation = validateDnsRecords(entriRecords);
+      
+      if (!validation.valid) {
+        const missingStr = validation.missing.join(', ');
+        console.error(`❌ Missing required DNS records: ${missingStr}`);
+        setError(`Missing required DNS records: ${missingStr}. Please contact support.`);
+        setLoading(false);
+        return;
+      }
+      
+      console.log(`✅ All required DNS records present. Opening Entri...`);
+      setLoading(false);
+      
+      // Step 5: Open Entri with the real records from Resend
+      setIsEntriModalOpen(true);
+      
+      openEntriSetup(
+        cleanDomain,
+        tenant.id,
+        entriRecords, // Pass real records from Resend API
+        // onSuccess
+        () => {
+          setIsEntriModalOpen(false);
+          refetch();
+          setStep('entri_success');
+        },
+        // onCancel - fall back to manual
+        () => {
+          setIsEntriModalOpen(false);
+          setStep('dns_pending'); // Show manual DNS setup since domain is provisioned
+        }
+      );
+    } catch (err: any) {
+      console.error('Error in Entri setup:', err);
+      setError(err.message || 'Failed to set up domain');
+      setLoading(false);
+    }
   };
 
   const handleManualSetup = async () => {
@@ -205,8 +256,8 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({ open, 
             {/* Automatic Setup Option */}
             {isEntriConfigured && (
               <div 
-                className="relative border-2 border-primary/20 rounded-lg p-4 hover:border-primary/40 transition-colors cursor-pointer bg-primary/5"
-                onClick={handleEntriSetup}
+                className={`relative border-2 border-primary/20 rounded-lg p-4 transition-colors ${loading ? 'opacity-75' : 'hover:border-primary/40 cursor-pointer'} bg-primary/5`}
+                onClick={() => !loading && handleEntriSetup()}
               >
                 <div className="absolute -top-2.5 left-3 px-2 bg-background">
                   <span className="text-xs font-medium text-primary flex items-center gap-1">
@@ -223,16 +274,22 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({ open, 
                     <p className="text-xs text-muted-foreground mt-1">
                       Securely connect to your DNS provider for one-click setup. Works with GoDaddy, Cloudflare, Namecheap, and 50+ providers.
                     </p>
+                    {loading && (
+                      <p className="text-xs text-primary mt-2 flex items-center gap-1">
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        Provisioning domain in Resend...
+                      </p>
+                    )}
                   </div>
                   <Button 
                     size="sm" 
-                    disabled={entriLoading}
+                    disabled={loading || entriLoading}
                     onClick={(e) => {
                       e.stopPropagation();
                       handleEntriSetup();
                     }}
                   >
-                    {entriLoading ? (
+                    {loading ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
                       'Set Up'
