@@ -127,14 +127,33 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({ open, 
     return null;
   }
 
+  const getStepNumber = () => {
+    switch (step) {
+      case 'enter_domain': return 1;
+      case 'choose_method': return 2;
+      case 'provisioning': 
+      case 'dns_pending':
+      case 'entri_success':
+      case 'complete': return 3;
+      default: return 1;
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-[520px]">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Globe className="h-5 w-5 text-primary" />
-            Connect Your Domain
-          </DialogTitle>
+          <div className="flex items-center justify-between mb-1">
+            <DialogTitle className="flex items-center gap-2">
+              <Globe className="h-5 w-5 text-primary" />
+              Connect Your Domain
+            </DialogTitle>
+            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+              <span className="font-medium text-foreground">Step {getStepNumber()}</span>
+              <span>/</span>
+              <span>3</span>
+            </div>
+          </div>
           <DialogDescription>
             Send emails from your own domain for better deliverability and brand recognition.
           </DialogDescription>
@@ -200,9 +219,9 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({ open, 
                     <Zap className="h-5 w-5 text-primary" />
                   </div>
                   <div className="flex-1">
-                    <h3 className="font-medium text-sm">Automatic Setup</h3>
+                    <h3 className="font-medium text-sm">Automatic Setup via Entri</h3>
                     <p className="text-xs text-muted-foreground mt-1">
-                      One-click DNS configuration. Works with GoDaddy, Cloudflare, Namecheap, and 50+ providers.
+                      Securely connect to your DNS provider for one-click setup. Works with GoDaddy, Cloudflare, Namecheap, and 50+ providers.
                     </p>
                   </div>
                   <Button 

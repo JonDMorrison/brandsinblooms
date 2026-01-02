@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { 
@@ -97,22 +97,26 @@ export const EmailDomainsList = () => {
   return (
     <>
       <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+          <div>
+            <CardTitle className="text-xl">Email Domains</CardTitle>
+            <p className="text-sm text-muted-foreground mt-1">
+              Configure domains for sending emails with your brand
+            </p>
+          </div>
+          <Button onClick={() => setShowWizard(true)} className="flex items-center gap-2">
+            <Plus className="w-4 h-4" />
+            Add Domain
+          </Button>
+        </CardHeader>
         <CardContent>
           {emailDomains.length === 0 ? (
-            <div className="text-center py-12">
-              <Globe className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">No email domains configured</h3>
-              <p className="text-gray-600 mb-6 max-w-md mx-auto">
-                Set up your own email domain to improve deliverability and maintain brand consistency 
-                in your email campaigns.
+            <div className="text-center py-8 border-2 border-dashed rounded-lg">
+              <Globe className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
+              <h3 className="text-base font-medium mb-1">No domains configured yet</h3>
+              <p className="text-sm text-muted-foreground max-w-sm mx-auto">
+                Add your domain to send emails from your own address and improve deliverability.
               </p>
-              <Button 
-                onClick={() => setShowWizard(true)}
-                className="flex items-center gap-2 mx-auto"
-              >
-                <Plus className="w-4 h-4" />
-                Add Your First Domain
-              </Button>
             </div>
           ) : (
             <div className="space-y-4">
