@@ -125,56 +125,69 @@ export function MergeTagCommandPalette({
 
   return (
     <CommandDialog open={open} onOpenChange={onOpenChange}>
+      <div className="p-4 pb-2 border-b bg-gradient-to-r from-primary/5 to-transparent">
+        <h2 className="text-lg font-semibold text-foreground mb-1">Insert Merge Tag</h2>
+        <p className="text-sm text-muted-foreground">Personalize your message with dynamic content</p>
+      </div>
       <CommandInput
         placeholder="Search merge tags..."
         value={search}
         onValueChange={setSearch}
+        className="border-0 border-b rounded-none focus:ring-0 px-4 h-12"
       />
-      <CommandList>
-        <CommandEmpty>No merge tags found.</CommandEmpty>
+      <CommandList className="max-h-[400px] p-2">
+        <CommandEmpty className="py-8 text-center">
+          <div className="flex flex-col items-center gap-2">
+            <Sparkles className="h-8 w-8 text-muted-foreground/50" />
+            <p className="text-sm text-muted-foreground">No merge tags found.</p>
+          </div>
+        </CommandEmpty>
         
         {/* Recent Tags Section */}
         {recentTagDefinitions.length > 0 && (
           <>
-            <CommandGroup heading={
-              <span className="flex items-center gap-2">
-                <Clock className="h-3 w-3" />
-                Recently Used
-              </span>
-            }>
+            <CommandGroup 
+              heading={
+                <span className="flex items-center gap-2 px-2 py-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  <Clock className="h-3.5 w-3.5" />
+                  Recently Used
+                </span>
+              }
+              className="px-1"
+            >
               {recentTagDefinitions.map((tag) => (
                 <CommandItem
                   key={`recent-${tag.key}`}
                   value={`recent-${tag.key}`}
                   onSelect={() => handleSelectTag(tag)}
-                  className="flex items-center justify-between py-3"
+                  className="flex items-center justify-between py-3 px-3 rounded-lg mb-1 cursor-pointer data-[selected=true]:bg-primary/10"
                 >
                   <div className="flex items-center gap-3">
-                    <span className={`p-1.5 rounded ${CATEGORY_COLORS[tag.category].bg}`}>
+                    <span className={`p-2 rounded-lg ${CATEGORY_COLORS[tag.category].bg} ${CATEGORY_COLORS[tag.category].text}`}>
                       {CATEGORY_ICONS[tag.category]}
                     </span>
                     <div className="flex flex-col">
-                      <span className="font-medium">{tag.label}</span>
+                      <span className="font-medium text-foreground">{tag.label}</span>
                       <span className="text-xs text-muted-foreground">{tag.description}</span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="secondary" className="text-xs font-mono">
+                  <div className="flex items-center gap-3">
+                    <Badge variant="secondary" className="text-xs font-mono bg-muted/50">
                       {tag.example}
                     </Badge>
                     <button
                       onClick={(e) => handleToggleFavorite(e, tag.key)}
-                      className="p-1 hover:bg-accent rounded"
+                      className="p-1.5 hover:bg-accent rounded-md transition-colors"
                     >
                       <Heart 
-                        className={`h-3.5 w-3.5 ${isFavorite(tag.key) ? 'fill-red-500 text-red-500' : 'text-muted-foreground'}`} 
+                        className={`h-4 w-4 ${isFavorite(tag.key) ? 'fill-red-500 text-red-500' : 'text-muted-foreground hover:text-foreground'}`} 
                       />
                     </button>
                   </div>
                 </CommandItem>
               ))}
             </CommandGroup>
-            <CommandSeparator />
+            <CommandSeparator className="my-2" />
           </>
         )}
 
@@ -183,28 +196,31 @@ export function MergeTagCommandPalette({
           <CommandGroup
             key={category}
             heading={
-              <span className="flex items-center gap-2">
-                {CATEGORY_ICONS[category]}
+              <span className="flex items-center gap-2 px-2 py-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                <span className={`p-1 rounded ${CATEGORY_COLORS[category].bg} ${CATEGORY_COLORS[category].text}`}>
+                  {CATEGORY_ICONS[category]}
+                </span>
                 {CATEGORY_LABELS[category]}
-                <Badge variant="outline" className="ml-auto text-xs">
+                <Badge variant="outline" className="ml-auto text-[10px] px-1.5 py-0">
                   {tagsByCategory[category].length}
                 </Badge>
               </span>
             }
+            className="px-1"
           >
             {tagsByCategory[category].map((tag) => (
               <CommandItem
                 key={tag.key}
                 value={tag.key}
                 onSelect={() => handleSelectTag(tag)}
-                className="flex items-center justify-between py-3"
+                className="flex items-center justify-between py-3 px-3 rounded-lg mb-1 cursor-pointer data-[selected=true]:bg-primary/10"
               >
-                <div className="flex flex-col">
-                  <span className="font-medium">{tag.label}</span>
+                <div className="flex flex-col gap-0.5">
+                  <span className="font-medium text-foreground">{tag.label}</span>
                   <span className="text-xs text-muted-foreground">{tag.description}</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <code className="text-xs bg-muted px-2 py-0.5 rounded font-mono">
+                <div className="flex items-center gap-3">
+                  <code className="text-[11px] bg-muted/80 px-2 py-1 rounded-md font-mono text-muted-foreground">
                     {`{{ ${tag.key} }}`}
                   </code>
                   <Badge 
@@ -215,10 +231,10 @@ export function MergeTagCommandPalette({
                   </Badge>
                   <button
                     onClick={(e) => handleToggleFavorite(e, tag.key)}
-                    className="p-1 hover:bg-accent rounded"
+                    className="p-1.5 hover:bg-accent rounded-md transition-colors"
                   >
                     <Heart 
-                      className={`h-3.5 w-3.5 ${isFavorite(tag.key) ? 'fill-red-500 text-red-500' : 'text-muted-foreground'}`} 
+                      className={`h-4 w-4 ${isFavorite(tag.key) ? 'fill-red-500 text-red-500' : 'text-muted-foreground hover:text-foreground'}`} 
                     />
                   </button>
                 </div>
@@ -226,13 +242,22 @@ export function MergeTagCommandPalette({
             ))}
           </CommandGroup>
         ))}
-        
-        <CommandSeparator />
-        <div className="px-3 py-2 text-xs text-muted-foreground text-center">
-          Press <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px]">↵</kbd> to insert • 
-          <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px] ml-1">Esc</kbd> to close
-        </div>
       </CommandList>
+      
+      <div className="px-4 py-3 border-t bg-muted/30 flex items-center justify-center gap-4 text-xs text-muted-foreground">
+        <span className="flex items-center gap-1.5">
+          <kbd className="px-2 py-1 bg-background border rounded text-[10px] font-medium shadow-sm">↑↓</kbd>
+          <span>Navigate</span>
+        </span>
+        <span className="flex items-center gap-1.5">
+          <kbd className="px-2 py-1 bg-background border rounded text-[10px] font-medium shadow-sm">↵</kbd>
+          <span>Insert</span>
+        </span>
+        <span className="flex items-center gap-1.5">
+          <kbd className="px-2 py-1 bg-background border rounded text-[10px] font-medium shadow-sm">Esc</kbd>
+          <span>Close</span>
+        </span>
+      </div>
     </CommandDialog>
   );
 }
