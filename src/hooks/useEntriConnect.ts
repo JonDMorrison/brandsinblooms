@@ -48,8 +48,9 @@ interface EntriBrowserEventDetail {
   lastStatus?: string;
 }
 
-// DNS records required for email authentication
-const EMAIL_DNS_RECORDS: EntriDnsRecord[] = [
+// Default DNS records - only used as absolute fallback
+// These should come from the backend (Resend API) for accuracy
+const FALLBACK_EMAIL_DNS_RECORDS: EntriDnsRecord[] = [
   {
     type: 'TXT',
     host: '@',
@@ -59,7 +60,13 @@ const EMAIL_DNS_RECORDS: EntriDnsRecord[] = [
   {
     type: 'CNAME',
     host: 'resend._domainkey',
-    value: 'resend._domainkey.resend.com',
+    value: 'resend._domainkey.resend.dev',
+    ttl: 3600
+  },
+  {
+    type: 'CNAME',
+    host: 'send',
+    value: 'send.resend.com',
     ttl: 3600
   },
   {
@@ -177,8 +184,16 @@ export const useEntriConnect = () => {
 
       const normalizedDomain = normalizeDomain(domain);
 
-      // Use provided DNS records or default email authentication records
-      const records = dnsRecords || EMAIL_DNS_RECORDS;
+      // Use provided DNS records or fallback defaults
+      // IMPORTANT: Records should come from backend (Resend API) for accuracy
+      if (!dnsRecords || dnsRecords.length === 0) {
+        console.warn('⚠️ No DNS records provided to Entri, using fallback records. Return-Path may be missing!');
+      }
+      const records = dnsRecords && dnsRecords.length > 0 ? dnsRecords : FALLBACK_EMAIL_DNS_RECORDS;
+      
+      // Log records being sent to Entri for debugging
+      console.log(`📋 Opening Entri for domain: ${normalizedDomain}`);
+      console.log(`📋 DNS records being applied (${records.length}):`, JSON.stringify(records, null, 2));
 
       // Fetch authenticated JWT token from server
       const tokenData = await fetchEntriToken();
@@ -275,55 +290,75 @@ export const useEntriConnect = () => {
   }, [loadEntriScript, normalizeDomain]);
 
   /**
-   * Generate custom DNS records based on domain-specific requirements
+   * Convert backend DNS records to Entri format
+   * Backend records have: { name, type, value, purpose }
+   * Entri needs: { type, host, value, ttl }
    */
-  const generateDnsRecords = useCallback((domain: string, resendDnsRecords?: any): EntriDnsRecord[] => {
-    if (resendDnsRecords) {
-      // Convert Resend DNS records to Entri format
-      const records: EntriDnsRecord[] = [];
+  const convertToEntriRecords = useCallback((domain: string, backendRecords: Array<{name: string; type: string; value: string; purpose?: string}>): EntriDnsRecord[] => {
+    console.log(`📋 Converting ${backendRecords.length} backend records to Entri format for domain: ${domain}`);
+    
+    const entriRecords: EntriDnsRecord[] = [];
+    
+    for (const record of backendRecords) {
+      // Convert full domain name to host (relative to domain)
+      let host = record.name;
       
-      if (resendDnsRecords.dkim) {
-        resendDnsRecords.dkim.forEach((record: any) => {
-          records.push({
-            type: record.type as 'TXT' | 'CNAME',
-            host: record.name.replace(`.${domain}`, ''),
-            value: record.value,
-            ttl: record.ttl || 3600
-          });
-        });
+      // Remove the domain suffix to get relative host
+      if (host.endsWith(`.${domain}`)) {
+        host = host.replace(`.${domain}`, '');
+      } else if (host === domain) {
+        host = '@';
       }
       
-      if (resendDnsRecords.spf) {
-        resendDnsRecords.spf.forEach((record: any) => {
-          records.push({
-            type: 'TXT',
-            host: record.name === domain ? '@' : record.name.replace(`.${domain}`, ''),
-            value: record.value,
-            ttl: record.ttl || 3600
-          });
-        });
-      }
+      const entriRecord: EntriDnsRecord = {
+        type: record.type as 'TXT' | 'CNAME' | 'MX' | 'A' | 'AAAA',
+        host,
+        value: record.value,
+        ttl: 3600
+      };
       
-      if (resendDnsRecords.return_path) {
-        records.push({
-          type: resendDnsRecords.return_path.type as 'CNAME',
-          host: resendDnsRecords.return_path.name.replace(`.${domain}`, ''),
-          value: resendDnsRecords.return_path.value,
-          ttl: resendDnsRecords.return_path.ttl || 3600
-        });
-      }
-      
-      return records.length > 0 ? records : EMAIL_DNS_RECORDS;
+      entriRecords.push(entriRecord);
+      console.log(`  ✓ ${entriRecord.type} ${entriRecord.host} -> ${entriRecord.value.substring(0, 50)}...`);
     }
     
-    return EMAIL_DNS_RECORDS;
+    return entriRecords;
+  }, []);
+
+  /**
+   * Validate that required DNS records are present
+   */
+  const validateDnsRecords = useCallback((records: EntriDnsRecord[]): { valid: boolean; missing: string[] } => {
+    const missing: string[] = [];
+    
+    // Check for SPF (TXT record at @ or domain root with spf)
+    const hasSpf = records.some(r => r.type === 'TXT' && r.value.includes('spf'));
+    if (!hasSpf) missing.push('SPF');
+    
+    // Check for DKIM (CNAME or TXT with domainkey)
+    const hasDkim = records.some(r => r.host.includes('domainkey') || r.host.includes('dkim'));
+    if (!hasDkim) missing.push('DKIM');
+    
+    // Check for Return-Path (CNAME for send or return subdomain)
+    const hasReturnPath = records.some(r => 
+      r.type === 'CNAME' && (r.host === 'send' || r.host === 'return' || r.value.includes('send.resend'))
+    );
+    if (!hasReturnPath) missing.push('Return-Path');
+    
+    console.log(`📋 DNS validation: SPF=${hasSpf}, DKIM=${hasDkim}, Return-Path=${hasReturnPath}`);
+    
+    return {
+      valid: missing.length === 0,
+      missing
+    };
   }, []);
 
   return {
     openEntriSetup,
-    generateDnsRecords,
+    convertToEntriRecords,
+    validateDnsRecords,
     isLoading,
     isScriptLoaded,
-    isEntriConfigured: emailDomainsConfig.isEntriConfigured()
+    isEntriConfigured: emailDomainsConfig.isEntriConfigured(),
+    FALLBACK_RECORDS: FALLBACK_EMAIL_DNS_RECORDS
   };
 };

@@ -155,6 +155,7 @@ const handler = async (req: Request): Promise<Response> => {
     // Check if domain exists in Resend
     console.log(`📧 Checking Resend for existing domain: ${finalDomain}`);
     let resendDomainId: string;
+    let resendDomainData: any = null;
     
     try {
       const { data: domains, error: listError } = await resend.domains.list();
@@ -168,6 +169,13 @@ const handler = async (req: Request): Promise<Response> => {
       if (existingResendDomain) {
         resendDomainId = existingResendDomain.id;
         console.log(`✅ Found existing Resend domain: ${resendDomainId}`);
+        
+        // Fetch full domain details including DNS records
+        const { data: domainDetails, error: getError } = await resend.domains.get(resendDomainId);
+        if (!getError && domainDetails) {
+          resendDomainData = domainDetails;
+          console.log(`📋 Fetched domain details with ${domainDetails.records?.length || 0} DNS records`);
+        }
       } else {
         // Create new domain in Resend
         console.log(`📧 Creating new domain in Resend: ${finalDomain}`);
@@ -187,6 +195,16 @@ const handler = async (req: Request): Promise<Response> => {
         
         resendDomainId = createResult.id;
         console.log(`✅ Created new Resend domain: ${resendDomainId}`);
+        
+        // Wait a moment for Resend to generate records
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Fetch full domain details including DNS records
+        const { data: domainDetails, error: getError } = await resend.domains.get(resendDomainId);
+        if (!getError && domainDetails) {
+          resendDomainData = domainDetails;
+          console.log(`📋 Fetched new domain details with ${domainDetails.records?.length || 0} DNS records`);
+        }
       }
     } catch (resendError) {
       console.error('❌ Resend API error:', resendError);
@@ -252,31 +270,89 @@ const handler = async (req: Request): Promise<Response> => {
       console.log(`✅ Created email domain record: ${emailDomain.id}`);
     }
 
-    // Generate and insert DNS records
-    const dnsRecords = [
-      // DKIM records (3 records from Resend)
-      { name: `resend._domainkey.${finalDomain}`, type: 'TXT', value: `k=rsa; p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQC7hXq...`, purpose: 'dkim', required: true },
-      { name: `resend2._domainkey.${finalDomain}`, type: 'TXT', value: `k=rsa; p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQC7hXq...`, purpose: 'dkim', required: true },
-      { name: `resend3._domainkey.${finalDomain}`, type: 'TXT', value: `k=rsa; p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQC7hXq...`, purpose: 'dkim', required: true },
+    // Build DNS records from Resend API response (real records, not hardcoded)
+    const dnsRecords: Array<{name: string; type: string; value: string; purpose: string; required: boolean}> = [];
+    
+    if (resendDomainData?.records && Array.isArray(resendDomainData.records)) {
+      console.log(`📋 Processing ${resendDomainData.records.length} DNS records from Resend API`);
       
-      // Return path
-      { name: `return.${finalDomain}`, type: 'CNAME', value: 'return.resend.com', purpose: 'return_path', required: true },
+      for (const record of resendDomainData.records) {
+        let purpose = 'verification';
+        
+        // Determine purpose based on record characteristics
+        if (record.record_type === 'MX' || record.type === 'MX') {
+          purpose = 'mx';
+        } else if (record.name?.includes('_domainkey') || record.record?.includes('DKIM')) {
+          purpose = 'dkim';
+        } else if (record.value?.includes('spf') || record.record?.includes('spf')) {
+          purpose = 'spf';
+        } else if (record.name?.includes('_dmarc')) {
+          purpose = 'dmarc';
+        } else if (record.record_type === 'CNAME' || record.type === 'CNAME') {
+          // CNAME records for return path / bounce tracking
+          purpose = 'return_path';
+        } else if (record.name?.includes('_resend')) {
+          purpose = 'verification';
+        }
+        
+        const recordName = record.name || record.host || '';
+        const recordType = record.record_type || record.type || 'TXT';
+        const recordValue = record.value || record.data || record.record || '';
+        
+        if (recordName && recordValue) {
+          dnsRecords.push({
+            name: recordName,
+            type: recordType,
+            value: recordValue,
+            purpose,
+            required: purpose !== 'dmarc'
+          });
+          console.log(`  ✓ ${recordType} ${recordName} (${purpose})`);
+        }
+      }
+    }
+    
+    // If Resend didn't return records, log a warning but use fallback
+    if (dnsRecords.length === 0) {
+      console.warn(`⚠️ No DNS records returned from Resend API, using fallback records`);
       
-      // SPF record
-      { name: finalDomain, type: 'TXT', value: 'v=spf1 include:resend.com ~all', purpose: 'spf', required: true },
-      
-      // Domain verification
-      { name: `_resend.${finalDomain}`, type: 'TXT', value: `resend-verify=${resendDomainId}`, purpose: 'verification', required: true },
-      
-      // DMARC record
-      { 
+      // Fallback: Basic records structure (less accurate but functional)
+      dnsRecords.push(
+        { name: `resend._domainkey.${finalDomain}`, type: 'CNAME', value: 'resend._domainkey.resend.dev', purpose: 'dkim', required: true },
+        { name: `send.${finalDomain}`, type: 'CNAME', value: 'send.resend.com', purpose: 'return_path', required: true },
+        { name: finalDomain, type: 'TXT', value: 'v=spf1 include:_spf.resend.com ~all', purpose: 'spf', required: true }
+      );
+    }
+    
+    // Add DMARC record (we add this ourselves since Resend doesn't manage DMARC)
+    const hasDmarc = dnsRecords.some(r => r.purpose === 'dmarc');
+    if (!hasDmarc) {
+      dnsRecords.push({ 
         name: `_dmarc.${finalDomain}`, 
         type: 'TXT', 
         value: `v=DMARC1; p=quarantine; rua=mailto:dmarc@bloomsuite.app${reportEmail ? `,mailto:${reportEmail}` : ''}`, 
         purpose: 'dmarc', 
         required: false 
-      }
-    ];
+      });
+    }
+    
+    // Validate that we have required records
+    const hasReturnPath = dnsRecords.some(r => r.purpose === 'return_path');
+    const hasDkim = dnsRecords.some(r => r.purpose === 'dkim');
+    const hasSpf = dnsRecords.some(r => r.purpose === 'spf');
+    
+    console.log(`📋 Final DNS record check: DKIM=${hasDkim}, SPF=${hasSpf}, Return-Path=${hasReturnPath}, DMARC=${hasDmarc || true}`);
+    
+    if (!hasReturnPath) {
+      console.warn(`⚠️ No Return-Path CNAME found, adding default`);
+      dnsRecords.push({
+        name: `send.${finalDomain}`,
+        type: 'CNAME',
+        value: 'send.resend.com',
+        purpose: 'return_path',
+        required: true
+      });
+    }
 
     // Insert DNS records
     const recordInserts = dnsRecords.map(record => ({
