@@ -20,7 +20,7 @@ import { useEmailDomains, EmailDomain } from '@/hooks/useEmailDomains';
 import { toast } from 'sonner';
 
 export const EmailDomainsList = () => {
-  const { emailDomains, loading, verifyEmailDomain } = useEmailDomains();
+  const { emailDomains, loading, verifyEmailDomain, refetch } = useEmailDomains();
   const [showWizard, setShowWizard] = useState(false);
   const [selectedDomain, setSelectedDomain] = useState<string | null>(null);
   const [verifyingDomains, setVerifyingDomains] = useState<Set<string>>(new Set());
@@ -193,14 +193,22 @@ export const EmailDomainsList = () => {
 
       <DomainConnectWizard 
         open={showWizard} 
-        onClose={() => setShowWizard(false)} 
+        onClose={() => {
+          setShowWizard(false);
+          refetch();
+        }} 
       />
 
       {selectedDomain && (
         <EmailDomainDetails
           domainId={selectedDomain}
           open={!!selectedDomain}
-          onOpenChange={(open) => !open && setSelectedDomain(null)}
+          onOpenChange={(open) => {
+            if (!open) {
+              setSelectedDomain(null);
+              refetch();
+            }
+          }}
         />
       )}
     </>
