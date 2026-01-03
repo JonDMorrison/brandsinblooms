@@ -5,33 +5,45 @@
  * Guards against PII in URLs.
  */
 
-// PII patterns to detect in URLs
+// Expanded PII patterns to detect in URLs
 const PII_PATTERNS = [
-  /[?&]email=/i,
-  /[?&]e=/i,
-  /[?&]phone=/i,
+  // Query parameter patterns (stricter matching)
+  /(^|[?&])(e|u|email|email_id|subscriber|phone|msisdn)=/i,
   /[?&]tel=/i,
   /[?&]mobile=/i,
   /[?&]ssn=/i,
   /[?&]social=/i,
   /[?&]address=/i,
   /[?&]name=/i,
+  /[?&]first_name=/i,
+  /[?&]last_name=/i,
+  // Merge tag patterns (handlebars, liquid, etc.)
   /\{\{.*email.*\}\}/i,
   /\{\{.*phone.*\}\}/i,
   /\{\{.*first_name.*\}\}/i,
   /\{\{.*last_name.*\}\}/i,
-  /%7B%7B.*%7D%7D/i, // URL-encoded merge tags
+  /\{recipient\.[^}]+\}/i,  // {recipient.email}, {recipient.name} etc.
+  /%7B%7B.*%7D%7D/i, // URL-encoded handlebars {{ }}
+  /%7Brecipient\.[^%]+%7D/i, // URL-encoded {recipient.*}
 ];
 
-// URLs to skip (system URLs, unsubscribe links, etc.)
+// URLs to skip from tracking
 const SKIP_PATTERNS = [
+  // System/preference links
   /handle-unsubscribe/i,
   /manage-preferences/i,
+  /manage[-_]prefs/i,
   /unsubscribe/i,
-  /mailto:/i,
-  /tel:/i,
-  /sms:/i,
-  /javascript:/i,
+  /email-preferences/i,
+  /opt-out/i,
+  // Non-HTTP protocols
+  /^mailto:/i,
+  /^tel:/i,
+  /^sms:/i,
+  /^javascript:/i,
+  /^data:/i,
+  // Anchors
+  /^#/,
 ];
 
 export interface ExtractedLink {
@@ -49,17 +61,71 @@ export interface LinkRewriteResult {
 }
 
 /**
+ * Decode HTML entities in a URL
+ */
+export function decodeHtmlEntities(url: string): string {
+  const entities: Record<string, string> = {
+    '&amp;': '&',
+    '&lt;': '<',
+    '&gt;': '>',
+    '&quot;': '"',
+    '&#39;': "'",
+    '&apos;': "'",
+    '&#x27;': "'",
+    '&#x2F;': '/',
+    '&#47;': '/',
+  };
+  
+  let decoded = url;
+  for (const [entity, char] of Object.entries(entities)) {
+    decoded = decoded.replace(new RegExp(entity, 'gi'), char);
+  }
+  
+  return decoded;
+}
+
+/**
  * Check if a URL contains potential PII
  */
 export function hasPII(url: string): boolean {
-  return PII_PATTERNS.some(pattern => pattern.test(url));
+  const decoded = decodeHtmlEntities(url);
+  return PII_PATTERNS.some(pattern => pattern.test(decoded));
 }
 
 /**
  * Check if a URL should be skipped from tracking
  */
 export function shouldSkipLink(url: string): boolean {
-  return SKIP_PATTERNS.some(pattern => pattern.test(url));
+  const decoded = decodeHtmlEntities(url);
+  const trimmed = decoded.trim();
+  
+  // Skip empty or anchor-only links
+  if (!trimmed || trimmed === '#' || trimmed.startsWith('#')) {
+    return true;
+  }
+  
+  // Skip non-HTTP protocols and system links
+  return SKIP_PATTERNS.some(pattern => pattern.test(trimmed));
+}
+
+/**
+ * Check if URL is a valid trackable link
+ */
+export function isTrackableUrl(url: string): boolean {
+  const decoded = decodeHtmlEntities(url);
+  const trimmed = decoded.trim();
+  
+  // Must start with http:// or https://
+  if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://')) {
+    return false;
+  }
+  
+  // Must not match skip patterns
+  if (shouldSkipLink(trimmed)) {
+    return false;
+  }
+  
+  return true;
 }
 
 /**
@@ -71,16 +137,10 @@ export function extractLinks(html: string): ExtractedLink[] {
   let match;
 
   while ((match = hrefRegex.exec(html)) !== null) {
-    const href = match[1];
+    const href = decodeHtmlEntities(match[1]);
     
-    // Skip empty or anchor-only links
-    if (!href || href === '#' || href.startsWith('#')) continue;
-    
-    // Skip mailto, tel, javascript, system links, etc.
-    if (shouldSkipLink(href)) continue;
-
-    // Only process http/https links
-    if (!href.startsWith('http://') && !href.startsWith('https://')) continue;
+    // Skip non-trackable links
+    if (!isTrackableUrl(href)) continue;
 
     links.push({
       original: match[0],
@@ -124,6 +184,14 @@ export function buildTrackingUrl(
  */
 export function getUniqueUrls(links: ExtractedLink[]): string[] {
   return [...new Set(links.map(l => l.href))];
+}
+
+/**
+ * Validate UUID format
+ */
+export function isValidUUID(str: string): boolean {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(str);
 }
 
 /**

@@ -68,26 +68,45 @@ The webhook verifies the `svix-signature` header against the webhook secret. Inv
 ### At Send Time
 
 1. Extract all `<a href="...">` links from email HTML
-2. Check each URL for PII patterns (email=, phone=, etc.)
-3. If PII detected: skip rewriting, log warning
-4. Upsert URL into `tracked_links` table, get `link_id`
-5. Replace href with tracking URL: `/functions/v1/redirect-click?cid={campaign_id}&lid={link_id}&rid={recipient_id}&t={tenant_id}`
-6. Append UTM parameters if not present
+2. **Skip non-trackable links**:
+   - `mailto:`, `tel:`, `sms:`, `data:`, `javascript:` protocols
+   - Fragment-only links (`#anchor`)
+   - Unsubscribe/manage-preferences URLs (matches `/unsubscribe|manage[-_]prefs/i`)
+3. Check each URL for PII patterns
+4. If PII detected: skip rewriting, log warning, include in send report
+5. Upsert URL into `tracked_links` table, get `link_id`
+6. Replace href with tracking URL: `/functions/v1/redirect-click?cid={campaign_id}&lid={link_id}&rid={recipient_id}&t={tenant_id}`
+7. Append UTM parameters if not present (preserves existing UTMs)
 
-### On Click
+### On Click (redirect-click)
 
-1. `redirect-click` edge function receives click
-2. Looks up `link_id` to get destination URL
-3. Records click event in `email_tracking_events`
-4. 302 redirects to destination
+1. Validate all UUID parameters (cid, lid, rid, t)
+2. Check rate limit (60 requests/min per IP)
+3. Look up `link_id` to get destination URL (tenant-scoped)
+4. Record click event in `email_tracking_events`
+5. 302 redirect to destination with security headers:
+   - `Cache-Control: no-store`
+   - `X-Robots-Tag: noindex`
 
 ### PII Guard
 
 URLs matching these patterns are NOT rewritten:
-- `?email=`, `?e=`, `?phone=`, `?tel=`, `?name=`
-- Merge tags like `{{email}}`, `{{first_name}}`
+- Query params: `?e=`, `?u=`, `?email=`, `?email_id=`, `?subscriber=`, `?phone=`, `?msisdn=`
+- Merge tags: `{{email}}`, `{{first_name}}`, `{recipient.email}`, `{recipient.*}`
+- URL-encoded variants
 
-A warning is logged and included in the send report.
+A warning is logged and included in the send report (`pii_warnings` count).
+
+### Skipped Link Types
+
+The following are never tracked:
+- `mailto:` links
+- `tel:` links
+- `sms:` links
+- `data:` URIs
+- `javascript:` links
+- Fragment-only links (`#section`)
+- Unsubscribe/preference management links
 
 ## Suppression Reasons
 
@@ -171,42 +190,90 @@ If parity fails, investigate:
 2. Are webhook events delayed or missing?
 3. Is there a timezone/timestamp issue?
 
-## Recovery Runbook
+## Outage Recovery Runbook
 
-### Events Not Arriving
+### Scenario 1: Webhook Not Receiving Events
 
-1. Check webhook endpoint is active in Resend dashboard
-2. Verify webhook secret matches `RESEND_WEBHOOK_SECRET`
-3. Check edge function logs for errors
-4. Try backfill from provider
+**Symptoms**: Ingest lag > 10 minutes, no new events in `email_tracking_events`
 
-### Metrics Seem Wrong
+**Steps**:
+1. Check Resend dashboard for webhook delivery status
+2. Verify webhook URL is correct and accessible
+3. Check edge function logs at `/admin/analytics-health` or Supabase dashboard
+4. If webhook endpoint was down:
+   - Run backfill for affected campaigns: `POST /functions/v1/backfill-provider-events`
+   - Verify parity check shows ≤ 0.1% delta
+5. If signature verification failing:
+   - Verify `RESEND_WEBHOOK_SECRET` is correctly set in Supabase secrets
+   - Check for secret rotation on Resend side
 
-1. Run recompute for the campaign
-2. Check parity: if delta > 1%, investigate events
-3. Verify no duplicate campaigns or cross-tenant leakage
+### Scenario 2: High Complaint/Bounce Rates
 
-### High Bounce/Complaint Rate
+**Symptoms**: Complaint rate > 0.3% or bounce rate > 5%
 
-1. Stop sending immediately
-2. Export recent bounces/complaints
-3. Cross-reference with import source
-4. Clean list before resuming
-5. Consider re-verification of old contacts
+**Immediate Actions**:
+1. **STOP ALL SENDING** immediately
+2. Export recent bounces and complaints from `email_tracking_events`
+3. Cross-reference with import source to identify problematic list segments
+4. Remove offending contacts from future sends
 
-### Stale Metrics
+**Recovery**:
+1. Audit import process for the affected contacts
+2. Implement double opt-in for new signups
+3. Consider re-verification of old contacts (> 6 months inactive)
+4. Resume sending with a small test segment first
+5. Monitor rates closely for 24-48 hours
 
-1. Check `rollup_refreshed_at` on campaign
-2. If older than latest event, run recompute
-3. If auto-refresh not working, check real-time subscription
+### Scenario 3: Metrics Drift (Parity Check Fails)
+
+**Symptoms**: Parity check shows > 1% delta on any metric
+
+**Steps**:
+1. Run recompute for the affected campaign
+2. If delta persists:
+   - Check for duplicate `provider_message_id` values (shouldn't exist due to unique constraint)
+   - Look for timezone issues in `event_ts_provider`
+   - Verify no cross-tenant data leakage
+3. Run backfill from provider to sync missing events
+4. If still failing, check for:
+   - Database constraint violations in logs
+   - RLS policy issues blocking event insertion
+
+### Scenario 4: Link Clicks Not Recording
+
+**Symptoms**: Zero clicks despite emails opened
+
+**Steps**:
+1. Verify links were rewritten at send time (check `tracked_links` table)
+2. Test a tracking URL manually in browser
+3. Check redirect-click edge function logs
+4. Verify `tracked_links` table has correct `url` values
+5. Check for rate limiting (429 responses in logs)
+
+### Scenario 5: Edge Function Errors (5xx)
+
+**Symptoms**: Webhook 5xx rate > 1%
+
+**Steps**:
+1. Check Supabase edge function logs
+2. Look for:
+   - Database connection issues
+   - Timeout errors (function running > 60s)
+   - Memory exhaustion
+3. If database overloaded:
+   - Check for missing indexes
+   - Review query performance
+4. Restart edge function deployment if stuck
 
 ## Security
 
 - All queries are tenant-scoped via RLS
 - IP addresses are hashed, never stored raw
-- PII patterns in links are detected and blocked
+- PII patterns in links are detected and blocked (with warning)
 - Webhook signatures are verified
 - Admin endpoints require authentication
+- Rate limiting on redirect-click (60/min per IP)
+- Security headers on redirects (noindex, no-store)
 
 ## Database Indexes
 
@@ -229,6 +296,17 @@ ON tracked_links (tenant_id, campaign_id);
 
 Visit `/admin/analytics-health` to see:
 - Ingest lag
-- Complaint and bounce rates
+- Complaint and bounce rates (with 30-day sparklines)
 - Webhook status
 - Stale campaigns needing recompute
+- Active alerts for threshold breaches
+- Suppression breakdown by reason
+
+## Alerting
+
+Alerts are generated when thresholds are breached:
+- Stored in memory during health page load
+- Displayed prominently with severity (warning/critical)
+- Include current value and threshold for comparison
+
+Future: Store alerts in `analytics_alerts` table for historical tracking.

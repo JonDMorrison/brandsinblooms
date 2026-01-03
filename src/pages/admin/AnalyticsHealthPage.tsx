@@ -4,9 +4,9 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow, format } from 'date-fns';
 import { 
   Activity, 
   AlertTriangle, 
@@ -16,9 +16,13 @@ import {
   Webhook,
   MailWarning,
   Ban,
-  TrendingUp
+  TrendingUp,
+  ShieldAlert,
+  XCircle,
+  Bell
 } from 'lucide-react';
 import { SidebarLayout } from '@/components/SidebarLayout';
+import { toast } from 'sonner';
 
 interface HealthMetric {
   name: string;
@@ -28,15 +32,19 @@ interface HealthMetric {
   icon: React.ReactNode;
 }
 
-interface Alert {
+interface AnalyticsAlert {
   id: string;
-  type: string;
-  message: string;
-  severity: 'info' | 'warning' | 'error';
+  metric: string;
+  value: number;
+  threshold: number;
+  severity: 'warning' | 'critical';
   created_at: string;
+  resolved_at?: string;
 }
 
 const AnalyticsHealthPage = () => {
+  const queryClient = useQueryClient();
+
   // Fetch health metrics
   const { data: healthData, isLoading, refetch } = useQuery({
     queryKey: ['analytics-health'],
@@ -56,14 +64,14 @@ const AnalyticsHealthPage = () => {
       const { count: complaintCount } = await supabase
         .from('email_tracking_events')
         .select('*', { count: 'exact', head: true })
-        .eq('event_type', 'complaint')
+        .in('event_type', ['complaint', 'complained'])
         .gte('created_at', thirtyDaysAgo.toISOString());
 
       // Get bounce count (last 30 days)
       const { count: bounceCount } = await supabase
         .from('email_tracking_events')
         .select('*', { count: 'exact', head: true })
-        .eq('event_type', 'bounce')
+        .in('event_type', ['bounce', 'bounced'])
         .gte('created_at', thirtyDaysAgo.toISOString());
 
       // Get total sent (last 30 days)
@@ -93,6 +101,70 @@ const AnalyticsHealthPage = () => {
         ingestLagMinutes = Math.floor((now - eventTime) / (1000 * 60));
       }
 
+      // Check and store alerts for threshold breaches
+      const alerts: AnalyticsAlert[] = [];
+      const now = new Date().toISOString();
+
+      if (complaintRate > 0.3) {
+        alerts.push({
+          id: `complaint_${Date.now()}`,
+          metric: 'complaint_rate',
+          value: complaintRate,
+          threshold: 0.3,
+          severity: 'critical',
+          created_at: now,
+        });
+      } else if (complaintRate > 0.1) {
+        alerts.push({
+          id: `complaint_${Date.now()}`,
+          metric: 'complaint_rate',
+          value: complaintRate,
+          threshold: 0.1,
+          severity: 'warning',
+          created_at: now,
+        });
+      }
+
+      if (bounceRate > 5) {
+        alerts.push({
+          id: `bounce_${Date.now()}`,
+          metric: 'bounce_rate',
+          value: bounceRate,
+          threshold: 5,
+          severity: 'critical',
+          created_at: now,
+        });
+      } else if (bounceRate > 2) {
+        alerts.push({
+          id: `bounce_${Date.now()}`,
+          metric: 'bounce_rate',
+          value: bounceRate,
+          threshold: 2,
+          severity: 'warning',
+          created_at: now,
+        });
+      }
+
+      if (ingestLagMinutes > 10) {
+        alerts.push({
+          id: `ingest_${Date.now()}`,
+          metric: 'ingest_lag',
+          value: ingestLagMinutes,
+          threshold: 10,
+          severity: 'critical',
+          created_at: now,
+        });
+      } else if (ingestLagMinutes > 2) {
+        alerts.push({
+          id: `ingest_${Date.now()}`,
+          metric: 'ingest_lag',
+          value: ingestLagMinutes,
+          threshold: 2,
+          severity: 'warning',
+          created_at: now,
+        });
+      }
+
       return {
         ingestLagMinutes,
         complaintRate,
@@ -102,9 +174,27 @@ const AnalyticsHealthPage = () => {
         sentCount: sentCount || 0,
         latestEventAt: latestEvent?.created_at,
         staleCampaigns: staleCampaigns || [],
+        alerts,
       };
     },
     refetchInterval: 60000, // Refresh every minute
+  });
+
+  // Recompute mutation
+  const recomputeMutation = useMutation({
+    mutationFn: async (campaignId: string) => {
+      const { error } = await supabase.rpc('recompute_campaign_metrics', {
+        p_campaign_id: campaignId
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('Metrics recomputed');
+      queryClient.invalidateQueries({ queryKey: ['analytics-health'] });
+    },
+    onError: () => {
+      toast.error('Failed to recompute metrics');
+    },
   });
 
   // Build metrics array
@@ -151,7 +241,7 @@ const AnalyticsHealthPage = () => {
     switch (status) {
       case 'green': return <CheckCircle className="h-4 w-4 text-green-600" />;
       case 'yellow': return <AlertTriangle className="h-4 w-4 text-yellow-600" />;
-      case 'red': return <AlertTriangle className="h-4 w-4 text-red-600" />;
+      case 'red': return <XCircle className="h-4 w-4 text-red-600" />;
     }
   };
 
@@ -170,6 +260,54 @@ const AnalyticsHealthPage = () => {
             Refresh
           </Button>
         </div>
+
+        {/* Active Alerts */}
+        {healthData?.alerts && healthData.alerts.length > 0 && (
+          <Card className="border-yellow-200 bg-yellow-50/50 dark:bg-yellow-900/10">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-yellow-800 dark:text-yellow-200">
+                <Bell className="h-5 w-5" />
+                Active Alerts ({healthData.alerts.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {healthData.alerts.map((alert) => (
+                  <div 
+                    key={alert.id}
+                    className={`flex items-center justify-between p-3 rounded-lg ${
+                      alert.severity === 'critical' 
+                        ? 'bg-red-100 dark:bg-red-900/30' 
+                        : 'bg-yellow-100 dark:bg-yellow-900/30'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      {alert.severity === 'critical' 
+                        ? <XCircle className="h-5 w-5 text-red-600" />
+                        : <AlertTriangle className="h-5 w-5 text-yellow-600" />
+                      }
+                      <div>
+                        <p className="font-medium">
+                          {alert.metric === 'complaint_rate' && 'Complaint Rate Threshold'}
+                          {alert.metric === 'bounce_rate' && 'Bounce Rate Threshold'}
+                          {alert.metric === 'ingest_lag' && 'Ingest Lag Threshold'}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          Current: {typeof alert.value === 'number' ? alert.value.toFixed(2) : alert.value}
+                          {alert.metric.includes('rate') ? '%' : ' min'} (Threshold: {alert.threshold}
+                          {alert.metric.includes('rate') ? '%' : ' min'})
+                        </p>
+                      </div>
+                    </div>
+                    <Badge variant={alert.severity === 'critical' ? 'destructive' : 'secondary'}>
+                      {alert.severity}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Health Metrics Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -226,6 +364,15 @@ const AnalyticsHealthPage = () => {
                     Active
                   </Badge>
                 </div>
+                <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <ShieldAlert className="h-4 w-4 text-muted-foreground" />
+                    <span className="font-medium">Signature Verification</span>
+                  </div>
+                  <Badge variant="outline" className="bg-green-500/10 text-green-600">
+                    Enabled
+                  </Badge>
+                </div>
                 {healthData?.latestEventAt && (
                   <div className="text-sm text-muted-foreground">
                     Last event: {formatDistanceToNow(new Date(healthData.latestEventAt), { addSuffix: true })}
@@ -254,11 +401,15 @@ const AnalyticsHealthPage = () => {
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-muted-foreground">Complaints</span>
-                    <span className="font-medium">{healthData?.complaintCount}</span>
+                    <span className={`font-medium ${healthData?.complaintRate && healthData.complaintRate > 0.1 ? 'text-red-600' : ''}`}>
+                      {healthData?.complaintCount}
+                    </span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-muted-foreground">Bounces</span>
-                    <span className="font-medium">{healthData?.bounceCount}</span>
+                    <span className={`font-medium ${healthData?.bounceRate && healthData.bounceRate > 2 ? 'text-orange-600' : ''}`}>
+                      {healthData?.bounceCount}
+                    </span>
                   </div>
                 </div>
               )}
@@ -301,14 +452,10 @@ const AnalyticsHealthPage = () => {
                         <Button 
                           variant="ghost" 
                           size="sm"
-                          onClick={async () => {
-                            await supabase.rpc('recompute_campaign_metrics', {
-                              p_campaign_id: campaign.id
-                            });
-                            refetch();
-                          }}
+                          onClick={() => recomputeMutation.mutate(campaign.id)}
+                          disabled={recomputeMutation.isPending}
                         >
-                          <RefreshCw className="h-4 w-4 mr-1" />
+                          <RefreshCw className={`h-4 w-4 mr-1 ${recomputeMutation.isPending ? 'animate-spin' : ''}`} />
                           Recompute
                         </Button>
                       </TableCell>
@@ -337,6 +484,7 @@ const AnalyticsHealthPage = () => {
                   <TableHead>Green</TableHead>
                   <TableHead>Yellow</TableHead>
                   <TableHead>Red</TableHead>
+                  <TableHead>Action</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -345,18 +493,28 @@ const AnalyticsHealthPage = () => {
                   <TableCell>≤ 2 minutes</TableCell>
                   <TableCell>2-10 minutes</TableCell>
                   <TableCell>&gt; 10 minutes</TableCell>
+                  <TableCell className="text-muted-foreground">Check webhook delivery</TableCell>
                 </TableRow>
                 <TableRow>
                   <TableCell className="font-medium">Complaint Rate</TableCell>
                   <TableCell>≤ 0.1%</TableCell>
                   <TableCell>0.1-0.3%</TableCell>
                   <TableCell>&gt; 0.3%</TableCell>
+                  <TableCell className="text-muted-foreground">Review list hygiene</TableCell>
                 </TableRow>
                 <TableRow>
                   <TableCell className="font-medium">Hard Bounce Rate</TableCell>
                   <TableCell>≤ 2%</TableCell>
                   <TableCell>2-5%</TableCell>
                   <TableCell>&gt; 5%</TableCell>
+                  <TableCell className="text-muted-foreground">Clean email list</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="font-medium">Webhook 5xx Rate</TableCell>
+                  <TableCell>≤ 1%</TableCell>
+                  <TableCell>1-5%</TableCell>
+                  <TableCell>&gt; 5%</TableCell>
+                  <TableCell className="text-muted-foreground">Check edge function logs</TableCell>
                 </TableRow>
               </TableBody>
             </Table>
