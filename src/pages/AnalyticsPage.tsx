@@ -8,6 +8,7 @@ import { ExecutiveDashboard } from "@/components/analytics/ExecutiveDashboard";
 import { ChannelPerformance } from "@/components/analytics/ChannelPerformance";
 import { DataSourceManager } from "@/components/analytics/DataSourceManager";
 import { ActionableInsights } from "@/components/analytics/ActionableInsights";
+import { EmailCampaignPerformance } from "@/components/analytics/EmailCampaignPerformance";
 import { useGASettings } from "@/hooks/useGASettings";
 import { supabase } from "@/integrations/supabase/client";
 import { useState } from "react";
@@ -100,6 +101,9 @@ const AnalyticsPage = () => {
         growth={growth}
         loading={loading}
       />
+
+      {/* Email Campaign Performance */}
+      <EmailCampaignPerformance dateRange={selectedPeriod} />
 
       {/* Channel Performance Breakdown */}
       <ChannelPerformance
