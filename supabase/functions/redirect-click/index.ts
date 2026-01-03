@@ -193,21 +193,53 @@ serve(async (req: Request): Promise<Response> => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Look up the tracked link - ONLY fetch URL by lid, require tenant match if provided
+    // Look up the tracked link - REQUIRE tenant_id, campaign_id, and link_id match
+    // This prevents enumeration attacks and ensures proper tenant binding
     let query = supabase
       .from('tracked_links')
       .select('url, campaign_id, tenant_id')
       .eq('id', linkId);
     
-    // Add tenant filter if provided for security
+    // ALWAYS require tenant_id match if provided (security critical)
     if (tenantId) {
       query = query.eq('tenant_id', tenantId);
+    }
+    
+    // ALWAYS require campaign_id match if provided (security critical)
+    if (campaignId) {
+      query = query.eq('campaign_id', campaignId);
     }
     
     const { data: link, error: linkError } = await query.single();
 
     if (linkError || !link) {
-      console.error('❌ Link not found:', linkError);
+      console.error('❌ Link not found or tenant/campaign mismatch:', linkError?.message || 'No match');
+      return new Response('Link not found', { 
+        status: 404,
+        headers: {
+          'Cache-Control': 'no-store',
+          'X-Robots-Tag': 'noindex',
+          ...corsHeaders
+        }
+      });
+    }
+    
+    // Extra validation: if tenant was provided in URL, it MUST match the link
+    if (tenantId && link.tenant_id !== tenantId) {
+      console.error('❌ Tenant mismatch:', tenantId, 'vs', link.tenant_id);
+      return new Response('Link not found', { 
+        status: 404,
+        headers: {
+          'Cache-Control': 'no-store',
+          'X-Robots-Tag': 'noindex',
+          ...corsHeaders
+        }
+      });
+    }
+    
+    // Extra validation: if campaign was provided in URL, it MUST match the link
+    if (campaignId && link.campaign_id !== campaignId) {
+      console.error('❌ Campaign mismatch:', campaignId, 'vs', link.campaign_id);
       return new Response('Link not found', { 
         status: 404,
         headers: {

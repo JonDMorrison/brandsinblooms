@@ -384,3 +384,6 @@ verify_jwt = true
 
 [functions.cron-recompute-analytics]
 verify_jwt = false
+
+[functions.cron-purge-email-events]
+verify_jwt = false

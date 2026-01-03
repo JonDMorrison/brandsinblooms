@@ -356,6 +356,54 @@ export type Database = {
           },
         ]
       }
+      analytics_alerts: {
+        Row: {
+          created_at: string
+          id: string
+          metric: string
+          resolved_at: string | null
+          severity: string
+          tenant_id: string | null
+          threshold: number
+          value: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          metric: string
+          resolved_at?: string | null
+          severity: string
+          tenant_id?: string | null
+          threshold: number
+          value: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          metric?: string
+          resolved_at?: string | null
+          severity?: string
+          tenant_id?: string | null
+          threshold?: number
+          value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "analytics_alerts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "admin_tenant_overview"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "analytics_alerts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       analytics_data: {
         Row: {
           connection_id: string
@@ -12415,6 +12463,7 @@ export type Database = {
         }[]
       }
       get_global_in_progress_count: { Args: never; Returns: number }
+      get_jwt_tenant_id: { Args: never; Returns: string }
       get_next_message_sequence: {
         Args: { p_session_id: string }
         Returns: number
