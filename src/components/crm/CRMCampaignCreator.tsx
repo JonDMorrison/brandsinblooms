@@ -12,6 +12,7 @@ import { useSegmentCounts } from '@/hooks/useSegmentCounts';
 import { Loader2, Mail, Users, Sparkles, Send, Eye } from 'lucide-react';
 import { useSenderConfiguration } from '@/hooks/useSenderConfiguration';
 import { SharedSenderConfirmationModal } from './campaigns/SharedSenderConfirmationModal';
+import { CampaignSendConfirmationModal } from './campaigns/CampaignSendConfirmationModal';
 import { WarmupLimitModal } from './WarmupLimitModal';
 import { WarmupLimitDetails } from '@/utils/campaignSendingErrors';
 import { CleanEmailBlockEditor } from './CleanEmailBlockEditor';
@@ -838,6 +839,7 @@ const { counts: segmentCounts } = useSegmentCounts();
   const [showAIWriter, setShowAIWriter] = useState(false);
   const [sending, setSending] = useState(false);
   const [showSenderConfirmation, setShowSenderConfirmation] = useState(false);
+  const [showSendConfirmation, setShowSendConfirmation] = useState(false);
   const [showWarmupLimitModal, setShowWarmupLimitModal] = useState(false);
   const [warmupLimitDetails, setWarmupLimitDetails] = useState<WarmupLimitDetails | null>(null);
   const [showAIImageDialog, setShowAIImageDialog] = useState(false);
@@ -4141,8 +4143,8 @@ const { counts: segmentCounts } = useSegmentCounts();
       });
     }
 
-    // Proceed with sending
-    await proceedWithSending();
+    // Show the send confirmation modal with audience summary
+    setShowSendConfirmation(true);
   };
 
   const proceedWithSending = async () => {
@@ -4614,13 +4616,29 @@ const { counts: segmentCounts } = useSegmentCounts();
         }}
       />
 
-      {/* Sender Confirmation Modal */}
+      {/* Campaign Send Confirmation Modal */}
+      <CampaignSendConfirmationModal
+        isOpen={showSendConfirmation}
+        onClose={() => setShowSendConfirmation(false)}
+        onConfirm={() => {
+          setShowSendConfirmation(false);
+          proceedWithSending();
+        }}
+        campaignName={campaignName}
+        subjectLine={subjectLine}
+        selectedSegments={selectedSegments}
+        selectedPersonas={selectedPersonas}
+        totalContacts={selectedPersonas.reduce((total, persona) => total + (persona.customerCount || 0), 0) + selectedSegments.reduce((total, segment) => total + (segment.customerCount || 0), 0)}
+        loading={sending}
+      />
+
+      {/* Sender Confirmation Modal (for unverified senders) */}
       <SharedSenderConfirmationModal
         isOpen={showSenderConfirmation}
         onClose={() => setShowSenderConfirmation(false)}
         onConfirm={() => {
           setShowSenderConfirmation(false);
-          proceedWithSending();
+          setShowSendConfirmation(true);
         }}
         senderConfig={senderConfig}
         campaignName={campaignName}
