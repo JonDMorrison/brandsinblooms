@@ -40,8 +40,7 @@ interface ConflictDetail {
 // =========================================================
 
 type ReadinessStatus = 
-  | 'READY_TO_SEND'
-  | 'READY_AWAITING_PROVIDER'
+  | 'CONNECTED_READY'           // DNS verified, domain is working - primary success state
   | 'ACTION_REQUIRED_DNS_MISSING'
   | 'ACTION_REQUIRED_DNS_CONFLICT'
   | 'DOMAIN_NOT_CONNECTED';
@@ -392,12 +391,20 @@ async function verifyDNSRecordDirectly(
 /**
  * Compute the unified readiness status for the UI.
  * 
+ * DEFINITION OF "WORKING" (for CONNECTED_READY):
+ * - Entri connection completed successfully
+ * - direct_dns.verified === true
+ * - conflicts.detected === false
+ * - Required DNS records (DKIM, SPF, return-path) are publicly resolvable
+ * 
+ * NOTE: Provider verification (Resend) is NOT part of this definition.
+ * Provider verification happens silently in the background.
+ * 
  * STRICT RULES (in priority order):
- * 1. READY_TO_SEND: Provider fully verified
- * 2. DOMAIN_NOT_CONNECTED: Entri not completed
- * 3. ACTION_REQUIRED_DNS_CONFLICT: CNAME conflicts with MX/TXT
- * 4. READY_AWAITING_PROVIDER: DNS verified, provider pending
- * 5. ACTION_REQUIRED_DNS_MISSING: DNS not verified
+ * 1. DOMAIN_NOT_CONNECTED: Entri not completed or domain not managed
+ * 2. ACTION_REQUIRED_DNS_CONFLICT: CNAME conflicts with MX/TXT
+ * 3. CONNECTED_READY: DNS verified, domain is WORKING
+ * 4. ACTION_REQUIRED_DNS_MISSING: DNS not verified
  */
 function computeReadinessStatus(params: {
   resendStatus: string;
@@ -408,24 +415,15 @@ function computeReadinessStatus(params: {
   allProviderVerified: boolean;
 }): ReadinessResult {
   const { 
-    resendStatus, 
     allDnsVerified, 
     dnsConflictDetected, 
     isEntriManaged, 
-    entriConnectionId,
-    allProviderVerified 
+    entriConnectionId
+    // NOTE: We intentionally ignore resendStatus and allProviderVerified
+    // Readiness is based on DNS truth, not provider verification
   } = params;
   
-  // Priority 1: Fully verified - Ready to send
-  if (resendStatus === 'verified' || allProviderVerified) {
-    return {
-      status: 'READY_TO_SEND',
-      message: 'Domain is verified and ready to send.',
-      cta: null
-    };
-  }
-  
-  // Priority 2: Domain not connected (Entri not completed)
+  // Priority 1: Domain not connected (Entri not completed)
   // Only show this if user hasn't set up Entri at all
   if (!isEntriManaged && !entriConnectionId) {
     return {
@@ -436,7 +434,7 @@ function computeReadinessStatus(params: {
     };
   }
   
-  // Priority 3: DNS conflict detected - Red, action required
+  // Priority 2: DNS conflict detected - Red, action required
   // IMPORTANT: This takes precedence over DNS missing
   if (dnsConflictDetected) {
     return {
@@ -447,18 +445,18 @@ function computeReadinessStatus(params: {
     };
   }
   
-  // Priority 4: DNS verified but provider pending - Amber, no action needed
-  // CRITICAL: This is the "calm waiting" state - user has done everything right
+  // Priority 3: DNS verified = CONNECTED_READY (domain is WORKING)
+  // This is the success state - user should feel DONE
   if (allDnsVerified) {
     return {
-      status: 'READY_AWAITING_PROVIDER',
-      message: 'DNS is correctly configured. Resend is confirming it.',
-      subMessage: 'This can take up to 72 hours. No action needed.',
+      status: 'CONNECTED_READY',
+      message: 'Your email domain is connected and ready to use.',
+      subMessage: null, // No sub-message needed - this is final
       cta: null
     };
   }
   
-  // Priority 5: DNS not verified - Red, action required
+  // Priority 4: DNS not verified - Red, action required
   return {
     status: 'ACTION_REQUIRED_DNS_MISSING',
     message: 'DNS records not visible yet.',
