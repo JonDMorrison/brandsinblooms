@@ -20,8 +20,9 @@ const getEntriAppId = (): string => {
     return 'bloomsuite';
   }
   
-  // Production: fail loudly
-  throw new Error('Missing VITE_ENTRI_APPLICATION_ID in production environment.');
+  // Production: warn but don't crash the app - Entri auto-setup will be disabled
+  console.warn('[emailDomainsConfig] VITE_ENTRI_APPLICATION_ID not set. Entri auto-setup disabled.');
+  return '';
 };
 
 export const emailDomainsConfig = {
