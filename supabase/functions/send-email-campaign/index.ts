@@ -329,10 +329,29 @@ serve(async (req) => {
     let recipientCount = customers.length;
     console.log(`📧 Found ${recipientCount} customers`);
 
+    // Auto-select the tenant's active domain if none specified on campaign
+    let domainIdToUse = campaign.from_email_domain_id;
+    if (!domainIdToUse) {
+      const { data: activeDomains } = await supabase
+        .from('email_domains')
+        .select('id, domain, status')
+        .eq('tenant_id', campaign.tenant_id)
+        .eq('status', 'active')
+        .order('created_at', { ascending: false })
+        .limit(1);
+      
+      if (activeDomains && activeDomains.length > 0) {
+        domainIdToUse = activeDomains[0].id;
+        console.log(`📧 Auto-selected active domain: ${activeDomains[0].domain} (${domainIdToUse})`);
+      } else {
+        console.log(`📧 No active domain found for tenant, will use fallback sender`);
+      }
+    }
+
     // Quota check with warmup enforcement
     const { data: quotaCheck, error: quotaError } = await supabase.rpc('check_send_quota', {
       p_tenant_id: campaign.tenant_id,
-      p_domain_id: campaign.from_email_domain_id || null,
+      p_domain_id: domainIdToUse || null,
       p_recipient_count: recipientCount
     });
 
