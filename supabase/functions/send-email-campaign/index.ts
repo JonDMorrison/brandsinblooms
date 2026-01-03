@@ -433,7 +433,20 @@ serve(async (req) => {
       deliveryMethod = 'shared_sender';
       usesVerifiedDomain = false;
     } else {
-      senderEmail = quotaCheck.sender?.from_email || 'noreply@bloomsuite.app';
+      // Use configured from_email, or construct one from the domain
+      const domainName = quotaCheck.domain?.domain;
+      const configuredEmail = quotaCheck.sender?.from_email;
+      
+      if (configuredEmail && configuredEmail !== 'noreply@bloomsuite.app') {
+        senderEmail = configuredEmail;
+      } else if (domainName) {
+        // Construct default email from domain: mail@domain.com
+        senderEmail = `mail@${domainName}`;
+        console.log(`📧 No default_from_email set, using constructed: ${senderEmail}`);
+      } else {
+        senderEmail = 'noreply@bloomsuite.app';
+      }
+      
       senderDisplayName = quotaCheck.sender?.from_name || companyName;
       deliveryMethod = 'custom_domain';
       usesVerifiedDomain = true;
