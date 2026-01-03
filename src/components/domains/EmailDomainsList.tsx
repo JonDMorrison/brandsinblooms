@@ -28,11 +28,13 @@ import { toast } from 'sonner';
 // =========================================================
 
 type ReadinessStatus = 
-  | 'READY_TO_SEND'
-  | 'READY_AWAITING_PROVIDER'
+  | 'CONNECTED_READY'           // DNS verified, domain is working - primary success state
   | 'ACTION_REQUIRED_DNS_MISSING'
   | 'ACTION_REQUIRED_DNS_CONFLICT'
-  | 'DOMAIN_NOT_CONNECTED';
+  | 'DOMAIN_NOT_CONNECTED'
+  // Legacy statuses (for backward compatibility)
+  | 'READY_TO_SEND'
+  | 'READY_AWAITING_PROVIDER';
 
 interface ReadinessDisplay {
   status: ReadinessStatus;
@@ -111,21 +113,33 @@ export const EmailDomainsList = () => {
     domain?: EmailDomain
   ): ReadinessDisplay => {
     switch (status) {
-      case 'READY_TO_SEND':
+      case 'CONNECTED_READY':
+        // Primary success state - confident, celebratory
         return {
           status,
-          badge: { text: 'Ready to Send', variant: 'green' },
-          message,
+          badge: { text: 'Connected', variant: 'green' },
+          message: message || 'Your email domain is connected and ready to use.',
           subMessage,
           showForceCheck: false
         };
+      // Legacy: still support READY_TO_SEND for backward compatibility
+      case 'READY_TO_SEND':
+        return {
+          status: 'CONNECTED_READY',
+          badge: { text: 'Connected', variant: 'green' },
+          message: message || 'Your email domain is connected and ready to use.',
+          subMessage,
+          showForceCheck: false
+        };
+      // Legacy: still support READY_AWAITING_PROVIDER - map to CONNECTED_READY
+      // since DNS is correct, user should feel DONE
       case 'READY_AWAITING_PROVIDER':
         return {
-          status,
-          badge: { text: 'Configuring', variant: 'amber' },
-          message,
-          subMessage,
-          showForceCheck: true
+          status: 'CONNECTED_READY',
+          badge: { text: 'Connected', variant: 'green' },
+          message: 'Your email domain is connected and ready to use.',
+          subMessage: undefined, // Hide provider status from user
+          showForceCheck: false
         };
       case 'ACTION_REQUIRED_DNS_MISSING':
         return {
@@ -161,54 +175,39 @@ export const EmailDomainsList = () => {
   };
   
   const computeReadinessFromLegacy = (domain: EmailDomain, resendStatus: any): ReadinessDisplay => {
-    // Active domain
-    if (domain.status === 'active') {
-      return mapReadinessToDisplay('READY_TO_SEND', 'Domain is verified and ready to send.');
-    }
-    
-    // Check for conflicts
+    // Check for conflicts FIRST (highest priority error)
     if (resendStatus?.dns_conflict_detected) {
       return mapReadinessToDisplay(
         'ACTION_REQUIRED_DNS_CONFLICT',
         'A conflicting DNS record is blocking email setup.',
-        'We can fix this automatically.',
+        domain.is_entri_managed ? 'We can fix this automatically.' : 'Please remove the conflicting CNAME record.',
         domain.is_entri_managed ? 'Fix DNS Conflict' : undefined
       );
     }
     
-    // Check verification phase
-    const phase = resendStatus?.verification_phase;
-    
-    if (phase === 'dns_present_waiting_provider') {
+    // Check if domain is not connected (Entri not set up)
+    if (!domain.is_entri_managed && !domain.entri_connection_id) {
       return mapReadinessToDisplay(
-        'READY_AWAITING_PROVIDER',
-        'DNS is correctly configured. Resend is confirming it.',
-        'This can take up to 72 hours. No action needed.'
+        'DOMAIN_NOT_CONNECTED',
+        "Domain isn't connected to BloomSuite yet.",
+        'Set up automatic DNS configuration to get started.',
+        'Connect DNS'
       );
     }
     
-    if (phase === 'dns_missing') {
-      return mapReadinessToDisplay(
-        'ACTION_REQUIRED_DNS_MISSING',
-        'DNS records not visible yet.',
-        domain.is_entri_managed ? 'We can repair automatically.' : 'Please check your DNS configuration.',
-        domain.is_entri_managed ? 'Repair DNS' : undefined
-      );
-    }
-    
-    // Check records for more granular status
+    // Check DNS verification status
     const records = resendStatus?.records || [];
-    const allDnsVerified = records.every((r: any) => r.dns_verified || r.status === 'verified');
-    const anyPending = records.some((r: any) => r.status === 'pending' || r.status === 'not_started');
+    const allDnsVerified = records.length > 0 && records.every((r: any) => r.dns_verified || r.status === 'verified');
     
-    if (allDnsVerified && anyPending) {
+    // If DNS is verified, show CONNECTED_READY - user should feel DONE
+    if (allDnsVerified || domain.status === 'active' || resendStatus?.verification_phase === 'dns_present_waiting_provider') {
       return mapReadinessToDisplay(
-        'READY_AWAITING_PROVIDER',
-        'DNS is correctly configured. Resend is confirming it.',
-        'This can take up to 72 hours. No action needed.'
+        'CONNECTED_READY',
+        'Your email domain is connected and ready to use.'
       );
     }
     
+    // DNS not verified - action required
     if (domain.status === 'failed') {
       return mapReadinessToDisplay(
         'ACTION_REQUIRED_DNS_MISSING',
@@ -218,21 +217,11 @@ export const EmailDomainsList = () => {
       );
     }
     
-    // Default: in progress
-    if (!domain.is_entri_managed) {
-      return mapReadinessToDisplay(
-        'DOMAIN_NOT_CONNECTED',
-        "Domain isn't connected to BloomSuite yet.",
-        undefined,
-        'Connect DNS'
-      );
-    }
-    
     return mapReadinessToDisplay(
       'ACTION_REQUIRED_DNS_MISSING',
       'DNS records not visible yet.',
-      'We can repair automatically.',
-      'Repair DNS'
+      domain.is_entri_managed ? 'We can repair automatically.' : 'Please check your DNS configuration.',
+      domain.is_entri_managed ? 'Repair DNS' : undefined
     );
   };
 

@@ -15,6 +15,7 @@ export interface EmailDomain {
   is_sandbox?: boolean;
   is_entri_managed?: boolean;
   entri_provider?: string;
+  entri_connection_id?: string; // Added for readiness logic
   error?: string;
   report_email?: string;
   // Verification retry fields
@@ -48,7 +49,7 @@ export interface EmailDomain {
     }>;
     // New readiness object (single source of truth for UI)
     readiness?: {
-      status: 'READY_TO_SEND' | 'READY_AWAITING_PROVIDER' | 'ACTION_REQUIRED_DNS_MISSING' | 'ACTION_REQUIRED_DNS_CONFLICT' | 'DOMAIN_NOT_CONNECTED';
+      status: 'CONNECTED_READY' | 'ACTION_REQUIRED_DNS_MISSING' | 'ACTION_REQUIRED_DNS_CONFLICT' | 'DOMAIN_NOT_CONNECTED' | 'READY_TO_SEND' | 'READY_AWAITING_PROVIDER';
       message: string;
       subMessage?: string | null;
       cta?: string | null;
