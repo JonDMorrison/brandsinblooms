@@ -381,3 +381,6 @@ verify_jwt = false
 
 [functions.backfill-provider-events]
 verify_jwt = true
+
+[functions.cron-recompute-analytics]
+verify_jwt = false

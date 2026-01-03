@@ -90,6 +90,23 @@ export const PrivacyPage = () => {
               </Card>
             </section>
 
+            {/* Email Marketing Analytics */}
+            <section>
+              <h2 className="text-xl font-semibold text-foreground mb-4">Email Engagement Tracking</h2>
+              <Card className="bg-muted/30 border-primary/20">
+                <CardContent className="p-6">
+                  <p className="text-foreground leading-relaxed">
+                    We measure email engagement using tracking pixels and link redirects to understand 
+                    aggregate performance. This helps us improve our communications and send you more 
+                    relevant content. We track when emails are opened and which links are clicked, but 
+                    we do not sell this data or share it with third parties for advertising purposes. 
+                    IP addresses are hashed for privacy and we do not store raw IP data. You can opt out 
+                    of email tracking by unsubscribing from our email list using the link in any email.
+                  </p>
+                </CardContent>
+              </Card>
+            </section>
+
             {/* Sharing with Processors */}
             <section>
               <h2 className="text-xl font-semibold text-foreground mb-4">Sharing with Processors</h2>

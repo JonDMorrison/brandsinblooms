@@ -11,6 +11,12 @@ const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 const RATE_LIMIT = 60;
 const RATE_WINDOW_MS = 60 * 1000;
 
+// Per-campaign burst rate limiter (1000 clicks/60s)
+const campaignBurstMap = new Map<string, { count: number; resetAt: number; throttledUntil?: number }>();
+const CAMPAIGN_BURST_LIMIT = 1000;
+const CAMPAIGN_BURST_WINDOW_MS = 60 * 1000;
+const CAMPAIGN_THROTTLE_DURATION_MS = 5 * 60 * 1000; // 5 minutes
+
 function checkRateLimit(ip: string): boolean {
   const now = Date.now();
   const record = rateLimitMap.get(ip);
@@ -28,12 +34,41 @@ function checkRateLimit(ip: string): boolean {
   return true;
 }
 
+function checkCampaignBurst(campaignId: string): { allowed: boolean; isThrottled: boolean } {
+  const now = Date.now();
+  const record = campaignBurstMap.get(campaignId);
+  
+  // Check if campaign is currently throttled
+  if (record?.throttledUntil && now < record.throttledUntil) {
+    return { allowed: false, isThrottled: true };
+  }
+  
+  if (!record || now > record.resetAt) {
+    campaignBurstMap.set(campaignId, { count: 1, resetAt: now + CAMPAIGN_BURST_WINDOW_MS });
+    return { allowed: true, isThrottled: false };
+  }
+  
+  if (record.count >= CAMPAIGN_BURST_LIMIT) {
+    // Start throttling
+    record.throttledUntil = now + CAMPAIGN_THROTTLE_DURATION_MS;
+    return { allowed: false, isThrottled: true };
+  }
+  
+  record.count++;
+  return { allowed: true, isThrottled: false };
+}
+
 // Clean up old rate limit entries periodically (prevent memory leak)
-function cleanupRateLimitMap() {
+function cleanupRateLimitMaps() {
   const now = Date.now();
   for (const [ip, record] of rateLimitMap.entries()) {
     if (now > record.resetAt) {
       rateLimitMap.delete(ip);
+    }
+  }
+  for (const [campaignId, record] of campaignBurstMap.entries()) {
+    if (now > record.resetAt && (!record.throttledUntil || now > record.throttledUntil)) {
+      campaignBurstMap.delete(campaignId);
     }
   }
 }
@@ -68,7 +103,7 @@ serve(async (req: Request): Promise<Response> => {
                    req.headers.get('cf-connecting-ip') || 
                    'unknown';
   
-  // Check rate limit
+  // Check IP rate limit
   if (!checkRateLimit(clientIP)) {
     console.warn(`🚫 Rate limit exceeded for IP: ${hashIP(clientIP)}`);
     return new Response('Rate limit exceeded', { 
@@ -187,6 +222,44 @@ serve(async (req: Request): Promise<Response> => {
     const effectiveCampaignId = campaignId || link.campaign_id;
     const effectiveTenantId = tenantId || link.tenant_id;
 
+    // Check campaign burst rate limit
+    if (effectiveCampaignId) {
+      const burstCheck = checkCampaignBurst(effectiveCampaignId);
+      if (!burstCheck.allowed) {
+        if (burstCheck.isThrottled) {
+          console.warn(`🚫 Campaign ${effectiveCampaignId} is throttled due to burst detection`);
+          
+          // Store alert for burst detection
+          await supabase
+            .from('email_tracking_events')
+            .insert({
+              campaign_id: effectiveCampaignId,
+              tenant_id: effectiveTenantId,
+              customer_email: 'system',
+              event_type: 'alert',
+              event_data: { 
+                alert_type: 'click_burst',
+                message: `Click burst detected: >1000 clicks/min`,
+                throttled_until: new Date(Date.now() + CAMPAIGN_THROTTLE_DURATION_MS).toISOString(),
+              },
+              provider_message_id: `burst_alert_${effectiveCampaignId}_${Date.now()}`,
+              event_ts_provider: new Date().toISOString(),
+              ingested_at: new Date().toISOString(),
+            }).catch(err => console.error('Failed to log burst alert:', err));
+        }
+        
+        return new Response('Too many requests', { 
+          status: 429,
+          headers: {
+            'Retry-After': '300',
+            'Cache-Control': 'no-store',
+            'X-Robots-Tag': 'noindex',
+            ...corsHeaders
+          }
+        });
+      }
+    }
+
     // Get User Agent for tracking
     const userAgent = req.headers.get('user-agent') || '';
     const ipHash = hashIP(clientIP);
@@ -234,9 +307,9 @@ serve(async (req: Request): Promise<Response> => {
       console.log(`✅ Recorded click for campaign ${effectiveCampaignId}, link ${linkId}`);
     }
 
-    // Periodic cleanup of rate limit map
+    // Periodic cleanup of rate limit maps
     if (Math.random() < 0.01) { // 1% chance to clean up
-      cleanupRateLimitMap();
+      cleanupRateLimitMaps();
     }
 
     // 302 redirect to destination with security headers

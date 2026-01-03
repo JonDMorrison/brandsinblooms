@@ -168,15 +168,33 @@ describe('linkRewriter', () => {
       expect(result).toContain('utm_medium=email');
     });
 
-    it('preserves existing UTM params', () => {
+    it('preserves existing utm_source', () => {
       const result = appendUtmParams('https://example.com?utm_source=newsletter', 'campaign123');
       expect(result).toContain('utm_source=newsletter');
-      expect(result).not.toContain('utm_source=email');
+      expect(result).not.toMatch(/utm_source=email/);
+    });
+
+    it('preserves existing utm_campaign', () => {
+      const result = appendUtmParams('https://example.com?utm_campaign=summer', 'campaign123');
+      expect(result).toContain('utm_campaign=summer');
+      expect(result).not.toContain('utm_campaign=campaign123');
+    });
+
+    it('preserves all existing UTMs and adds missing ones', () => {
+      const result = appendUtmParams('https://example.com?utm_source=partner', 'campaign123');
+      expect(result).toContain('utm_source=partner');
+      expect(result).toContain('utm_medium=email');
+      expect(result).toContain('utm_campaign=campaign123');
     });
 
     it('handles invalid URLs gracefully', () => {
       const result = appendUtmParams('not-a-url', 'campaign123');
       expect(result).toBe('not-a-url');
+    });
+
+    it('uses campaign name when provided', () => {
+      const result = appendUtmParams('https://example.com', 'id123', 'Summer Sale');
+      expect(result).toContain('utm_campaign=Summer+Sale');
     });
   });
 

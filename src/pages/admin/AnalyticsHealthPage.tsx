@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Skeleton } from '@/components/ui/skeleton';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { formatDistanceToNow, format } from 'date-fns';
+import { formatDistanceToNow } from 'date-fns';
 import { 
   Activity, 
   AlertTriangle, 
@@ -19,10 +19,12 @@ import {
   TrendingUp,
   ShieldAlert,
   XCircle,
-  Bell
+  Bell,
+  Settings
 } from 'lucide-react';
 import { SidebarLayout } from '@/components/SidebarLayout';
 import { toast } from 'sonner';
+import { ANALYTICS_THRESHOLDS, getHealthStatus, formatThreshold } from '@/config/analyticsThresholds';
 
 interface HealthMetric {
   name: string;

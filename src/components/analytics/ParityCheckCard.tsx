@@ -7,19 +7,11 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { RefreshCw, CheckCircle, AlertTriangle, Scale } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useQuery } from '@tanstack/react-query';
+import { ANALYTICS_THRESHOLDS } from '@/config/analyticsThresholds';
 
 interface ParityCheckCardProps {
   campaignId: string;
-  currentMetrics?: {
-    totals?: {
-      sent?: number;
-      delivered?: number;
-      opens?: number;
-      clicks?: number;
-      bounces?: number;
-      unsubscribes?: number;
-    };
-  } | null;
 }
 
 interface ParityResult {
@@ -33,19 +25,41 @@ interface ParityResult {
 
 export const ParityCheckCard: React.FC<ParityCheckCardProps> = ({
   campaignId,
-  currentMetrics,
 }) => {
   const [isChecking, setIsChecking] = useState(false);
   const [parityResults, setParityResults] = useState<ParityResult[] | null>(null);
   const [overallStatus, setOverallStatus] = useState<'ok' | 'warning' | 'error' | null>(null);
+
+  // Fetch stored parity snapshot
+  const { data: campaign } = useQuery({
+    queryKey: ['campaign-parity', campaignId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('crm_campaigns')
+        .select('metrics, metrics_parity_snapshot')
+        .eq('id', campaignId)
+        .single();
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!campaignId,
+  });
 
   const runParityCheck = async () => {
     if (!campaignId) return;
 
     setIsChecking(true);
     try {
-      // Store current metrics as "before"
-      const beforeMetrics = currentMetrics?.totals || {};
+      // Store current metrics as snapshot before recompute
+      const currentMetrics = campaign?.metrics;
+      
+      if (currentMetrics) {
+        await supabase
+          .from('crm_campaigns')
+          .update({ metrics_parity_snapshot: currentMetrics })
+          .eq('id', campaignId);
+      }
 
       // Run recompute to get fresh metrics
       const { data, error } = await supabase.rpc('recompute_campaign_metrics', {
@@ -54,20 +68,21 @@ export const ParityCheckCard: React.FC<ParityCheckCardProps> = ({
 
       if (error) throw error;
 
+      const beforeMetrics = (currentMetrics as any)?.totals || {};
       const afterMetrics = (data as any)?.totals || {};
 
-      // Calculate deltas
+      // Calculate deltas using configured thresholds
       const metrics = ['sent', 'delivered', 'opens', 'clicks', 'bounces', 'unsubscribes'];
       const results: ParityResult[] = metrics.map(metric => {
-        const before = (beforeMetrics as any)[metric] || 0;
-        const after = (afterMetrics as any)[metric] || 0;
+        const before = beforeMetrics[metric] || 0;
+        const after = afterMetrics[metric] || 0;
         const delta = after - before;
         const deltaPercent = before > 0 ? Math.abs((delta / before) * 100) : (after > 0 ? 100 : 0);
         
         let status: 'ok' | 'warning' | 'error' = 'ok';
-        if (deltaPercent > 1) {
+        if (deltaPercent > ANALYTICS_THRESHOLDS.parityDelta.red) {
           status = 'error';
-        } else if (deltaPercent > 0.1) {
+        } else if (deltaPercent > ANALYTICS_THRESHOLDS.parityDelta.green) {
           status = 'warning';
         }
 
@@ -104,6 +119,9 @@ export const ParityCheckCard: React.FC<ParityCheckCardProps> = ({
     }
   };
 
+  // Check if we have a stored snapshot
+  const hasSnapshot = campaign?.metrics_parity_snapshot != null;
+
   const getStatusColor = (status: 'ok' | 'warning' | 'error') => {
     switch (status) {
       case 'ok': return 'text-green-600';
@@ -130,6 +148,9 @@ export const ParityCheckCard: React.FC<ParityCheckCardProps> = ({
           <CardTitle className="flex items-center gap-2 text-base">
             <Scale className="h-5 w-5 text-muted-foreground" />
             Parity Check
+            {hasSnapshot && (
+              <Badge variant="secondary" className="text-xs">Snapshot saved</Badge>
+            )}
           </CardTitle>
           <div className="flex items-center gap-2">
             {overallStatus && (
@@ -160,12 +181,12 @@ export const ParityCheckCard: React.FC<ParityCheckCardProps> = ({
           <div className="space-y-4">
             {overallStatus === 'warning' && (
               <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg text-sm text-yellow-800 dark:text-yellow-200">
-                Some metrics show drift &gt; 0.1%. Consider investigating event synchronization.
+                Some metrics show drift &gt; {ANALYTICS_THRESHOLDS.parityDelta.green}%. Consider investigating event synchronization.
               </div>
             )}
             {overallStatus === 'error' && (
               <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg text-sm text-red-800 dark:text-red-200">
-                Significant metric drift detected (&gt; 1%). Review webhook delivery and backfill from provider.
+                Significant metric drift detected (&gt; {ANALYTICS_THRESHOLDS.parityDelta.red}%). Review webhook delivery and backfill from provider.
               </div>
             )}
             <Table>
@@ -201,7 +222,7 @@ export const ParityCheckCard: React.FC<ParityCheckCardProps> = ({
         ) : (
           <div className="text-center py-6 text-muted-foreground">
             <p>Run a parity check to compare cached metrics against live event data.</p>
-            <p className="text-xs mt-1">Flags differences greater than 0.1%</p>
+            <p className="text-xs mt-1">Flags differences greater than {ANALYTICS_THRESHOLDS.parityDelta.green}%</p>
           </div>
         )}
       </CardContent>
