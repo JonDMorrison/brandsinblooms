@@ -102,6 +102,7 @@ const handler = async (req: Request): Promise<Response> => {
       .select(`
         id,
         tenant_id,
+        user_id,
         trigger_type,
         trigger_conditions,
         workflow_steps,
@@ -182,15 +183,21 @@ async function checkProviderReadiness(supabase: any, automation: any): Promise<{
   const hasEmailSteps = workflowSteps.some(step => step.type === 'email');
   const hasSMSSteps = workflowSteps.some(step => step.type === 'sms');
 
-  // Check company profile for tenant
-  const { data: companyProfile, error: profileError } = await supabase
-    .from('company_profiles')
-    .select('feature_flags')
-    .eq('tenant_id', automation.tenant_id)
-    .single();
+  // Check company profile (legacy flags)
+  // NOTE: company_profiles is user-scoped (no tenant_id column).
+  let companyProfile: any = null;
+  if (automation.user_id) {
+    const { data, error: profileError } = await supabase
+      .from('company_profiles')
+      .select('feature_flags')
+      .eq('user_id', automation.user_id)
+      .maybeSingle();
 
-  if (profileError && profileError.code !== 'PGRST116') {
-    console.error(`❌ Error fetching company profile for tenant ${automation.tenant_id}:`, profileError);
+    if (profileError && profileError.code !== 'PGRST116') {
+      console.error(`❌ Error fetching company profile for user ${automation.user_id}:`, profileError);
+    } else {
+      companyProfile = data;
+    }
   }
 
   // Check Email provider readiness using senderResolver (always available with fallback)
