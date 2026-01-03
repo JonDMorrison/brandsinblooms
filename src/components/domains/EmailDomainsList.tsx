@@ -44,21 +44,42 @@ export const EmailDomainsList = () => {
     }
   };
 
-  const getStatusBadge = (domain: EmailDomain) => {
-    switch (domain.status) {
-      case 'active':
-        return <Badge className="bg-green-100 text-green-800">Active</Badge>;
-      case 'failed':
-        return <Badge variant="destructive">Failed</Badge>;
-      case 'error':
-        return <Badge variant="destructive">Error</Badge>;
-      case 'verifying':
-        return <Badge className="bg-amber-100 text-amber-800">Verifying</Badge>;
-      case 'pending_dns':
-        return <Badge variant="outline" className="border-amber-400 text-amber-700">Pending DNS</Badge>;
-      default:
-        return <Badge variant="outline">Pending</Badge>;
+  const getVerificationProgress = (domain: EmailDomain) => {
+    const resendStatus = domain.resend_status as any;
+    if (!resendStatus?.records || !Array.isArray(resendStatus.records)) {
+      return { verified: 0, total: 0, percentage: 0 };
     }
+    
+    const total = resendStatus.records.length;
+    const verified = resendStatus.records.filter((r: any) => r.status === 'verified').length;
+    const percentage = total > 0 ? Math.round((verified / total) * 100) : 0;
+    
+    return { verified, total, percentage };
+  };
+
+  const getStatusBadge = (domain: EmailDomain) => {
+    const { verified, total, percentage } = getVerificationProgress(domain);
+    
+    if (domain.status === 'active') {
+      return <Badge className="bg-green-100 text-green-800 border-green-200">✓ Active</Badge>;
+    }
+    if (domain.status === 'failed' || domain.status === 'error') {
+      return <Badge variant="destructive">Action Required</Badge>;
+    }
+    
+    // Show progress for pending states
+    if (total > 0) {
+      if (verified === total) {
+        return <Badge className="bg-green-100 text-green-800 border-green-200">✓ Verified</Badge>;
+      }
+      return (
+        <Badge variant="outline" className="border-amber-400 text-amber-700 bg-amber-50">
+          {verified}/{total} Verified
+        </Badge>
+      );
+    }
+    
+    return <Badge variant="outline" className="border-amber-400 text-amber-700 bg-amber-50">Setting Up</Badge>;
   };
 
   const getProviderBadge = (domain: EmailDomain) => {
@@ -260,6 +281,8 @@ export const EmailDomainsList = () => {
                 const needsRepair = domain.status === 'pending_dns' && (pendingRecords.length > 0 || hasConflict);
                 const isDnsVerifiedAwaitingResend = dnsVerifiedPending.length > 0 && pendingRecords.length === 0 && !hasConflict;
 
+                const { verified: verifiedCount, total: totalCount, percentage } = getVerificationProgress(domain);
+
                 return (
                   <div
                     key={domain.id}
@@ -279,71 +302,85 @@ export const EmailDomainsList = () => {
                           {getProviderBadge(domain)}
                         </div>
                         
+                        {/* Progress bar for non-active domains */}
+                        {domain.status !== 'active' && totalCount > 0 && (
+                          <div className="flex items-center gap-2 mb-2">
+                            <div className="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden max-w-[200px]">
+                              <div 
+                                className={`h-full transition-all duration-300 ${
+                                  percentage === 100 ? 'bg-green-500' : 'bg-amber-500'
+                                }`}
+                                style={{ width: `${percentage}%` }}
+                              />
+                            </div>
+                            <span className="text-xs text-muted-foreground">{percentage}%</span>
+                          </div>
+                        )}
+                        
                         <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
                           {lastChecked && <span>{lastChecked}</span>}
                           {domain.verify_attempts !== undefined && domain.verify_attempts > 0 && domain.status !== 'active' && (
                             <span>Attempts: {domain.verify_attempts}/10</span>
                           )}
-                          {domain.report_email && (
-                            <div className="flex items-center gap-1">
-                              <Mail className="w-3 h-3" />
-                              {domain.report_email}
-                            </div>
-                          )}
                         </div>
 
-                        {/* Show verified records */}
-                        {verifiedRecords.length > 0 && domain.status !== 'active' && (
-                          <div className="flex items-center gap-1 mt-1 flex-wrap">
-                            <CheckCircle className="w-3 h-3 text-green-600" />
-                            <span className="text-xs text-green-700">
-                              Verified: {verifiedRecords.join(', ')}
-                            </span>
+                        {/* Consolidated status display for non-active domains */}
+                        {domain.status !== 'active' && (
+                          <div className="mt-2 space-y-1">
+                            {/* DNS Conflict - Red, highest priority */}
+                            {hasConflict && (
+                              <div className="flex items-start gap-2 text-xs">
+                                <XCircle className="w-3.5 h-3.5 text-red-500 mt-0.5 flex-shrink-0" />
+                                <span className="text-red-700">
+                                  <strong>Action required:</strong> DNS conflict detected at {conflictHostnames.join(', ')}
+                                </span>
+                              </div>
+                            )}
+
+                            {/* Missing DNS records - Red */}
+                            {pendingRecords.length > 0 && !hasConflict && (
+                              <div className="flex items-start gap-2 text-xs">
+                                <XCircle className="w-3.5 h-3.5 text-red-500 mt-0.5 flex-shrink-0" />
+                                <span className="text-red-700">
+                                  <strong>Missing:</strong> {pendingRecords.length} record{pendingRecords.length > 1 ? 's' : ''} not found in DNS
+                                </span>
+                              </div>
+                            )}
+
+                            {/* Awaiting provider verification - Amber */}
+                            {dnsVerifiedPending.length > 0 && !hasConflict && (
+                              <div className="flex items-start gap-2 text-xs">
+                                <Clock className="w-3.5 h-3.5 text-amber-500 mt-0.5 flex-shrink-0" />
+                                <span className="text-amber-700">
+                                  <strong>Waiting:</strong> {dnsVerifiedPending.length} record{dnsVerifiedPending.length > 1 ? 's' : ''} configured, awaiting provider
+                                </span>
+                              </div>
+                            )}
+
+                            {/* Verified records - Green */}
+                            {verifiedRecords.length > 0 && (
+                              <div className="flex items-start gap-2 text-xs">
+                                <CheckCircle className="w-3.5 h-3.5 text-green-500 mt-0.5 flex-shrink-0" />
+                                <span className="text-green-700">
+                                  <strong>Complete:</strong> {verifiedRecords.length} record{verifiedRecords.length > 1 ? 's' : ''} verified
+                                </span>
+                              </div>
+                            )}
+
+                            {/* Show helpful message when all DNS is correct but waiting */}
+                            {isDnsVerifiedAwaitingResend && !hasConflict && pendingRecords.length === 0 && (
+                              <p className="text-xs text-amber-600 mt-1 italic">
+                                DNS is correctly configured. Provider verification can take a few hours.
+                              </p>
+                            )}
+
+                            {/* Error message */}
+                            {domain.last_verify_error && (
+                              <p className="text-xs text-red-600 mt-1 line-clamp-1">
+                                {domain.last_verify_error}
+                              </p>
+                            )}
                           </div>
-                        )}
-
-                        {/* Show DNS conflict warning - highest priority */}
-                        {hasConflict && domain.status !== 'active' && (
-                          <div className="flex items-center gap-1 mt-1 flex-wrap">
-                            <XCircle className="w-3 h-3 text-red-600" />
-                            <span className="text-xs text-red-700 font-medium">
-                              DNS Conflict: CNAME conflicts with MX/TXT at {conflictHostnames.join(', ')}
-                            </span>
-                          </div>
-                        )}
-
-                        {/* Show DNS verified but awaiting Resend confirmation */}
-                        {dnsVerifiedPending.length > 0 && domain.status !== 'active' && !hasConflict && (
-                          <div className="flex items-center gap-1 mt-1 flex-wrap">
-                            <CheckCircle className="w-3 h-3 text-blue-600" />
-                            <span className="text-xs text-blue-700">
-                              DNS Correct (awaiting provider): {dnsVerifiedPending.join(', ')}
-                            </span>
-                          </div>
-                        )}
-
-                        {/* Show pending records (not yet in DNS) */}
-                        {pendingRecords.length > 0 && domain.status !== 'active' && !hasConflict && (
-                          <div className="flex items-center gap-1 mt-1 flex-wrap">
-                            <AlertCircle className="w-3 h-3 text-amber-600" />
-                            <span className="text-xs text-amber-700">
-                              Not Found in DNS: {pendingRecords.join(', ')}
-                            </span>
-                          </div>
-                        )}
-
-                        {/* Show helpful message when DNS is correct but Resend is lagging */}
-                        {isDnsVerifiedAwaitingResend && domain.status !== 'active' && (
-                          <p className="text-xs text-blue-600 mt-1">
-                            ✓ Your DNS records are correctly configured. Resend is still verifying (can take up to a few hours).
-                          </p>
-                        )}
-
-                        {/* Show error message */}
-                        {domain.last_verify_error && domain.status !== 'active' && (
-                          <p className="text-xs text-red-600 mt-1 line-clamp-1">
-                            {domain.last_verify_error}
-                          </p>
                         )}
                       </div>
                     </div>
