@@ -207,17 +207,10 @@ async function checkProviderReadiness(supabase: any, automation: any): Promise<{
   }
 
   // Check SMS provider (Twilio) readiness
+  // Note: SMS/Twilio is not currently supported - skip SMS steps gracefully
   if (hasSMSSteps) {
-    const { data: smsConfig } = await supabase
-      .from('company_profiles')
-      .select('twilio_account_sid, twilio_auth_token')
-      .eq('tenant_id', automation.tenant_id)
-      .single();
-    
-    const smsReady = smsConfig?.twilio_account_sid && smsConfig?.twilio_auth_token;
-    if (!smsReady) {
-      return { canProcess: false, reason: 'SMS (Twilio) not configured' };
-    }
+    console.log(`⚠️ Automation has SMS steps but SMS is not configured. Will skip SMS steps.`);
+    // Don't block the automation - we'll skip SMS steps during processing
   }
 
   // Check POS cart events for abandoned_cart trigger
