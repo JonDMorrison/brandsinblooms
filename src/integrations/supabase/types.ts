@@ -2250,6 +2250,7 @@ export type Database = {
           id: string
           metadata: Json | null
           metrics: Json | null
+          metrics_parity_snapshot: Json | null
           name: string
           open_rate: number | null
           persona_ids: string[] | null
@@ -2289,6 +2290,7 @@ export type Database = {
           id?: string
           metadata?: Json | null
           metrics?: Json | null
+          metrics_parity_snapshot?: Json | null
           name: string
           open_rate?: number | null
           persona_ids?: string[] | null
@@ -2328,6 +2330,7 @@ export type Database = {
           id?: string
           metadata?: Json | null
           metrics?: Json | null
+          metrics_parity_snapshot?: Json | null
           name?: string
           open_rate?: number | null
           persona_ids?: string[] | null
@@ -9790,6 +9793,64 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      send_overrides: {
+        Row: {
+          actor_id: string
+          bounce_rate: number | null
+          campaign_id: string
+          complaint_rate: number | null
+          created_at: string
+          health_status: string
+          id: string
+          reason: string
+          tenant_id: string
+        }
+        Insert: {
+          actor_id: string
+          bounce_rate?: number | null
+          campaign_id: string
+          complaint_rate?: number | null
+          created_at?: string
+          health_status: string
+          id?: string
+          reason: string
+          tenant_id: string
+        }
+        Update: {
+          actor_id?: string
+          bounce_rate?: number | null
+          campaign_id?: string
+          complaint_rate?: number | null
+          created_at?: string
+          health_status?: string
+          id?: string
+          reason?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "send_overrides_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "crm_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "send_overrides_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "admin_tenant_overview"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "send_overrides_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       sms_automation_logs: {
         Row: {

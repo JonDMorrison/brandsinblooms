@@ -32,6 +32,42 @@ function isMPPOpen(userAgent: string, ip: string): boolean {
   return isAppleMail && (isApplePrivateRelay || ip === 'unknown');
 }
 
+// Sleep utility for backoff
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// Fetch with exponential backoff
+async function fetchWithBackoff(
+  url: string, 
+  options: RequestInit, 
+  maxRetries: number = 3
+): Promise<Response> {
+  let lastError: Error | null = null;
+  
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const response = await fetch(url, options);
+      
+      if (response.status === 429 || response.status >= 500) {
+        const backoffMs = Math.pow(2, attempt) * 1000 + Math.random() * 1000;
+        console.log(`⏳ Rate limited or server error (${response.status}), backing off ${backoffMs}ms...`);
+        await sleep(backoffMs);
+        continue;
+      }
+      
+      return response;
+    } catch (error) {
+      lastError = error as Error;
+      const backoffMs = Math.pow(2, attempt) * 1000;
+      console.log(`⏳ Fetch error, backing off ${backoffMs}ms...`, error);
+      await sleep(backoffMs);
+    }
+  }
+  
+  throw lastError || new Error('Max retries exceeded');
+}
+
 serve(async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -69,6 +105,27 @@ serve(async (req: Request): Promise<Response> => {
       );
     }
 
+    // Calculate time window: default to [sent_at - 1 hour, now]
+    const effectiveStartDate = startDate || (
+      campaign.sent_at 
+        ? new Date(new Date(campaign.sent_at).getTime() - 60 * 60 * 1000).toISOString()
+        : new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+    );
+    const effectiveEndDate = endDate || new Date().toISOString();
+
+    console.log(`📅 Backfill window: ${effectiveStartDate} to ${effectiveEndDate}`);
+
+    // Store current metrics as parity snapshot (before)
+    if (campaign.metrics) {
+      await supabase
+        .from('crm_campaigns')
+        .update({ 
+          metrics_parity_snapshot: campaign.metrics 
+        })
+        .eq('id', campaignId);
+      console.log(`📸 Stored parity snapshot`);
+    }
+
     // Count existing events before backfill
     const { count: beforeCount } = await supabase
       .from('email_tracking_events')
@@ -77,20 +134,14 @@ serve(async (req: Request): Promise<Response> => {
 
     let eventsIngested = 0;
     let duplicatesSkipped = 0;
+    let eventsFetched = 0;
 
     // If Resend API key is available, fetch events from provider
     if (resendApiKey) {
       console.log(`📡 Fetching events from Resend for campaign ${campaignId}...`);
       
-      // Note: Resend's API for fetching email events by campaign is limited
-      // In production, you'd use their webhook history or events API
-      // For now, we'll work with what's in our database and recompute
-      
-      // Attempt to fetch recent emails sent by this campaign
-      // Resend doesn't have a direct "get events by campaign" endpoint,
-      // but we can use tags to filter
       try {
-        const response = await fetch('https://api.resend.com/emails', {
+        const response = await fetchWithBackoff('https://api.resend.com/emails', {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${resendApiKey}`,
@@ -102,14 +153,22 @@ serve(async (req: Request): Promise<Response> => {
           const { data: emails } = await response.json();
           
           if (emails && Array.isArray(emails)) {
-            // Filter emails by campaign_id tag
-            const campaignEmails = emails.filter((email: any) => 
-              email.tags?.some((tag: any) => 
+            // Filter emails by campaign_id tag and time window
+            const campaignEmails = emails.filter((email: any) => {
+              const hasCampaignTag = email.tags?.some((tag: any) => 
                 tag.name === 'campaign_id' && tag.value === campaignId
-              )
-            );
+              );
+              if (!hasCampaignTag) return false;
+              
+              // Check time window
+              const emailTime = new Date(email.created_at).getTime();
+              const startTime = new Date(effectiveStartDate).getTime();
+              const endTime = new Date(effectiveEndDate).getTime();
+              return emailTime >= startTime && emailTime <= endTime;
+            });
 
-            console.log(`📧 Found ${campaignEmails.length} emails for campaign`);
+            eventsFetched = campaignEmails.length;
+            console.log(`📧 Found ${eventsFetched} emails for campaign in time window`);
 
             // For each email, create/update tracking events
             for (const email of campaignEmails) {
@@ -141,6 +200,8 @@ serve(async (req: Request): Promise<Response> => {
               }
             }
           }
+        } else {
+          console.warn(`Resend API returned ${response.status}`);
         }
       } catch (fetchError) {
         console.warn('Could not fetch from Resend API:', fetchError);
@@ -174,10 +235,17 @@ serve(async (req: Request): Promise<Response> => {
     const result = {
       success: true,
       campaignId,
-      beforeCount: beforeCount || 0,
-      afterCount: afterCount || 0,
-      eventsIngested,
-      duplicatesSkipped,
+      timeWindow: {
+        start: effectiveStartDate,
+        end: effectiveEndDate,
+      },
+      counts: {
+        fetched: eventsFetched,
+        inserted: eventsIngested,
+        deduped: duplicatesSkipped,
+        beforeTotal: beforeCount || 0,
+        afterTotal: afterCount || 0,
+      },
       parity: {
         delta: eventsDelta,
         percentage: parityPercentage.toFixed(2),
@@ -186,7 +254,7 @@ serve(async (req: Request): Promise<Response> => {
       metrics: metricsResult,
     };
 
-    console.log(`✅ Backfill complete:`, result);
+    console.log(`✅ Backfill complete:`, JSON.stringify(result, null, 2));
 
     return new Response(
       JSON.stringify(result),
