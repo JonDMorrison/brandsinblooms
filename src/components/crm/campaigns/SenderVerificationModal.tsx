@@ -107,9 +107,9 @@ export const SenderVerificationModal: React.FC<SenderVerificationModalProps> = (
                 </Badge>
               </div>
               <p className="text-sm text-muted-foreground">
-                {isVerified 
-                  ? `Emails sent from: mail@${activeDomain?.domain || senderConfig?.domain}`
-                  : `Emails sent from: noreply@bloomsuite.app on behalf of ${companyName}`
+                {isVerified
+                  ? `Emails sent from: ${senderConfig?.senderEmail || `mail@${activeDomain?.domain || senderConfig?.domain}`}`
+                  : `Emails sent from: ${senderConfig?.senderEmail || 'noreply@bloomsuite.app'} on behalf of ${companyName}`
                 }
               </p>
             </div>
@@ -183,9 +183,15 @@ export const SenderVerificationModal: React.FC<SenderVerificationModalProps> = (
                   </Button>
                   <Button 
                     variant="outline" 
-                    onClick={() => onOpenChange(false)}
+                    onClick={() => {
+                      toast({
+                        title: "Using shared domain for now",
+                        description: "You can send campaigns immediately while your domain finishes verifying. We'll switch automatically once it's active.",
+                      });
+                      onOpenChange(false);
+                    }}
                   >
-                    Continue Anyway
+                    Use Shared Domain for Now
                   </Button>
                 </div>
               </div>
