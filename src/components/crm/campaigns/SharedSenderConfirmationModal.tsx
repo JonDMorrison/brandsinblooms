@@ -18,7 +18,7 @@ interface SharedSenderConfirmationModalProps {
   isOpen: boolean;
   onClose: () => void;
   onConfirm: () => void;
-  senderConfig: SenderConfig;
+  senderConfig: SenderConfig | null;
   campaignName: string;
   recipientCount: number;
 }
@@ -31,6 +31,11 @@ export const SharedSenderConfirmationModal: React.FC<SharedSenderConfirmationMod
   campaignName,
   recipientCount
 }) => {
+  // Guard against null senderConfig - don't render if not loaded
+  if (!senderConfig) {
+    return null;
+  }
+
   const isPlatformEmail = senderConfig.deliveryMethod === 'platform';
   const isSharedSender = senderConfig.deliveryMethod === 'shared';
 
