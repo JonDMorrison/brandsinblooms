@@ -845,7 +845,7 @@ const { counts: segmentCounts } = useSegmentCounts();
 
 
   // Sender configuration for domain verification
-  const { senderConfig, loading: loadingSenderConfig } = useSenderConfiguration();
+  const { senderConfig, loading: loadingSenderConfig, refetch: refetchSenderConfig } = useSenderConfiguration();
 
   // Footer and company data - pass campaignId to load campaign-specific styling
   const { footerSettings, campaignOverrides, setCampaignOverrides } = useFooterSettings(existingCampaignId || undefined);
@@ -4406,6 +4406,7 @@ const { counts: segmentCounts } = useSegmentCounts();
               selectedSegments={selectedSegments}
               senderConfig={senderConfig}
               onEditAudience={() => setShowSetupWizard(true)}
+              onSenderModalClose={refetchSenderConfig}
             />
         </div>
 
