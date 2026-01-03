@@ -2256,6 +2256,7 @@ export type Database = {
           predicted_segment_ids: string[] | null
           preheader: string | null
           preheader_text: string | null
+          rollup_refreshed_at: string | null
           scheduled_at: string | null
           segment_id: string | null
           send_blocked_reason: string | null
@@ -2294,6 +2295,7 @@ export type Database = {
           predicted_segment_ids?: string[] | null
           preheader?: string | null
           preheader_text?: string | null
+          rollup_refreshed_at?: string | null
           scheduled_at?: string | null
           segment_id?: string | null
           send_blocked_reason?: string | null
@@ -2332,6 +2334,7 @@ export type Database = {
           predicted_segment_ids?: string[] | null
           preheader?: string | null
           preheader_text?: string | null
+          rollup_refreshed_at?: string | null
           scheduled_at?: string | null
           segment_id?: string | null
           send_blocked_reason?: string | null
@@ -6477,12 +6480,20 @@ export type Database = {
           customer_email: string
           customer_id: string | null
           event_data: Json | null
+          event_ts_provider: string | null
           event_type: string
           id: string
+          ingested_at: string | null
           ip_address: unknown
+          ip_hash: string | null
+          is_mpp_guess: boolean
+          link_id: string | null
+          provider_message_id: string | null
           sent_at: string | null
+          tenant_id: string | null
           time_to_event_seconds: number | null
           user_agent: string | null
+          webhook_delivery_id: string | null
         }
         Insert: {
           bounce_type?: string | null
@@ -6491,12 +6502,20 @@ export type Database = {
           customer_email: string
           customer_id?: string | null
           event_data?: Json | null
+          event_ts_provider?: string | null
           event_type: string
           id?: string
+          ingested_at?: string | null
           ip_address?: unknown
+          ip_hash?: string | null
+          is_mpp_guess?: boolean
+          link_id?: string | null
+          provider_message_id?: string | null
           sent_at?: string | null
+          tenant_id?: string | null
           time_to_event_seconds?: number | null
           user_agent?: string | null
+          webhook_delivery_id?: string | null
         }
         Update: {
           bounce_type?: string | null
@@ -6505,12 +6524,20 @@ export type Database = {
           customer_email?: string
           customer_id?: string | null
           event_data?: Json | null
+          event_ts_provider?: string | null
           event_type?: string
           id?: string
+          ingested_at?: string | null
           ip_address?: unknown
+          ip_hash?: string | null
+          is_mpp_guess?: boolean
+          link_id?: string | null
+          provider_message_id?: string | null
           sent_at?: string | null
+          tenant_id?: string | null
           time_to_event_seconds?: number | null
           user_agent?: string | null
+          webhook_delivery_id?: string | null
         }
         Relationships: [
           {
@@ -11193,6 +11220,38 @@ export type Database = {
           },
         ]
       }
+      tracked_links: {
+        Row: {
+          campaign_id: string
+          created_at: string
+          id: string
+          tenant_id: string
+          url: string
+        }
+        Insert: {
+          campaign_id: string
+          created_at?: string
+          id?: string
+          tenant_id: string
+          url: string
+        }
+        Update: {
+          campaign_id?: string
+          created_at?: string
+          id?: string
+          tenant_id?: string
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tracked_links_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "crm_campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       trial_expiration_emails: {
         Row: {
           created_at: string
@@ -12178,6 +12237,10 @@ export type Database = {
           user_id: string
         }[]
       }
+      get_campaign_derived_metrics: {
+        Args: { p_campaign_id: string }
+        Returns: Json
+      }
       get_customer_activity_heatmap: {
         Args: { p_channel?: string; p_customer_id: string }
         Returns: {
@@ -12427,6 +12490,10 @@ export type Database = {
       recalculate_sms_engagement_score: {
         Args: { p_customer_id: string }
         Returns: undefined
+      }
+      recompute_campaign_metrics: {
+        Args: { p_campaign_id: string }
+        Returns: Json
       }
       record_automation_usage: {
         Args: { p_tenant_id: string }
