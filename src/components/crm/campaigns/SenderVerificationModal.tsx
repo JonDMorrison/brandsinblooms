@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -35,16 +35,44 @@ export const SenderVerificationModal: React.FC<SenderVerificationModalProps> = (
   const [showCelebration, setShowCelebration] = useState(false);
   const [showDomainWizard, setShowDomainWizard] = useState(false);
   const [verifyingDomainId, setVerifyingDomainId] = useState<string | null>(null);
+  const [cooldownSeconds, setCooldownSeconds] = useState(0);
 
   // Find domain states
   const activeDomain = emailDomains.find(d => d.status === 'active');
   const pendingDomain = emailDomains.find(d => ['pending', 'pending_dns', 'verifying'].includes(d.status));
   const isVerified = !!activeDomain || senderConfig?.isVerified;
 
+  const formatCooldown = (seconds: number) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return m > 0 ? `${m}m ${String(s).padStart(2, '0')}s` : `${s}s`;
+  };
+
+  useEffect(() => {
+    if (!open || !pendingDomain?.next_verify_at) {
+      setCooldownSeconds(0);
+      return;
+    }
+
+    const nextTs = new Date(pendingDomain.next_verify_at).getTime();
+
+    const update = () => {
+      const diffMs = Math.max(0, nextTs - Date.now());
+      setCooldownSeconds(Math.ceil(diffMs / 1000));
+    };
+
+    update();
+    const interval = window.setInterval(update, 1000);
+    return () => window.clearInterval(interval);
+  }, [open, pendingDomain?.id, pendingDomain?.next_verify_at]);
+
   const handleVerifyDomain = async (domainId: string) => {
     setVerifyingDomainId(domainId);
     try {
       await verifyEmailDomain(domainId);
+      await refetch();
+    } catch {
+      // verifyEmailDomain should toast errors; this catch prevents an unhandled rejection crash
       await refetch();
     } finally {
       setVerifyingDomainId(null);
@@ -158,6 +186,11 @@ export const SenderVerificationModal: React.FC<SenderVerificationModalProps> = (
                     {pendingDomain.verify_attempts ? ` (${pendingDomain.verify_attempts} attempts)` : ''}
                   </p>
                 )}
+                {pendingDomain.next_verify_at && cooldownSeconds > 0 && (
+                  <p className="text-xs text-amber-600 dark:text-amber-400">
+                    Next check available in {formatCooldown(cooldownSeconds)}
+                  </p>
+                )}
                 {pendingDomain.last_verify_error && (
                   <p className="text-xs text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-900/30 p-2 rounded">
                     {pendingDomain.last_verify_error}
@@ -166,7 +199,7 @@ export const SenderVerificationModal: React.FC<SenderVerificationModalProps> = (
                 <div className="flex gap-2">
                   <Button 
                     onClick={() => handleVerifyDomain(pendingDomain.id)}
-                    disabled={verifyingDomainId === pendingDomain.id}
+                    disabled={verifyingDomainId === pendingDomain.id || cooldownSeconds > 0}
                     className="flex-1"
                   >
                     {verifyingDomainId === pendingDomain.id ? (
@@ -177,7 +210,9 @@ export const SenderVerificationModal: React.FC<SenderVerificationModalProps> = (
                     ) : (
                       <>
                         <RefreshCw className="h-4 w-4 mr-2" />
-                        Check Status Now
+                        {cooldownSeconds > 0
+                          ? `Check again in ${formatCooldown(cooldownSeconds)}`
+                          : 'Check Status Now'}
                       </>
                     )}
                   </Button>
