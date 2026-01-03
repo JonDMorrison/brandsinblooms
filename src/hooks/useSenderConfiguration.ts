@@ -27,7 +27,21 @@ export const useSenderConfiguration = () => {
     }
 
     try {
-      // Priority 1: Check for active custom domain in email_domains table
+      // Fetch company_profiles.company_name - this is the source of truth for display name
+      const { data: companyProfile, error: companyError } = await supabase
+        .from('company_profiles')
+        .select('company_name, custom_sender_email, email_auth_status, email_domain, dns_records_verified')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (companyError) {
+        console.error('Error fetching company profile:', companyError);
+      }
+
+      // The display name comes from company_profiles.company_name
+      const displayName = companyProfile?.company_name || tenant.name || 'Your Business';
+
+      // Check for active custom domain in email_domains table
       const { data: activeDomains, error: domainsError } = await supabase
         .from('email_domains')
         .select('id, domain, status, default_from_email, default_from_name')
@@ -43,17 +57,16 @@ export const useSenderConfiguration = () => {
       const hasActiveDomain = activeDomains && activeDomains.length > 0;
       const activeDomain = hasActiveDomain ? activeDomains[0] : null;
 
-      // If we have an active custom domain, use it (Priority 1)
+      // If we have an active custom domain, use it
       if (activeDomain) {
         const domainEmail = activeDomain.default_from_email || `mail@${activeDomain.domain}`;
-        const domainName = activeDomain.default_from_name || tenant.name || 'Your Business';
 
         setSenderConfig({
           isVerified: true,
           senderEmail: domainEmail,
-          displayName: domainName,
+          displayName: displayName,
           deliveryMethod: 'custom',
-          companyName: tenant.name,
+          companyName: displayName,
           domain: activeDomain.domain,
           domainStatus: activeDomain.status,
         });
@@ -61,7 +74,7 @@ export const useSenderConfiguration = () => {
         return;
       }
 
-      // Track latest domain status (so UI can show pending verification, even while sending via shared/platform)
+      // Track latest domain status (so UI can show pending verification)
       const { data: latestDomains, error: latestDomainError } = await supabase
         .from('email_domains')
         .select('domain, status')
@@ -75,7 +88,7 @@ export const useSenderConfiguration = () => {
 
       const latestDomain = latestDomains && latestDomains.length > 0 ? latestDomains[0] : null;
 
-      // Priority 2: Check for tenant platform fallback email
+      // Check for tenant platform fallback email
       const { data: tenantData, error: tenantError } = await supabase
         .from('tenants')
         .select('fallback_sender_email, fallback_from_name, name')
@@ -86,44 +99,19 @@ export const useSenderConfiguration = () => {
         console.error('Error fetching tenant data:', tenantError);
       }
 
-      // Also fetch company_profiles to get the preferred company name
-      const { data: companyProfileForName } = await supabase
-        .from('company_profiles')
-        .select('company_name')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      // Prefer company_profiles.company_name over tenant.name/fallback_from_name
-      const preferredCompanyName =
-        companyProfileForName?.company_name ||
-        tenantData?.fallback_from_name ||
-        tenantData?.name ||
-        'BloomSuite';
-
       if (tenantData?.fallback_sender_email) {
         setSenderConfig({
           isVerified: false,
           senderEmail: tenantData.fallback_sender_email,
-          displayName: preferredCompanyName,
+          displayName: displayName,
           deliveryMethod: 'platform',
-          companyName: preferredCompanyName,
+          companyName: displayName,
           fallbackEmail: tenantData.fallback_sender_email,
           domain: latestDomain?.domain,
           domainStatus: latestDomain?.status,
         });
         setLoading(false);
         return;
-      }
-
-      // Priority 3: Check legacy company_profiles for verification status
-      const { data: companyProfile, error: companyError } = await supabase
-        .from('company_profiles')
-        .select('company_name, custom_sender_email, email_auth_status, email_domain, dns_records_verified')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      if (companyError) {
-        console.error('Error fetching company profile:', companyError);
       }
 
       // Check legacy company_profiles verification
@@ -135,9 +123,9 @@ export const useSenderConfiguration = () => {
         setSenderConfig({
           isVerified: true,
           senderEmail: companyProfile.custom_sender_email!,
-          displayName: companyProfile.company_name || 'Your Business',
+          displayName: displayName,
           deliveryMethod: 'custom',
-          companyName: companyProfile.company_name,
+          companyName: displayName,
           domain: companyProfile.email_domain,
           domainStatus: 'active',
         });
@@ -145,20 +133,13 @@ export const useSenderConfiguration = () => {
         return;
       }
 
-      // Priority 4: Fallback to generic BloomSuite sender
-      // At this point, we already fetched companyProfileForName above, so use that
-      const fallbackDisplayName =
-        companyProfileForName?.company_name ||
-        companyProfile?.company_name ||
-        tenant.name ||
-        'BloomSuite';
-
+      // Fallback to generic BloomSuite sender
       setSenderConfig({
         isVerified: false,
         senderEmail: 'noreply@bloomsuite.app',
-        displayName: fallbackDisplayName,
+        displayName: displayName,
         deliveryMethod: 'shared',
-        companyName: fallbackDisplayName,
+        companyName: displayName,
         domain: latestDomain?.domain,
         domainStatus: latestDomain?.status,
       });
