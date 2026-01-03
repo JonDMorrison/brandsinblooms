@@ -2,12 +2,10 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 /**
- * Nightly Cron: Recompute Analytics
+ * Nightly Cron: Purge Old Email Events
  * 
- * Runs at 03:00 UTC daily to:
- * 1. Recompute metrics for campaigns sent in the last 14 days
- * 2. Log run summary
- * 3. Alert on failures
+ * Runs to delete email_tracking_events older than 18 months
+ * for data retention compliance.
  * 
  * Authentication: Requires X-Task-Signature HMAC header
  */
@@ -16,6 +14,8 @@ const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-task-signature",
 };
+
+const RETENTION_MONTHS = 18;
 
 // HMAC signature verification
 async function verifySignature(payload: string, signature: string, secret: string): Promise<boolean> {
@@ -51,7 +51,7 @@ serve(async (req: Request): Promise<Response> => {
   }
 
   const startTime = Date.now();
-  console.log(`🌙 Starting nightly analytics recompute at ${new Date().toISOString()}`);
+  console.log(`🗑️ Starting email events purge at ${new Date().toISOString()}`);
 
   try {
     // Verify HMAC signature if CRON_SIGNING_SECRET is set
@@ -59,11 +59,10 @@ serve(async (req: Request): Promise<Response> => {
     
     if (cronSecret) {
       const signature = req.headers.get('x-task-signature');
-      const body = await req.text();
       
       // Create timestamp-based payload for verification
       const timestamp = new Date().toISOString().slice(0, 13); // Hour precision
-      const payload = `cron-recompute-analytics:${timestamp}`;
+      const payload = `cron-purge-email-events:${timestamp}`;
       
       if (!signature) {
         console.error('❌ Missing X-Task-Signature header');
@@ -78,7 +77,7 @@ serve(async (req: Request): Promise<Response> => {
       if (!isValid) {
         // Try previous hour for clock skew tolerance
         const prevHour = new Date(Date.now() - 3600000).toISOString().slice(0, 13);
-        const prevPayload = `cron-recompute-analytics:${prevHour}`;
+        const prevPayload = `cron-purge-email-events:${prevHour}`;
         const isPrevValid = await verifySignature(prevPayload, signature, cronSecret);
         
         if (!isPrevValid) {
@@ -99,74 +98,89 @@ serve(async (req: Request): Promise<Response> => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Get campaigns sent in the last 14 days
-    const fourteenDaysAgo = new Date();
-    fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+    // Calculate cutoff date (18 months ago)
+    const cutoffDate = new Date();
+    cutoffDate.setMonth(cutoffDate.getMonth() - RETENTION_MONTHS);
+    const cutoffIso = cutoffDate.toISOString();
 
-    const { data: campaigns, error: fetchError } = await supabase
-      .from('crm_campaigns')
-      .select('id, name, tenant_id, sent_at, rollup_refreshed_at')
-      .eq('status', 'sent')
-      .gte('sent_at', fourteenDaysAgo.toISOString())
-      .order('sent_at', { ascending: false });
+    console.log(`📅 Purging events older than ${cutoffIso} (${RETENTION_MONTHS} months)`);
 
-    if (fetchError) {
-      throw new Error(`Failed to fetch campaigns: ${fetchError.message}`);
-    }
+    // Count events to be deleted first
+    const { count: toDeleteCount } = await supabase
+      .from('email_tracking_events')
+      .select('*', { count: 'exact', head: true })
+      .lt('created_at', cutoffIso);
 
-    const totalCampaigns = campaigns?.length || 0;
-    let successCount = 0;
-    let errorCount = 0;
-    const errors: { campaignId: string; error: string }[] = [];
+    console.log(`📊 Found ${toDeleteCount || 0} events to purge`);
 
-    console.log(`📊 Found ${totalCampaigns} campaigns to recompute`);
+    // Delete in batches to avoid timeouts
+    let totalDeleted = 0;
+    const batchSize = 1000;
+    let hasMore = true;
 
-    // Process each campaign
-    for (const campaign of campaigns || []) {
-      try {
-        const { error: recomputeError } = await supabase.rpc('recompute_campaign_metrics', {
-          p_campaign_id: campaign.id
-        });
+    while (hasMore && totalDeleted < (toDeleteCount || 0)) {
+      // Get batch of IDs to delete
+      const { data: batch, error: selectError } = await supabase
+        .from('email_tracking_events')
+        .select('id')
+        .lt('created_at', cutoffIso)
+        .limit(batchSize);
 
-        if (recomputeError) {
-          throw recomputeError;
-        }
+      if (selectError) {
+        console.error('Error selecting batch:', selectError);
+        break;
+      }
 
-        successCount++;
-        console.log(`✅ Recomputed: ${campaign.name} (${campaign.id})`);
-      } catch (err: any) {
-        errorCount++;
-        errors.push({ campaignId: campaign.id, error: err.message });
-        console.error(`❌ Failed: ${campaign.name} (${campaign.id}): ${err.message}`);
+      if (!batch || batch.length === 0) {
+        hasMore = false;
+        break;
+      }
+
+      const ids = batch.map(e => e.id);
+      
+      const { error: deleteError } = await supabase
+        .from('email_tracking_events')
+        .delete()
+        .in('id', ids);
+
+      if (deleteError) {
+        console.error('Error deleting batch:', deleteError);
+        break;
+      }
+
+      totalDeleted += batch.length;
+      console.log(`🗑️ Deleted batch: ${batch.length} events (total: ${totalDeleted})`);
+
+      // Safety check to avoid infinite loops
+      if (batch.length < batchSize) {
+        hasMore = false;
       }
     }
 
     const duration = Date.now() - startTime;
 
-    // Build summary
+    // Log purge run for health page
+    await supabase
+      .from('analytics_alerts')
+      .insert({
+        tenant_id: null,
+        metric: 'purge_completed',
+        value: totalDeleted,
+        threshold: 0,
+        severity: 'warning', // Info level, using warning as closest
+        resolved_at: new Date().toISOString(), // Mark as resolved immediately
+      }).catch(err => console.error('Failed to log purge alert:', err));
+
     const summary = {
       runAt: new Date().toISOString(),
       durationMs: duration,
-      totalCampaigns,
-      successCount,
-      errorCount,
-      errors: errors.length > 0 ? errors : undefined,
+      cutoffDate: cutoffIso,
+      retentionMonths: RETENTION_MONTHS,
+      eventsFound: toDeleteCount || 0,
+      eventsDeleted: totalDeleted,
     };
 
-    console.log(`📋 Nightly recompute summary:`, JSON.stringify(summary, null, 2));
-
-    // Store alert for failures in analytics_alerts table
-    if (errorCount > 0) {
-      await supabase
-        .from('analytics_alerts')
-        .insert({
-          tenant_id: null, // System-wide alert
-          metric: 'cron_recompute_errors',
-          value: errorCount,
-          threshold: 0,
-          severity: errorCount > 5 ? 'critical' : 'warning',
-        }).catch(err => console.error('Failed to log cron alert:', err));
-    }
+    console.log(`✅ Purge complete:`, JSON.stringify(summary, null, 2));
 
     return new Response(
       JSON.stringify({
@@ -177,7 +191,7 @@ serve(async (req: Request): Promise<Response> => {
     );
 
   } catch (error: any) {
-    console.error('❌ Nightly cron error:', error);
+    console.error('❌ Purge error:', error);
     
     return new Response(
       JSON.stringify({ 

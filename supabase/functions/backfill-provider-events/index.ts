@@ -68,6 +68,8 @@ async function fetchWithBackoff(
   throw lastError || new Error('Max retries exceeded');
 }
 
+const MAX_WINDOW_DAYS = 7;
+
 serve(async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -113,7 +115,23 @@ serve(async (req: Request): Promise<Response> => {
     );
     const effectiveEndDate = endDate || new Date().toISOString();
 
-    console.log(`📅 Backfill window: ${effectiveStartDate} to ${effectiveEndDate}`);
+    // Enforce max window of 7 days
+    const startTime = new Date(effectiveStartDate).getTime();
+    const endTime = new Date(effectiveEndDate).getTime();
+    const windowDays = (endTime - startTime) / (1000 * 60 * 60 * 24);
+    
+    if (windowDays > MAX_WINDOW_DAYS) {
+      return new Response(
+        JSON.stringify({ 
+          error: `Backfill window exceeds maximum of ${MAX_WINDOW_DAYS} days`,
+          windowDays: windowDays.toFixed(1),
+          maxDays: MAX_WINDOW_DAYS
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log(`📅 Backfill window: ${effectiveStartDate} to ${effectiveEndDate} (${windowDays.toFixed(1)} days)`);
 
     // Store current metrics as parity snapshot (before)
     if (campaign.metrics) {

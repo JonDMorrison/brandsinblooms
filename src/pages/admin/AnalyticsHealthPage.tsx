@@ -90,6 +90,15 @@ const AnalyticsHealthPage = () => {
         .eq('status', 'sent')
         .order('sent_at', { ascending: false })
         .limit(10);
+      
+      // Get last purge timestamp from analytics_alerts
+      const { data: lastPurge } = await supabase
+        .from('analytics_alerts')
+        .select('created_at, value')
+        .eq('metric', 'purge_completed')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
 
       // Calculate rates
       const complaintRate = sentCount && sentCount > 0 ? ((complaintCount || 0) / sentCount) * 100 : 0;
@@ -177,6 +186,8 @@ const AnalyticsHealthPage = () => {
         latestEventAt: latestEvent?.created_at,
         staleCampaigns: staleCampaigns || [],
         alerts,
+        lastPurgeAt: lastPurge?.created_at,
+        lastPurgeCount: lastPurge?.value,
       };
     },
     refetchInterval: 60000, // Refresh every minute
@@ -378,6 +389,20 @@ const AnalyticsHealthPage = () => {
                 {healthData?.latestEventAt && (
                   <div className="text-sm text-muted-foreground">
                     Last event: {formatDistanceToNow(new Date(healthData.latestEventAt), { addSuffix: true })}
+                  </div>
+                )}
+                {healthData?.lastPurgeAt && (
+                  <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg mt-4">
+                    <div className="flex items-center gap-3">
+                      <Clock className="h-4 w-4 text-muted-foreground" />
+                      <span className="font-medium">Last Retention Purge</span>
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      {formatDistanceToNow(new Date(healthData.lastPurgeAt), { addSuffix: true })}
+                      {healthData.lastPurgeCount && (
+                        <span className="ml-2">({healthData.lastPurgeCount.toLocaleString()} events)</span>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>

@@ -101,14 +101,21 @@ export const ParityCheckCard: React.FC<ParityCheckCardProps> = ({
       // Determine overall status
       const hasError = results.some(r => r.status === 'error');
       const hasWarning = results.some(r => r.status === 'warning');
+      const allOk = !hasError && !hasWarning;
       setOverallStatus(hasError ? 'error' : hasWarning ? 'warning' : 'ok');
 
-      if (hasError) {
+      // If all deltas are < 0.1%, mark snapshot as resolved (null it out)
+      if (allOk) {
+        await supabase
+          .from('crm_campaigns')
+          .update({ metrics_parity_snapshot: null })
+          .eq('id', campaignId);
+        
+        toast.success('Parity check passed - snapshot resolved');
+      } else if (hasError) {
         toast.warning('Parity check found significant differences');
       } else if (hasWarning) {
         toast.info('Parity check found minor differences');
-      } else {
-        toast.success('Parity check passed');
       }
 
     } catch (err: any) {
