@@ -3,6 +3,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { Resend } from "https://esm.sh/resend@2";
 import { renderMergeTags, convertLegacyTags, createMergeTagDataFromCustomer, type MergeTagData } from "../_shared/mergeTagEngine.ts";
 import { generateServerFooterHtml, type CompanyProfileData } from "../_shared/footerGenerator.ts";
+import { extractLinks, getUniqueUrls, rewriteLinksSync, hasPII } from "../_shared/linkRewriter.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -301,14 +302,37 @@ serve(async (req) => {
     // Filter out suppressed customers unless explicitly included
     const totalBeforeSuppression = customers.length;
     let suppressedCount = 0;
+    let suppressedByListCount = 0;
     
     if (!includeSuppressed) {
+      // First filter by the suppressed flag
       const activeCustomers = customers.filter(c => !c.suppressed);
       suppressedCount = customers.length - activeCustomers.length;
-      customers = activeCustomers;
       
-      if (suppressedCount > 0) {
-        console.log(`📧 Excluded ${suppressedCount} suppressed contacts (${totalBeforeSuppression} total → ${customers.length} active)`);
+      // Then check suppression_list table for additional exclusions
+      const customerIds = activeCustomers.map(c => c.id);
+      if (customerIds.length > 0) {
+        const { data: suppressedInList } = await supabase
+          .from('suppression_list')
+          .select('customer_id')
+          .eq('tenant_id', campaign.tenant_id)
+          .in('customer_id', customerIds);
+        
+        if (suppressedInList && suppressedInList.length > 0) {
+          const suppressedSet = new Set(suppressedInList.map(s => s.customer_id));
+          customers = activeCustomers.filter(c => !suppressedSet.has(c.id));
+          suppressedByListCount = suppressedInList.length;
+          console.log(`📧 Excluded ${suppressedByListCount} contacts from suppression_list (bounced/complained/unsubscribed)`);
+        } else {
+          customers = activeCustomers;
+        }
+      } else {
+        customers = activeCustomers;
+      }
+      
+      const totalSuppressed = suppressedCount + suppressedByListCount;
+      if (totalSuppressed > 0) {
+        console.log(`📧 Excluded ${totalSuppressed} suppressed contacts total (${totalBeforeSuppression} → ${customers.length} active)`);
       }
     } else {
       console.log(`⚠️ Including ${customers.filter(c => c.suppressed).length} suppressed contacts (override enabled)`);
@@ -482,6 +506,8 @@ serve(async (req) => {
     console.log(`📧 Building ${recipientCount} email payloads...`);
     const emailPayloads: any[] = [];
     const subscriptionUpserts: any[] = [];
+    let piiWarnings: string[] = [];
+    let linksRewritten = 0;
 
     // Pre-generate the footer ONCE since it's the same for all recipients
     // This is a critical performance optimization to avoid timeout on large campaigns
@@ -494,13 +520,75 @@ serve(async (req) => {
     );
     console.log(`📧 Pre-generated footer template (length: ${sharedFooterTemplate.length})`);
 
+    // ========== LINK TRACKING SETUP ==========
+    // Extract unique URLs from campaign content and create tracked_links entries
+    const campaignContent = campaign.content || '';
+    const extractedLinks = extractLinks(campaignContent);
+    const uniqueUrls = getUniqueUrls(extractedLinks);
+    const urlToLinkIdMap = new Map<string, string>();
+    
+    console.log(`🔗 Found ${uniqueUrls.length} unique URLs to track`);
+    
+    // Check for PII in URLs and log warnings
+    for (const url of uniqueUrls) {
+      if (hasPII(url)) {
+        piiWarnings.push(url);
+        console.warn(`⚠️ PII detected in URL, will skip tracking: ${url.substring(0, 80)}...`);
+      }
+    }
+    
+    // Create tracked_links entries for each unique URL (excluding PII URLs)
+    const urlsToTrack = uniqueUrls.filter(url => !hasPII(url));
+    if (urlsToTrack.length > 0) {
+      const trackedLinkInserts = urlsToTrack.map(url => ({
+        tenant_id: campaign.tenant_id,
+        campaign_id: campaignId,
+        url,
+      }));
+      
+      // Upsert tracked links
+      const { data: insertedLinks, error: linksError } = await supabase
+        .from('tracked_links')
+        .upsert(trackedLinkInserts, { onConflict: 'tenant_id,campaign_id,url', ignoreDuplicates: false })
+        .select('id, url');
+      
+      if (linksError) {
+        console.warn('⚠️ Error creating tracked links (non-fatal):', linksError);
+      } else if (insertedLinks) {
+        for (const link of insertedLinks) {
+          urlToLinkIdMap.set(link.url, link.id);
+        }
+        console.log(`🔗 Created/updated ${insertedLinks.length} tracked links`);
+      }
+    }
+
     for (const customer of customers) {
       try {
-        const payload = buildEmailPayloadOptimized(
+        let payload = buildEmailPayloadOptimized(
           customer, campaign, companyProfile, profileData,
           fromAddress, senderEmail, usesVerifiedDomain, activeDomainId,
           sharedFooterTemplate
         );
+        
+        // Rewrite links in the email HTML with tracking URLs
+        if (urlToLinkIdMap.size > 0 && payload.html) {
+          const rewriteResult = rewriteLinksSync(
+            payload.html,
+            urlToLinkIdMap,
+            campaignId,
+            customer.id,
+            campaign.tenant_id,
+            customer.email
+          );
+          payload.html = rewriteResult.html;
+          linksRewritten += rewriteResult.linksRewritten;
+          
+          // Collect any additional PII warnings from this customer's email
+          if (rewriteResult.piiWarnings.length > 0) {
+            piiWarnings = [...new Set([...piiWarnings, ...rewriteResult.piiWarnings])];
+          }
+        }
+        
         emailPayloads.push({ email: customer.email, customerId: customer.id, payload });
 
         subscriptionUpserts.push({
@@ -515,6 +603,8 @@ serve(async (req) => {
         console.error(`Error building payload for ${customer.id}:`, error.message);
       }
     }
+    
+    console.log(`🔗 Rewrote ${linksRewritten} links across all emails`);
 
     // Batch upsert subscriptions
     if (subscriptionUpserts.length > 0) {
@@ -624,6 +714,9 @@ serve(async (req) => {
             opens: 0, 
             clicks: 0, 
             unsubscribes: 0,
+            skipped_suppressed: suppressedCount + suppressedByListCount,
+            links_tracked: urlToLinkIdMap.size,
+            pii_warnings: piiWarnings.length,
             original_recipients: isPartialSend ? originalRecipientCount : undefined,
             truncated_due_to_warmup: isPartialSend
           },
