@@ -10,7 +10,6 @@ verify_jwt = false
 
 [functions.generate-ai-image]
 verify_jwt = false
-import_map = "./import_map.json"
 
 [functions.generate-image-tags]
 verify_jwt = false
