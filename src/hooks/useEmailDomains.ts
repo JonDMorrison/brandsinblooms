@@ -217,16 +217,39 @@ export const useEmailDomains = () => {
   const verifyEmailDomain = async (domainId: string, resetAttempts = false) => {
     try {
       const { data, error } = await supabase.functions.invoke('email-domain-verify', {
-        body: { 
+        body: {
           email_domain_id: domainId,
           reset_attempts: resetAttempts
         }
       });
 
-      if (error) throw error;
-      
+      if (error) {
+        // Supabase FunctionsHttpError carries status/body on a non-enumerable `context` object
+        const status = (error as any)?.context?.status ?? (error as any)?.status;
+        const body = (error as any)?.context?.body;
+
+        let parsed: any = null;
+        if (typeof body === 'string') {
+          try {
+            parsed = JSON.parse(body);
+          } catch {
+            parsed = null;
+          }
+        }
+
+        const isRateLimited = status === 429 || parsed?.error === 'rate_limited';
+        if (isRateLimited) {
+          const retryAfterSeconds = Number(parsed?.retry_after_seconds ?? 90);
+          toast.info(`Please wait ${retryAfterSeconds}s before checking again`);
+          return { rate_limited: true, retry_after_seconds: retryAfterSeconds } as any;
+        }
+
+        toast.error(parsed?.message || error.message || 'Failed to verify email domain');
+        return { success: false, error: parsed?.message || error.message } as any;
+      }
+
       const isSuccess = data?.ok || data?.status === 'active';
-      
+
       if (isSuccess) {
         toast.success(data?.message || "Domain is now active and ready to send emails");
       } else if (data?.status === 'failed') {
@@ -234,13 +257,13 @@ export const useEmailDomains = () => {
       } else {
         toast.warning(data?.message || "Some DNS records are still pending verification");
       }
-      
+
       await fetchEmailDomains();
       return data;
     } catch (error: any) {
       console.error('Error verifying email domain:', error);
       toast.error(error.message || 'Failed to verify email domain');
-      throw error;
+      return { success: false, error: error.message } as any;
     }
   };
 

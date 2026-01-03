@@ -1015,9 +1015,10 @@ const handler = async (req: Request): Promise<Response> => {
     const newStatus = dnsConflictDetected 
       ? 'pending_dns' 
       : mapResendStatus(resendDomainStatus?.status, allPassed, allDnsVerified);
-    
-    const errorMessage = allPassed ? null : buildVerificationError(checks, resendRecords, dnsConflictDetected);
-    const nextVerifyAt = calculateNextVerifyAt(newAttempts, allPassed);
+
+    const treatedAsActive = newStatus === 'active';
+    const errorMessage = treatedAsActive ? null : (allPassed ? null : buildVerificationError(checks, resendRecords, dnsConflictDetected));
+    const nextVerifyAt = treatedAsActive ? null : calculateNextVerifyAt(newAttempts, allPassed);
 
     console.log(`📊 Status update: ${emailDomain.status} -> ${newStatus}, phase: ${verificationPhase}, attempts: ${newAttempts}, next_verify: ${nextVerifyAt?.toISOString() || 'none'}`);
 
@@ -1058,7 +1059,7 @@ const handler = async (req: Request): Promise<Response> => {
       updated_at: new Date().toISOString()
     };
 
-    if (allPassed && !emailDomain.verified_at) {
+    if ((allPassed || treatedAsActive) && !emailDomain.verified_at) {
       updateData.verified_at = new Date().toISOString();
     }
 
@@ -1074,7 +1075,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Step 8: Sync to company_profiles when domain becomes active
-    if (allPassed && newStatus === 'active') {
+    if (newStatus === 'active') {
       console.log(`📝 Syncing verified domain to company_profiles...`);
       
       const { data: tenantUser } = await supabase
