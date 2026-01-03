@@ -86,13 +86,27 @@ export const useSenderConfiguration = () => {
         console.error('Error fetching tenant data:', tenantError);
       }
 
+      // Also fetch company_profiles to get the preferred company name
+      const { data: companyProfileForName } = await supabase
+        .from('company_profiles')
+        .select('company_name')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      // Prefer company_profiles.company_name over tenant.name/fallback_from_name
+      const preferredCompanyName =
+        companyProfileForName?.company_name ||
+        tenantData?.fallback_from_name ||
+        tenantData?.name ||
+        'BloomSuite';
+
       if (tenantData?.fallback_sender_email) {
         setSenderConfig({
           isVerified: false,
           senderEmail: tenantData.fallback_sender_email,
-          displayName: tenantData.fallback_from_name || tenantData.name || 'BloomSuite',
+          displayName: preferredCompanyName,
           deliveryMethod: 'platform',
-          companyName: tenantData.name,
+          companyName: preferredCompanyName,
           fallbackEmail: tenantData.fallback_sender_email,
           domain: latestDomain?.domain,
           domainStatus: latestDomain?.status,
@@ -132,12 +146,19 @@ export const useSenderConfiguration = () => {
       }
 
       // Priority 4: Fallback to generic BloomSuite sender
+      // At this point, we already fetched companyProfileForName above, so use that
+      const fallbackDisplayName =
+        companyProfileForName?.company_name ||
+        companyProfile?.company_name ||
+        tenant.name ||
+        'BloomSuite';
+
       setSenderConfig({
         isVerified: false,
         senderEmail: 'noreply@bloomsuite.app',
-        displayName: companyProfile?.company_name || tenant.name || 'BloomSuite',
+        displayName: fallbackDisplayName,
         deliveryMethod: 'shared',
-        companyName: companyProfile?.company_name || tenant.name,
+        companyName: fallbackDisplayName,
         domain: latestDomain?.domain,
         domainStatus: latestDomain?.status,
       });
