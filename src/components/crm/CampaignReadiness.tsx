@@ -20,6 +20,7 @@ interface CampaignReadinessProps {
   senderConfig?: any;
   className?: string;
   onEditAudience?: () => void;
+  onSenderModalClose?: () => void;
 }
 
 export const CampaignReadiness: React.FC<CampaignReadinessProps> = ({
@@ -29,7 +30,8 @@ export const CampaignReadiness: React.FC<CampaignReadinessProps> = ({
   selectedSegments,
   senderConfig,
   className = '',
-  onEditAudience
+  onEditAudience,
+  onSenderModalClose
 }) => {
   const [showSenderModal, setShowSenderModal] = useState(false);
   const items: ReadinessItem[] = [
@@ -146,7 +148,12 @@ export const CampaignReadiness: React.FC<CampaignReadinessProps> = ({
 
       <SenderVerificationModal 
         open={showSenderModal}
-        onOpenChange={setShowSenderModal}
+        onOpenChange={(open) => {
+          setShowSenderModal(open);
+          if (!open) {
+            onSenderModalClose?.();
+          }
+        }}
         senderConfig={senderConfig}
       />
     </div>
