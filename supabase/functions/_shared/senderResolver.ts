@@ -47,17 +47,20 @@ export async function resolveSender(
   
   console.log(`[SenderResolver] Resolving sender for tenant: ${tenantId}, preferredDomainId: ${preferredDomainId || 'none'}`);
 
+  // Valid statuses for sending emails (active or warming_up)
+  const validStatuses = ['active', 'warming_up'];
+  
   // Step 1: Check for preferred domain first (if specified)
   if (preferredDomainId) {
     const { data: domain, error: domainError } = await supabase
       .from('email_domains')
       .select('id, domain, status, default_from_email, default_from_name')
       .eq('id', preferredDomainId)
-      .eq('status', 'active')
+      .in('status', validStatuses)
       .single();
 
     if (!domainError && domain) {
-      console.log(`[SenderResolver] Using preferred custom domain: ${domain.domain}`);
+      console.log(`[SenderResolver] Using preferred custom domain: ${domain.domain} (status: ${domain.status})`);
       return {
         fromEmail: domain.default_from_email || `mail@${domain.domain}`,
         fromName: domain.default_from_name || 'Your Business',
@@ -66,21 +69,21 @@ export async function resolveSender(
         domain: domain.domain
       };
     }
-    console.log(`[SenderResolver] Preferred domain not found or inactive, checking for any active domain`);
+    console.log(`[SenderResolver] Preferred domain not found or not in valid status, checking for any usable domain`);
   }
 
-  // Step 2: Check for any active custom domain for the tenant
-  const { data: activeDomains, error: activeError } = await supabase
+  // Step 2: Check for any usable custom domain for the tenant (active or warming_up)
+  const { data: usableDomains, error: usableError } = await supabase
     .from('email_domains')
     .select('id, domain, status, default_from_email, default_from_name')
     .eq('tenant_id', tenantId)
-    .eq('status', 'active')
+    .in('status', validStatuses)
     .order('created_at', { ascending: false })
     .limit(1);
 
-  if (!activeError && activeDomains && activeDomains.length > 0) {
-    const domain = activeDomains[0];
-    console.log(`[SenderResolver] Using active custom domain: ${domain.domain}`);
+  if (!usableError && usableDomains && usableDomains.length > 0) {
+    const domain = usableDomains[0];
+    console.log(`[SenderResolver] Using custom domain: ${domain.domain} (status: ${domain.status})`);
     return {
       fromEmail: domain.default_from_email || `mail@${domain.domain}`,
       fromName: domain.default_from_name || 'Your Business',
