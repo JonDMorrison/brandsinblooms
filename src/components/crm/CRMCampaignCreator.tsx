@@ -4020,8 +4020,8 @@ const { counts: segmentCounts } = useSegmentCounts();
         const campaignData: CampaignData = {
           name: campaignName,
           subject: subjectLine,
-          sender_name: 'Brands in Blooms',
-          sender_email: 'hello@brandsinblooms.com',
+          sender_name: senderConfig?.displayName || 'BloomSuite',
+          sender_email: senderConfig?.senderEmail || 'noreply@bloomsuite.app',
           content: htmlContent,
           preheader: preheaderText,
           segments: [], // Default empty segments for now
@@ -4094,6 +4094,18 @@ const { counts: segmentCounts } = useSegmentCounts();
       return;
     }
 
+    if (loadingSenderConfig) {
+      toast({
+        title: 'Loading sender settings',
+        description: 'Please wait a moment while we load your email sending configuration.',
+      });
+      return;
+    }
+
+    const hasPendingDomain =
+      !!senderConfig?.domainStatus &&
+      ['pending', 'pending_dns', 'verifying'].includes(senderConfig.domainStatus);
+
     // Check if audience is selected
     // Allow sending to All Contacts when no segments/personas are selected
     // Previously blocked when selectedSegments.length === 0
@@ -4110,9 +4122,18 @@ const { counts: segmentCounts } = useSegmentCounts();
     // }
 
     // Check sender configuration
-    if (!senderConfig?.isVerified) {
+    // If a custom domain is still verifying, allow sending via shared/platform and auto-switch once active.
+    if (!senderConfig?.isVerified && !hasPendingDomain) {
       setShowSenderConfirmation(true);
       return;
+    }
+
+    if (!senderConfig?.isVerified && hasPendingDomain) {
+      toast({
+        title: 'Domain still verifying',
+        description:
+          "We'll send using your BloomSuite sender for now and automatically switch to your domain once verification completes.",
+      });
     }
 
     // Proceed with sending

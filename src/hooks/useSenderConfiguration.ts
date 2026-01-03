@@ -55,11 +55,25 @@ export const useSenderConfiguration = () => {
           deliveryMethod: 'custom',
           companyName: tenant.name,
           domain: activeDomain.domain,
-          domainStatus: activeDomain.status
+          domainStatus: activeDomain.status,
         });
         setLoading(false);
         return;
       }
+
+      // Track latest domain status (so UI can show pending verification, even while sending via shared/platform)
+      const { data: latestDomains, error: latestDomainError } = await supabase
+        .from('email_domains')
+        .select('domain, status')
+        .eq('tenant_id', tenant.id)
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (latestDomainError) {
+        console.error('Error fetching latest email domain:', latestDomainError);
+      }
+
+      const latestDomain = latestDomains && latestDomains.length > 0 ? latestDomains[0] : null;
 
       // Priority 2: Check for tenant platform fallback email
       const { data: tenantData, error: tenantError } = await supabase
@@ -79,7 +93,9 @@ export const useSenderConfiguration = () => {
           displayName: tenantData.fallback_from_name || tenantData.name || 'BloomSuite',
           deliveryMethod: 'platform',
           companyName: tenantData.name,
-          fallbackEmail: tenantData.fallback_sender_email
+          fallbackEmail: tenantData.fallback_sender_email,
+          domain: latestDomain?.domain,
+          domainStatus: latestDomain?.status,
         });
         setLoading(false);
         return;
@@ -97,8 +113,8 @@ export const useSenderConfiguration = () => {
       }
 
       // Check legacy company_profiles verification
-      const hasLegacyVerification = 
-        companyProfile?.email_auth_status === 'verified' && 
+      const hasLegacyVerification =
+        companyProfile?.email_auth_status === 'verified' &&
         companyProfile?.custom_sender_email;
 
       if (hasLegacyVerification) {
@@ -109,7 +125,7 @@ export const useSenderConfiguration = () => {
           deliveryMethod: 'custom',
           companyName: companyProfile.company_name,
           domain: companyProfile.email_domain,
-          domainStatus: 'active'
+          domainStatus: 'active',
         });
         setLoading(false);
         return;
@@ -121,7 +137,9 @@ export const useSenderConfiguration = () => {
         senderEmail: 'noreply@bloomsuite.app',
         displayName: companyProfile?.company_name || tenant.name || 'BloomSuite',
         deliveryMethod: 'shared',
-        companyName: companyProfile?.company_name || tenant.name
+        companyName: companyProfile?.company_name || tenant.name,
+        domain: latestDomain?.domain,
+        domainStatus: latestDomain?.status,
       });
     } catch (error) {
       console.error('Error in fetchSenderConfiguration:', error);
@@ -139,6 +157,33 @@ export const useSenderConfiguration = () => {
   useEffect(() => {
     fetchSenderConfiguration();
   }, [fetchSenderConfiguration]);
+
+  // Auto-refresh when domains/tenant sender settings change (so campaigns switch to custom domain automatically)
+  useEffect(() => {
+    if (!tenant?.id) return;
+
+    const channel = supabase
+      .channel(`sender-config-${tenant.id}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'email_domains', filter: `tenant_id=eq.${tenant.id}` },
+        () => {
+          fetchSenderConfiguration();
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'tenants', filter: `id=eq.${tenant.id}` },
+        () => {
+          fetchSenderConfiguration();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [tenant?.id, fetchSenderConfiguration]);
 
   return {
     senderConfig,
