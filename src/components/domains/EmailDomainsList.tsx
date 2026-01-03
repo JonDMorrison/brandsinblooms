@@ -57,29 +57,51 @@ export const EmailDomainsList = () => {
     return { verified, total, percentage };
   };
 
+  const getVerificationPhase = (domain: EmailDomain): 'action_required' | 'waiting_provider' | 'configuring' | 'verified' => {
+    if (domain.status === 'active') return 'verified';
+    if (domain.status === 'failed' || domain.status === 'error') return 'action_required';
+    
+    const { pending, dnsVerifiedPending, hasConflict } = getPendingRecords(domain);
+    
+    // If there are conflicts or missing records, action is required
+    if (hasConflict || pending.length > 0) return 'action_required';
+    
+    // If all DNS is correct but waiting for Resend
+    if (dnsVerifiedPending.length > 0) return 'waiting_provider';
+    
+    // Check resend_status for verification_phase
+    const resendStatus = domain.resend_status as any;
+    if (resendStatus?.verification_phase === 'dns_present_waiting_provider') return 'waiting_provider';
+    
+    return 'configuring';
+  };
+
   const getStatusBadge = (domain: EmailDomain) => {
-    const { verified, total, percentage } = getVerificationProgress(domain);
+    const phase = getVerificationPhase(domain);
+    const { verified, total } = getVerificationProgress(domain);
     
-    if (domain.status === 'active') {
-      return <Badge className="bg-green-100 text-green-800 border-green-200">✓ Active</Badge>;
+    switch (phase) {
+      case 'verified':
+        return <Badge className="bg-green-100 text-green-800 border-green-200">✓ Active</Badge>;
+      case 'action_required':
+        return <Badge variant="destructive">Action Required</Badge>;
+      case 'waiting_provider':
+        return (
+          <Badge variant="outline" className="border-amber-400 text-amber-700 bg-amber-50">
+            Verifying with Provider
+          </Badge>
+        );
+      case 'configuring':
+      default:
+        if (total > 0 && verified > 0) {
+          return (
+            <Badge variant="outline" className="border-amber-400 text-amber-700 bg-amber-50">
+              {verified}/{total} Verified
+            </Badge>
+          );
+        }
+        return <Badge variant="outline" className="border-amber-400 text-amber-700 bg-amber-50">Setting Up</Badge>;
     }
-    if (domain.status === 'failed' || domain.status === 'error') {
-      return <Badge variant="destructive">Action Required</Badge>;
-    }
-    
-    // Show progress for pending states
-    if (total > 0) {
-      if (verified === total) {
-        return <Badge className="bg-green-100 text-green-800 border-green-200">✓ Verified</Badge>;
-      }
-      return (
-        <Badge variant="outline" className="border-amber-400 text-amber-700 bg-amber-50">
-          {verified}/{total} Verified
-        </Badge>
-      );
-    }
-    
-    return <Badge variant="outline" className="border-amber-400 text-amber-700 bg-amber-50">Setting Up</Badge>;
   };
 
   const getProviderBadge = (domain: EmailDomain) => {
@@ -280,8 +302,14 @@ export const EmailDomainsList = () => {
                 const isFailed = domain.status === 'failed';
                 const needsRepair = domain.status === 'pending_dns' && (pendingRecords.length > 0 || hasConflict);
                 const isDnsVerifiedAwaitingResend = dnsVerifiedPending.length > 0 && pendingRecords.length === 0 && !hasConflict;
+                const verificationPhase = getVerificationPhase(domain);
 
                 const { verified: verifiedCount, total: totalCount, percentage } = getVerificationProgress(domain);
+                
+                // Check if domain is stuck waiting for provider (>2 hours)
+                const isStuckWaiting = verificationPhase === 'waiting_provider' && 
+                  domain.last_verify_attempt_at && 
+                  (new Date().getTime() - new Date(domain.last_verify_attempt_at).getTime()) > 2 * 60 * 60 * 1000;
 
                 return (
                   <div
@@ -369,8 +397,8 @@ export const EmailDomainsList = () => {
 
                             {/* Show helpful message when all DNS is correct but waiting */}
                             {isDnsVerifiedAwaitingResend && !hasConflict && pendingRecords.length === 0 && (
-                              <p className="text-xs text-amber-600 mt-1 italic">
-                                DNS is correctly configured. Provider verification can take a few hours.
+                              <p className="text-xs text-green-600 mt-1 font-medium">
+                                ✓ DNS is correctly configured! No action needed — provider verification typically takes 1-4 hours.
                               </p>
                             )}
 
@@ -424,6 +452,22 @@ export const EmailDomainsList = () => {
                                 <RotateCcw className="w-4 h-4" />
                               )}
                               {isVerifying ? 'Retrying...' : 'Retry'}
+                            </Button>
+                          ) : verificationPhase === 'waiting_provider' ? (
+                            // Show "Check Status" button when waiting for provider
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleVerifyDomain(domain.id)}
+                              disabled={isVerifying}
+                              className={`flex items-center gap-2 ${isStuckWaiting ? 'border-amber-400' : ''}`}
+                            >
+                              {isVerifying ? (
+                                <RefreshCw className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <RefreshCw className="w-4 h-4" />
+                              )}
+                              {isVerifying ? 'Checking...' : isStuckWaiting ? 'Force Check' : 'Check Status'}
                             </Button>
                           ) : (
                             <Button
