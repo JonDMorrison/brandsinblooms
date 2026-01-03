@@ -147,9 +147,11 @@ export const useEntriConnect = () => {
     });
   }, []);
 
-  // Pre-load script on mount
+  // Pre-load script on mount only if Entri is configured
   useEffect(() => {
-    loadEntriScript();
+    if (emailDomainsConfig.isEntriConfigured()) {
+      loadEntriScript();
+    }
   }, [loadEntriScript]);
 
   const normalizeDomain = useCallback((value: string) => {
