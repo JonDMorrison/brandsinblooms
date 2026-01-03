@@ -6,6 +6,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { AlertTriangle, CheckCircle, XCircle, Info, Shield } from 'lucide-react';
 import { useListHealth } from '@/hooks/analytics/useListHealth';
 import { Skeleton } from '@/components/ui/skeleton';
+import SuppressionBreakdown from './SuppressionBreakdown';
+import HealthSparkline from './HealthSparkline';
 
 export const ListHealthCard: React.FC = () => {
   const health = useListHealth();
@@ -81,7 +83,7 @@ export const ListHealthCard: React.FC = () => {
           />
         </div>
 
-        {/* Metrics Grid */}
+        {/* Metrics Grid with Sparklines */}
         <div className="grid grid-cols-2 gap-4 pt-2">
           <TooltipProvider>
             <Tooltip>
@@ -98,9 +100,10 @@ export const ListHealthCard: React.FC = () => {
                   }`}>
                     {health.bounceRate}%
                   </p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-muted-foreground mb-2">
                     {health.bounceCount30d} bounces / {health.totalSent30d} sent
                   </p>
+                  <HealthSparkline type="bounce" height={30} />
                 </div>
               </TooltipTrigger>
               <TooltipContent>
@@ -125,9 +128,10 @@ export const ListHealthCard: React.FC = () => {
                   }`}>
                     {health.complaintRate}%
                   </p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-muted-foreground mb-2">
                     {health.complaintCount30d} complaints
                   </p>
+                  <HealthSparkline type="complaint" height={30} />
                 </div>
               </TooltipTrigger>
               <TooltipContent>
@@ -138,10 +142,10 @@ export const ListHealthCard: React.FC = () => {
           </TooltipProvider>
         </div>
 
-        {/* Suppression Info */}
-        <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
-          <span className="text-sm text-muted-foreground">Suppressed Contacts</span>
-          <Badge variant="secondary">{health.suppressedCount}</Badge>
+        {/* Suppression Breakdown */}
+        <div>
+          <p className="text-sm font-medium mb-2">Suppressed by Reason</p>
+          <SuppressionBreakdown />
         </div>
 
         {/* Warning Messages */}
@@ -152,9 +156,9 @@ export const ListHealthCard: React.FC = () => {
               : 'bg-yellow-50 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-300'
           }`}>
             {health.healthStatus === 'critical' ? (
-              <p>⚠️ Your list health is critical. Clean your list and review your sending practices immediately.</p>
+              <p>Your list health is critical. Clean your list and review your sending practices immediately.</p>
             ) : (
-              <p>⚡ Your list health needs attention. Consider cleaning invalid addresses.</p>
+              <p>Your list health needs attention. Consider cleaning invalid addresses.</p>
             )}
           </div>
         )}
