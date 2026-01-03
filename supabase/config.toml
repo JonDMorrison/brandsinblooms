@@ -372,3 +372,9 @@ verify_jwt = false
 
 [functions.email-domain-repair]
 verify_jwt = true
+
+[functions.recompute-campaign-metrics]
+verify_jwt = true
+
+[functions.redirect-click]
+verify_jwt = false

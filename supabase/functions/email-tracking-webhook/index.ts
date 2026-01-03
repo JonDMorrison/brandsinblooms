@@ -159,6 +159,18 @@ function bytesToBase64(bytes: Uint8Array): string {
   return btoa(binString);
 }
 
+// Hash IP address for privacy
+function hashIP(ip: string): string {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(ip + 'privacy_salt_v1');
+  let hash = 0;
+  for (let i = 0; i < data.length; i++) {
+    hash = ((hash << 5) - hash) + data[i];
+    hash = hash & hash;
+  }
+  return Math.abs(hash).toString(16).padStart(8, '0');
+}
+
 // ========== EXTRACT METADATA FROM HEADERS/TAGS ==========
 const extractMetadata = (payload: ResendWebhookPayload): { campaignId?: string; tenantId?: string; domainId?: string } => {
   const result: { campaignId?: string; tenantId?: string; domainId?: string } = {};
@@ -301,11 +313,31 @@ const handler = async (req: Request): Promise<Response> => {
       eventData.click_link = payload.data.click.link;
       eventData.click_timestamp = payload.data.click.timestamp;
     }
-    if (eventType === 'opened' && payload.data.open) {
+    
+    // MPP Detection for opens
+    let isMppGuess = false;
+    if ((eventType === 'opened') && payload.data.open) {
       eventData.open_timestamp = payload.data.open.timestamp;
       eventData.open_ip = payload.data.open.ip_address;
       eventData.open_user_agent = payload.data.open.user_agent;
+      
+      // Heuristic: Apple Mail Privacy Protection detection
+      const ua = payload.data.open.user_agent?.toLowerCase() || '';
+      const ip = payload.data.open.ip_address || '';
+      
+      // Common MPP indicators:
+      // 1. User agent contains Apple Mail
+      // 2. Opens happening from Apple's proxy IPs (17.x.x.x range or known proxy ASNs)
+      if (ua.includes('applemail') || ua.includes('apple mail')) {
+        // If it's Apple Mail and opens very quickly after send, likely MPP
+        isMppGuess = true;
+      }
+      // Apple Private Relay IPs typically start with 17. or use iCloud Private Relay
+      if (ip.startsWith('17.') || ip.includes('apple') || ip.includes('icloud')) {
+        isMppGuess = true;
+      }
     }
+    
     if (eventType === 'bounced' && payload.data.bounce) {
       eventData.bounce_message = payload.data.bounce.message;
       eventData.bounce_type = payload.data.bounce.type;
@@ -319,40 +351,35 @@ const handler = async (req: Request): Promise<Response> => {
     const ipAddress = req.headers.get('x-forwarded-for') || 
                      req.headers.get('x-real-ip') || 
                      req.headers.get('cf-connecting-ip');
+    
+    // Hash IP for privacy
+    const ipHash = ipAddress ? hashIP(ipAddress) : null;
+    
+    // Webhook delivery ID for debugging
+    const webhookDeliveryId = req.headers.get('svix-id') || req.headers.get('x-request-id') || null;
 
-    // ========== IDEMPOTENCY CHECK ==========
-    // Use (campaign_id, customer_email, event_type, email_id) as unique key
-    const { data: existingEvent } = await supabase
-      .from('email_tracking_events')
-      .select('id')
-      .eq('campaign_id', metadata.campaignId)
-      .eq('customer_email', payload.data.to[0])
-      .eq('event_type', eventType)
-      .eq('event_data->>email_id', payload.data.email_id)
-      .maybeSingle();
+    // ========== IDEMPOTENT UPSERT ==========
+    // Use (tenant_id, provider_message_id, event_type, event_ts_provider) as unique key
+    const providerMessageId = payload.data.email_id;
+    const eventTsProvider = payload.created_at;
 
-    if (existingEvent) {
-      console.log(`🔄 Duplicate ${eventType} event detected for email_id=${payload.data.email_id} - skipping`);
-      return new Response(JSON.stringify({ 
-        message: 'Duplicate event - already recorded',
-        event_id: existingEvent.id
-      }), {
-        status: 200,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
-    }
-
-    // ========== INSERT TRACKING EVENT ==========
     const trackingRecord = {
       campaign_id: metadata.campaignId,
       customer_email: payload.data.to[0],
       event_type: eventType,
       event_data: {
         ...eventData,
-        raw_payload: payload // Store complete raw payload for debugging
+        raw_payload: payload
       },
       user_agent: userAgent,
-      ip_address: ipAddress
+      // New idempotency columns
+      provider_message_id: providerMessageId,
+      event_ts_provider: eventTsProvider,
+      ingested_at: new Date().toISOString(),
+      tenant_id: metadata.tenantId || null,
+      is_mpp_guess: isMppGuess,
+      ip_hash: ipHash,
+      webhook_delivery_id: webhookDeliveryId
     };
 
     const { data: insertedEvent, error: insertError } = await supabase
@@ -400,6 +427,35 @@ const handler = async (req: Request): Promise<Response> => {
         await incrementDomainSentCount(supabase, metadata.domainId);
       } catch (err) {
         console.error('⚠️ Non-fatal: Failed to increment domain sent count:', err);
+      }
+    }
+
+    // ========== SUPPRESSION LIST UPDATES ==========
+    // Add to suppression list for unsubscribes, bounces, and complaints
+    if (eventType === 'unsubscribed' || eventType === 'bounced' || eventType === 'complained') {
+      try {
+        const suppressionReason = eventType === 'unsubscribed' ? 'unsubscribed' : 
+                                  eventType === 'bounced' ? 'bounced' : 'complaint';
+        
+        await supabase
+          .from('suppression_list')
+          .upsert({
+            tenant_id: metadata.tenantId,
+            email: payload.data.to[0],
+            suppression_type: suppressionReason,
+            channel: 'email',
+            reason: suppressionReason,
+            source_event_id: insertedEvent?.id,
+            auto_suppressed: true,
+            suppressed_at: new Date().toISOString()
+          }, {
+            onConflict: 'tenant_id,email,suppression_type',
+            ignoreDuplicates: true
+          });
+        
+        console.log(`📝 Added ${payload.data.to[0]} to suppression list (${suppressionReason})`);
+      } catch (err) {
+        console.error('⚠️ Non-fatal: Failed to update suppression list:', err);
       }
     }
 
