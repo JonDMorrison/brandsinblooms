@@ -264,14 +264,23 @@ async function sendEmail(
       console.log(`📧 [SendEmail] Dynamically resolved sender: ${senderConfig.deliveryMethod} (${senderConfig.fromEmail})`);
     }
 
-    // Get company name for display
-    const { data: companyProfile } = await supabase
-      .from("company_profiles")
-      .select("company_name")
+    // Get company name for display - query via users table since company_profiles uses user_id
+    const { data: tenantUser } = await supabase
+      .from("users")
+      .select("id")
       .eq("tenant_id", message.tenant_id)
+      .limit(1)
       .single();
 
-    const companyName = companyProfile?.company_name || "Your Business";
+    let companyName = "Your Business";
+    if (tenantUser?.id) {
+      const { data: companyProfile } = await supabase
+        .from("company_profiles")
+        .select("company_name")
+        .eq("user_id", tenantUser.id)
+        .single();
+      companyName = companyProfile?.company_name || "Your Business";
+    }
     
     // Adjust from name based on delivery method
     const fromName = senderConfig.deliveryMethod === 'custom_domain' 
