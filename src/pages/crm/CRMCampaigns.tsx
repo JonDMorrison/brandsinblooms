@@ -10,6 +10,8 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
+import { useEmailCampaignSummary } from '@/hooks/useEmailCampaignSummary';
+import { CampaignMetricsInline } from '@/components/crm/campaigns/CampaignMetricsColumns';
 import { 
   Plus, 
   Mail, 
@@ -21,7 +23,8 @@ import {
   Sparkles,
   Clock,
   Copy,
-  MoreHorizontal
+  MoreHorizontal,
+  RefreshCw
 } from 'lucide-react';
 
 interface Campaign {
@@ -34,6 +37,11 @@ interface Campaign {
   created_at: string;
   segment_id: string;
   metrics: any;
+  total_sent: number;
+  total_opens: number;
+  total_clicks: number;
+  open_rate: number;
+  click_rate: number;
   crm_segments?: {
     name: string;
   };
@@ -46,6 +54,7 @@ const CRMCampaigns = () => {
   const [activeTab, setActiveTab] = useState('all');
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
+  const summary = useEmailCampaignSummary();
 
   useEffect(() => {
     if (user) {
@@ -160,7 +169,9 @@ const CRMCampaigns = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Total Sent</p>
-                  <p className="text-2xl font-bold">0</p>
+                  <p className="text-2xl font-bold">
+                    {summary.loading ? '...' : summary.totalSent.toLocaleString()}
+                  </p>
                 </div>
                 <Send className="h-4 w-4 text-muted-foreground" />
               </div>
@@ -171,7 +182,9 @@ const CRMCampaigns = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Open Rate</p>
-                  <p className="text-2xl font-bold">0%</p>
+                  <p className="text-2xl font-bold">
+                    {summary.loading ? '...' : `${summary.avgOpenRate.toFixed(1)}%`}
+                  </p>
                 </div>
                 <Eye className="h-4 w-4 text-muted-foreground" />
               </div>
@@ -182,7 +195,9 @@ const CRMCampaigns = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Click Rate</p>
-                  <p className="text-2xl font-bold">0%</p>
+                  <p className="text-2xl font-bold">
+                    {summary.loading ? '...' : `${summary.avgClickRate.toFixed(1)}%`}
+                  </p>
                 </div>
                 <MousePointerClick className="h-4 w-4 text-muted-foreground" />
               </div>
@@ -193,7 +208,9 @@ const CRMCampaigns = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Unsubscribes</p>
-                  <p className="text-2xl font-bold">0</p>
+                  <p className="text-2xl font-bold">
+                    {summary.loading ? '...' : summary.totalUnsubscribes.toLocaleString()}
+                  </p>
                 </div>
                 <UserMinus className="h-4 w-4 text-muted-foreground" />
               </div>
@@ -289,8 +306,7 @@ const CRMCampaigns = () => {
                         <TableHead>Campaign</TableHead>
                         <TableHead>Segment</TableHead>
                         <TableHead>Status</TableHead>
-                        <TableHead>Created</TableHead>
-                        <TableHead>Scheduled</TableHead>
+                        <TableHead>Performance</TableHead>
                         <TableHead>Sent</TableHead>
                         <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
@@ -315,14 +331,14 @@ const CRMCampaigns = () => {
                             {getStatusBadge(campaign.status)}
                           </TableCell>
                           <TableCell>
-                            {format(new Date(campaign.created_at), 'MMM d, yyyy')}
-                          </TableCell>
-                          <TableCell>
-                            {campaign.scheduled_at ? (
-                              format(new Date(campaign.scheduled_at), 'MMM d, h:mm a')
-                            ) : (
-                              <span className="text-muted-foreground">-</span>
-                            )}
+                            <CampaignMetricsInline
+                              totalSent={campaign.total_sent || 0}
+                              totalOpens={campaign.total_opens || 0}
+                              totalClicks={campaign.total_clicks || 0}
+                              openRate={campaign.open_rate || 0}
+                              clickRate={campaign.click_rate || 0}
+                              status={campaign.status}
+                            />
                           </TableCell>
                           <TableCell>
                             {campaign.sent_at ? (
@@ -332,7 +348,7 @@ const CRMCampaigns = () => {
                             )}
                           </TableCell>
                           <TableCell className="text-right">
-                            <div className="flex items-center gap-1 justify-end">
+                            <div className="flex items-center gap-1 justify-end" onClick={(e) => e.stopPropagation()}>
                               <Button variant="ghost" size="sm" asChild>
                                 <Link to={`/crm/campaigns/${campaign.id}`}>
                                   <Eye className="h-4 w-4" />
