@@ -32,10 +32,54 @@ export interface EmailDomain {
       value?: string;
       status?: string;
       priority?: number;
+      fqdn_queried?: string;
+      dns_verified?: boolean;
+      has_conflict?: boolean;
     }>;
     dkim_verified?: boolean;
     spf_verified?: boolean;
     return_path_verified?: boolean;
+    verification_phase?: string;
+    dns_conflict_detected?: boolean;
+    dns_conflict_details?: Array<{
+      hostname: string;
+      conflictType: string;
+      cnameTarget?: string;
+    }>;
+    // New readiness object (single source of truth for UI)
+    readiness?: {
+      status: 'READY_TO_SEND' | 'READY_AWAITING_PROVIDER' | 'ACTION_REQUIRED_DNS_MISSING' | 'ACTION_REQUIRED_DNS_CONFLICT' | 'DOMAIN_NOT_CONNECTED';
+      message: string;
+      subMessage?: string | null;
+      cta?: string | null;
+    };
+    // Evidence panel data
+    direct_dns?: {
+      verified: boolean;
+      checks: Array<{
+        record_type: string;
+        fqdn: string;
+        expected: string;
+        found: boolean;
+        actual_values: string[];
+        last_checked_at: string;
+      }>;
+    };
+    provider?: {
+      status: string;
+      dkim_verified: boolean;
+      spf_verified: boolean;
+      return_path_verified: boolean;
+      last_checked_at: string;
+    };
+    conflicts?: {
+      detected: boolean;
+      details: Array<{
+        hostname: string;
+        conflictType: string;
+        cnameTarget?: string;
+      }>;
+    };
   };
   created_at: string;
   updated_at: string;

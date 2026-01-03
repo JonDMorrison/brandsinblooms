@@ -34,6 +34,115 @@ interface ConflictDetail {
 }
 
 // =========================================================
+// Readiness Status Types (Single Source of Truth for UI)
+// =========================================================
+
+type ReadinessStatus = 
+  | 'READY_TO_SEND'
+  | 'READY_AWAITING_PROVIDER'
+  | 'ACTION_REQUIRED_DNS_MISSING'
+  | 'ACTION_REQUIRED_DNS_CONFLICT'
+  | 'DOMAIN_NOT_CONNECTED';
+
+interface ReadinessResult {
+  status: ReadinessStatus;
+  message: string;
+  subMessage?: string;
+  cta?: string | null;
+}
+
+interface ReadinessResponse {
+  status: ReadinessStatus;
+  message: string;
+  subMessage?: string;
+  cta: string | null;
+}
+
+interface DirectDnsResponse {
+  verified: boolean;
+  checks: Array<{
+    record_type: string;
+    fqdn: string;
+    expected: string;
+    found: boolean;
+    actual_values: string[];
+    last_checked_at: string;
+  }>;
+}
+
+interface ProviderResponse {
+  status: string;
+  dkim_verified: boolean;
+  spf_verified: boolean;
+  return_path_verified: boolean;
+  last_checked_at: string;
+}
+
+interface ConflictsResponse {
+  detected: boolean;
+  details: ConflictDetail[];
+}
+
+/**
+ * Compute the unified readiness status for the UI
+ */
+function computeReadinessStatus(params: {
+  resendStatus: string;
+  allDnsVerified: boolean;
+  dnsConflictDetected: boolean;
+  isEntriManaged: boolean;
+  allProviderVerified: boolean;
+}): ReadinessResult {
+  const { resendStatus, allDnsVerified, dnsConflictDetected, isEntriManaged, allProviderVerified } = params;
+  
+  // Priority 1: Fully verified - Ready to send
+  if (resendStatus === 'verified' || allProviderVerified) {
+    return {
+      status: 'READY_TO_SEND',
+      message: 'Domain is verified and ready to send.',
+      cta: null
+    };
+  }
+  
+  // Priority 2: DNS conflict detected - Red, action required
+  if (dnsConflictDetected) {
+    return {
+      status: 'ACTION_REQUIRED_DNS_CONFLICT',
+      message: 'A conflicting DNS record is blocking email setup.',
+      subMessage: 'We can fix this automatically.',
+      cta: isEntriManaged ? 'Fix DNS Conflict' : null
+    };
+  }
+  
+  // Priority 3: DNS verified but provider pending - Amber, no action needed
+  if (allDnsVerified && !allProviderVerified) {
+    return {
+      status: 'READY_AWAITING_PROVIDER',
+      message: 'DNS is correctly configured. Resend is confirming it.',
+      subMessage: 'This can take up to 72 hours. No action needed.',
+      cta: null
+    };
+  }
+  
+  // Priority 4: DNS not verified - Red, action required
+  if (!allDnsVerified) {
+    return {
+      status: 'ACTION_REQUIRED_DNS_MISSING',
+      message: 'DNS records not visible yet.',
+      subMessage: isEntriManaged ? 'We can repair automatically.' : 'Please check your DNS configuration.',
+      cta: isEntriManaged ? 'Repair DNS' : null
+    };
+  }
+  
+  // Priority 5: Domain not connected (fallback)
+  return {
+    status: 'DOMAIN_NOT_CONNECTED',
+    message: "Domain isn't connected to BloomSuite yet.",
+    cta: isEntriManaged ? 'Connect DNS' : null
+  };
+}
+
+// =========================================================
 // FQDN Helper - Ensures we always query correct hostnames
 // =========================================================
 
@@ -825,6 +934,31 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log(`🎉 Domain verification completed: ${emailDomain.domain} -> ${newStatus} (phase: ${verificationPhase})`);
 
+    // Compute unified readiness status for UI
+    const readinessResult = computeReadinessStatus({
+      resendStatus: resendDomainStatus?.status || 'pending',
+      allDnsVerified,
+      dnsConflictDetected,
+      isEntriManaged: emailDomain.is_entri_managed || false,
+      allProviderVerified: allPassed
+    });
+
+    // Build DNS checks array for evidence panel
+    const dnsChecksForUI = resendRecords.map((r: ResendRecord) => {
+      const recordName = r.name || '';
+      const fqdn = toFqdn(recordName, emailDomain.domain);
+      const dnsStatus = recordDnsStatus?.[recordName];
+      
+      return {
+        record_type: r.record_type || r.type || '',
+        fqdn: fqdn,
+        expected: r.value || '',
+        found: r.status === 'verified' || dnsStatus?.found || false,
+        actual_values: dnsStatus?.actualValues || [],
+        last_checked_at: new Date().toISOString()
+      };
+    });
+
     const response = {
       ok: allPassed,
       allVerified: allPassed,
@@ -840,6 +974,40 @@ const handler = async (req: Request): Promise<Response> => {
       last_verify_attempt_at: updateData.last_verify_attempt_at,
       next_verify_at: updateData.next_verify_at,
       verified_at: updateData.verified_at || null,
+      
+      // NEW: Unified readiness object for UI (single source of truth)
+      readiness: {
+        status: readinessResult.status,
+        message: readinessResult.message,
+        subMessage: readinessResult.subMessage || null,
+        cta: readinessResult.cta || null
+      } as ReadinessResponse,
+      
+      // NEW: Structured data for evidence panel
+      direct_dns: {
+        verified: allDnsVerified,
+        checks: dnsChecksForUI
+      } as DirectDnsResponse,
+      
+      provider: {
+        status: resendDomainStatus?.status || 'pending',
+        dkim_verified: checks.find(c => c.check_name === 'dkim')?.ok || false,
+        spf_verified: checks.find(c => c.check_name === 'spf')?.ok || false,
+        return_path_verified: checks.find(c => c.check_name === 'return_path')?.ok || false,
+        last_checked_at: new Date().toISOString()
+      } as ProviderResponse,
+      
+      conflicts: {
+        detected: dnsConflictDetected,
+        details: conflictDetails
+      } as ConflictsResponse,
+      
+      timestamps: {
+        last_dns_check_at: new Date().toISOString(),
+        last_provider_check_at: new Date().toISOString()
+      },
+      
+      // Legacy fields for backwards compatibility
       message: allPassed 
         ? 'Domain verification successful! All DNS records verified.' 
         : dnsConflictDetected
@@ -854,7 +1022,6 @@ const handler = async (req: Request): Promise<Response> => {
         details: c.details
       })),
       resend_status: updateData.resend_status,
-      // Include pending records for UI display with DNS status
       pending_records: resendRecords
         .filter((r: ResendRecord) => r.status !== 'verified')
         .map((r: ResendRecord) => {
