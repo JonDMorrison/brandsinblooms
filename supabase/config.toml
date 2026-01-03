@@ -378,3 +378,6 @@ verify_jwt = true
 
 [functions.redirect-click]
 verify_jwt = false
+
+[functions.backfill-provider-events]
+verify_jwt = true

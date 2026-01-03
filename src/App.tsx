@@ -107,6 +107,7 @@ import { TermsPage } from '@/pages/public/TermsPage';
 import { PlatformAgreementPage } from '@/pages/public/PlatformAgreementPage';
 import { EcommPage } from '@/pages/public/EcommPage';
 import { TwilioCopyPage } from '@/pages/admin/TwilioCopyPage';
+import AnalyticsHealthPage from '@/pages/admin/AnalyticsHealthPage';
 
 
 function App() {
@@ -676,6 +677,11 @@ function App() {
               <SidebarLayout>
                 <TwilioCopyPage />
               </SidebarLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/analytics-health" element={
+            <ProtectedRoute>
+              <AnalyticsHealthPage />
             </ProtectedRoute>
           } />
           <Route path="/community" element={
