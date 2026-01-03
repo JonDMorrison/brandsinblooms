@@ -483,7 +483,10 @@ function calculateNextVerifyAt(attempts: number, allPassed: boolean): Date | nul
   return new Date(Date.now() + interval);
 }
 
-function mapResendStatus(resendStatus: string, allChecksPassed: boolean): string {
+function mapResendStatus(resendStatus: string, allChecksPassed: boolean, allDnsVerifiedIndependently: boolean): string {
+  // If our independent DNS verification passes, mark as active even if Resend is still "pending"
+  // This allows sending immediately while Resend's internal state catches up
+  if (allDnsVerifiedIndependently) return 'active';
   if (allChecksPassed && resendStatus === 'verified') return 'active';
   if (resendStatus === 'pending' || resendStatus === 'not_started') return 'pending_dns';
   if (resendStatus === 'failed') return 'failed';
@@ -1011,7 +1014,7 @@ const handler = async (req: Request): Promise<Response> => {
     
     const newStatus = dnsConflictDetected 
       ? 'pending_dns' 
-      : mapResendStatus(resendDomainStatus?.status, allPassed);
+      : mapResendStatus(resendDomainStatus?.status, allPassed, allDnsVerified);
     
     const errorMessage = allPassed ? null : buildVerificationError(checks, resendRecords, dnsConflictDetected);
     const nextVerifyAt = calculateNextVerifyAt(newAttempts, allPassed);
