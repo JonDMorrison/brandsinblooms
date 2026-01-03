@@ -41,12 +41,13 @@ export const useSenderConfiguration = () => {
       // The display name comes from company_profiles.company_name
       const displayName = companyProfile?.company_name || tenant.name || 'Your Business';
 
-      // Check for active custom domain in email_domains table
+      // Check for active/verified custom domain in email_domains table
+      // Include 'warming_up' status as it's also usable for sending
       const { data: activeDomains, error: domainsError } = await supabase
         .from('email_domains')
         .select('id, domain, status, default_from_email, default_from_name')
         .eq('tenant_id', tenant.id)
-        .eq('status', 'active')
+        .in('status', ['active', 'warming_up'])
         .order('created_at', { ascending: false })
         .limit(1);
 
