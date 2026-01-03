@@ -28,6 +28,8 @@ interface ResendRecord {
 interface ConflictDetail {
   hostname: string;
   conflictType: string;
+  presentRecordTypes: string[]; // NEW: Which record types are present at this hostname
+  blockingType: string; // NEW: Which type is causing the conflict (usually CNAME)
   cnameTarget?: string;
   mxExists?: boolean;
   txtExists?: boolean;
@@ -58,16 +60,19 @@ interface ReadinessResponse {
   cta: string | null;
 }
 
+interface DirectDnsCheck {
+  record_type: string;
+  fqdnQueried: string; // CRITICAL: Use consistent naming
+  expected: string;
+  found: boolean;
+  actual_values: string[];
+  resolverUsed: string;
+  checkedAt: string;
+}
+
 interface DirectDnsResponse {
   verified: boolean;
-  checks: Array<{
-    record_type: string;
-    fqdn: string;
-    expected: string;
-    found: boolean;
-    actual_values: string[];
-    last_checked_at: string;
-  }>;
+  checks: DirectDnsCheck[];
 }
 
 interface ProviderResponse {
@@ -83,72 +88,16 @@ interface ConflictsResponse {
   details: ConflictDetail[];
 }
 
-/**
- * Compute the unified readiness status for the UI
- */
-function computeReadinessStatus(params: {
-  resendStatus: string;
-  allDnsVerified: boolean;
-  dnsConflictDetected: boolean;
-  isEntriManaged: boolean;
-  allProviderVerified: boolean;
-}): ReadinessResult {
-  const { resendStatus, allDnsVerified, dnsConflictDetected, isEntriManaged, allProviderVerified } = params;
-  
-  // Priority 1: Fully verified - Ready to send
-  if (resendStatus === 'verified' || allProviderVerified) {
-    return {
-      status: 'READY_TO_SEND',
-      message: 'Domain is verified and ready to send.',
-      cta: null
-    };
-  }
-  
-  // Priority 2: DNS conflict detected - Red, action required
-  if (dnsConflictDetected) {
-    return {
-      status: 'ACTION_REQUIRED_DNS_CONFLICT',
-      message: 'A conflicting DNS record is blocking email setup.',
-      subMessage: 'We can fix this automatically.',
-      cta: isEntriManaged ? 'Fix DNS Conflict' : null
-    };
-  }
-  
-  // Priority 3: DNS verified but provider pending - Amber, no action needed
-  if (allDnsVerified && !allProviderVerified) {
-    return {
-      status: 'READY_AWAITING_PROVIDER',
-      message: 'DNS is correctly configured. Resend is confirming it.',
-      subMessage: 'This can take up to 72 hours. No action needed.',
-      cta: null
-    };
-  }
-  
-  // Priority 4: DNS not verified - Red, action required
-  if (!allDnsVerified) {
-    return {
-      status: 'ACTION_REQUIRED_DNS_MISSING',
-      message: 'DNS records not visible yet.',
-      subMessage: isEntriManaged ? 'We can repair automatically.' : 'Please check your DNS configuration.',
-      cta: isEntriManaged ? 'Repair DNS' : null
-    };
-  }
-  
-  // Priority 5: Domain not connected (fallback)
-  return {
-    status: 'DOMAIN_NOT_CONNECTED',
-    message: "Domain isn't connected to BloomSuite yet.",
-    cta: isEntriManaged ? 'Connect DNS' : null
-  };
-}
-
 // =========================================================
-// FQDN Helper - Ensures we always query correct hostnames
+// FQDN Helper - Single Source of Truth for Hostname Normalization
+// GUARDRAIL: All DNS lookups MUST use this function
 // =========================================================
 
 /**
  * Convert a record name to a fully-qualified domain name (FQDN).
  * Handles various input formats from Resend API.
+ * 
+ * CRITICAL: This is the ONLY function that should construct hostnames for DNS lookups.
  * 
  * @param recordName - The record name (may be relative, "@", empty, or already FQDN)
  * @param rootDomain - The root domain (e.g., "clearlychiro.com")
@@ -157,6 +106,17 @@ function computeReadinessStatus(params: {
 function toFqdn(recordName: string, rootDomain: string): string {
   const name = (recordName || '').trim().toLowerCase().replace(/\.$/, '');
   const domain = rootDomain.trim().toLowerCase().replace(/\.$/, '');
+  
+  // Validate root domain has at least one dot
+  if (!domain.includes('.')) {
+    console.log(JSON.stringify({
+      event: 'fqdn_error',
+      error: 'invalid_root_domain',
+      rootDomain: domain,
+      message: `Root domain "${domain}" is invalid (no TLD). This is a bug.`
+    }));
+    return domain; // Return as-is, let the DNS lookup fail with clear error
+  }
   
   // Empty or @ means root domain
   if (!name || name === '@') {
@@ -169,93 +129,69 @@ function toFqdn(recordName: string, rootDomain: string): string {
   }
   
   // Relative hostname - append domain
-  return `${name}.${domain}`;
+  const fqdn = `${name}.${domain}`;
+  
+  // Log for debugging
+  console.log(JSON.stringify({
+    event: 'fqdn_normalized',
+    input: recordName,
+    rootDomain: domain,
+    output: fqdn
+  }));
+  
+  return fqdn;
 }
 
-// =========================================================
-// CNAME Conflict Detection
-// =========================================================
-
-interface ConflictCheckResult {
-  hasConflict: boolean;
-  cnameExists: boolean;
-  mxExists: boolean;
-  txtExists: boolean;
-  cnameTarget?: string;
-}
-
-async function detectCnameConflict(hostname: string): Promise<ConflictCheckResult> {
-  const checkType = async (dnsType: number): Promise<{ exists: boolean; values: string[] }> => {
-    try {
-      const url = `https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(hostname)}&type=${dnsType}`;
-      const response = await fetch(url, { headers: { 'Accept': 'application/dns-json' } });
-      if (!response.ok) return { exists: false, values: [] };
-      const data = await response.json();
-      const answers = data.Answer || [];
-      return {
-        exists: answers.length > 0,
-        values: answers.map((a: any) => {
-          let val = a.data || '';
-          if (val.endsWith('.')) val = val.slice(0, -1);
-          return val;
-        })
-      };
-    } catch {
-      return { exists: false, values: [] };
-    }
-  };
-  
-  const [cname, mx, txt] = await Promise.all([
-    checkType(5),  // CNAME
-    checkType(15), // MX
-    checkType(16)  // TXT
-  ]);
-  
-  const hasConflict = cname.exists && (mx.exists || txt.exists);
-  
-  return {
-    hasConflict,
-    cnameExists: cname.exists,
-    mxExists: mx.exists,
-    txtExists: txt.exists,
-    cnameTarget: cname.values[0]
-  };
-}
-
-// =========================================================
-// Independent DNS Verification via Cloudflare DoH
-// =========================================================
-
-async function verifyDNSRecordDirectly(
-  name: string, 
-  type: 'TXT' | 'CNAME' | 'MX', 
-  expectedValue: string,
-  priority?: number
-): Promise<{ found: boolean; actualValues: string[] }> {
-  // CRITICAL: Validate FQDN - must contain a dot
-  if (!name.includes('.')) {
+/**
+ * Validate that a hostname is a proper FQDN before DNS lookup.
+ * Returns true if valid, logs error and returns false if invalid.
+ */
+function validateFqdn(hostname: string, context: string): boolean {
+  if (!hostname.includes('.')) {
     console.log(JSON.stringify({
-      event: 'dns_lookup_error',
-      error: 'invalid_hostname',
-      hostname: name,
-      message: `Hostname "${name}" is not a valid FQDN (missing dot). This is a bug.`
+      event: 'fqdn_validation_failed',
+      error: 'hostname_not_fqdn',
+      hostname,
+      context,
+      message: `BLOCKED: "${hostname}" is not a valid FQDN. DNS lookup would fail or query wrong host.`
     }));
-    return { found: false, actualValues: [] };
+    return false;
+  }
+  return true;
+}
+
+// =========================================================
+// DNS Lookup with FQDN Guardrail
+// =========================================================
+
+const DNS_RESOLVER = 'cloudflare_doh';
+const DNS_RESOLVER_URL = 'https://cloudflare-dns.com/dns-query';
+
+/**
+ * Perform a DNS lookup with automatic FQDN validation.
+ * CRITICAL: This is the ONLY function that should make DNS queries.
+ */
+async function dnsLookup(
+  hostname: string, 
+  dnsType: number,
+  context: string
+): Promise<{ exists: boolean; values: string[]; error?: string }> {
+  // GUARDRAIL: Validate FQDN before any lookup
+  if (!validateFqdn(hostname, context)) {
+    return { exists: false, values: [], error: 'invalid_fqdn' };
   }
   
-  // Normalize hostname
-  const normalizedName = name.toLowerCase().trim().replace(/\.$/, '');
+  const normalizedHostname = hostname.toLowerCase().trim().replace(/\.$/, '');
   
   try {
-    const dnsType = type === 'TXT' ? 16 : type === 'CNAME' ? 5 : 15;
-    const url = `https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(normalizedName)}&type=${dnsType}`;
+    const url = `${DNS_RESOLVER_URL}?name=${encodeURIComponent(normalizedHostname)}&type=${dnsType}`;
     
     console.log(JSON.stringify({
       event: 'dns_lookup_request',
-      hostname: normalizedName,
-      type,
+      hostname: normalizedHostname,
       dnsType,
-      url
+      context,
+      resolver: DNS_RESOLVER
     }));
     
     const response = await fetch(url, {
@@ -265,68 +201,275 @@ async function verifyDNSRecordDirectly(
     if (!response.ok) {
       console.log(JSON.stringify({
         event: 'dns_lookup_http_error',
-        hostname: normalizedName,
-        type,
+        hostname: normalizedHostname,
+        dnsType,
         httpStatus: response.status
       }));
-      return { found: false, actualValues: [] };
+      return { exists: false, values: [] };
     }
     
     const data = await response.json();
     const answers = data.Answer || [];
-    const actualValues: string[] = [];
     
-    for (const answer of answers) {
-      let value = answer.data || '';
-      
-      // TXT records come quoted, remove quotes
-      if (type === 'TXT' && value.startsWith('"') && value.endsWith('"')) {
-        value = value.slice(1, -1);
-      }
-      
-      // CNAME records may have trailing dot
-      if (type === 'CNAME' && value.endsWith('.')) {
-        value = value.slice(0, -1);
-      }
-      
-      // MX records: remove trailing dot from hostname
-      if (type === 'MX') {
-        value = value.replace(/\.$/, '');
-      }
-      
-      actualValues.push(value);
-      
-      // For MX, check priority matches too
-      if (type === 'MX') {
-        const parts = value.split(' ');
-        const mxPriority = parseInt(parts[0], 10);
-        const mxHost = parts[1]?.replace(/\.$/, '') || '';
-        
-        if (priority !== undefined && mxPriority === priority && mxHost === expectedValue) {
-          return { found: true, actualValues };
-        }
-        if (mxHost === expectedValue || value.includes(expectedValue)) {
-          return { found: true, actualValues };
-        }
-      } else {
-        // For TXT/CNAME, check if value contains expected
-        if (value === expectedValue || value.includes(expectedValue) || expectedValue.includes(value)) {
-          return { found: true, actualValues };
-        }
-      }
-    }
+    const values = answers.map((a: any) => {
+      let val = a.data || '';
+      // Remove trailing dots and quotes
+      if (val.endsWith('.')) val = val.slice(0, -1);
+      if (val.startsWith('"') && val.endsWith('"')) val = val.slice(1, -1);
+      return val;
+    });
     
-    return { found: false, actualValues };
+    return { exists: values.length > 0, values };
   } catch (error: any) {
     console.log(JSON.stringify({
       event: 'dns_lookup_exception',
-      hostname: normalizedName,
-      type,
+      hostname: normalizedHostname,
+      dnsType,
       error: error?.message
     }));
-    return { found: false, actualValues: [] };
+    return { exists: false, values: [], error: error?.message };
   }
 }
+
+// =========================================================
+// CNAME Conflict Detection - Real Evidence-Based
+// =========================================================
+
+interface ConflictCheckResult {
+  hasConflict: boolean;
+  cnameExists: boolean;
+  mxExists: boolean;
+  txtExists: boolean;
+  presentRecordTypes: string[];
+  blockingType: string | null;
+  cnameTarget?: string;
+}
+
+/**
+ * Detect DNS conflicts at a hostname by querying all relevant record types.
+ * CNAME cannot coexist with MX or TXT at the same hostname (RFC violation).
+ */
+async function detectCnameConflict(hostname: string): Promise<ConflictCheckResult> {
+  // GUARDRAIL: Validate FQDN
+  if (!validateFqdn(hostname, 'conflict_detection')) {
+    return {
+      hasConflict: false,
+      cnameExists: false,
+      mxExists: false,
+      txtExists: false,
+      presentRecordTypes: [],
+      blockingType: null
+    };
+  }
+  
+  // Query all three record types in parallel
+  const [cname, mx, txt] = await Promise.all([
+    dnsLookup(hostname, 5, 'conflict_check_cname'),   // CNAME = 5
+    dnsLookup(hostname, 15, 'conflict_check_mx'),     // MX = 15
+    dnsLookup(hostname, 16, 'conflict_check_txt')     // TXT = 16
+  ]);
+  
+  const presentRecordTypes: string[] = [];
+  if (cname.exists) presentRecordTypes.push('CNAME');
+  if (mx.exists) presentRecordTypes.push('MX');
+  if (txt.exists) presentRecordTypes.push('TXT');
+  
+  // Conflict: CNAME exists AND (MX exists OR TXT exists)
+  const hasConflict = cname.exists && (mx.exists || txt.exists);
+  
+  console.log(JSON.stringify({
+    event: 'conflict_check_result',
+    hostname,
+    presentRecordTypes,
+    hasConflict,
+    cnameTarget: cname.values[0]
+  }));
+  
+  return {
+    hasConflict,
+    cnameExists: cname.exists,
+    mxExists: mx.exists,
+    txtExists: txt.exists,
+    presentRecordTypes,
+    blockingType: hasConflict ? 'CNAME' : null,
+    cnameTarget: cname.values[0]
+  };
+}
+
+// =========================================================
+// Independent DNS Verification via Cloudflare DoH
+// =========================================================
+
+interface DnsVerifyResult {
+  found: boolean;
+  actualValues: string[];
+  fqdnQueried: string;
+  resolverUsed: string;
+  checkedAt: string;
+}
+
+async function verifyDNSRecordDirectly(
+  fqdn: string, 
+  type: 'TXT' | 'CNAME' | 'MX', 
+  expectedValue: string,
+  priority?: number
+): Promise<DnsVerifyResult> {
+  const checkedAt = new Date().toISOString();
+  
+  // GUARDRAIL: Validate FQDN
+  if (!validateFqdn(fqdn, `verify_${type}`)) {
+    return { 
+      found: false, 
+      actualValues: [], 
+      fqdnQueried: fqdn, 
+      resolverUsed: DNS_RESOLVER,
+      checkedAt 
+    };
+  }
+  
+  const dnsType = type === 'TXT' ? 16 : type === 'CNAME' ? 5 : 15;
+  const result = await dnsLookup(fqdn, dnsType, `verify_record_${type}`);
+  
+  if (result.error || !result.exists) {
+    return { 
+      found: false, 
+      actualValues: result.values, 
+      fqdnQueried: fqdn, 
+      resolverUsed: DNS_RESOLVER,
+      checkedAt 
+    };
+  }
+  
+  // Check if any of the returned values match expected
+  let found = false;
+  
+  for (const value of result.values) {
+    if (type === 'MX') {
+      // MX format: "priority host" or just "host"
+      const parts = value.split(' ');
+      const mxPriority = parts.length > 1 ? parseInt(parts[0], 10) : undefined;
+      const mxHost = (parts.length > 1 ? parts[1] : parts[0])?.replace(/\.$/, '') || '';
+      
+      if (priority !== undefined && mxPriority === priority && mxHost === expectedValue) {
+        found = true;
+        break;
+      }
+      if (mxHost === expectedValue || value.includes(expectedValue)) {
+        found = true;
+        break;
+      }
+    } else {
+      // TXT/CNAME: check if value matches (substring match for flexibility)
+      if (value === expectedValue || value.includes(expectedValue) || expectedValue.includes(value)) {
+        found = true;
+        break;
+      }
+    }
+  }
+  
+  console.log(JSON.stringify({
+    event: 'dns_verify_result',
+    fqdnQueried: fqdn,
+    type,
+    expectedValue: expectedValue.substring(0, 50) + (expectedValue.length > 50 ? '...' : ''),
+    found,
+    actualCount: result.values.length
+  }));
+  
+  return { 
+    found, 
+    actualValues: result.values, 
+    fqdnQueried: fqdn, 
+    resolverUsed: DNS_RESOLVER,
+    checkedAt 
+  };
+}
+
+// =========================================================
+// Readiness Status Computation - Strict Rules
+// =========================================================
+
+/**
+ * Compute the unified readiness status for the UI.
+ * 
+ * STRICT RULES (in priority order):
+ * 1. READY_TO_SEND: Provider fully verified
+ * 2. DOMAIN_NOT_CONNECTED: Entri not completed
+ * 3. ACTION_REQUIRED_DNS_CONFLICT: CNAME conflicts with MX/TXT
+ * 4. READY_AWAITING_PROVIDER: DNS verified, provider pending
+ * 5. ACTION_REQUIRED_DNS_MISSING: DNS not verified
+ */
+function computeReadinessStatus(params: {
+  resendStatus: string;
+  allDnsVerified: boolean;
+  dnsConflictDetected: boolean;
+  isEntriManaged: boolean;
+  entriConnectionId: string | null;
+  allProviderVerified: boolean;
+}): ReadinessResult {
+  const { 
+    resendStatus, 
+    allDnsVerified, 
+    dnsConflictDetected, 
+    isEntriManaged, 
+    entriConnectionId,
+    allProviderVerified 
+  } = params;
+  
+  // Priority 1: Fully verified - Ready to send
+  if (resendStatus === 'verified' || allProviderVerified) {
+    return {
+      status: 'READY_TO_SEND',
+      message: 'Domain is verified and ready to send.',
+      cta: null
+    };
+  }
+  
+  // Priority 2: Domain not connected (Entri not completed)
+  // Only show this if user hasn't set up Entri at all
+  if (!isEntriManaged && !entriConnectionId) {
+    return {
+      status: 'DOMAIN_NOT_CONNECTED',
+      message: "Domain isn't connected to BloomSuite yet.",
+      subMessage: 'Set up automatic DNS configuration to get started.',
+      cta: 'Connect DNS'
+    };
+  }
+  
+  // Priority 3: DNS conflict detected - Red, action required
+  // IMPORTANT: This takes precedence over DNS missing
+  if (dnsConflictDetected) {
+    return {
+      status: 'ACTION_REQUIRED_DNS_CONFLICT',
+      message: 'A conflicting DNS record is blocking email setup.',
+      subMessage: isEntriManaged ? 'We can fix this automatically.' : 'Please remove the conflicting CNAME record.',
+      cta: isEntriManaged ? 'Fix DNS Conflict' : null
+    };
+  }
+  
+  // Priority 4: DNS verified but provider pending - Amber, no action needed
+  // CRITICAL: This is the "calm waiting" state - user has done everything right
+  if (allDnsVerified) {
+    return {
+      status: 'READY_AWAITING_PROVIDER',
+      message: 'DNS is correctly configured. Resend is confirming it.',
+      subMessage: 'This can take up to 72 hours. No action needed.',
+      cta: null
+    };
+  }
+  
+  // Priority 5: DNS not verified - Red, action required
+  return {
+    status: 'ACTION_REQUIRED_DNS_MISSING',
+    message: 'DNS records not visible yet.',
+    subMessage: isEntriManaged ? 'We can repair automatically.' : 'Please check your DNS configuration.',
+    cta: isEntriManaged ? 'Repair DNS' : null
+  };
+}
+
+// =========================================================
+// Helper Functions
+// =========================================================
 
 function getNextVerifyInterval(attempts: number): number {
   if (attempts <= 3) return 2 * 60 * 1000;
@@ -349,7 +492,6 @@ function mapResendStatus(resendStatus: string, allChecksPassed: boolean): string
   return 'verifying';
 }
 
-// Build human-readable error message based on actual record verification status
 function buildVerificationError(checks: DNSCheck[], resendRecords: ResendRecord[], conflictDetected: boolean): string {
   if (conflictDetected) {
     return 'DNS conflict detected: CNAME record conflicts with MX/TXT records. Click "Fix DNS Conflict" to repair.';
@@ -360,7 +502,6 @@ function buildVerificationError(checks: DNSCheck[], resendRecords: ResendRecord[
   
   const issues: string[] = [];
   
-  // Analyze which specific records are failing
   for (const record of resendRecords) {
     if (record.status && record.status !== 'verified') {
       const recordType = record.record_type || record.type || 'Unknown';
@@ -375,6 +516,10 @@ function buildVerificationError(checks: DNSCheck[], resendRecords: ResendRecord[
   
   return `Verification incomplete: ${failedChecks.map(c => c.check_name).join(', ')} pending. DNS changes may still be propagating.`;
 }
+
+// =========================================================
+// Main Handler
+// =========================================================
 
 const handler = async (req: Request): Promise<Response> => {
   const corsResponse = handleCorsPrelight(req);
@@ -441,6 +586,23 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
+    // Rate limiting check (5 minutes minimum between attempts)
+    const lastAttempt = emailDomain.last_verify_attempt_at;
+    const minIntervalMs = 5 * 60 * 1000; // 5 minutes
+    
+    if (!reset_attempts && lastAttempt) {
+      const timeSinceLastAttempt = Date.now() - new Date(lastAttempt).getTime();
+      if (timeSinceLastAttempt < minIntervalMs) {
+        const retryAfterSeconds = Math.ceil((minIntervalMs - timeSinceLastAttempt) / 1000);
+        console.log(`⏳ Rate limited: ${retryAfterSeconds}s until next attempt allowed`);
+        return corsJsonResponse({
+          error: 'rate_limited',
+          message: `Please wait ${retryAfterSeconds} seconds before checking again.`,
+          retry_after_seconds: retryAfterSeconds
+        }, { status: 429 });
+      }
+    }
+
     let currentAttempts = emailDomain.verify_attempts || 0;
     if (reset_attempts) {
       currentAttempts = 0;
@@ -479,12 +641,15 @@ const handler = async (req: Request): Promise<Response> => {
     let resendDomainStatus: any = null;
     let resendRecords: ResendRecord[] = [];
     
-    // Track conflicts
+    // Track conflicts with enhanced detail
     let dnsConflictDetected = false;
     const conflictDetails: ConflictDetail[] = [];
     
-    // Track per-record DNS verification status (declared here so it's accessible after the try block)
-    const recordDnsStatus: Record<string, { found: boolean; actualValues: string[]; fqdn: string; hasConflict?: boolean }> = {};
+    // Track per-record DNS verification status with full evidence
+    const recordDnsStatus: Record<string, DnsVerifyResult & { hasConflict?: boolean }> = {};
+    
+    // Track DNS checks for evidence panel
+    const dnsChecksForEvidence: DirectDnsCheck[] = [];
 
     try {
       console.log(`📧 Triggering Resend verification for: ${emailDomain.resend_domain_id}`);
@@ -523,11 +688,9 @@ const handler = async (req: Request): Promise<Response> => {
       console.log(`📊 Resend domain status:`, JSON.stringify(domainStatus, null, 2));
 
       // =========================================================
-      // CRITICAL: Compute verification status from per-record statuses
-      // Not from top-level fields that may not exist
+      // PHASE 1: Compute provider verification status from records
       // =========================================================
       
-      // Analyze records directly from Resend response
       let dkimVerified = false;
       let spfVerified = false;
       let mxVerified = false;
@@ -539,42 +702,38 @@ const handler = async (req: Request): Promise<Response> => {
         const recordStatus = record.status;
         const isVerified = recordStatus === 'verified';
         
-        // Check DKIM (usually a CNAME or TXT with domainkey in the name)
         if (recordName.includes('_domainkey') || recordName.includes('dkim')) {
           if (isVerified) dkimVerified = true;
           console.log(`  DKIM record: ${recordName} = ${recordStatus}`);
         }
         
-        // Check SPF (TXT record with spf in value, typically on send subdomain)
         if (recordType === 'TXT' && !recordName.includes('_domainkey')) {
           if (isVerified) spfVerified = true;
           console.log(`  SPF/TXT record: ${recordName} = ${recordStatus}`);
         }
         
-        // Check MX (for return-path / bounce handling)
         if (recordType === 'MX') {
           if (isVerified) {
             mxVerified = true;
-            returnPathVerified = true; // MX is the return-path mechanism
+            returnPathVerified = true;
           }
           console.log(`  MX record: ${recordName} = ${recordStatus}`);
         }
         
-        // Check CNAME for return-path (some setups use CNAME)
         if (recordType === 'CNAME' && !recordName.includes('_domainkey')) {
           if (isVerified) returnPathVerified = true;
           console.log(`  CNAME record: ${recordName} = ${recordStatus}`);
         }
       }
       
-      // Also check top-level status fields as fallback (Resend sometimes provides these)
+      // Check top-level status as fallback
       if (domainStatus.status === 'verified') {
         dkimVerified = true;
         spfVerified = true;
         returnPathVerified = true;
       }
       
-      // Build DNS check results
+      // Build provider check results
       const dkimCheck: DNSCheck = {
         check_name: 'dkim',
         ok: dkimVerified,
@@ -631,17 +790,18 @@ const handler = async (req: Request): Promise<Response> => {
       console.log(`📊 Resend verification results: DKIM=${dkimVerified}, SPF=${spfVerified}, ReturnPath=${returnPathVerified}, Overall=${domainStatus.status}`);
 
       // =========================================================
-      // PHASE 2: Independent DNS verification for pending records
-      // This catches cases where DNS is correct but Resend hasn't updated
-      // CRITICAL FIX: Use toFqdn() to construct proper hostnames
+      // PHASE 2: Independent DNS verification for ALL records
+      // CRITICAL: Use toFqdn() ALWAYS before any DNS lookup
       // =========================================================
-      console.log(`🔍 Running independent DNS verification for pending records...`);
+      console.log(`🔍 Running independent DNS verification...`);
       console.log(`   Root domain: ${emailDomain.domain}`);
       
       let dkimDnsVerified = dkimVerified;
       let spfDnsVerified = spfVerified;
       let mxDnsVerified = mxVerified;
       
+      // Collect all unique hostnames that need conflict checking
+      const hostnamesForConflictCheck = new Set<string>();
       
       for (const record of resendRecords) {
         const recordType = (record.record_type || record.type || '').toUpperCase();
@@ -649,64 +809,46 @@ const handler = async (req: Request): Promise<Response> => {
         const recordValue = record.value || '';
         const recordStatus = record.status;
         
-        // Skip verified records
-        if (recordStatus === 'verified') continue;
-        
-        // CRITICAL: Compute FQDN for DNS lookup
+        // CRITICAL: Compute FQDN using helper function
         const fqdn = toFqdn(recordName, emailDomain.domain);
         
         console.log(JSON.stringify({
-          event: 'dns_lookup_start',
+          event: 'dns_verification_start',
           domain: emailDomain.domain,
           recordType,
           recordNameFromProvider: recordName,
           fqdnQueried: fqdn,
-          expectedValue: recordValue,
-          resolver: 'cloudflare_doh'
+          expectedValue: recordValue.substring(0, 50) + (recordValue.length > 50 ? '...' : ''),
+          resolver: DNS_RESOLVER
         }));
         
-        // Check for CNAME conflicts on non-DKIM records (send subdomain typically)
-        // DKIM records should be CNAME, so we don't check for conflicts on those
+        // Track hostnames that might have conflicts (MX/TXT records, not DKIM)
         if ((recordType === 'MX' || recordType === 'TXT') && !recordName.includes('_domainkey')) {
-          const conflict = await detectCnameConflict(fqdn);
-          
-          if (conflict.hasConflict) {
-            console.log(JSON.stringify({
-              event: 'dns_conflict_detected',
-              hostname: fqdn,
-              cnameTarget: conflict.cnameTarget,
-              mxExists: conflict.mxExists,
-              txtExists: conflict.txtExists,
-              message: 'CNAME conflicts with MX/TXT records - invalid DNS configuration'
-            }));
-            
-            dnsConflictDetected = true;
-            conflictDetails.push({
-              hostname: fqdn,
-              conflictType: 'cname_with_mx_txt',
-              cnameTarget: conflict.cnameTarget,
-              mxExists: conflict.mxExists,
-              txtExists: conflict.txtExists
-            });
-          }
+          hostnamesForConflictCheck.add(fqdn);
         }
         
-        if (recordType === 'TXT') {
-          const { found, actualValues } = await verifyDNSRecordDirectly(fqdn, 'TXT', recordValue);
-          recordDnsStatus[recordName] = { found, actualValues, fqdn };
-          
-          console.log(JSON.stringify({
-            event: 'dns_lookup_result',
-            domain: emailDomain.domain,
-            recordType: 'TXT',
+        // Skip already verified records for DNS lookup (but still include in evidence)
+        if (recordStatus === 'verified') {
+          dnsChecksForEvidence.push({
+            record_type: recordType,
             fqdnQueried: fqdn,
-            found,
-            actualValues,
-            expectedValue: recordValue,
-            resolver: 'cloudflare_doh'
-          }));
+            expected: recordValue,
+            found: true,
+            actual_values: [],
+            resolverUsed: DNS_RESOLVER,
+            checkedAt: new Date().toISOString()
+          });
+          continue;
+        }
+        
+        // Perform DNS verification based on record type
+        let verifyResult: DnsVerifyResult;
+        
+        if (recordType === 'TXT') {
+          verifyResult = await verifyDNSRecordDirectly(fqdn, 'TXT', recordValue);
+          recordDnsStatus[recordName] = verifyResult;
           
-          if (found) {
+          if (verifyResult.found) {
             if (recordName.includes('_domainkey') || recordName.includes('dkim')) {
               dkimDnsVerified = true;
             } else {
@@ -714,43 +856,71 @@ const handler = async (req: Request): Promise<Response> => {
             }
           }
         } else if (recordType === 'CNAME') {
-          const { found, actualValues } = await verifyDNSRecordDirectly(fqdn, 'CNAME', recordValue);
-          recordDnsStatus[recordName] = { found, actualValues, fqdn };
+          verifyResult = await verifyDNSRecordDirectly(fqdn, 'CNAME', recordValue);
+          recordDnsStatus[recordName] = verifyResult;
           
-          console.log(JSON.stringify({
-            event: 'dns_lookup_result',
-            domain: emailDomain.domain,
-            recordType: 'CNAME',
-            fqdnQueried: fqdn,
-            found,
-            actualValues,
-            expectedValue: recordValue,
-            resolver: 'cloudflare_doh'
-          }));
-          
-          if (found) {
+          if (verifyResult.found) {
             if (recordName.includes('_domainkey') || recordName.includes('dkim')) {
               dkimDnsVerified = true;
             }
           }
         } else if (recordType === 'MX') {
-          const { found, actualValues } = await verifyDNSRecordDirectly(fqdn, 'MX', recordValue, record.priority);
-          recordDnsStatus[recordName] = { found, actualValues, fqdn };
+          verifyResult = await verifyDNSRecordDirectly(fqdn, 'MX', recordValue, record.priority);
+          recordDnsStatus[recordName] = verifyResult;
           
+          if (verifyResult.found) {
+            mxDnsVerified = true;
+          }
+        } else {
+          continue;
+        }
+        
+        // Add to evidence
+        dnsChecksForEvidence.push({
+          record_type: recordType,
+          fqdnQueried: fqdn,
+          expected: recordValue,
+          found: verifyResult.found,
+          actual_values: verifyResult.actualValues,
+          resolverUsed: verifyResult.resolverUsed,
+          checkedAt: verifyResult.checkedAt
+        });
+      }
+      
+      // =========================================================
+      // PHASE 3: Conflict Detection for all relevant hostnames
+      // =========================================================
+      console.log(`🔍 Checking for DNS conflicts at ${hostnamesForConflictCheck.size} hostname(s)...`);
+      
+      for (const fqdn of hostnamesForConflictCheck) {
+        const conflict = await detectCnameConflict(fqdn);
+        
+        if (conflict.hasConflict) {
           console.log(JSON.stringify({
-            event: 'dns_lookup_result',
-            domain: emailDomain.domain,
-            recordType: 'MX',
-            fqdnQueried: fqdn,
-            found,
-            actualValues,
-            expectedValue: recordValue,
-            priority: record.priority,
-            resolver: 'cloudflare_doh'
+            event: 'dns_conflict_detected',
+            hostname: fqdn,
+            presentRecordTypes: conflict.presentRecordTypes,
+            blockingType: conflict.blockingType,
+            cnameTarget: conflict.cnameTarget,
+            message: 'CNAME conflicts with MX/TXT records - invalid DNS configuration'
           }));
           
-          if (found) {
-            mxDnsVerified = true;
+          dnsConflictDetected = true;
+          conflictDetails.push({
+            hostname: fqdn,
+            conflictType: 'cname_with_mx_txt',
+            presentRecordTypes: conflict.presentRecordTypes,
+            blockingType: conflict.blockingType || 'CNAME',
+            cnameTarget: conflict.cnameTarget,
+            mxExists: conflict.mxExists,
+            txtExists: conflict.txtExists
+          });
+          
+          // Mark affected records as having conflict
+          for (const [recordName, status] of Object.entries(recordDnsStatus)) {
+            if (status.fqdnQueried === fqdn) {
+              status.hasConflict = true;
+            }
           }
         }
       }
@@ -759,11 +929,16 @@ const handler = async (req: Request): Promise<Response> => {
       console.log(`📊 Independent DNS results: DKIM=${dkimDnsVerified}, SPF=${spfDnsVerified}, MX=${mxDnsVerified}, AllDNS=${allDnsVerified}, ConflictDetected=${dnsConflictDetected}`);
       
       // Update checks with DNS verification status
-      checks.find(c => c.check_name === 'dkim')!.dns_verified = dkimDnsVerified;
-      checks.find(c => c.check_name === 'spf')!.dns_verified = spfDnsVerified;
-      checks.find(c => c.check_name === 'return_path')!.dns_verified = mxDnsVerified;
+      const dkimCheckRef = checks.find(c => c.check_name === 'dkim');
+      if (dkimCheckRef) dkimCheckRef.dns_verified = dkimDnsVerified;
       
-      // Add a combined DNS verification check
+      const spfCheckRef = checks.find(c => c.check_name === 'spf');
+      if (spfCheckRef) spfCheckRef.dns_verified = spfDnsVerified;
+      
+      const returnPathCheckRef = checks.find(c => c.check_name === 'return_path');
+      if (returnPathCheckRef) returnPathCheckRef.dns_verified = mxDnsVerified;
+      
+      // Add combined DNS verification check
       const dnsVerificationCheck: DNSCheck = {
         check_name: 'dns_direct',
         ok: allDnsVerified && !dnsConflictDetected,
@@ -836,7 +1011,6 @@ const handler = async (req: Request): Promise<Response> => {
       verificationPhase = 'provider_verified';
     }
     
-    // Status is conflict if conflict detected, otherwise map from Resend
     const newStatus = dnsConflictDetected 
       ? 'pending_dns' 
       : mapResendStatus(resendDomainStatus?.status, allPassed);
@@ -846,7 +1020,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log(`📊 Status update: ${emailDomain.status} -> ${newStatus}, phase: ${verificationPhase}, attempts: ${newAttempts}, next_verify: ${nextVerifyAt?.toISOString() || 'none'}`);
 
-    // Step 7: Update domain status with all retry fields
+    // Step 7: Update domain status with all fields
     const updateData: any = {
       status: newStatus,
       error: errorMessage,
@@ -861,7 +1035,6 @@ const handler = async (req: Request): Promise<Response> => {
         dns_conflict_detected: dnsConflictDetected,
         dns_conflict_details: conflictDetails,
         verification_phase: verificationPhase,
-        // Include per-record status for UI
         records: resendRecords.map((r: ResendRecord) => {
           const recordName = r.name || '';
           const fqdn = toFqdn(recordName, emailDomain.domain);
@@ -940,24 +1113,13 @@ const handler = async (req: Request): Promise<Response> => {
       allDnsVerified,
       dnsConflictDetected,
       isEntriManaged: emailDomain.is_entri_managed || false,
+      entriConnectionId: emailDomain.entri_connection_id || null,
       allProviderVerified: allPassed
     });
 
-    // Build DNS checks array for evidence panel
-    const dnsChecksForUI = resendRecords.map((r: ResendRecord) => {
-      const recordName = r.name || '';
-      const fqdn = toFqdn(recordName, emailDomain.domain);
-      const dnsStatus = recordDnsStatus?.[recordName];
-      
-      return {
-        record_type: r.record_type || r.type || '',
-        fqdn: fqdn,
-        expected: r.value || '',
-        found: r.status === 'verified' || dnsStatus?.found || false,
-        actual_values: dnsStatus?.actualValues || [],
-        last_checked_at: new Date().toISOString()
-      };
-    });
+    // Determine if CTA should be available (based on Entri availability)
+    const entriRepairAvailable = emailDomain.is_entri_managed === true;
+    const actualCta = readinessResult.cta && entriRepairAvailable ? readinessResult.cta : null;
 
     const response = {
       ok: allPassed,
@@ -967,7 +1129,7 @@ const handler = async (req: Request): Promise<Response> => {
       dns_conflict_detected: dnsConflictDetected,
       dns_conflict_details: conflictDetails,
       verification_phase: verificationPhase,
-      suggested_auto_fix_available: dnsConflictDetected && emailDomain.is_entri_managed,
+      suggested_auto_fix_available: dnsConflictDetected && entriRepairAvailable,
       status: newStatus,
       domain: emailDomain.domain,
       verify_attempts: newAttempts,
@@ -975,18 +1137,18 @@ const handler = async (req: Request): Promise<Response> => {
       next_verify_at: updateData.next_verify_at,
       verified_at: updateData.verified_at || null,
       
-      // NEW: Unified readiness object for UI (single source of truth)
+      // Unified readiness object for UI (single source of truth)
       readiness: {
         status: readinessResult.status,
         message: readinessResult.message,
         subMessage: readinessResult.subMessage || null,
-        cta: readinessResult.cta || null
+        cta: actualCta // CTA only if Entri repair is available
       } as ReadinessResponse,
       
-      // NEW: Structured data for evidence panel
+      // Structured data for evidence panel
       direct_dns: {
         verified: allDnsVerified,
-        checks: dnsChecksForUI
+        checks: dnsChecksForEvidence
       } as DirectDnsResponse,
       
       provider: {
@@ -1035,11 +1197,7 @@ const handler = async (req: Request): Promise<Response> => {
             fqdn_queried: fqdn,
             status: r.status,
             has_conflict: hasConflict,
-            dns_verified: checks.find(c => 
-              (c.check_name === 'dkim' && ((r.name?.includes('dkim') || r.name?.includes('_domainkey')))) ||
-              (c.check_name === 'spf' && r.record_type === 'TXT' && !r.name?.includes('_domainkey')) ||
-              (c.check_name === 'return_path' && r.record_type === 'MX')
-            )?.dns_verified || false
+            dns_verified: recordDnsStatus[recordName]?.found || false
           };
         })
     };
