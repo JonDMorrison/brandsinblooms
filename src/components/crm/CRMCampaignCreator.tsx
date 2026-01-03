@@ -3226,6 +3226,11 @@ const { counts: segmentCounts } = useSegmentCounts();
                             ${block.subtitle}
                           </p>
                         ` : ''}
+                        ${block.body ? `
+                          <div style="font-size: 16px; margin: 0 0 16px 0; color: ${safeHeroTextColor} !important; line-height: 1.6;">
+                            ${block.body}
+                          </div>
+                        ` : ''}
                         ${block.publishDate ? `
                           <p style="font-size: 12px; margin: 0 0 16px 0; color: ${safeHeroTextColor} !important; opacity: 0.6;">
                             ${new Date(block.publishDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}

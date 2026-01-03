@@ -88,8 +88,8 @@ export const EmailSafeHeroBlock: React.FC<EmailSafeHeroBlockProps> = ({
           />
         )}
 
-        {/* Issue Number - using content field */}
-        {block.content && typeof block.content === 'string' && (
+        {/* Issue Number - using content field, but only if it's different from body */}
+        {block.content && typeof block.content === 'string' && block.content !== block.body && (
           <SafeHtml 
             content={sanitizeWeekNumbers(block.content)}
             className={cn("text-sm opacity-70", alignClass)}
