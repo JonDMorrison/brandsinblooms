@@ -1,6 +1,6 @@
 /**
  * BloomSuite SMS Program Configuration
- * Brand constants for Twilio 10DLC compliance pages
+ * Brand constants for Twilio Toll-Free compliance pages
  */
 export const SMS_BRAND_CONFIG = {
   brand_name: 'BloomSuite',
@@ -8,14 +8,15 @@ export const SMS_BRAND_CONFIG = {
   website_url: 'https://bloomsuite.app',
   support_email: 'support@bloomsuite.app',
   support_phone: '', // Leave blank unless staffed
-  message_frequency_text: 'up to 4/mo',
-  opt_in_keyword_primary: 'JOIN',
+  message_frequency_text: 'typically 1–4 messages per month',
   program_number: import.meta.env.VITE_SMS_PROGRAM_NUMBER || null,
   terms_url: 'https://bloomsuite.app/terms',
   privacy_url: 'https://bloomsuite.app/privacy',
   contact_url: 'https://bloomsuite.app/contact',
-  sms_page_url: 'https://bloomsuite.app/sms',
+  sms_page_url: 'https://bloomsuite.app/sms-program',
   support_hours: 'Mon–Fri 9am–5pm PT',
+  // Static date for Twilio verification review
+  last_updated: 'January 5, 2025',
 } as const;
 
 /**

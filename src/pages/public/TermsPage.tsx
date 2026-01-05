@@ -1,6 +1,5 @@
 import { PublicPageLayout } from '@/components/public/PublicPageLayout';
 import { SMS_BRAND_CONFIG } from '@/config/smsConfig';
-import { Card, CardContent } from '@/components/ui/card';
 import { Link } from 'react-router-dom';
 
 export const TermsPage = () => {
@@ -16,12 +15,12 @@ export const TermsPage = () => {
     >
       <section className="py-12 px-6">
         <div className="max-w-3xl mx-auto">
-          <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-8">
+          <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
             Terms of Service
           </h1>
 
-          <p className="text-muted-foreground mb-8">
-            Last updated: {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+          <p className="text-sm text-muted-foreground mb-8">
+            Last updated: {SMS_BRAND_CONFIG.last_updated}
           </p>
 
           <div className="prose prose-slate max-w-none space-y-8">
@@ -31,8 +30,8 @@ export const TermsPage = () => {
               <p className="text-muted-foreground leading-relaxed">
                 Welcome to BloomSuite. These Terms of Service ("Terms") govern your use of the 
                 BloomSuite platform and services provided by {SMS_BRAND_CONFIG.legal_name} 
-                ("we," "us," or "our"). By accessing or using our services, you agree to be 
-                bound by these Terms.
+                ("we," "us," or "our"). BloomSuite is a product operated by {SMS_BRAND_CONFIG.legal_name}. 
+                By accessing or using our services, you agree to be bound by these Terms.
               </p>
             </section>
 
@@ -51,30 +50,53 @@ export const TermsPage = () => {
               </ul>
             </section>
 
-            {/* SMS Terms - VERBATIM REQUIRED TEXT */}
+            {/* SMS Messaging Terms - EXPANDED FOR TWILIO COMPLIANCE */}
             <section>
-              <h2 className="text-xl font-semibold text-foreground mb-4">SMS Terms</h2>
-              <Card className="bg-muted/30 border-primary/20">
-                <CardContent className="p-6">
-                  <p className="text-foreground leading-relaxed">
-                    By subscribing, you consent to receive recurring marketing SMS from{' '}
-                    {SMS_BRAND_CONFIG.legal_name} (BloomSuite) at the number you provide. 
-                    Consent is not a condition of purchase. Frequency {SMS_BRAND_CONFIG.message_frequency_text}. 
-                    Msg and Data rates may apply. Text STOP to cancel; HELP for help. 
-                    See our Privacy Policy at{' '}
-                    <Link to="/privacy" className="text-primary underline hover:text-primary/80">
-                      {SMS_BRAND_CONFIG.privacy_url}
-                    </Link>. 
-                    For assistance contact{' '}
-                    <a 
-                      href={`mailto:${SMS_BRAND_CONFIG.support_email}`}
-                      className="text-primary underline hover:text-primary/80"
-                    >
-                      {SMS_BRAND_CONFIG.support_email}
-                    </a>.
-                  </p>
-                </CardContent>
-              </Card>
+              <h2 className="text-xl font-semibold text-foreground mb-4">SMS Messaging Terms</h2>
+              <div className="bg-muted/30 border border-border rounded-lg p-6">
+                <p className="text-foreground leading-relaxed mb-4">
+                  SMS messaging through BloomSuite is optional. You must explicitly opt in to receive 
+                  text messages by providing your mobile phone number and checking a consent checkbox 
+                  on a BloomSuite web form.
+                </p>
+                <p className="text-foreground leading-relaxed mb-4">
+                  By opting in, you consent to receive recurring informational and promotional SMS 
+                  messages from {SMS_BRAND_CONFIG.legal_name} (BloomSuite) at the mobile number you provide. 
+                  Consent is not a condition of purchase.
+                </p>
+                <ul className="list-disc list-inside text-foreground space-y-2 mb-4">
+                  <li>
+                    <strong>Frequency:</strong> Message frequency varies ({SMS_BRAND_CONFIG.message_frequency_text}).
+                  </li>
+                  <li>
+                    <strong>Rates:</strong> Message and data rates may apply depending on your carrier and plan.
+                  </li>
+                  <li>
+                    <strong>Opt-Out:</strong> Reply STOP to cancel. You will receive a confirmation and 
+                    no further messages unless you opt in again.
+                  </li>
+                  <li>
+                    <strong>Help:</strong> Reply HELP for assistance.
+                  </li>
+                </ul>
+                <p className="text-foreground leading-relaxed mb-4">
+                  We may suspend or terminate SMS messaging to any user who violates these Terms, 
+                  engages in abusive behavior, or whose usage poses compliance or operational risks.
+                </p>
+                <p className="text-foreground leading-relaxed">
+                  For more information about our SMS program, visit{' '}
+                  <Link to="/sms-program" className="text-primary underline hover:text-primary/80">
+                    https://bloomsuite.app/sms-program
+                  </Link>. 
+                  For assistance, contact{' '}
+                  <a 
+                    href={`mailto:${SMS_BRAND_CONFIG.support_email}`}
+                    className="text-primary underline hover:text-primary/80"
+                  >
+                    {SMS_BRAND_CONFIG.support_email}
+                  </a>.
+                </p>
+              </div>
             </section>
 
             {/* Intellectual Property */}
@@ -82,7 +104,7 @@ export const TermsPage = () => {
               <h2 className="text-xl font-semibold text-foreground mb-4">Intellectual Property</h2>
               <p className="text-muted-foreground leading-relaxed">
                 All content, features, and functionality of our services, including but not limited 
-                to text, graphics, logos, and software, are the exclusive property of 
+                to text, graphics, logos, and software, are the exclusive property of{' '}
                 {SMS_BRAND_CONFIG.legal_name} and are protected by copyright, trademark, and 
                 other intellectual property laws.
               </p>
@@ -153,6 +175,10 @@ export const TermsPage = () => {
                 See also:{' '}
                 <Link to="/privacy" className="text-primary underline hover:text-primary/80">
                   Privacy Policy
+                </Link>
+                {' | '}
+                <Link to="/sms-program" className="text-primary underline hover:text-primary/80">
+                  SMS Program
                 </Link>
                 {' | '}
                 <Link to="/contact" className="text-primary underline hover:text-primary/80">
