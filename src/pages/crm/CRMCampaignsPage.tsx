@@ -175,6 +175,14 @@ export const CRMCampaignsPage: React.FC = () => {
                         </span>
                       </div>
                       <div className="flex items-center gap-2">
+                        {campaign.status === 'sent' && (
+                          <Button variant="outline" size="sm" asChild>
+                            <NavLink to={`/crm/campaigns/${campaign.id}/analytics`}>
+                              <BarChart3 className="h-4 w-4 mr-1" />
+                              Performance
+                            </NavLink>
+                          </Button>
+                        )}
                         <Button variant="outline" size="sm" asChild>
                           <NavLink to={`/crm/campaigns/${campaign.id}`}>
                             <Eye className="h-4 w-4 mr-1" />
