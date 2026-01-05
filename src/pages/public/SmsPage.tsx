@@ -1,93 +1,153 @@
 import { PublicPageLayout } from '@/components/public/PublicPageLayout';
-import { ComplianceHero } from '@/components/sms-public/ComplianceHero';
-import { ConsentForm } from '@/components/sms-public/ConsentForm';
-import { FeatureGrid } from '@/components/sms-public/FeatureGrid';
-import { SmsExamples } from '@/components/sms-public/SmsExamples';
-import { ScreenshotStrip } from '@/components/sms-public/ScreenshotStrip';
-import { FaqAccordion } from '@/components/sms-public/FaqAccordion';
-import { PolicyFooter } from '@/components/sms-public/PolicyFooter';
-import { SMS_BRAND_CONFIG, getProgramNumberDisplay, isProgramNumberConfigured } from '@/config/smsConfig';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { SMS_BRAND_CONFIG } from '@/config/smsConfig';
 import { Link } from 'react-router-dom';
-import { AlertTriangle } from 'lucide-react';
 
 export const SmsPage = () => {
-  const programNumber = getProgramNumberDisplay();
-  const isConfigured = isProgramNumberConfigured();
-
   return (
     <PublicPageLayout
-      title="SMS Program"
-      description={`Subscribe to BloomSuite SMS for product updates, feature announcements, and tips. Message frequency ${SMS_BRAND_CONFIG.message_frequency_text}. Reply STOP to cancel.`}
+      title="SMS Messaging Program"
+      description="Learn about the BloomSuite SMS messaging program, how to opt in, message frequency, and how to manage your preferences."
       canonicalPath="/sms-program"
       breadcrumbs={[
         { name: 'Home', url: '/' },
         { name: 'SMS Program', url: '/sms-program' },
       ]}
     >
-      {/* Hero Section with compliance text */}
-      <ComplianceHero />
+      <article className="py-12 px-6">
+        <div className="max-w-3xl mx-auto">
+          {/* Page Title */}
+          <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-8">
+            BloomSuite SMS Messaging Program
+          </h1>
 
-      {/* How to Join Section - Above the fold */}
-      <section className="py-8 px-6">
-        <div className="max-w-xl mx-auto">
-          <h2 className="text-xl font-bold text-foreground text-center mb-6">
-            How to Join
-          </h2>
+          {/* Intro Paragraph */}
+          <p className="text-lg text-muted-foreground leading-relaxed mb-12">
+            BloomSuite provides SMS messaging capabilities to independent garden centers so they can 
+            communicate with customers who have chosen to receive text messages. This page explains 
+            how BloomSuite SMS works, what messages you can expect, and how to manage your preferences.
+          </p>
 
-          {/* Keyword opt-in */}
-          <Card className="bg-muted/30 border-border mb-6">
-            <CardContent className="p-6 text-center">
-              <p className="text-lg font-medium text-foreground mb-2">
-                Text <span className="font-bold text-primary">{SMS_BRAND_CONFIG.opt_in_keyword_primary}</span> to{' '}
-                <span className="font-bold text-primary">{programNumber}</span> to subscribe.
-              </p>
-              
-              {/* Admin warning if not configured */}
-              {!isConfigured && (
-                <Badge variant="destructive" className="mt-2">
-                  <AlertTriangle className="w-3 h-3 mr-1" />
-                  ENV: VITE_SMS_PROGRAM_NUMBER not set
-                </Badge>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Divider */}
-          <div className="flex items-center gap-4 mb-6">
-            <div className="flex-1 border-t border-border" />
-            <span className="text-sm text-muted-foreground font-medium">or</span>
-            <div className="flex-1 border-t border-border" />
-          </div>
-
-          {/* Web form */}
-          <ConsentForm />
-
-          {/* Frequency and links - required for compliance */}
-          <div className="mt-6 text-center text-sm text-muted-foreground space-y-2">
-            <p>
-              Message frequency: {SMS_BRAND_CONFIG.message_frequency_text}.
+          {/* Program Description */}
+          <section className="mb-10">
+            <h2 className="text-xl font-semibold text-foreground mb-4">
+              Program Description
+            </h2>
+            <p className="text-muted-foreground leading-relaxed mb-4">
+              BloomSuite SMS is used by independent garden centers to send informational and promotional 
+              text messages to customers who have explicitly opted in. Messages may include store 
+              announcements, upcoming events, back-in-stock notifications, seasonal gardening tips, 
+              and workshop reminders.
             </p>
-            <p>
-              <Link to="/terms" className="text-primary underline hover:text-primary/80">
-                {SMS_BRAND_CONFIG.terms_url}
-              </Link>
-              {' | '}
-              <Link to="/privacy" className="text-primary underline hover:text-primary/80">
-                {SMS_BRAND_CONFIG.privacy_url}
-              </Link>
+            <p className="text-muted-foreground leading-relaxed">
+              BloomSuite does not send unsolicited messages and does not use purchased or shared contact lists.
             </p>
-          </div>
+          </section>
+
+          {/* How You Opt In */}
+          <section className="mb-10">
+            <h2 className="text-xl font-semibold text-foreground mb-4">
+              How You Opt In
+            </h2>
+            <p className="text-muted-foreground leading-relaxed mb-4">
+              Users opt in to receive SMS messages by entering their mobile phone number into a 
+              BloomSuite web form and checking a required consent box. The consent disclosure clearly 
+              states that recurring messages may be sent, that message and data rates may apply, and 
+              that users can reply STOP to opt out or HELP for assistance.
+            </p>
+            <p className="text-muted-foreground leading-relaxed">
+              Consent is recorded with a timestamp and stored securely.
+            </p>
+          </section>
+
+          {/* Message Frequency */}
+          <section className="mb-10">
+            <h2 className="text-xl font-semibold text-foreground mb-4">
+              Message Frequency
+            </h2>
+            <p className="text-muted-foreground leading-relaxed">
+              Message frequency varies by garden center and customer preferences. Most users receive 
+              between 1 and 4 messages per month.
+            </p>
+          </section>
+
+          {/* Opt-Out and Help */}
+          <section className="mb-10">
+            <h2 className="text-xl font-semibold text-foreground mb-4">
+              Opt-Out and Help
+            </h2>
+            <p className="text-muted-foreground leading-relaxed mb-4">
+              You can opt out of SMS messages at any time by replying <strong className="text-foreground">STOP</strong> to any message.
+            </p>
+            <p className="text-muted-foreground leading-relaxed mb-4">
+              For help, reply <strong className="text-foreground">HELP</strong>.
+            </p>
+            <p className="text-muted-foreground leading-relaxed">
+              After opting out, you will no longer receive SMS messages unless you opt in again.
+            </p>
+          </section>
+
+          {/* Message and Data Rates */}
+          <section className="mb-10">
+            <h2 className="text-xl font-semibold text-foreground mb-4">
+              Message and Data Rates
+            </h2>
+            <p className="text-muted-foreground leading-relaxed">
+              Message and data rates may apply depending on your mobile carrier and plan.
+            </p>
+          </section>
+
+          {/* Privacy and Terms */}
+          <section className="mb-10">
+            <h2 className="text-xl font-semibold text-foreground mb-4">
+              Privacy and Terms
+            </h2>
+            <p className="text-muted-foreground leading-relaxed mb-4">
+              BloomSuite respects your privacy and does not sell or share mobile phone numbers.
+            </p>
+            <p className="text-muted-foreground leading-relaxed mb-2">
+              View our full policies here:
+            </p>
+            <ul className="list-disc list-inside text-muted-foreground space-y-1">
+              <li>
+                Privacy Policy:{' '}
+                <Link 
+                  to="/privacy" 
+                  className="text-primary hover:text-primary/80 underline"
+                >
+                  {SMS_BRAND_CONFIG.privacy_url}
+                </Link>
+              </li>
+              <li>
+                Terms of Service:{' '}
+                <Link 
+                  to="/terms" 
+                  className="text-primary hover:text-primary/80 underline"
+                >
+                  {SMS_BRAND_CONFIG.terms_url}
+                </Link>
+              </li>
+            </ul>
+          </section>
+
+          {/* Contact Information */}
+          <section className="mb-10">
+            <h2 className="text-xl font-semibold text-foreground mb-4">
+              Contact Information
+            </h2>
+            <p className="text-muted-foreground leading-relaxed mb-2">
+              If you have questions about the BloomSuite SMS program, contact us at:
+            </p>
+            <p className="text-foreground">
+              <a 
+                href={`mailto:${SMS_BRAND_CONFIG.support_email}`}
+                className="text-primary hover:text-primary/80 underline"
+              >
+                {SMS_BRAND_CONFIG.support_email}
+              </a>
+            </p>
+          </section>
         </div>
-      </section>
-
-      {/* Below the fold content */}
-      <FeatureGrid />
-      <SmsExamples />
-      <ScreenshotStrip />
-      <FaqAccordion />
-      <PolicyFooter />
+      </article>
     </PublicPageLayout>
   );
 };
