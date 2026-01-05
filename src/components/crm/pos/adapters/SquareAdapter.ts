@@ -172,4 +172,50 @@ export class SquareAdapter extends POSAdapter {
         ],
       }));
   }
+
+  async fetchLoyaltyAccounts(credentials: any, options?: SyncOptions): Promise<PaginatedResult<any>> {
+    await this.waitForRateLimit();
+    
+    const response = await fetch(`${this.baseUrl}/v2/loyalty/accounts/search`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${this.accessToken}`,
+        'Content-Type': 'application/json',
+        'Square-Version': '2023-10-18'
+      },
+      body: JSON.stringify({
+        limit: options?.pageLimit || 100,
+        cursor: options?.cursor
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return {
+      data: data.loyalty_accounts || [],
+      nextCursor: data.cursor,
+      hasMore: !!data.cursor
+    };
+  }
+
+  adaptLoyaltyAccounts(rawAccounts: any[]): Array<{
+    loyalty_account_id: string;
+    customer_id: string;
+    program_id: string;
+    balance: number;
+    lifetime_points: number;
+    enrolled_at: string;
+  }> {
+    return rawAccounts.map(account => ({
+      loyalty_account_id: account.id,
+      customer_id: account.customer_id,
+      program_id: account.program_id,
+      balance: account.balance || 0,
+      lifetime_points: account.lifetime_points || 0,
+      enrolled_at: account.enrolled_at,
+    }));
+  }
 }

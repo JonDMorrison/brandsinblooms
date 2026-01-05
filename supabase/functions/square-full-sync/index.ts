@@ -43,18 +43,23 @@ Deno.serve(async (req) => {
     const tenantId = userData.tenant_id;
     console.log(`[SQUARE-FULL-SYNC] Tenant: ${tenantId}`);
 
-    // Enqueue sync jobs for customers, sales, and products
-    const syncTypes = ['customers', 'sales', 'products'] as const;
+    // Enqueue sync jobs for customers, sales, products, and loyalty
+    const syncTypes = ['customers', 'sales', 'products', 'loyalty'] as const;
     const jobResults: Record<string, any> = {};
 
     for (const syncType of syncTypes) {
       console.log(`[SQUARE-FULL-SYNC] Enqueuing ${syncType} sync job...`);
       
+      const estimatedRows = syncType === 'customers' ? 10000 
+        : syncType === 'sales' ? 50000 
+        : syncType === 'loyalty' ? 5000 
+        : 5000;
+      
       const { data: jobId, error: enqueueError } = await supabaseClient.rpc('enqueue_pos_sync_job', {
         p_tenant_id: tenantId,
         p_provider: 'square',
         p_sync_type: syncType,
-        p_estimated_rows: syncType === 'customers' ? 10000 : syncType === 'sales' ? 50000 : 5000,
+        p_estimated_rows: estimatedRows,
         p_triggered_by: 'full_sync',
       });
 
