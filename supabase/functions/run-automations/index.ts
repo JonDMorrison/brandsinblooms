@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { renderMergeTags, convertLegacyTags, createMergeTagDataFromCustomer } from "../_shared/mergeTagEngine.ts";
+import { checkSMSAvailability, isChannelAvailable } from "../_shared/channelAvailability.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -19,6 +20,7 @@ interface AutomationRule {
 interface Customer {
   id: string;
   email: string;
+  phone?: string;
   first_name: string;
   last_name: string;
   created_at: string;
@@ -63,31 +65,34 @@ const handler = async (req: Request): Promise<Response> => {
 
     let totalProcessed = 0;
     let totalSent = 0;
+    let totalSkipped = 0;
     let errors: string[] = [];
 
     for (const automation of automations || []) {
       try {
         console.log(`Processing automation: ${automation.name} (${automation.trigger_type})`);
         
-        const { processed, sent, stepErrors } = await processAutomation(automation);
+        const { processed, sent, skipped, stepErrors } = await processAutomation(automation);
         totalProcessed += processed;
         totalSent += sent;
+        totalSkipped += skipped;
         errors.push(...stepErrors);
         
-        console.log(`Automation ${automation.name}: ${processed} customers processed, ${sent} messages sent`);
+        console.log(`Automation ${automation.name}: ${processed} customers processed, ${sent} messages sent, ${skipped} skipped`);
       } catch (error) {
         console.error(`Error processing automation ${automation.name}:`, error);
         errors.push(`Automation ${automation.name}: ${error.message}`);
       }
     }
 
-    console.log(`✅ Automation runner complete. Total: ${totalProcessed} processed, ${totalSent} sent`);
+    console.log(`✅ Automation runner complete. Total: ${totalProcessed} processed, ${totalSent} sent, ${totalSkipped} skipped`);
 
     return new Response(JSON.stringify({
       success: true,
       automations_processed: automations?.length || 0,
       customers_processed: totalProcessed,
       messages_sent: totalSent,
+      messages_skipped: totalSkipped,
       errors: errors
     }), {
       status: 200,
@@ -112,6 +117,7 @@ async function processAutomation(automation: AutomationRule) {
   
   let processed = 0;
   let sent = 0;
+  let skipped = 0;
   let stepErrors: string[] = [];
 
   for (const customer of qualifyingCustomers) {
@@ -120,18 +126,60 @@ async function processAutomation(automation: AutomationRule) {
       
       for (const { step, stepIndex } of steps) {
         try {
-          // Check if this step was already sent
+          // Check if this step was already sent or skipped
           const { data: existingLog } = await supabase
             .from('crm_automation_logs')
-            .select('id')
+            .select('id, status')
             .eq('automation_id', automation.id)
             .eq('customer_id', customer.id)
             .eq('step_index', stepIndex)
-            .eq('status', 'sent')
+            .in('status', ['sent', 'skipped_no_channel', 'skipped_no_recipient'])
             .single();
 
           if (existingLog) {
-            console.log(`Step ${stepIndex} already sent to customer ${customer.email}`);
+            console.log(`Step ${stepIndex} already processed (${existingLog.status}) for customer ${customer.email}`);
+            continue;
+          }
+
+          // Check channel availability
+          const channelStatus = isChannelAvailable(step.type);
+          
+          if (!channelStatus.available) {
+            // Skip this step and log it
+            console.log(`⏭️ Skipping ${step.type} step ${stepIndex} for ${customer.email}: ${channelStatus.reason}`);
+            
+            await supabase
+              .from('crm_automation_logs')
+              .insert({
+                automation_id: automation.id,
+                customer_id: customer.id,
+                step_index: stepIndex,
+                message_type: step.type,
+                status: 'skipped_no_channel',
+                skip_reason: channelStatus.reason
+              });
+            
+            skipped++;
+            continue;
+          }
+
+          // Check if recipient exists
+          const recipient = step.type === 'sms' ? customer.phone : customer.email;
+          if (!recipient) {
+            console.log(`⏭️ Skipping ${step.type} step ${stepIndex} for ${customer.email}: No recipient`);
+            
+            await supabase
+              .from('crm_automation_logs')
+              .insert({
+                automation_id: automation.id,
+                customer_id: customer.id,
+                step_index: stepIndex,
+                message_type: step.type,
+                status: 'skipped_no_recipient',
+                skip_reason: `No ${step.type} recipient available`
+              });
+            
+            skipped++;
             continue;
           }
 
@@ -194,7 +242,7 @@ async function processAutomation(automation: AutomationRule) {
     }
   }
 
-  return { processed, sent, stepErrors };
+  return { processed, sent, skipped, stepErrors };
 }
 
 async function getQualifyingCustomers(automation: AutomationRule): Promise<Customer[]> {
@@ -299,6 +347,12 @@ async function sendAutomationEmail(customer: Customer, step: WorkflowStep, autom
 }
 
 async function sendAutomationSms(customer: Customer, step: WorkflowStep, automation: AutomationRule) {
+  // Double-check SMS availability before calling
+  const smsStatus = checkSMSAvailability();
+  if (!smsStatus.available) {
+    throw new Error(`SMS not configured: ${smsStatus.reason}`);
+  }
+
   // Create a temporary SMS campaign for this automation step
   const { data: campaign, error: campaignError } = await supabase
     .from('crm_sms_campaigns')

@@ -623,6 +623,7 @@ export type Database = {
       automation_runs: {
         Row: {
           automation_id: string
+          channel_availability: Json | null
           completed_at: string | null
           created_at: string
           current_step_index: number
@@ -640,6 +641,7 @@ export type Database = {
         }
         Insert: {
           automation_id: string
+          channel_availability?: Json | null
           completed_at?: string | null
           created_at?: string
           current_step_index?: number
@@ -657,6 +659,7 @@ export type Database = {
         }
         Update: {
           automation_id?: string
+          channel_availability?: Json | null
           completed_at?: string | null
           created_at?: string
           current_step_index?: number
@@ -2205,6 +2208,7 @@ export type Database = {
           id: string
           message_type: string
           sent_at: string | null
+          skip_reason: string | null
           status: string
           step_index: number
           updated_at: string | null
@@ -2217,6 +2221,7 @@ export type Database = {
           id?: string
           message_type: string
           sent_at?: string | null
+          skip_reason?: string | null
           status?: string
           step_index: number
           updated_at?: string | null
@@ -2229,6 +2234,7 @@ export type Database = {
           id?: string
           message_type?: string
           sent_at?: string | null
+          skip_reason?: string | null
           status?: string
           step_index?: number
           updated_at?: string | null
@@ -2998,6 +3004,8 @@ export type Database = {
           retry_count: number | null
           scheduled_at: string | null
           sent_at: string | null
+          skip_reason: string | null
+          skipped_at: string | null
           status: string | null
           step_index: number | null
           subject: string | null
@@ -3022,6 +3030,8 @@ export type Database = {
           retry_count?: number | null
           scheduled_at?: string | null
           sent_at?: string | null
+          skip_reason?: string | null
+          skipped_at?: string | null
           status?: string | null
           step_index?: number | null
           subject?: string | null
@@ -3046,6 +3056,8 @@ export type Database = {
           retry_count?: number | null
           scheduled_at?: string | null
           sent_at?: string | null
+          skip_reason?: string | null
+          skipped_at?: string | null
           status?: string | null
           step_index?: number | null
           subject?: string | null

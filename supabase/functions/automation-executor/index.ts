@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.10';
 import { renderMergeTags, convertLegacyTags, createMergeTagDataFromCustomer, GLOBAL_FALLBACKS } from "../_shared/mergeTagEngine.ts";
 import { resolveSender, type SenderConfig } from "../_shared/senderResolver.ts";
+import { checkChannelAvailability, isChannelAvailable, type ChannelAvailability } from "../_shared/channelAvailability.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -178,10 +179,18 @@ const handler = async (req: Request): Promise<Response> => {
   }
 };
 
-async function checkProviderReadiness(supabase: any, automation: any): Promise<{ canProcess: boolean; reason?: string; senderConfig?: SenderConfig }> {
+async function checkProviderReadiness(supabase: any, automation: any): Promise<{ canProcess: boolean; reason?: string; senderConfig?: SenderConfig; channelAvailability?: ChannelAvailability }> {
   const workflowSteps: WorkflowStep[] = normalizeWorkflowSteps(automation.workflow_steps);
   const hasEmailSteps = workflowSteps.some(step => step.type === 'email');
   const hasSMSSteps = workflowSteps.some(step => step.type === 'sms');
+
+  // Check channel availability
+  const channels = checkChannelAvailability();
+  console.log(`📊 [ProviderCheck] Channel availability: Email=${channels.email.available}, SMS=${channels.sms.available}`);
+  
+  if (hasSMSSteps && !channels.sms.available) {
+    console.log(`⚠️ Automation has SMS steps but SMS is not configured (${channels.sms.reason}). SMS steps will be skipped.`);
+  }
 
   // Check company profile (legacy flags)
   // NOTE: company_profiles is user-scoped (no tenant_id column).
@@ -213,14 +222,7 @@ async function checkProviderReadiness(supabase: any, automation: any): Promise<{
     }
   }
 
-  // Check SMS provider (Twilio) readiness
-  // Note: SMS/Twilio is not currently supported - skip SMS steps gracefully
-  if (hasSMSSteps) {
-    console.log(`⚠️ Automation has SMS steps but SMS is not configured. Will skip SMS steps.`);
-    // Don't block the automation - we'll skip SMS steps during processing
-  }
-
-  // Check POS cart events for abandoned_cart trigger
+  // Check POS cart events for abandoned_cart trigger - this IS blocking
   if (automation.trigger_type === 'abandoned_cart') {
     const posCartEnabled = companyProfile?.feature_flags?.['pos']?.['cart']?.['enabled'] === true;
     if (!posCartEnabled) {
@@ -228,7 +230,8 @@ async function checkProviderReadiness(supabase: any, automation: any): Promise<{
     }
   }
 
-  return { canProcess: true, senderConfig };
+  // Always allow processing - unconfigured channels will be skipped at runtime
+  return { canProcess: true, senderConfig, channelAvailability: channels };
 }
 
 async function processAutomation(supabase: any, automation: any) {
@@ -302,8 +305,11 @@ async function createAutomationRun(
   supabase: any,
   automation: any,
   customer: any,
-  totalSteps: number
+  totalSteps: number,
+  channelAvailability?: ChannelAvailability
 ): Promise<string | null> {
+  const channels = channelAvailability || checkChannelAvailability();
+  
   const { data: run, error } = await supabase
     .from('automation_runs')
     .insert({
@@ -322,6 +328,10 @@ async function createAutomationRun(
         automation_name: automation.name,
         automation_version: automation.version,
       },
+      channel_availability: {
+        email: { available: channels.email.available, reason: channels.email.reason },
+        sms: { available: channels.sms.available, reason: channels.sms.reason },
+      },
     })
     .select('id')
     .single();
@@ -336,7 +346,7 @@ async function createAutomationRun(
     return null;
   }
 
-  console.log(`📝 Created automation run ${run.id} for customer ${customer.email}`);
+  console.log(`📝 Created automation run ${run.id} for customer ${customer.email} (channels: email=${channels.email.available}, sms=${channels.sms.available})`);
   return run.id;
 }
 
@@ -469,8 +479,18 @@ async function enqueueMessage(
 ) {
   const recipient = step.type === 'sms' ? customer.phone : customer.email;
   
+  // Check if recipient is missing
   if (!recipient) {
-    console.log(`⚠️ No ${step.type} recipient for customer ${customer.email}`);
+    console.log(`⚠️ No ${step.type} recipient for customer ${customer.email}, skipping step`);
+    await skipStep(supabase, automation, customer, step, stepIndex, runId, `No ${step.type} recipient available`);
+    return;
+  }
+
+  // Check if channel is available
+  const channelStatus = isChannelAvailable(step.type);
+  if (!channelStatus.available) {
+    console.log(`⚠️ Channel ${step.type} not available: ${channelStatus.reason}, skipping step`);
+    await skipStep(supabase, automation, customer, step, stepIndex, runId, channelStatus.reason || 'Channel not configured');
     return;
   }
 
@@ -540,6 +560,106 @@ async function enqueueMessage(
     });
 
   console.log(`✅ Enqueued ${step.type} for ${customer.email} (step ${stepIndex + 1}, scheduled: ${scheduledAt.toISOString()}, sender: ${senderConfig?.deliveryMethod || 'sms'})`);
+}
+
+/**
+ * Skip a step and log the skip reason, then schedule the next step
+ */
+async function skipStep(
+  supabase: any,
+  automation: any,
+  customer: any,
+  step: WorkflowStep,
+  stepIndex: number,
+  runId: string,
+  reason: string
+) {
+  const now = new Date().toISOString();
+  
+  // Insert skipped entry into outbox for tracking
+  await supabase
+    .from('crm_outbox')
+    .insert({
+      tenant_id: automation.tenant_id,
+      automation_id: automation.id,
+      automation_run_id: runId,
+      customer_id: customer.id,
+      message_type: step.type,
+      recipient: step.type === 'sms' ? customer.phone : customer.email,
+      content: step.text,
+      subject: step.subject,
+      step_index: stepIndex,
+      scheduled_at: now,
+      status: 'skipped',
+      skip_reason: reason,
+      skipped_at: now,
+      priority: 100,
+    });
+
+  // Log the skip in automation logs
+  await supabase
+    .from('crm_automation_logs')
+    .insert({
+      automation_id: automation.id,
+      customer_id: customer.id,
+      step_index: stepIndex,
+      message_type: step.type,
+      status: reason.includes('recipient') ? 'skipped_no_recipient' : 'skipped_no_channel',
+      skip_reason: reason,
+      created_at: now
+    });
+
+  console.log(`⏭️ Skipped step ${stepIndex + 1} (${step.type}): ${reason}`);
+
+  // Advance to next step
+  await advanceAfterSkip(supabase, automation, customer, stepIndex, runId);
+}
+
+/**
+ * Advance automation run to next step after a skip
+ */
+async function advanceAfterSkip(
+  supabase: any,
+  automation: any,
+  customer: any,
+  currentStepIndex: number,
+  runId: string
+) {
+  // Get workflow steps
+  const workflowSteps: WorkflowStep[] = normalizeWorkflowSteps(automation.workflow_steps);
+  const nextStepIndex = currentStepIndex + 1;
+
+  if (nextStepIndex >= workflowSteps.length) {
+    // All steps completed (or skipped)
+    await supabase
+      .from('automation_runs')
+      .update({
+        status: 'completed',
+        current_step_index: workflowSteps.length,
+        completed_at: new Date().toISOString(),
+        next_step_scheduled_at: null,
+      })
+      .eq('id', runId);
+
+    console.log(`🎉 Automation run ${runId} completed (after skips)`);
+    return;
+  }
+
+  // Schedule next step
+  const nextStep = workflowSteps[nextStepIndex];
+  const scheduledAt = calculateScheduledTime(nextStep.delayMin, automation, customer);
+
+  // Update run state
+  await supabase
+    .from('automation_runs')
+    .update({
+      current_step_index: nextStepIndex,
+      next_step_scheduled_at: scheduledAt.toISOString(),
+    })
+    .eq('id', runId);
+
+  // Enqueue the next step (this will recursively skip if needed)
+  await enqueueMessage(supabase, automation, customer, nextStep, nextStepIndex, runId, scheduledAt);
 }
 
 function personalizeMessage(template: string, customer: any, automation: any): string {

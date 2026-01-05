@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.10";
 import { resolveSender, buildFromAddress, type SenderConfig } from "../_shared/senderResolver.ts";
+import { checkSMSAvailability, isChannelAvailable } from "../_shared/channelAvailability.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -71,6 +72,7 @@ const handler = async (req: Request): Promise<Response> => {
           processed: 0,
           sent: 0,
           failed: 0,
+          skipped: 0,
           duration_ms: Date.now() - startTime,
         }),
         { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
@@ -81,6 +83,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     let sent = 0;
     let failed = 0;
+    let skipped = 0;
     const lockUntil = new Date(Date.now() + LOCK_DURATION_MS).toISOString();
 
     // 2. Process each message
@@ -106,8 +109,26 @@ const handler = async (req: Request): Promise<Response> => {
 
         console.log(`🔒 Locked message ${message.id} for ${message.message_type}`);
 
-        // 3. Send the message based on type
-        let sendResult: { success: boolean; error?: string };
+        // 3. Check channel availability before attempting to send
+        const channelStatus = isChannelAvailable(message.message_type);
+        
+        if (!channelStatus.available) {
+          // Channel not configured - skip this step and advance automation
+          console.log(`⏭️ Skipping ${message.message_type} step - channel not available: ${channelStatus.reason}`);
+          
+          await skipMessage(supabase, message, channelStatus.reason || 'Channel not configured');
+          
+          // Advance automation run to next step
+          if (message.automation_run_id) {
+            await advanceAutomationRun(supabase, message);
+          }
+          
+          skipped++;
+          continue;
+        }
+
+        // 4. Send the message based on type
+        let sendResult: { success: boolean; error?: string; shouldSkip?: boolean };
 
         if (message.message_type === "email") {
           sendResult = await sendEmail(supabase, message);
@@ -117,7 +138,22 @@ const handler = async (req: Request): Promise<Response> => {
           sendResult = { success: false, error: `Unknown message type: ${message.message_type}` };
         }
 
-        // 4. Update message status
+        // 5. Handle skip response from send functions
+        if (sendResult.shouldSkip) {
+          console.log(`⏭️ Skipping ${message.message_type} step - ${sendResult.error}`);
+          
+          await skipMessage(supabase, message, sendResult.error || 'Channel not available');
+          
+          // Advance automation run to next step
+          if (message.automation_run_id) {
+            await advanceAutomationRun(supabase, message);
+          }
+          
+          skipped++;
+          continue;
+        }
+
+        // 6. Update message status
         if (sendResult.success) {
           await supabase
             .from("crm_outbox")
@@ -218,13 +254,14 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const duration = Date.now() - startTime;
-    console.log(`✅ [${WORKER_ID}] Outbox processing complete: ${sent} sent, ${failed} failed in ${duration}ms`);
+    console.log(`✅ [${WORKER_ID}] Outbox processing complete: ${sent} sent, ${skipped} skipped, ${failed} failed in ${duration}ms`);
 
     return new Response(
       JSON.stringify({
         success: true,
         processed: pendingMessages.length,
         sent,
+        skipped,
         failed,
         worker_id: WORKER_ID,
         duration_ms: duration,
@@ -240,10 +277,50 @@ const handler = async (req: Request): Promise<Response> => {
   }
 };
 
+/**
+ * Mark a message as skipped and log the skip reason
+ */
+async function skipMessage(
+  supabase: ReturnType<typeof createClient>,
+  message: OutboxMessage,
+  reason: string
+): Promise<void> {
+  const now = new Date().toISOString();
+  
+  // Update outbox message status to skipped
+  await supabase
+    .from("crm_outbox")
+    .update({
+      status: "skipped",
+      skip_reason: reason,
+      skipped_at: now,
+      locked_until: null,
+      locked_by: null,
+    })
+    .eq("id", message.id);
+
+  // Log skip in automation logs
+  if (message.automation_id) {
+    await supabase.from("crm_automation_logs").upsert(
+      {
+        automation_id: message.automation_id,
+        customer_id: message.customer_id,
+        step_index: message.step_index,
+        message_type: message.message_type,
+        status: "skipped_no_channel",
+        skip_reason: reason,
+      },
+      { onConflict: "automation_id,customer_id,step_index" }
+    );
+  }
+
+  console.log(`⏭️ Marked message ${message.id} as skipped: ${reason}`);
+}
+
 async function sendEmail(
   supabase: ReturnType<typeof createClient>,
   message: OutboxMessage
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; error?: string; shouldSkip?: boolean }> {
   try {
     // Check if sender config was pre-resolved and stored in template_data
     const templateData = message.template_data || {};
@@ -322,14 +399,14 @@ async function sendEmail(
 async function sendSMS(
   supabase: ReturnType<typeof createClient>,
   message: OutboxMessage
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; error?: string; shouldSkip?: boolean }> {
   try {
     // Call the send-sms function
     const { data, error } = await supabase.functions.invoke("send-sms", {
       body: {
         tenant_id: message.tenant_id,
         to: message.recipient,
-        message: message.content,
+        body: message.content,
         automation_id: message.automation_id,
         customer_id: message.customer_id,
       },
@@ -337,6 +414,12 @@ async function sendSMS(
 
     if (error) {
       return { success: false, error: error.message };
+    }
+
+    // Check if SMS function returned a skipable error
+    if (data?.error === 'SMS_NOT_CONFIGURED' && data?.skipable) {
+      console.log(`📱 [SendSMS] SMS not configured, marking as skipable`);
+      return { success: false, error: data.message || 'SMS not configured', shouldSkip: true };
     }
 
     if (data?.error) {
@@ -359,7 +442,7 @@ async function advanceAutomationRun(
     // Get the automation run and its workflow steps
     const { data: run } = await supabase
       .from("automation_runs")
-      .select("*, automation:crm_automations(workflow_steps)")
+      .select("*, automation:crm_automations(workflow_steps, tenant_id)")
       .eq("id", message.automation_run_id)
       .single();
 
@@ -368,7 +451,7 @@ async function advanceAutomationRun(
       return;
     }
 
-    const workflowSteps = run.automation?.workflow_steps || [];
+    const workflowSteps = normalizeWorkflowSteps(run.automation?.workflow_steps || []);
     const nextStepIndex = run.current_step_index + 1;
 
     if (nextStepIndex >= run.total_steps) {
@@ -407,7 +490,10 @@ async function advanceAutomationRun(
         .single();
 
       if (customer && nextStep) {
-        // Enqueue the next step
+        // Check if the next step's channel is available
+        const nextChannelStatus = isChannelAvailable(nextStep.type);
+        
+        // Enqueue the next step (even if channel unavailable - it will be skipped during processing)
         await supabase.from("crm_outbox").insert({
           tenant_id: message.tenant_id,
           automation_id: message.automation_id,
@@ -424,14 +510,68 @@ async function advanceAutomationRun(
             automation_name: run.automation?.name,
             step_index: nextStepIndex,
             customer_data: customer,
+            channel_available: nextChannelStatus.available,
+            channel_skip_reason: nextChannelStatus.reason,
           },
         });
 
-        console.log(`📅 Scheduled step ${nextStepIndex + 1} for ${nextScheduledAt}`);
+        console.log(`📅 Scheduled step ${nextStepIndex + 1} for ${nextScheduledAt}${!nextChannelStatus.available ? ' (will be skipped - channel unavailable)' : ''}`);
       }
     }
   } catch (err) {
     console.error(`❌ Error advancing automation run ${message.automation_run_id}:`, err);
+  }
+}
+
+interface WorkflowStep {
+  type: 'email' | 'sms';
+  delayMin: number;
+  subject?: string;
+  text: string;
+}
+
+// Normalize workflow_steps from either array format or React Flow object format
+function normalizeWorkflowSteps(workflowSteps: any): WorkflowStep[] {
+  // If it's already an array, return as-is
+  if (Array.isArray(workflowSteps)) {
+    return workflowSteps;
+  }
+  
+  // If it's React Flow format with nodes/edges
+  if (workflowSteps && typeof workflowSteps === 'object' && Array.isArray(workflowSteps.nodes)) {
+    return workflowSteps.nodes
+      .filter((node: any) => node.type === 'email' || node.type === 'sms')
+      .map((node: any) => {
+        const delayMin = node.data?.delay ? parseDelayToMinutes(node.data.delay) : 0;
+        return {
+          type: node.type as 'email' | 'sms',
+          delayMin,
+          subject: node.data?.subject || '',
+          text: node.data?.content || node.data?.text || ''
+        };
+      });
+  }
+  
+  return [];
+}
+
+function parseDelayToMinutes(delay: string | number): number {
+  if (typeof delay === 'number') return delay;
+  if (!delay || delay === 'Immediate') return 0;
+  
+  const lower = delay.toLowerCase();
+  const match = lower.match(/(\d+)\s*(minute|hour|day|week)/);
+  if (!match) return 0;
+  
+  const value = parseInt(match[1], 10);
+  const unit = match[2];
+  
+  switch (unit) {
+    case 'minute': return value;
+    case 'hour': return value * 60;
+    case 'day': return value * 60 * 24;
+    case 'week': return value * 60 * 24 * 7;
+    default: return 0;
   }
 }
 

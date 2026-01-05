@@ -24,16 +24,19 @@ export interface ActivationGuard {
 
 /**
  * Checks provider readiness for email, SMS, and POS features
+ * Note: Email is always ready (fallback sender available)
+ * SMS availability is checked but doesn't block automation - steps will be skipped at runtime
  */
 export async function checkProviderReadiness(): Promise<ProviderReadiness> {
   const result: ProviderReadiness = {
-    email: { ready: false },
+    email: { ready: true }, // Email always has fallback sender
     sms: { ready: false },
     pos: { cartEventsEnabled: false }
   };
 
   try {
-    // Check email readiness (Resend domain verification)
+    // Email is always ready because we have fallback senders
+    // Check for custom domain for display purposes
     const { data: emailSenders } = await supabase
       .from('email_senders')
       .select('verified')
@@ -43,7 +46,6 @@ export async function checkProviderReadiness(): Promise<ProviderReadiness> {
     if (emailSenders && emailSenders.length > 0) {
       result.email.ready = true;
     } else {
-      // Fallback: check company profile DNS records
       const { data: companyProfile } = await supabase
         .from('company_profiles')
         .select('dns_records_verified')
@@ -51,18 +53,16 @@ export async function checkProviderReadiness(): Promise<ProviderReadiness> {
 
       if (companyProfile?.dns_records_verified) {
         result.email.ready = true;
-      } else {
-        result.email.reason = 'Email domain not verified. Please verify your sending domain in Settings.';
       }
     }
+    // Email always stays ready = true regardless, just for display info
 
     // Check SMS readiness (Twilio configuration)
-    // For now, assume SMS is ready if we don't error out
-    // TODO: Add proper Twilio configuration fields to company_profiles
-    result.sms.ready = true; // Placeholder - implement proper Twilio check
-    if (!result.sms.ready) {
-      result.sms.reason = 'Twilio SMS not configured. Please set up SMS in Settings.';
-    }
+    // For frontend, we assume SMS is NOT ready unless we can verify
+    // The backend will do the actual check and skip if not configured
+    // For now, mark as "unknown" and let backend handle gracefully
+    result.sms.ready = false; // Conservative default - backend will skip if not configured
+    result.sms.reason = 'SMS steps will be skipped if Twilio is not configured';
 
     // Check POS cart events feature flag
     const { data: posConfig } = await supabase
@@ -78,8 +78,8 @@ export async function checkProviderReadiness(): Promise<ProviderReadiness> {
 
   } catch (error) {
     console.error('Error checking provider readiness:', error);
-    result.email.reason = 'Unable to verify email setup';
-    result.sms.reason = 'Unable to verify SMS setup';
+    // Email always stays ready
+    result.sms.reason = 'Unable to verify SMS setup - steps will be skipped if unavailable';
     result.pos.reason = 'Unable to verify POS setup';
   }
 
@@ -88,6 +88,9 @@ export async function checkProviderReadiness(): Promise<ProviderReadiness> {
 
 /**
  * Checks if an automation can be activated based on its workflow steps and provider readiness
+ * 
+ * IMPORTANT: Automations are now ALLOWED to activate even if some channels are not configured.
+ * Unconfigured channel steps will be automatically skipped at runtime.
  */
 export async function checkActivationGuards(
   flowState: { nodes: any[]; edges: any[] },
@@ -107,17 +110,16 @@ export async function checkActivationGuards(
     blockedReasons.push('Automation must contain at least one email or SMS step');
   }
 
-  // Check email provider readiness
-  if (compilation.hasEmailSteps && !providers.email.ready) {
-    blockedReasons.push(providers.email.reason || 'Email provider not ready');
-  }
-
-  // Check SMS provider readiness
+  // SMS provider not ready -> WARNING (not blocking)
+  // Steps will be skipped at runtime if SMS is not configured
   if (compilation.hasSMSSteps && !providers.sms.ready) {
-    blockedReasons.push(providers.sms.reason || 'SMS provider not ready');
+    warnings.push('SMS steps will be automatically skipped if Twilio is not configured');
   }
 
-  // Check POS cart events for abandoned_cart trigger
+  // Email is always available with fallback, no need to warn
+
+  // Check POS cart events for abandoned_cart trigger - this IS blocking
+  // because we can't trigger without cart events
   if (triggerType === 'abandoned_cart' && !providers.pos.cartEventsEnabled) {
     blockedReasons.push(providers.pos.reason || 'Abandoned cart requires POS cart events to be enabled');
   }
@@ -146,14 +148,14 @@ export async function checkActivationGuards(
 export function getProviderSetupInfo() {
   return {
     email: {
-      title: 'Email Setup Required',
-      description: 'Verify your sending domain to enable email automations.',
+      title: 'Email Setup (Optional)',
+      description: 'Custom domain improves deliverability. Fallback sender is always available.',
       ctaText: 'Set up Email',
       ctaLink: '/settings/email'
     },
     sms: {
-      title: 'SMS Setup Required',
-      description: 'Configure Twilio to enable SMS automations.',
+      title: 'SMS Setup (Optional)',
+      description: 'Configure Twilio to enable SMS steps. Without it, SMS steps will be skipped.',
       ctaText: 'Set up SMS',
       ctaLink: '/settings/sms'
     },
