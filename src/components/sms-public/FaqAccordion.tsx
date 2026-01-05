@@ -29,7 +29,7 @@ const faqs = [
   },
   {
     question: 'How can I rejoin after opting out?',
-    answer: `If you previously opted out and want to rejoin, you can text ${SMS_BRAND_CONFIG.opt_in_keyword_primary} to our program number or use the signup form on this page.`,
+    answer: 'If you previously opted out and want to rejoin, you can use the signup form on the website or contact us at support@bloomsuite.app.',
   },
 ];
 

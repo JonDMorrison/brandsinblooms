@@ -32,9 +32,9 @@ Phone numbers: No
 Direct lending: No
 Age-gated: No`,
 
-    howEndUsersConsent: `Users opt in at https://bloomsuite.app/sms-program by entering their mobile number and checking a required consent box stating: 'I agree to receive recurring marketing text messages from BloomSuite. Msg and Data rates may apply. Reply HELP for help, STOP to cancel.' The page links to Terms and Privacy. Users may also opt in by texting ${SMS_BRAND_CONFIG.opt_in_keyword_primary} to ${programNumber}, after which an auto-reply confirms enrollment with frequency and HELP/STOP. We keep timestamped consent records.`,
+    howEndUsersConsent: `Users opt in at https://bloomsuite.app/sms-program by entering their mobile number and checking a required consent box stating: 'I agree to receive recurring marketing text messages from BloomSuite. Msg and Data rates may apply. Reply HELP for help, STOP to cancel.' The page links to Terms and Privacy. We keep timestamped consent records.`,
 
-    optInKeywords: SMS_BRAND_CONFIG.opt_in_keyword_primary,
+    optInKeywords: 'N/A (web form consent only)',
 
     optInAutoReply: `BloomSuite: You are subscribed to recurring marketing texts. ${SMS_BRAND_CONFIG.message_frequency_text}. Msg and Data rates may apply. Reply HELP for help, STOP to cancel. https://bloomsuite.app/terms https://bloomsuite.app/privacy`,
 
