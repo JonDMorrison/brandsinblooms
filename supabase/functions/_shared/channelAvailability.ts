@@ -18,16 +18,17 @@ export interface ChannelAvailability {
 /**
  * Check if SMS channel is available by verifying Twilio credentials
  */
-export function checkSMSAvailability(): ChannelStatus {
+export function checkSMSAvailability(): ChannelStatus & { sendMethod?: 'messaging_service' | 'phone_number' } {
   const twilioAccountSid = Deno.env.get('TWILIO_ACCOUNT_SID');
   const twilioAuthToken = Deno.env.get('TWILIO_AUTH_TOKEN');
+  const messagingServiceSid = Deno.env.get('TWILIO_MESSAGING_SERVICE_SID');
   const twilioPhoneNumber = Deno.env.get('TWILIO_PHONE_NUMBER');
 
-  if (!twilioAccountSid || !twilioAuthToken || !twilioPhoneNumber) {
+  // Check base credentials first
+  if (!twilioAccountSid || !twilioAuthToken) {
     const missing: string[] = [];
     if (!twilioAccountSid) missing.push('TWILIO_ACCOUNT_SID');
     if (!twilioAuthToken) missing.push('TWILIO_AUTH_TOKEN');
-    if (!twilioPhoneNumber) missing.push('TWILIO_PHONE_NUMBER');
     
     return {
       available: false,
@@ -35,7 +36,20 @@ export function checkSMSAvailability(): ChannelStatus {
     };
   }
 
-  return { available: true };
+  // SMS is available if EITHER MessagingServiceSid OR PhoneNumber is set
+  // Prefer MessagingServiceSid for toll-free compliance
+  if (messagingServiceSid) {
+    return { available: true, sendMethod: 'messaging_service' };
+  }
+  
+  if (twilioPhoneNumber) {
+    return { available: true, sendMethod: 'phone_number' };
+  }
+
+  return {
+    available: false,
+    reason: 'Twilio configured but missing TWILIO_MESSAGING_SERVICE_SID or TWILIO_PHONE_NUMBER'
+  };
 }
 
 /**
