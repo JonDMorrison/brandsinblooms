@@ -23,8 +23,8 @@ export const SmsPage = () => {
           {/* Intro Paragraph */}
           <p className="text-lg text-muted-foreground leading-relaxed mb-12">
             BloomSuite provides SMS messaging capabilities to independent garden centers so they can 
-            communicate with customers who have chosen to receive text messages. This page explains 
-            how BloomSuite SMS works, what messages you can expect, and how to manage your preferences.
+            communicate with customers who have explicitly opted in to receive text messages. This page 
+            explains how our SMS program works, what messages you may receive, and how to manage your preferences.
           </p>
 
           {/* Program Description */}
@@ -34,7 +34,7 @@ export const SmsPage = () => {
             </h2>
             <p className="text-muted-foreground leading-relaxed mb-4">
               BloomSuite SMS is used by independent garden centers to send informational and promotional 
-              text messages to customers who have explicitly opted in. Messages may include store 
+              text messages to customers who have explicitly opted in. These messages may include store 
               announcements, upcoming events, back-in-stock notifications, seasonal gardening tips, 
               and workshop reminders.
             </p>
@@ -49,10 +49,11 @@ export const SmsPage = () => {
               How You Opt In
             </h2>
             <p className="text-muted-foreground leading-relaxed mb-4">
-              Users opt in to receive SMS messages by entering their mobile phone number into a 
-              BloomSuite web form and checking a required consent box. The consent disclosure clearly 
-              states that recurring messages may be sent, that message and data rates may apply, and 
-              that users can reply STOP to opt out or HELP for assistance.
+              To receive SMS messages, you must explicitly opt in. Users opt in by entering their mobile 
+              phone number into a BloomSuite web form and checking a required consent box. The consent 
+              disclosure clearly states that recurring messages may be sent, that message and data rates 
+              may apply, and that users can reply <strong className="text-foreground">STOP</strong> to 
+              opt out or <strong className="text-foreground">HELP</strong> for assistance.
             </p>
             <p className="text-muted-foreground leading-relaxed">
               Consent is recorded with a timestamp and stored securely.
@@ -76,13 +77,17 @@ export const SmsPage = () => {
               Opt-Out and Help
             </h2>
             <p className="text-muted-foreground leading-relaxed mb-4">
-              You can opt out of SMS messages at any time by replying <strong className="text-foreground">STOP</strong> to any message.
-            </p>
-            <p className="text-muted-foreground leading-relaxed mb-4">
-              For help, reply <strong className="text-foreground">HELP</strong>.
+              You can opt out of SMS messages at any time by replying <strong className="text-foreground">STOP</strong> to 
+              any message. After opting out, you will no longer receive SMS messages unless you opt in again.
             </p>
             <p className="text-muted-foreground leading-relaxed">
-              After opting out, you will no longer receive SMS messages unless you opt in again.
+              For help, reply <strong className="text-foreground">HELP</strong> or contact support at{' '}
+              <a 
+                href={`mailto:${SMS_BRAND_CONFIG.support_email}`}
+                className="text-primary hover:text-primary/80 underline"
+              >
+                {SMS_BRAND_CONFIG.support_email}
+              </a>.
             </p>
           </section>
 
@@ -102,28 +107,24 @@ export const SmsPage = () => {
               Privacy and Terms
             </h2>
             <p className="text-muted-foreground leading-relaxed mb-4">
-              BloomSuite respects your privacy and does not sell or share mobile phone numbers.
-            </p>
-            <p className="text-muted-foreground leading-relaxed mb-2">
-              View our full policies here:
+              BloomSuite respects your privacy and does not sell or share mobile phone numbers. For more 
+              details, see our full policies:
             </p>
             <ul className="list-disc list-inside text-muted-foreground space-y-1">
               <li>
-                Privacy Policy:{' '}
                 <Link 
                   to="/privacy" 
                   className="text-primary hover:text-primary/80 underline"
                 >
-                  {SMS_BRAND_CONFIG.privacy_url}
+                  Privacy Policy
                 </Link>
               </li>
               <li>
-                Terms of Service:{' '}
                 <Link 
                   to="/terms" 
                   className="text-primary hover:text-primary/80 underline"
                 >
-                  {SMS_BRAND_CONFIG.terms_url}
+                  Terms of Service
                 </Link>
               </li>
             </ul>
@@ -134,16 +135,14 @@ export const SmsPage = () => {
             <h2 className="text-xl font-semibold text-foreground mb-4">
               Contact Information
             </h2>
-            <p className="text-muted-foreground leading-relaxed mb-2">
-              If you have questions about the BloomSuite SMS program, contact us at:
-            </p>
-            <p className="text-foreground">
+            <p className="text-muted-foreground leading-relaxed">
+              If you have questions about the BloomSuite SMS program, contact us at{' '}
               <a 
                 href={`mailto:${SMS_BRAND_CONFIG.support_email}`}
                 className="text-primary hover:text-primary/80 underline"
               >
                 {SMS_BRAND_CONFIG.support_email}
-              </a>
+              </a>.
             </p>
           </section>
         </div>
