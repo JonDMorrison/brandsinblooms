@@ -106,6 +106,79 @@ async function syncSquare(
       if (!error) result.customers = records.length;
     }
   }
+
+  // Loyalty sync
+  if (syncType === 'loyalty') {
+    console.log('[SQUARE-SYNC] Starting loyalty accounts sync...');
+    
+    const response = await fetch(`${baseUrl}/loyalty/accounts/search`, {
+      method: 'POST',
+      headers: { 
+        'Authorization': `Bearer ${accessToken}`, 
+        'Square-Version': '2024-01-18',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        limit: 100,
+        cursor: cursor || undefined
+      })
+    });
+    
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(err.errors?.[0]?.detail || 'Square Loyalty API error');
+    }
+    
+    const data = await response.json();
+    const loyaltyAccounts = data.loyalty_accounts || [];
+    result.cursor = data.cursor || null;
+    result.rows = loyaltyAccounts.length;
+    
+    console.log(`[SQUARE-SYNC] Found ${loyaltyAccounts.length} loyalty accounts`);
+    
+    // Process each loyalty account
+    for (const account of loyaltyAccounts) {
+      // 1. Find the customer by square_customer_id
+      const { data: customer } = await supabase
+        .from('crm_customers')
+        .select('id, tags')
+        .eq('tenant_id', connection.tenant_id)
+        .eq('square_customer_id', account.customer_id)
+        .single();
+      
+      if (customer) {
+        // 2. Add "Loyalty Member" tag if not present
+        const existingTags = customer.tags || [];
+        if (!existingTags.includes('Loyalty Member')) {
+          await supabase
+            .from('crm_customers')
+            .update({ 
+              tags: [...existingTags, 'Loyalty Member'],
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', customer.id);
+        }
+        
+        // 3. Upsert loyalty metrics
+        await supabase
+          .from('customer_loyalty_metrics')
+          .upsert({
+            tenant_id: connection.tenant_id,
+            customer_id: customer.id,
+            program_name: 'Square Loyalty',
+            points_balance: account.balance || 0,
+            lifetime_points: account.lifetime_points || 0,
+            enrolled_at: account.enrolled_at,
+            external_loyalty_id: account.id,
+            updated_at: new Date().toISOString()
+          }, { onConflict: 'external_loyalty_id' });
+        
+        result.customers++;
+      }
+    }
+    
+    console.log(`[SQUARE-SYNC] Processed ${result.customers} loyalty accounts`);
+  }
   
   return result;
 }
