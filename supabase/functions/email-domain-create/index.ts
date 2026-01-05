@@ -199,6 +199,24 @@ const handler = async (req: Request): Promise<Response> => {
         resendDomainId = createResult.id;
         console.log(`✅ Created new Resend domain: ${resendDomainId}`);
         
+        // Enable open and click tracking on the domain
+        try {
+          console.log(`📊 Enabling open and click tracking for domain ${resendDomainId}...`);
+          const { data: updateResult, error: updateError } = await resend.domains.update({
+            id: resendDomainId,
+            openTracking: true,
+            clickTracking: true
+          });
+          
+          if (updateError) {
+            console.warn(`⚠️ Failed to enable tracking (non-fatal):`, updateError);
+          } else {
+            console.log(`✅ Open and click tracking enabled for domain`);
+          }
+        } catch (trackingError) {
+          console.warn(`⚠️ Failed to enable tracking (non-fatal):`, trackingError);
+        }
+        
         await new Promise(resolve => setTimeout(resolve, 1000));
         
         const { data: domainDetails, error: getError } = await resend.domains.get(resendDomainId);
