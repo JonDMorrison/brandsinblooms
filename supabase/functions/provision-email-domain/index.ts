@@ -89,6 +89,26 @@ const handler = async (req: Request): Promise<Response> => {
       }
 
       console.log(`✅ Domain created successfully in Resend:`, domainResult.data);
+      
+      // Enable open and click tracking on the domain
+      if (domainResult.data?.id) {
+        try {
+          console.log(`📊 Enabling open and click tracking for domain ${domainResult.data.id}...`);
+          const { data: updateResult, error: updateError } = await resend.domains.update({
+            id: domainResult.data.id,
+            openTracking: true,
+            clickTracking: true
+          });
+          
+          if (updateError) {
+            console.warn(`⚠️ Failed to enable tracking (non-fatal):`, updateError);
+          } else {
+            console.log(`✅ Open and click tracking enabled for domain`);
+          }
+        } catch (trackingError) {
+          console.warn(`⚠️ Failed to enable tracking (non-fatal):`, trackingError);
+        }
+      }
 
       // Update the user's profile with provisioned status
       const { error: updateError } = await supabase

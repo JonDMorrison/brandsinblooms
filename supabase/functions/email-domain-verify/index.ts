@@ -655,6 +655,24 @@ const handler = async (req: Request): Promise<Response> => {
     try {
       console.log(`📧 Triggering Resend verification for: ${emailDomain.resend_domain_id}`);
       
+      // Step 0: Ensure open and click tracking is enabled for this domain
+      try {
+        console.log(`📊 Enabling open and click tracking for domain ${emailDomain.resend_domain_id}...`);
+        const { data: updateResult, error: updateError } = await resend.domains.update({
+          id: emailDomain.resend_domain_id,
+          openTracking: true,
+          clickTracking: true
+        });
+        
+        if (updateError) {
+          console.warn(`⚠️ Failed to enable tracking (non-fatal):`, updateError);
+        } else {
+          console.log(`✅ Open and click tracking enabled for domain`);
+        }
+      } catch (trackingError) {
+        console.warn(`⚠️ Failed to enable tracking (non-fatal):`, trackingError);
+      }
+      
       // Step 1: Trigger Resend to re-check DNS records
       try {
         const { data: verifyResult, error: verifyError } = await resend.domains.verify(emailDomain.resend_domain_id);
