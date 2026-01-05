@@ -5,17 +5,18 @@ import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Loader2, CheckCircle, XCircle, Plug, Clock, BookOpen, Sparkles, RefreshCw, Users, AlertTriangle } from 'lucide-react';
+import { Loader2, CheckCircle, XCircle, Plug, Clock, BookOpen, Sparkles, RefreshCw, Users, AlertTriangle, Shield } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Link } from 'react-router-dom';
 import { detectEnvironment } from '@/utils/environmentUtils';
 import { SquareSetupWizard } from './square/SquareSetupWizard';
+import { SquareReauthorizationGuide } from './square/SquareReauthorizationGuide';
 import { usePOSSyncJob } from '@/hooks/usePOSSyncJob';
-
 export const SquareIntegration = () => {
   const [loading, setLoading] = useState(false);
   const [loadingStep, setLoadingStep] = useState<'preparing' | 'redirecting' | 'completing'>('preparing');
   const [showSetupWizard, setShowSetupWizard] = useState(false);
+  const [showReauthGuide, setShowReauthGuide] = useState(false);
   const previousConnectionRef = useRef<any>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -451,6 +452,10 @@ export const SquareIntegration = () => {
                   Run Setup Wizard
                 </Button>
               )}
+              <Button onClick={() => setShowReauthGuide(true)} size="sm" variant="outline">
+                <Shield className="h-4 w-4 mr-2" />
+                Update Permissions
+              </Button>
               <Button onClick={() => disconnectMutation.mutate()} disabled={disconnectMutation.isPending || loading || isSyncing} size="sm" variant="destructive">
                 {disconnectMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                 Disconnect
@@ -471,6 +476,16 @@ export const SquareIntegration = () => {
         onOpenChange={setShowSetupWizard}
         merchantName={connection?.merchant_name}
         connectionId={connection?.id}
+      />
+
+      {/* Reauthorization Guide */}
+      <SquareReauthorizationGuide
+        open={showReauthGuide}
+        onOpenChange={setShowReauthGuide}
+        connectionId={connection?.id}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ['square-connection'] });
+        }}
       />
     </>
   );
