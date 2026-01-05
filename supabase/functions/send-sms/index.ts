@@ -87,15 +87,9 @@ async function handler(req: Request): Promise<Response> {
     // Get Twilio credentials (already validated above)
     const twilioAccountSid = Deno.env.get('TWILIO_ACCOUNT_SID')!;
     const twilioAuthToken = Deno.env.get('TWILIO_AUTH_TOKEN')!;
-    const twilioPhoneNumber = Deno.env.get('TWILIO_PHONE_NUMBER')!;
-
-    // Select from phone: custom fromPhone or default
-    const defaultFromPhone = twilioPhoneNumber;
-    const selectedFromPhone = fromPhone 
-      ? formatPhoneForTwilio(fromPhone) 
-      : formatPhoneForTwilio(defaultFromPhone);
-    
-    console.log(`Using From number: ${selectedFromPhone} (${fromPhone ? 'custom' : 'default'})`);
+    const twilioPhoneNumber = Deno.env.get('TWILIO_PHONE_NUMBER');
+    const messagingServiceSid = Deno.env.get('TWILIO_MESSAGING_SERVICE_SID');
+    const statusCallbackUrl = Deno.env.get('TWILIO_STATUS_CALLBACK_URL');
 
     // Prepare Twilio API request
     const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${twilioAccountSid}/Messages.json`;
@@ -104,8 +98,40 @@ async function handler(req: Request): Promise<Response> {
     // Prepare form data
     const formData = new FormData();
     formData.append('To', formattedTo);
-    formData.append('From', selectedFromPhone);
     formData.append('Body', body);
+
+    // PRIORITY: Use MessagingServiceSid for toll-free compliance
+    // Only fallback to From number if MessagingServiceSid is not configured
+    if (messagingServiceSid) {
+      formData.append('MessagingServiceSid', messagingServiceSid);
+      console.log(`📱 Using MessagingServiceSid: ${messagingServiceSid}`);
+    } else if (twilioPhoneNumber) {
+      const selectedFromPhone = fromPhone 
+        ? formatPhoneForTwilio(fromPhone) 
+        : formatPhoneForTwilio(twilioPhoneNumber);
+      formData.append('From', selectedFromPhone);
+      console.log(`📱 Using From number: ${selectedFromPhone} (fallback - no MessagingServiceSid)`);
+    } else {
+      console.error('❌ No MessagingServiceSid or From number configured');
+      return new Response(
+        JSON.stringify({ 
+          error: 'SMS_NOT_CONFIGURED',
+          message: 'Neither MessagingServiceSid nor From number is configured',
+          skipable: true,
+          canRetry: false
+        }), 
+        { 
+          status: 200, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+
+    // Add status callback if configured
+    if (statusCallbackUrl) {
+      formData.append('StatusCallback', statusCallbackUrl);
+      console.log(`📱 StatusCallback: ${statusCallbackUrl}`);
+    }
 
     // Add media URLs if provided (for MMS)
     const allMediaUrls = [];
@@ -115,13 +141,6 @@ async function handler(req: Request): Promise<Response> {
     allMediaUrls.forEach(url => {
       formData.append('MediaUrl', url);
     });
-
-    // Add status callback to track delivery (optional - set a webhook URL if available)
-    // This will help track actual delivery vs just "queued"
-    const statusCallbackUrl = Deno.env.get('TWILIO_STATUS_CALLBACK_URL');
-    if (statusCallbackUrl) {
-      formData.append('StatusCallback', statusCallbackUrl);
-    }
 
     // Send SMS via Twilio
     const twilioResponse = await fetch(twilioUrl, {
