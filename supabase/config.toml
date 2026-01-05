@@ -256,6 +256,9 @@ verify_jwt = true
 [functions.square-webhook-handler]
 verify_jwt = false
 
+[functions.square-manage-webhooks]
+verify_jwt = true
+
 [functions.entri-domain-callback]
 verify_jwt = true
 
