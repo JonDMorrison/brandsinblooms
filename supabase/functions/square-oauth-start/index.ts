@@ -114,7 +114,7 @@ Deno.serve(async (req) => {
 
     const authUrl = new URL(authBaseUrl);
     authUrl.searchParams.set('client_id', clientId);
-    authUrl.searchParams.set('scope', 'MERCHANT_PROFILE_READ CUSTOMERS_READ CUSTOMERS_WRITE PAYMENTS_READ ITEMS_READ ORDERS_READ');
+    authUrl.searchParams.set('scope', 'MERCHANT_PROFILE_READ CUSTOMERS_READ CUSTOMERS_WRITE PAYMENTS_READ ITEMS_READ ORDERS_READ LOYALTY_READ');
     authUrl.searchParams.set('redirect_uri', callbackUrl);
     authUrl.searchParams.set('state', state);
     authUrl.searchParams.set('session', 'false'); // Don't remember on Square side
