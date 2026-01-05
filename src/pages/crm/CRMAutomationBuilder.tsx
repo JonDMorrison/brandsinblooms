@@ -7,7 +7,8 @@ import { useToast } from '@/hooks/use-toast';
 import { ReviewLaunchModal } from '@/components/automation/flow/ReviewLaunchModal';
 import { AutomationFlowCanvas } from '@/components/automation/flow/AutomationFlowCanvas';
 import { FlowStatusBadge } from '@/components/automation/flow/FlowValidation';
-import { Save } from 'lucide-react';
+import { AudienceSelector } from '@/components/crm/AudienceSelector';
+import { Save, Users } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
@@ -25,6 +26,7 @@ export const CRMAutomationBuilder = () => {
   const [flowState, setFlowState] = useState<{ nodes: any[]; edges: any[] }>({ nodes: [], edges: [] });
   const [selectedPersonas, setSelectedPersonas] = useState<any[]>([]);
   const [selectedSegments, setSelectedSegments] = useState<any[]>([]);
+  const [showAudienceSelector, setShowAudienceSelector] = useState(false);
   
   const { toast } = useToast();
   const { user } = useAuth();
@@ -384,10 +386,7 @@ export const CRMAutomationBuilder = () => {
                   }));
                   toast({ title: 'Trigger Added', description: 'A trigger node has been added to your flow.' });
                 }}
-                onOpenAudienceSelector={() => {
-                  // For now, show a toast - this could be expanded to open a modal
-                  toast({ title: 'Audience Selector', description: 'Use the audience targeting above to select your audience.' });
-                }}
+                onOpenAudienceSelector={() => setShowAudienceSelector(true)}
                 onEditNode={(nodeId) => {
                   // For now, show a toast - this would need integration with the node editor
                   const node = flowState.nodes.find(n => n.id === nodeId);
@@ -470,6 +469,31 @@ export const CRMAutomationBuilder = () => {
         onTestSend={() => {}}
         isLoading={isSaving}
       />
+
+      {/* Audience Selector Modal */}
+      {showAudienceSelector && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-lg max-w-6xl w-full max-h-[90vh] flex flex-col overflow-hidden">
+            <div className="p-6 border-b bg-white flex-shrink-0">
+              <h3 className="text-lg font-semibold flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                Configure Target Audience
+              </h3>
+            </div>
+            <div className="flex-1 overflow-y-auto min-h-0">
+              <AudienceSelector
+                selectedPersonas={selectedPersonas}
+                selectedSegments={selectedSegments}
+                onPersonasChange={setSelectedPersonas}
+                onSegmentsChange={setSelectedSegments}
+                maxPersonas={3}
+                maxSegments={5}
+                onClose={() => setShowAudienceSelector(false)}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
