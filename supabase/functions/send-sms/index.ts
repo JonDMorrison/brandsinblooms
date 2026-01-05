@@ -1,6 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.10';
+import { checkSMSAvailability } from "../_shared/channelAvailability.ts";
 
 /**
  * Format phone number to E.164 format for Twilio
@@ -55,6 +56,24 @@ async function handler(req: Request): Promise<Response> {
       );
     }
 
+    // Check if SMS channel is available BEFORE attempting to send
+    const smsStatus = checkSMSAvailability();
+    if (!smsStatus.available) {
+      console.log(`📱 SMS not configured: ${smsStatus.reason}`);
+      return new Response(
+        JSON.stringify({ 
+          error: 'SMS_NOT_CONFIGURED',
+          skipable: true,
+          message: smsStatus.reason || 'Twilio credentials not configured. Step can be skipped.',
+          canRetry: false
+        }), 
+        { 
+          status: 200, // Return 200 so caller can handle gracefully
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+
     // Format phone number to E.164 format
     const formattedTo = formatPhoneForTwilio(to);
     console.log(`Sending SMS to ${to} (formatted: ${formattedTo}): ${body.substring(0, 50)}...`);
@@ -65,20 +84,10 @@ async function handler(req: Request): Promise<Response> {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
 
-    // Get Twilio credentials
-    const twilioAccountSid = Deno.env.get('TWILIO_ACCOUNT_SID');
-    const twilioAuthToken = Deno.env.get('TWILIO_AUTH_TOKEN');
-    const twilioPhoneNumber = Deno.env.get('TWILIO_PHONE_NUMBER');
-
-    if (!twilioAccountSid || !twilioAuthToken || !twilioPhoneNumber) {
-      return new Response(
-        JSON.stringify({ error: 'Twilio credentials not configured' }), 
-        { 
-          status: 500, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      );
-    }
+    // Get Twilio credentials (already validated above)
+    const twilioAccountSid = Deno.env.get('TWILIO_ACCOUNT_SID')!;
+    const twilioAuthToken = Deno.env.get('TWILIO_AUTH_TOKEN')!;
+    const twilioPhoneNumber = Deno.env.get('TWILIO_PHONE_NUMBER')!;
 
     // Select from phone: custom fromPhone or default
     const defaultFromPhone = twilioPhoneNumber;
@@ -130,7 +139,9 @@ async function handler(req: Request): Promise<Response> {
       return new Response(
         JSON.stringify({
           error: 'Failed to send SMS',
-          details: twilioData.message || 'Unknown Twilio error'
+          details: twilioData.message || 'Unknown Twilio error',
+          skipable: false,
+          canRetry: true
         }), 
         { 
           status: 400, 
@@ -164,7 +175,8 @@ async function handler(req: Request): Promise<Response> {
       JSON.stringify({
         sid: twilioData.sid,
         status: twilioData.status,
-        message: 'SMS sent successfully'
+        message: 'SMS sent successfully',
+        skipable: false
       }), 
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -176,7 +188,9 @@ async function handler(req: Request): Promise<Response> {
     return new Response(
       JSON.stringify({ 
         error: 'Internal server error',
-        message: error.message
+        message: error.message,
+        skipable: false,
+        canRetry: true
       }), 
       {
         status: 500,

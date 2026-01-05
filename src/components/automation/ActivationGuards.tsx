@@ -2,7 +2,7 @@ import React from 'react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { AlertCircle, CheckCircle, Mail, MessageSquare, ShoppingCart, Settings } from 'lucide-react';
+import { AlertCircle, CheckCircle, Mail, MessageSquare, ShoppingCart, Settings, AlertTriangle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { ActivationGuard, ProviderReadiness, getProviderSetupInfo } from '@/lib/automation/guardrails';
 
@@ -26,24 +26,30 @@ export const ActivationGuards: React.FC<ActivationGuardsProps> = ({
   const navigate = useNavigate();
   const setupInfo = getProviderSetupInfo();
 
+  // Can activate - show ready status with any warnings
   if (guard.canActivate) {
     return (
-      <div className={`space-y-2 ${className}`}>
+      <div className={`space-y-3 ${className}`}>
         <div className="flex items-center gap-2 text-sm text-green-600">
           <CheckCircle className="w-4 h-4" />
           <span>Ready to activate</span>
         </div>
+        
+        {/* Channel status badges */}
         <div className="flex flex-wrap gap-2">
           {hasEmailSteps && (
-            <Badge variant={providers.email.ready ? 'default' : 'destructive'} className="text-xs">
+            <Badge variant="default" className="text-xs bg-green-100 text-green-800 hover:bg-green-100">
               <Mail className="w-3 h-3 mr-1" />
-              Email {providers.email.ready ? 'Ready' : 'Not Ready'}
+              Email Ready
             </Badge>
           )}
           {hasSMSSteps && (
-            <Badge variant={providers.sms.ready ? 'default' : 'destructive'} className="text-xs">
+            <Badge 
+              variant={providers.sms.ready ? 'default' : 'secondary'} 
+              className={`text-xs ${providers.sms.ready ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}`}
+            >
               <MessageSquare className="w-3 h-3 mr-1" />
-              SMS {providers.sms.ready ? 'Ready' : 'Not Ready'}
+              SMS {providers.sms.ready ? 'Ready' : 'Will Skip'}
             </Badge>
           )}
           {triggerType === 'abandoned_cart' && (
@@ -53,10 +59,47 @@ export const ActivationGuards: React.FC<ActivationGuardsProps> = ({
             </Badge>
           )}
         </div>
+
+        {/* Show warnings if any (like SMS will be skipped) */}
+        {guard.warnings.length > 0 && (
+          <Alert className="border-amber-200 bg-amber-50">
+            <AlertTriangle className="h-4 w-4 text-amber-600" />
+            <AlertDescription>
+              <ul className="list-disc list-inside text-sm text-amber-800">
+                {guard.warnings.map((warning, index) => (
+                  <li key={index}>{warning}</li>
+                ))}
+              </ul>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Optional: Show SMS setup CTA if SMS steps exist but not configured */}
+        {hasSMSSteps && !providers.sms.ready && (
+          <div className="flex items-center justify-between p-3 bg-amber-50 rounded-lg border border-amber-200">
+            <div className="flex items-center gap-2">
+              <MessageSquare className="w-4 h-4 text-amber-600" />
+              <div>
+                <div className="font-medium text-amber-900">{setupInfo.sms.title}</div>
+                <div className="text-sm text-amber-700">{setupInfo.sms.description}</div>
+              </div>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => navigate(setupInfo.sms.ctaLink)}
+              className="border-amber-300 text-amber-700 hover:bg-amber-100"
+            >
+              <Settings className="w-3 h-3 mr-1" />
+              {setupInfo.sms.ctaText}
+            </Button>
+          </div>
+        )}
       </div>
     );
   }
 
+  // Cannot activate - show blocking errors
   return (
     <div className={`space-y-3 ${className}`}>
       <Alert variant="destructive">
@@ -73,50 +116,9 @@ export const ActivationGuards: React.FC<ActivationGuardsProps> = ({
         </AlertDescription>
       </Alert>
 
-      {/* Provider setup CTAs */}
+      {/* Provider setup CTAs for blocking issues only */}
       <div className="space-y-2">
-        {hasEmailSteps && !providers.email.ready && (
-          <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg border border-blue-200">
-            <div className="flex items-center gap-2">
-              <Mail className="w-4 h-4 text-blue-600" />
-              <div>
-                <div className="font-medium text-blue-900">{setupInfo.email.title}</div>
-                <div className="text-sm text-blue-700">{setupInfo.email.description}</div>
-              </div>
-            </div>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => navigate(setupInfo.email.ctaLink)}
-              className="border-blue-300 text-blue-700 hover:bg-blue-100"
-            >
-              <Settings className="w-3 h-3 mr-1" />
-              {setupInfo.email.ctaText}
-            </Button>
-          </div>
-        )}
-
-        {hasSMSSteps && !providers.sms.ready && (
-          <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-200">
-            <div className="flex items-center gap-2">
-              <MessageSquare className="w-4 h-4 text-green-600" />
-              <div>
-                <div className="font-medium text-green-900">{setupInfo.sms.title}</div>
-                <div className="text-sm text-green-700">{setupInfo.sms.description}</div>
-              </div>
-            </div>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => navigate(setupInfo.sms.ctaLink)}
-              className="border-green-300 text-green-700 hover:bg-green-100"
-            >
-              <Settings className="w-3 h-3 mr-1" />
-              {setupInfo.sms.ctaText}
-            </Button>
-          </div>
-        )}
-
+        {/* POS cart events - this IS blocking for abandoned_cart */}
         {triggerType === 'abandoned_cart' && !providers.pos.cartEventsEnabled && (
           <div className="flex items-center justify-between p-3 bg-orange-50 rounded-lg border border-orange-200">
             <div className="flex items-center gap-2">
@@ -141,12 +143,12 @@ export const ActivationGuards: React.FC<ActivationGuardsProps> = ({
 
       {/* Warnings */}
       {guard.warnings.length > 0 && (
-        <Alert>
-          <AlertCircle className="h-4 w-4" />
+        <Alert className="border-amber-200 bg-amber-50">
+          <AlertTriangle className="h-4 w-4 text-amber-600" />
           <AlertDescription>
             <div className="space-y-1">
-              <div className="font-medium">Warnings:</div>
-              <ul className="list-disc list-inside text-sm">
+              <div className="font-medium text-amber-900">Warnings:</div>
+              <ul className="list-disc list-inside text-sm text-amber-800">
                 {guard.warnings.map((warning, index) => (
                   <li key={index}>{warning}</li>
                 ))}
