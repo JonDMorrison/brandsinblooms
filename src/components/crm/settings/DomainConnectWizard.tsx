@@ -11,7 +11,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Globe, ArrowRight, Loader2, Info, CheckCircle2, Zap, Settings, Sparkles } from 'lucide-react';
+import { Globe, ArrowRight, Loader2, Info, CheckCircle2, Zap, Settings, Sparkles, Copy, Check, ExternalLink } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 import { useEmailDomainManagement } from '@/hooks/useEmailDomainManagement';
 import { useEntriConnect } from '@/hooks/useEntriConnect';
 import { useTenant } from '@/hooks/useTenant';
@@ -27,6 +28,7 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({ open, 
   const { provisionDomain, refetch } = useEmailDomainManagement();
   const { openEntriSetup, sanitizeAndConvertRecords, isEntriConfigured, isLoading: entriLoading } = useEntriConnect();
   const { tenant } = useTenant();
+  const { toast } = useToast();
   
   const [step, setStep] = useState<WizardStep>('enter_domain');
   const [domain, setDomain] = useState('');
@@ -35,6 +37,38 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({ open, 
   const [provisionedData, setProvisionedData] = useState<any>(null);
   const [entriProvider, setEntriProvider] = useState<string | null>(null);
   const [isEntriModalOpen, setIsEntriModalOpen] = useState(false);
+  const [copiedRecordId, setCopiedRecordId] = useState<string | null>(null);
+
+  const copyToClipboard = async (text: string, recordId: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedRecordId(recordId);
+      setTimeout(() => setCopiedRecordId(null), 2000);
+    } catch (err) {
+      toast({
+        title: "Copy failed",
+        description: "Please copy manually",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const getRecordPurpose = (record: any): string => {
+    const name = record.name?.toLowerCase() || '';
+    const recordType = record.record_type || record.type || '';
+    
+    if (name.includes('_dmarc')) return 'DMARC (Policy)';
+    if (name.includes('domainkey') || name.includes('dkim')) return 'DKIM (Email Signing)';
+    if (recordType === 'MX') return 'MX (Mail Exchange)';
+    if (recordType === 'TXT' && !name.includes('dmarc') && !name.includes('domainkey')) return 'SPF (Sender Policy)';
+    return 'DNS Record';
+  };
+
+  const dnsProviderLinks = [
+    { name: 'Cloudflare', url: 'https://dash.cloudflare.com/' },
+    { name: 'GoDaddy', url: 'https://dcc.godaddy.com/domains' },
+    { name: 'Namecheap', url: 'https://ap.www.namecheap.com/domains/list/' },
+  ];
 
   const validateDomain = (value: string): boolean => {
     const domainRegex = /^[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9]?\.[a-zA-Z]{2,}$/;
@@ -380,17 +414,100 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({ open, 
             <Alert className="bg-green-50 border-green-200 dark:bg-green-950/20 dark:border-green-900">
               <CheckCircle2 className="h-4 w-4 text-green-600" />
               <AlertDescription className="text-green-800 dark:text-green-200">
-                Domain registered! Now add the DNS records to verify ownership.
+                Domain registered! Now add the DNS records below to verify ownership.
               </AlertDescription>
             </Alert>
 
-            <div className="space-y-2">
+            {/* DNS Records Display */}
+            {provisionedData?.records && provisionedData.records.length > 0 ? (
+              <div className="space-y-3">
+                <p className="text-sm font-medium">DNS Records to Add:</p>
+                <div className="border rounded-lg divide-y max-h-[240px] overflow-y-auto">
+                  {provisionedData.records.map((record: any, index: number) => {
+                    const recordId = `record-${index}`;
+                    const recordType = record.record_type || record.type || 'TXT';
+                    const recordName = record.name || '@';
+                    const recordValue = record.value || record.data || '';
+                    const purpose = getRecordPurpose(record);
+                    
+                    return (
+                      <div key={recordId} className="p-3 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="px-2 py-0.5 text-xs font-mono font-medium bg-muted rounded">
+                              {recordType}
+                            </span>
+                            <span className="text-xs text-muted-foreground">{purpose}</span>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2"
+                            onClick={() => copyToClipboard(recordValue, recordId)}
+                          >
+                            {copiedRecordId === recordId ? (
+                              <Check className="h-3.5 w-3.5 text-green-600" />
+                            ) : (
+                              <Copy className="h-3.5 w-3.5" />
+                            )}
+                            <span className="ml-1 text-xs">
+                              {copiedRecordId === recordId ? 'Copied' : 'Copy'}
+                            </span>
+                          </Button>
+                        </div>
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2 text-xs">
+                            <span className="text-muted-foreground w-12">Name:</span>
+                            <code className="font-mono text-foreground bg-muted px-1.5 py-0.5 rounded break-all">
+                              {recordName}
+                            </code>
+                          </div>
+                          <div className="flex items-start gap-2 text-xs">
+                            <span className="text-muted-foreground w-12 shrink-0">Value:</span>
+                            <code className="font-mono text-foreground bg-muted px-1.5 py-0.5 rounded break-all text-[11px] leading-relaxed">
+                              {recordValue.length > 80 ? `${recordValue.substring(0, 80)}...` : recordValue}
+                            </code>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Provider Quick Links */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs text-muted-foreground">Quick links:</span>
+                  {dnsProviderLinks.map((provider) => (
+                    <a
+                      key={provider.name}
+                      href={provider.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                    >
+                      {provider.name}
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <Alert>
+                <Info className="h-4 w-4" />
+                <AlertDescription className="text-xs">
+                  DNS records could not be loaded. Please close this wizard and click "DNS Instructions" 
+                  on your domain in the list to view the records.
+                </AlertDescription>
+              </Alert>
+            )}
+
+            <div className="space-y-2 pt-2 border-t">
               <p className="text-sm font-medium">Next Steps:</p>
-              <ol className="text-sm text-muted-foreground space-y-2 list-decimal list-inside">
-                <li>Go to your DNS provider (Cloudflare, GoDaddy, etc.)</li>
-                <li>Add the DNS records shown in the domain settings</li>
-                <li>Wait for DNS propagation (up to 48 hours, usually faster)</li>
-                <li>Click "Check DNS" to verify your records</li>
+              <ol className="text-sm text-muted-foreground space-y-1.5 list-decimal list-inside">
+                <li>Go to your DNS provider</li>
+                <li>Add the records shown above</li>
+                <li>Wait for propagation (up to 48 hours)</li>
+                <li>Click "Check DNS" to verify</li>
               </ol>
             </div>
 
