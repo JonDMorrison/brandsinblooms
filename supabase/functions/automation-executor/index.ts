@@ -23,35 +23,6 @@ interface WorkflowStep {
   text: string;
 }
 
-// Normalize workflow_steps from either array format or React Flow object format
-function normalizeWorkflowSteps(workflowSteps: any): WorkflowStep[] {
-  // If it's already an array, return as-is
-  if (Array.isArray(workflowSteps)) {
-    return workflowSteps;
-  }
-  
-  // If it's React Flow format with nodes/edges
-  if (workflowSteps && typeof workflowSteps === 'object' && Array.isArray(workflowSteps.nodes)) {
-    console.log(`🔄 Converting React Flow format (${workflowSteps.nodes.length} nodes)`);
-    return workflowSteps.nodes
-      .filter((node: any) => node.type === 'email' || node.type === 'sms')
-      .map((node: any, index: number) => {
-        // Find delay from preceding delay node or use 0
-        const delayMin = node.data?.delay ? parseDelayToMinutes(node.data.delay) : 0;
-        return {
-          type: node.type as 'email' | 'sms',
-          delayMin,
-          subject: node.data?.subject || '',
-          text: node.data?.content || node.data?.text || ''
-        };
-      });
-  }
-  
-  // Fallback: return empty array
-  console.log(`⚠️ Unknown workflow_steps format, returning empty array`);
-  return [];
-}
-
 // Parse delay string like "1 day", "2 hours", "30 minutes" to minutes
 function parseDelayToMinutes(delay: string | number): number {
   if (typeof delay === 'number') return delay;
@@ -71,6 +42,92 @@ function parseDelayToMinutes(delay: string | number): number {
     case 'week': return value * 60 * 24 * 7;
     default: return 0;
   }
+}
+
+// Parse delay from various step formats to minutes
+function parseStepDelay(step: any): number {
+  // If delayMin already exists as a number, use it
+  if (typeof step.delayMin === 'number' && !isNaN(step.delayMin)) {
+    return step.delayMin;
+  }
+  
+  // Handle delayValue + delayUnit format (e.g., {delayValue: 2, delayUnit: "days"})
+  if (step.delayValue !== undefined && step.delayUnit) {
+    const value = parseInt(step.delayValue, 10) || 0;
+    switch (step.delayUnit) {
+      case 'minutes': return value;
+      case 'hours': return value * 60;
+      case 'days': return value * 60 * 24;
+      case 'weeks': return value * 60 * 24 * 7;
+      default: return 0;
+    }
+  }
+  
+  // Handle delay string format (e.g., "24 hours", "Immediate")
+  if (step.delay !== undefined) {
+    return parseDelayToMinutes(step.delay);
+  }
+  
+  return 0; // Default to immediate
+}
+
+// Normalize workflow_steps from either array format or React Flow object format
+function normalizeWorkflowSteps(workflowSteps: any): WorkflowStep[] {
+  // If it's already an array, parse each step properly
+  if (Array.isArray(workflowSteps)) {
+    console.log(`🔄 Normalizing array format (${workflowSteps.length} steps)`);
+    
+    // Calculate cumulative delays from delay nodes
+    let cumulativeDelayFromDelayNodes = 0;
+    const normalizedSteps: WorkflowStep[] = [];
+    
+    for (const step of workflowSteps) {
+      // If this is a delay-type node, accumulate it for the next message step
+      if (step.type === 'delay') {
+        cumulativeDelayFromDelayNodes += parseStepDelay(step);
+        continue;
+      }
+      
+      // Only process email and sms steps
+      if (step.type === 'email' || step.type === 'sms') {
+        const stepDelay = parseStepDelay(step);
+        const totalDelay = stepDelay + cumulativeDelayFromDelayNodes;
+        
+        normalizedSteps.push({
+          type: step.type as 'email' | 'sms',
+          delayMin: totalDelay,
+          subject: step.subject || '',
+          text: step.content || step.text || ''
+        });
+        
+        // Reset cumulative delay after applying to a message step
+        cumulativeDelayFromDelayNodes = 0;
+      }
+    }
+    
+    console.log(`📋 Normalized ${normalizedSteps.length} message steps from array`);
+    return normalizedSteps;
+  }
+  
+  // If it's React Flow format with nodes/edges
+  if (workflowSteps && typeof workflowSteps === 'object' && Array.isArray(workflowSteps.nodes)) {
+    console.log(`🔄 Converting React Flow format (${workflowSteps.nodes.length} nodes)`);
+    return workflowSteps.nodes
+      .filter((node: any) => node.type === 'email' || node.type === 'sms')
+      .map((node: any) => {
+        const delayMin = node.data?.delay ? parseDelayToMinutes(node.data.delay) : 0;
+        return {
+          type: node.type as 'email' | 'sms',
+          delayMin,
+          subject: node.data?.subject || '',
+          text: node.data?.content || node.data?.text || ''
+        };
+      });
+  }
+  
+  // Fallback: return empty array
+  console.log(`⚠️ Unknown workflow_steps format, returning empty array`);
+  return [];
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -351,6 +408,9 @@ async function createAutomationRun(
 }
 
 function calculateScheduledTime(delayMin: number, automation: any, customer: any): Date {
+  // Ensure delayMin is a valid number to prevent Invalid Date errors
+  const safeDelayMin = typeof delayMin === 'number' && !isNaN(delayMin) ? delayMin : 0;
+  
   const baseTime = new Date();
   
   // Handle special trigger types with different base times
@@ -364,11 +424,11 @@ function calculateScheduledTime(delayMin: number, automation: any, customer: any
       thisYearBirthday.setFullYear(currentYear + 1);
     }
     
-    return new Date(thisYearBirthday.getTime() + delayMin * 60 * 1000);
+    return new Date(thisYearBirthday.getTime() + safeDelayMin * 60 * 1000);
   }
 
   // Default: schedule relative to now
-  return new Date(baseTime.getTime() + delayMin * 60 * 1000);
+  return new Date(baseTime.getTime() + safeDelayMin * 60 * 1000);
 }
 
 async function getEligibleCustomers(supabase: any, automation: any) {
