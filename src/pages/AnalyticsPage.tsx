@@ -100,6 +100,7 @@ const AnalyticsPage = () => {
         conversions={conversions}
         growth={growth}
         loading={loading}
+        dateRange={selectedPeriod}
       />
 
       {/* Email Campaign Performance */}
