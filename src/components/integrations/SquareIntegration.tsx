@@ -5,7 +5,7 @@ import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Loader2, CheckCircle, XCircle, Plug, Clock, BookOpen, Sparkles, RefreshCw, Users, AlertTriangle, Shield } from 'lucide-react';
+import { Loader2, CheckCircle, XCircle, Plug, Clock, BookOpen, Sparkles, RefreshCw, Users, AlertTriangle, Shield, Heart } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Link } from 'react-router-dom';
 import { detectEnvironment } from '@/utils/environmentUtils';
@@ -17,6 +17,7 @@ export const SquareIntegration = () => {
   const [loadingStep, setLoadingStep] = useState<'preparing' | 'redirecting' | 'completing'>('preparing');
   const [showSetupWizard, setShowSetupWizard] = useState(false);
   const [showReauthGuide, setShowReauthGuide] = useState(false);
+  const [loyaltySyncing, setLoyaltySyncing] = useState(false);
   const previousConnectionRef = useRef<any>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -452,6 +453,28 @@ export const SquareIntegration = () => {
                   Run Setup Wizard
                 </Button>
               )}
+              <Button 
+                onClick={async () => {
+                  setLoyaltySyncing(true);
+                  try {
+                    toast({ title: 'Starting loyalty sync...', description: 'Fetching loyalty members from Square.' });
+                    const { data, error } = await supabase.functions.invoke('square-loyalty-backfill');
+                    if (error) throw error;
+                    toast({ title: '✓ Loyalty sync complete', description: `Synced ${data?.synced || 0} loyalty members.` });
+                    queryClient.invalidateQueries({ queryKey: ['square-connection'] });
+                  } catch (error: any) {
+                    toast({ title: 'Loyalty sync failed', description: error.message, variant: 'destructive' });
+                  } finally {
+                    setLoyaltySyncing(false);
+                  }
+                }} 
+                disabled={loyaltySyncing || isSyncing} 
+                size="sm" 
+                variant="outline"
+              >
+                {loyaltySyncing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Heart className="h-4 w-4 mr-2" />}
+                {loyaltySyncing ? 'Syncing Loyalty...' : 'Sync Loyalty'}
+              </Button>
               <Button onClick={() => setShowReauthGuide(true)} size="sm" variant="outline">
                 <Shield className="h-4 w-4 mr-2" />
                 Update Permissions
