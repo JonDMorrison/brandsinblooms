@@ -7,16 +7,15 @@ const corsHeaders = {
 
 const MOBILE_TEXT_ALERTS_BASE_URL = Deno.env.get("MOBILE_TEXT_ALERTS_BASE_URL") || "https://api.mobile-text-alerts.com";
 const MOBILE_TEXT_ALERTS_API_KEY = Deno.env.get("MOBILE_TEXT_ALERTS_API_KEY");
+const MOBILE_TEXT_ALERTS_LONGCODE_ID = Deno.env.get("MOBILE_TEXT_ALERTS_LONGCODE_ID");
 
 /**
- * IMPORTANT: Sender number is managed by Mobile Text Alerts. Do NOT override.
+ * IMPORTANT: Sender number is managed by Mobile Text Alerts.
  * 
- * The provider has assigned a temporary sender number (866-587-8406) and explicitly
- * instructed us NOT to specify a sender number in API calls. Sender selection is
- * provider-managed and may change automatically once approval completes.
+ * The account now has two dedicated numbers, so we MUST specify longcodeId
+ * to route outbound messages to the correct sender (866-587-8406).
  * 
- * Never include `from`, `sender`, or `phoneNumber` fields in send payloads.
- * This is intentional and required for the current approval/testing state.
+ * Never include `from`, `sender`, or `phoneNumber` fields - only use longcodeId.
  */
 
 // Blocked shortener domains
@@ -116,10 +115,33 @@ Deno.serve(async (req) => {
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
   try {
-    // Check API key
+    // Check required env vars - fail fast
     if (!MOBILE_TEXT_ALERTS_API_KEY) {
-      throw new Error("MOBILE_TEXT_ALERTS_API_KEY is not configured");
+      console.error("[send-demo-sms] Missing MOBILE_TEXT_ALERTS_API_KEY");
+      return new Response(
+        JSON.stringify({ success: false, error: "MOBILE_TEXT_ALERTS_API_KEY is not configured" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
+
+    if (!MOBILE_TEXT_ALERTS_LONGCODE_ID) {
+      console.error("[send-demo-sms] Missing MOBILE_TEXT_ALERTS_LONGCODE_ID");
+      return new Response(
+        JSON.stringify({ success: false, error: "MOBILE_TEXT_ALERTS_LONGCODE_ID is not configured. Required for routing to correct sender." }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const longcodeId = Number(MOBILE_TEXT_ALERTS_LONGCODE_ID);
+    if (isNaN(longcodeId)) {
+      console.error("[send-demo-sms] MOBILE_TEXT_ALERTS_LONGCODE_ID is not a valid number");
+      return new Response(
+        JSON.stringify({ success: false, error: "MOBILE_TEXT_ALERTS_LONGCODE_ID must be a valid number" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log(`[send-demo-sms] Using longcodeId: ${longcodeId}`);
 
     // Get auth header and verify user
     const authHeader = req.headers.get("Authorization");
@@ -311,16 +333,16 @@ Deno.serve(async (req) => {
       };
       console.log(`[send-demo-sms] Using controlled template endpoint with templateId: ${templateId}`);
     } else {
-      // Fallback to regular send (will fail for unverified accounts)
+      // Use regular send with longcodeId for routing to correct dedicated number
       sendEndpoint = `${MOBILE_TEXT_ALERTS_BASE_URL}/v3/send`;
-      // NOTE: Sender number is managed by Mobile Text Alerts. Do not include
-      // `from`, `sender`, or `phoneNumber` - this is provider-controlled.
+      // longcodeId is required since account has multiple dedicated numbers
       sendPayload = {
         subscribers: [normalizedPhone],
         message: finalMessage,
+        longcodeId: longcodeId,
       };
 
-      // Add image if provided (no sender override - provider-managed)
+      // Add image if provided
       if (mediaUrl) {
         sendPayload.image = mediaUrl;
         sendPayload.rehost = true;
