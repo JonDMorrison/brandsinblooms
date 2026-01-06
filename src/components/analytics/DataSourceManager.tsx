@@ -2,10 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { RefreshCw, CheckCircle, AlertCircle, Settings, Globe, Mail, Share2 } from 'lucide-react';
+import { RefreshCw, CheckCircle, AlertCircle, Settings, Globe, Mail, Share2, Store } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 interface DataSource {
   id: string;
@@ -14,6 +15,7 @@ interface DataSource {
   status: 'connected' | 'disconnected' | 'error';
   lastSync?: string;
   description: string;
+  setupPath?: string;
 }
 
 interface DataSourceManagerProps {
@@ -28,10 +30,14 @@ export const DataSourceManager = ({
   syncing = false
 }: DataSourceManagerProps) => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [socialConnected, setSocialConnected] = useState(false);
   const [emailCrmConnected, setEmailCrmConnected] = useState(false);
+  const [posConnected, setPosConnected] = useState(false);
+  const [posProvider, setPosProvider] = useState<string | null>(null);
   const [socialLastSync, setSocialLastSync] = useState<string | undefined>(undefined);
   const [emailLastSync, setEmailLastSync] = useState<string | undefined>(undefined);
+  const [posLastSync, setPosLastSync] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(true);
 
   // Check actual connection status from database
@@ -43,6 +49,15 @@ export const DataSourceManager = ({
       }
 
       try {
+        // Get tenant_id first
+        const { data: userData } = await supabase
+          .from('users')
+          .select('tenant_id')
+          .eq('id', user.id)
+          .single();
+
+        const tenantId = userData?.tenant_id;
+
         // Check Social Media connections (Facebook/Instagram)
         const { data: socialData, error: socialError } = await supabase
           .from('social_connections')
@@ -52,7 +67,6 @@ export const DataSourceManager = ({
 
         if (!socialError && socialData && socialData.length > 0) {
           setSocialConnected(true);
-          // Get the most recent update time
           const mostRecent = socialData.reduce((latest, conn) => {
             return new Date(conn.updated_at) > new Date(latest.updated_at) ? conn : latest;
           });
@@ -81,6 +95,44 @@ export const DataSourceManager = ({
           setEmailCrmConnected(false);
           setEmailLastSync(undefined);
         }
+
+        // Check POS connections (Square, Clover)
+        if (tenantId) {
+          const [squareResult, cloverResult] = await Promise.all([
+            supabase
+              .from('square_connections')
+              .select('merchant_name, last_synced_at')
+              .eq('tenant_id', tenantId)
+              .eq('status', 'active')
+              .limit(1),
+            supabase
+              .from('clover_connections')
+              .select('merchant_name, last_synced_at')
+              .eq('tenant_id', tenantId)
+              .eq('status', 'active')
+              .limit(1)
+          ]);
+
+          if (squareResult.data?.length) {
+            setPosConnected(true);
+            setPosProvider(squareResult.data[0].merchant_name || 'Square');
+            if (squareResult.data[0].last_synced_at) {
+              const minutesAgo = Math.floor((Date.now() - new Date(squareResult.data[0].last_synced_at).getTime()) / 60000);
+              setPosLastSync(minutesAgo < 1 ? 'just now' : `${minutesAgo} minute${minutesAgo > 1 ? 's' : ''} ago`);
+            }
+          } else if (cloverResult.data?.length) {
+            setPosConnected(true);
+            setPosProvider(cloverResult.data[0].merchant_name || 'Clover');
+            if (cloverResult.data[0].last_synced_at) {
+              const minutesAgo = Math.floor((Date.now() - new Date(cloverResult.data[0].last_synced_at).getTime()) / 60000);
+              setPosLastSync(minutesAgo < 1 ? 'just now' : `${minutesAgo} minute${minutesAgo > 1 ? 's' : ''} ago`);
+            }
+          } else {
+            setPosConnected(false);
+            setPosProvider(null);
+            setPosLastSync(undefined);
+          }
+        }
       } catch (error) {
         console.error('Error checking connections:', error);
       } finally {
@@ -92,6 +144,15 @@ export const DataSourceManager = ({
   }, [user]);
 
   const dataSources: DataSource[] = [
+    {
+      id: 'pos',
+      name: posProvider ? `POS (${posProvider})` : 'Point of Sale',
+      icon: Store,
+      status: posConnected ? 'connected' : 'disconnected',
+      lastSync: posLastSync,
+      description: 'Customers, orders, and loyalty data',
+      setupPath: '/integrations/pos'
+    },
     {
       id: 'google-analytics',
       name: 'Google Analytics',
@@ -208,7 +269,7 @@ export const DataSourceManager = ({
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {dataSources.map((source) => {
           const Icon = source.icon;
           
@@ -250,7 +311,13 @@ export const DataSourceManager = ({
                     variant="outline" 
                     size="sm" 
                     className="w-full text-xs"
-                    onClick={() => toast.info(`Setting up ${source.name}...`)}
+                    onClick={() => {
+                      if (source.setupPath) {
+                        navigate(source.setupPath);
+                      } else {
+                        toast.info(`Setting up ${source.name}...`);
+                      }
+                    }}
                   >
                     Setup Integration
                   </Button>
