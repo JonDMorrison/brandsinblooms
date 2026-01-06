@@ -8,6 +8,17 @@ const corsHeaders = {
 const MOBILE_TEXT_ALERTS_BASE_URL = Deno.env.get("MOBILE_TEXT_ALERTS_BASE_URL") || "https://api.mobile-text-alerts.com";
 const MOBILE_TEXT_ALERTS_API_KEY = Deno.env.get("MOBILE_TEXT_ALERTS_API_KEY");
 
+/**
+ * IMPORTANT: Sender number is managed by Mobile Text Alerts. Do NOT override.
+ * 
+ * The provider has assigned a temporary sender number (866-587-8406) and explicitly
+ * instructed us NOT to specify a sender number in API calls. Sender selection is
+ * provider-managed and may change automatically once approval completes.
+ * 
+ * Never include `from`, `sender`, or `phoneNumber` fields in send payloads.
+ * This is intentional and required for the current approval/testing state.
+ */
+
 // Blocked shortener domains
 const BLOCKED_SHORTENERS = [
   "bit.ly",
@@ -291,6 +302,9 @@ Deno.serve(async (req) => {
     if (templateId) {
       // Use template endpoint for unverified accounts
       sendEndpoint = `${MOBILE_TEXT_ALERTS_BASE_URL}/v3/send/controlled-template`;
+      // NOTE: Sender number is managed by Mobile Text Alerts. Do not include
+      // `from`, `sender`, or `phoneNumber` - this is provider-controlled and
+      // may rotate during the approval/testing period.
       sendPayload = {
         subscribers: [normalizedPhone],
         templateId: templateId,
@@ -299,12 +313,14 @@ Deno.serve(async (req) => {
     } else {
       // Fallback to regular send (will fail for unverified accounts)
       sendEndpoint = `${MOBILE_TEXT_ALERTS_BASE_URL}/v3/send`;
+      // NOTE: Sender number is managed by Mobile Text Alerts. Do not include
+      // `from`, `sender`, or `phoneNumber` - this is provider-controlled.
       sendPayload = {
         subscribers: [normalizedPhone],
         message: finalMessage,
       };
 
-      // Add image if provided
+      // Add image if provided (no sender override - provider-managed)
       if (mediaUrl) {
         sendPayload.image = mediaUrl;
         sendPayload.rehost = true;
