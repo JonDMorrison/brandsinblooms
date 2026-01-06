@@ -393,3 +393,6 @@ verify_jwt = false
 
 [functions.cron-purge-email-events]
 verify_jwt = false
+
+[functions.send-demo-sms]
+verify_jwt = true

@@ -10105,6 +10105,45 @@ export type Database = {
           },
         ]
       }
+      sms_demo_sends: {
+        Row: {
+          created_at: string
+          error: string | null
+          id: string
+          media_url: string | null
+          message: string
+          phone: string
+          provider: string
+          provider_payload: Json | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          error?: string | null
+          id?: string
+          media_url?: string | null
+          message: string
+          phone: string
+          provider?: string
+          provider_payload?: Json | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          error?: string | null
+          id?: string
+          media_url?: string | null
+          message?: string
+          phone?: string
+          provider?: string
+          provider_payload?: Json | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       sms_messages: {
         Row: {
           attempts: number

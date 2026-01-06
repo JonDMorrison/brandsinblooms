@@ -12,6 +12,7 @@ import { SMSRecentMessages } from '@/components/sms/SMSRecentMessages';
 import { SMSQueueStatus } from '@/components/sms/SMSQueueStatus';
 import { SMSQuickSend } from '@/components/sms/SMSQuickSend';
 import { SMSSetupWizard } from '@/components/sms/SMSSetupWizard';
+import { SendATextCard } from '@/components/sms/SendATextCard';
 
 export default function SMSDashboard() {
   const navigate = useNavigate();
@@ -166,6 +167,7 @@ export default function SMSDashboard() {
 
         {/* Right Column - Tools & Queue */}
         <div className="space-y-6">
+          <SendATextCard />
           <SMSQuickSend onSent={() => refetch()} />
           {isLoading ? (
             <Card className="animate-pulse">
