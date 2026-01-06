@@ -174,14 +174,15 @@ Deno.serve(async (req) => {
 
     // Check if any recipients are invalid or unsubscribed
     if (validateData.invalid?.length > 0 || validateData.unsubscribed?.length > 0) {
-      const issues = [];
-      if (validateData.invalid?.length > 0) {
-        issues.push(`Invalid: ${validateData.invalid.join(", ")}`);
-      }
+      let errorMessage: string;
+      
       if (validateData.unsubscribed?.length > 0) {
-        issues.push(`Unsubscribed: ${validateData.unsubscribed.join(", ")}`);
+        errorMessage = "This number has opted out. They must text UNSTOP to opt back in.";
+      } else if (validateData.invalid?.length > 0) {
+        errorMessage = `Invalid phone number: ${validateData.invalid.join(", ")}`;
+      } else {
+        errorMessage = "Recipient validation failed";
       }
-      const errorMessage = issues.join(". ");
       
       await supabase
         .from("sms_demo_sends")
