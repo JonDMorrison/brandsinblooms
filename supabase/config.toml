@@ -396,3 +396,6 @@ verify_jwt = false
 
 [functions.send-demo-sms]
 verify_jwt = true
+
+[functions.mta-debug-numbers]
+verify_jwt = true
