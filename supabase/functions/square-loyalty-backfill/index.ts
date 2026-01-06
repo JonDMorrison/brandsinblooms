@@ -121,19 +121,18 @@ Deno.serve(async (req) => {
               .eq('id', customer.id);
           }
 
-          // Upsert loyalty metrics
+          // Upsert loyalty metrics using correct schema columns
           await supabase
             .from('customer_loyalty_metrics')
             .upsert({
               tenant_id: tenantId,
               customer_id: customer.id,
-              program_name: 'Square Loyalty',
-              points_balance: account.balance || 0,
-              lifetime_points: account.lifetime_points || 0,
-              enrolled_at: account.enrolled_at,
-              external_loyalty_id: account.id,
+              is_perks_member: true,
+              perks_enrolled_at: account.enrolled_at,
+              current_points_balance: account.balance || 0,
+              total_points_earned: account.lifetime_points || 0,
               updated_at: new Date().toISOString()
-            }, { onConflict: 'external_loyalty_id' });
+            }, { onConflict: 'customer_id' });
         }
       }
 
