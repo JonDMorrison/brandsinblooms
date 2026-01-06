@@ -64,47 +64,54 @@ export const usePOSAnalytics = (days: number = 30) => {
       startDate.setDate(startDate.getDate() - days);
 
       // Parallel queries for all POS data
-      const [
-        customersResult,
-        ordersResult,
-        loyaltyResult,
-        squareConnectionResult,
-        cloverConnectionResult
-      ] = await Promise.all([
+      // First get connections to find IDs for orders query
+      const [squareConnectionResult, cloverConnectionResult] = await Promise.all([
+        supabase
+          .from('square_connections')
+          .select('id, merchant_name, last_synced_at')
+          .eq('tenant_id', tenantId)
+          .in('status', ['active', 'connected'])
+          .limit(1),
+        supabase
+          .from('clover_connections')
+          .select('id, merchant_name, last_synced_at')
+          .eq('tenant_id', tenantId)
+          .in('status', ['active', 'connected'])
+          .limit(1)
+      ]);
+
+      // Get connection IDs for orders query
+      const connectionIds: string[] = [];
+      if (squareConnectionResult.data?.[0]?.id) {
+        connectionIds.push(squareConnectionResult.data[0].id);
+      }
+      if (cloverConnectionResult.data?.[0]?.id) {
+        connectionIds.push(cloverConnectionResult.data[0].id);
+      }
+
+      // Now query customers, orders, and loyalty in parallel
+      const [customersResult, ordersResult, loyaltyResult] = await Promise.all([
         // Total customers
         supabase
           .from('crm_customers')
           .select('id', { count: 'exact', head: true })
           .eq('tenant_id', tenantId),
         
-        // Orders within date range
-        supabase
-          .from('pos_orders')
-          .select('total_amount, order_date')
-          .gte('order_date', startDate.toISOString()),
+        // Orders within date range - filter by connection IDs
+        connectionIds.length > 0
+          ? supabase
+              .from('pos_orders')
+              .select('total_amount, order_date')
+              .in('pos_connection_id', connectionIds)
+              .gte('order_date', startDate.toISOString())
+          : Promise.resolve({ data: [], error: null }),
         
         // Loyalty members
         supabase
           .from('customer_loyalty_metrics')
           .select('is_perks_member, total_points_earned')
           .eq('tenant_id', tenantId)
-          .eq('is_perks_member', true),
-        
-        // Check for Square connection
-        supabase
-          .from('square_connections')
-          .select('id, merchant_name, last_synced_at')
-          .eq('tenant_id', tenantId)
-          .eq('status', 'active')
-          .limit(1),
-        
-        // Check for Clover connection
-        supabase
-          .from('clover_connections')
-          .select('id, merchant_name, last_synced_at')
-          .eq('tenant_id', tenantId)
-          .eq('status', 'active')
-          .limit(1)
+          .eq('is_perks_member', true)
       ]);
 
       const totalCustomers = customersResult.count || 0;
