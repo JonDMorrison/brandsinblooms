@@ -199,31 +199,48 @@ Deno.serve(async (req) => {
     // Step B: Fetch available templates (required for unverified accounts)
     console.log(`[send-demo-sms] Fetching available templates...`);
     
-    const templatesResponse = await fetch(
-      `${MOBILE_TEXT_ALERTS_BASE_URL}/v3/controlled-templates/global`,
-      {
-        method: "GET",
-        headers: {
-          "Authorization": `Bearer ${MOBILE_TEXT_ALERTS_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-      }
-    );
-
-    const templatesData = await templatesResponse.json();
-    console.log(`[send-demo-sms] Templates response:`, JSON.stringify(templatesData));
-
-    // Find a suitable template or use the first available one
     let templateId: string | null = null;
-    if (templatesData.data && Array.isArray(templatesData.data) && templatesData.data.length > 0) {
-      // Look for a general/demo template, or just use the first one
-      const template = templatesData.data.find((t: any) => 
-        t.name?.toLowerCase().includes('demo') || 
-        t.name?.toLowerCase().includes('general') ||
-        t.name?.toLowerCase().includes('booth')
-      ) || templatesData.data[0];
-      templateId = template.id;
-      console.log(`[send-demo-sms] Using template: ${template.name} (${templateId})`);
+    
+    try {
+      const templatesResponse = await fetch(
+        `${MOBILE_TEXT_ALERTS_BASE_URL}/v3/controlled-templates`,
+        {
+          method: "GET",
+          headers: {
+            "Authorization": `Bearer ${MOBILE_TEXT_ALERTS_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      const templatesText = await templatesResponse.text();
+      console.log(`[send-demo-sms] Templates raw response:`, templatesText.substring(0, 500));
+      
+      // Try to parse as JSON
+      let templatesData;
+      try {
+        templatesData = JSON.parse(templatesText);
+      } catch (parseError) {
+        console.error(`[send-demo-sms] Templates response is not JSON, trying alternate approach`);
+        templatesData = null;
+      }
+
+      // Find a suitable template or use the first available one
+      const templates = templatesData?.data || templatesData?.templates || (Array.isArray(templatesData) ? templatesData : []);
+      
+      if (templates.length > 0) {
+        // Look for a general/demo template, or just use the first one
+        const template = templates.find((t: any) => 
+          t.name?.toLowerCase().includes('demo') || 
+          t.name?.toLowerCase().includes('general') ||
+          t.name?.toLowerCase().includes('booth') ||
+          t.name?.toLowerCase().includes('marketing')
+        ) || templates[0];
+        templateId = template.id || template.templateId;
+        console.log(`[send-demo-sms] Using template: ${template.name} (${templateId})`);
+      }
+    } catch (templateError) {
+      console.error(`[send-demo-sms] Failed to fetch templates:`, templateError);
     }
 
     // Step C: Send message using template (for unverified accounts)
