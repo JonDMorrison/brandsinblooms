@@ -1,9 +1,11 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { TrendingUp, TrendingDown, DollarSign, Users, Target, BarChart3, ShoppingCart, Store } from 'lucide-react';
+import { TrendingUp, TrendingDown, DollarSign, Users, Target, BarChart3, ShoppingCart, Store, Heart } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { usePOSAnalytics } from '@/hooks/usePOSAnalytics';
+import { POSMetricCard, SyncStatus } from './POSMetricCard';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface ExecutiveMetric {
   title: string;
@@ -12,6 +14,16 @@ interface ExecutiveMetric {
   changeLabel: string;
   icon: React.ElementType;
   priority: 'high' | 'medium' | 'low';
+}
+
+interface POSMetric {
+  title: string;
+  value: string;
+  changeLabel: string;
+  icon: React.ElementType;
+  priority: 'high' | 'medium' | 'low';
+  syncStatus: SyncStatus;
+  syncAction?: 'loyalty' | 'sales' | 'customers';
 }
 
 interface ExecutiveDashboardProps {
@@ -34,6 +46,7 @@ export const ExecutiveDashboard = ({
   dateRange = 30
 }: ExecutiveDashboardProps) => {
   const { data: posData, isLoading: posLoading } = usePOSAnalytics(dateRange);
+  const queryClient = useQueryClient();
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -44,34 +57,69 @@ export const ExecutiveDashboard = ({
     }).format(value);
   };
 
-  const metrics: ExecutiveMetric[] = [
+  const handleSyncComplete = () => {
+    queryClient.invalidateQueries({ queryKey: ['pos-analytics'] });
+  };
+
+  const getSyncStatus = (isSynced: boolean, hasIntegration: boolean): SyncStatus => {
+    if (!hasIntegration) return 'not-connected';
+    return isSynced ? 'synced' : 'needs-sync';
+  };
+
+  const posMetrics: POSMetric[] = [
     {
       title: 'Total Customers',
       value: (posData?.totalCustomers || 0).toLocaleString(),
       changeLabel: 'in database',
       icon: Users,
-      priority: 'high'
+      priority: 'high',
+      syncStatus: getSyncStatus(posData?.customersSynced || false, posData?.hasIntegration || false),
+      syncAction: 'customers'
     },
     {
       title: 'Total Revenue',
       value: formatCurrency(posData?.totalRevenue || 0),
       changeLabel: `${dateRange} day period`,
       icon: DollarSign,
-      priority: 'high'
+      priority: 'high',
+      syncStatus: getSyncStatus(posData?.ordersSynced || false, posData?.hasIntegration || false),
+      syncAction: 'sales'
     },
     {
       title: 'Total Orders',
       value: (posData?.totalOrders || 0).toLocaleString(),
       changeLabel: `${dateRange} day period`,
       icon: ShoppingCart,
-      priority: 'medium'
+      priority: 'medium',
+      syncStatus: getSyncStatus(posData?.ordersSynced || false, posData?.hasIntegration || false),
+      syncAction: 'sales'
+    },
+    {
+      title: 'Loyalty Members',
+      value: (posData?.loyaltyMembers || 0).toLocaleString(),
+      changeLabel: 'active members',
+      icon: Heart,
+      priority: 'high',
+      syncStatus: getSyncStatus(posData?.loyaltySynced || false, posData?.hasIntegration || false),
+      syncAction: 'loyalty'
     },
     {
       title: 'Avg Order Value',
       value: formatCurrency(posData?.avgOrderValue || 0),
       changeLabel: 'per transaction',
       icon: BarChart3,
-      priority: 'medium'
+      priority: 'medium',
+      syncStatus: getSyncStatus(posData?.ordersSynced || false, posData?.hasIntegration || false),
+      syncAction: 'sales'
+    },
+    {
+      title: 'Total Points Earned',
+      value: (posData?.totalPointsEarned || 0).toLocaleString(),
+      changeLabel: 'loyalty points',
+      icon: Target,
+      priority: 'medium',
+      syncStatus: getSyncStatus(posData?.loyaltySynced || false, posData?.hasIntegration || false),
+      syncAction: 'loyalty'
     }
   ];
 
@@ -125,7 +173,7 @@ export const ExecutiveDashboard = ({
     switch (priority) {
       case 'high': return 'border-l-4 border-l-primary';
       case 'medium': return 'border-l-4 border-l-yellow-500';
-      default: return 'border-l-4 border-l-gray-300';
+      default: return 'border-l-4 border-l-muted';
     }
   };
 
@@ -138,8 +186,8 @@ export const ExecutiveDashboard = ({
           <h2 className="text-2xl font-bold">Executive Summary</h2>
           <Badge variant="outline">Loading...</Badge>
         </div>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {[1, 2, 3, 4].map((i) => (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
             <Card key={i} className="animate-pulse">
               <CardHeader className="pb-2">
                 <div className="h-4 bg-muted rounded w-3/4"></div>
@@ -155,7 +203,7 @@ export const ExecutiveDashboard = ({
     );
   }
 
-  const renderMetricCard = (metric: ExecutiveMetric, index: number) => {
+  const renderMarketingMetricCard = (metric: ExecutiveMetric, index: number) => {
     const ChangeIcon = getChangeIcon(metric.change);
     
     return (
@@ -207,8 +255,21 @@ export const ExecutiveDashboard = ({
           <Store className="h-5 w-5" />
           POS & Sales Metrics
         </h3>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {metrics.map((metric, index) => renderMetricCard(metric, index))}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {posMetrics.map((metric, index) => (
+            <POSMetricCard
+              key={index}
+              title={metric.title}
+              value={metric.value}
+              changeLabel={metric.changeLabel}
+              icon={metric.icon}
+              priority={metric.priority}
+              syncStatus={metric.syncStatus}
+              lastSyncedAt={posData?.lastSyncedAt}
+              syncAction={metric.syncAction}
+              onSyncComplete={handleSyncComplete}
+            />
+          ))}
         </div>
       </div>
 
@@ -218,21 +279,24 @@ export const ExecutiveDashboard = ({
           Marketing Performance
         </h3>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {marketingMetrics.map((metric, index) => renderMetricCard(metric, index + 4))}
+          {marketingMetrics.map((metric, index) => renderMarketingMetricCard(metric, index))}
         </div>
       </div>
 
-      <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+      <Card className="bg-gradient-to-r from-primary/5 to-primary/10 border-primary/20">
         <CardContent className="pt-6">
           <div className="flex items-start space-x-3">
-            <div className="rounded-full bg-blue-100 p-2">
-              <BarChart3 className="h-5 w-5 text-blue-600" />
+            <div className="rounded-full bg-primary/10 p-2">
+              <BarChart3 className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <h3 className="font-semibold text-blue-900">Performance Highlight</h3>
-              <p className="text-blue-700 text-sm mt-1">
-                {posData?.totalCustomers ? (
-                  <>You have {posData.totalCustomers.toLocaleString()} customers with {formatCurrency(posData.totalRevenue)} in revenue over the last {dateRange} days.</>
+              <h3 className="font-semibold">Performance Highlight</h3>
+              <p className="text-muted-foreground text-sm mt-1">
+                {posData?.hasIntegration ? (
+                  <>
+                    You have {posData.totalCustomers.toLocaleString()} customers with {formatCurrency(posData.totalRevenue)} in revenue over the last {dateRange} days.
+                    {posData.loyaltyMembers > 0 && <> {posData.loyaltyMembers} are loyalty members with {posData.totalPointsEarned.toLocaleString()} total points earned.</>}
+                  </>
                 ) : (
                   <>Connect a POS system to see real-time sales and customer data.</>
                 )}

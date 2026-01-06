@@ -11,6 +11,13 @@ export interface POSAnalytics {
   totalPointsEarned: number;
   hasIntegration: boolean;
   integrationName: string | null;
+  // Sync status metadata
+  customersSynced: boolean;
+  ordersSynced: boolean;
+  loyaltySynced: boolean;
+  lastSyncedAt: string | null;
+  needsOrderSync: boolean;
+  needsLoyaltySync: boolean;
 }
 
 export const usePOSAnalytics = (days: number = 30) => {
@@ -19,17 +26,25 @@ export const usePOSAnalytics = (days: number = 30) => {
   return useQuery({
     queryKey: ['pos-analytics', user?.id, days],
     queryFn: async (): Promise<POSAnalytics> => {
+      const emptyResult: POSAnalytics = {
+        totalCustomers: 0,
+        totalOrders: 0,
+        totalRevenue: 0,
+        avgOrderValue: 0,
+        loyaltyMembers: 0,
+        totalPointsEarned: 0,
+        hasIntegration: false,
+        integrationName: null,
+        customersSynced: false,
+        ordersSynced: false,
+        loyaltySynced: false,
+        lastSyncedAt: null,
+        needsOrderSync: false,
+        needsLoyaltySync: false
+      };
+
       if (!user?.id) {
-        return {
-          totalCustomers: 0,
-          totalOrders: 0,
-          totalRevenue: 0,
-          avgOrderValue: 0,
-          loyaltyMembers: 0,
-          totalPointsEarned: 0,
-          hasIntegration: false,
-          integrationName: null
-        };
+        return emptyResult;
       }
 
       // Get tenant_id from users table
@@ -42,16 +57,7 @@ export const usePOSAnalytics = (days: number = 30) => {
       const tenantId = userData?.tenant_id;
       
       if (!tenantId) {
-        return {
-          totalCustomers: 0,
-          totalOrders: 0,
-          totalRevenue: 0,
-          avgOrderValue: 0,
-          loyaltyMembers: 0,
-          totalPointsEarned: 0,
-          hasIntegration: false,
-          integrationName: null
-        };
+        return emptyResult;
       }
 
       const startDate = new Date();
@@ -87,7 +93,7 @@ export const usePOSAnalytics = (days: number = 30) => {
         // Check for Square connection
         supabase
           .from('square_connections')
-          .select('id, merchant_name')
+          .select('id, merchant_name, last_synced_at')
           .eq('tenant_id', tenantId)
           .eq('status', 'active')
           .limit(1),
@@ -95,7 +101,7 @@ export const usePOSAnalytics = (days: number = 30) => {
         // Check for Clover connection
         supabase
           .from('clover_connections')
-          .select('id, merchant_name')
+          .select('id, merchant_name, last_synced_at')
           .eq('tenant_id', tenantId)
           .eq('status', 'active')
           .limit(1)
@@ -112,13 +118,24 @@ export const usePOSAnalytics = (days: number = 30) => {
       const loyaltyMembers = loyaltyData.length;
       const totalPointsEarned = loyaltyData.reduce((sum, l) => sum + (l.total_points_earned || 0), 0);
 
-      // Determine integration name
+      // Determine integration info
       let integrationName: string | null = null;
-      if (squareConnectionResult.data?.length) {
+      let lastSyncedAt: string | null = null;
+      const hasSquare = squareConnectionResult.data?.length > 0;
+      const hasClover = cloverConnectionResult.data?.length > 0;
+      
+      if (hasSquare) {
         integrationName = squareConnectionResult.data[0].merchant_name || 'Square';
-      } else if (cloverConnectionResult.data?.length) {
+        lastSyncedAt = squareConnectionResult.data[0].last_synced_at || null;
+      } else if (hasClover) {
         integrationName = cloverConnectionResult.data[0].merchant_name || 'Clover';
+        lastSyncedAt = cloverConnectionResult.data[0].last_synced_at || null;
       }
+
+      const hasIntegration = !!integrationName;
+      const customersSynced = totalCustomers > 0;
+      const ordersSynced = totalOrders > 0;
+      const loyaltySynced = loyaltyMembers > 0;
 
       return {
         totalCustomers,
@@ -127,8 +144,14 @@ export const usePOSAnalytics = (days: number = 30) => {
         avgOrderValue,
         loyaltyMembers,
         totalPointsEarned,
-        hasIntegration: !!integrationName,
-        integrationName
+        hasIntegration,
+        integrationName,
+        customersSynced,
+        ordersSynced,
+        loyaltySynced,
+        lastSyncedAt,
+        needsOrderSync: hasIntegration && !ordersSynced,
+        needsLoyaltySync: hasIntegration && !loyaltySynced
       };
     },
     enabled: !!user?.id,
