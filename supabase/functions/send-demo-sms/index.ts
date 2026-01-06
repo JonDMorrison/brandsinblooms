@@ -196,22 +196,67 @@ Deno.serve(async (req) => {
       throw new Error(errorMessage);
     }
 
-    // Step B: Send message
+    // Step B: Fetch available templates (required for unverified accounts)
+    console.log(`[send-demo-sms] Fetching available templates...`);
+    
+    const templatesResponse = await fetch(
+      `${MOBILE_TEXT_ALERTS_BASE_URL}/v3/controlled-templates/global`,
+      {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${MOBILE_TEXT_ALERTS_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    const templatesData = await templatesResponse.json();
+    console.log(`[send-demo-sms] Templates response:`, JSON.stringify(templatesData));
+
+    // Find a suitable template or use the first available one
+    let templateId: string | null = null;
+    if (templatesData.data && Array.isArray(templatesData.data) && templatesData.data.length > 0) {
+      // Look for a general/demo template, or just use the first one
+      const template = templatesData.data.find((t: any) => 
+        t.name?.toLowerCase().includes('demo') || 
+        t.name?.toLowerCase().includes('general') ||
+        t.name?.toLowerCase().includes('booth')
+      ) || templatesData.data[0];
+      templateId = template.id;
+      console.log(`[send-demo-sms] Using template: ${template.name} (${templateId})`);
+    }
+
+    // Step C: Send message using template (for unverified accounts)
     console.log(`[send-demo-sms] Sending message to ${normalizedPhone}`);
     
-    const sendPayload: Record<string, unknown> = {
-      subscribers: [normalizedPhone],
-      message: finalMessage,
-    };
+    let sendPayload: Record<string, unknown>;
+    let sendEndpoint: string;
 
-    // Add image if provided
-    if (mediaUrl) {
-      sendPayload.image = mediaUrl;
-      sendPayload.rehost = true;
+    if (templateId) {
+      // Use template endpoint for unverified accounts
+      sendEndpoint = `${MOBILE_TEXT_ALERTS_BASE_URL}/v3/send/controlled-template`;
+      sendPayload = {
+        subscribers: [normalizedPhone],
+        templateId: templateId,
+      };
+      console.log(`[send-demo-sms] Using controlled template endpoint with templateId: ${templateId}`);
+    } else {
+      // Fallback to regular send (will fail for unverified accounts)
+      sendEndpoint = `${MOBILE_TEXT_ALERTS_BASE_URL}/v3/send`;
+      sendPayload = {
+        subscribers: [normalizedPhone],
+        message: finalMessage,
+      };
+      
+      // Add image if provided
+      if (mediaUrl) {
+        sendPayload.image = mediaUrl;
+        sendPayload.rehost = true;
+      }
     }
 
     const sendResponse = await fetch(
-      `${MOBILE_TEXT_ALERTS_BASE_URL}/v3/send`,
+      sendEndpoint,
       {
         method: "POST",
         headers: {
