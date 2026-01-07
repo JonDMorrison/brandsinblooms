@@ -3,16 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { SettingsIcon, PlusIcon, RefreshCw, Smartphone, Zap, CheckCircle } from 'lucide-react';
+import { SettingsIcon, PlusIcon, Smartphone, Zap, CheckCircle } from 'lucide-react';
 import { useTwilioSetup } from '@/components/dashboard/TwilioSetupChecker';
 import { useSMSStats } from '@/hooks/useSMSStats';
 import { SMSStatCards } from '@/components/sms/SMSStatCards';
 import { SMSCampaignsTable } from '@/components/sms/SMSCampaignsTable';
 import { SMSRecentMessages } from '@/components/sms/SMSRecentMessages';
 import { SMSQueueStatus } from '@/components/sms/SMSQueueStatus';
-import { SMSQuickSend } from '@/components/sms/SMSQuickSend';
 import { SMSSetupWizard } from '@/components/sms/SMSSetupWizard';
-import { SendATextCard } from '@/components/sms/SendATextCard';
 
 export default function SMSDashboard() {
   const navigate = useNavigate();
@@ -165,10 +163,8 @@ export default function SMSDashboard() {
           )}
         </div>
 
-        {/* Right Column - Tools & Queue */}
+        {/* Right Column - Queue Status */}
         <div className="space-y-6">
-          <SendATextCard />
-          <SMSQuickSend onSent={() => refetch()} />
           {isLoading ? (
             <Card className="animate-pulse">
               <CardContent className="p-6">
