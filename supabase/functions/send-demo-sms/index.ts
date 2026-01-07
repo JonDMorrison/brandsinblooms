@@ -124,24 +124,8 @@ Deno.serve(async (req) => {
       );
     }
 
-    if (!MOBILE_TEXT_ALERTS_LONGCODE_ID) {
-      console.error("[send-demo-sms] Missing MOBILE_TEXT_ALERTS_LONGCODE_ID");
-      return new Response(
-        JSON.stringify({ success: false, error: "MOBILE_TEXT_ALERTS_LONGCODE_ID is not configured. Required for routing to correct sender." }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const longcodeId = Number(MOBILE_TEXT_ALERTS_LONGCODE_ID);
-    if (isNaN(longcodeId)) {
-      console.error("[send-demo-sms] MOBILE_TEXT_ALERTS_LONGCODE_ID is not a valid number");
-      return new Response(
-        JSON.stringify({ success: false, error: "MOBILE_TEXT_ALERTS_LONGCODE_ID must be a valid number" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    console.log(`[send-demo-sms] Using longcodeId: ${longcodeId}`);
+    // Note: longcodeId validation moved to where it's actually needed (non-template sends)
+    // Templates don't require longcodeId since MTA handles routing for controlled templates
 
     // Get auth header and verify user
     const authHeader = req.headers.get("Authorization");
@@ -333,14 +317,23 @@ Deno.serve(async (req) => {
       };
       console.log(`[send-demo-sms] Using controlled template endpoint with templateId: ${templateId}`);
     } else {
-      // Use regular send with longcodeId for routing to correct dedicated number
+      // Use regular send - longcodeId is optional but helps route to correct number
       sendEndpoint = `${MOBILE_TEXT_ALERTS_BASE_URL}/v3/send`;
-      // longcodeId is required since account has multiple dedicated numbers
       sendPayload = {
         subscribers: [normalizedPhone],
         message: finalMessage,
-        longcodeId: longcodeId,
       };
+
+      // Add longcodeId if configured and valid (for multi-number accounts)
+      if (MOBILE_TEXT_ALERTS_LONGCODE_ID) {
+        const longcodeId = Number(MOBILE_TEXT_ALERTS_LONGCODE_ID);
+        if (!isNaN(longcodeId)) {
+          sendPayload.longcodeId = longcodeId;
+          console.log(`[send-demo-sms] Using longcodeId: ${longcodeId}`);
+        } else {
+          console.log(`[send-demo-sms] MOBILE_TEXT_ALERTS_LONGCODE_ID is not numeric, skipping. MTA will use default number.`);
+        }
+      }
 
       // Add image if provided
       if (mediaUrl) {
