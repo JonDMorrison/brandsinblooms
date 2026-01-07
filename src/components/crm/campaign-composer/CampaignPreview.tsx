@@ -40,7 +40,7 @@ export const CampaignPreview: React.FC<CampaignPreviewProps> = ({
 
   const senderDisplay = senderConfig?.deliveryMethod === 'custom_domain' 
     ? `${senderConfig.displayName} <${senderConfig.senderEmail}>`
-    : `${senderConfig?.displayName || 'Your Garden Center'} via BloomSuite <noreply@bloomsuite.app>`;
+    : `${senderConfig?.displayName || 'Your Garden Center'} <${senderConfig?.senderEmail || 'noreply@bloomsuite.app'}>`;
 
   return (
     <Card className="h-full">

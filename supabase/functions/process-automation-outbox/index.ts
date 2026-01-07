@@ -359,10 +359,8 @@ async function sendEmail(
       companyName = companyProfile?.company_name || "Your Business";
     }
     
-    // Adjust from name based on delivery method
-    const fromName = senderConfig.deliveryMethod === 'custom_domain' 
-      ? companyName 
-      : `${companyName} via BloomSuite`;
+    // Use company name directly without suffix
+    const fromName = companyName;
 
     // Call the send-email-campaign function with resolved sender
     const { data, error } = await supabase.functions.invoke("send-email-campaign", {

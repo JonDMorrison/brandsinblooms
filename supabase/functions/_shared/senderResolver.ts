@@ -161,13 +161,6 @@ export function isCustomDomain(config: SenderConfig): boolean {
  * @returns Modified from name with appropriate suffix
  */
 export function getFromNameWithSuffix(config: SenderConfig, companyName: string): string {
-  if (config.deliveryMethod === 'custom_domain') {
-    return companyName;
-  }
-  
-  if (config.deliveryMethod === 'tenant_platform') {
-    return `${companyName} via BloomSuite`;
-  }
-  
-  return `${companyName} via BloomSuite`;
+  // Always return just the company name without any suffix
+  return companyName;
 }
