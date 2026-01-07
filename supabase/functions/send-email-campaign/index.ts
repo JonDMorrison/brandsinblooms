@@ -453,7 +453,7 @@ serve(async (req) => {
 
     if (quotaCheck.using_fallback) {
       senderEmail = quotaCheck.sender?.from_email || 'noreply@bloomsuite.app';
-      senderDisplayName = `${companyName} via BloomSuite`;
+      senderDisplayName = companyName;
       deliveryMethod = 'shared_sender';
       usesVerifiedDomain = false;
     } else {
