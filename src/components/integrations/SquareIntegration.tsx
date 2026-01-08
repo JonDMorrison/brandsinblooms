@@ -5,21 +5,20 @@ import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Loader2, CheckCircle, XCircle, Plug, Clock, BookOpen, Sparkles, RefreshCw, Users, AlertTriangle, Shield, Heart, Webhook } from 'lucide-react';
+import { Loader2, CheckCircle, XCircle, Plug, Clock, BookOpen, Sparkles, RefreshCw, Users, AlertTriangle, Shield, Heart, Webhook, Activity } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Link } from 'react-router-dom';
 import { detectEnvironment } from '@/utils/environmentUtils';
 import { SquareSetupWizard } from './square/SquareSetupWizard';
 import { SquareReauthorizationGuide } from './square/SquareReauthorizationGuide';
 import { usePOSSyncJob } from '@/hooks/usePOSSyncJob';
+
 export const SquareIntegration = () => {
   const [loading, setLoading] = useState(false);
   const [loadingStep, setLoadingStep] = useState<'preparing' | 'redirecting' | 'completing'>('preparing');
   const [showSetupWizard, setShowSetupWizard] = useState(false);
   const [showReauthGuide, setShowReauthGuide] = useState(false);
   const [loyaltySyncing, setLoyaltySyncing] = useState(false);
-  const [webhookRegistering, setWebhookRegistering] = useState(false);
-  const [webhookVerifying, setWebhookVerifying] = useState(false);
   const previousConnectionRef = useRef<any>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -370,33 +369,48 @@ export const SquareIntegration = () => {
                   </p>
                 </div>
               )}
-              {/* Webhook Status Section */}
+              {/* Real-time Sync Status (STATUS ONLY - No manual controls) */}
               <div className="col-span-full border-t pt-3 mt-1">
                 <div className="flex items-center gap-2 mb-2">
-                  <Webhook className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm font-medium">Real-time Webhooks</span>
+                  <Activity className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">Real-time Sync Status</span>
                 </div>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                   <div>
                     <p className="text-muted-foreground">Status</p>
-                    <p className={`font-medium ${connection.webhooks_subscribed ? 'text-green-600' : 'text-yellow-600'}`}>
-                      {connection.webhooks_subscribed ? '✓ Active' : '⚠ Not configured'}
+                    <p className={`font-medium flex items-center gap-1 ${
+                      connection.webhooks_subscribed ? 'text-green-600' : 
+                      (connection as any).webhook_last_error ? 'text-amber-600' : 'text-muted-foreground'
+                    }`}>
+                      {connection.webhooks_subscribed ? (
+                        <><CheckCircle className="h-3 w-3" /> Active</>
+                      ) : (connection as any).webhook_last_error ? (
+                        <><AlertTriangle className="h-3 w-3" /> Issue detected</>
+                      ) : (
+                        <><Clock className="h-3 w-3" /> Configuring...</>
+                      )}
                     </p>
                   </div>
-                  {connection.webhook_subscription_id && (
-                    <div>
-                      <p className="text-muted-foreground">Subscription ID</p>
-                      <p className="font-medium text-xs font-mono truncate" title={connection.webhook_subscription_id}>
-                        {connection.webhook_subscription_id.slice(0, 12)}...
-                      </p>
-                    </div>
-                  )}
+                  <div>
+                    <p className="text-muted-foreground">Last Event</p>
+                    <p className="font-medium">
+                      {(connection as any).last_webhook_received_at 
+                        ? formatDistanceToNow(new Date((connection as any).last_webhook_received_at), { addSuffix: true })
+                        : 'Never'}
+                    </p>
+                  </div>
                   {connection.webhooks_last_checked_at && (
                     <div>
                       <p className="text-muted-foreground">Last Verified</p>
                       <p className="font-medium">
                         {formatDistanceToNow(new Date(connection.webhooks_last_checked_at), { addSuffix: true })}
                       </p>
+                    </div>
+                  )}
+                  {(connection as any).webhook_last_error && (
+                    <div className="col-span-full">
+                      <p className="text-muted-foreground">Error</p>
+                      <p className="font-medium text-amber-600 text-xs">{(connection as any).webhook_last_error}</p>
                     </div>
                   )}
                 </div>
@@ -508,78 +522,6 @@ export const SquareIntegration = () => {
                 {loyaltySyncing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Heart className="h-4 w-4 mr-2" />}
                 {loyaltySyncing ? 'Syncing Loyalty...' : 'Sync Loyalty'}
               </Button>
-              <Button 
-                onClick={async () => {
-                  setWebhookRegistering(true);
-                  try {
-                    toast({ title: 'Registering webhooks...', description: 'Setting up real-time order sync.' });
-                    const { data, error } = await supabase.functions.invoke('square-manage-webhooks', {
-                      body: { action: 'subscribe' }
-                    });
-                    if (error) throw error;
-                    toast({ 
-                      title: '✓ Webhooks registered', 
-                      description: data?.message || 'Real-time order sync is now active.' 
-                    });
-                    queryClient.invalidateQueries({ queryKey: ['square-connection'] });
-                  } catch (error: any) {
-                    toast({ title: 'Webhook registration failed', description: error.message, variant: 'destructive' });
-                  } finally {
-                    setWebhookRegistering(false);
-                  }
-                }} 
-                disabled={webhookRegistering || webhookVerifying || isSyncing} 
-                size="sm" 
-                variant={connection?.webhooks_subscribed ? "secondary" : "outline"}
-              >
-                {webhookRegistering ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                ) : (
-                  <Webhook className="h-4 w-4 mr-2" />
-                )}
-                {connection?.webhooks_subscribed ? '✓ Webhooks Active' : 'Enable Real-time Webhooks'}
-              </Button>
-              {connection?.webhooks_subscribed && (
-                <Button 
-                  onClick={async () => {
-                    setWebhookVerifying(true);
-                    try {
-                      toast({ title: 'Verifying webhooks...', description: 'Checking subscription with Square API.' });
-                      const { data, error } = await supabase.functions.invoke('square-manage-webhooks', {
-                        body: { action: 'verify' }
-                      });
-                      if (error) throw error;
-                      if (data?.verified) {
-                        toast({ 
-                          title: '✓ Webhooks verified', 
-                          description: `Subscription ${data.subscription_id?.slice(0, 12)}... is active with ${data.event_count || 0} event types.`
-                        });
-                      } else {
-                        toast({ 
-                          title: '⚠ Verification issue', 
-                          description: data?.message || 'Subscription may need re-registration.',
-                          variant: 'destructive'
-                        });
-                      }
-                      queryClient.invalidateQueries({ queryKey: ['square-connection'] });
-                    } catch (error: any) {
-                      toast({ title: 'Verification failed', description: error.message, variant: 'destructive' });
-                    } finally {
-                      setWebhookVerifying(false);
-                    }
-                  }} 
-                  disabled={webhookVerifying || webhookRegistering || isSyncing} 
-                  size="sm" 
-                  variant="outline"
-                >
-                  {webhookVerifying ? (
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  ) : (
-                    <CheckCircle className="h-4 w-4 mr-2" />
-                  )}
-                  Verify Webhooks
-                </Button>
-              )}
               <Button onClick={() => setShowReauthGuide(true)} size="sm" variant="outline">
                 <Shield className="h-4 w-4 mr-2" />
                 Update Permissions
