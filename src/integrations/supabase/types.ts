@@ -1402,6 +1402,7 @@ export type Database = {
           last_synced_at: string | null
           last_test_status: string | null
           last_tested_at: string | null
+          last_webhook_received_at: string | null
           merchant_id: string | null
           merchant_name: string | null
           products_synced: number | null
@@ -1414,6 +1415,12 @@ export type Database = {
           token_type: string | null
           updated_at: string | null
           user_id: string
+          webhook_last_error: string | null
+          webhook_next_retry_at: string | null
+          webhook_retry_count: number | null
+          webhook_subscription_id: string | null
+          webhooks_last_checked_at: string | null
+          webhooks_subscribed: boolean | null
         }
         Insert: {
           connected_at?: string | null
@@ -1431,6 +1438,7 @@ export type Database = {
           last_synced_at?: string | null
           last_test_status?: string | null
           last_tested_at?: string | null
+          last_webhook_received_at?: string | null
           merchant_id?: string | null
           merchant_name?: string | null
           products_synced?: number | null
@@ -1443,6 +1451,12 @@ export type Database = {
           token_type?: string | null
           updated_at?: string | null
           user_id: string
+          webhook_last_error?: string | null
+          webhook_next_retry_at?: string | null
+          webhook_retry_count?: number | null
+          webhook_subscription_id?: string | null
+          webhooks_last_checked_at?: string | null
+          webhooks_subscribed?: boolean | null
         }
         Update: {
           connected_at?: string | null
@@ -1460,6 +1474,7 @@ export type Database = {
           last_synced_at?: string | null
           last_test_status?: string | null
           last_tested_at?: string | null
+          last_webhook_received_at?: string | null
           merchant_id?: string | null
           merchant_name?: string | null
           products_synced?: number | null
@@ -1472,6 +1487,12 @@ export type Database = {
           token_type?: string | null
           updated_at?: string | null
           user_id?: string
+          webhook_last_error?: string | null
+          webhook_next_retry_at?: string | null
+          webhook_retry_count?: number | null
+          webhook_subscription_id?: string | null
+          webhooks_last_checked_at?: string | null
+          webhooks_subscribed?: boolean | null
         }
         Relationships: [
           {
@@ -7554,6 +7575,7 @@ export type Database = {
           last_product_sync: string | null
           last_sales_sync: string | null
           last_synced_at: string | null
+          last_webhook_received_at: string | null
           products_synced: number | null
           retailer_id: number | null
           retailer_name: string | null
@@ -7563,7 +7585,13 @@ export type Database = {
           tenant_id: string
           updated_at: string | null
           user_id: string
+          webhook_last_error: string | null
+          webhook_next_retry_at: string | null
           webhook_registered: boolean | null
+          webhook_retry_count: number | null
+          webhook_subscription_id: string | null
+          webhooks_last_checked_at: string | null
+          webhooks_subscribed: boolean | null
         }
         Insert: {
           connected_at?: string | null
@@ -7579,6 +7607,7 @@ export type Database = {
           last_product_sync?: string | null
           last_sales_sync?: string | null
           last_synced_at?: string | null
+          last_webhook_received_at?: string | null
           products_synced?: number | null
           retailer_id?: number | null
           retailer_name?: string | null
@@ -7588,7 +7617,13 @@ export type Database = {
           tenant_id: string
           updated_at?: string | null
           user_id: string
+          webhook_last_error?: string | null
+          webhook_next_retry_at?: string | null
           webhook_registered?: boolean | null
+          webhook_retry_count?: number | null
+          webhook_subscription_id?: string | null
+          webhooks_last_checked_at?: string | null
+          webhooks_subscribed?: boolean | null
         }
         Update: {
           connected_at?: string | null
@@ -7604,6 +7639,7 @@ export type Database = {
           last_product_sync?: string | null
           last_sales_sync?: string | null
           last_synced_at?: string | null
+          last_webhook_received_at?: string | null
           products_synced?: number | null
           retailer_id?: number | null
           retailer_name?: string | null
@@ -7613,7 +7649,13 @@ export type Database = {
           tenant_id?: string
           updated_at?: string | null
           user_id?: string
+          webhook_last_error?: string | null
+          webhook_next_retry_at?: string | null
           webhook_registered?: boolean | null
+          webhook_retry_count?: number | null
+          webhook_subscription_id?: string | null
+          webhooks_last_checked_at?: string | null
+          webhooks_subscribed?: boolean | null
         }
         Relationships: []
       }

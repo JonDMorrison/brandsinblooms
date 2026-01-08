@@ -2,6 +2,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.10';
 import { detectEnvironment } from '../_shared/environment.ts';
 import { encryptToken, assertEncryptionKeyConfigured } from '../_shared/crypto/tokens.ts';
 import { corsHeaders, corsJsonResponse } from '../_shared/cors.ts';
+import { ensureCloverWebhooks } from '../_shared/webhooks/ensureCloverWebhooks.ts';
 
 console.log('[CLOVER-CALLBACK] Edge function module loaded');
 
@@ -172,12 +173,37 @@ Deno.serve(async (req) => {
       throw new Error('Failed to save connection');
     }
 
+    console.log('[CLOVER-CALLBACK] Connection saved, setting up webhooks automatically...');
+
+    // ============================================
+    // AUTO-SUBSCRIBE WEBHOOKS - No user action needed
+    // ============================================
+    let webhookResult;
+    try {
+      webhookResult = await ensureCloverWebhooks(supabaseClient, connectionData.id);
+      console.log('[CLOVER-CALLBACK] Webhook setup result:', JSON.stringify(webhookResult));
+      
+      if (webhookResult.verified) {
+        console.log('[CLOVER-CALLBACK] ✓ Webhooks configured:', webhookResult.subscription_id);
+      } else {
+        console.warn('[CLOVER-CALLBACK] ⚠ Webhook setup pending:', webhookResult.error);
+      }
+    } catch (webhookError: any) {
+      console.error('[CLOVER-CALLBACK] Webhook setup error:', webhookError.message);
+      webhookResult = { verified: false, error: webhookError.message };
+    }
+
     console.log('[CLOVER-CALLBACK] Connection successful!');
 
     return corsJsonResponse({
       success: true,
       message: 'Clover connected successfully',
       merchantName: merchantData.name || 'Clover Account',
+      webhooks: {
+        configured: webhookResult?.verified || false,
+        subscription_id: webhookResult?.subscription_id || null,
+        error: webhookResult?.error || null,
+      },
     });
   } catch (error: any) {
     console.error('[CLOVER-CALLBACK] Error:', error.message);

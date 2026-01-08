@@ -1,6 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.10';
 import { corsHeaders } from '../_shared/cors.ts';
 import { detectEnvironment, getLightspeedCredentials } from '../_shared/environment.ts';
+import { ensureLightspeedWebhooks } from '../_shared/webhooks/ensureLightspeedWebhooks.ts';
 
 console.log('[LS-CALLBACK] Edge function starting');
 
@@ -166,13 +167,48 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log('[LS-CALLBACK] Connection saved successfully');
+    console.log('[LS-CALLBACK] Connection saved, setting up webhooks automatically...');
+
+    // ============================================
+    // AUTO-SUBSCRIBE WEBHOOKS - No user action needed
+    // ============================================
+    // Get connection ID first
+    const { data: savedConnection } = await supabaseClient
+      .from('lightspeed_connections')
+      .select('id')
+      .eq('tenant_id', tenantId)
+      .eq('domain_prefix', domainPrefix)
+      .single();
+
+    let webhookResult = { verified: false, error: 'Connection ID not found' };
+    if (savedConnection?.id) {
+      try {
+        webhookResult = await ensureLightspeedWebhooks(supabaseClient, savedConnection.id);
+        console.log('[LS-CALLBACK] Webhook setup result:', JSON.stringify(webhookResult));
+        
+        if (webhookResult.verified) {
+          console.log('[LS-CALLBACK] ✓ Webhooks configured:', webhookResult.subscription_id);
+        } else {
+          console.warn('[LS-CALLBACK] ⚠ Webhook setup pending:', webhookResult.error);
+        }
+      } catch (webhookError: any) {
+        console.error('[LS-CALLBACK] Webhook setup error:', webhookError.message);
+        webhookResult = { verified: false, error: webhookError.message };
+      }
+    }
+
+    console.log('[LS-CALLBACK] Connection successful');
 
     return new Response(
       JSON.stringify({ 
         success: true,
         retailerName,
-        message: 'Lightspeed connected successfully'
+        message: 'Lightspeed connected successfully',
+        webhooks: {
+          configured: webhookResult?.verified || false,
+          subscription_id: (webhookResult as any)?.subscription_id || null,
+          error: webhookResult?.error || null,
+        },
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
