@@ -92,6 +92,7 @@ serve(async (req) => {
 
     let websiteContent = '';
     let extractionMethod = '';
+    let brandingData: any = null;
 
     // First, try the direct fetch method with better error handling
     try {
@@ -144,7 +145,7 @@ serve(async (req) => {
         try {
           console.log('🔥 Using Firecrawl API as fallback');
           
-          const firecrawlResponse = await fetch('https://api.firecrawl.dev/v0/scrape', {
+          const firecrawlResponse = await fetch('https://api.firecrawl.dev/v1/scrape', {
             method: 'POST',
             headers: {
               'Authorization': `Bearer ${firecrawlApiKey}`,
@@ -170,8 +171,9 @@ serve(async (req) => {
           const firecrawlData = await firecrawlResponse.json();
           console.log('📥 Firecrawl response received');
 
-          if (firecrawlData.success && firecrawlData.data && firecrawlData.data.markdown) {
-            websiteContent = firecrawlData.data.markdown;
+          const contentData = firecrawlData.data || firecrawlData;
+          if (firecrawlData.success && contentData?.markdown) {
+            websiteContent = contentData.markdown;
             extractionMethod = 'firecrawl';
             console.log('✅ Firecrawl extraction successful, content length:', websiteContent.length);
           } else {
@@ -221,6 +223,51 @@ serve(async (req) => {
         status: 422,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
+    }
+
+    // Try to extract branding (colors, logo) using Firecrawl's branding format
+    if (firecrawlApiKey) {
+      try {
+        console.log('🎨 Attempting to extract brand colors via Firecrawl branding format');
+        
+        const brandingResponse = await fetch('https://api.firecrawl.dev/v1/scrape', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${firecrawlApiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            url: normalizedUrl,
+            formats: ['branding'],
+            waitFor: 3000,
+            timeout: 10000,
+          }),
+        });
+
+        if (brandingResponse.ok) {
+          const brandingResult = await brandingResponse.json();
+          const branding = brandingResult.data?.branding || brandingResult.branding;
+          
+          if (branding) {
+            brandingData = {
+              primaryColor: branding.colors?.primary || null,
+              secondaryColor: branding.colors?.secondary || null,
+              accentColor: branding.colors?.accent || null,
+              backgroundColor: branding.colors?.background || null,
+              textColor: branding.colors?.textPrimary || null,
+              logo: branding.logo || branding.images?.logo || null,
+              colorScheme: branding.colorScheme || null,
+              fonts: branding.fonts || null,
+            };
+            console.log('✅ Brand colors extracted:', brandingData);
+          }
+        } else {
+          console.log('⚠️ Branding extraction returned non-OK status, continuing without brand colors');
+        }
+      } catch (brandingError) {
+        console.log('⚠️ Branding extraction failed (non-critical):', brandingError.message);
+        // Non-critical - continue without brand colors
+      }
     }
     
     // Clean up content for analysis
@@ -361,10 +408,14 @@ CRITICAL:
 
     console.log('🎉 Final extracted data:', extractedData);
     console.log('✅ Analysis completed using:', extractionMethod);
+    if (brandingData) {
+      console.log('🎨 Brand data extracted:', brandingData);
+    }
 
     return new Response(JSON.stringify({ 
       extractedData,
-      extractionMethod 
+      extractionMethod,
+      brandingData
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

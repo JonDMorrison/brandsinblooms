@@ -11,6 +11,12 @@ interface ExtractedData {
   brandVoice: string;
   annualEvents: string;
   websiteContent: string;
+  // Brand colors from Firecrawl branding extraction
+  brandPrimaryColor?: string;
+  brandSecondaryColor?: string;
+  brandAccentColor?: string;
+  brandTextColor?: string;
+  brandLogo?: string;
 }
 
 interface AnalysisError {
@@ -131,13 +137,25 @@ export const useWebsiteAnalysis = () => {
       if (data?.extractedData) {
         console.log('5. Successfully extracted data:', data.extractedData);
         console.log('6. Extraction method used:', data.extractionMethod);
+        console.log('7. Branding data:', data.brandingData);
         
-        setExtractedData(data.extractedData);
+        // Merge branding data into extracted data
+        const mergedData = {
+          ...data.extractedData,
+          brandPrimaryColor: data.brandingData?.primaryColor || undefined,
+          brandSecondaryColor: data.brandingData?.secondaryColor || undefined,
+          brandAccentColor: data.brandingData?.accentColor || undefined,
+          brandTextColor: data.brandingData?.textColor || undefined,
+          brandLogo: data.brandingData?.logo || undefined,
+        };
+        
+        setExtractedData(mergedData);
         
         // Website analyzed successfully - show success message
+        const colorDetected = data.brandingData?.primaryColor ? ' Brand colors detected!' : '';
         toast({
           title: "Success",
-          description: "Website analyzed successfully!",
+          description: `Website analyzed successfully!${colorDetected}`,
         });
         return true;
       } else {
