@@ -10506,6 +10506,7 @@ export type Database = {
           last_product_sync: string | null
           last_sales_sync: string | null
           last_synced_at: string | null
+          last_webhook_received_at: string | null
           location_id: string | null
           merchant_id: string | null
           merchant_name: string | null
@@ -10518,6 +10519,9 @@ export type Database = {
           token_type: string | null
           updated_at: string | null
           user_id: string
+          webhook_last_error: string | null
+          webhook_next_retry_at: string | null
+          webhook_retry_count: number | null
           webhook_subscription_id: string | null
           webhooks_last_checked_at: string | null
           webhooks_subscribed: boolean | null
@@ -10535,6 +10539,7 @@ export type Database = {
           last_product_sync?: string | null
           last_sales_sync?: string | null
           last_synced_at?: string | null
+          last_webhook_received_at?: string | null
           location_id?: string | null
           merchant_id?: string | null
           merchant_name?: string | null
@@ -10547,6 +10552,9 @@ export type Database = {
           token_type?: string | null
           updated_at?: string | null
           user_id: string
+          webhook_last_error?: string | null
+          webhook_next_retry_at?: string | null
+          webhook_retry_count?: number | null
           webhook_subscription_id?: string | null
           webhooks_last_checked_at?: string | null
           webhooks_subscribed?: boolean | null
@@ -10564,6 +10572,7 @@ export type Database = {
           last_product_sync?: string | null
           last_sales_sync?: string | null
           last_synced_at?: string | null
+          last_webhook_received_at?: string | null
           location_id?: string | null
           merchant_id?: string | null
           merchant_name?: string | null
@@ -10576,6 +10585,9 @@ export type Database = {
           token_type?: string | null
           updated_at?: string | null
           user_id?: string
+          webhook_last_error?: string | null
+          webhook_next_retry_at?: string | null
+          webhook_retry_count?: number | null
           webhook_subscription_id?: string | null
           webhooks_last_checked_at?: string | null
           webhooks_subscribed?: boolean | null

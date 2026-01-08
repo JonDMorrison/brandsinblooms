@@ -2,6 +2,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.10';
 import { detectEnvironment, getSquareCredentials } from '../_shared/environment.ts';
 import { encryptToken, assertEncryptionKeyConfigured } from '../_shared/crypto/tokens.ts';
 import { corsHeaders, corsJsonResponse } from '../_shared/cors.ts';
+import { ensureSquareWebhooks } from '../_shared/webhooks/ensureSquareWebhooks.ts';
 
 console.log('[SQUARE-CALLBACK] Edge function module loaded');
 
@@ -156,12 +157,39 @@ Deno.serve(async (req) => {
       throw new Error('Failed to save connection');
     }
 
+    console.log('[SQUARE-CALLBACK] Connection saved, now setting up webhooks automatically...');
+
+    // ============================================
+    // AUTO-SUBSCRIBE WEBHOOKS - No user action needed
+    // ============================================
+    let webhookResult;
+    try {
+      webhookResult = await ensureSquareWebhooks(supabaseClient, connectionData.id);
+      console.log('[SQUARE-CALLBACK] Webhook setup result:', JSON.stringify(webhookResult));
+      
+      if (webhookResult.verified) {
+        console.log('[SQUARE-CALLBACK] ✓ Webhooks automatically configured:', webhookResult.subscription_id);
+      } else {
+        // Log but don't fail - background retry will handle it
+        console.warn('[SQUARE-CALLBACK] ⚠ Webhook setup pending retry:', webhookResult.error);
+      }
+    } catch (webhookError: any) {
+      // Log but don't fail the OAuth - connection is still valid
+      console.error('[SQUARE-CALLBACK] Webhook setup error (will retry):', webhookError.message);
+      webhookResult = { verified: false, error: webhookError.message };
+    }
+
     console.log('[SQUARE-CALLBACK] Connection successful!');
 
     return corsJsonResponse({
       success: true,
       message: 'Square connected successfully',
       merchantName: merchant.business_name || 'Square Account',
+      webhooks: {
+        configured: webhookResult?.verified || false,
+        subscription_id: webhookResult?.subscription_id || null,
+        error: webhookResult?.error || null,
+      },
     });
   } catch (error: any) {
     console.error('[SQUARE-CALLBACK] Error:', error.message);

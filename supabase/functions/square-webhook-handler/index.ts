@@ -3,7 +3,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.10';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-square-signature',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-square-signature, x-square-hmacsha256-signature',
 };
 
 interface SquareWebhookPayload {
@@ -23,20 +23,41 @@ interface WorkflowStep {
 
 async function verifySquareSignature(body: string, signature: string | null, notificationUrl: string): Promise<boolean> {
   const webhookSecret = Deno.env.get('SQUARE_WEBHOOK_SIGNATURE_KEY');
-  if (!webhookSecret) return true;
-  if (!signature) return false;
+  if (!webhookSecret) {
+    console.log('[WEBHOOK] No SQUARE_WEBHOOK_SIGNATURE_KEY configured - skipping verification');
+    return true;
+  }
+  if (!signature) {
+    console.log('[WEBHOOK] No signature provided');
+    return false;
+  }
   try {
     const stringToSign = notificationUrl + body;
     const encoder = new TextEncoder();
     const key = await crypto.subtle.importKey('raw', encoder.encode(webhookSecret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
     const signatureBuffer = await crypto.subtle.sign('HMAC', key, encoder.encode(stringToSign));
-    return signature === btoa(String.fromCharCode(...new Uint8Array(signatureBuffer)));
-  } catch { return false; }
+    const expectedSignature = btoa(String.fromCharCode(...new Uint8Array(signatureBuffer)));
+    const isValid = signature === expectedSignature;
+    if (!isValid) {
+      console.log('[WEBHOOK] Signature mismatch - expected:', expectedSignature.substring(0, 20) + '...', 'got:', signature.substring(0, 20) + '...');
+    }
+    return isValid;
+  } catch (e: any) {
+    console.error('[WEBHOOK] Signature verification error:', e.message);
+    return false;
+  }
 }
 
 async function findTenantByMerchantId(supabase: any, merchantId: string) {
-  const { data } = await supabase.from('square_connections').select('tenant_id, user_id, merchant_id, environment, encrypted_access_token').eq('merchant_id', merchantId).eq('status', 'connected').single();
+  const { data } = await supabase.from('square_connections').select('id, tenant_id, user_id, merchant_id, environment, encrypted_access_token').eq('merchant_id', merchantId).eq('status', 'connected').single();
   return data;
+}
+
+async function updateLastWebhookReceived(supabase: any, connectionId: string) {
+  await supabase
+    .from('square_connections')
+    .update({ last_webhook_received_at: new Date().toISOString() })
+    .eq('id', connectionId);
 }
 
 async function fetchSquareOrder(orderId: string, accessToken: string, environment: string): Promise<any | null> {
@@ -115,7 +136,8 @@ async function fireAutomationTriggers(supabase: any, tenantId: string, customerI
         message_type: messageType, recipient, content: personalizeMessage(step.text, customer, eventData),
         subject: step.subject ? personalizeMessage(step.subject, customer, eventData) : undefined,
         template_data: { automation_name: automation.name, step_index: i, customer_data: customer, event_data: eventData, trigger_type: automation.trigger_type },
-        scheduled_at: scheduledAt.toISOString()
+        scheduled_at: scheduledAt.toISOString(),
+        status: 'queued'
       });
       await supabase.from('crm_automation_logs').insert({ automation_id: automation.id, customer_id: customerId, step_index: i, message_type: messageType, status: 'queued', scheduled_at: scheduledAt.toISOString() });
       enqueued++;
@@ -350,9 +372,6 @@ async function syncProductToDatabase(supabase: any, tenantId: string, userId: st
 
 async function processCatalogVersionUpdated(supabase: any, tenantId: string, userId: string, catalogData: any, merchantId: string) {
   // THROTTLE: Only enqueue catalog sync if no pending/in_progress job exists
-  // Square sends catalog.version.updated on ANY change (price, inventory, etc.) which floods the system
-  
-  // Check for existing pending/in_progress products sync job
   const { data: existingJob } = await supabase
     .from('pos_sync_jobs_v2')
     .select('id')
@@ -367,7 +386,6 @@ async function processCatalogVersionUpdated(supabase: any, tenantId: string, use
     return { success: true, skipped: true, reason: 'job_in_progress', existingJobId: existingJob.id };
   }
 
-  // Also check last sync time as additional throttle
   const CATALOG_SYNC_THROTTLE_MINUTES = 15;
   const { data: connection } = await supabase.from('square_connections')
     .select('id, last_product_sync')
@@ -389,7 +407,6 @@ async function processCatalogVersionUpdated(supabase: any, tenantId: string, use
   try {
     console.log('🔄 Enqueuing catalog sync job (passed throttle check)');
     
-    // Enqueue products sync job
     const { data: jobId, error: enqueueError } = await supabase.rpc('enqueue_pos_sync_job', {
       p_tenant_id: tenantId,
       p_provider: 'square',
@@ -405,7 +422,6 @@ async function processCatalogVersionUpdated(supabase: any, tenantId: string, use
 
     console.log(`✅ Catalog sync job enqueued: ${jobId}`);
 
-    // Kick off the worker
     EdgeRuntime.waitUntil(
       supabase.functions.invoke('pos-sync-worker', { body: { provider: 'square' } })
     );
@@ -432,35 +448,89 @@ async function processInventoryCountUpdated(supabase: any, tenantId: string, inv
 
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
+  
   console.log('📨 Square webhook received');
+  
   try {
     const body = await req.text();
     const signature = req.headers.get('x-square-hmacsha256-signature');
     const notificationUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/square-webhook-handler`;
-    if (!await verifySquareSignature(body, signature, notificationUrl)) return new Response(JSON.stringify({ error: 'Invalid signature' }), { status: 401, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+    
+    // SIGNATURE VERIFICATION
+    const signatureValid = await verifySquareSignature(body, signature, notificationUrl);
+    
+    if (!signatureValid) {
+      console.error('❌ SIGNATURE_FAILED - Invalid Square webhook signature');
+      return new Response(JSON.stringify({ error: 'Invalid signature' }), { 
+        status: 401, 
+        headers: { 'Content-Type': 'application/json', ...corsHeaders } 
+      });
+    }
 
     const payload: SquareWebhookPayload = JSON.parse(body);
-    console.log('📦 Event:', payload.type, 'Merchant:', payload.merchant_id);
+    
+    // ============================================
+    // SIGNATURE_OK - Log after successful verification
+    // ============================================
+    console.log('✅ SIGNATURE_OK | event_id:', payload.event_id, '| event_type:', payload.type, '| merchant_id:', payload.merchant_id);
+    
     const supabase = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
     const connection = await findTenantByMerchantId(supabase, payload.merchant_id);
-    if (!connection) return new Response(JSON.stringify({ error: 'Merchant not connected' }), { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+    
+    if (!connection) {
+      console.warn('⚠️ Merchant not connected:', payload.merchant_id);
+      return new Response(JSON.stringify({ error: 'Merchant not connected' }), { 
+        status: 200, 
+        headers: { 'Content-Type': 'application/json', ...corsHeaders } 
+      });
+    }
+
+    // ============================================
+    // UPDATE last_webhook_received_at on successful processing
+    // ============================================
+    await updateLastWebhookReceived(supabase, connection.id);
 
     let result: any = { success: true, message: `Event ${payload.type} not handled` };
+    
     switch (payload.type) {
-      case 'payment.completed': result = await processPaymentCompleted(supabase, connection.tenant_id, connection.user_id, payload.data.object, payload.merchant_id, connection); break;
-      case 'customer.created': result = await processCustomerCreated(supabase, connection.tenant_id, connection.user_id, payload.data.object, connection); break;
-      case 'customer.updated': result = await processCustomerUpdated(supabase, connection.tenant_id, connection.user_id, payload.data.object, connection); break;
-      case 'loyalty.account.created': case 'loyalty.program.enrollment.created': result = await processLoyaltyAccountCreated(supabase, connection.tenant_id, connection.user_id, payload.data.object, payload.merchant_id); break;
-      case 'order.fulfillment.updated': result = await processFulfillmentUpdated(supabase, connection.tenant_id, connection.user_id, payload.data.object, payload.merchant_id); break;
-      case 'refund.created': result = await processRefundCreated(supabase, connection.tenant_id, connection.user_id, payload.data.object, payload.merchant_id); break;
-      case 'catalog.version.updated': result = await processCatalogVersionUpdated(supabase, connection.tenant_id, connection.user_id, payload.data.object, payload.merchant_id); break;
-      case 'inventory.count.updated': result = await processInventoryCountUpdated(supabase, connection.tenant_id, payload.data.object); break;
+      case 'payment.completed': 
+        result = await processPaymentCompleted(supabase, connection.tenant_id, connection.user_id, payload.data.object, payload.merchant_id, connection); 
+        break;
+      case 'customer.created': 
+        result = await processCustomerCreated(supabase, connection.tenant_id, connection.user_id, payload.data.object, connection); 
+        break;
+      case 'customer.updated': 
+        result = await processCustomerUpdated(supabase, connection.tenant_id, connection.user_id, payload.data.object, connection); 
+        break;
+      case 'loyalty.account.created': 
+      case 'loyalty.program.enrollment.created': 
+        result = await processLoyaltyAccountCreated(supabase, connection.tenant_id, connection.user_id, payload.data.object, payload.merchant_id); 
+        break;
+      case 'order.fulfillment.updated': 
+        result = await processFulfillmentUpdated(supabase, connection.tenant_id, connection.user_id, payload.data.object, payload.merchant_id); 
+        break;
+      case 'refund.created': 
+        result = await processRefundCreated(supabase, connection.tenant_id, connection.user_id, payload.data.object, payload.merchant_id); 
+        break;
+      case 'catalog.version.updated': 
+        result = await processCatalogVersionUpdated(supabase, connection.tenant_id, connection.user_id, payload.data.object, payload.merchant_id); 
+        break;
+      case 'inventory.count.updated': 
+        result = await processInventoryCountUpdated(supabase, connection.tenant_id, payload.data.object); 
+        break;
     }
+    
     console.log('✅ Result:', JSON.stringify(result));
-    return new Response(JSON.stringify({ success: true, result }), { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+    return new Response(JSON.stringify({ success: true, result }), { 
+      status: 200, 
+      headers: { 'Content-Type': 'application/json', ...corsHeaders } 
+    });
   } catch (error: any) {
     console.error('💥 Error:', error.message);
-    return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+    return new Response(JSON.stringify({ error: error.message }), { 
+      status: 500, 
+      headers: { 'Content-Type': 'application/json', ...corsHeaders } 
+    });
   }
 };
 
