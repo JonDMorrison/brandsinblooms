@@ -261,6 +261,68 @@ Deno.serve(async (req) => {
       }
     }
 
+    // ACTION: Verify - Check if our webhook subscription exists and is active
+    if (action === 'verify') {
+      console.log('[SQUARE-WEBHOOKS] Verifying webhook subscription...');
+      
+      const storedSubscriptionId = connection.webhook_subscription_id;
+      const webhookUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/square-webhook-handler`;
+      
+      // Find our subscription
+      const ourSubscription = subscriptions.find((s: any) => 
+        s.id === storedSubscriptionId || 
+        s.notification_url === webhookUrl ||
+        s.notification_url?.includes('square-webhook-handler')
+      );
+      
+      if (ourSubscription && ourSubscription.enabled) {
+        console.log('[SQUARE-WEBHOOKS] ✓ Subscription verified:', ourSubscription.id);
+        
+        // Update last checked timestamp
+        await supabaseClient.from('square_connections')
+          .update({ 
+            webhooks_subscribed: true,
+            webhook_subscription_id: ourSubscription.id,
+            webhooks_last_checked_at: new Date().toISOString()
+          })
+          .eq('id', connection.id);
+        
+        return new Response(
+          JSON.stringify({
+            success: true,
+            verified: true,
+            subscription_id: ourSubscription.id,
+            event_count: ourSubscription.event_types?.length || 0,
+            event_types: ourSubscription.event_types,
+            notification_url: ourSubscription.notification_url,
+            message: 'Webhook subscription is active and verified',
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      } else {
+        console.warn('[SQUARE-WEBHOOKS] ⚠ Subscription not found or disabled');
+        
+        // Update connection to reflect missing subscription
+        await supabaseClient.from('square_connections')
+          .update({ 
+            webhooks_subscribed: false,
+            webhooks_last_checked_at: new Date().toISOString()
+          })
+          .eq('id', connection.id);
+        
+        return new Response(
+          JSON.stringify({
+            success: true,
+            verified: false,
+            message: 'Webhook subscription not found or disabled. Please re-register.',
+            stored_id: storedSubscriptionId,
+            found_subscriptions: subscriptions.length,
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
     if (action === 'add_loyalty_events') {
       const subscriptionId = body?.subscription_id;
       if (!subscriptionId) {
