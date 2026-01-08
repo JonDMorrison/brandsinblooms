@@ -408,3 +408,6 @@ verify_jwt = true
 
 [functions.mta-debug-numbers]
 verify_jwt = true
+
+[functions.square-proof-test]
+verify_jwt = false

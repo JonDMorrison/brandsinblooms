@@ -12312,7 +12312,7 @@ export type Database = {
         }
       }
       claim_outbox_messages: {
-        Args: { p_limit?: number; p_worker_id?: string }
+        Args: { p_limit?: number; p_tenant_id: string; p_worker_id?: string }
         Returns: {
           automation_id: string | null
           automation_run_id: string | null
