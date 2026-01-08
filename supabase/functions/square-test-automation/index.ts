@@ -5,45 +5,105 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Simulates a Square payment.completed webhook event for testing automations
+// Secured test function - requires authentication and tenant membership
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const body = await req.json().catch(() => ({}));
-    const customerId = body.customer_id;
-    const tenantId = body.tenant_id;
-
-    if (!customerId) {
-      throw new Error('customer_id is required');
+    // AUTHENTICATION REQUIRED
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'Authorization required' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    // Use service role for all operations (admin-only test function)
+    // Create client with user's auth token
+    const supabaseUser = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    // Verify user identity
+    const { data: { user }, error: authError } = await supabaseUser.auth.getUser();
+    if (authError || !user) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid authentication' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Get user's tenant
+    const { data: userData, error: userError } = await supabaseUser
+      .from('users')
+      .select('tenant_id')
+      .eq('id', user.id)
+      .single();
+
+    if (userError || !userData?.tenant_id) {
+      return new Response(
+        JSON.stringify({ error: 'User not associated with a tenant' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const userTenantId = userData.tenant_id;
+
+    // Check if user is master admin (can access any tenant)
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Get customer
+    const { data: isMasterAdmin } = await supabaseAdmin
+      .from('app_admin_emails')
+      .select('email')
+      .eq('email', user.email)
+      .maybeSingle();
+
+    const body = await req.json().catch(() => ({}));
+    const customerId = body.customer_id;
+    const requestedTenantId = body.tenant_id;
+
+    // Determine effective tenant - master admins can specify any tenant
+    const effectiveTenantId = isMasterAdmin && requestedTenantId ? requestedTenantId : userTenantId;
+
+    // If not master admin, ensure they can only test their own tenant
+    if (!isMasterAdmin && requestedTenantId && requestedTenantId !== userTenantId) {
+      return new Response(
+        JSON.stringify({ error: 'Access denied: You can only test your own tenant' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (!customerId) {
+      return new Response(
+        JSON.stringify({ error: 'customer_id is required' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Get customer - must belong to the effective tenant
     const { data: customer, error: custError } = await supabaseAdmin
       .from('crm_customers')
-      .select('*, tenant_id')
+      .select('*')
       .eq('id', customerId)
+      .eq('tenant_id', effectiveTenantId)
       .single();
 
     if (custError || !customer) {
-      throw new Error(`Customer not found: ${custError?.message}`);
-    }
-    
-    const effectiveTenantId = tenantId || customer.tenant_id;
-
-    if (custError || !customer) {
-      throw new Error(`Customer not found: ${custError?.message}`);
+      return new Response(
+        JSON.stringify({ error: `Customer not found or not in your tenant: ${custError?.message || 'Not found'}` }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    console.log(`🧪 [TEST] Simulating order.completed for customer: ${customer.email}`);
+    console.log(`🧪 [TEST] User ${user.email} testing automation for customer: ${customer.email}`);
+    console.log(`🧪 [TEST] Tenant: ${effectiveTenantId}, Master Admin: ${!!isMasterAdmin}`);
 
     // Update customer's last_purchase_date to NOW
     const currentDate = new Date().toISOString().split('T')[0];
@@ -62,8 +122,30 @@ Deno.serve(async (req) => {
 
     console.log(`✅ [TEST] Updated last_purchase_date to ${currentDate}`);
 
-    // Now fire automation triggers just like the webhook handler does
-    const triggerTypes = ['order.completed'];
+    // Get active automations for order.completed trigger
+    const { data: automations } = await supabaseAdmin
+      .from('crm_automations')
+      .select('*')
+      .eq('tenant_id', effectiveTenantId)
+      .eq('is_active', true)
+      .eq('trigger_type', 'order.completed');
+
+    if (!automations?.length) {
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          message: 'No active automations for order.completed',
+          customer_id: customer.id,
+          customer_email: customer.email,
+          last_purchase_date: currentDate
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log(`📋 [TEST] Found ${automations.length} active order.completed automations`);
+
+    const results = [];
     const eventData = {
       order_amount: 25.00,
       order_id: `test-${Date.now()}`,
@@ -72,29 +154,6 @@ Deno.serve(async (req) => {
       test_mode: true
     };
 
-    // Get active automations for this trigger
-    const { data: automations } = await supabaseAdmin
-      .from('crm_automations')
-      .select('*')
-      .eq('tenant_id', effectiveTenantId)
-      .eq('is_active', true)
-      .in('trigger_type', triggerTypes);
-
-    if (!automations?.length) {
-      return new Response(
-        JSON.stringify({ 
-          success: true, 
-          message: 'No active automations for order.completed',
-          customer_id: customer.id,
-          customer_email: customer.email
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    console.log(`📋 [TEST] Found ${automations.length} active automations`);
-
-    const results = [];
     for (const automation of automations) {
       // Check for existing active run
       const { data: existingRun } = await supabaseAdmin
@@ -107,7 +166,7 @@ Deno.serve(async (req) => {
         .maybeSingle();
 
       if (existingRun) {
-        console.log(`⏭️ [TEST] Skipping automation ${automation.name} - already has active run`);
+        console.log(`⏭️ [TEST] Skipping ${automation.name} - already has active run`);
         results.push({
           automation_id: automation.id,
           automation_name: automation.name,
@@ -118,6 +177,13 @@ Deno.serve(async (req) => {
         continue;
       }
 
+      // Parse workflow steps
+      const steps = Array.isArray(automation.workflow_steps) 
+        ? automation.workflow_steps 
+        : [];
+      
+      const messageSteps = steps.filter((s: any) => s.type === 'email' || s.type === 'sms');
+
       // Create automation run
       const { data: run, error: runError } = await supabaseAdmin
         .from('automation_runs')
@@ -127,7 +193,7 @@ Deno.serve(async (req) => {
           tenant_id: effectiveTenantId,
           status: 'active',
           current_step_index: 0,
-          total_steps: (automation.workflow_steps || []).length,
+          total_steps: messageSteps.length,
           trigger_data: {
             trigger_type: automation.trigger_type,
             triggered_at: new Date().toISOString(),
@@ -136,7 +202,8 @@ Deno.serve(async (req) => {
           },
           metadata: {
             automation_name: automation.name,
-            test_triggered: true
+            test_triggered: true,
+            triggered_by: user.email
           }
         })
         .select('id')
@@ -154,9 +221,8 @@ Deno.serve(async (req) => {
 
       console.log(`✅ [TEST] Created automation_run: ${run.id}`);
 
-      // Create outbox entry for the first step
-      const steps = automation.workflow_steps || [];
-      const firstMessageStep = steps.find((s: any) => s.type === 'email' || s.type === 'sms');
+      // Create outbox entry for the first message step
+      const firstMessageStep = messageSteps[0];
       
       if (firstMessageStep) {
         const recipient = firstMessageStep.type === 'sms' ? customer.phone : customer.email;
@@ -179,57 +245,65 @@ Deno.serve(async (req) => {
             customer_id: customer.id,
             message_type: firstMessageStep.type,
             recipient,
-            subject: firstMessageStep.subject || `Test from ${automation.name}`,
+            subject: firstMessageStep.subject || `Message from ${automation.name}`,
             content: firstMessageStep.content || firstMessageStep.text || 'Test message content',
+            step_index: 0,
             template_data: {
               automation_name: automation.name,
-              step_index: 0,
               customer_data: {
                 first_name: customer.first_name,
+                last_name: customer.last_name,
                 email: customer.email
               },
               event_data: eventData,
               test_mode: true
             },
             scheduled_at: scheduledAt.toISOString(),
-            status: 'pending'
+            status: 'pending',
+            priority: 50 // High priority for test
           })
           .select('id')
           .single();
 
         if (outboxError) {
           console.error(`❌ [TEST] Failed to create outbox entry:`, outboxError);
+          results.push({
+            automation_id: automation.id,
+            automation_name: automation.name,
+            automation_run_id: run.id,
+            error: `Outbox creation failed: ${outboxError.message}`
+          });
         } else {
           console.log(`✅ [TEST] Created crm_outbox entry: ${outbox.id}`);
+          results.push({
+            automation_id: automation.id,
+            automation_name: automation.name,
+            automation_run_id: run.id,
+            outbox_id: outbox.id,
+            message_type: firstMessageStep.type,
+            recipient,
+            scheduled_at: scheduledAt.toISOString()
+          });
         }
-
-        results.push({
-          automation_id: automation.id,
-          automation_name: automation.name,
-          automation_run_id: run.id,
-          outbox_id: outbox?.id,
-          message_type: firstMessageStep.type,
-          recipient,
-          scheduled_at: scheduledAt.toISOString()
-        });
       } else {
         results.push({
           automation_id: automation.id,
           automation_name: automation.name,
           automation_run_id: run.id,
-          no_message_step: true
+          warning: 'No message steps found in automation'
         });
       }
 
-      // Also create automation_events entry
+      // Create automation event
       await supabaseAdmin.from('automation_events').insert({
         automation_id: automation.id,
         customer_id: customer.id,
         event_type: 'triggered',
         metadata: {
-          trigger_types: triggerTypes,
+          trigger_type: 'order.completed',
           event_data: eventData,
-          test_mode: true
+          test_mode: true,
+          triggered_by: user.email
         }
       });
     }
@@ -237,6 +311,8 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: true,
+        tested_by: user.email,
+        tenant_id: effectiveTenantId,
         customer_id: customer.id,
         customer_email: customer.email,
         last_purchase_date: currentDate,
