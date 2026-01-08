@@ -12311,6 +12311,41 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      claim_outbox_messages: {
+        Args: { p_limit?: number; p_worker_id?: string }
+        Returns: {
+          automation_id: string | null
+          automation_run_id: string | null
+          content: string
+          created_at: string | null
+          customer_id: string
+          error_message: string | null
+          id: string
+          locked_by: string | null
+          locked_until: string | null
+          max_retries: number | null
+          message_type: string
+          priority: number | null
+          recipient: string
+          retry_count: number | null
+          scheduled_at: string | null
+          sent_at: string | null
+          skip_reason: string | null
+          skipped_at: string | null
+          status: string | null
+          step_index: number | null
+          subject: string | null
+          template_data: Json | null
+          tenant_id: string
+          updated_at: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "crm_outbox"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       claim_sms_campaign_enqueue: {
         Args: {
           p_campaign_id: string

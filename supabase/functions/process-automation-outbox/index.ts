@@ -30,7 +30,6 @@ interface OutboxMessage {
 }
 
 const BATCH_SIZE = 50;
-const LOCK_DURATION_MS = 5 * 60 * 1000; // 5 minutes
 const WORKER_ID = `worker-${crypto.randomUUID().slice(0, 8)}`;
 
 const handler = async (req: Request): Promise<Response> => {
@@ -47,26 +46,17 @@ const handler = async (req: Request): Promise<Response> => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-    // 1. Fetch pending messages that are due and not locked
-    // Status 'pending' = scheduled for later, ready to process when scheduled_at <= now
-    const now = new Date().toISOString();
-    const { data: pendingMessages, error: fetchError } = await supabase
-      .from("crm_outbox")
-      .select("*")
-      .in("status", ["pending", "queued"])  // Both are valid "ready to process" states
-      .lte("scheduled_at", now)
-      .or(`locked_until.is.null,locked_until.lt.${now}`)
-      .order("priority", { ascending: true })
-      .order("scheduled_at", { ascending: true })
-      .limit(BATCH_SIZE);
+    // 1. Atomically claim messages using RPC function
+    const { data: claimedMessages, error: claimError } = await supabase
+      .rpc("claim_outbox_messages", { p_limit: BATCH_SIZE, p_worker_id: WORKER_ID });
 
-    if (fetchError) {
-      console.error("❌ Failed to fetch pending messages:", fetchError);
-      throw fetchError;
+    if (claimError) {
+      console.error("❌ Failed to claim messages:", claimError);
+      throw claimError;
     }
 
-    if (!pendingMessages || pendingMessages.length === 0) {
-      console.log("📭 No pending messages to process");
+    if (!claimedMessages || claimedMessages.length === 0) {
+      console.log("📭 No messages to process");
       return new Response(
         JSON.stringify({
           success: true,
@@ -80,67 +70,32 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    console.log(`📨 Found ${pendingMessages.length} pending messages`);
+    console.log(`📨 Claimed ${claimedMessages.length} messages (status already set to 'processing')`);
 
     let sent = 0;
     let failed = 0;
     let skipped = 0;
-    const lockUntil = new Date(Date.now() + LOCK_DURATION_MS).toISOString();
 
-    // 2. Process each message
-    for (const message of pendingMessages as OutboxMessage[]) {
+    // 2. Process each claimed message
+    for (const message of claimedMessages as OutboxMessage[]) {
       try {
-        // Try to lock the message (optimistic locking)
-        // Check if lock is stale first
-        if (message.locked_until && new Date(message.locked_until) > new Date()) {
-          console.log(`⏭️ Message ${message.id} still locked until ${message.locked_until}`);
-          continue;
-        }
-
-        const { data: lockResult, error: lockError } = await supabase
-          .from("crm_outbox")
-          .update({
-            locked_until: lockUntil,
-            locked_by: WORKER_ID,
-            status: "processing",
-          })
-          .eq("id", message.id)
-          .in("status", ["pending", "queued"])
-          .select()
-          .single();
-
-        if (lockError) {
-          console.error(`❌ Lock error for ${message.id}:`, lockError.message, lockError.code);
-          continue;
-        }
-
-        if (!lockResult) {
-          console.log(`⏭️ Message ${message.id} already locked or status changed`);
-          continue;
-        }
-
-        console.log(`🔒 Locked message ${message.id} for ${message.message_type}`);
+        console.log(`🔒 Processing message ${message.id} (${message.message_type} to ${message.recipient})`);
 
         // 3. Check channel availability before attempting to send
         const channelStatus = isChannelAvailable(message.message_type);
         
         if (!channelStatus.available) {
-          // Channel not configured - skip this step and advance automation
           console.log(`⏭️ Skipping ${message.message_type} step - channel not available: ${channelStatus.reason}`);
-          
           await skipMessage(supabase, message, channelStatus.reason || 'Channel not configured');
-          
-          // Advance automation run to next step
           if (message.automation_run_id) {
             await advanceAutomationRun(supabase, message);
           }
-          
           skipped++;
           continue;
         }
 
         // 4. Send the message based on type
-        let sendResult: { success: boolean; error?: string; shouldSkip?: boolean };
+        let sendResult: { success: boolean; error?: string; shouldSkip?: boolean; external_id?: string };
 
         if (message.message_type === "email") {
           sendResult = await sendEmail(supabase, message);
@@ -153,29 +108,49 @@ const handler = async (req: Request): Promise<Response> => {
         // 5. Handle skip response from send functions
         if (sendResult.shouldSkip) {
           console.log(`⏭️ Skipping ${message.message_type} step - ${sendResult.error}`);
-          
           await skipMessage(supabase, message, sendResult.error || 'Channel not available');
-          
-          // Advance automation run to next step
           if (message.automation_run_id) {
             await advanceAutomationRun(supabase, message);
           }
-          
           skipped++;
           continue;
         }
 
-        // 6. Update message status
+        // 6. Update message status and log to crm_message_logs
         if (sendResult.success) {
+          const sentAt = new Date().toISOString();
+          
+          // Update outbox to sent
           await supabase
             .from("crm_outbox")
             .update({
               status: "sent",
-              sent_at: new Date().toISOString(),
+              sent_at: sentAt,
               locked_until: null,
               locked_by: null,
             })
             .eq("id", message.id);
+
+          // Log to crm_message_logs with external_id
+          const { error: logError } = await supabase.from("crm_message_logs").insert({
+            outbox_id: message.id,
+            tenant_id: message.tenant_id,
+            message_type: message.message_type,
+            recipient: message.recipient,
+            status: "sent",
+            external_id: sendResult.external_id || null,
+            metadata: {
+              automation_id: message.automation_id,
+              customer_id: message.customer_id,
+              step_index: message.step_index,
+            },
+          });
+
+          if (logError) {
+            console.error(`⚠️ Failed to log message to crm_message_logs:`, logError);
+          } else {
+            console.log(`📝 Logged to crm_message_logs: external_id=${sendResult.external_id}`);
+          }
 
           // Log success in automation logs
           if (message.automation_id) {
@@ -186,7 +161,7 @@ const handler = async (req: Request): Promise<Response> => {
                 step_index: message.step_index,
                 message_type: message.message_type,
                 status: "sent",
-                sent_at: new Date().toISOString(),
+                sent_at: sentAt,
               },
               { onConflict: "automation_id,customer_id,step_index" }
             );
@@ -198,7 +173,7 @@ const handler = async (req: Request): Promise<Response> => {
           }
 
           sent++;
-          console.log(`✅ Sent ${message.message_type} to ${message.recipient}`);
+          console.log(`✅ Sent ${message.message_type} to ${message.recipient} (external_id: ${sendResult.external_id})`);
         } else {
           const newRetryCount = (message.retry_count || 0) + 1;
           const maxRetries = message.max_retries || 3;
@@ -216,6 +191,22 @@ const handler = async (req: Request): Promise<Response> => {
               })
               .eq("id", message.id);
 
+            // Log failure to crm_message_logs
+            await supabase.from("crm_message_logs").insert({
+              outbox_id: message.id,
+              tenant_id: message.tenant_id,
+              message_type: message.message_type,
+              recipient: message.recipient,
+              status: "failed",
+              error_message: sendResult.error,
+              metadata: {
+                automation_id: message.automation_id,
+                customer_id: message.customer_id,
+                step_index: message.step_index,
+                retry_count: newRetryCount,
+              },
+            });
+
             // Update automation run if failed
             if (message.automation_run_id) {
               await supabase
@@ -231,12 +222,13 @@ const handler = async (req: Request): Promise<Response> => {
             console.error(`❌ Message ${message.id} failed after ${newRetryCount} retries: ${sendResult.error}`);
           } else {
             // Schedule retry with exponential backoff
-            const backoffMinutes = Math.pow(2, newRetryCount); // 2, 4, 8 minutes
+            const backoffMinutes = Math.pow(2, newRetryCount);
             const nextRetry = new Date(Date.now() + backoffMinutes * 60 * 1000).toISOString();
 
             await supabase
               .from("crm_outbox")
               .update({
+                status: "queued", // Back to queued for retry
                 retry_count: newRetryCount,
                 scheduled_at: nextRetry,
                 error_message: sendResult.error,
@@ -251,10 +243,11 @@ const handler = async (req: Request): Promise<Response> => {
       } catch (messageError) {
         console.error(`❌ Error processing message ${message.id}:`, messageError);
 
-        // Unlock the message on error
+        // Unlock the message on error and set back to queued
         await supabase
           .from("crm_outbox")
           .update({
+            status: "queued",
             locked_until: null,
             locked_by: null,
             error_message: messageError instanceof Error ? messageError.message : "Unknown error",
@@ -271,7 +264,7 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(
       JSON.stringify({
         success: true,
-        processed: pendingMessages.length,
+        processed: claimedMessages.length,
         sent,
         skipped,
         failed,
@@ -299,7 +292,6 @@ async function skipMessage(
 ): Promise<void> {
   const now = new Date().toISOString();
   
-  // Update outbox message status to skipped
   await supabase
     .from("crm_outbox")
     .update({
@@ -311,7 +303,21 @@ async function skipMessage(
     })
     .eq("id", message.id);
 
-  // Log skip in automation logs
+  // Log skip in crm_message_logs
+  await supabase.from("crm_message_logs").insert({
+    outbox_id: message.id,
+    tenant_id: message.tenant_id,
+    message_type: message.message_type,
+    recipient: message.recipient,
+    status: "skipped",
+    error_message: reason,
+    metadata: {
+      automation_id: message.automation_id,
+      customer_id: message.customer_id,
+      step_index: message.step_index,
+    },
+  });
+
   if (message.automation_id) {
     await supabase.from("crm_automation_logs").upsert(
       {
@@ -332,14 +338,12 @@ async function skipMessage(
 async function sendEmail(
   supabase: ReturnType<typeof createClient>,
   message: OutboxMessage
-): Promise<{ success: boolean; error?: string; shouldSkip?: boolean }> {
+): Promise<{ success: boolean; error?: string; shouldSkip?: boolean; external_id?: string }> {
   try {
-    // Check if sender config was pre-resolved and stored in template_data
     const templateData = message.template_data || {};
     let senderConfig: SenderConfig;
 
     if (templateData.sender_config?.from_email) {
-      // Use pre-resolved sender from template_data
       senderConfig = {
         fromEmail: templateData.sender_config.from_email,
         fromName: templateData.sender_config.from_name,
@@ -348,12 +352,11 @@ async function sendEmail(
       } as SenderConfig;
       console.log(`📧 [SendEmail] Using pre-resolved sender: ${senderConfig.deliveryMethod} (${senderConfig.fromEmail})`);
     } else {
-      // Resolve sender dynamically using three-tier priority
       senderConfig = await resolveSender(supabase, message.tenant_id, {});
       console.log(`📧 [SendEmail] Dynamically resolved sender: ${senderConfig.deliveryMethod} (${senderConfig.fromEmail})`);
     }
 
-    // Get company name for display - query via users table since company_profiles uses user_id
+    // Get company name for display
     const { data: tenantUser } = await supabase
       .from("users")
       .select("id")
@@ -370,38 +373,41 @@ async function sendEmail(
         .single();
       companyName = companyProfile?.company_name || "Your Business";
     }
-    
-    // Use company name directly without suffix
-    const fromName = companyName;
 
-    // Call the send-email-campaign function with resolved sender
-    const { data, error } = await supabase.functions.invoke("send-email-campaign", {
+    // Call the transactional email function (returns external_id)
+    const { data, error } = await supabase.functions.invoke("send-transactional-email", {
       body: {
-        tenant_id: message.tenant_id,
         to: message.recipient,
         subject: message.subject || "Message from automation",
         html_content: message.content,
-        from_name: fromName,
+        from_name: companyName,
         from_email: senderConfig.fromEmail,
-        domain_id: senderConfig.domainId || null,
-        delivery_method: senderConfig.deliveryMethod,
-        automation_id: message.automation_id,
-        customer_id: message.customer_id,
+        tags: [
+          { name: "automation_id", value: message.automation_id || "none" },
+          { name: "tenant_id", value: message.tenant_id },
+        ],
       },
     });
 
     if (error) {
+      console.error(`❌ [SendEmail] Invoke error:`, error.message);
       return { success: false, error: error.message };
     }
 
-    if (data?.error) {
-      return { success: false, error: data.error };
+    // Log full response for debugging
+    console.log(`📧 [SendEmail] Response:`, JSON.stringify(data));
+
+    if (!data?.success) {
+      if (data?.skipable) {
+        return { success: false, error: data.error, shouldSkip: true };
+      }
+      return { success: false, error: data?.error || "Email send failed" };
     }
 
-    console.log(`✅ [SendEmail] Email sent via ${senderConfig.deliveryMethod}: ${message.recipient}`);
-    return { success: true };
+    console.log(`✅ [SendEmail] Email sent via ${senderConfig.deliveryMethod}: ${message.recipient}, external_id: ${data.external_id}`);
+    return { success: true, external_id: data.external_id };
   } catch (err) {
-    console.error(`❌ [SendEmail] Failed:`, err);
+    console.error(`❌ [SendEmail] Exception:`, err);
     return { success: false, error: err instanceof Error ? err.message : "Email send failed" };
   }
 }
@@ -409,24 +415,23 @@ async function sendEmail(
 async function sendSMS(
   supabase: ReturnType<typeof createClient>,
   message: OutboxMessage
-): Promise<{ success: boolean; error?: string; shouldSkip?: boolean }> {
+): Promise<{ success: boolean; error?: string; shouldSkip?: boolean; external_id?: string }> {
   try {
-    // Call the send-sms function
     const { data, error } = await supabase.functions.invoke("send-sms", {
       body: {
-        tenant_id: message.tenant_id,
         to: message.recipient,
         body: message.content,
-        automation_id: message.automation_id,
-        customer_id: message.customer_id,
       },
     });
 
     if (error) {
+      console.error(`❌ [SendSMS] Invoke error:`, error.message);
       return { success: false, error: error.message };
     }
 
-    // Check if SMS function returned a skipable error
+    // Log full response for debugging
+    console.log(`📱 [SendSMS] Response:`, JSON.stringify(data));
+
     if (data?.error === 'SMS_NOT_CONFIGURED' && data?.skipable) {
       console.log(`📱 [SendSMS] SMS not configured, marking as skipable`);
       return { success: false, error: data.message || 'SMS not configured', shouldSkip: true };
@@ -436,8 +441,12 @@ async function sendSMS(
       return { success: false, error: data.error };
     }
 
-    return { success: true };
+    // send-sms returns { sid, status, message }
+    const twilioSid = data?.sid;
+    console.log(`✅ [SendSMS] SMS sent, Twilio SID: ${twilioSid}`);
+    return { success: true, external_id: twilioSid };
   } catch (err) {
+    console.error(`❌ [SendSMS] Exception:`, err);
     return { success: false, error: err instanceof Error ? err.message : "SMS send failed" };
   }
 }
@@ -449,10 +458,9 @@ async function advanceAutomationRun(
   if (!message.automation_run_id) return;
 
   try {
-    // Get the automation run and its workflow steps
     const { data: run } = await supabase
       .from("automation_runs")
-      .select("*, automation:crm_automations(workflow_steps, tenant_id)")
+      .select("*, automation:crm_automations(workflow_steps, tenant_id, name)")
       .eq("id", message.automation_run_id)
       .single();
 
@@ -465,7 +473,6 @@ async function advanceAutomationRun(
     const nextStepIndex = run.current_step_index + 1;
 
     if (nextStepIndex >= run.total_steps) {
-      // All steps completed
       await supabase
         .from("automation_runs")
         .update({
@@ -478,12 +485,10 @@ async function advanceAutomationRun(
 
       console.log(`🎉 Automation run ${message.automation_run_id} completed`);
     } else {
-      // Schedule next step
       const nextStep = workflowSteps[nextStepIndex];
       const delayMs = (nextStep?.delayMin || 0) * 60 * 1000;
       const nextScheduledAt = new Date(Date.now() + delayMs).toISOString();
 
-      // Update run state
       await supabase
         .from("automation_runs")
         .update({
@@ -492,7 +497,6 @@ async function advanceAutomationRun(
         })
         .eq("id", message.automation_run_id);
 
-      // Get customer data for personalization
       const { data: customer } = await supabase
         .from("crm_customers")
         .select("*")
@@ -500,10 +504,9 @@ async function advanceAutomationRun(
         .single();
 
       if (customer && nextStep) {
-        // Check if the next step's channel is available
         const nextChannelStatus = isChannelAvailable(nextStep.type);
         
-        // Enqueue the next step (even if channel unavailable - it will be skipped during processing)
+        // Enqueue next step with status='queued'
         await supabase.from("crm_outbox").insert({
           tenant_id: message.tenant_id,
           automation_id: message.automation_id,
@@ -515,7 +518,7 @@ async function advanceAutomationRun(
           content: nextStep.text,
           step_index: nextStepIndex,
           scheduled_at: nextScheduledAt,
-          status: "pending",  // Scheduled for later processing
+          status: "queued",  // Standardized: always use queued
           template_data: {
             automation_name: run.automation?.name,
             step_index: nextStepIndex,
@@ -525,9 +528,7 @@ async function advanceAutomationRun(
           },
         });
         
-        console.log(`📬 [OUTBOX] Enqueued next step ${nextStepIndex} for customer ${customer.email}`);
-
-        console.log(`📅 Scheduled step ${nextStepIndex + 1} for ${nextScheduledAt}${!nextChannelStatus.available ? ' (will be skipped - channel unavailable)' : ''}`);
+        console.log(`📬 Enqueued next step ${nextStepIndex} for customer ${customer.email}`);
       }
     }
   } catch (err) {
@@ -542,14 +543,11 @@ interface WorkflowStep {
   text: string;
 }
 
-// Normalize workflow_steps from either array format or React Flow object format
 function normalizeWorkflowSteps(workflowSteps: any): WorkflowStep[] {
-  // If it's already an array, return as-is
   if (Array.isArray(workflowSteps)) {
     return workflowSteps;
   }
   
-  // If it's React Flow format with nodes/edges
   if (workflowSteps && typeof workflowSteps === 'object' && Array.isArray(workflowSteps.nodes)) {
     return workflowSteps.nodes
       .filter((node: any) => node.type === 'email' || node.type === 'sms')
