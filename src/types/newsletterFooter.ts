@@ -74,9 +74,10 @@ export const DEFAULT_FOOTER_COLORS: FooterStyleConfig = {
  */
 export function getFooterStyleConfig(
   footerBackgroundColor?: string,
-  brandPrimaryColor?: string
+  _brandPrimaryColor?: string // Kept for API compatibility but NOT used - footer defaults to white
 ): FooterStyleConfig {
-  const bgColor = footerBackgroundColor || brandPrimaryColor || DEFAULT_FOOTER_COLORS.backgroundColor;
+  // Footer defaults to white - only use explicit footer background color override
+  const bgColor = footerBackgroundColor || DEFAULT_FOOTER_COLORS.backgroundColor;
   
   // Determine if background is dark for text color contrast
   const isDark = isColorDark(bgColor);
