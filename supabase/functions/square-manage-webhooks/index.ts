@@ -119,9 +119,11 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const action = body?.action;
 
-    // ACTION: Subscribe - Create new webhook subscription
+    // ACTION: Subscribe - Create new webhook subscription with verification
     if (action === 'subscribe') {
       const webhookUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/square-webhook-handler`;
+      let subscriptionId: string | null = null;
+      let verified = false;
       
       // Check if we already have a subscription to this URL
       const existingSubscription = subscriptions.find((s: any) => 
@@ -156,66 +158,107 @@ Deno.serve(async (req) => {
           throw new Error(`Failed to update webhook subscription: ${updateResponse.status}`);
         }
         
-        // Update connection to track webhook status
+        subscriptionId = existingSubscription.id;
+      } else {
+        // Create new subscription
+        console.log('[SQUARE-WEBHOOKS] Creating new webhook subscription to:', webhookUrl);
+        
+        const createResponse = await fetch(`${baseUrl}/v2/webhooks/subscriptions`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+            'Square-Version': '2024-01-18',
+          },
+          body: JSON.stringify({
+            idempotency_key: crypto.randomUUID(),
+            subscription: {
+              name: 'BloomSuite Integration',
+              notification_url: webhookUrl,
+              event_types: REQUIRED_EVENTS,
+              enabled: true,
+            },
+          }),
+        });
+        
+        if (!createResponse.ok) {
+          const errorData = await createResponse.json();
+          console.error('[SQUARE-WEBHOOKS] Failed to create subscription:', errorData);
+          throw new Error(errorData.errors?.[0]?.detail || `Failed to create webhook subscription: ${createResponse.status}`);
+        }
+        
+        const createData = await createResponse.json();
+        subscriptionId = createData.subscription?.id;
+        console.log('[SQUARE-WEBHOOKS] Subscription created:', subscriptionId);
+      }
+      
+      // VERIFY: Re-fetch subscriptions to confirm it exists
+      console.log('[SQUARE-WEBHOOKS] Verifying subscription exists...');
+      const verifyResponse = await fetch(`${baseUrl}/v2/webhooks/subscriptions`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+          'Square-Version': '2024-01-18',
+        },
+      });
+      
+      if (verifyResponse.ok) {
+        const verifyData = await verifyResponse.json();
+        const confirmedSub = (verifyData.subscriptions || []).find((s: any) => 
+          s.id === subscriptionId || s.notification_url?.includes('square-webhook-handler')
+        );
+        
+        if (confirmedSub && confirmedSub.enabled) {
+          verified = true;
+          subscriptionId = confirmedSub.id;
+          console.log('[SQUARE-WEBHOOKS] ✓ Subscription verified:', subscriptionId);
+        } else {
+          console.warn('[SQUARE-WEBHOOKS] ⚠ Subscription not found in verification check');
+        }
+      }
+      
+      // Only update connection if verified
+      if (verified && subscriptionId) {
         await supabaseClient.from('square_connections')
-          .update({ webhooks_subscribed: true })
+          .update({ 
+            webhooks_subscribed: true,
+            webhook_subscription_id: subscriptionId,
+            webhooks_last_checked_at: new Date().toISOString()
+          })
           .eq('id', connection.id);
         
         return new Response(
           JSON.stringify({
             success: true,
             action: 'subscribe',
-            message: 'Webhook subscription updated with all required events',
-            subscription_id: existingSubscription.id,
+            verified: true,
+            message: 'Webhook subscription verified and active',
+            subscription_id: subscriptionId,
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
+      } else {
+        // Subscription created but not verified - still update but flag it
+        await supabaseClient.from('square_connections')
+          .update({ 
+            webhooks_subscribed: false,
+            webhook_subscription_id: subscriptionId,
+            webhooks_last_checked_at: new Date().toISOString()
+          })
+          .eq('id', connection.id);
+        
+        return new Response(
+          JSON.stringify({
+            success: false,
+            action: 'subscribe',
+            verified: false,
+            message: 'Webhook subscription created but could not be verified',
+            subscription_id: subscriptionId,
+          }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
       }
-      
-      // Create new subscription
-      console.log('[SQUARE-WEBHOOKS] Creating new webhook subscription to:', webhookUrl);
-      
-      const createResponse = await fetch(`${baseUrl}/v2/webhooks/subscriptions`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-          'Square-Version': '2024-01-18',
-        },
-        body: JSON.stringify({
-          idempotency_key: crypto.randomUUID(),
-          subscription: {
-            name: 'BloomSuite Integration',
-            notification_url: webhookUrl,
-            event_types: REQUIRED_EVENTS,
-            enabled: true,
-          },
-        }),
-      });
-      
-      if (!createResponse.ok) {
-        const errorData = await createResponse.json();
-        console.error('[SQUARE-WEBHOOKS] Failed to create subscription:', errorData);
-        throw new Error(errorData.errors?.[0]?.detail || `Failed to create webhook subscription: ${createResponse.status}`);
-      }
-      
-      const createData = await createResponse.json();
-      console.log('[SQUARE-WEBHOOKS] Subscription created:', createData.subscription?.id);
-      
-      // Update connection to track webhook status
-      await supabaseClient.from('square_connections')
-        .update({ webhooks_subscribed: true })
-        .eq('id', connection.id);
-      
-      return new Response(
-        JSON.stringify({
-          success: true,
-          action: 'subscribe',
-          message: 'Webhook subscription created successfully',
-          subscription_id: createData.subscription?.id,
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
     }
 
     if (action === 'add_loyalty_events') {

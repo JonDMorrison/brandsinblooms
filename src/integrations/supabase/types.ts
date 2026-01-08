@@ -2516,7 +2516,9 @@ export type Database = {
           persona_confidence_score: number | null
           persona_id: string | null
           phone: string | null
+          pos_order_count: number | null
           pos_source: string | null
+          pos_total_spent: number | null
           postal_code: string | null
           preferred_channel: string | null
           product_tags: string[] | null
@@ -2596,7 +2598,9 @@ export type Database = {
           persona_confidence_score?: number | null
           persona_id?: string | null
           phone?: string | null
+          pos_order_count?: number | null
           pos_source?: string | null
+          pos_total_spent?: number | null
           postal_code?: string | null
           preferred_channel?: string | null
           product_tags?: string[] | null
@@ -2676,7 +2680,9 @@ export type Database = {
           persona_confidence_score?: number | null
           persona_id?: string | null
           phone?: string | null
+          pos_order_count?: number | null
           pos_source?: string | null
+          pos_total_spent?: number | null
           postal_code?: string | null
           preferred_channel?: string | null
           product_tags?: string[] | null
@@ -10512,6 +10518,8 @@ export type Database = {
           token_type: string | null
           updated_at: string | null
           user_id: string
+          webhook_subscription_id: string | null
+          webhooks_last_checked_at: string | null
           webhooks_subscribed: boolean | null
         }
         Insert: {
@@ -10539,6 +10547,8 @@ export type Database = {
           token_type?: string | null
           updated_at?: string | null
           user_id: string
+          webhook_subscription_id?: string | null
+          webhooks_last_checked_at?: string | null
           webhooks_subscribed?: boolean | null
         }
         Update: {
@@ -10566,6 +10576,8 @@ export type Database = {
           token_type?: string | null
           updated_at?: string | null
           user_id?: string
+          webhook_subscription_id?: string | null
+          webhooks_last_checked_at?: string | null
           webhooks_subscribed?: boolean | null
         }
         Relationships: [
@@ -12197,6 +12209,10 @@ export type Database = {
       advance_automation_step: {
         Args: { p_next_scheduled_at?: string; p_run_id: string }
         Returns: boolean
+      }
+      backfill_customer_purchase_data_from_pos: {
+        Args: { p_tenant_id: string }
+        Returns: Json
       }
       bundle_approved_counts: { Args: { j: Json }; Returns: Json }
       bundle_channels: { Args: { j: Json }; Returns: string[] }
