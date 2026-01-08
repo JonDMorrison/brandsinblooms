@@ -46,17 +46,24 @@ const handler = async (req: Request): Promise<Response> => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-    // 1. Atomically claim messages using RPC function
-    const { data: claimedMessages, error: claimError } = await supabase
-      .rpc("claim_outbox_messages", { p_limit: BATCH_SIZE, p_worker_id: WORKER_ID });
+    // 1. Find all tenants with queued messages
+    const { data: tenantRows, error: tenantError } = await supabase
+      .from("crm_outbox")
+      .select("tenant_id")
+      .eq("status", "queued")
+      .lte("scheduled_at", new Date().toISOString())
+      .or("locked_until.is.null,locked_until.lt." + new Date().toISOString())
+      .limit(100);
 
-    if (claimError) {
-      console.error("❌ Failed to claim messages:", claimError);
-      throw claimError;
+    if (tenantError) {
+      console.error("❌ Failed to find tenants with queued messages:", tenantError);
+      throw tenantError;
     }
 
-    if (!claimedMessages || claimedMessages.length === 0) {
-      console.log("📭 No messages to process");
+    const tenantIds = [...new Set((tenantRows || []).map((r: any) => r.tenant_id))];
+    
+    if (tenantIds.length === 0) {
+      console.log("📭 No tenants with queued messages");
       return new Response(
         JSON.stringify({
           success: true,
@@ -69,6 +76,46 @@ const handler = async (req: Request): Promise<Response> => {
         { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
+
+    console.log(`🏢 Found ${tenantIds.length} tenants with queued messages`);
+
+    // 2. Claim messages for each tenant using the new tenant-scoped RPC
+    let allClaimedMessages: OutboxMessage[] = [];
+    for (const tenantId of tenantIds) {
+      const { data: tenantMessages, error: claimError } = await supabase
+        .rpc("claim_outbox_messages", { 
+          p_tenant_id: tenantId,
+          p_limit: BATCH_SIZE, 
+          p_worker_id: WORKER_ID 
+        });
+
+      if (claimError) {
+        console.error(`❌ Failed to claim messages for tenant ${tenantId}:`, claimError);
+        continue;
+      }
+
+      if (tenantMessages && tenantMessages.length > 0) {
+        console.log(`📨 Claimed ${tenantMessages.length} messages for tenant ${tenantId}`);
+        allClaimedMessages = allClaimedMessages.concat(tenantMessages);
+      }
+    }
+
+    if (allClaimedMessages.length === 0) {
+      console.log("📭 No messages claimed (all may be locked)");
+      return new Response(
+        JSON.stringify({
+          success: true,
+          processed: 0,
+          sent: 0,
+          failed: 0,
+          skipped: 0,
+          duration_ms: Date.now() - startTime,
+        }),
+        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    const claimedMessages = allClaimedMessages;
 
     console.log(`📨 Claimed ${claimedMessages.length} messages (status already set to 'processing')`);
 

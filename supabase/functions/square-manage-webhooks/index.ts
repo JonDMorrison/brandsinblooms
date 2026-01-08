@@ -52,12 +52,12 @@ Deno.serve(async (req) => {
       throw new Error('No tenant found for user');
     }
 
-    // Get Square connection
+    // Get Square connection (status can be 'active' or 'connected')
     const { data: connection, error: connError } = await supabaseClient
       .from('square_connections')
       .select('*')
       .eq('tenant_id', userData.tenant_id)
-      .eq('status', 'active')
+      .in('status', ['active', 'connected'])
       .single();
 
     if (connError || !connection) {
