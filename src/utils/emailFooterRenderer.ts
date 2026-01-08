@@ -136,19 +136,19 @@ export const generateFooterHTML = (
         brandFooterColors?.backgroundColor || 
         footerBackgroundColor ||
         companyInfo?.brandPrimaryColor ||
-        '#283024', // Default dark green
+        '#FFFFFF', // Default white
       textColor: 
         footerStyling?.textColor || 
         brandFooterColors?.textColor ||
-        '#F3F4F6', // Default light text
+        '#1F2937', // Default dark text
       linkColor: 
         footerStyling?.linkColor || 
         brandFooterColors?.linkColor ||
-        '#E5BFA7', // Default warm accent
+        '#2563EB', // Default blue accent
       dividerColor: 
         footerStyling?.dividerColor || 
         brandFooterColors?.dividerColor ||
-        '#3D4A38', // Default muted green
+        '#E5E7EB', // Default light gray
       logoBackgroundColor: 
         footerStyling?.logoBackgroundColor || 
         brandFooterColors?.logoBackgroundColor ||
@@ -199,10 +199,10 @@ export const generateFooterHTML = (
 
   // Legacy footer rendering for backward compatibility
   const alignment = footerSettings.alignment === 'center' ? 'center' : 'left';
-  const bgColor = footerSettings.backgroundColor === 'dark' ? '#283024' : 
+  const bgColor = footerSettings.backgroundColor === 'dark' ? '#1F2937' : 
                   footerSettings.backgroundColor === 'white' ? '#ffffff' : '#f9fafb';
   const textColor = footerSettings.backgroundColor === 'dark' ? '#F3F4F6' : '#6b7280';
-  const linkColor = footerSettings.backgroundColor === 'dark' ? '#E5BFA7' : '#2563EB';
+  const linkColor = footerSettings.backgroundColor === 'dark' ? '#60A5FA' : '#2563EB';
   const fontSize = footerSettings.fontSize === 'xs' ? '11px' : '12px';
   const padding = footerSettings.padding === 'spacious' ? '32px 16px' : 
                   footerSettings.padding === 'compact' ? '16px 16px' : '24px 16px';

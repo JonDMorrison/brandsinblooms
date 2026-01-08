@@ -46,13 +46,13 @@ interface FooterStyleConfig {
   dividerColor: string;
 }
 
-// Default deep green footer colors
+// Default white footer colors
 const DEFAULT_FOOTER_COLORS: FooterStyleConfig = {
-  backgroundColor: '#283024',
-  textPrimary: '#F3F4F6',
-  textMuted: '#D1D5DB',
-  linkAccent: '#E5BFA7',
-  dividerColor: '#3D4A38',
+  backgroundColor: '#FFFFFF',
+  textPrimary: '#1F2937',
+  textMuted: '#6B7280',
+  linkAccent: '#2563EB',
+  dividerColor: '#E5E7EB',
 };
 
 // PNG social icons hosted on deployed app

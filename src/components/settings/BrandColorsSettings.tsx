@@ -27,12 +27,12 @@ const DEFAULT_COLORS = {
 };
 
 const DEFAULT_FOOTER_COLORS = {
-  backgroundColor: '#283024',
-  textColor: '#F3F4F6',
-  linkColor: '#E5BFA7',
-  dividerColor: '#3D4A38',
-  logoBackgroundColor: '#E5BFA7',
-  logoTextColor: '#283024',
+  backgroundColor: '#FFFFFF',
+  textColor: '#1F2937',
+  linkColor: '#2563EB',
+  dividerColor: '#E5E7EB',
+  logoBackgroundColor: '#1F2937',
+  logoTextColor: '#FFFFFF',
 };
 
 const FOOTER_BG_PRESETS = [
