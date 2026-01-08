@@ -71,13 +71,13 @@ export const FooterBlock: React.FC<FooterBlockProps> = ({
   // Get brand footer colors from profile settings
   const brandFooterColors = companyInfo.brandFooterColors;
 
-  // Priority cascade: 1) Campaign footer_styling → 2) Brand footer_colors → 3) Default colors
+  // Priority cascade: 1) Campaign footer_styling → 2) Brand footer_colors → 3) White default
+  // NOTE: brandPrimaryColor intentionally NOT used - footer defaults to white
   const effectiveBackgroundColor = 
     footerStyling.backgroundColor || 
     brandFooterColors?.backgroundColor || 
     footerBackgroundColor || 
     campaignOverrides.footerBackgroundColor || 
-    companyInfo.brandPrimaryColor ||
     DEFAULT_FOOTER_COLORS.backgroundColor;
   
   const baseStyles = getFooterStyleConfig(effectiveBackgroundColor, companyInfo.brandPrimaryColor);
