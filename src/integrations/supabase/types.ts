@@ -10512,6 +10512,7 @@ export type Database = {
           token_type: string | null
           updated_at: string | null
           user_id: string
+          webhooks_subscribed: boolean | null
         }
         Insert: {
           connected_at?: string | null
@@ -10538,6 +10539,7 @@ export type Database = {
           token_type?: string | null
           updated_at?: string | null
           user_id: string
+          webhooks_subscribed?: boolean | null
         }
         Update: {
           connected_at?: string | null
@@ -10564,6 +10566,7 @@ export type Database = {
           token_type?: string | null
           updated_at?: string | null
           user_id?: string
+          webhooks_subscribed?: boolean | null
         }
         Relationships: [
           {

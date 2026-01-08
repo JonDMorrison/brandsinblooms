@@ -89,19 +89,49 @@ async function updateCustomerPurchaseData(
   supabase: any,
   tenantId: string,
   customerEmail: string,
+  squareCustomerId: string | null,
   metrics: CustomerPurchaseMetrics
-) {
-  // Get existing customer
-  const { data: customer, error: fetchError } = await supabase
-    .from('crm_customers')
-    .select('id, product_tags, order_history, lifetime_value, first_purchase_date, last_purchase_date')
-    .eq('tenant_id', tenantId)
-    .eq('email', customerEmail)
-    .single();
+): Promise<{ matched: boolean; matchedBy: 'email' | 'square_customer_id' | null }> {
+  // First try to match by email
+  let customer = null;
+  let matchedBy: 'email' | 'square_customer_id' | null = null;
+  
+  const isPlaceholderEmail = customerEmail?.includes('@noemail.local') || !customerEmail;
+  
+  if (customerEmail && !isPlaceholderEmail) {
+    const { data: customerByEmail } = await supabase
+      .from('crm_customers')
+      .select('id, product_tags, order_history, lifetime_value, first_purchase_date, last_purchase_date, square_customer_id')
+      .eq('tenant_id', tenantId)
+      .eq('email', customerEmail)
+      .single();
+    
+    if (customerByEmail) {
+      customer = customerByEmail;
+      matchedBy = 'email';
+      console.log(`[SQUARE-SYNC-SALES] Matched by email: ${customerEmail}`);
+    }
+  }
 
-  if (fetchError || !customer) {
-    console.log(`[SQUARE-SYNC-SALES] Customer not found for metrics update: ${customerEmail}`);
-    return;
+  // Fallback: match by square_customer_id if email match failed or was placeholder
+  if (!customer && squareCustomerId) {
+    const { data: customerBySquareId } = await supabase
+      .from('crm_customers')
+      .select('id, product_tags, order_history, lifetime_value, first_purchase_date, last_purchase_date, square_customer_id')
+      .eq('tenant_id', tenantId)
+      .eq('square_customer_id', squareCustomerId)
+      .single();
+    
+    if (customerBySquareId) {
+      customer = customerBySquareId;
+      matchedBy = 'square_customer_id';
+      console.log(`[SQUARE-SYNC-SALES] Matched by square_customer_id: ${squareCustomerId}`);
+    }
+  }
+
+  if (!customer) {
+    console.log(`[SQUARE-SYNC-SALES] Customer not found - email: ${customerEmail}, square_id: ${squareCustomerId}`);
+    return { matched: false, matchedBy: null };
   }
 
   // Merge product tags
@@ -139,9 +169,9 @@ async function updateCustomerPurchaseData(
     .eq('id', customer.id);
 
   if (updateError) {
-    console.error(`[SQUARE-SYNC-SALES] Failed to update metrics for ${customerEmail}:`, updateError);
+    console.error(`[SQUARE-SYNC-SALES] Failed to update customer ${customer.id}:`, updateError);
   } else {
-    console.log(`[SQUARE-SYNC-SALES] Updated ${customerEmail}: LTV=$${cumulativeLifetimeValue}, orders=${mergedHistory.length}, tags=${mergedTags.length}`);
+    console.log(`[SQUARE-SYNC-SALES] Updated customer (matched_by=${matchedBy}): LTV=$${cumulativeLifetimeValue}, orders=${mergedHistory.length}, tags=${mergedTags.length}`);
     
     // Trigger purchase metrics recalculation
     const { error: metricsError } = await supabase.rpc('recalculate_purchase_metrics', {
@@ -151,6 +181,8 @@ async function updateCustomerPurchaseData(
       console.error(`[SQUARE-SYNC-SALES] Failed to recalculate purchase metrics for ${customer.id}:`, metricsError);
     }
   }
+  
+  return { matched: true, matchedBy };
 }
 
 Deno.serve(async (req) => {
@@ -230,16 +262,20 @@ Deno.serve(async (req) => {
               productNames = extractProductNames(orderData);
             }
 
-            // Track purchase metrics by customer email
-            if (payment.receipt_email) {
-              const email = payment.receipt_email.toLowerCase();
-              const existing = customerMetricsMap.get(email) || {
+            // Track purchase metrics by customer (email or square_customer_id)
+            const email = payment.receipt_email?.toLowerCase() || '';
+            const squareCustomerId = payment.customer_id || '';
+            const trackingKey = email || `square:${squareCustomerId}`;
+            
+            if (trackingKey && trackingKey !== 'square:') {
+              const existing = customerMetricsMap.get(trackingKey) || {
                 productTags: [],
                 totalSpent: 0,
                 orderCount: 0,
                 orderHistory: [],
                 firstPurchaseDate: null,
-                lastPurchaseDate: null
+                lastPurchaseDate: null,
+                squareCustomerId: squareCustomerId
               };
 
               // Add product tags
@@ -268,8 +304,13 @@ Deno.serve(async (req) => {
               if (!existing.lastPurchaseDate || orderDate > existing.lastPurchaseDate) {
                 existing.lastPurchaseDate = orderDate;
               }
+              
+              // Store square_customer_id
+              if (squareCustomerId) {
+                existing.squareCustomerId = squareCustomerId;
+              }
 
-              customerMetricsMap.set(email, existing);
+              customerMetricsMap.set(trackingKey, existing);
             }
 
             // Upsert order with line items data
@@ -308,11 +349,32 @@ Deno.serve(async (req) => {
     // Update customer purchase metrics in batch
     console.log(`[SQUARE-SYNC-SALES] Updating purchase metrics for ${customerMetricsMap.size} customers...`);
     let customersUpdated = 0;
-    for (const [email, metrics] of customerMetricsMap) {
+    let matchedByEmail = 0;
+    let matchedBySquareId = 0;
+    
+    for (const [key, metrics] of customerMetricsMap) {
       metrics.productTags = [...new Set(metrics.productTags)]; // Deduplicate
-      await updateCustomerPurchaseData(supabaseClient, userData.tenant_id, email, metrics);
-      customersUpdated++;
+      
+      // Determine email vs square_customer_id from key
+      const email = key.startsWith('square:') ? '' : key;
+      const squareCustomerId = (metrics as any).squareCustomerId || '';
+      
+      const result = await updateCustomerPurchaseData(
+        supabaseClient, 
+        userData.tenant_id, 
+        email, 
+        squareCustomerId,
+        metrics
+      );
+      
+      if (result.matched) {
+        customersUpdated++;
+        if (result.matchedBy === 'email') matchedByEmail++;
+        if (result.matchedBy === 'square_customer_id') matchedBySquareId++;
+      }
     }
+    
+    console.log(`[SQUARE-SYNC-SALES] Customer matching: ${matchedByEmail} by email, ${matchedBySquareId} by square_customer_id`);
 
     await supabaseClient
       .from('square_connections')
