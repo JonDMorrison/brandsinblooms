@@ -265,6 +265,9 @@ verify_jwt = true
 [functions.square-test-automation]
 verify_jwt = true
 
+[functions.outbox-test-insert]
+verify_jwt = false
+
 [functions.entri-domain-callback]
 verify_jwt = true
 

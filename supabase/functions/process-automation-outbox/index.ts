@@ -48,11 +48,12 @@ const handler = async (req: Request): Promise<Response> => {
     );
 
     // 1. Fetch pending messages that are due and not locked
+    // Status 'pending' = scheduled for later, ready to process when scheduled_at <= now
     const now = new Date().toISOString();
     const { data: pendingMessages, error: fetchError } = await supabase
       .from("crm_outbox")
       .select("*")
-      .eq("status", "pending")
+      .in("status", ["pending", "queued"])  // Both are valid "ready to process" states
       .lte("scheduled_at", now)
       .or(`locked_until.is.null,locked_until.lt.${now}`)
       .order("priority", { ascending: true })
@@ -90,20 +91,31 @@ const handler = async (req: Request): Promise<Response> => {
     for (const message of pendingMessages as OutboxMessage[]) {
       try {
         // Try to lock the message (optimistic locking)
+        // Check if lock is stale first
+        if (message.locked_until && new Date(message.locked_until) > new Date()) {
+          console.log(`⏭️ Message ${message.id} still locked until ${message.locked_until}`);
+          continue;
+        }
+
         const { data: lockResult, error: lockError } = await supabase
           .from("crm_outbox")
           .update({
             locked_until: lockUntil,
             locked_by: WORKER_ID,
+            status: "processing",
           })
           .eq("id", message.id)
-          .eq("status", "pending")
-          .or(`locked_until.is.null,locked_until.lt.${now}`)
+          .in("status", ["pending", "queued"])
           .select()
           .single();
 
-        if (lockError || !lockResult) {
-          console.log(`⏭️ Message ${message.id} already locked by another worker`);
+        if (lockError) {
+          console.error(`❌ Lock error for ${message.id}:`, lockError.message, lockError.code);
+          continue;
+        }
+
+        if (!lockResult) {
+          console.log(`⏭️ Message ${message.id} already locked or status changed`);
           continue;
         }
 
@@ -503,7 +515,7 @@ async function advanceAutomationRun(
           content: nextStep.text,
           step_index: nextStepIndex,
           scheduled_at: nextScheduledAt,
-          status: "pending",
+          status: "pending",  // Scheduled for later processing
           template_data: {
             automation_name: run.automation?.name,
             step_index: nextStepIndex,
@@ -512,6 +524,8 @@ async function advanceAutomationRun(
             channel_skip_reason: nextChannelStatus.reason,
           },
         });
+        
+        console.log(`📬 [OUTBOX] Enqueued next step ${nextStepIndex} for customer ${customer.email}`);
 
         console.log(`📅 Scheduled step ${nextStepIndex + 1} for ${nextScheduledAt}${!nextChannelStatus.available ? ' (will be skipped - channel unavailable)' : ''}`);
       }

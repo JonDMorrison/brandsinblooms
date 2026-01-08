@@ -597,14 +597,28 @@ async function enqueueMessage(
         } : null
       },
       scheduled_at: scheduledAt.toISOString(),
-      status: 'pending',
+      status: 'pending',  // Valid status: pending means scheduled for later processing
       priority: 100,
     });
 
   if (outboxError) {
-    console.error(`❌ Failed to enqueue message:`, outboxError);
+    console.error(`❌ Failed to enqueue message:`, {
+      code: outboxError.code,
+      message: outboxError.message,
+      details: outboxError.details,
+      hint: outboxError.hint,
+      payload: {
+        tenant_id: automation.tenant_id,
+        automation_id: automation.id,
+        customer_id: customer.id,
+        message_type: step.type,
+        recipient,
+      }
+    });
     throw outboxError;
   }
+  
+  console.log(`📬 [OUTBOX] Successfully inserted for customer ${customer.email}, type: ${step.type}`);
 
   // Log the automation step
   await supabase

@@ -259,11 +259,13 @@ Deno.serve(async (req) => {
               test_mode: true
             },
             scheduled_at: scheduledAt.toISOString(),
-            status: 'pending',
+            status: 'pending',  // Valid status for scheduled messages
             priority: 50 // High priority for test
           })
           .select('id')
           .single();
+          
+        console.log(`📬 [TEST-OUTBOX] Insert attempt for ${customer.email}, error:`, outboxError || 'none');
 
         if (outboxError) {
           console.error(`❌ [TEST] Failed to create outbox entry:`, outboxError);
