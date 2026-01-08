@@ -34,7 +34,7 @@ Deno.serve(async (req) => {
         recipient: email,
         content: 'Test message to verify crm_outbox insert works after constraint fix. This is a proof test.',
         subject: 'Test Email - Proof of Outbox Insert',
-        status: 'pending',
+        status: 'queued',  // Standardized: always use queued
         scheduled_at: new Date().toISOString(),
         priority: 10,
         template_data: { test: true, inserted_at: new Date().toISOString() }

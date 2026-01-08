@@ -179,7 +179,7 @@ Deno.serve(async (req) => {
                 recipient: recipient,
                 content: personalizedContent,
                 subject: personalizedSubject,
-                status: 'pending',
+                status: 'queued',  // Standardized: always use queued
                 scheduled_at: scheduledAt.toISOString(),
                 template_data: {
                   automation_name: automation.name,

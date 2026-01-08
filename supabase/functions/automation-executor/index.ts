@@ -597,7 +597,7 @@ async function enqueueMessage(
         } : null
       },
       scheduled_at: scheduledAt.toISOString(),
-      status: 'pending',  // Valid status: pending means scheduled for later processing
+      status: 'queued',  // Standardized: always use queued, scheduled_at determines when to process
       priority: 100,
     });
 

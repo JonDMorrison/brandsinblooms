@@ -259,7 +259,7 @@ Deno.serve(async (req) => {
               test_mode: true
             },
             scheduled_at: scheduledAt.toISOString(),
-            status: 'pending',  // Valid status for scheduled messages
+            status: 'queued',  // Standardized: always use queued
             priority: 50 // High priority for test
           })
           .select('id')
