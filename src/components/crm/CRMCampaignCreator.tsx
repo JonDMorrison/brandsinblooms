@@ -4628,7 +4628,7 @@ const { counts: segmentCounts } = useSegmentCounts();
         subjectLine={subjectLine}
         selectedSegments={selectedSegments}
         selectedPersonas={selectedPersonas}
-        totalContacts={selectedPersonas.reduce((total, persona) => total + (persona.customerCount || 0), 0) + selectedSegments.reduce((total, segment) => total + (segment.customerCount || 0), 0)}
+        totalContacts={selectedPersonas.reduce((total, persona) => total + (persona.customerCount || persona.customer_count || 0), 0) + selectedSegments.reduce((total, segment) => total + (segment.customerCount || segment.customer_count || 0), 0)}
         loading={sending}
       />
 
