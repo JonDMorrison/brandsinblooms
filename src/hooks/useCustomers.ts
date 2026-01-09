@@ -69,8 +69,37 @@ export const useCustomers = (options: UseCustomersOptions = {}) => {
         .order('created_at', { ascending: false })
         .range(from, to);
 
-      if (options.search) {
-        query = query.or(`email.ilike.%${options.search}%,first_name.ilike.%${options.search}%,last_name.ilike.%${options.search}%`);
+      const rawSearch = options.search?.trim();
+      if (rawSearch) {
+        // PostgREST `or()` filter doesn't support full-text search; this makes name searches like
+        // "Christine Theisen" work by searching tokens and common first+last combinations.
+        const sanitized = rawSearch
+          .replace(/[(),]/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+
+        const tokens = sanitized.split(' ').filter(Boolean);
+        const orParts: string[] = [
+          `email.ilike.%${sanitized}%`,
+          `first_name.ilike.%${sanitized}%`,
+          `last_name.ilike.%${sanitized}%`,
+        ];
+
+        if (tokens.length > 1) {
+          const first = tokens[0];
+          const last = tokens[tokens.length - 1];
+          orParts.push(`and(first_name.ilike.%${first}%,last_name.ilike.%${last}%)`);
+          orParts.push(`and(first_name.ilike.%${last}%,last_name.ilike.%${first}%)`);
+
+          // Also match any individual token against name/email
+          for (const token of tokens) {
+            orParts.push(`email.ilike.%${token}%`);
+            orParts.push(`first_name.ilike.%${token}%`);
+            orParts.push(`last_name.ilike.%${token}%`);
+          }
+        }
+
+        query = query.or(orParts.join(','));
       }
 
       const { data, error, count } = await query;
