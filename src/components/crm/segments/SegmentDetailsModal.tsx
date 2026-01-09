@@ -247,7 +247,7 @@ export const SegmentDetailsModal: React.FC<SegmentDetailsModalProps> = ({
           </div>
         </DialogHeader>
 
-        <div className="flex flex-col gap-4">
+        <div className="flex-1 min-h-0 flex flex-col gap-4 overflow-y-auto pr-1">
           {/* Summary Section */}
           <div className="flex items-center gap-4 p-4 bg-muted/50 rounded-lg">
             <div className="flex items-center gap-2">
