@@ -27,6 +27,43 @@ interface CustomerPage {
   totalCount: number;
 }
 
+/**
+ * Builds an OR filter string for PostgREST that handles multi-word searches.
+ * e.g. "christine theisen" will match first_name containing "christine" AND last_name containing "theisen".
+ */
+function buildSearchFilter(rawSearch: string, fieldPrefix = ''): string {
+  const sanitized = rawSearch
+    .replace(/[(),]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (!sanitized) return '';
+
+  const p = fieldPrefix; // e.g. "" or "crm_customers."
+  const tokens = sanitized.split(' ').filter(Boolean);
+
+  const orParts: string[] = [
+    `${p}email.ilike.%${sanitized}%`,
+    `${p}first_name.ilike.%${sanitized}%`,
+    `${p}last_name.ilike.%${sanitized}%`,
+  ];
+
+  if (tokens.length > 1) {
+    const first = tokens[0];
+    const last = tokens[tokens.length - 1];
+    orParts.push(`and(${p}first_name.ilike.%${first}%,${p}last_name.ilike.%${last}%)`);
+    orParts.push(`and(${p}first_name.ilike.%${last}%,${p}last_name.ilike.%${first}%)`);
+
+    for (const token of tokens) {
+      orParts.push(`${p}email.ilike.%${token}%`);
+      orParts.push(`${p}first_name.ilike.%${token}%`);
+      orParts.push(`${p}last_name.ilike.%${token}%`);
+    }
+  }
+
+  return orParts.join(',');
+}
+
 export const usePaginatedCustomers = (options: UsePaginatedCustomersOptions = {}) => {
   const { pageSize = 25, searchTerm = '', segmentId, excludeSegmentId, enabled = true } = options;
   const { tenant } = useTenant();
@@ -55,9 +92,10 @@ export const usePaginatedCustomers = (options: UsePaginatedCustomersOptions = {}
           .range(offset, offset + pageSize - 1);
 
         if (debouncedSearch) {
-          query = query.or(
-            `crm_customers.email.ilike.%${debouncedSearch}%,crm_customers.first_name.ilike.%${debouncedSearch}%,crm_customers.last_name.ilike.%${debouncedSearch}%`
-          );
+          const filter = buildSearchFilter(debouncedSearch, 'crm_customers.');
+          if (filter) {
+            query = query.or(filter);
+          }
         }
 
         const { data, error, count } = await query;
@@ -95,9 +133,10 @@ export const usePaginatedCustomers = (options: UsePaginatedCustomersOptions = {}
         .range(offset, offset + pageSize - 1);
 
       if (debouncedSearch) {
-        query = query.or(
-          `email.ilike.%${debouncedSearch}%,first_name.ilike.%${debouncedSearch}%,last_name.ilike.%${debouncedSearch}%`
-        );
+        const filter = buildSearchFilter(debouncedSearch);
+        if (filter) {
+          query = query.or(filter);
+        }
       }
 
       if (excludedIds.length > 0) {
