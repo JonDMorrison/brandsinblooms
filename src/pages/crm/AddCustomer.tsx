@@ -105,6 +105,8 @@ const AddCustomer = () => {
         throw new Error('You are not assigned to a tenant. Please contact support or create an organization to continue.');
       }
 
+      const normalizedEmail = customerData.email.trim().toLowerCase();
+
       // Calculate preferred channel based on opt-in status
       let preferredChannel = 'none';
       if (customerData.email_opt_in && customerData.sms_opt_in) {
@@ -118,7 +120,7 @@ const AddCustomer = () => {
       const now = new Date().toISOString();
 
       const dataToInsert = {
-        email: customerData.email,
+        email: normalizedEmail,
         first_name: customerData.first_name || null,
         last_name: customerData.last_name || null,
         phone: customerData.phone || null,
@@ -169,30 +171,67 @@ const AddCustomer = () => {
       });
       navigate('/crm/customers');
     },
-    onError: (error: any) => {
+    onError: async (error: any) => {
       console.error('Error adding customer:', error);
-      
+
       // Handle persona constraint errors specifically
-      if (error.message.includes('persona_check') || error.message.includes('persona')) {
+      if (error?.message?.includes('persona_check') || error?.message?.includes('persona')) {
         toast({ 
           title: "Invalid Persona", 
           description: "Please select a valid persona (Newbie, Struggler, Regular, or Expert)", 
           variant: "destructive" 
         });
-      } else {
-        toast({ 
-          title: "Error adding customer", 
-          description: error.message, 
-          variant: "destructive" 
-        });
+        return;
       }
+
+      // Handle duplicate customer (unique email) errors by opening the existing record.
+      const isDuplicate =
+        error?.code === '23505' ||
+        error?.status === 409 ||
+        String(error?.message || '').toLowerCase().includes('duplicate');
+
+      if (isDuplicate && tenant?.id) {
+        const normalizedEmail = formData.email.trim().toLowerCase();
+        try {
+          const { data: existing, error: fetchError } = await supabase
+            .from('crm_customers')
+            .select('id, first_name, last_name, email')
+            .eq('tenant_id', tenant.id)
+            .eq('email', normalizedEmail)
+            .maybeSingle();
+
+          if (!fetchError && existing?.id) {
+            toast({
+              title: 'Customer already exists',
+              description: 'Opening the existing customer profile instead of creating a duplicate.',
+            });
+            navigate(`/crm/customers/${existing.id}`);
+            return;
+          }
+        } catch (e) {
+          // fall through to generic error
+        }
+
+        toast({
+          title: 'Duplicate customer',
+          description: 'A customer with this email already exists. Try searching by just the first name, last name, or email.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      toast({ 
+        title: "Error adding customer", 
+        description: error.message, 
+        variant: "destructive" 
+      });
     }
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.email) {
+    if (!formData.email.trim()) {
       toast({
         title: "Email required",
         description: "Please enter a valid email address.",
