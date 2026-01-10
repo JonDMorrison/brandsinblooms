@@ -2,6 +2,7 @@ import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 import { validateLocationForGeneration, locationBlockedResponse } from '../_shared/locationGuard.ts';
+import { buildClimateConstraints, extractClimateProfile, type ClimateProfile } from '../_shared/climateConstraints.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -76,7 +77,8 @@ async function generateChannelContent(
   channel: string,
   topicTitle: string,
   topicDescription: string,
-  companyContext: string
+  companyContext: string,
+  climateConstraints: string = ''
 ): Promise<any> {
   const systemPrompt = `You are an expert horticulturist and garden center RETAIL educator creating ${channel} content for a GARDEN CENTER BUSINESS.
 
@@ -289,7 +291,9 @@ CONTENT QUALITY STANDARDS:
 - Include "why" explanations (help customers understand the science)
 - Use conversational but authoritative tone
 - Make complex topics accessible to beginners
-- Provide immediately actionable next steps`;
+- Provide immediately actionable next steps
+
+${climateConstraints}`;
   
   const userPrompt = `Create ${channel} content for: "${topicTitle}"
 Description: ${topicDescription}
@@ -488,12 +492,26 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Get company context from workspace with extended details
+    // Get company context from workspace with extended details including climate data
     const { data: companyProfile } = await supabase
       .from('company_profiles')
-      .select('company_name, company_overview, about_business, brand_voice, specializations, location_info, seasonal_focus')
+      .select(`
+        company_name, company_overview, about_business, brand_voice, specializations, 
+        location_info, seasonal_focus, postal_code, city, state_province, country,
+        climate_archetype, climate_label, usda_zone, first_frost_date, last_frost_date
+      `)
       .eq('user_id', workspaceId)
       .single();
+
+    // Extract climate profile and build constraints
+    const climateProfile = companyProfile ? extractClimateProfile(companyProfile) : null;
+    const climateConstraints = climateProfile ? buildClimateConstraints(climateProfile) : '';
+    
+    if (climateProfile?.archetype) {
+      console.log(`🌡️ Climate profile found: ${climateProfile.archetype} (${climateProfile.label || 'No label'})`);
+    } else {
+      console.log('⚠️ No climate profile - using general guidance');
+    }
 
     const companyContext = companyProfile 
       ? `${companyProfile.company_name || 'Garden Center'} - ${companyProfile.company_overview || companyProfile.about_business || 'Retail garden center'}. Specializations: ${companyProfile.specializations || 'General gardening'}. Location: ${companyProfile.location_info || 'Local area'}. Seasonal Focus: ${companyProfile.seasonal_focus || 'Year-round gardening'}.`
@@ -508,7 +526,8 @@ serve(async (req) => {
           channel,
           topicTitle,
           topicDescription,
-          companyContext
+          companyContext,
+          climateConstraints
         );
 
         return {

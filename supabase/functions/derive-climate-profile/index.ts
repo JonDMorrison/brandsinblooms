@@ -230,12 +230,48 @@ serve(async (req) => {
   }
 
   try {
-    const { postal_code, country_code = 'US', user_id, force_refresh = false } = await req.json();
+    const { postal_code, country_code = 'US', user_id, force_refresh = false, test_mode = false } = await req.json();
 
     if (!postal_code) {
       return new Response(
         JSON.stringify({ error: 'postal_code is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Test mode - derive climate without requiring user_id or persisting
+    if (test_mode) {
+      console.log(`🧪 TEST MODE: Deriving climate for postal_code=${postal_code}, country=${country_code}`);
+      
+      const geoResult = await geocodePostalCode(postal_code, country_code);
+      if (!geoResult) {
+        return new Response(
+          JSON.stringify({ error: 'Failed to geocode postal code', postal_code }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
+      const climate = determineClimateArchetype(geoResult.lat, geoResult.lng, geoResult.state, country_code);
+      
+      return new Response(
+        JSON.stringify({
+          success: true,
+          test_mode: true,
+          postal_code,
+          country: country_code,
+          geocode: {
+            city: geoResult.city,
+            state: geoResult.state,
+            lat: geoResult.lat,
+            lng: geoResult.lng,
+          },
+          climate: {
+            archetype: climate.archetype,
+            label: climate.label,
+            confidence: climate.confidence,
+          }
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
