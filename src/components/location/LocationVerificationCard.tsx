@@ -6,6 +6,16 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { 
   MapPin, 
   AlertTriangle, 
@@ -23,6 +33,13 @@ interface LocationCandidate {
   country?: 'US' | 'CA';
   source?: string;
   snippet?: string;
+}
+
+interface RedetectResult {
+  success: boolean;
+  hasNewCandidates: boolean;
+  newCandidates?: LocationCandidate[];
+  currentPostalCode?: string;
 }
 
 interface LocationVerificationCardProps {
@@ -44,7 +61,7 @@ interface LocationVerificationCardProps {
     stateProvince?: string;
     country?: 'US' | 'CA';
   }) => Promise<void>;
-  onRedetect?: () => Promise<void>;
+  onRedetect?: () => Promise<RedetectResult>;
   
   // State
   isRedetecting?: boolean;
@@ -133,10 +150,51 @@ export const LocationVerificationCard: React.FC<LocationVerificationCardProps> =
   });
   const [validationError, setValidationError] = useState<string | null>(null);
   const [isSnippetOpen, setIsSnippetOpen] = useState(false);
+  const [showChangeDialog, setShowChangeDialog] = useState(false);
+  const [pendingCandidates, setPendingCandidates] = useState<LocationCandidate[]>([]);
 
   const hasDetectedLocation = postalCode || city || stateProvince;
   const showWarning = needsConfirmation || confidence === 'low' || !postalCode;
   const hasMultipleCandidates = candidates.length > 1;
+  const isManuallyConfirmed = source === 'manual' && confidence === 'high';
+
+  const handleRedetectClick = async () => {
+    if (!onRedetect) return;
+    
+    const result = await onRedetect();
+    
+    // If manually confirmed and new candidates found, show change dialog
+    if (result.success && result.hasNewCandidates && result.newCandidates && result.newCandidates.length > 0) {
+      // Check if any candidates differ from current postal code
+      const hasDifferentCandidates = result.newCandidates.some(
+        c => c.postal_code !== postalCode
+      );
+      
+      if (hasDifferentCandidates) {
+        setPendingCandidates(result.newCandidates);
+        setShowChangeDialog(true);
+      }
+    }
+  };
+
+  const handleKeepCurrent = () => {
+    setShowChangeDialog(false);
+    setPendingCandidates([]);
+  };
+
+  const handleChangeLocation = () => {
+    // Show the candidates in the main UI for selection
+    setShowChangeDialog(false);
+    // Set manual entry to allow user to pick from new candidates
+    setManualEntry(true);
+    setSelectedCandidate('manual');
+    setFormData({
+      postalCode: '',
+      city: '',
+      stateProvince: '',
+      country: undefined,
+    });
+  };
 
   const handlePostalCodeChange = (value: string) => {
     setFormData(prev => ({ ...prev, postalCode: value }));
@@ -231,7 +289,7 @@ export const LocationVerificationCard: React.FC<LocationVerificationCardProps> =
             <Button
               variant="outline"
               size="sm"
-              onClick={onRedetect}
+              onClick={handleRedetectClick}
               disabled={isRedetecting}
               className="mt-2"
             >
@@ -239,6 +297,29 @@ export const LocationVerificationCard: React.FC<LocationVerificationCardProps> =
               Re-detect from website
             </Button>
           )}
+
+          {/* Change Location Dialog */}
+          <AlertDialog open={showChangeDialog} onOpenChange={setShowChangeDialog}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>New Locations Detected</AlertDialogTitle>
+                <AlertDialogDescription>
+                  We found {pendingCandidates.length} location{pendingCandidates.length > 1 ? 's' : ''} on your website that differ from your confirmed location ({postalCode}).
+                  <div className="mt-3 space-y-2">
+                    {pendingCandidates.map((c, i) => (
+                      <div key={i} className="text-sm font-medium text-foreground">
+                        • {c.postal_code} {c.city && `- ${c.city}`}{c.state_province && `, ${c.state_province}`}
+                      </div>
+                    ))}
+                  </div>
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel onClick={handleKeepCurrent}>Keep Current</AlertDialogCancel>
+                <AlertDialogAction onClick={handleChangeLocation}>Change Location</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </CardContent>
       </Card>
     );
@@ -412,7 +493,7 @@ export const LocationVerificationCard: React.FC<LocationVerificationCardProps> =
           {onRedetect && (
             <Button
               variant="outline"
-              onClick={onRedetect}
+              onClick={handleRedetectClick}
               disabled={isRedetecting}
             >
               <RefreshCw className={cn("h-4 w-4 mr-2", isRedetecting && "animate-spin")} />
@@ -420,6 +501,29 @@ export const LocationVerificationCard: React.FC<LocationVerificationCardProps> =
             </Button>
           )}
         </div>
+
+        {/* Change Location Dialog */}
+        <AlertDialog open={showChangeDialog} onOpenChange={setShowChangeDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>New Locations Detected</AlertDialogTitle>
+              <AlertDialogDescription>
+                We found {pendingCandidates.length} location{pendingCandidates.length > 1 ? 's' : ''} on your website that differ from your confirmed location ({postalCode}).
+                <div className="mt-3 space-y-2">
+                  {pendingCandidates.map((c, i) => (
+                    <div key={i} className="text-sm font-medium text-foreground">
+                      • {c.postal_code} {c.city && `- ${c.city}`}{c.state_province && `, ${c.state_province}`}
+                    </div>
+                  ))}
+                </div>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={handleKeepCurrent}>Keep Current</AlertDialogCancel>
+              <AlertDialogAction onClick={handleChangeLocation}>Change Location</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </CardContent>
     </Card>
   );

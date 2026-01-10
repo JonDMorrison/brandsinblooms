@@ -16,6 +16,13 @@ interface LocationData {
   needsConfirmation?: boolean;
 }
 
+interface RedetectResult {
+  success: boolean;
+  hasNewCandidates: boolean;
+  newCandidates?: any[];
+  currentPostalCode?: string;
+}
+
 interface UseLocationVerificationReturn {
   locationData: LocationData | null;
   isLoading: boolean;
@@ -28,7 +35,7 @@ interface UseLocationVerificationReturn {
     stateProvince?: string;
     country?: 'US' | 'CA';
   }) => Promise<boolean>;
-  redetectLocation: (websiteUrl: string) => Promise<boolean>;
+  redetectLocation: (websiteUrl: string) => Promise<RedetectResult>;
 }
 
 export const useLocationVerification = (): UseLocationVerificationReturn => {
@@ -144,8 +151,15 @@ export const useLocationVerification = (): UseLocationVerificationReturn => {
     }
   }, [user?.id, toast]);
 
-  const redetectLocation = useCallback(async (websiteUrl: string): Promise<boolean> => {
-    if (!user?.id || !websiteUrl) return false;
+  const redetectLocation = useCallback(async (websiteUrl: string): Promise<{
+    success: boolean;
+    hasNewCandidates: boolean;
+    newCandidates?: any[];
+    currentPostalCode?: string;
+  }> => {
+    if (!user?.id || !websiteUrl) {
+      return { success: false, hasNewCandidates: false };
+    }
 
     setIsRedetecting(true);
     try {
@@ -159,28 +173,46 @@ export const useLocationVerification = (): UseLocationVerificationReturn => {
           description: 'Could not analyze website for location.',
           variant: 'destructive',
         });
-        return false;
+        return { success: false, hasNewCandidates: false };
       }
 
       if (data?.locationExtraction) {
+        // NO forceOverwrite - this is a metadata-only refresh for confirmed locations
         const result = await persistLocationExtraction({
           userId: user.id,
           websiteUrl,
           locationExtraction: data.locationExtraction,
-          forceOverwrite: true, // User explicitly requested re-detection
+          forceOverwrite: false, // Never overwrite on re-detect
         });
 
         if (result.success) {
-          toast({
-            title: 'Location re-detected',
-            description: result.needsConfirmation 
-              ? 'Please confirm the detected location.'
-              : 'Location updated successfully.',
-          });
+          // Check if there are new candidates different from current
+          const newCandidates = data.locationExtraction.candidates || [];
+          const hasNewCandidates = result.wasManuallyConfirmed && newCandidates.length > 0;
+          
+          if (!result.wasManuallyConfirmed) {
+            toast({
+              title: 'Location re-detected',
+              description: result.needsConfirmation 
+                ? 'Please confirm the detected location.'
+                : 'Location updated successfully.',
+            });
+          } else {
+            toast({
+              title: 'Detection complete',
+              description: 'Your confirmed location was preserved. New candidates are available if you want to change.',
+            });
+          }
           
           // Refresh data
           await fetchLocationData();
-          return true;
+          
+          return { 
+            success: true, 
+            hasNewCandidates,
+            newCandidates,
+            currentPostalCode: locationData?.postalCode || undefined
+          };
         }
       }
 
@@ -189,7 +221,7 @@ export const useLocationVerification = (): UseLocationVerificationReturn => {
         description: 'Could not detect location from the website.',
         variant: 'destructive',
       });
-      return false;
+      return { success: false, hasNewCandidates: false };
     } catch (error) {
       console.error('Error redetecting location:', error);
       toast({
@@ -197,11 +229,11 @@ export const useLocationVerification = (): UseLocationVerificationReturn => {
         description: 'An unexpected error occurred.',
         variant: 'destructive',
       });
-      return false;
+      return { success: false, hasNewCandidates: false };
     } finally {
       setIsRedetecting(false);
     }
-  }, [user?.id, toast, fetchLocationData]);
+  }, [user?.id, toast, fetchLocationData, locationData?.postalCode]);
 
   return {
     locationData,

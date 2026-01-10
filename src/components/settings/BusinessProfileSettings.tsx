@@ -82,9 +82,11 @@ export const BusinessProfileSettings = () => {
 
   const handleRedetect = async () => {
     if (profile?.website_url) {
-      await redetectLocation(profile.website_url);
+      const result = await redetectLocation(profile.website_url);
       fetchProfile();
+      return result;
     }
+    return { success: false, hasNewCandidates: false };
   };
 
   return (
