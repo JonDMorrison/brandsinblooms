@@ -41,7 +41,7 @@ const defaultProgress: TourProgress = {
   skipped: false,
 };
 
-const QuickTourContext = createContext<QuickTourContextType | undefined>(undefined);
+export const QuickTourContext = createContext<QuickTourContextType | undefined>(undefined);
 
 const TOUR_STEPS: TourStep[] = ['dashboard', 'pos', 'customers', 'composer', 'automation'];
 
