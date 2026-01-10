@@ -87,12 +87,12 @@ export const useAccountSetupProgress = () => {
         .select('id', { count: 'exact', head: true })
         .eq('tenant_id', tenant.id);
 
-      // Check email domain setup
+      // Check email domain setup - consider verified, warming_up, or active as configured
       const { data: emailDomains } = await supabase
         .from('email_domains')
         .select('id, status')
         .eq('tenant_id', tenant.id)
-        .eq('status', 'verified')
+        .in('status', ['verified', 'warming_up', 'active'])
         .limit(1);
 
       // Determine completion status
