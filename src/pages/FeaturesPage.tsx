@@ -101,14 +101,14 @@ export const FeaturesPage = () => {
     },
     {
       icon: Sparkles,
-      title: "Instant Social, Newsletter and Blog Content",
-      description: "AI-powered content generation that understands gardening and your local market.",
+      title: "Climate-Aware Content Generation",
+      description: "Marketing content shaped by your location, not generic national advice.",
       features: [
-        "Plant care tips and seasonal advice generation",
-        "Local weather-based content suggestions",
-        "Product highlight posts with care instructions",
-        "Educational blog post creation",
-        "Email newsletter templates for each season"
+        "Climate-Aware Writing: Your posts recommend plants that actually thrive in your region, so customers trust your expertise.",
+        "Climate-Aligned Images: Generated images match your climate and season, featuring plants your customers can actually grow.",
+        "Location-Verified Content: Every piece of content is checked against your regional profile to prevent awkward mismatches.",
+        "Seasonal timing guidance appropriate for your growing region",
+        "No more fixing AI mistakes about frost dates in Phoenix or cacti in Minnesota"
       ],
       gradient: "from-pink-500 to-rose-600"
     },

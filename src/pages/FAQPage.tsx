@@ -110,7 +110,10 @@ const FAQPage = () => {
       answer: "A full customer database with personas, segments, and purchase history (when connected to your POS). Perfect for sending the right message to the right people."
     }, {
       question: "What about content?",
-      answer: "BloomSuite includes a seasonal marketing calendar and ready-to-use content blocks you can customize for your brand."
+      answer: "BloomSuite includes a seasonal marketing calendar and ready-to-use content blocks you can customize for your brand. All generated content is shaped by your verified location and climate profile."
+    }, {
+      question: "Is the AI content based on USDA zones or exact frost dates?",
+      answer: "BloomSuite uses your verified location to assign a regional climate profile, such as hot and dry desert or cold continental. This profile shapes all content and image generation with strict rules about what to recommend and what to avoid. We do not currently pull live USDA zone data or exact frost dates from external sources. When specific dates are unknown, content uses conditional language like after your last frost and recommends checking with local extension offices. This approach prevents bad recommendations while remaining honest about what we know."
     }, {
       question: "What SMS features are included?",
       answer: "BloomSuite includes promotional and transactional SMS messaging with automated opt-in/opt-out handling, carrier compliance (10DLC registration), customizable message frequency controls, and real-time delivery tracking. Send flash sales, appointment reminders, or order updates."
