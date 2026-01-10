@@ -65,7 +65,7 @@ export const useAccountSetupProgress = () => {
       // Check POS connections
       const { data: squareConnection } = await supabase
         .from('square_connections')
-        .select('id, setup_wizard_completed_at')
+        .select('id, setup_wizard_completed_at, merchant_id')
         .eq('tenant_id', tenant.id)
         .maybeSingle();
 
@@ -99,8 +99,8 @@ export const useAccountSetupProgress = () => {
       const colorsConfirmed = !!(profile?.brand_primary_color && profile?.brand_secondary_color);
       const companyProfileComplete = !!(profile?.company_name && profile?.company_overview);
       const posIntegrated = !!(
-        squareConnection?.setup_wizard_completed_at ||
-        cloverConnection?.setup_wizard_completed_at ||
+        (squareConnection?.setup_wizard_completed_at || squareConnection?.merchant_id) ||
+        (cloverConnection?.setup_wizard_completed_at || cloverConnection?.id) ||
         (lightspeedConnection?.status === 'connected')
       );
       const clientListImported = (customerCount || 0) > 0;
