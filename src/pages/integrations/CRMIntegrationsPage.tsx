@@ -1,8 +1,11 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Mail, Music2 } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import mailchimpLogo from '@/assets/logos/mailchimp.png';
+import klaviyoLogo from '@/assets/logos/klaviyo.png';
+import constantContactLogo from '@/assets/logos/constant-contact.png';
 
 export default function CRMIntegrationsPage() {
   const navigate = useNavigate();
@@ -12,22 +15,19 @@ export default function CRMIntegrationsPage() {
       id: 'mailchimp',
       name: 'Mailchimp',
       description: 'Import contacts, segments, and tags from Mailchimp',
-      icon: Mail,
-      color: 'text-yellow-600',
+      logo: mailchimpLogo,
     },
     {
       id: 'klaviyo',
       name: 'Klaviyo',
       description: 'Import contacts, segments, and lists from Klaviyo',
-      icon: Music2,
-      color: 'text-purple-600',
+      logo: klaviyoLogo,
     },
     {
       id: 'constant_contact',
       name: 'Constant Contact',
       description: 'Import contacts and lists from Constant Contact',
-      icon: Mail,
-      color: 'text-orange-600',
+      logo: constantContactLogo,
     },
   ];
 
@@ -57,8 +57,12 @@ export default function CRMIntegrationsPage() {
           <Card key={provider.id} className="bg-card border border-border rounded-xl">
             <CardContent className="p-4">
               <div className="flex items-center gap-4">
-                <div className={`p-3 rounded-lg bg-muted ${provider.color}`}>
-                  <provider.icon className="w-6 h-6" />
+                <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center overflow-hidden">
+                  <img 
+                    src={provider.logo} 
+                    alt={`${provider.name} logo`}
+                    className="w-8 h-8 object-contain"
+                  />
                 </div>
                 <div className="flex-1">
                   <h3 className="font-semibold">{provider.name}</h3>
