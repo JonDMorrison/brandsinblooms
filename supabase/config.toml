@@ -430,3 +430,6 @@ verify_jwt = true
 
 [functions.finalize-onboarding]
 verify_jwt = false
+
+[functions.derive-climate-profile]
+verify_jwt = false

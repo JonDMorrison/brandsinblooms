@@ -1522,6 +1522,12 @@ export type Database = {
           brand_voice: string | null
           button_font_id: string | null
           city: string | null
+          climate_archetype: string | null
+          climate_confidence: string | null
+          climate_data_source: string | null
+          climate_label: string | null
+          climate_last_updated_at: string | null
+          climate_source: string | null
           company_email: string | null
           company_name: string | null
           company_overview: string | null
@@ -1541,12 +1547,15 @@ export type Database = {
           facebook_url: string | null
           feature_flags: Json | null
           first_content_generated: boolean | null
+          first_frost_date: string | null
           first_welcome_dismissed: boolean | null
           footer_legal_text: string | null
           headline_font_id: string | null
           id: string
           ideal_customer: string | null
           instagram_url: string | null
+          last_frost_date: string | null
+          latitude: number | null
           linkedin_url: string | null
           location_confidence: string | null
           location_detection_candidates: Json | null
@@ -1555,6 +1564,7 @@ export type Database = {
           location_info: string | null
           location_last_detected_at: string | null
           location_needs_confirmation: boolean | null
+          longitude: number | null
           onboarding_completed_at: string | null
           pinterest_url: string | null
           postal_code: string | null
@@ -1572,6 +1582,7 @@ export type Database = {
           tone_of_writing: string | null
           unique_selling_points: string | null
           updated_at: string
+          usda_zone: string | null
           user_id: string
           website_url: string | null
           youtube_url: string | null
@@ -1586,6 +1597,12 @@ export type Database = {
           brand_voice?: string | null
           button_font_id?: string | null
           city?: string | null
+          climate_archetype?: string | null
+          climate_confidence?: string | null
+          climate_data_source?: string | null
+          climate_label?: string | null
+          climate_last_updated_at?: string | null
+          climate_source?: string | null
           company_email?: string | null
           company_name?: string | null
           company_overview?: string | null
@@ -1605,12 +1622,15 @@ export type Database = {
           facebook_url?: string | null
           feature_flags?: Json | null
           first_content_generated?: boolean | null
+          first_frost_date?: string | null
           first_welcome_dismissed?: boolean | null
           footer_legal_text?: string | null
           headline_font_id?: string | null
           id?: string
           ideal_customer?: string | null
           instagram_url?: string | null
+          last_frost_date?: string | null
+          latitude?: number | null
           linkedin_url?: string | null
           location_confidence?: string | null
           location_detection_candidates?: Json | null
@@ -1619,6 +1639,7 @@ export type Database = {
           location_info?: string | null
           location_last_detected_at?: string | null
           location_needs_confirmation?: boolean | null
+          longitude?: number | null
           onboarding_completed_at?: string | null
           pinterest_url?: string | null
           postal_code?: string | null
@@ -1636,6 +1657,7 @@ export type Database = {
           tone_of_writing?: string | null
           unique_selling_points?: string | null
           updated_at?: string
+          usda_zone?: string | null
           user_id: string
           website_url?: string | null
           youtube_url?: string | null
@@ -1650,6 +1672,12 @@ export type Database = {
           brand_voice?: string | null
           button_font_id?: string | null
           city?: string | null
+          climate_archetype?: string | null
+          climate_confidence?: string | null
+          climate_data_source?: string | null
+          climate_label?: string | null
+          climate_last_updated_at?: string | null
+          climate_source?: string | null
           company_email?: string | null
           company_name?: string | null
           company_overview?: string | null
@@ -1669,12 +1697,15 @@ export type Database = {
           facebook_url?: string | null
           feature_flags?: Json | null
           first_content_generated?: boolean | null
+          first_frost_date?: string | null
           first_welcome_dismissed?: boolean | null
           footer_legal_text?: string | null
           headline_font_id?: string | null
           id?: string
           ideal_customer?: string | null
           instagram_url?: string | null
+          last_frost_date?: string | null
+          latitude?: number | null
           linkedin_url?: string | null
           location_confidence?: string | null
           location_detection_candidates?: Json | null
@@ -1683,6 +1714,7 @@ export type Database = {
           location_info?: string | null
           location_last_detected_at?: string | null
           location_needs_confirmation?: boolean | null
+          longitude?: number | null
           onboarding_completed_at?: string | null
           pinterest_url?: string | null
           postal_code?: string | null
@@ -1700,6 +1732,7 @@ export type Database = {
           tone_of_writing?: string | null
           unique_selling_points?: string | null
           updated_at?: string
+          usda_zone?: string | null
           user_id?: string
           website_url?: string | null
           youtube_url?: string | null

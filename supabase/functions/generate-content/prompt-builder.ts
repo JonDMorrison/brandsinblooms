@@ -1,5 +1,5 @@
-
 import { addWeekNumberRestrictionsToPrompt } from './week-sanitizer.ts';
+import { buildClimateConstraints, extractClimateProfile } from '../_shared/climateConstraints.ts';
 
 export function buildContentPrompt(
   postType: string, 
@@ -11,6 +11,10 @@ export function buildContentPrompt(
   const companyName = companyProfile?.company_name || 'Your Garden Center';
   const location = companyProfile?.location_info || 'your local area';
   const specializations = companyProfile?.specializations || 'full-service garden center offerings';
+  
+  // Extract climate profile and build constraints
+  const climateProfile = extractClimateProfile(companyProfile);
+  const climateConstraints = buildClimateConstraints(climateProfile);
   
   // Extract city and region from location if available
   const locationParts = location.split(',').map(part => part.trim());
@@ -122,6 +126,7 @@ Return only the finished ${contentParams.format} content. No headings, labels, o
 Content should be immediately ready for publication and sound authentically helpful.`;
 
   return `${storyBrandPrompt}
+${climateConstraints}
 ${formatGuidelines}
 ${addWeekNumberRestrictionsToPrompt(qualityAssurancePrompt)}`;
 }

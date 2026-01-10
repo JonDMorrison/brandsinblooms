@@ -1,3 +1,4 @@
+import { buildClimateConstraints, extractClimateProfile, ClimateProfile } from '../_shared/climateConstraints.ts';
 
 export interface CompanyProfile {
   company_name?: string;
@@ -11,6 +12,19 @@ export interface CompanyProfile {
   seasonal_focus?: string;
   specializations?: string;
   location_info?: string;
+  // Climate profile fields
+  postal_code?: string;
+  city?: string;
+  state_province?: string;
+  country?: string;
+  latitude?: number;
+  longitude?: number;
+  climate_archetype?: string;
+  climate_label?: string;
+  climate_confidence?: string;
+  usda_zone?: string;
+  first_frost_date?: string;
+  last_frost_date?: string;
 }
 
 export interface ContentTask {
@@ -21,6 +35,10 @@ export interface ContentTask {
 }
 
 export const buildCompanyContext = (companyProfile: CompanyProfile | null): string => {
+  // Extract climate profile and build constraints
+  const climateProfile = companyProfile ? extractClimateProfile(companyProfile) : null;
+  const climateConstraints = buildClimateConstraints(climateProfile);
+  
   if (companyProfile) {
     return `
 COMPANY PROFILE:
@@ -34,19 +52,17 @@ Unique Selling Points: ${companyProfile.unique_selling_points || ''}
 Company Values: ${companyProfile.company_values || ''}
 Seasonal Focus: ${companyProfile.seasonal_focus || ''}
 Specializations: ${companyProfile.specializations || ''}
-Location Info: ${companyProfile.location_info || ''}
+
+${climateConstraints}
 
 REGIONAL NEWSLETTER FOCUS:
-- Use the Location Info to create content highly specific to their geographic region and climate
-- Reference local growing seasons, weather patterns, and gardening calendars specific to their area
-- Include region-appropriate plant recommendations and gardening advice
-- Consider local hardiness zones, frost dates, and seasonal timing for their specific location
-- Address regional gardening challenges (drought, humidity, snow, heat, soil conditions, local pests)
-- Reference local gardening culture, preferences, and community events when appropriate
-- Use seasonal timing advice that's accurate for their specific climate zone
-- Include locally-relevant tips that would resonate with gardeners in their specific region
+- All plant recommendations MUST comply with the Climate Profile constraints above
+- Reference local growing seasons and gardening calendars specific to their climate archetype
+- Address regional gardening challenges appropriate to their climate
+- Use seasonal timing advice that matches their frost dates (if available) or climate type
+- Include locally-relevant tips that would resonate with gardeners in their region
 
-IMPORTANT: Use this company information to personalize the newsletter with highly location-specific content that reflects their specific geographic region, local climate, and regional gardening conditions.
+IMPORTANT: Use the Climate Profile above to ensure all plant recommendations and timing advice are appropriate for the customer's specific climate.
 
 ${getStoryBrandDirectives()}
 `;

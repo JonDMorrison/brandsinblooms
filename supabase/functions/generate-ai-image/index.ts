@@ -2,6 +2,7 @@ import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.10';
 import { validateLocationForGeneration, locationBlockedResponse } from '../_shared/locationGuard.ts';
+import { buildImageClimateConstraints, extractClimateProfile } from '../_shared/climateConstraints.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -88,6 +89,26 @@ serve(async (req) => {
       }
     }
 
+    // Fetch company profile for climate constraints
+    let climateConstraints = '';
+    if (userId && userId !== 'anonymous') {
+      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+      const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+      const supabase = createClient(supabaseUrl, supabaseServiceKey);
+      
+      const { data: companyProfile } = await supabase
+        .from('company_profiles')
+        .select('climate_archetype, climate_label, postal_code, city, state_province, country, usda_zone')
+        .eq('user_id', userId)
+        .maybeSingle();
+      
+      if (companyProfile) {
+        const climateProfile = extractClimateProfile(companyProfile);
+        climateConstraints = buildImageClimateConstraints(climateProfile);
+        console.log('🌡️ Climate constraints loaded for image generation:', companyProfile.climate_archetype);
+      }
+    }
+
     // Provide fallback for empty contentContext - use contentTitle or generic garden context
     const contentContext = (rawContentContext && rawContentContext.trim()) 
       ? rawContentContext.trim()
@@ -116,8 +137,8 @@ serve(async (req) => {
       }
     }
 
-    // Generate enhanced prompt
-    const imagePrompt = generateImagePrompt(contentContext, contentTitle, channel);
+    // Generate enhanced prompt with climate constraints
+    const imagePrompt = generateImagePrompt(contentContext, contentTitle, channel, climateConstraints);
     console.log('📝 Generated prompt:', imagePrompt.substring(0, 200));
 
     // Create generation promise and cache it
@@ -559,7 +580,7 @@ function buildElementInstructions(elements: string[]): string {
   return instructions.join('\n');
 }
 
-function generateImagePrompt(context: string, title: string, channel: string): string {
+function generateImagePrompt(context: string, title: string, channel: string, climateConstraints: string = ''): string {
   // Detect season from context or use current season
   const seasonInfo = detectSeasonFromContext(context, title);
   
@@ -581,6 +602,8 @@ function generateImagePrompt(context: string, title: string, channel: string): s
   };
 
   return `Create a high-quality, photorealistic image for garden marketing.
+
+${climateConstraints}
 
 PRIMARY SUBJECTS (MUST INCLUDE):
 - Gardens, plants, flowers, trees, or garden elements as the main focus
