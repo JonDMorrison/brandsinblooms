@@ -187,27 +187,8 @@ async function handler(req: Request): Promise<Response> {
       );
     }
 
-    // Step D: Check warmup limit (estimate)
-    const remainingToday = warmupInfo.remainingToday;
-
-    if (estimatedRecipients > remainingToday) {
-      console.log(`[send-sms-campaign] Warmup limit would be exceeded: estimated=${estimatedRecipients}, remaining=${remainingToday}`);
-      return new Response(
-        JSON.stringify({
-          success: false,
-          code: 'SMS_WARMUP_LIMIT',
-          message: `Your SMS number is still warming up. Today's safe limit is ${remainingToday}. You have approximately ${estimatedRecipients} recipients. Try again tomorrow or reduce recipients.`,
-          data: {
-            stage: warmupInfo.warmupStage,
-            dailyLimit: warmupInfo.dailyLimit,
-            dailySentCount: warmupInfo.dailySentCount,
-            remainingToday,
-            estimatedRecipients
-          }
-        }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    // Step D: Log sending info (warmup limits removed - no limit check)
+    console.log(`[send-sms-campaign] Sending to ${estimatedRecipients} recipients (warmup limits disabled)`);
 
     // Step E: Set campaign to enqueue and trigger enqueue worker
     const { error: updateError } = await supabase
@@ -251,11 +232,6 @@ async function handler(req: Request): Promise<Response> {
         success: true,
         initiated: true,
         estimatedRecipients,
-        warmupInfo: {
-          stage: warmupInfo.warmupStage,
-          dailyLimit: warmupInfo.dailyLimit,
-          remainingToday
-        },
         message: `SMS campaign is being prepared. Approximately ${estimatedRecipients} messages will be sent.`
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

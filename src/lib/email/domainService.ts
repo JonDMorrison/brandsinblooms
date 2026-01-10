@@ -72,12 +72,15 @@ export interface WarmupSchedule {
   hourlyLimit: number;
 }
 
-// Warmup schedule configuration
+// Default limits for all domains (no warmup - full capacity immediately)
+export const DEFAULT_DOMAIN_LIMITS = {
+  dailyLimit: 2000,
+  hourlyLimit: 500,
+};
+
+// Legacy warmup schedule kept for reference only (no longer used)
 export const WARMUP_SCHEDULE: WarmupSchedule[] = [
-  { stage: 1, minDays: 0, dailyLimit: 50, hourlyLimit: 25 },
-  { stage: 2, minDays: 4, dailyLimit: 150, hourlyLimit: 40 },
-  { stage: 3, minDays: 8, dailyLimit: 500, hourlyLimit: 125 },
-  { stage: 4, minDays: 15, dailyLimit: 2000, hourlyLimit: 500 },
+  { stage: 4, minDays: 0, dailyLimit: 2000, hourlyLimit: 500 },
 ];
 
 // Reputation thresholds
@@ -176,7 +179,8 @@ export function getDomainStatusConfig(status: EmailDomain['status']): {
     case 'verifying':
       return { label: 'Verifying', variant: 'secondary', color: 'text-blue-600' };
     case 'warming_up':
-      return { label: 'Warming Up', variant: 'outline', color: 'text-orange-600' };
+      // Treat warming_up same as active since warmup is removed
+      return { label: 'Ready', variant: 'default', color: 'text-green-600' };
     case 'active':
       return { label: 'Ready', variant: 'default', color: 'text-green-600' };
     case 'paused':
@@ -191,12 +195,11 @@ export function getDomainStatusConfig(status: EmailDomain['status']): {
 }
 
 /**
- * Get warmup progress percentage
+ * Get warmup progress percentage (deprecated - always returns 100)
  */
 export function getWarmupProgress(domain: EmailDomain): number {
-  if (domain.status === 'active') return 100;
-  if (domain.warmup_stage === 0) return 0;
-  return Math.min(100, (domain.warmup_stage / 4) * 100);
+  // Warmup removed - all domains are at full capacity
+  return 100;
 }
 
 /**

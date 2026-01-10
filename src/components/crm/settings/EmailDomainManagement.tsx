@@ -232,22 +232,8 @@ export const EmailDomainManagement: React.FC = () => {
                         </p>
                       )}
 
-                      {/* Warmup Progress */}
-                      {domain.status === 'warming_up' && (
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between text-sm">
-                            <span className="text-muted-foreground">Warmup Progress (Stage {domain.warmup_stage}/4)</span>
-                            <span className="font-medium">{warmupProgress}%</span>
-                          </div>
-                          <Progress value={warmupProgress} className="h-2" />
-                          <p className="text-xs text-muted-foreground">
-                            Current limit: {domain.daily_limit} emails/day, {domain.hourly_limit} emails/hour
-                          </p>
-                        </div>
-                      )}
-
-                      {/* Active Domain Limits */}
-                      {domain.status === 'active' && (
+                      {/* Domain Limits - shown for active and warming_up domains */}
+                      {(domain.status === 'active' || domain.status === 'warming_up') && (
                         <div className="flex items-center gap-4 text-sm text-muted-foreground">
                           <span>Daily limit: <span className="font-medium text-foreground">{domain.daily_limit}</span></span>
                           <span>Hourly limit: <span className="font-medium text-foreground">{domain.hourly_limit}</span></span>

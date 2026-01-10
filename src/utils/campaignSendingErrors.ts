@@ -81,9 +81,9 @@ export const SEND_ERRORS: Record<SendErrorCode, Omit<SendError, 'code'>> = {
     recoverable: false
   },
   WARMUP_LIMIT: {
-    title: "Domain warmup limit reached",
-    description: "Your domain is still warming up and has reached today's safe sending limit.",
-    action: "View the Warmup Assistant for details or wait until tomorrow.",
+    title: "Daily sending limit reached",
+    description: "You've reached today's sending limit for your domain.",
+    action: "Wait until tomorrow when your limit resets, or reduce the number of recipients.",
     recoverable: true
   },
   CAMPAIGN_SAVE_FAILED: {
