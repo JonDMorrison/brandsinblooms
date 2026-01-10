@@ -411,3 +411,19 @@ verify_jwt = true
 
 [functions.mta-debug-numbers]
 verify_jwt = true
+
+[functions.constant-contact-fetch-lists]
+verify_jwt = true
+
+[functions.constant-contact-fetch-preview]
+verify_jwt = true
+
+[functions.constant-contact-validate]
+verify_jwt = true
+
+[functions.constant-contact-import]
+verify_jwt = true
+timeout = 180
+
+[functions.constant-contact-revoke-token]
+verify_jwt = true

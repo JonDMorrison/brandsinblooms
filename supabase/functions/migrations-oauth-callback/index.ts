@@ -195,6 +195,23 @@ Deno.serve(async (req) => {
         }),
       });
       tokenData = await response.json();
+    } else if (provider === 'constant_contact') {
+      tokenUrl = 'https://authz.constantcontact.com/oauth2/default/v1/token';
+      const basicAuth = btoa(`${clientId}:${clientSecret}`);
+      const response = await fetch(tokenUrl, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Authorization': `Basic ${basicAuth}`
+        },
+        body: new URLSearchParams({
+          grant_type: 'authorization_code',
+          redirect_uri: redirectUri,
+          code,
+        }),
+      });
+      tokenData = await response.json();
+      console.log('[migrations-oauth-callback] Constant Contact token response:', JSON.stringify(tokenData));
     }
 
     if (!tokenData.access_token) {
@@ -228,6 +245,32 @@ Deno.serve(async (req) => {
       });
       const accData = await accountRes.json();
       accountInfo = accData.data?.[0]?.attributes || {};
+    } else if (provider === 'constant_contact') {
+      const accountRes = await fetch('https://api.cc.email/v3/account/summary', {
+        headers: { 
+          Authorization: `Bearer ${tokenData.access_token}`,
+          'Accept': 'application/json'
+        },
+      });
+      const accData = await accountRes.json();
+      accountInfo = {
+        account_id: accData.encoded_account_id,
+        name: accData.organization_name || accData.first_name + ' ' + accData.last_name,
+        email: accData.contact_email,
+        ...accData
+      };
+      console.log('[migrations-oauth-callback] Constant Contact account info:', JSON.stringify(accountInfo));
+    }
+
+    // Also store refresh token for Constant Contact (it uses offline_access)
+    let encryptedRefreshToken: string | null = null;
+    if (tokenData.refresh_token) {
+      try {
+        encryptedRefreshToken = await encryptToken(tokenData.refresh_token);
+        console.log(`[migrations-oauth-callback] Refresh token encrypted successfully`);
+      } catch (error: any) {
+        console.error('[migrations-oauth-callback] Refresh token encryption failed:', error.message);
+      }
     }
 
     // Update connection with encrypted tokens (update existing tenant+provider row if present)
@@ -243,40 +286,48 @@ Deno.serve(async (req) => {
     }
 
     if (existingConn) {
+      const updatePayload: any = {
+        status: 'connected',
+        encrypted_access_token: encryptedToken,
+        provider_account_id: accountInfo.id || accountInfo.account_id || '',
+        provider_account_name: accountInfo.accountname || accountInfo.name || '',
+        token_expires_at: tokenData.expires_in 
+          ? new Date(Date.now() + tokenData.expires_in * 1000).toISOString()
+          : null,
+        metadata: accountInfo,
+        connected_at: new Date().toISOString()
+      };
+      if (encryptedRefreshToken) {
+        updatePayload.encrypted_refresh_token = encryptedRefreshToken;
+      }
       const { error: updateConnErr } = await supabase
         .from('provider_connections')
-        .update({
-          status: 'connected',
-          encrypted_access_token: encryptedToken,
-          provider_account_id: accountInfo.id || accountInfo.account_id || '',
-          provider_account_name: accountInfo.accountname || accountInfo.name || '',
-          token_expires_at: tokenData.expires_in 
-            ? new Date(Date.now() + tokenData.expires_in * 1000).toISOString()
-            : null,
-          metadata: accountInfo,
-          connected_at: new Date().toISOString()
-        })
+        .update(updatePayload)
         .eq('id', existingConn.id);
       if (updateConnErr) {
         console.error('[migrations-oauth-callback] Update connection error:', updateConnErr);
       }
     } else {
+      const insertPayload: any = {
+        tenant_id,
+        user_id,
+        provider,
+        status: 'connected',
+        encrypted_access_token: encryptedToken,
+        provider_account_id: accountInfo.id || accountInfo.account_id || '',
+        provider_account_name: accountInfo.accountname || accountInfo.name || '',
+        token_expires_at: tokenData.expires_in 
+          ? new Date(Date.now() + tokenData.expires_in * 1000).toISOString()
+          : null,
+        metadata: accountInfo,
+        connected_at: new Date().toISOString()
+      };
+      if (encryptedRefreshToken) {
+        insertPayload.encrypted_refresh_token = encryptedRefreshToken;
+      }
       const { error: insertConnErr } = await supabase
         .from('provider_connections')
-        .insert({
-          tenant_id,
-          user_id,
-          provider,
-          status: 'connected',
-          encrypted_access_token: encryptedToken,
-          provider_account_id: accountInfo.id || accountInfo.account_id || '',
-          provider_account_name: accountInfo.accountname || accountInfo.name || '',
-          token_expires_at: tokenData.expires_in 
-            ? new Date(Date.now() + tokenData.expires_in * 1000).toISOString()
-            : null,
-          metadata: accountInfo,
-          connected_at: new Date().toISOString()
-        });
+        .insert(insertPayload);
       if (insertConnErr) {
         console.error('[migrations-oauth-callback] Insert connection error:', insertConnErr);
       }
