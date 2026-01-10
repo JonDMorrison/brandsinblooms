@@ -12861,6 +12861,7 @@ export type Database = {
         Returns: boolean
       }
       restore_user_data: { Args: { target_user_id: string }; Returns: boolean }
+      server_finalize_onboarding: { Args: { p_user_id: string }; Returns: Json }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
       soft_delete_user_data: {
