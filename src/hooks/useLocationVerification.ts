@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -28,6 +28,7 @@ interface UseLocationVerificationReturn {
   isLoading: boolean;
   isSaving: boolean;
   isRedetecting: boolean;
+  isLocationConfirmed: boolean; // Single source of truth
   fetchLocationData: () => Promise<void>;
   confirmLocation: (data: {
     postalCode: string;
@@ -38,6 +39,17 @@ interface UseLocationVerificationReturn {
   redetectLocation: (websiteUrl: string) => Promise<RedetectResult>;
 }
 
+/**
+ * Single source of truth for location confirmation status.
+ * Location is confirmed when:
+ * - postal_code exists AND
+ * - location_needs_confirmation is false
+ */
+export const isLocationConfirmedCheck = (data: LocationData | null): boolean => {
+  if (!data) return false;
+  return Boolean(data.postalCode) && data.needsConfirmation === false;
+};
+
 export const useLocationVerification = (): UseLocationVerificationReturn => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -45,6 +57,11 @@ export const useLocationVerification = (): UseLocationVerificationReturn => {
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isRedetecting, setIsRedetecting] = useState(false);
+
+  // Computed confirmation status - single source of truth
+  const isLocationConfirmed = useMemo(() => {
+    return isLocationConfirmedCheck(locationData);
+  }, [locationData]);
 
   const fetchLocationData = useCallback(async () => {
     if (!user?.id) return;
@@ -240,6 +257,7 @@ export const useLocationVerification = (): UseLocationVerificationReturn => {
     isLoading,
     isSaving,
     isRedetecting,
+    isLocationConfirmed,
     fetchLocationData,
     confirmLocation,
     redetectLocation,

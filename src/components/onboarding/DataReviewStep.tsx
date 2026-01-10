@@ -88,6 +88,7 @@ export const DataReviewStep = ({
     locationExtraction?.postal_code || 'manual'
   );
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [isLocationConfirmedLocal, setIsLocationConfirmedLocal] = useState(false);
 
   // Update form when extraction data changes
   useEffect(() => {
@@ -98,12 +99,17 @@ export const DataReviewStep = ({
         stateProvince: locationExtraction.state_province || '',
       });
       setSelectedCandidate(locationExtraction.postal_code || 'manual');
+      
+      // Auto-confirm if high confidence single location
+      const autoConfirmed = !showLocationPrompt && Boolean(locationExtraction.postal_code);
+      setIsLocationConfirmedLocal(autoConfirmed);
     }
-  }, [locationExtraction]);
+  }, [locationExtraction, showLocationPrompt]);
 
   const handlePostalCodeChange = (value: string) => {
     setLocationForm(prev => ({ ...prev, postalCode: value }));
     setValidationError(null);
+    setIsLocationConfirmedLocal(false); // Reset confirmation when editing
     
     if (value.length >= 5) {
       const validation = validatePostalCode(value);
@@ -115,6 +121,7 @@ export const DataReviewStep = ({
 
   const handleCandidateSelect = (postalCode: string) => {
     setSelectedCandidate(postalCode);
+    setIsLocationConfirmedLocal(false); // Reset until explicit confirmation
     if (postalCode !== 'manual') {
       const candidate = locationExtraction?.candidates?.find(c => c.postal_code === postalCode);
       if (candidate) {
@@ -130,8 +137,25 @@ export const DataReviewStep = ({
     setValidationError(null);
   };
 
+  const handleConfirmLocation = () => {
+    if (locationForm.postalCode) {
+      const validation = validatePostalCode(locationForm.postalCode);
+      if (validation.valid) {
+        setIsLocationConfirmedLocal(true);
+        setValidationError(null);
+      } else {
+        setValidationError('Please enter a valid postal/ZIP code');
+      }
+    }
+  };
+
   const handleComplete = () => {
-    // If location needs confirmation, validate before completing
+    // Block completion if location needs confirmation
+    if (showLocationPrompt && !isLocationConfirmedLocal) {
+      setValidationError('Please confirm your location to continue');
+      return;
+    }
+    
     if (showLocationPrompt && locationForm.postalCode) {
       const validation = validatePostalCode(locationForm.postalCode);
       if (!validation.valid) {
@@ -143,6 +167,11 @@ export const DataReviewStep = ({
   };
 
   const hasMultipleCandidates = (locationExtraction?.candidates?.length || 0) > 1;
+  
+  // Determine if Complete button should be disabled
+  const isCompleteDisabled = isCompleting || 
+    (showLocationPrompt && !isLocationConfirmedLocal) ||
+    (showLocationPrompt && !!validationError);
 
   return (
     <Card className="w-full max-w-lg mx-auto border-brand-green/30 bg-white/95 backdrop-blur-sm rounded-2xl">
@@ -299,34 +328,61 @@ export const DataReviewStep = ({
 
               {/* Postal code input - shown if needs confirmation or manual selected */}
               {(showLocationPrompt || selectedCandidate === 'manual') && (
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <Label htmlFor="postal-code" className="text-sm text-gray-600">
-                      Postal/ZIP Code *
-                    </Label>
-                    <Input
-                      id="postal-code"
-                      placeholder="e.g., 97215"
-                      value={locationForm.postalCode}
-                      onChange={(e) => handlePostalCodeChange(e.target.value)}
-                      className={`h-10 ${validationError ? 'border-red-300' : 'border-brand-green/30'}`}
-                    />
-                    {validationError && (
-                      <p className="text-xs text-red-600">{validationError}</p>
-                    )}
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label htmlFor="postal-code" className="text-sm text-gray-600">
+                        Postal/ZIP Code *
+                      </Label>
+                      <Input
+                        id="postal-code"
+                        placeholder="e.g., 97215"
+                        value={locationForm.postalCode}
+                        onChange={(e) => handlePostalCodeChange(e.target.value)}
+                        className={`h-10 ${validationError ? 'border-red-300' : 'border-brand-green/30'}`}
+                      />
+                      {validationError && (
+                        <p className="text-xs text-red-600">{validationError}</p>
+                      )}
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="city" className="text-sm text-gray-600">
+                        City
+                      </Label>
+                      <Input
+                        id="city"
+                        placeholder="e.g., Portland"
+                        value={locationForm.city}
+                        onChange={(e) => {
+                          setLocationForm(prev => ({ ...prev, city: e.target.value }));
+                          setIsLocationConfirmedLocal(false);
+                        }}
+                        className="h-10 border-brand-green/30"
+                      />
+                    </div>
                   </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="city" className="text-sm text-gray-600">
-                      City
-                    </Label>
-                    <Input
-                      id="city"
-                      placeholder="e.g., Portland"
-                      value={locationForm.city}
-                      onChange={(e) => setLocationForm(prev => ({ ...prev, city: e.target.value }))}
-                      className="h-10 border-brand-green/30"
-                    />
-                  </div>
+                  
+                  {/* Confirm Location Button */}
+                  {!isLocationConfirmedLocal && locationForm.postalCode && (
+                    <Button
+                      type="button"
+                      onClick={handleConfirmLocation}
+                      variant="outline"
+                      size="sm"
+                      className="w-full border-brand-green text-brand-green hover:bg-brand-green/10"
+                    >
+                      <CheckCircle className="w-4 h-4 mr-2" />
+                      Confirm This Location
+                    </Button>
+                  )}
+                  
+                  {/* Confirmed indicator */}
+                  {isLocationConfirmedLocal && (
+                    <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 p-2 rounded-md">
+                      <CheckCircle className="w-4 h-4" />
+                      Location confirmed
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -343,6 +399,14 @@ export const DataReviewStep = ({
           )}
         </div>
 
+        {/* Warning message when location not confirmed */}
+        {showLocationPrompt && !isLocationConfirmedLocal && (
+          <div className="flex items-center gap-2 text-sm text-yellow-700 bg-yellow-50 p-3 rounded-lg border border-yellow-200">
+            <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+            <span>Please confirm your primary location to continue.</span>
+          </div>
+        )}
+
         <div className="flex gap-3 pt-4">
           <Button 
             onClick={onBack}
@@ -354,8 +418,8 @@ export const DataReviewStep = ({
           </Button>
           <Button 
             onClick={handleComplete}
-            disabled={isCompleting || (showLocationPrompt && validationError !== null)}
-            className="flex-1 h-12 bg-brand-teal hover:bg-brand-teal-600 text-white font-medium transition-all duration-200 hover:shadow-lg rounded-lg"
+            disabled={isCompleteDisabled}
+            className="flex-1 h-12 bg-brand-teal hover:bg-brand-teal-600 text-white font-medium transition-all duration-200 hover:shadow-lg rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isCompleting ? (
               <>
