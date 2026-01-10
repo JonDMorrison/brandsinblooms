@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
 
 import { UrlInputStep } from './UrlInputStep';
 import { DataReviewStep } from './DataReviewStep';
@@ -65,6 +66,17 @@ export const SimplifiedOnboardingFlow = ({ onComplete }: SimplifiedOnboardingFlo
     
     try {
       setIsCompletingOnboarding(true);
+      
+      // SERVER-SIDE SAFETY CHECK: Re-verify location confirmation invariant
+      const { enforceLocationConfirmation } = await import('@/lib/locationValidation');
+      const validation = await enforceLocationConfirmation(user.id);
+      
+      if (!validation.success) {
+        console.error('❌ Server-side location validation failed:', validation.error);
+        toast.error(validation.error || 'Location confirmation required');
+        setIsCompletingOnboarding(false);
+        return;
+      }
       
       // Prepare the data for the parent completion handler
       const finalData = {

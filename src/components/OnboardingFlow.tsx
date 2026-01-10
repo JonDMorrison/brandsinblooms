@@ -258,6 +258,17 @@ export const OnboardingFlow = ({ onComplete, onBack }: OnboardingFlowProps) => {
         }
       }
       
+      // SERVER-SIDE SAFETY CHECK: Re-verify location confirmation invariant
+      const { enforceLocationConfirmation } = await import('@/lib/locationValidation');
+      const validation = await enforceLocationConfirmation(user.id);
+      
+      if (!validation.success) {
+        console.error('❌ Server-side location validation failed:', validation.error);
+        setLocationValidationError(validation.error || 'Location confirmation required');
+        setIsSubmitting(false);
+        return;
+      }
+      
       // Store the onboarding data in localStorage as backup
       localStorage.setItem(`garden-center-onboarding-${user.id}`, JSON.stringify(formData));
       
