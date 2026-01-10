@@ -47,8 +47,8 @@ export const SimplifiedOnboardingFlow = ({ onComplete }: SimplifiedOnboardingFlo
   const handleAnalyze = async () => {
     // Advance to step 2 immediately when analyze is clicked
     setCurrentStep(2);
-    // Start analysis in the background
-    await analyzeWebsite(websiteUrl);
+    // Start analysis in the background with userId for location persistence
+    await analyzeWebsite(websiteUrl, user?.id);
   };
 
   const handleBack = () => {

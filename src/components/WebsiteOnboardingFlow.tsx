@@ -65,8 +65,8 @@ export const WebsiteOnboardingFlow = ({ onComplete }: WebsiteOnboardingFlowProps
       saveProgress({ websiteUrl, currentStep: 2, extractedData: {} });
     }
     
-    // Start analysis in the background
-    await analyzeWebsite(websiteUrl);
+    // Start analysis in the background with userId for location persistence
+    await analyzeWebsite(websiteUrl, user?.id);
     // User stays on review screen regardless of analysis success/failure
   };
 
