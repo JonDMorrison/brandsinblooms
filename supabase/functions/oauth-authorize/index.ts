@@ -14,7 +14,7 @@ Deno.serve(async (req) => {
   try {
     const { provider } = await req.json();
     
-    if (!['mailchimp', 'klaviyo'].includes(provider)) {
+    if (!['mailchimp', 'klaviyo', 'constant_contact'].includes(provider)) {
       throw new Error('Invalid provider');
     }
 
@@ -120,6 +120,9 @@ Deno.serve(async (req) => {
     } else if (provider === 'klaviyo') {
       authUrl = `https://www.klaviyo.com/oauth/authorize?` +
         `response_type=code&client_id=${encodeURIComponent(clientId)}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${encodeURIComponent(state)}&scope=lists:read accounts:read`;
+    } else if (provider === 'constant_contact') {
+      authUrl = `https://authz.constantcontact.com/oauth2/default/v1/authorize?` +
+        `response_type=code&client_id=${encodeURIComponent(clientId)}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${encodeURIComponent(state)}&scope=contact_data+offline_access+account_read`;
     }
 
     console.log(`[oauth-authorize] Generated auth URL for ${provider}`);
