@@ -22,6 +22,13 @@ export default function CRMIntegrationsPage() {
       icon: Music2,
       color: 'text-purple-600',
     },
+    {
+      id: 'constant_contact',
+      name: 'Constant Contact',
+      description: 'Import contacts and lists from Constant Contact',
+      icon: Mail,
+      color: 'text-orange-600',
+    },
   ];
 
   const handleStartMigration = (provider: string) => {
