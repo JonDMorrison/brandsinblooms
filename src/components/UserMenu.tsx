@@ -14,7 +14,8 @@ import {
   Users,
   CreditCard,
   TrendingUp,
-  PlayCircle
+  PlayCircle,
+  Rocket
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -200,6 +201,10 @@ export const UserMenu = () => {
             
             {/* Account Section */}
             <div className="py-1">
+              <button className="w-full text-left px-2 py-1.5 text-sm hover:bg-gray-100 rounded flex items-center text-primary font-medium" onClick={() => handleNavigation('/account-setup')}>
+                <Rocket className="mr-2 h-4 w-4" />
+                Account Setup
+              </button>
               <button className="w-full text-left px-2 py-1.5 text-sm hover:bg-gray-100 rounded flex items-center" onClick={() => handleNavigation('/account')}>
                 <User className="mr-2 h-4 w-4" />
                 Account Settings
