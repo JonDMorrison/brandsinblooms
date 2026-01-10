@@ -62,6 +62,7 @@ interface LocationVerificationCardProps {
     country?: 'US' | 'CA';
   }) => Promise<void>;
   onRedetect?: () => Promise<RedetectResult>;
+  onConfirmationChange?: (confirmed: boolean) => void; // Notify parent of confirmation state
   
   // State
   isRedetecting?: boolean;
@@ -136,6 +137,7 @@ export const LocationVerificationCard: React.FC<LocationVerificationCardProps> =
   needsConfirmation = false,
   onConfirm,
   onRedetect,
+  onConfirmationChange,
   isRedetecting = false,
   isSaving = false,
   compact = false,
@@ -158,6 +160,13 @@ export const LocationVerificationCard: React.FC<LocationVerificationCardProps> =
   const hasMultipleCandidates = candidates.length > 1;
   const isManuallyConfirmed = source === 'manual' && confidence === 'high';
 
+  // Calculate and notify parent of confirmation status
+  const isConfirmed = Boolean(postalCode) && !needsConfirmation;
+  
+  // Notify parent when confirmation status changes
+  React.useEffect(() => {
+    onConfirmationChange?.(isConfirmed);
+  }, [isConfirmed, onConfirmationChange]);
   const handleRedetectClick = async () => {
     if (!onRedetect) return;
     
