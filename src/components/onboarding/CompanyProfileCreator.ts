@@ -151,6 +151,7 @@ export const createCompanyProfileFromOnboarding = async (onboardingData: any, us
     }
     
     // STEP 4: Save the generated profile to the database using proper UPDATE/INSERT logic
+    // NOTE: onboarding_completed_at is NOT set here - it's set via finalize-onboarding edge function
     console.log('🔧 STEP 4: Saving company profile to database...');
     let savedProfile;
     
@@ -167,32 +168,31 @@ export const createCompanyProfileFromOnboarding = async (onboardingData: any, us
         throw new Error(`Failed to check existing profile: ${checkError.message}`);
       }
 
-      // BACKEND INVARIANT ENFORCEMENT: Block completion if location not confirmed
-      // This check runs in createCompanyProfileFromOnboarding to prevent bypass
+      // CLIENT-SIDE INVARIANT CHECK (defense in depth - server enforces this too)
       if (existingProfile) {
         const postalCode = existingProfile.postal_code;
         const needsConfirmation = existingProfile.location_needs_confirmation === true;
         
         if (!postalCode || needsConfirmation) {
-          console.error('❌ BACKEND INVARIANT VIOLATION: Location not confirmed', {
+          console.error('❌ CLIENT INVARIANT CHECK: Location not confirmed', {
             userId,
             postalCode: postalCode || 'NULL',
             needsConfirmation
           });
           throw new Error('Location confirmation required: Please confirm your primary location before completing setup.');
         }
-        console.log('✅ Backend location invariant check passed');
+        console.log('✅ Client-side location invariant check passed');
       }
 
       if (existingProfile) {
-        // Update existing profile
+        // Update existing profile - DO NOT set onboarding_completed_at here
         console.log('🔄 Updating existing profile:', existingProfile.id);
         const { data: updatedProfile, error: updateError } = await supabase
           .from('company_profiles')
           .update({
             ...profileData,
             first_content_generated: true,
-            onboarding_completed_at: new Date().toISOString(),
+            // onboarding_completed_at is set by finalize-onboarding edge function
             updated_at: new Date().toISOString()
           })
           .eq('user_id', userId)
@@ -207,18 +207,16 @@ export const createCompanyProfileFromOnboarding = async (onboardingData: any, us
         savedProfile = updatedProfile;
         console.log('✅ Company profile updated successfully:', savedProfile.id);
       } else {
-        // Create new profile - for new profiles, we cannot enforce location yet
-        // The location step should have been completed before reaching here
+        // Create new profile - DO NOT set onboarding_completed_at here
         console.log('🆕 Creating new profile');
-        console.warn('⚠️ New profile creation - location enforcement relies on client-side gating');
         
         const { data: newProfile, error: insertError } = await supabase
           .from('company_profiles')
           .insert({
             user_id: userId,
             ...profileData,
-            first_content_generated: true,
-            onboarding_completed_at: new Date().toISOString()
+            first_content_generated: true
+            // onboarding_completed_at is set by finalize-onboarding edge function
           })
           .select()
           .single();
@@ -230,20 +228,26 @@ export const createCompanyProfileFromOnboarding = async (onboardingData: any, us
 
         savedProfile = newProfile;
         console.log('✅ Company profile created successfully:', savedProfile.id);
-        
-        // POST-INSERT INVARIANT CHECK: Verify location was set during onboarding flow
-        const { data: verifyProfile } = await supabase
-          .from('company_profiles')
-          .select('postal_code, location_needs_confirmation')
-          .eq('id', savedProfile.id)
-          .single();
-          
-        if (!verifyProfile?.postal_code || verifyProfile.location_needs_confirmation === true) {
-          console.error('❌ POST-INSERT INVARIANT VIOLATION: New profile created without confirmed location');
-          // Don't delete the profile, but log the violation for monitoring
-          // The client-side should have prevented this
-        }
       }
+      
+      // STEP 4b: Call finalize-onboarding edge function to set onboarding_completed_at
+      console.log('🔒 Calling finalize-onboarding edge function...');
+      const { data: finalizeResult, error: finalizeError } = await supabase.functions.invoke('finalize-onboarding', {
+        body: { company_profile_id: savedProfile.id }
+      });
+      
+      if (finalizeError) {
+        console.error('❌ finalize-onboarding failed:', finalizeError);
+        throw new Error(`Failed to finalize onboarding: ${finalizeError.message}`);
+      }
+      
+      if (!finalizeResult?.success) {
+        console.error('❌ finalize-onboarding returned error:', finalizeResult?.error);
+        throw new Error(finalizeResult?.error || 'Failed to finalize onboarding');
+      }
+      
+      console.log('✅ Onboarding finalized via edge function:', finalizeResult);
+      
     } catch (saveError) {
       console.error('❌ Critical error saving profile:', saveError);
       throw new Error(`Profile save failed: ${saveError.message}`);
