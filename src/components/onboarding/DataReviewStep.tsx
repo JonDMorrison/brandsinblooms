@@ -43,6 +43,7 @@ interface DataReviewStepProps {
   onComplete: () => void;
   isCompleting: boolean;
   isAnalyzing: boolean;
+  onLocationConfirmationChange?: (confirmed: boolean) => void;
 }
 
 // Validation patterns
@@ -71,7 +72,8 @@ export const DataReviewStep = ({
   onBack, 
   onComplete, 
   isCompleting,
-  isAnalyzing
+  isAnalyzing,
+  onLocationConfirmationChange
 }: DataReviewStepProps) => {
   const locationExtraction = extractedData.locationExtraction;
   const showLocationPrompt = locationExtraction?.requires_confirmation || 
@@ -103,13 +105,15 @@ export const DataReviewStep = ({
       // Auto-confirm if high confidence single location
       const autoConfirmed = !showLocationPrompt && Boolean(locationExtraction.postal_code);
       setIsLocationConfirmedLocal(autoConfirmed);
+      onLocationConfirmationChange?.(autoConfirmed);
     }
-  }, [locationExtraction, showLocationPrompt]);
+  }, [locationExtraction, showLocationPrompt, onLocationConfirmationChange]);
 
   const handlePostalCodeChange = (value: string) => {
     setLocationForm(prev => ({ ...prev, postalCode: value }));
     setValidationError(null);
     setIsLocationConfirmedLocal(false); // Reset confirmation when editing
+    onLocationConfirmationChange?.(false); // Notify parent confirmation is lost
     
     if (value.length >= 5) {
       const validation = validatePostalCode(value);
@@ -122,6 +126,7 @@ export const DataReviewStep = ({
   const handleCandidateSelect = (postalCode: string) => {
     setSelectedCandidate(postalCode);
     setIsLocationConfirmedLocal(false); // Reset until explicit confirmation
+    onLocationConfirmationChange?.(false); // Notify parent confirmation is lost
     if (postalCode !== 'manual') {
       const candidate = locationExtraction?.candidates?.find(c => c.postal_code === postalCode);
       if (candidate) {
@@ -143,8 +148,10 @@ export const DataReviewStep = ({
       if (validation.valid) {
         setIsLocationConfirmedLocal(true);
         setValidationError(null);
+        onLocationConfirmationChange?.(true);
       } else {
         setValidationError('Please enter a valid postal/ZIP code');
+        onLocationConfirmationChange?.(false);
       }
     }
   };

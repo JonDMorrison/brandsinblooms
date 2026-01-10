@@ -20,6 +20,7 @@ export const DashboardSetupWizard = ({ isOpen, onClose }: DashboardSetupWizardPr
   const [currentStep, setCurrentStep] = useState<'website' | 'review' | 'complete'>('website');
   const [websiteUrl, setWebsiteUrl] = useState('');
   const [isCompleting, setIsCompleting] = useState(false);
+  const [isLocationConfirmed, setIsLocationConfirmed] = useState(true); // Default true for non-location cases
   
   const { user } = useAuth();
   const { 
@@ -51,6 +52,11 @@ export const DashboardSetupWizard = ({ isOpen, onClose }: DashboardSetupWizardPr
   const handleComplete = async () => {
     if (!user?.id) {
       toast.error('User not found');
+      return;
+    }
+    
+    if (!isLocationConfirmed) {
+      toast.error('Please confirm your location before continuing');
       return;
     }
 
@@ -85,6 +91,7 @@ export const DashboardSetupWizard = ({ isOpen, onClose }: DashboardSetupWizardPr
   const handleBack = () => {
     resetAnalysis();
     setCurrentStep('website');
+    setIsLocationConfirmed(true); // Reset when going back
   };
 
   const handleRetry = () => {
@@ -170,6 +177,7 @@ export const DashboardSetupWizard = ({ isOpen, onClose }: DashboardSetupWizardPr
                 onBack={handleBack}
                 isCompleting={isCompleting}
                 isAnalyzing={isAnalyzing}
+                onLocationConfirmationChange={setIsLocationConfirmed}
               />
             </div>
           )}

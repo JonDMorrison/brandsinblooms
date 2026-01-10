@@ -19,6 +19,7 @@ export const SimplifiedOnboardingFlow = ({ onComplete }: SimplifiedOnboardingFlo
   const [currentStep, setCurrentStep] = useState(1);
   const [websiteUrl, setWebsiteUrl] = useState('');
   const [isCompletingOnboarding, setIsCompletingOnboarding] = useState(false);
+  const [isLocationConfirmed, setIsLocationConfirmed] = useState(true); // Default true for non-location cases
   
   const { 
     isAnalyzing, 
@@ -55,11 +56,12 @@ export const SimplifiedOnboardingFlow = ({ onComplete }: SimplifiedOnboardingFlo
     if (currentStep > 1) {
       resetAnalysis();
       setCurrentStep(1);
+      setIsLocationConfirmed(true); // Reset when going back
     }
   };
 
   const handleComplete = async () => {
-    if (!extractedData || !websiteUrl || !user) return;
+    if (!extractedData || !websiteUrl || !user || !isLocationConfirmed) return;
     
     try {
       setIsCompletingOnboarding(true);
@@ -134,6 +136,7 @@ export const SimplifiedOnboardingFlow = ({ onComplete }: SimplifiedOnboardingFlo
                 onComplete={handleComplete}
                 isCompleting={isCompletingOnboarding}
                 isAnalyzing={isAnalyzing}
+                onLocationConfirmationChange={setIsLocationConfirmed}
               />
             )}
           </div>
