@@ -91,6 +91,17 @@ export const WebsiteOnboardingFlow = ({ onComplete }: WebsiteOnboardingFlowProps
     setIsCompleting(true);
     
     try {
+      // SERVER-SIDE SAFETY CHECK: Re-verify location confirmation invariant
+      const { enforceLocationConfirmation } = await import('@/lib/locationValidation');
+      const validation = await enforceLocationConfirmation(user.id);
+      
+      if (!validation.success) {
+        console.error('❌ Server-side location validation failed:', validation.error);
+        toast.error(validation.error || 'Location confirmation required');
+        setIsCompleting(false);
+        return;
+      }
+      
       await completeOnboarding(
         extractedData,
         websiteUrl,
