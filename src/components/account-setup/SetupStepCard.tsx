@@ -2,8 +2,9 @@ import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle2, Circle, ChevronRight, SkipForward, Undo2 } from 'lucide-react';
+import { CheckCircle2, Circle, ChevronRight, SkipForward, Undo2, PlayCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useQuickTour, TourStep } from '@/contexts/QuickTourContext';
 
 interface SetupStepCardProps {
   icon: React.ReactNode;
@@ -19,6 +20,7 @@ interface SetupStepCardProps {
   onUnskip: () => void;
   actionLabel: string;
   children?: React.ReactNode;
+  tourStep?: TourStep; // Optional: links to a tour step for "Show me how"
 }
 
 export const SetupStepCard: React.FC<SetupStepCardProps> = ({
@@ -35,7 +37,15 @@ export const SetupStepCard: React.FC<SetupStepCardProps> = ({
   onUnskip,
   actionLabel,
   children,
+  tourStep,
 }) => {
+  const { startTourAtStep } = useQuickTour();
+
+  const handleShowMeHow = () => {
+    if (tourStep) {
+      startTourAtStep(tourStep);
+    }
+  };
   const getStatusBadge = () => {
     if (completed) {
       return (
@@ -135,6 +145,12 @@ export const SetupStepCard: React.FC<SetupStepCardProps> = ({
                     <SkipForward className="w-4 h-4 mr-1" />
                     Skip for now
                   </Button>
+                  {tourStep && (
+                    <Button variant="link" onClick={handleShowMeHow} className="text-primary text-sm">
+                      <PlayCircle className="w-4 h-4 mr-1" />
+                      Show me how
+                    </Button>
+                  )}
                 </>
               )}
               

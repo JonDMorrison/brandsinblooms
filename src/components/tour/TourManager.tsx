@@ -1,15 +1,48 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useQuickTour } from '@/contexts/QuickTourContext';
 import { TourSteps } from './TourSteps';
+import { TourWelcomeModal } from './TourWelcomeModal';
+import { TourCelebration } from './TourCelebration';
+import { TourReminder } from './TourReminder';
 
 export function TourManager() {
-  const { shouldShowTour, isTourEligible, startTour, tourProgress } = useQuickTour();
+  const { 
+    shouldShowTour, 
+    showWelcomeModal, 
+    showCelebration,
+    closeWelcomeModal,
+    closeCelebration,
+    openWelcomeModal,
+  } = useQuickTour();
 
-  // Tour auto-start removed - now controlled manually via user actions
+  // Check for sessionStorage flag to open welcome modal (from UserMenu)
+  useEffect(() => {
+    const shouldStart = sessionStorage.getItem('startProductTour');
+    if (shouldStart === 'true') {
+      sessionStorage.removeItem('startProductTour');
+      openWelcomeModal();
+    }
+  }, [openWelcomeModal]);
 
-  if (!shouldShowTour) {
-    return null;
-  }
+  return (
+    <>
+      {/* Welcome modal for first-time users or manual trigger */}
+      <TourWelcomeModal
+        isOpen={showWelcomeModal}
+        onClose={closeWelcomeModal}
+      />
 
-  return <TourSteps />;
+      {/* Tour steps */}
+      {shouldShowTour && <TourSteps />}
+
+      {/* Completion celebration */}
+      <TourCelebration
+        isVisible={showCelebration}
+        onClose={closeCelebration}
+      />
+
+      {/* Reminder for incomplete tours */}
+      <TourReminder />
+    </>
+  );
 }

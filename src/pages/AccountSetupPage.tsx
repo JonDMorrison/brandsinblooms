@@ -184,6 +184,7 @@ const AccountSetupPage: React.FC = () => {
           onSkip={() => skipStep('pos')}
           onUnskip={() => unskipStep('pos')}
           actionLabel="Connect POS"
+          tourStep="pos"
         >
           <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm">
             <p className="font-medium text-amber-800 mb-2">📋 Before you connect:</p>
