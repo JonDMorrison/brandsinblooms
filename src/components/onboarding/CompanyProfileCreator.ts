@@ -158,13 +158,30 @@ export const createCompanyProfileFromOnboarding = async (onboardingData: any, us
       // First, check if a profile already exists
       const { data: existingProfile, error: checkError } = await supabase
         .from('company_profiles')
-        .select('id')
+        .select('id, postal_code, location_needs_confirmation')
         .eq('user_id', userId)
         .maybeSingle();
 
       if (checkError && checkError.code !== 'PGRST116') {
         console.error('❌ Error checking existing profile:', checkError);
         throw new Error(`Failed to check existing profile: ${checkError.message}`);
+      }
+
+      // BACKEND INVARIANT ENFORCEMENT: Block completion if location not confirmed
+      // This check runs in createCompanyProfileFromOnboarding to prevent bypass
+      if (existingProfile) {
+        const postalCode = existingProfile.postal_code;
+        const needsConfirmation = existingProfile.location_needs_confirmation === true;
+        
+        if (!postalCode || needsConfirmation) {
+          console.error('❌ BACKEND INVARIANT VIOLATION: Location not confirmed', {
+            userId,
+            postalCode: postalCode || 'NULL',
+            needsConfirmation
+          });
+          throw new Error('Location confirmation required: Please confirm your primary location before completing setup.');
+        }
+        console.log('✅ Backend location invariant check passed');
       }
 
       if (existingProfile) {
@@ -190,8 +207,11 @@ export const createCompanyProfileFromOnboarding = async (onboardingData: any, us
         savedProfile = updatedProfile;
         console.log('✅ Company profile updated successfully:', savedProfile.id);
       } else {
-        // Create new profile
+        // Create new profile - for new profiles, we cannot enforce location yet
+        // The location step should have been completed before reaching here
         console.log('🆕 Creating new profile');
+        console.warn('⚠️ New profile creation - location enforcement relies on client-side gating');
+        
         const { data: newProfile, error: insertError } = await supabase
           .from('company_profiles')
           .insert({
@@ -210,6 +230,19 @@ export const createCompanyProfileFromOnboarding = async (onboardingData: any, us
 
         savedProfile = newProfile;
         console.log('✅ Company profile created successfully:', savedProfile.id);
+        
+        // POST-INSERT INVARIANT CHECK: Verify location was set during onboarding flow
+        const { data: verifyProfile } = await supabase
+          .from('company_profiles')
+          .select('postal_code, location_needs_confirmation')
+          .eq('id', savedProfile.id)
+          .single();
+          
+        if (!verifyProfile?.postal_code || verifyProfile.location_needs_confirmation === true) {
+          console.error('❌ POST-INSERT INVARIANT VIOLATION: New profile created without confirmed location');
+          // Don't delete the profile, but log the violation for monitoring
+          // The client-side should have prevented this
+        }
       }
     } catch (saveError) {
       console.error('❌ Critical error saving profile:', saveError);
