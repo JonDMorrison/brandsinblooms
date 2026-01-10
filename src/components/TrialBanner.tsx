@@ -1,23 +1,37 @@
-
 import { useSubscription } from "@/contexts/SubscriptionContext";
 import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
 import { useState } from "react";
 
 export const TrialBanner = () => {
-  const { subscription, isTrialExpired, trialDaysLeft } = useSubscription();
+  const { subscription, loading, isTrialExpired, trialDaysLeft } = useSubscription();
   const [isDismissed, setIsDismissed] = useState(false);
 
+  // Don't show anything while loading subscription status - prevents flash
+  if (loading) {
+    return null;
+  }
+
+  // Don't show if no subscription data yet (still initializing)
+  if (!subscription) {
+    return null;
+  }
+
+  // Don't show for paid plans or if dismissed
   if (
     isDismissed ||
-    subscription?.plan === 'sprout' ||
-    subscription?.plan === 'bloom' ||
-    (!isTrialExpired && trialDaysLeft > 7)
+    subscription.plan === 'sprout' ||
+    subscription.plan === 'bloom'
   ) {
     return null;
   }
 
-  const isUrgent = trialDaysLeft <= 3;
+  // Don't show if trial has plenty of time left
+  if (!isTrialExpired && trialDaysLeft > 7) {
+    return null;
+  }
+
+  const isUrgent = isTrialExpired || trialDaysLeft <= 3;
 
   return (
     <div className={`w-full px-2 py-1 text-xs md:px-4 md:py-2 md:text-sm ${
