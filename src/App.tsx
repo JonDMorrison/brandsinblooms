@@ -47,6 +47,7 @@ import CRMAutomations from '@/pages/crm/CRMAutomations';
 import AnalyticsPage from '@/pages/AnalyticsPage';
 import ContentLibraryPage from '@/pages/ContentLibraryPage';
 import SettingsPage from '@/pages/SettingsPage';
+import AccountSetupPage from '@/pages/AccountSetupPage';
 import DomainsPage from '@/pages/DomainsPage';
 import CalendarPage from '@/pages/CalendarPage';
 import AccountPage from '@/pages/AccountPage';
@@ -385,6 +386,13 @@ function App() {
             <ProtectedRoute>
               <SidebarLayout>
                 <SettingsPage />
+              </SidebarLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/account-setup" element={
+            <ProtectedRoute>
+              <SidebarLayout>
+                <AccountSetupPage />
               </SidebarLayout>
             </ProtectedRoute>
           } />
