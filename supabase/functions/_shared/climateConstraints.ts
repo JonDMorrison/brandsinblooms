@@ -34,8 +34,8 @@ const ARCHETYPE_DESCRIPTIONS: Record<string, {
   hot_dry: {
     label: 'Hot & Dry Desert Climate',
     characteristics: 'Extreme heat, low humidity, minimal rainfall, intense sun exposure',
-    plantGuidance: 'Recommend drought-tolerant plants, xeriscaping, succulents, cacti, desert natives. Focus on water conservation, shade structures, morning planting to avoid heat stress.',
-    avoid: 'Avoid moisture-loving plants, ferns, hostas, impatiens, and plants requiring consistent watering. Never recommend high-water lawns.'
+    plantGuidance: 'Recommend drought-tolerant plants, xeriscaping, succulents, cacti, desert natives. Focus on water conservation, shade structures, morning planting to avoid heat stress. Timing guidance should focus on heat management, sun exposure, and watering schedules.',
+    avoid: 'Avoid moisture-loving plants, ferns, hostas, impatiens, and plants requiring consistent watering. Never recommend high-water lawns. Avoid mentioning frost dates or frost warnings unless explicitly relevant (high-elevation desert) or the user asks about frost.'
   },
   hot_humid: {
     label: 'Hot & Humid Subtropical Climate',
@@ -58,7 +58,7 @@ const ARCHETYPE_DESCRIPTIONS: Record<string, {
   cold: {
     label: 'Cold Continental Climate',
     characteristics: 'Harsh winters, short growing season, extreme temperature swings, heavy snow',
-    plantGuidance: 'Recommend cold-hardy perennials, native plants, short-season vegetables, winter protection strategies. Focus on frost dates, season extension, root protection.',
+    plantGuidance: 'Recommend cold-hardy perennials, native plants, short-season vegetables, winter protection strategies. Focus on frost dates, season extension, root protection. Frost dates and short growing season are primary constraints. Mention last frost/first frost in timing guidance, but if actual dates are unknown, use conditional language like "after your last frost date".',
     avoid: 'Avoid zone-pushing without clear guidance. Never recommend tender perennials as reliably hardy. Always mention hardiness requirements.'
   },
   coastal: {
@@ -154,6 +154,9 @@ ${archetypeData.avoid}
   }
 
   // Add frost dates if available (from verified sources only)
+  // Skip frost section entirely for hot_dry climates unless dates are explicitly provided
+  const skipFrostGuidance = archetype === 'hot_dry' && !profile.first_frost_date && !profile.last_frost_date;
+  
   if (profile.first_frost_date || profile.last_frost_date) {
     constraints += `
 ❄️ Frost Dates:
@@ -165,7 +168,7 @@ ${archetypeData.avoid}
       constraints += `   - First Fall Frost: ${profile.first_frost_date}\n`;
     }
     constraints += `   - All planting timing MUST respect these frost dates\n`;
-  } else {
+  } else if (!skipFrostGuidance) {
     constraints += `
 ❄️ Frost Dates: Not available from verified source
    - Use conditional timing: "after your last frost", "before first frost"

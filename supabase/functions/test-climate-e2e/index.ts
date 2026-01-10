@@ -136,6 +136,7 @@ serve(async (req) => {
   }
 
   try {
+    const { test_type } = await req.json().catch(() => ({ test_type: 'full' }));
     const campaignTitle = 'Spring Planting Tips';
     
     console.log('🧪 E2E Climate Constraints Verification Test');
@@ -146,6 +147,7 @@ serve(async (req) => {
       step2_prompt_injection: {},
       step3_outputs: {},
       step4_assertions: {},
+      unit_test_frost_assertion: {},
     };
 
     // ========== STEP 1: Verify Stored Climate Profiles ==========
@@ -247,6 +249,17 @@ serve(async (req) => {
                                   !phoenixContentLower.includes('frost date') &&
                                   !phoenixContentLower.includes('bring indoors before');
 
+    // ========== UNIT TEST: Phoenix output should NOT include "frost" ==========
+    const phoenixFrostCheck = phoenixContentLower.includes('frost');
+    results.unit_test_frost_assertion = {
+      test_name: 'Phoenix Spring Planting Tips should NOT mention frost',
+      pass: !phoenixFrostCheck,
+      frost_found: phoenixFrostCheck,
+      phoenix_instagram_output: phoenixInstagram.output,
+      phoenix_newsletter_output: phoenixNewsletter.output,
+      frost_occurrences: (phoenixContentLower.match(/frost/g) || []).length,
+    };
+
     results.step4_assertions = {
       'Image prompt includes climate_archetype and MUST AVOID list': {
         pass: imageHasArchetype && imageHasMustAvoid,
@@ -295,6 +308,13 @@ serve(async (req) => {
           content_check: phoenixContentLower.includes('before frost') || phoenixContentLower.includes('bring indoors'),
         }
       },
+      'Phoenix output does NOT include "frost" (unit test)': {
+        pass: !phoenixFrostCheck,
+        evidence: {
+          frost_found_in_phoenix: phoenixFrostCheck,
+          frost_count: (phoenixContentLower.match(/frost/g) || []).length,
+        }
+      },
     };
 
     // Summary
@@ -304,6 +324,12 @@ serve(async (req) => {
       all_tests_passed: allPassed,
       pass_count: Object.values(results.step4_assertions).filter((a: any) => a.pass).length,
       total_tests: Object.keys(results.step4_assertions).length,
+    };
+
+    // Updated constraint blocks for verification
+    results.updated_constraint_blocks = {
+      hot_dry: results.step2_prompt_injection.phoenix.text_content_constraints,
+      cold: results.step2_prompt_injection.minneapolis.text_content_constraints,
     };
 
     console.log(`\n✅ Test Complete: ${results.summary.pass_count}/${results.summary.total_tests} passed`);
