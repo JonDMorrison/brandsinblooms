@@ -1,6 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
+import { validateLocationForGeneration, locationBlockedResponse } from '../_shared/locationGuard.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -473,6 +474,13 @@ serve(async (req) => {
 
     if (!openAIApiKey) {
       throw new Error('OPENAI_API_KEY not configured');
+    }
+
+    // Location validation guard - block legacy profiles without confirmed location
+    const locationResult = await validateLocationForGeneration(userId);
+    if (!locationResult.isValid) {
+      console.warn(`🚫 Multichannel generation blocked for user ${userId}: ${locationResult.error}`);
+      return locationBlockedResponse();
     }
 
     // Initialize Supabase client
