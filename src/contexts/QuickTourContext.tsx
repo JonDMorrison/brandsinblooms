@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 
 export type TourStep = 'dashboard' | 'pos' | 'customers' | 'composer' | 'automation' | 'completed';
+export type TourPath = 'quick' | 'import' | 'campaign' | null;
 
 interface TourProgress {
   currentStep: TourStep;
@@ -14,14 +15,23 @@ interface TourProgress {
 
 interface QuickTourContextType {
   tourProgress: TourProgress;
+  tourPath: TourPath;
+  showWelcomeModal: boolean;
+  showCelebration: boolean;
   startTour: () => void;
   nextStep: () => void;
   previousStep: () => void;
   skipTour: () => void;
   completeTour: () => void;
   goToStep: (step: TourStep) => void;
+  setTourPath: (path: TourPath) => void;
+  openWelcomeModal: () => void;
+  closeWelcomeModal: () => void;
+  closeCelebration: () => void;
+  startTourAtStep: (step: TourStep) => void;
   isTourEligible: boolean;
   shouldShowTour: boolean;
+  markSetupStepFromTour: (stepId: string) => void;
 }
 
 const defaultProgress: TourProgress = {
@@ -41,7 +51,10 @@ export function QuickTourProvider({ children }: { children: React.ReactNode }) {
   const [tourProgress, setTourProgress] = useState<TourProgress>(localProgress);
   const [isTourEligible, setIsTourEligible] = useState(false);
   const [betaTourEnabled, setBetaTourEnabled] = useState(false);
-
+  const [tourPath, setTourPathState] = useState<TourPath>(null);
+  const [showWelcomeModal, setShowWelcomeModal] = useState(false);
+  const [showCelebration, setShowCelebration] = useState(false);
+  const [setupStepCallback, setSetupStepCallback] = useState<((stepId: string) => void) | null>(null);
   // Check if user is eligible for tour (beta opt-in and hasn't completed)
   useEffect(() => {
     const checkTourEligibility = async () => {
@@ -181,6 +194,7 @@ export function QuickTourProvider({ children }: { children: React.ReactNode }) {
       completedSteps: TOUR_STEPS,
     });
     syncProgressToDatabase('completed');
+    setShowCelebration(true);
   }, [updateProgress, syncProgressToDatabase]);
 
   const goToStep = useCallback((step: TourStep) => {
@@ -189,19 +203,64 @@ export function QuickTourProvider({ children }: { children: React.ReactNode }) {
     syncProgressToDatabase(step);
   }, [tourProgress.isActive, updateProgress, syncProgressToDatabase]);
 
+  const setTourPath = useCallback((path: TourPath) => {
+    setTourPathState(path);
+  }, []);
+
+  const openWelcomeModal = useCallback(() => {
+    setShowWelcomeModal(true);
+  }, []);
+
+  const closeWelcomeModal = useCallback(() => {
+    setShowWelcomeModal(false);
+    localStorage.setItem('tour-welcome-shown', 'true');
+  }, []);
+
+  const closeCelebration = useCallback(() => {
+    setShowCelebration(false);
+  }, []);
+
+  const startTourAtStep = useCallback((step: TourStep) => {
+    const stepIndex = TOUR_STEPS.indexOf(step);
+    const completedSteps = TOUR_STEPS.slice(0, stepIndex);
+    updateProgress({
+      currentStep: step,
+      isActive: true,
+      completedSteps,
+      skipped: false,
+    });
+    syncProgressToDatabase(step);
+  }, [updateProgress, syncProgressToDatabase]);
+
+  // Function to mark setup steps complete from tour actions
+  const markSetupStepFromTour = useCallback((stepId: string) => {
+    // This will be called when tour CTA actions complete setup steps
+    // The actual marking is handled by the component that receives this callback
+    console.log('Tour completed setup step:', stepId);
+  }, []);
+
   const shouldShowTour = isTourEligible && betaTourEnabled && !tourProgress.skipped && tourProgress.currentStep !== 'completed';
 
   return (
     <QuickTourContext.Provider value={{
       tourProgress,
+      tourPath,
+      showWelcomeModal,
+      showCelebration,
       startTour,
       nextStep,
       previousStep,
       skipTour,
       completeTour,
       goToStep,
+      setTourPath,
+      openWelcomeModal,
+      closeWelcomeModal,
+      closeCelebration,
+      startTourAtStep,
       isTourEligible,
       shouldShowTour,
+      markSetupStepFromTour,
     }}>
       {children}
     </QuickTourContext.Provider>
