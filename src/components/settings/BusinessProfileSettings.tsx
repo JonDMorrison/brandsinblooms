@@ -4,12 +4,24 @@ import { CompanyProfileForm } from '@/components/CompanyProfileForm';
 import { Building2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { LocationVerificationCard } from '@/components/location';
+import { useLocationVerification } from '@/hooks/useLocationVerification';
 
 export const BusinessProfileSettings = () => {
   const { user } = useAuth();
   const [profile, setProfile] = useState<any>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+
+  const {
+    locationData,
+    isLoading: isLocationLoading,
+    isSaving,
+    isRedetecting,
+    fetchLocationData,
+    confirmLocation,
+    redetectLocation,
+  } = useLocationVerification();
 
   const fetchProfile = useCallback(async () => {
     if (!user?.id) {
@@ -41,7 +53,8 @@ export const BusinessProfileSettings = () => {
 
   useEffect(() => {
     fetchProfile();
-  }, [fetchProfile]);
+    fetchLocationData();
+  }, [fetchProfile, fetchLocationData]);
 
   const handleToggleEdit = () => {
     setIsEditing(!isEditing);
@@ -50,10 +63,51 @@ export const BusinessProfileSettings = () => {
   const handleProfileUpdate = (updatedProfile: any) => {
     setProfile(updatedProfile);
     setIsEditing(false);
+    // Refresh location data in case it was updated
+    fetchLocationData();
+  };
+
+  const handleLocationConfirm = async (data: {
+    postalCode: string;
+    city?: string;
+    stateProvince?: string;
+    country?: 'US' | 'CA';
+  }) => {
+    const success = await confirmLocation(data);
+    if (success) {
+      // Refresh profile to get updated data
+      fetchProfile();
+    }
+  };
+
+  const handleRedetect = async () => {
+    if (profile?.website_url) {
+      await redetectLocation(profile.website_url);
+      fetchProfile();
+    }
   };
 
   return (
     <div className="space-y-6">
+      {/* Location Verification Card - shown prominently if needs confirmation */}
+      {!isLoading && !isLocationLoading && (
+        <LocationVerificationCard
+          postalCode={locationData?.postalCode}
+          city={locationData?.city}
+          stateProvince={locationData?.stateProvince}
+          country={locationData?.country}
+          source={locationData?.source}
+          confidence={locationData?.confidence}
+          snippet={locationData?.snippet}
+          candidates={locationData?.candidates}
+          needsConfirmation={locationData?.needsConfirmation}
+          onConfirm={handleLocationConfirm}
+          onRedetect={profile?.website_url ? handleRedetect : undefined}
+          isRedetecting={isRedetecting}
+          isSaving={isSaving}
+        />
+      )}
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
