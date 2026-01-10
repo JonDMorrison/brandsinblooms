@@ -3,6 +3,18 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 
+interface LocationExtraction {
+  postal_code: string | null;
+  city: string | null;
+  state_province: string | null;
+  country: 'US' | 'CA' | null;
+  source: 'jsonld' | 'footer' | 'contact' | 'regex' | 'none';
+  confidence: 'high' | 'medium' | 'low';
+  snippet: string | null;
+  candidates: any[];
+  requires_confirmation: boolean;
+}
+
 interface ExtractedData {
   businessName: string;
   aboutBusiness: string;
@@ -17,6 +29,8 @@ interface ExtractedData {
   brandAccentColor?: string;
   brandTextColor?: string;
   brandLogo?: string;
+  // Structured location extraction
+  locationExtraction?: LocationExtraction;
 }
 
 interface AnalysisError {
@@ -139,7 +153,7 @@ export const useWebsiteAnalysis = () => {
         console.log('6. Extraction method used:', data.extractionMethod);
         console.log('7. Branding data:', data.brandingData);
         
-        // Merge branding data into extracted data
+        // Merge branding data and location extraction into extracted data
         const mergedData = {
           ...data.extractedData,
           brandPrimaryColor: data.brandingData?.primaryColor || undefined,
@@ -147,8 +161,10 @@ export const useWebsiteAnalysis = () => {
           brandAccentColor: data.brandingData?.accentColor || undefined,
           brandTextColor: data.brandingData?.textColor || undefined,
           brandLogo: data.brandingData?.logo || undefined,
+          locationExtraction: data.locationExtraction || undefined,
         };
         
+        console.log('8. Location extraction:', data.locationExtraction);
         setExtractedData(mergedData);
         
         // Website analyzed successfully - show success message

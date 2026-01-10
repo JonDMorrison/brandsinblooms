@@ -1548,7 +1548,12 @@ export type Database = {
           ideal_customer: string | null
           instagram_url: string | null
           linkedin_url: string | null
+          location_confidence: string | null
+          location_detection_candidates: Json | null
+          location_detection_snippet: string | null
+          location_detection_source: string | null
           location_info: string | null
+          location_last_detected_at: string | null
           onboarding_completed_at: string | null
           pinterest_url: string | null
           postal_code: string | null
@@ -1606,7 +1611,12 @@ export type Database = {
           ideal_customer?: string | null
           instagram_url?: string | null
           linkedin_url?: string | null
+          location_confidence?: string | null
+          location_detection_candidates?: Json | null
+          location_detection_snippet?: string | null
+          location_detection_source?: string | null
           location_info?: string | null
+          location_last_detected_at?: string | null
           onboarding_completed_at?: string | null
           pinterest_url?: string | null
           postal_code?: string | null
@@ -1664,7 +1674,12 @@ export type Database = {
           ideal_customer?: string | null
           instagram_url?: string | null
           linkedin_url?: string | null
+          location_confidence?: string | null
+          location_detection_candidates?: Json | null
+          location_detection_snippet?: string | null
+          location_detection_source?: string | null
           location_info?: string | null
+          location_last_detected_at?: string | null
           onboarding_completed_at?: string | null
           pinterest_url?: string | null
           postal_code?: string | null
