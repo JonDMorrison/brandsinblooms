@@ -18,7 +18,6 @@ import {
   Lock,
   BarChart3
 } from 'lucide-react';
-import { WARMUP_SCHEDULE } from '@/lib/email/domainService';
 
 export const EmailDomainGuide: React.FC = () => {
   return (
@@ -216,66 +215,38 @@ export const EmailDomainGuide: React.FC = () => {
         </AccordionContent>
       </AccordionItem>
 
-      {/* Warm-up Process */}
-      <AccordionItem value="warmup" className="border rounded-lg px-4 mb-3">
+      {/* Sending Limits */}
+      <AccordionItem value="limits" className="border rounded-lg px-4 mb-3">
         <AccordionTrigger className="hover:no-underline">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-primary/10">
               <TrendingUp className="h-5 w-5 text-primary" />
             </div>
             <div className="text-left">
-              <p className="font-medium">The Warm-up Process Explained</p>
+              <p className="font-medium">Sending Limits & Reputation</p>
               <p className="text-sm text-muted-foreground font-normal">
-                Why we gradually increase your sending limits over ~2 weeks
+                Understanding daily limits and maintaining good deliverability
               </p>
             </div>
           </div>
         </AccordionTrigger>
         <AccordionContent className="pt-2 pb-4 space-y-4">
           <p className="text-sm text-muted-foreground">
-            Just like a new employee needs time to build trust, a new email domain needs to build 
-            reputation with mailbox providers. Sending too many emails too quickly from a new domain 
-            looks suspicious and can get your emails blocked.
+            Your domain starts with full sending capacity. We monitor your bounce and complaint 
+            rates to ensure good deliverability and protect your sender reputation.
           </p>
 
-          {/* Timeline Visual */}
           <Card className="bg-muted/50">
             <CardContent className="pt-4">
-              <p className="font-medium mb-4">Warm-up Schedule</p>
-              <div className="relative">
-                {/* Timeline line */}
-                <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-border" />
-                
-                <div className="space-y-4">
-                  {WARMUP_SCHEDULE.map((stage, index) => {
-                    const nextStage = WARMUP_SCHEDULE[index + 1];
-                    const maxDays = nextStage ? nextStage.minDays - 1 : '+';
-                    
-                    return (
-                      <div key={index} className="flex items-start gap-4 relative">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center z-10 ${
-                          index === WARMUP_SCHEDULE.length - 1 
-                            ? 'bg-green-500 text-white' 
-                            : 'bg-primary text-primary-foreground'
-                        }`}>
-                          {index + 1}
-                        </div>
-                        <div className="flex-1 pb-4">
-                          <p className="font-medium">
-                            {index === WARMUP_SCHEDULE.length - 1 ? 'Full Capacity' : `Stage ${index + 1}`}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            Days {stage.minDays}{maxDays !== '+' ? `–${maxDays}` : '+'}: Up to <span className="font-medium text-foreground">{stage.dailyLimit}</span> emails/day
-                          </p>
-                          {index === WARMUP_SCHEDULE.length - 1 && (
-                            <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-                              Domain status changes to "Active"
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
+              <p className="font-medium mb-3">Default Sending Limits</p>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Daily limit</span>
+                  <span className="font-medium">2,000 emails/day</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Hourly limit</span>
+                  <span className="font-medium">500 emails/hour</span>
                 </div>
               </div>
             </CardContent>
@@ -284,13 +255,14 @@ export const EmailDomainGuide: React.FC = () => {
           <Card className="bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-900">
             <CardContent className="pt-4">
               <p className="text-sm text-blue-700 dark:text-blue-300">
-                <span className="font-medium">Pro tip:</span> During warm-up, send your best content to your most engaged 
-                subscribers. High open rates and low bounces will speed up reputation building.
+                <span className="font-medium">Pro tip:</span> Send your best content to engaged 
+                subscribers. High open rates and low bounces build a strong sender reputation.
               </p>
             </CardContent>
           </Card>
         </AccordionContent>
       </AccordionItem>
+
 
       {/* Best Practices */}
       <AccordionItem value="best-practices" className="border rounded-lg px-4 mb-3">

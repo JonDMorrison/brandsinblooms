@@ -98,7 +98,7 @@ export async function ensureSmsWarmupRowForMessagingServiceIfNeeded(
     return getSmsWarmupInfoByPhoneOrMessagingService(supabase, { messagingServiceSid });
   }
 
-  // Create new row with defaults
+  // Create new row with high limits (warmup removed)
   const { error: insertError } = await supabase
     .from('twilio_phone_numbers')
     .insert({
@@ -106,7 +106,7 @@ export async function ensureSmsWarmupRowForMessagingServiceIfNeeded(
       messaging_service_sid: messagingServiceSid,
       phone_number: `MSG_SVC_${messagingServiceSid.substring(0, 8)}`,
       friendly_name: `Messaging Service ${messagingServiceSid.substring(0, 8)}`,
-      warmup_stage: 0,
+      warmup_stage: 4,  // Start at max stage
       daily_sent_count: 0,
       healthy_days_counter: 0,
       is_active: true,
@@ -148,12 +148,14 @@ export async function getSmsWarmupStageRules(
 
 /**
  * Check if sending count SMS messages would exceed warmup limit
+ * Note: Warmup limits have been removed - this always returns false
  */
 export function wouldExceedWarmupLimit(
   warmupInfo: SmsWarmupInfo,
   requestedCount: number
 ): boolean {
-  return requestedCount > warmupInfo.remainingToday;
+  // Warmup limits removed - never block sending
+  return false;
 }
 
 /**

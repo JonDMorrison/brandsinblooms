@@ -10,16 +10,8 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { AlertTriangle, Info, ArrowRight } from 'lucide-react';
+import { AlertTriangle, Info } from 'lucide-react';
 import { WarmupLimitDetails } from '@/utils/campaignSendingErrors';
-
-const STAGE_LABELS: Record<number, string> = {
-  0: 'Initial',
-  1: 'Building',
-  2: 'Growing',
-  3: 'Maturing',
-  4: 'Fully Warmed',
-};
 
 interface WarmupLimitModalProps {
   open: boolean;
@@ -27,12 +19,15 @@ interface WarmupLimitModalProps {
   details: WarmupLimitDetails | null;
 }
 
+/**
+ * Modal shown when daily sending limit is reached
+ * Note: "Warmup" terminology is legacy - this now just shows daily limit info
+ */
 export function WarmupLimitModal({ open, onClose, details }: WarmupLimitModalProps) {
   if (!details) return null;
 
-  const { warmupStage, dailyLimit, dailyUsed, remaining, requested } = details;
+  const { dailyLimit, dailyUsed, remaining, requested } = details;
   const usagePercent = dailyLimit > 0 ? Math.min(100, (dailyUsed / dailyLimit) * 100) : 0;
-  const stageLabel = STAGE_LABELS[warmupStage] || `Stage ${warmupStage}`;
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
@@ -43,9 +38,9 @@ export function WarmupLimitModal({ open, onClose, details }: WarmupLimitModalPro
               <AlertTriangle className="h-5 w-5 text-amber-600" />
             </div>
             <div>
-              <DialogTitle>Domain Warmup Limit Reached</DialogTitle>
+              <DialogTitle>Daily Sending Limit Reached</DialogTitle>
               <DialogDescription>
-                Your domain is still warming up
+                You've reached today's sending limit
               </DialogDescription>
             </div>
           </div>
@@ -59,8 +54,8 @@ export function WarmupLimitModal({ open, onClose, details }: WarmupLimitModalPro
               <div className="text-sm text-amber-800">
                 <p className="font-medium mb-1">Why is this happening?</p>
                 <p>
-                  New email domains need to build reputation gradually. Sending too many emails 
-                  at once can hurt your deliverability and land you in spam folders.
+                  To maintain good deliverability and protect your sender reputation, 
+                  there's a daily limit on emails sent from your domain.
                 </p>
               </div>
             </div>
@@ -68,11 +63,6 @@ export function WarmupLimitModal({ open, onClose, details }: WarmupLimitModalPro
 
           {/* Stats */}
           <div className="space-y-3">
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Current Stage</span>
-              <span className="font-medium">{stageLabel}</span>
-            </div>
-            
             <div className="space-y-1">
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Today's Usage</span>
@@ -107,12 +97,6 @@ export function WarmupLimitModal({ open, onClose, details }: WarmupLimitModalPro
         </div>
 
         <DialogFooter className="flex-col gap-2 sm:flex-col">
-          <Button asChild variant="outline" className="w-full">
-            <Link to="/crm" onClick={onClose} className="flex items-center justify-center gap-2">
-              View Warmup Assistant
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-          </Button>
           <Button variant="ghost" onClick={onClose} className="w-full">
             Close
           </Button>
