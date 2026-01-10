@@ -26,6 +26,7 @@ export const WebsiteOnboardingFlow = ({ onComplete }: WebsiteOnboardingFlowProps
   const [isCompleting, setIsCompleting] = useState(false);
   const [websiteUrl, setWebsiteUrl] = useState("");
   const [useManualEntry, setUseManualEntry] = useState(false);
+  const [isLocationConfirmed, setIsLocationConfirmed] = useState(true); // Default true for non-location cases
   
   const { 
     isAnalyzing, 
@@ -81,6 +82,11 @@ export const WebsiteOnboardingFlow = ({ onComplete }: WebsiteOnboardingFlowProps
       toast.error("Please log in to continue");
       return;
     }
+    
+    if (!isLocationConfirmed) {
+      toast.error("Please confirm your location before continuing");
+      return;
+    }
 
     setIsCompleting(true);
     
@@ -105,6 +111,7 @@ export const WebsiteOnboardingFlow = ({ onComplete }: WebsiteOnboardingFlowProps
     // Reset analysis state when going back
     resetAnalysis();
     setCurrentStep(1);
+    setIsLocationConfirmed(true); // Reset when going back
   };
 
   const handleManualEntryBack = () => {
@@ -184,6 +191,7 @@ export const WebsiteOnboardingFlow = ({ onComplete }: WebsiteOnboardingFlowProps
                   onComplete={handleNext}
                   isCompleting={isCompleting}
                   isAnalyzing={isAnalyzing}
+                  onLocationConfirmationChange={setIsLocationConfirmed}
                 />
               )}
             </>
