@@ -84,6 +84,38 @@ serve(async (req) => {
 
     console.log('✅ Onboarding finalized successfully');
 
+    // Trigger climate profile derivation in the background
+    // This runs asynchronously - don't wait for it
+    try {
+      console.log('🌡️ Triggering climate profile derivation...');
+      const { data: profile } = await serviceClient
+        .from('company_profiles')
+        .select('postal_code, country')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      
+      if (profile?.postal_code) {
+        // Fire and forget - don't await
+        serviceClient.functions.invoke('derive-climate-profile', {
+          body: {
+            user_id: user.id,
+            postal_code: profile.postal_code,
+            country: profile.country || 'US',
+            force_refresh: false
+          }
+        }).then(({ error }) => {
+          if (error) {
+            console.error('⚠️ Climate profile derivation failed (non-blocking):', error);
+          } else {
+            console.log('✅ Climate profile derivation triggered successfully');
+          }
+        });
+      }
+    } catch (climateError) {
+      // Non-blocking - log and continue
+      console.error('⚠️ Climate profile trigger error (non-blocking):', climateError);
+    }
+
     return new Response(
       JSON.stringify(result),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

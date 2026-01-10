@@ -6,6 +6,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { LocationVerificationCard } from '@/components/location';
 import { useLocationVerification } from '@/hooks/useLocationVerification';
+import { ClimateProfileCard } from '@/components/location/ClimateProfileCard';
+import { useClimateProfile } from '@/hooks/useClimateProfile';
 
 export const BusinessProfileSettings = () => {
   const { user } = useAuth();
@@ -22,6 +24,13 @@ export const BusinessProfileSettings = () => {
     confirmLocation,
     redetectLocation,
   } = useLocationVerification();
+
+  const {
+    climateProfile,
+    isRefreshing: isRefreshingClimate,
+    fetchClimateProfile,
+    refreshClimateProfile,
+  } = useClimateProfile();
 
   const fetchProfile = useCallback(async () => {
     if (!user?.id) {
@@ -54,7 +63,8 @@ export const BusinessProfileSettings = () => {
   useEffect(() => {
     fetchProfile();
     fetchLocationData();
-  }, [fetchProfile, fetchLocationData]);
+    fetchClimateProfile();
+  }, [fetchProfile, fetchLocationData, fetchClimateProfile]);
 
   const handleToggleEdit = () => {
     setIsEditing(!isEditing);
@@ -63,8 +73,9 @@ export const BusinessProfileSettings = () => {
   const handleProfileUpdate = (updatedProfile: any) => {
     setProfile(updatedProfile);
     setIsEditing(false);
-    // Refresh location data in case it was updated
+    // Refresh location and climate data in case it was updated
     fetchLocationData();
+    fetchClimateProfile();
   };
 
   const handleLocationConfirm = async (data: {
@@ -75,8 +86,10 @@ export const BusinessProfileSettings = () => {
   }) => {
     const success = await confirmLocation(data);
     if (success) {
-      // Refresh profile to get updated data
+      // Refresh profile and trigger climate derivation
       fetchProfile();
+      // Automatically refresh climate profile after location confirmation
+      await refreshClimateProfile(data.postalCode, data.country);
     }
   };
 
@@ -88,6 +101,14 @@ export const BusinessProfileSettings = () => {
     }
     return { success: false, hasNewCandidates: false };
   };
+
+  const handleRefreshClimate = async () => {
+    await refreshClimateProfile();
+    fetchClimateProfile();
+  };
+
+  // Only show climate card if location is confirmed
+  const showClimateCard = locationData?.postalCode && !locationData?.needsConfirmation;
 
   return (
     <div className="space-y-6">
@@ -107,6 +128,22 @@ export const BusinessProfileSettings = () => {
           onRedetect={profile?.website_url ? handleRedetect : undefined}
           isRedetecting={isRedetecting}
           isSaving={isSaving}
+        />
+      )}
+
+      {/* Climate Profile Card - shown only when location is confirmed */}
+      {!isLoading && showClimateCard && (
+        <ClimateProfileCard
+          climateArchetype={climateProfile?.climateArchetype}
+          climateLabel={climateProfile?.climateLabel}
+          climateConfidence={climateProfile?.climateConfidence}
+          climateSource={climateProfile?.climateSource}
+          climateLastUpdatedAt={climateProfile?.climateLastUpdatedAt}
+          usdaZone={climateProfile?.usdaZone}
+          firstFrostDate={climateProfile?.firstFrostDate}
+          lastFrostDate={climateProfile?.lastFrostDate}
+          onRefresh={handleRefreshClimate}
+          isRefreshing={isRefreshingClimate}
         />
       )}
 
