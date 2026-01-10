@@ -1,10 +1,10 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { CheckCircle2, Circle, ChevronRight, SkipForward, Undo2, PlayCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useQuickTour, TourStep } from '@/contexts/QuickTourContext';
+import { QuickTourContext, TourStep } from '@/contexts/QuickTourContext';
 
 interface SetupStepCardProps {
   icon: React.ReactNode;
@@ -39,13 +39,16 @@ export const SetupStepCard: React.FC<SetupStepCardProps> = ({
   children,
   tourStep,
 }) => {
-  const { startTourAtStep } = useQuickTour();
+  // Use context directly to avoid error when provider is not available
+  const tourContext = useContext(QuickTourContext) as { startTourAtStep?: (step: TourStep) => void } | undefined;
 
   const handleShowMeHow = () => {
-    if (tourStep) {
-      startTourAtStep(tourStep);
+    if (tourStep && tourContext?.startTourAtStep) {
+      tourContext.startTourAtStep(tourStep);
     }
   };
+  
+  const canShowTourLink = !!(tourStep && tourContext?.startTourAtStep);
   const getStatusBadge = () => {
     if (completed) {
       return (
@@ -145,7 +148,7 @@ export const SetupStepCard: React.FC<SetupStepCardProps> = ({
                     <SkipForward className="w-4 h-4 mr-1" />
                     Skip for now
                   </Button>
-                  {tourStep && (
+                  {canShowTourLink && (
                     <Button variant="link" onClick={handleShowMeHow} className="text-primary text-sm">
                       <PlayCircle className="w-4 h-4 mr-1" />
                       Show me how
