@@ -433,3 +433,6 @@ verify_jwt = false
 
 [functions.derive-climate-profile]
 verify_jwt = false
+
+[functions.test-climate-e2e]
+verify_jwt = false
