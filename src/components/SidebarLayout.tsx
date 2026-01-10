@@ -9,6 +9,8 @@ import { AppSidebar } from "@/components/navigation/AppSidebar";
 import { Button } from "@/components/ui/button";
 import { ChevronRight } from "lucide-react";
 import logoImage from "@/assets/bloomsuite-logo-correct.png";
+import { LocationBlockingBanner } from "@/components/location/LocationBlockingBanner";
+import { useLocationBlockingGuard } from "@/hooks/useLocationBlockingGuard";
 
 interface SidebarLayoutProps {
   children: ReactNode;
@@ -17,6 +19,7 @@ interface SidebarLayoutProps {
 export const SidebarLayout = ({ children }: SidebarLayoutProps) => {
   const { user } = useAuth();
   const [isScrolled, setIsScrolled] = useState(false);
+  const { isBlocked: isLocationBlocked, isLoading: isLocationLoading } = useLocationBlockingGuard();
 
   // Track scroll position for header styling
   useEffect(() => {
@@ -66,6 +69,11 @@ export const SidebarLayout = ({ children }: SidebarLayoutProps) => {
         <main className="flex-1 w-full min-h-screen flex flex-col">
           {/* Trial Banner */}
           <TrialBanner />
+          
+          {/* Location Blocking Banner - shown for legacy profiles with unconfirmed location */}
+          {!isLocationLoading && isLocationBlocked && (
+            <LocationBlockingBanner />
+          )}
           
           {/* Sticky Top Bar with Toggle Button and UserMenu */}
           <header className="sticky top-0 z-40 transition-all duration-300">

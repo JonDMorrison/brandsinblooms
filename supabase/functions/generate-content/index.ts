@@ -7,10 +7,12 @@ import { corsHeaders } from './constants.ts';
 import { buildContentPrompt } from './prompt-builder.ts';
 import { generateContentWithValidation } from './openai-client.ts';
 import { sanitizeWeekNumbers, logWeekNumberViolation } from './week-sanitizer.ts';
+import { validateLocationForGeneration, locationBlockedResponse } from '../_shared/locationGuard.ts';
 
 const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
 const supabaseUrl = Deno.env.get('SUPABASE_URL');
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -22,6 +24,15 @@ serve(async (req) => {
 
     if (!openAIApiKey) {
       throw new Error('OpenAI API key not configured');
+    }
+
+    // Location validation guard - block legacy profiles without confirmed location
+    if (userId) {
+      const locationResult = await validateLocationForGeneration(userId);
+      if (!locationResult.isValid) {
+        console.warn(`🚫 Content generation blocked for user ${userId}: ${locationResult.error}`);
+        return locationBlockedResponse();
+      }
     }
 
     // Initialize Supabase client

@@ -1,6 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.10';
+import { validateLocationForGeneration, locationBlockedResponse } from '../_shared/locationGuard.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -76,6 +77,16 @@ serve(async (req) => {
       storageBucket = 'campaign-images',
       userId = 'anonymous'
     } = body;
+
+    // Location validation guard - block legacy profiles without confirmed location
+    if (userId && userId !== 'anonymous') {
+      const locationResult = await validateLocationForGeneration(userId);
+      if (!locationResult.isValid) {
+        console.warn(`🚫 Image generation blocked for user ${userId}: ${locationResult.error}`);
+        clearTimeout(timeout);
+        return locationBlockedResponse();
+      }
+    }
 
     // Provide fallback for empty contentContext - use contentTitle or generic garden context
     const contentContext = (rawContentContext && rawContentContext.trim()) 
