@@ -60,8 +60,12 @@ export const ReportStep = ({ jobId, report, onDisconnect }: ReportStepProps) => 
 
       const provider = job.provider;
 
-      // Call revoke-token edge function to properly revoke OAuth token
-      const { data, error } = await supabase.functions.invoke('mailchimp-revoke-token', {
+      // Call appropriate revoke-token edge function
+      const revokeFunction = provider === 'constant_contact' 
+        ? 'constant-contact-revoke-token' 
+        : 'mailchimp-revoke-token';
+      
+      const { data, error } = await supabase.functions.invoke(revokeFunction, {
         body: { provider }
       });
 

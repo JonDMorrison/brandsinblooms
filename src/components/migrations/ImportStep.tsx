@@ -115,7 +115,9 @@ export const ImportStep = ({ jobId, suggestions, onComplete, onBack }: ImportSte
       // Step 1: Validate data
       const validateFunction = provider === 'mailchimp' 
         ? 'mailchimp-validate' 
-        : 'klaviyo-validate';
+        : provider === 'klaviyo'
+          ? 'klaviyo-validate'
+          : 'constant-contact-validate';
 
       const { data: validation, error: validationError } = await invokeWithRetry(validateFunction, { jobId });
 
@@ -145,7 +147,9 @@ export const ImportStep = ({ jobId, suggestions, onComplete, onBack }: ImportSte
       // Step 2: Start background import (non-blocking)
       const importFunction = provider === 'mailchimp' 
         ? 'mailchimp-import' 
-        : 'klaviyo-import';
+        : provider === 'klaviyo'
+          ? 'klaviyo-import'
+          : 'constant-contact-import';
 
       // Show progress dialog immediately
       setShowProgressDialog(true);

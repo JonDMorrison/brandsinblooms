@@ -9,6 +9,8 @@ import { useMigrationJobs } from '@/hooks/useMigrationJobs';
 
 const APP_ORIGIN = window.location.origin;
 
+type Provider = 'mailchimp' | 'klaviyo' | 'constant_contact';
+
 interface ConnectStepProps {
   onComplete: () => void;
 }
@@ -18,18 +20,23 @@ export const ConnectStep = ({ onComplete }: ConnectStepProps) => {
   const { activeJobs } = useMigrationJobs();
   const [mailchimpStatus, setMailchimpStatus] = useState<'idle' | 'connecting' | 'connected' | 'error'>('idle');
   const [klaviyoStatus, setKlaviyoStatus] = useState<'idle' | 'connecting' | 'connected' | 'error'>('idle');
+  const [constantContactStatus, setConstantContactStatus] = useState<'idle' | 'connecting' | 'connected' | 'error'>('idle');
   const [mailchimpAccount, setMailchimpAccount] = useState<any>(null);
   const [klaviyoAccount, setKlaviyoAccount] = useState<any>(null);
+  const [constantContactAccount, setConstantContactAccount] = useState<any>(null);
   const popupRef = useRef<Window | null>(null);
   const popupCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const currentProviderRef = useRef<'mailchimp' | 'klaviyo' | null>(null);
+  const currentProviderRef = useRef<Provider | null>(null);
   
-  // Check if there are active imports from Mailchimp or Klaviyo
+  // Check if there are active imports
   const hasActiveMailchimpImport = activeJobs.some(job => 
     job.source_platform === 'mailchimp' && job.status === 'running'
   );
   const hasActiveKlaviyoImport = activeJobs.some(job => 
     job.source_platform === 'klaviyo' && job.status === 'running'
+  );
+  const hasActiveConstantContactImport = activeJobs.some(job => 
+    job.source_platform === 'constant_contact' && job.status === 'running'
   );
 
   // Load existing connections on mount
@@ -66,7 +73,11 @@ export const ConnectStep = ({ onComplete }: ConnectStepProps) => {
         popupCheckIntervalRef.current = null;
       }
 
-      const setStatus = provider === 'mailchimp' ? setMailchimpStatus : setKlaviyoStatus;
+      const setStatus = provider === 'mailchimp' 
+        ? setMailchimpStatus 
+        : provider === 'klaviyo' 
+          ? setKlaviyoStatus 
+          : setConstantContactStatus;
 
       if (type === 'oauth-success') {
         console.log('✅ OAuth success received:', message);
@@ -79,22 +90,26 @@ export const ConnectStep = ({ onComplete }: ConnectStepProps) => {
         refreshConnections();
         
         // Show success toast
+        const providerName = provider === 'mailchimp' ? 'Mailchimp' 
+          : provider === 'klaviyo' ? 'Klaviyo' 
+          : 'Constant Contact';
         toast({
           title: 'Connected!',
-          description: `${provider === 'mailchimp' ? 'Mailchimp' : 'Klaviyo'} connected successfully`,
+          description: `${providerName} connected successfully`,
         });
         
-        // Advance wizard if Mailchimp
-        if (provider === 'mailchimp') {
-          onComplete();
-        }
+        // Advance wizard
+        onComplete();
       }
       
       if (type === 'oauth-error') {
         console.error('❌ OAuth error received:', error);
+        const providerName = provider === 'mailchimp' ? 'Mailchimp' 
+          : provider === 'klaviyo' ? 'Klaviyo' 
+          : 'Constant Contact';
         toast({
           title: 'Connection Failed',
-          description: error || `${provider === 'mailchimp' ? 'Mailchimp' : 'Klaviyo'} connection failed`,
+          description: error || `${providerName} connection failed`,
           variant: 'destructive'
         });
         setStatus('error');
@@ -113,10 +128,11 @@ export const ConnectStep = ({ onComplete }: ConnectStepProps) => {
         .from('provider_connections')
         .select('*')
         .eq('status', 'connected')
-        .in('provider', ['mailchimp', 'klaviyo']);
+        .in('provider', ['mailchimp', 'klaviyo', 'constant_contact']);
 
       const mailchimp = connections?.find(c => c.provider === 'mailchimp');
       const klaviyo = connections?.find(c => c.provider === 'klaviyo');
+      const constantContact = connections?.find(c => c.provider === 'constant_contact');
 
       if (mailchimp) {
         setMailchimpStatus('connected');
@@ -126,13 +142,21 @@ export const ConnectStep = ({ onComplete }: ConnectStepProps) => {
         setKlaviyoStatus('connected');
         setKlaviyoAccount(klaviyo.metadata);
       }
+      if (constantContact) {
+        setConstantContactStatus('connected');
+        setConstantContactAccount(constantContact.metadata);
+      }
     } catch (error) {
       console.error('Error refreshing connections:', error);
     }
   };
 
-  const handleConnect = async (provider: 'mailchimp' | 'klaviyo') => {
-    const setStatus = provider === 'mailchimp' ? setMailchimpStatus : setKlaviyoStatus;
+  const handleConnect = async (provider: Provider) => {
+    const setStatus = provider === 'mailchimp' 
+      ? setMailchimpStatus 
+      : provider === 'klaviyo' 
+        ? setKlaviyoStatus 
+        : setConstantContactStatus;
     setStatus('connecting');
     currentProviderRef.current = provider;
 
@@ -202,9 +226,12 @@ export const ConnectStep = ({ onComplete }: ConnectStepProps) => {
           // Only show cancellation if we didn't receive a success/error message
           if (currentProviderRef.current === provider) {
             console.log(`⚠️ User closed popup without completing OAuth for ${provider}`);
+            const providerName = provider === 'mailchimp' ? 'Mailchimp' 
+              : provider === 'klaviyo' ? 'Klaviyo' 
+              : 'Constant Contact';
             toast({
               title: 'Connection Cancelled',
-              description: `You closed the ${provider === 'mailchimp' ? 'Mailchimp' : 'Klaviyo'} authorization window`,
+              description: `You closed the ${providerName} authorization window`,
             });
             setStatus('idle');
             currentProviderRef.current = null;
@@ -212,7 +239,7 @@ export const ConnectStep = ({ onComplete }: ConnectStepProps) => {
           
           popupRef.current = null;
         }
-      }, 500); // Check every 500ms
+      }, 500);
 
     } catch (error: any) {
       console.error('❌ Connect error:', error);
@@ -232,15 +259,27 @@ export const ConnectStep = ({ onComplete }: ConnectStepProps) => {
     }
   };
 
-  const handleDisconnect = async (provider: 'mailchimp' | 'klaviyo') => {
-    const setStatus = provider === 'mailchimp' ? setMailchimpStatus : setKlaviyoStatus;
-    const setAccount = provider === 'mailchimp' ? setMailchimpAccount : setKlaviyoAccount;
+  const handleDisconnect = async (provider: Provider) => {
+    const setStatus = provider === 'mailchimp' 
+      ? setMailchimpStatus 
+      : provider === 'klaviyo' 
+        ? setKlaviyoStatus 
+        : setConstantContactStatus;
+    const setAccount = provider === 'mailchimp' 
+      ? setMailchimpAccount 
+      : provider === 'klaviyo' 
+        ? setKlaviyoAccount 
+        : setConstantContactAccount;
     
     try {
       setStatus('connecting'); // Show loading state
 
-      // Call revoke-token edge function
-      const { data, error } = await supabase.functions.invoke('mailchimp-revoke-token', {
+      // Call appropriate revoke-token edge function
+      const revokeFunction = provider === 'constant_contact' 
+        ? 'constant-contact-revoke-token' 
+        : 'mailchimp-revoke-token';
+      
+      const { data, error } = await supabase.functions.invoke(revokeFunction, {
         body: { provider }
       });
 
@@ -265,18 +304,18 @@ export const ConnectStep = ({ onComplete }: ConnectStepProps) => {
     }
   };
 
-  const canProceed = mailchimpStatus === 'connected' || klaviyoStatus === 'connected';
+  const canProceed = mailchimpStatus === 'connected' || klaviyoStatus === 'connected' || constantContactStatus === 'connected';
 
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-semibold mb-2">Connect Your Provider</h2>
         <p className="text-muted-foreground">
-          Connect to Mailchimp or Klaviyo to begin importing your contacts, segments, and tags.
+          Connect to Mailchimp, Klaviyo, or Constant Contact to begin importing your contacts, segments, and tags.
         </p>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-6">
+      <div className="grid md:grid-cols-3 gap-6">
         {/* Mailchimp */}
         <Card className="p-6">
           <div className="flex items-start justify-between mb-4">
@@ -363,6 +402,53 @@ export const ConnectStep = ({ onComplete }: ConnectStepProps) => {
           ) : (
             <Button
               onClick={() => handleDisconnect('klaviyo')}
+              variant="outline"
+              className="w-full"
+            >
+              Disconnect
+            </Button>
+          )}
+        </Card>
+
+        {/* Constant Contact */}
+        <Card className="p-6">
+          <div className="flex items-start justify-between mb-4">
+            <div className="flex-1">
+              <h3 className="font-semibold text-lg">Constant Contact</h3>
+              <p className="text-sm text-muted-foreground">Import from Constant Contact lists</p>
+              {hasActiveConstantContactImport && (
+                <Badge variant="secondary" className="mt-2 gap-1.5">
+                  <RefreshCw className="w-3 h-3 animate-spin" />
+                  Importing in background
+                </Badge>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              {hasActiveConstantContactImport && <RefreshCw className="w-5 h-5 text-primary animate-spin" />}
+              {constantContactStatus === 'connected' && !hasActiveConstantContactImport && <CheckCircle className="w-5 h-5 text-green-600" />}
+              {constantContactStatus === 'error' && <XCircle className="w-5 h-5 text-destructive" />}
+            </div>
+          </div>
+
+          {constantContactAccount && (
+            <div className="mb-4 p-3 bg-muted rounded-lg">
+              <p className="text-sm font-medium">{constantContactAccount.name || constantContactAccount.organization_name || 'Connected Account'}</p>
+              <p className="text-xs text-muted-foreground">{constantContactAccount.email || constantContactAccount.contact_email}</p>
+            </div>
+          )}
+
+          {constantContactStatus !== 'connected' ? (
+            <Button
+              onClick={() => handleConnect('constant_contact')}
+              disabled={constantContactStatus === 'connecting'}
+              className="w-full"
+            >
+              {constantContactStatus === 'connecting' && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Connect Constant Contact
+            </Button>
+          ) : (
+            <Button
+              onClick={() => handleDisconnect('constant_contact')}
               variant="outline"
               className="w-full"
             >

@@ -15,7 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 type Step = 'connect' | 'choose' | 'preview' | 'analyze' | 'apply' | 'import' | 'report';
 
 const steps: { id: Step; label: string; description: string }[] = [
-  { id: 'connect', label: 'Connect', description: 'Connect to Mailchimp or Klaviyo' },
+  { id: 'connect', label: 'Connect', description: 'Connect to Mailchimp, Klaviyo, or Constant Contact' },
   { id: 'choose', label: 'Choose', description: 'Select lists, segments, and tags' },
   { id: 'preview', label: 'Preview', description: 'Review sample data' },
   { id: 'analyze', label: 'Analyze (AI)', description: 'AI recommends mappings' },
@@ -60,7 +60,7 @@ const MigrationsPage = () => {
         .from('provider_connections')
         .select('provider')
         .eq('status', 'connected')
-        .in('provider', ['mailchimp', 'klaviyo'])
+        .in('provider', ['mailchimp', 'klaviyo', 'constant_contact'])
         .maybeSingle();
 
       if (!connection) return;
@@ -134,7 +134,7 @@ const MigrationsPage = () => {
       <div>
         <h1 className="text-3xl font-bold mb-2">One-Time Migration</h1>
         <p className="text-muted-foreground">
-          Import contacts, consent, tags, and segments from Mailchimp or Klaviyo
+          Import contacts, consent, tags, and segments from Mailchimp, Klaviyo, or Constant Contact
         </p>
       </div>
 

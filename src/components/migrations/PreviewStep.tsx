@@ -60,7 +60,9 @@ export const PreviewStep = ({ jobId, onComplete, onBack }: PreviewStepProps) => 
 
       const functionName = job.provider === 'mailchimp'
         ? 'mailchimp-fetch-preview'
-        : 'klaviyo-fetch-preview';
+        : job.provider === 'klaviyo'
+          ? 'klaviyo-fetch-preview'
+          : 'constant-contact-fetch-preview';
 
       // Fetch preview data
       const { data, error } = await supabase.functions.invoke(functionName, {

@@ -40,7 +40,7 @@ export const ChooseStep = ({ onComplete, onBack }: ChooseStepProps) => {
         .from('provider_connections')
         .select('provider')
         .eq('status', 'connected')
-        .in('provider', ['mailchimp', 'klaviyo']);
+        .in('provider', ['mailchimp', 'klaviyo', 'constant_contact']);
 
       if (!connections?.length) {
         toast({
@@ -73,6 +73,16 @@ export const ChooseStep = ({ onComplete, onBack }: ChooseStepProps) => {
         const { data, error } = await supabase.functions.invoke('klaviyo-fetch-lists');
         if (error) throw error;
         setLists(data.lists || []);
+      } else if (provider === 'constant_contact') {
+        const { data, error } = await supabase.functions.invoke('constant-contact-fetch-lists');
+        if (error) throw error;
+        if (data?.error) throw new Error(data.error);
+        // Constant Contact lists don't have segments, so we normalize the structure
+        const listsWithSegments = (data?.lists || []).map((list: any) => ({
+          ...list,
+          segments: [] // Constant Contact doesn't have list-level segments
+        }));
+        setLists(listsWithSegments);
       }
     } catch (error: any) {
       console.error('Fetch lists error:', error);
