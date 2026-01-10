@@ -2,8 +2,9 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { persistLocationExtraction } from "@/lib/location/persistLocationExtraction";
 
-interface LocationExtraction {
+export interface LocationExtraction {
   postal_code: string | null;
   city: string | null;
   state_province: string | null;
@@ -109,7 +110,7 @@ export const useWebsiteAnalysis = () => {
     };
   };
 
-  const analyzeWebsite = async (websiteUrl: string): Promise<boolean> => {
+  const analyzeWebsite = async (websiteUrl: string, userId?: string): Promise<boolean> => {
     if (!websiteUrl.trim()) {
       const error: AnalysisError = {
         type: 'validation',
@@ -167,11 +168,30 @@ export const useWebsiteAnalysis = () => {
         console.log('8. Location extraction:', data.locationExtraction);
         setExtractedData(mergedData);
         
+        // Persist location extraction to company_profiles if userId provided
+        if (userId && data.locationExtraction) {
+          console.log('9. Persisting location extraction to database...');
+          const persistResult = await persistLocationExtraction({
+            userId,
+            websiteUrl: websiteUrl.trim(),
+            locationExtraction: data.locationExtraction,
+          });
+          
+          if (persistResult.success) {
+            console.log('✅ Location extraction persisted, needs confirmation:', persistResult.needsConfirmation);
+          } else {
+            console.warn('⚠️ Failed to persist location extraction:', persistResult.error);
+          }
+        }
+        
         // Website analyzed successfully - show success message
         const colorDetected = data.brandingData?.primaryColor ? ' Brand colors detected!' : '';
+        const locationConfirmNeeded = data.locationExtraction?.requires_confirmation 
+          ? ' Location needs confirmation.' 
+          : '';
         toast({
           title: "Success",
-          description: `Website analyzed successfully!${colorDetected}`,
+          description: `Website analyzed successfully!${colorDetected}${locationConfirmNeeded}`,
         });
         return true;
       } else {
@@ -191,7 +211,7 @@ export const useWebsiteAnalysis = () => {
       setAnalysisError(analysisError);
       return false;
     } finally {
-      console.log('9. Analysis complete, setting isAnalyzing to false');
+      console.log('10. Analysis complete, setting isAnalyzing to false');
       // Always reset analyzing state immediately
       setIsAnalyzing(false);
     }

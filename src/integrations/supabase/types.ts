@@ -1554,6 +1554,7 @@ export type Database = {
           location_detection_source: string | null
           location_info: string | null
           location_last_detected_at: string | null
+          location_needs_confirmation: boolean | null
           onboarding_completed_at: string | null
           pinterest_url: string | null
           postal_code: string | null
@@ -1617,6 +1618,7 @@ export type Database = {
           location_detection_source?: string | null
           location_info?: string | null
           location_last_detected_at?: string | null
+          location_needs_confirmation?: boolean | null
           onboarding_completed_at?: string | null
           pinterest_url?: string | null
           postal_code?: string | null
@@ -1680,6 +1682,7 @@ export type Database = {
           location_detection_source?: string | null
           location_info?: string | null
           location_last_detected_at?: string | null
+          location_needs_confirmation?: boolean | null
           onboarding_completed_at?: string | null
           pinterest_url?: string | null
           postal_code?: string | null

@@ -38,7 +38,7 @@ export const DashboardSetupWizard = ({ isOpen, onClose }: DashboardSetupWizardPr
     if (!websiteUrl) return;
     
     try {
-      await analyzeWebsite(websiteUrl);
+      await analyzeWebsite(websiteUrl, user?.id);
       
       if (!analysisError) {
         setCurrentStep('review');
