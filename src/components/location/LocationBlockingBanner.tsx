@@ -36,7 +36,7 @@ export const LocationBlockingBanner: React.FC<LocationBlockingBannerProps> = ({
           asChild
           className="bg-amber-600 hover:bg-amber-700 text-white flex-shrink-0"
         >
-          <Link to="/settings?tab=business-profile">
+          <Link to="/profile/company">
             <MapPin className="h-4 w-4 mr-1.5" />
             Confirm Location
           </Link>
