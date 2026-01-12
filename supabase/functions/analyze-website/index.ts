@@ -16,7 +16,7 @@ interface LocationCandidate {
   city?: string;
   state_province?: string;
   country?: 'US' | 'CA' | null;
-  source: 'jsonld' | 'footer' | 'contact' | 'regex';
+  source: 'jsonld' | 'footer' | 'contact' | 'regex' | 'ai';
   snippet: string;
   confidence: 'high' | 'medium' | 'low';
 }
@@ -26,7 +26,7 @@ interface LocationResult {
   city: string | null;
   state_province: string | null;
   country: 'US' | 'CA' | null;
-  source: 'jsonld' | 'footer' | 'contact' | 'regex' | 'none';
+  source: 'jsonld' | 'footer' | 'contact' | 'regex' | 'ai' | 'none';
   confidence: 'high' | 'medium' | 'low';
   snippet: string | null;
   candidates: LocationCandidate[];
@@ -391,6 +391,135 @@ function extractViaRegex(textContent: string): LocationCandidate[] {
   return candidates;
 }
 
+// ============= AI-ASSISTED ADDRESS EXTRACTION =============
+async function extractViaAI(textContent: string, openAIApiKey: string): Promise<LocationCandidate[]> {
+  const candidates: LocationCandidate[] = [];
+  
+  if (!openAIApiKey) {
+    console.log('⚠️ AI extraction skipped: no API key');
+    return candidates;
+  }
+  
+  try {
+    console.log('🤖 Attempting AI-assisted address extraction');
+    
+    // Take a focused sample of content (first 4000 chars to save tokens)
+    const contentSample = textContent.slice(0, 4000);
+    
+    const addressPrompt = `Find the business address from this website content. Return ONLY valid JSON:
+
+${contentSample}
+
+Extract the business physical address and return JSON in this exact format:
+{
+  "found": true or false,
+  "street": "street address if found",
+  "city": "city name",
+  "state": "2-letter state/province code (e.g., CA, NY, ON, BC)",
+  "postalCode": "ZIP or postal code (e.g., 90210 or M5V 2T3)",
+  "country": "US or CA"
+}
+
+CRITICAL:
+- Return ONLY the JSON object, no other text
+- If no address found, return {"found": false}
+- Look for contact pages, footer addresses, about us sections
+- postalCode should be 5 digits for US (optionally with -4 extension) or A1A 1A1 format for Canada
+- Only return addresses that appear to be the business's physical location, not customer addresses`;
+
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openAIApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: [
+          { 
+            role: 'system', 
+            content: 'You are an expert at finding business addresses in website content. Always respond with valid JSON only.'
+          },
+          { role: 'user', content: addressPrompt }
+        ],
+        temperature: 0.1,
+        max_tokens: 200,
+      }),
+    });
+
+    if (!response.ok) {
+      console.log('⚠️ AI address extraction API error:', response.status);
+      return candidates;
+    }
+
+    const data = await response.json();
+    const content = data.choices[0]?.message?.content?.trim();
+    
+    if (!content) {
+      console.log('⚠️ AI address extraction returned empty content');
+      return candidates;
+    }
+
+    // Parse the JSON response
+    let jsonString = content.replace(/```json\s*/g, '').replace(/```\s*/g, '');
+    const jsonMatch = jsonString.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      jsonString = jsonMatch[0];
+    }
+    
+    const addressData = JSON.parse(jsonString);
+    
+    if (!addressData.found || !addressData.postalCode) {
+      console.log('📍 AI extraction: no address found in content');
+      return candidates;
+    }
+
+    // Validate and normalize the postal code
+    const normalizedPostal = normalizePostalCode(addressData.postalCode);
+    if (!normalizedPostal) {
+      console.log('⚠️ AI extraction: invalid postal code format:', addressData.postalCode);
+      return candidates;
+    }
+
+    // Determine country from postal code format if not provided
+    const country = normalizedPostal.country;
+    
+    // Validate state/province matches country
+    let stateProvince = addressData.state?.toUpperCase() || null;
+    if (stateProvince) {
+      if (country === 'US' && !US_STATES[stateProvince]) {
+        stateProvince = null; // Invalid US state
+      } else if (country === 'CA' && !CA_PROVINCES[stateProvince]) {
+        stateProvince = null; // Invalid CA province
+      }
+    }
+
+    const snippet = [
+      addressData.street,
+      addressData.city,
+      stateProvince,
+      normalizedPostal.code
+    ].filter(Boolean).join(', ');
+
+    candidates.push({
+      postal_code: normalizedPostal.code,
+      city: addressData.city || null,
+      state_province: stateProvince,
+      country: country,
+      source: 'ai',
+      snippet: `AI extracted: ${snippet}`,
+      confidence: 'medium' // AI extraction is medium confidence
+    });
+
+    console.log('✅ AI address extraction successful:', normalizedPostal.code);
+    
+  } catch (error) {
+    console.log('⚠️ AI address extraction error:', error.message);
+  }
+  
+  return candidates;
+}
+
 function deduplicateCandidates(candidates: LocationCandidate[]): LocationCandidate[] {
   const seen = new Map<string, LocationCandidate>();
   
@@ -402,7 +531,8 @@ function deduplicateCandidates(candidates: LocationCandidate[]): LocationCandida
       seen.set(key, candidate);
     } else {
       // Keep the one with higher confidence or better source
-      const sourceRank = { jsonld: 4, footer: 3, contact: 2, regex: 1 };
+      // AI ranks between contact and regex since it's a fallback
+      const sourceRank = { jsonld: 5, footer: 4, contact: 3, ai: 2, regex: 1 };
       const confidenceRank = { high: 3, medium: 2, low: 1 };
       
       const existingScore = sourceRank[existing.source] * 10 + confidenceRank[existing.confidence];
@@ -417,7 +547,8 @@ function deduplicateCandidates(candidates: LocationCandidate[]): LocationCandida
   return Array.from(seen.values());
 }
 
-function extractLocation(htmlContent: string, textContent: string): LocationResult {
+// Synchronous extraction (without AI) - used for initial pass
+function extractLocationSync(htmlContent: string, textContent: string): { candidates: LocationCandidate[], hasHighConfidence: boolean } {
   let allCandidates: LocationCandidate[] = [];
   
   // Priority 1: JSON-LD extraction
@@ -439,11 +570,16 @@ function extractLocation(htmlContent: string, textContent: string): LocationResu
     allCandidates.push(...regexCandidates);
   }
   
+  return { candidates: allCandidates, hasHighConfidence };
+}
+
+// Build final result from candidates
+function buildLocationResult(allCandidates: LocationCandidate[]): LocationResult {
   // Deduplicate
-  allCandidates = deduplicateCandidates(allCandidates);
+  const dedupedCandidates = deduplicateCandidates(allCandidates);
   
   // If no candidates found
-  if (allCandidates.length === 0) {
+  if (dedupedCandidates.length === 0) {
     return {
       postal_code: null,
       city: null,
@@ -458,19 +594,20 @@ function extractLocation(htmlContent: string, textContent: string): LocationResu
   }
   
   // Sort by confidence and source priority
-  const sourceRank = { jsonld: 4, footer: 3, contact: 2, regex: 1 };
+  // AI ranks between contact and regex since it's a fallback
+  const sourceRank = { jsonld: 5, footer: 4, contact: 3, ai: 2, regex: 1 };
   const confidenceRank = { high: 3, medium: 2, low: 1 };
   
-  allCandidates.sort((a, b) => {
+  dedupedCandidates.sort((a, b) => {
     const aScore = confidenceRank[a.confidence] * 10 + sourceRank[a.source];
     const bScore = confidenceRank[b.confidence] * 10 + sourceRank[b.source];
     return bScore - aScore;
   });
   
-  const bestCandidate = allCandidates[0];
+  const bestCandidate = dedupedCandidates[0];
   
   // If multiple unique postal codes, set confidence to low
-  const uniquePostals = new Set(allCandidates.map(c => c.postal_code.replace(/\s/g, '').toUpperCase()));
+  const uniquePostals = new Set(dedupedCandidates.map(c => c.postal_code.replace(/\s/g, '').toUpperCase()));
   const finalConfidence = uniquePostals.size > 1 ? 'low' : bestCandidate.confidence;
   
   // Build location_info string
@@ -489,9 +626,37 @@ function extractLocation(htmlContent: string, textContent: string): LocationResu
     source: bestCandidate.source,
     confidence: finalConfidence,
     snippet: bestCandidate.snippet,
-    candidates: allCandidates,
+    candidates: dedupedCandidates,
     location_info: locationParts.join(', ')
   };
+}
+
+// Full extraction with optional AI fallback
+async function extractLocationWithAI(htmlContent: string, textContent: string, openAIApiKey: string | undefined): Promise<LocationResult> {
+  // First, try synchronous extraction methods
+  const { candidates, hasHighConfidence } = extractLocationSync(htmlContent, textContent);
+  
+  // If we have high-confidence results or any medium-confidence results, use them
+  const hasMediumConfidence = candidates.some(c => c.confidence === 'medium');
+  if (hasHighConfidence || hasMediumConfidence) {
+    console.log('📍 Using deterministic extraction results (high/medium confidence found)');
+    return buildLocationResult(candidates);
+  }
+  
+  // Priority 5: AI extraction (only if no good results from deterministic methods)
+  if (openAIApiKey && candidates.length === 0) {
+    console.log('📍 No deterministic results, trying AI extraction');
+    const aiCandidates = await extractViaAI(textContent, openAIApiKey);
+    candidates.push(...aiCandidates);
+  }
+  
+  return buildLocationResult(candidates);
+}
+
+// Legacy synchronous function for tests
+function extractLocation(htmlContent: string, textContent: string): LocationResult {
+  const { candidates } = extractLocationSync(htmlContent, textContent);
+  return buildLocationResult(candidates);
 }
 
 // ============= TEST HARNESS =============
@@ -799,7 +964,7 @@ serve(async (req) => {
     }
 
     // ============= LOCATION EXTRACTION =============
-    console.log('📍 Starting location extraction');
+    console.log('📍 Starting location extraction with AI fallback');
     
     // Clean text content for location analysis
     let cleanTextContent = websiteContent;
@@ -813,7 +978,8 @@ serve(async (req) => {
         .trim();
     }
     
-    const locationResult = extractLocation(rawHtmlContent || websiteContent, cleanTextContent);
+    // Use async extraction with AI fallback
+    const locationResult = await extractLocationWithAI(rawHtmlContent || websiteContent, cleanTextContent, openAIApiKey);
     
     // Structured logging for location extraction (PII-safe)
     console.log('📍 Location extraction result:', JSON.stringify({
