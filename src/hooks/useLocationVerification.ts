@@ -1,8 +1,10 @@
 import { useState, useCallback, useMemo } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { confirmLocationSelection, persistLocationExtraction } from '@/lib/location';
+import { LOCATION_BLOCKING_QUERY_KEY } from './useLocationBlockingGuard';
 
 interface LocationData {
   postalCode?: string | null;
@@ -53,6 +55,7 @@ export const isLocationConfirmedCheck = (data: LocationData | null): boolean => 
 export const useLocationVerification = (): UseLocationVerificationReturn => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [locationData, setLocationData] = useState<LocationData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -133,6 +136,9 @@ export const useLocationVerification = (): UseLocationVerificationReturn => {
           title: 'Location confirmed',
           description: 'Your business location has been saved.',
         });
+        
+        // Invalidate the location blocking guard so banner updates immediately
+        queryClient.invalidateQueries({ queryKey: LOCATION_BLOCKING_QUERY_KEY });
         
         // Update local state
         setLocationData(prev => ({
