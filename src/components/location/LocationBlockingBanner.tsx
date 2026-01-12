@@ -15,17 +15,17 @@ export const LocationBlockingBanner: React.FC<LocationBlockingBannerProps> = ({
   className = '',
 }) => {
   return (
-    <div className={`bg-amber-50 border-b-2 border-amber-300 px-4 py-4 ${className}`}>
+    <div className={`bg-muted border-b-2 border-border px-4 py-4 ${className}`}>
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 max-w-7xl mx-auto">
         <div className="flex items-start sm:items-center gap-3">
-          <div className="bg-amber-100 p-2 rounded-full flex-shrink-0">
-            <AlertTriangle className="h-5 w-5 text-amber-600" />
+          <div className="bg-secondary/10 p-2 rounded-full flex-shrink-0">
+            <AlertTriangle className="h-5 w-5 text-secondary" />
           </div>
           <div>
-            <p className="text-sm font-semibold text-amber-800">
+            <p className="text-sm font-semibold text-foreground">
               Confirm your primary location to generate local content
             </p>
-            <p className="text-xs text-amber-700 mt-0.5">
+            <p className="text-xs text-muted-foreground mt-0.5">
               Location-based content generation is blocked until you confirm your business location.
             </p>
           </div>
@@ -34,7 +34,7 @@ export const LocationBlockingBanner: React.FC<LocationBlockingBannerProps> = ({
           variant="default" 
           size="sm" 
           asChild
-          className="bg-amber-600 hover:bg-amber-700 text-white flex-shrink-0"
+          className="flex-shrink-0"
         >
           <Link to="/profile/company">
             <MapPin className="h-4 w-4 mr-1.5" />
