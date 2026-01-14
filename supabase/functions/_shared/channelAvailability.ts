@@ -16,40 +16,19 @@ export interface ChannelAvailability {
 }
 
 /**
- * Check if SMS channel is available by verifying Twilio credentials
+ * Check if SMS channel is available by verifying Mobile Text Alerts credentials
  */
-export function checkSMSAvailability(): ChannelStatus & { sendMethod?: 'messaging_service' | 'phone_number' } {
-  const twilioAccountSid = Deno.env.get('TWILIO_ACCOUNT_SID');
-  const twilioAuthToken = Deno.env.get('TWILIO_AUTH_TOKEN');
-  const messagingServiceSid = Deno.env.get('TWILIO_MESSAGING_SERVICE_SID');
-  const twilioPhoneNumber = Deno.env.get('TWILIO_PHONE_NUMBER');
+export function checkSMSAvailability(): ChannelStatus {
+  const mtaApiKey = Deno.env.get('MOBILE_TEXT_ALERTS_API_KEY');
 
-  // Check base credentials first
-  if (!twilioAccountSid || !twilioAuthToken) {
-    const missing: string[] = [];
-    if (!twilioAccountSid) missing.push('TWILIO_ACCOUNT_SID');
-    if (!twilioAuthToken) missing.push('TWILIO_AUTH_TOKEN');
-    
+  if (!mtaApiKey) {
     return {
       available: false,
-      reason: `Twilio not configured. Missing: ${missing.join(', ')}`
+      reason: 'Mobile Text Alerts not configured. Missing: MOBILE_TEXT_ALERTS_API_KEY'
     };
   }
 
-  // SMS is available if EITHER MessagingServiceSid OR PhoneNumber is set
-  // Prefer MessagingServiceSid for toll-free compliance
-  if (messagingServiceSid) {
-    return { available: true, sendMethod: 'messaging_service' };
-  }
-  
-  if (twilioPhoneNumber) {
-    return { available: true, sendMethod: 'phone_number' };
-  }
-
-  return {
-    available: false,
-    reason: 'Twilio configured but missing TWILIO_MESSAGING_SERVICE_SID or TWILIO_PHONE_NUMBER'
-  };
+  return { available: true };
 }
 
 /**

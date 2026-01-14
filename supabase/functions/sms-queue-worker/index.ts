@@ -1,7 +1,7 @@
 /**
  * SMS Queue Worker
  * 
- * This is the ONLY place where SMS messages are actually sent via Twilio.
+ * This is the ONLY place where SMS messages are actually sent via Mobile Text Alerts API.
  * It processes both:
  * 1. sms_send_jobs (campaign path) - created by send-sms-campaign
  * 2. Legacy sms_messages (automation path) - messages without jobs
@@ -10,9 +10,9 @@
  * - Bulletproof concurrency safety via atomic claiming with claim_token
  * - Stale claim recovery for crashed/hung workers
  * - Idempotent (skips already-sent messages)
- * - Respects rate limits between Twilio calls
+ * - Respects rate limits between MTA calls
  * - Updates campaign status when all jobs complete
- * - Accurate billing: only charges quota when Twilio accepts the message
+ * - Accurate billing: only charges quota when MTA accepts the message
  * - Retry policy: retries transient errors with exponential backoff
  * - Dead-lettering: permanently fails messages that cannot be delivered
  */
@@ -36,12 +36,15 @@ const CLAIM_STALE_AFTER_MINUTES = Number(Deno.env.get("SMS_CLAIM_STALE_AFTER_MIN
 // Generate unique worker ID for this invocation
 const WORKER_ID = `sms-worker-${crypto.randomUUID().slice(0, 8)}`;
 
-interface TwilioConfig {
-  accountSid: string
-  authToken: string
-  phoneNumber: string
-  messagingServiceSid?: string
-  statusCallbackUrl?: string
+// Mobile Text Alerts configuration
+const MOBILE_TEXT_ALERTS_BASE_URL = Deno.env.get("MOBILE_TEXT_ALERTS_BASE_URL") || "https://api.mobile-text-alerts.com";
+const MOBILE_TEXT_ALERTS_API_KEY = Deno.env.get("MOBILE_TEXT_ALERTS_API_KEY");
+const MOBILE_TEXT_ALERTS_LONGCODE_ID = Deno.env.get("MOBILE_TEXT_ALERTS_LONGCODE_ID");
+
+interface MTAConfig {
+  apiKey: string
+  baseUrl: string
+  longcodeId?: number
 }
 
 interface SmsMessage {
@@ -54,7 +57,7 @@ interface SmsMessage {
   campaign_id: string | null
   customer_id: string | null
   status: string
-  twilio_sid: string | null
+  twilio_sid: string | null // Reusing for MTA message ID
   billable_units: number | null
   billed_at: string | null
   attempts: number
@@ -78,84 +81,153 @@ interface SmsSendJob {
 }
 
 /**
- * Format phone number to E.164 format for Twilio
+ * Format phone number to E.164 format
  */
-function formatPhoneForTwilio(phone: string): string {
+function normalizePhone(phone: string): string {
   if (!phone) return '';
-  const cleaned = phone.replace(/\D/g, '');
-  if (cleaned.length === 11 && cleaned.startsWith('1')) {
-    return `+${cleaned}`;
+  const digits = phone.replace(/\D/g, '');
+  if (digits.length === 11 && digits.startsWith('1')) {
+    return `+${digits}`;
   }
-  if (cleaned.length === 10) {
-    return `+1${cleaned}`;
+  if (digits.length === 10) {
+    return `+1${digits}`;
   }
-  if (phone.startsWith('+') && cleaned.length >= 10) {
+  if (phone.startsWith('+') && digits.length >= 10) {
     return phone;
   }
-  return `+1${cleaned}`;
+  return `+1${digits}`;
 }
 
 /**
- * Send SMS via Twilio API
+ * Ensure opt-out message is present
  */
-async function sendSMSViaTwilio(
-  config: TwilioConfig,
+function ensureOptOutMessage(message: string): string {
+  const optOutPhrases = ["reply stop", "text stop", "stop to opt"];
+  const lowerMessage = message.toLowerCase();
+
+  for (const phrase of optOutPhrases) {
+    if (lowerMessage.includes(phrase)) {
+      return message;
+    }
+  }
+
+  return `${message.trim()}\n\nReply STOP to opt out.`;
+}
+
+/**
+ * Parse API response safely
+ */
+async function parseApiResponse(res: Response): Promise<{ ok: boolean; status: number; json: any | null; text: string }> {
+  const text = await res.text();
+  let json: any | null = null;
+
+  try {
+    json = text ? JSON.parse(text) : null;
+  } catch {
+    json = null;
+  }
+
+  return { ok: res.ok, status: res.status, json, text };
+}
+
+/**
+ * Send SMS via Mobile Text Alerts API
+ */
+async function sendSMSViaMTA(
+  config: MTAConfig,
   to: string,
   body: string,
   options: {
-    messagingServiceSid?: string | null
-    fromPhone?: string | null
     mediaUrls?: string[] | null
   } = {}
-): Promise<{ success: boolean; sid?: string; error?: string; rawError?: unknown }> {
+): Promise<{ success: boolean; messageId?: string; error?: string; rawError?: unknown }> {
   try {
-    const url = `https://api.twilio.com/2010-04-01/Accounts/${config.accountSid}/Messages.json`;
-    const formData = new FormData();
-
-    // Determine sender: Messaging Service SID (preferred) or From phone
-    if (options.messagingServiceSid) {
-      formData.append('MessagingServiceSid', options.messagingServiceSid);
-    } else {
-      const fromNumber = options.fromPhone
-        ? formatPhoneForTwilio(options.fromPhone)
-        : formatPhoneForTwilio(config.phoneNumber);
-      formData.append('From', fromNumber);
-    }
-
-    formData.append('To', to);
-    formData.append('Body', body);
-
-    // Add media URLs if present
-    if (options.mediaUrls && options.mediaUrls.length > 0) {
-      for (const mediaUrl of options.mediaUrls) {
-        formData.append('MediaUrl', mediaUrl);
-      }
-    }
-
-    // Add status callback for delivery tracking
-    if (config.statusCallbackUrl) {
-      formData.append('StatusCallback', config.statusCallbackUrl);
-    }
-
-    const response = await fetch(url, {
-      method: 'POST',
+    const finalMessage = ensureOptOutMessage(body);
+    
+    // Step 1: Validate recipient
+    const validateResponse = await fetch(`${config.baseUrl}/v3/send/validate-recipients`, {
+      method: "POST",
       headers: {
-        'Authorization': 'Basic ' + btoa(`${config.accountSid}:${config.authToken}`),
+        Authorization: `Bearer ${config.apiKey}`,
+        "Content-Type": "application/json",
       },
-      body: formData,
+      body: JSON.stringify({
+        recipients: [{ number: to, externalId: "bloomsuite_worker" }],
+        validateUnsubscribes: true,
+      }),
     });
 
-    const result = await response.json();
+    const validateParsed = await parseApiResponse(validateResponse);
+    const validateData = validateParsed.json ?? {};
 
-    if (result.error_code || result.code) {
+    if (!validateParsed.ok) {
       return {
         success: false,
-        error: result.message || `Twilio error: ${result.error_code || result.code}`,
-        rawError: result,
+        error: validateData?.message || validateData?.error || `Validation failed (HTTP ${validateParsed.status})`,
+        rawError: validateParsed,
       };
     }
 
-    return { success: true, sid: result.sid };
+    // Check for invalid/unsubscribed
+    const invalidList = Array.isArray(validateData?.invalid) ? validateData.invalid : [];
+    const unsubscribedList = Array.isArray(validateData?.unsubscribed) ? validateData.unsubscribed : [];
+
+    if (unsubscribedList.length > 0) {
+      return {
+        success: false,
+        error: "Recipient has opted out",
+        rawError: { code: 21610, unsubscribed: true },
+      };
+    }
+
+    if (invalidList.length > 0) {
+      return {
+        success: false,
+        error: `Invalid phone number: ${invalidList.join(", ")}`,
+        rawError: { code: 21211, invalid: true },
+      };
+    }
+
+    // Step 2: Send message
+    const sendPayload: Record<string, unknown> = {
+      subscribers: [to],
+      message: finalMessage,
+    };
+
+    // Add longcodeId if configured
+    if (config.longcodeId) {
+      sendPayload.longcodeId = config.longcodeId;
+    }
+
+    // Add image if provided
+    if (options.mediaUrls && options.mediaUrls.length > 0) {
+      sendPayload.image = options.mediaUrls[0];
+      sendPayload.rehost = true;
+    }
+
+    const sendResponse = await fetch(`${config.baseUrl}/v3/send`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${config.apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(sendPayload),
+    });
+
+    const sendParsed = await parseApiResponse(sendResponse);
+    const sendData = sendParsed.json ?? {};
+
+    if (!sendParsed.ok) {
+      return {
+        success: false,
+        error: sendData?.message || sendData?.error || `Send failed (HTTP ${sendParsed.status})`,
+        rawError: sendParsed,
+      };
+    }
+
+    const messageId = sendData.messageId || sendData.id || crypto.randomUUID();
+    return { success: true, messageId };
+
   } catch (error) {
     return { 
       success: false, 
@@ -166,7 +238,7 @@ async function sendSMSViaTwilio(
 }
 
 /**
- * Rate-limited delay between Twilio calls
+ * Rate-limited delay between API calls
  */
 async function rateLimitDelay(): Promise<void> {
   await new Promise(resolve => setTimeout(resolve, SMS_BATCH_DELAY_MS));
@@ -223,7 +295,6 @@ async function claimSmsSendJobsSafe(
   const now = new Date().toISOString();
 
   // Step 1: Find eligible jobs with priority ordering
-  // Only pick jobs where scheduled_at is null or in the past
   const { data: eligibleJobs, error: selectError } = await supabase
     .from('sms_send_jobs')
     .select('*')
@@ -244,7 +315,7 @@ async function claimSmsSendJobsSafe(
     return [];
   }
 
-  // Step 2: Filter for claimable jobs (null claimed_at or stale)
+  // Step 2: Filter for claimable jobs
   const claimableJobs = eligibleJobs.filter((job: SmsSendJob) => {
     if (!job.claimed_at) return true;
     return new Date(job.claimed_at) < new Date(staleThreshold);
@@ -254,7 +325,7 @@ async function claimSmsSendJobsSafe(
     return [];
   }
 
-  // Step 3: Atomically claim each job with strong guards
+  // Step 3: Atomically claim each job
   const claimedJobs: SmsSendJob[] = [];
 
   for (const job of claimableJobs) {
@@ -369,42 +440,6 @@ async function billMessage(
 }
 
 /**
- * Increment attempts and check if message should be processed
- */
-async function prepareMessageForSend(
-  supabase: any,
-  messageId: string
-): Promise<{ shouldSend: boolean; attempts: number }> {
-  const now = new Date().toISOString();
-  
-  const { data, error } = await supabase
-    .from('sms_messages')
-    .update({
-      attempts: supabase.rpc ? undefined : undefined, // Will use raw SQL
-      last_attempt_at: now,
-      updated_at: now,
-    })
-    .eq('id', messageId)
-    .eq('status', 'queued')
-    .is('dead_lettered_at', null)
-    .or(`scheduled_at.is.null,scheduled_at.lte.${now}`)
-    .select('id, attempts')
-    .maybeSingle();
-
-  if (error || !data) {
-    return { shouldSend: false, attempts: 0 };
-  }
-
-  // Increment attempts via a separate update
-  await supabase
-    .from('sms_messages')
-    .update({ attempts: data.attempts + 1 })
-    .eq('id', messageId);
-
-  return { shouldSend: true, attempts: data.attempts + 1 };
-}
-
-/**
  * Handle message send failure with retry policy and compliance logging
  */
 async function handleMessageFailure(
@@ -414,7 +449,7 @@ async function handleMessageFailure(
   rawError: unknown
 ): Promise<{ retryScheduled: boolean; failureType: SmsFailureType }> {
   const now = new Date().toISOString();
-  const classified = classifyTwilioError(rawError);
+  const classified = classifyTwilioError(rawError); // Works for MTA errors too
   
   console.log(`[sms-queue-worker] Message ${msg.id} error classified:`, {
     failureType: classified.failureType,
@@ -448,7 +483,6 @@ async function handleMessageFailure(
   const shouldRetry = classified.retryable && attempts < MAX_MESSAGE_ATTEMPTS;
 
   if (shouldRetry) {
-    // Schedule retry with exponential backoff
     const backoffMs = calculateRetryDelay(attempts, RETRY_BASE_DELAY_MS);
     const scheduledAt = new Date(Date.now() + backoffMs).toISOString();
     
@@ -521,18 +555,16 @@ Deno.serve(async (req) => {
 
     console.log(`[sms-queue-worker] Starting. Worker=${WORKER_ID}, ClaimToken=${claimToken.slice(0, 8)}...`);
 
-    // Get Twilio configuration
-    const twilioConfig: TwilioConfig = {
-      accountSid: Deno.env.get('TWILIO_ACCOUNT_SID') ?? '',
-      authToken: Deno.env.get('TWILIO_AUTH_TOKEN') ?? '',
-      phoneNumber: Deno.env.get('TWILIO_PHONE_NUMBER') ?? '',
-      messagingServiceSid: Deno.env.get('TWILIO_MESSAGING_SERVICE_SID'),
-      statusCallbackUrl: 'https://udldmkqwnxhdeztyqcau.supabase.co/functions/v1/twilio-status-callback',
-    };
-
-    if (!twilioConfig.accountSid || !twilioConfig.authToken) {
-      throw new Error('Missing Twilio configuration');
+    // Get MTA configuration
+    if (!MOBILE_TEXT_ALERTS_API_KEY) {
+      throw new Error('Missing Mobile Text Alerts API key');
     }
+
+    const mtaConfig: MTAConfig = {
+      apiKey: MOBILE_TEXT_ALERTS_API_KEY,
+      baseUrl: MOBILE_TEXT_ALERTS_BASE_URL,
+      longcodeId: MOBILE_TEXT_ALERTS_LONGCODE_ID ? Number(MOBILE_TEXT_ALERTS_LONGCODE_ID) : undefined,
+    };
 
     // =========================================================================
     // PHASE 1: Atomically Claim Jobs
@@ -560,7 +592,7 @@ Deno.serve(async (req) => {
           touchedCampaignIds.add(job.campaign_id);
         }
 
-        // Load messages by IDs - include billing and retry fields
+        // Load messages by IDs
         const { data: messages, error: msgFetchError } = await supabase
           .from('sms_messages')
           .select('id, tenant_id, phone, content, media_urls, from_phone, campaign_id, customer_id, status, twilio_sid, billable_units, billed_at, attempts, scheduled_at, dead_lettered_at')
@@ -588,10 +620,9 @@ Deno.serve(async (req) => {
 
         // Process each message with idempotency check
         for (const msg of jobMessages) {
-          // Check if message should be skipped
           const now = new Date().toISOString();
           
-          // CRITICAL IDEMPOTENCY CHECK: skip if already sent or has twilio_sid
+          // CRITICAL IDEMPOTENCY CHECK: skip if already sent or has message ID
           if (msg.status !== 'queued' || msg.twilio_sid) {
             console.log(`[sms-queue-worker] Skipping message ${msg.id}: status=${msg.status}, sid=${msg.twilio_sid ? 'present' : 'null'}`);
             jobSkipped++;
@@ -626,21 +657,19 @@ Deno.serve(async (req) => {
             })
             .eq('id', msg.id);
 
-          // Send via Twilio
-          const formattedPhone = formatPhoneForTwilio(msg.phone);
-          const result = await sendSMSViaTwilio(twilioConfig, formattedPhone, msg.content, {
-            messagingServiceSid: job.messaging_service_sid,
-            fromPhone: msg.from_phone || job.from_phone,
+          // Send via MTA
+          const formattedPhone = normalizePhone(msg.phone);
+          const result = await sendSMSViaMTA(mtaConfig, formattedPhone, msg.content, {
             mediaUrls: msg.media_urls,
           });
 
           if (result.success) {
-            // Update message as sent (with idempotent billed_at)
+            // Update message as sent
             await supabase
               .from('sms_messages')
               .update({
                 status: 'sent',
-                twilio_sid: result.sid,
+                twilio_sid: result.messageId, // Reusing field for MTA message ID
                 sent_at: now,
                 billed_at: msg.billed_at ? undefined : now,
                 error_message: null,
@@ -651,7 +680,7 @@ Deno.serve(async (req) => {
               .eq('id', msg.id)
               .is('twilio_sid', null);
 
-            console.log(`[sms-queue-worker] Message ${msg.id} sent: SID=${result.sid}`);
+            console.log(`[sms-queue-worker] Message ${msg.id} sent: ID=${result.messageId}`);
             jobSent++;
             stats.messagesSent++;
 
@@ -693,7 +722,6 @@ Deno.serve(async (req) => {
         }
 
         // Determine job status
-        // If any messages are scheduled for retry, put job back to pending
         if (jobRetryScheduled > 0) {
           const updated = await updateJobWithGuard(supabase, job.id, claimToken, {
             status: 'pending',
@@ -708,7 +736,6 @@ Deno.serve(async (req) => {
             stats.jobsClaimStolen++;
           }
         } else {
-          // All messages are in terminal state
           const jobStatus = (jobSent > 0 || jobSkipped === jobMessages.length) ? 'completed' : 'failed';
           const jobErrorMessage = jobStatus === 'failed'
             ? `All ${jobFailed} messages failed.`
@@ -852,10 +879,8 @@ Deno.serve(async (req) => {
           })
           .eq('id', msg.id);
 
-        const formattedPhone = formatPhoneForTwilio(msg.phone);
-        const result = await sendSMSViaTwilio(twilioConfig, formattedPhone, msg.content, {
-          messagingServiceSid: twilioConfig.messagingServiceSid,
-          fromPhone: msg.from_phone,
+        const formattedPhone = normalizePhone(msg.phone);
+        const result = await sendSMSViaMTA(mtaConfig, formattedPhone, msg.content, {
           mediaUrls: msg.media_urls,
         });
 
@@ -864,7 +889,7 @@ Deno.serve(async (req) => {
             .from('sms_messages')
             .update({
               status: 'sent',
-              twilio_sid: result.sid,
+              twilio_sid: result.messageId,
               sent_at: now,
               billed_at: msg.billed_at ? undefined : now,
               error_message: null,
@@ -874,7 +899,7 @@ Deno.serve(async (req) => {
             })
             .eq('id', msg.id);
 
-          console.log(`[sms-queue-worker] Legacy message ${msg.id} sent: SID=${result.sid}`);
+          console.log(`[sms-queue-worker] Legacy message ${msg.id} sent: ID=${result.messageId}`);
           stats.messagesSent++;
 
           // Bill legacy messages too

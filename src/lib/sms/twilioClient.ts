@@ -8,32 +8,35 @@ interface SMSMessage {
   mediaUrls?: string[]
 }
 
-interface TwilioResponse {
+interface SMSResponse {
   sid?: string
   status?: string
   error_code?: string
   message?: string
 }
 
-export class TwilioClient {
-  private static instance: TwilioClient
+/**
+ * SMS Client - sends messages via Mobile Text Alerts API through the send-sms edge function
+ */
+export class SMSClient {
+  private static instance: SMSClient
   
   private constructor() {}
   
-  static getInstance(): TwilioClient {
-    if (!TwilioClient.instance) {
-      TwilioClient.instance = new TwilioClient()
+  static getInstance(): SMSClient {
+    if (!SMSClient.instance) {
+      SMSClient.instance = new SMSClient()
     }
-    return TwilioClient.instance
+    return SMSClient.instance
   }
 
-  async sendSMS(message: SMSMessage): Promise<TwilioResponse> {
+  async sendSMS(message: SMSMessage): Promise<SMSResponse> {
     try {
       // Format phone number to E.164 before sending
       const formattedPhone = formatPhoneForTwilio(message.to)
       console.log(`Sending SMS to ${formattedPhone} (original: ${message.to})`)
       
-      // Call the send-sms edge function
+      // Call the send-sms edge function (now uses Mobile Text Alerts)
       const { data, error } = await supabase.functions.invoke('send-sms', {
         body: {
           to: formattedPhone,
@@ -49,16 +52,16 @@ export class TwilioClient {
       }
 
       console.log('SMS sent successfully:', data)
-      return data as TwilioResponse
+      return data as SMSResponse
 
     } catch (error) {
-      console.error('TwilioClient error:', error)
+      console.error('SMSClient error:', error)
       throw error
     }
   }
 
-  async sendBulkSMS(messages: SMSMessage[]): Promise<TwilioResponse[]> {
-    const results: TwilioResponse[] = []
+  async sendBulkSMS(messages: SMSMessage[]): Promise<SMSResponse[]> {
+    const results: SMSResponse[] = []
     
     // Send messages in batches to avoid rate limits
     const batchSize = 5
@@ -90,4 +93,8 @@ export class TwilioClient {
   }
 }
 
-export const twilioClient = TwilioClient.getInstance()
+export const smsClient = SMSClient.getInstance()
+
+// Backwards compatibility exports
+export const twilioClient = smsClient
+export const TwilioClient = SMSClient
