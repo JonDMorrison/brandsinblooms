@@ -308,7 +308,40 @@ async function processLoyaltyAccountCreated(supabase: any, tenantId: string, use
     const { data } = await supabase.from('crm_customers').insert({ tenant_id: tenantId, user_id: userId, email, phone, first_name: squareCustomer.given_name, last_name: squareCustomer.family_name, tags: ['Loyalty Member'], pos_source: 'square', square_customer_id: squareCustomerId }).select().single();
     customer = data;
   }
-  if (customer) await fireAutomationTriggers(supabase, tenantId, customer.id, ['loyalty_join'], { loyalty_account_id: loyaltyAccount.id, merchant_id: merchantId });
+  
+  if (customer) {
+    // Find the Perks/Loyalty segment for this tenant and add customer to it
+    // This triggers the segment.added automation via the database trigger
+    const { data: perksSegment } = await supabase
+      .from('crm_segments')
+      .select('id')
+      .eq('tenant_id', tenantId)
+      .or('name.ilike.%perks%,name.ilike.%loyalty%')
+      .limit(1)
+      .single();
+    
+    if (perksSegment) {
+      console.log(`[Loyalty] Adding customer ${customer.id} to Perks segment ${perksSegment.id}`);
+      const { error: segmentError } = await supabase
+        .from('customer_segments')
+        .upsert({
+          customer_id: customer.id,
+          segment_id: perksSegment.id,
+          assigned_by_user_id: userId
+        }, { onConflict: 'customer_id,segment_id' });
+      
+      if (segmentError) {
+        console.error(`[Loyalty] Failed to add customer to segment:`, segmentError);
+      } else {
+        console.log(`[Loyalty] Successfully added customer to Perks segment - automation should trigger`);
+      }
+    } else {
+      console.log(`[Loyalty] No Perks/Loyalty segment found for tenant ${tenantId}`);
+    }
+    
+    // Also fire legacy automation triggers
+    await fireAutomationTriggers(supabase, tenantId, customer.id, ['loyalty_join'], { loyalty_account_id: loyaltyAccount.id, merchant_id: merchantId });
+  }
   return { success: true, customerId: customer?.id };
 }
 
