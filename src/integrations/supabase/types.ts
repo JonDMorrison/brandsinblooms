@@ -632,6 +632,7 @@ export type Database = {
           id: string
           metadata: Json | null
           next_step_scheduled_at: string | null
+          run_sequence: number
           started_at: string
           status: string
           tenant_id: string
@@ -650,6 +651,7 @@ export type Database = {
           id?: string
           metadata?: Json | null
           next_step_scheduled_at?: string | null
+          run_sequence?: number
           started_at?: string
           status?: string
           tenant_id: string
@@ -668,6 +670,7 @@ export type Database = {
           id?: string
           metadata?: Json | null
           next_step_scheduled_at?: string | null
+          run_sequence?: number
           started_at?: string
           status?: string
           tenant_id?: string
@@ -759,6 +762,7 @@ export type Database = {
           id: string
           persona_id: string | null
           processed_at: string | null
+          queued_until: string | null
           segment_id: string | null
           tenant_id: string
         }
@@ -771,6 +775,7 @@ export type Database = {
           id?: string
           persona_id?: string | null
           processed_at?: string | null
+          queued_until?: string | null
           segment_id?: string | null
           tenant_id: string
         }
@@ -783,6 +788,7 @@ export type Database = {
           id?: string
           persona_id?: string | null
           processed_at?: string | null
+          queued_until?: string | null
           segment_id?: string | null
           tenant_id?: string
         }
@@ -2320,6 +2326,7 @@ export type Database = {
           id: string
           is_active: boolean | null
           name: string
+          overlap_behavior: string
           persona_targeting: Json | null
           template_source: string | null
           tenant_id: string | null
@@ -2336,6 +2343,7 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           name: string
+          overlap_behavior?: string
           persona_targeting?: Json | null
           template_source?: string | null
           tenant_id?: string | null
@@ -2352,6 +2360,7 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           name?: string
+          overlap_behavior?: string
           persona_targeting?: Json | null
           template_source?: string | null
           tenant_id?: string | null

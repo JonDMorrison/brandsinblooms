@@ -12,6 +12,7 @@ interface TriggerNodeData {
   triggerType: string;
   label: string;
   conditions?: Record<string, any>;
+  overlapBehavior?: string;
 }
 
 interface TriggerNodeEditorProps {
@@ -28,6 +29,7 @@ export const TriggerNodeEditor: React.FC<TriggerNodeEditorProps> = ({
   const [triggerType, setTriggerType] = useState(data.triggerType || 'loyalty_join');
   const [selectedSegmentId, setSelectedSegmentId] = useState<string>(data.conditions?.segment_id || '');
   const [selectedPersonaId, setSelectedPersonaId] = useState<string>(data.conditions?.persona_id || '');
+  const [overlapBehavior, setOverlapBehavior] = useState<string>(data.overlapBehavior || 'ignore');
 
   // Fetch segments when segment trigger is selected
   const { data: segments, isLoading: loadingSegments } = useQuery({
@@ -61,7 +63,8 @@ export const TriggerNodeEditor: React.FC<TriggerNodeEditorProps> = ({
     setTriggerType(data.triggerType || 'loyalty_join');
     setSelectedSegmentId(data.conditions?.segment_id || '');
     setSelectedPersonaId(data.conditions?.persona_id || '');
-  }, [data.triggerType, data.conditions]);
+    setOverlapBehavior(data.overlapBehavior || 'ignore');
+  }, [data.triggerType, data.conditions, data.overlapBehavior]);
 
   const handleSave = () => {
     const selectedTrigger = triggerCatalog.find(t => t.id === triggerType);
@@ -80,7 +83,8 @@ export const TriggerNodeEditor: React.FC<TriggerNodeEditorProps> = ({
     onSave({
       triggerType,
       label: selectedTrigger?.label || 'Trigger',
-      conditions
+      conditions,
+      overlapBehavior
     });
   };
 
@@ -187,6 +191,27 @@ export const TriggerNodeEditor: React.FC<TriggerNodeEditorProps> = ({
             )}
           </div>
         )}
+
+        {/* Overlap Behavior selector */}
+        <div className="space-y-2">
+          <Label htmlFor="overlap-behavior">When customer is already in this automation</Label>
+          <NativeSelect
+            id="overlap-behavior"
+            value={overlapBehavior}
+            onChange={(e) => setOverlapBehavior(e.target.value)}
+          >
+            <option value="ignore">Ignore new trigger (skip)</option>
+            <option value="restart">Restart from beginning</option>
+            <option value="parallel">Allow parallel runs</option>
+            <option value="queue">Queue until current completes</option>
+          </NativeSelect>
+          <p className="text-xs text-muted-foreground">
+            {overlapBehavior === 'ignore' && 'New triggers will be skipped if customer is already in this automation.'}
+            {overlapBehavior === 'restart' && 'Existing run will be cancelled and a new run will start from step 1.'}
+            {overlapBehavior === 'parallel' && 'Multiple runs can happen simultaneously for the same customer.'}
+            {overlapBehavior === 'queue' && 'New triggers will wait until the current run completes.'}
+          </p>
+        </div>
 
         {selectedTrigger && (
           <div className="bg-muted/50 rounded-lg p-3">
