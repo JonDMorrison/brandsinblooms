@@ -32,6 +32,9 @@ interface OutboxMessage {
 const BATCH_SIZE = 50;
 const WORKER_ID = `worker-${crypto.randomUUID().slice(0, 8)}`;
 
+// Soft failure mode: When enabled, failed steps don't block automation - it continues to next step
+const SOFT_FAILURE_MODE = true;
+
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -226,7 +229,7 @@ const handler = async (req: Request): Promise<Response> => {
           const maxRetries = message.max_retries || 3;
 
           if (newRetryCount >= maxRetries) {
-            // Max retries reached, mark as failed
+            // Max retries reached, mark message as failed
             await supabase
               .from("crm_outbox")
               .update({
@@ -251,11 +254,35 @@ const handler = async (req: Request): Promise<Response> => {
                 customer_id: message.customer_id,
                 step_index: message.step_index,
                 retry_count: newRetryCount,
+                soft_failed: SOFT_FAILURE_MODE,
               },
             });
 
-            // Update automation run if failed
-            if (message.automation_run_id) {
+            // Soft failure mode: Continue to next step instead of blocking entire automation
+            if (SOFT_FAILURE_MODE && message.automation_run_id) {
+              console.log(`⚠️ Soft failure mode: Step ${message.step_index} (${message.message_type}) failed, continuing to next step`);
+              
+              // Log as soft_failed in automation logs
+              if (message.automation_id) {
+                await supabase.from("crm_automation_logs").upsert(
+                  {
+                    automation_id: message.automation_id,
+                    customer_id: message.customer_id,
+                    step_index: message.step_index,
+                    message_type: message.message_type,
+                    status: "soft_failed",
+                    error_message: sendResult.error,
+                    skip_reason: `Failed after ${newRetryCount} retries - bypassed to continue automation`,
+                  },
+                  { onConflict: "automation_id,customer_id,step_index" }
+                );
+              }
+              
+              // Continue to next step despite failure
+              await advanceAutomationRun(supabase, message);
+              
+            } else if (message.automation_run_id) {
+              // Original behavior: mark entire automation as failed
               await supabase
                 .from("automation_runs")
                 .update({
