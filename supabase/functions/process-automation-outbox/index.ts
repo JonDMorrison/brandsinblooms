@@ -554,7 +554,7 @@ async function advanceAutomationRun(
         const nextChannelStatus = isChannelAvailable(nextStep.type);
         
         // Enqueue next step with status='queued'
-        await supabase.from("crm_outbox").insert({
+        const { error: insertError } = await supabase.from("crm_outbox").insert({
           tenant_id: message.tenant_id,
           automation_id: message.automation_id,
           automation_run_id: message.automation_run_id,
@@ -575,6 +575,10 @@ async function advanceAutomationRun(
           },
         });
         
+        if (insertError) {
+          console.error(`❌ Failed to enqueue step ${nextStepIndex}:`, insertError);
+          return;
+        }
         console.log(`📬 Enqueued next step ${nextStepIndex} for customer ${customer.email}`);
       }
     }
@@ -592,10 +596,46 @@ interface WorkflowStep {
 
 function normalizeWorkflowSteps(workflowSteps: any): WorkflowStep[] {
   if (Array.isArray(workflowSteps)) {
-    return workflowSteps;
+    console.log(`🔄 Normalizing array format (${workflowSteps.length} raw steps)`);
+    
+    // Calculate cumulative delays from delay nodes
+    let cumulativeDelayFromDelayNodes = 0;
+    const normalizedSteps: WorkflowStep[] = [];
+    
+    for (const step of workflowSteps) {
+      // If this is a delay-type node, accumulate it for the next message step
+      if (step.type === 'delay') {
+        cumulativeDelayFromDelayNodes += parseStepDelay(step);
+        console.log(`  ⏳ Delay node: accumulated ${cumulativeDelayFromDelayNodes} min`);
+        continue;
+      }
+      
+      // Only process email and sms steps
+      if (step.type === 'email' || step.type === 'sms') {
+        const stepDelay = parseStepDelay(step);
+        const totalDelay = stepDelay + cumulativeDelayFromDelayNodes;
+        
+        normalizedSteps.push({
+          type: step.type as 'email' | 'sms',
+          delayMin: totalDelay,
+          subject: step.subject || '',
+          text: step.content || step.text || ''
+        });
+        
+        console.log(`  📧 ${step.type} step: delay=${totalDelay}min, content=${(step.content || step.text || '').substring(0, 50)}...`);
+        
+        // Reset cumulative delay after applying to a message step
+        cumulativeDelayFromDelayNodes = 0;
+      }
+    }
+    
+    console.log(`📋 Normalized ${normalizedSteps.length} message steps from ${workflowSteps.length} raw steps`);
+    return normalizedSteps;
   }
   
+  // Handle React Flow format with nodes/edges
   if (workflowSteps && typeof workflowSteps === 'object' && Array.isArray(workflowSteps.nodes)) {
+    console.log(`🔄 Converting React Flow format (${workflowSteps.nodes.length} nodes)`);
     return workflowSteps.nodes
       .filter((node: any) => node.type === 'email' || node.type === 'sms')
       .map((node: any) => {
@@ -609,7 +649,34 @@ function normalizeWorkflowSteps(workflowSteps: any): WorkflowStep[] {
       });
   }
   
+  console.log(`⚠️ Unknown workflow_steps format, returning empty array`);
   return [];
+}
+
+function parseStepDelay(step: any): number {
+  // Handle direct delayMin
+  if (typeof step.delayMin === 'number' && !isNaN(step.delayMin)) {
+    return step.delayMin;
+  }
+  
+  // Handle delayValue + delayUnit format
+  if (step.delayValue !== undefined && step.delayUnit) {
+    const value = parseInt(step.delayValue, 10) || 0;
+    switch (step.delayUnit) {
+      case 'minutes': return value;
+      case 'hours': return value * 60;
+      case 'days': return value * 60 * 24;
+      case 'weeks': return value * 60 * 24 * 7;
+      default: return 0;
+    }
+  }
+  
+  // Handle string delay format
+  if (step.delay !== undefined) {
+    return parseDelayToMinutes(step.delay);
+  }
+  
+  return 0;
 }
 
 function parseDelayToMinutes(delay: string | number): number {
