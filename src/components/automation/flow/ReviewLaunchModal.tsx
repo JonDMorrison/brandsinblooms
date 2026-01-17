@@ -151,6 +151,7 @@ export const ReviewLaunchModal: React.FC<ReviewLaunchModalProps> = ({
       trigger_type: automation.triggerType || 'manual',
       trigger_conditions: triggerConditions,
       workflow_steps: automation.flowSteps || [],
+      overlap_behavior: (automation as any).overlapBehavior || 'ignore',
       user_id: user.id,
       tenant_id: tenantRow?.tenant_id,
     };

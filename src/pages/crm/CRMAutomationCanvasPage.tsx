@@ -105,11 +105,15 @@ export const CRMAutomationCanvasPage: React.FC = () => {
     // Extract trigger conditions (segment_id, persona_id, etc.) from flow state
     const triggerConditions = extractTriggerConditions(flowState);
     
+    // Extract overlap behavior from trigger node
+    const overlapBehavior = triggerNode?.data?.overlapBehavior || 'ignore';
+    
     const payload: any = {
       name: automationName,
       is_active: false,
       trigger_type: normalizedTrigger,
       trigger_conditions: triggerConditions,
+      overlap_behavior: overlapBehavior,
       workflow_steps: compilation.steps,
       flow_state: flowState,
       user_id: user?.id,
@@ -150,11 +154,15 @@ export const CRMAutomationCanvasPage: React.FC = () => {
     // Extract trigger conditions (segment_id, persona_id, etc.) from flow state
     const triggerConditions = extractTriggerConditions(flowState);
     
+    // Extract overlap behavior from trigger node
+    const overlapBehavior = triggerNode?.data?.overlapBehavior || 'ignore';
+    
     const payload: any = {
       name: automationName,
       is_active: true,
       trigger_type: normalizedTrigger,
       trigger_conditions: triggerConditions,
+      overlap_behavior: overlapBehavior,
       workflow_steps: compilation.steps,
       flow_state: flowState,
       user_id: user?.id,
