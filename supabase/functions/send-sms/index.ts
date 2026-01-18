@@ -159,6 +159,26 @@ async function handler(req: Request): Promise<Response> {
     const formattedTo = normalizePhone(to);
     console.log(`📱 Sending SMS to ${to} (formatted: ${formattedTo}): ${body.substring(0, 50)}...`);
 
+    // Check for unsupported international numbers (non-US/Canada)
+    const digits = to.replace(/\D/g, '');
+    const isUSCanada = digits.length === 10 || (digits.length === 11 && digits.startsWith('1'));
+    
+    if (!isUSCanada) {
+      console.log(`📱 Unsupported international number detected: ${formattedTo}`);
+      return new Response(
+        JSON.stringify({ 
+          error: 'UNSUPPORTED_REGION',
+          skipable: true,
+          message: 'This phone number is in an unsupported region. SMS sending is only available for US/Canada numbers.',
+          canRetry: false
+        }), 
+        { 
+          status: 200, // Return 200 so automation can continue
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+
     // Ensure opt-out message
     const finalMessage = ensureOptOutMessage(body);
 
