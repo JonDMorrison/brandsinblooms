@@ -506,9 +506,10 @@ async function sendSMS(
     // Log full response for debugging
     console.log(`📱 [SendSMS] Response:`, JSON.stringify(data));
 
-    if (data?.error === 'SMS_NOT_CONFIGURED' && data?.skipable) {
-      console.log(`📱 [SendSMS] SMS not configured, marking as skipable`);
-      return { success: false, error: data.message || 'SMS not configured', shouldSkip: true };
+    // Check for any skipable response (unsupported region, not configured, etc.)
+    if (data?.skipable) {
+      console.log(`📱 [SendSMS] Skipable SMS response: ${data.error || data.message}`);
+      return { success: false, error: data.message || data.error || 'SMS skipped', shouldSkip: true };
     }
 
     if (data?.error) {
