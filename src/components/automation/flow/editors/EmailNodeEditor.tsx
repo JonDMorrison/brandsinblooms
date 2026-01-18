@@ -3,7 +3,7 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { NativeSelect } from '@/components/ui/native-select';
-import { Sparkles, RefreshCw, Loader2 } from 'lucide-react';
+import { Sparkles, RefreshCw, Loader2, Clock } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { regenerateEmailContent } from '@/utils/aiContentRegenerator';
 import { toast } from '@/utils/toast';
@@ -17,6 +17,7 @@ interface EmailNodeData {
   template?: string;
   imageUrl?: string;
   imageMetadata?: any;
+  delay?: string;
 }
 
 interface EmailNodeEditorProps {
@@ -45,7 +46,8 @@ export const EmailNodeEditor: React.FC<EmailNodeEditorProps> = ({
     content: data.content || '',
     template: data.template || '',
     imageUrl: data.imageUrl || '',
-    imageMetadata: data.imageMetadata || null
+    imageMetadata: data.imageMetadata || null,
+    delay: data.delay || 'Immediate'
   });
 
   const [errors, setErrors] = useState<Partial<EmailNodeData>>({});
@@ -58,7 +60,8 @@ export const EmailNodeEditor: React.FC<EmailNodeEditorProps> = ({
       content: data.content || '',
       template: data.template || '',
       imageUrl: data.imageUrl || '',
-      imageMetadata: data.imageMetadata || null
+      imageMetadata: data.imageMetadata || null,
+      delay: data.delay || 'Immediate'
     });
   }, [data]);
 
@@ -196,6 +199,31 @@ export const EmailNodeEditor: React.FC<EmailNodeEditorProps> = ({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4 max-h-[70vh] overflow-y-auto">
+        <div className="space-y-2">
+          <Label htmlFor="delay" className="flex items-center gap-2">
+            <Clock className="h-4 w-4" />
+            Send Timing
+          </Label>
+          <NativeSelect
+            id="delay"
+            value={formData.delay}
+            onChange={(e) => setFormData({ ...formData, delay: e.target.value })}
+          >
+            <option value="Immediate">Immediate</option>
+            <option value="1 hour">After 1 hour</option>
+            <option value="2 hours">After 2 hours</option>
+            <option value="4 hours">After 4 hours</option>
+            <option value="12 hours">After 12 hours</option>
+            <option value="24 hours">After 24 hours</option>
+            <option value="2 days">After 2 days</option>
+            <option value="3 days">After 3 days</option>
+            <option value="7 days">After 7 days</option>
+          </NativeSelect>
+          <p className="text-xs text-muted-foreground">
+            When should this email be sent after the previous step?
+          </p>
+        </div>
+
         <div className="space-y-2">
           <Label htmlFor="template">Email Template</Label>
           <NativeSelect
