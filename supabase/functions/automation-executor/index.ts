@@ -312,20 +312,75 @@ async function processAutomation(supabase: any, automation: any) {
         // Check if this customer already has an active automation run
         const { data: existingRun } = await supabase
           .from('automation_runs')
-          .select('id, status')
+          .select('id, status, run_sequence, next_step_scheduled_at')
           .eq('automation_id', automation.id)
           .eq('customer_id', customer.id)
           .in('status', ['active', 'paused'])
+          .order('run_sequence', { ascending: false })
           .limit(1)
           .maybeSingle();
 
+        // Handle overlapping automations based on overlap_behavior setting
+        const overlapBehavior = automation.overlap_behavior || 'ignore';
+        let nextRunSequence = 1;
+
         if (existingRun) {
-          console.log(`⏭️ Skipping customer ${customer.email} - already has active run`);
-          continue;
+          switch (overlapBehavior) {
+            case 'ignore':
+              console.log(`⏭️ Skipping customer ${customer.email} - already has active run (ignore mode)`);
+              continue;
+              
+            case 'restart':
+              console.log(`🔄 Restarting automation for ${customer.email} (cancelling existing run)`);
+              // Cancel the existing run
+              await supabase
+                .from('automation_runs')
+                .update({ 
+                  status: 'cancelled', 
+                  error_message: 'Cancelled due to re-trigger (restart mode)',
+                  completed_at: new Date().toISOString()
+                })
+                .eq('id', existingRun.id);
+              // Skip any pending messages for the cancelled run
+              await supabase
+                .from('crm_outbox')
+                .update({ 
+                  status: 'skipped', 
+                  skip_reason: 'Run restarted',
+                  skipped_at: new Date().toISOString()
+                })
+                .eq('automation_run_id', existingRun.id)
+                .eq('status', 'queued');
+              nextRunSequence = 1;
+              break;
+              
+            case 'parallel':
+              // Get max sequence number and increment
+              const { data: maxSeqData } = await supabase
+                .from('automation_runs')
+                .select('run_sequence')
+                .eq('automation_id', automation.id)
+                .eq('customer_id', customer.id)
+                .order('run_sequence', { ascending: false })
+                .limit(1)
+                .maybeSingle();
+              nextRunSequence = (maxSeqData?.run_sequence || 0) + 1;
+              console.log(`🔀 Creating parallel run for ${customer.email} (sequence: ${nextRunSequence})`);
+              break;
+              
+            case 'queue':
+              // Queue mode not supported for batch processing - skip
+              console.log(`⏭️ Skipping customer ${customer.email} - queue mode not supported for batch processing`);
+              continue;
+              
+            default:
+              console.log(`⏭️ Skipping customer ${customer.email} - already has active run`);
+              continue;
+          }
         }
 
-        // Create new automation run
-        const runId = await createAutomationRun(supabase, automation, customer, workflowSteps.length);
+        // Create new automation run with sequence number
+        const runId = await createAutomationRun(supabase, automation, customer, workflowSteps.length, undefined, nextRunSequence);
         if (!runId) {
           console.error(`❌ Failed to create automation run for customer ${customer.id}`);
           continue;
