@@ -65,23 +65,57 @@ export const CRMAutomationCanvasPage: React.FC = () => {
       if (error) throw error;
       if (data) {
         setAutomationName((data as any).name || 'Untitled Automation');
-        const ws = (data as any).workflow_steps;
-        if (isFlowState(ws)) {
-          setFlowState({ nodes: ws.nodes, edges: ws.edges });
-        } else {
-          const subtype = (data as any)?.trigger_conditions?.subtype || (data as any)?.trigger_type || 'manual';
-          const initial: FlowState = {
-            nodes: [
-              {
-                id: 'trigger-1',
-                type: 'trigger',
-                position: { x: 160, y: 80 },
-                data: { label: String(subtype).replace(/_/g, ' '), triggerType: subtype },
-              },
-            ],
-            edges: [],
-          };
-          setFlowState(initial);
+        const dbOverlapBehavior = (data as any).overlap_behavior || 'ignore';
+        
+        // Priority 1: Load from flow_state (contains full trigger node data)
+        const fs = (data as any).flow_state;
+        if (isFlowState(fs)) {
+          // Ensure trigger node has overlapBehavior from DB column as fallback
+          const updatedNodes = fs.nodes.map((node: any) => {
+            if (node.type === 'trigger' && !node.data?.overlapBehavior) {
+              return {
+                ...node,
+                data: { ...node.data, overlapBehavior: dbOverlapBehavior }
+              };
+            }
+            return node;
+          });
+          setFlowState({ nodes: updatedNodes, edges: fs.edges });
+        } 
+        // Priority 2: Fallback to workflow_steps for legacy automations
+        else {
+          const ws = (data as any).workflow_steps;
+          if (isFlowState(ws)) {
+            const updatedNodes = ws.nodes.map((node: any) => {
+              if (node.type === 'trigger' && !node.data?.overlapBehavior) {
+                return {
+                  ...node,
+                  data: { ...node.data, overlapBehavior: dbOverlapBehavior }
+                };
+              }
+              return node;
+            });
+            setFlowState({ nodes: updatedNodes, edges: ws.edges });
+          } else {
+            // Priority 3: Create initial state from trigger_type
+            const subtype = (data as any)?.trigger_conditions?.subtype || (data as any)?.trigger_type || 'manual';
+            const initial: FlowState = {
+              nodes: [
+                {
+                  id: 'trigger-1',
+                  type: 'trigger',
+                  position: { x: 160, y: 80 },
+                  data: { 
+                    label: String(subtype).replace(/_/g, ' '), 
+                    triggerType: subtype,
+                    overlapBehavior: dbOverlapBehavior 
+                  },
+                },
+              ],
+              edges: [],
+            };
+            setFlowState(initial);
+          }
         }
       }
     } catch (e) {
