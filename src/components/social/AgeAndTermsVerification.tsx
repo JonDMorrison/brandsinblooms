@@ -31,7 +31,7 @@ export const AgeAndTermsVerification: React.FC<AgeAndTermsVerificationProps> = (
           >
             I confirm that I am 13 years of age or older and agree to the{' '}
             <a 
-              href="https://brandsinblooms.com/pages/bloomsuite-privacy" 
+              href="https://bloomsuite.app/privacy" 
               target="_blank"
               rel="noopener noreferrer"
               className="text-primary hover:text-primary/80 underline font-medium transition-colors duration-200"
@@ -40,7 +40,7 @@ export const AgeAndTermsVerification: React.FC<AgeAndTermsVerificationProps> = (
             </a>{' '}
             and{' '}
             <a 
-              href="https://brandsinblooms.com/pages/terms-of-service" 
+              href="https://bloomsuite.app/terms" 
               target="_blank"
               rel="noopener noreferrer"
               className="text-primary hover:text-primary/80 underline font-medium transition-colors duration-200"
