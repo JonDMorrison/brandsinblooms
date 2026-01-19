@@ -38,17 +38,28 @@ export const useAutomationFlow = (
   // Add new node to canvas
   const addNode = useCallback(
     (nodeType: string, position: { x: number; y: number }) => {
-      const newNode: Node = {
-        id: generateNodeId(nodeType),
-        type: nodeType,
-        position,
-        data: getDefaultNodeData(nodeType),
-      };
+      setNodes((nds) => {
+        if (nodeType === 'trigger' && nds.some((n) => n.type === 'trigger')) {
+          toast({
+            title: 'Trigger already exists',
+            description: 'Only one trigger is allowed per automation.',
+            variant: 'destructive',
+          });
+          return nds;
+        }
 
-      setNodes((nds) => [...nds, newNode]);
+        const newNode: Node = {
+          id: generateNodeId(nodeType),
+          type: nodeType,
+          position,
+          data: getDefaultNodeData(nodeType),
+        };
+
+        return [...nds, newNode];
+      });
       setIsDirty(true);
     },
-    [generateNodeId, setNodes]
+    [generateNodeId, setNodes, toast]
   );
 
   // Update node data

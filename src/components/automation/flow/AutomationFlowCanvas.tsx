@@ -512,6 +512,7 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
         onToggleAISuggestions={() => setShowAISuggestions(!showAISuggestions)}
         showAISuggestions={showAISuggestions}
         isModalOpen={showAudienceSelector}
+        hasTrigger={nodes.some(n => n.type === 'trigger')}
       />
 
       {/* AI Suggestions Panel */}

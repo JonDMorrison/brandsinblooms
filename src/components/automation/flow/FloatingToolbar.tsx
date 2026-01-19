@@ -19,6 +19,7 @@ interface FloatingToolbarProps {
   onToggleAISuggestions: () => void;
   showAISuggestions: boolean;
   isModalOpen?: boolean;
+  hasTrigger?: boolean;
 }
 
 export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({
@@ -27,6 +28,7 @@ export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({
   onToggleAISuggestions,
   showAISuggestions,
   isModalOpen = false,
+  hasTrigger = false,
 }) => {
   const [isExpanded, setIsExpanded] = useState(() => {
     const saved = localStorage.getItem('automation.toolbarExpanded');
@@ -113,19 +115,22 @@ export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({
             <div className="grid grid-cols-1 gap-2">
               {nodeTypes.map((nodeType) => {
                 const Icon = nodeType.icon;
+                const isTriggerButton = nodeType.type === 'trigger';
+                const isDisabled = isTriggerButton && hasTrigger;
                 return (
                   <Button
                     key={nodeType.type}
                     variant="ghost"
                     size="sm"
                     onClick={() => onAddNode(nodeType.type)}
+                    disabled={isDisabled}
                     className="justify-start gap-2 h-auto p-2 w-full"
                   >
                     <Icon className={`w-4 h-4 ${nodeType.color}`} />
                     <div className="text-left">
                       <div className="text-sm font-medium">{nodeType.label}</div>
                       <div className="text-xs text-muted-foreground">
-                        {nodeType.description}
+                        {isDisabled ? 'Only one trigger allowed' : nodeType.description}
                       </div>
                     </div>
                   </Button>

@@ -14,6 +14,57 @@ export interface FlowCompilationResult {
   hasSMSSteps: boolean;
 }
 
+function parseDelayToMinutes(delay: unknown): number {
+  if (delay == null) return 0;
+  if (typeof delay === 'number' && !Number.isNaN(delay)) return delay;
+
+  const raw = String(delay).trim();
+  if (!raw) return 0;
+  const s = raw.toLowerCase();
+
+  if (s === 'immediate' || s === 'now' || s === '0') return 0;
+
+  // Common compact formats from UI: 1h, 2h, 24h, 2d, 7d
+  const compact = s.match(/^(-?\d+)\s*([mhd])$/);
+  if (compact) {
+    const value = Number(compact[1]);
+    const unit = compact[2];
+    if (Number.isNaN(value)) return 0;
+    if (unit === 'm') return value;
+    if (unit === 'h') return value * 60;
+    if (unit === 'd') return value * 60 * 24;
+  }
+
+  // Natural formats: "24 hours", "2 days", "15 minutes"
+  const natural = s.match(/^(-?\d+)\s*(minute|minutes|min|m|hour|hours|hr|h|day|days|d)$/);
+  if (natural) {
+    const value = Number(natural[1]);
+    const unit = natural[2];
+    if (Number.isNaN(value)) return 0;
+    if (unit.startsWith('m')) return value;
+    if (unit.startsWith('h')) return value * 60;
+    if (unit.startsWith('d')) return value * 60 * 24;
+  }
+
+  return 0;
+}
+
+function parseDelayNodeMinutes(node: Node): number {
+  const delayValue = Number(node.data?.delayValue) || 0;
+  const delayUnit = String(node.data?.delayUnit || 'hours');
+
+  switch (delayUnit) {
+    case 'minutes':
+      return delayValue;
+    case 'hours':
+      return delayValue * 60;
+    case 'days':
+      return delayValue * 60 * 24;
+    default:
+      return delayValue * 60;
+  }
+}
+
 /**
  * Compiles a React Flow graph into a linear sequence of workflow steps
  * @param flowState - The React Flow state with nodes and edges
@@ -23,7 +74,7 @@ export function compileFlow(flowState: { nodes: Node[]; edges: Edge[] }): FlowCo
   const { nodes, edges } = flowState;
   const warnings: string[] = [];
   const steps: WorkflowStep[] = [];
-  
+
   if (!nodes || nodes.length === 0) {
     warnings.push('No nodes found in flow');
     return { steps: [], warnings, hasEmailSteps: false, hasSMSSteps: false };
@@ -38,102 +89,72 @@ export function compileFlow(flowState: { nodes: Node[]; edges: Edge[] }): FlowCo
 
   // Build adjacency map from edges
   const adjacencyMap = new Map<string, string[]>();
-  edges.forEach(edge => {
+  edges.forEach((edge) => {
     if (!adjacencyMap.has(edge.source)) {
       adjacencyMap.set(edge.source, []);
     }
     adjacencyMap.get(edge.source)!.push(edge.target);
   });
 
-  // Traverse flow starting from trigger, accumulating delays
-  let cumulativeDelay = 0;
+  // Prefer a linear traversal: per-step delays are delta from the previous action.
+  // If there are branches, pick the first path and warn.
   const visited = new Set<string>();
-  const queue = [{ nodeId: triggerNode.id, delay: 0 }];
+  let currentId: string | null = triggerNode.id;
+  let delaySinceLastAction = 0;
 
-  while (queue.length > 0) {
-    const { nodeId, delay } = queue.shift()!;
-    
-    if (visited.has(nodeId)) continue;
-    visited.add(nodeId);
+  while (currentId) {
+    if (visited.has(currentId)) break;
+    visited.add(currentId);
 
-    const node = nodes.find(n => n.id === nodeId);
-    if (!node) continue;
+    const node = nodes.find((n) => n.id === currentId);
+    if (!node) break;
 
-    // Process current node
     if (node.type === 'delay') {
-      // Accumulate delay from delay nodes
-      const delayValue = Number(node.data?.delayValue) || 1;
-      const delayUnit = String(node.data?.delayUnit) || 'hours';
-      
-      let delayMinutes = 0;
-      switch (delayUnit) {
-        case 'minutes':
-          delayMinutes = delayValue;
-          break;
-        case 'hours':
-          delayMinutes = delayValue * 60;
-          break;
-        case 'days':
-          delayMinutes = delayValue * 60 * 24;
-          break;
-        default:
-          delayMinutes = delayValue * 60; // Default to hours
-      }
-      
-      cumulativeDelay = delay + delayMinutes;
+      delaySinceLastAction += parseDelayNodeMinutes(node);
     } else if (node.type === 'email') {
-      // Compile email step
       const subject = String(node.data?.subject || node.data?.title || 'Untitled Email');
       const text = String(node.data?.body || node.data?.content || node.data?.message || '');
-      
-      if (!text.trim()) {
-        warnings.push(`Email node "${subject}" has no content`);
-      }
+      const nodeDelay = parseDelayToMinutes(node.data?.delay);
+
+      if (!text.trim()) warnings.push(`Email node "${subject}" has no content`);
 
       steps.push({
         type: 'email',
-        delayMin: delay,
+        delayMin: delaySinceLastAction + nodeDelay,
         subject,
-        text
+        text,
       });
 
-      cumulativeDelay = delay; // Reset for next step
+      delaySinceLastAction = 0;
     } else if (node.type === 'sms') {
-      // Compile SMS step
       const text = String(node.data?.content || node.data?.message || node.data?.text || '');
-      
-      if (!text.trim()) {
-        warnings.push(`SMS node has no content`);
-      }
+      const nodeDelay = parseDelayToMinutes(node.data?.delay);
 
-      if (text.length > 160) {
-        warnings.push(`SMS message exceeds 160 characters (${text.length})`);
-      }
+      if (!text.trim()) warnings.push(`SMS node has no content`);
+      if (text.length > 160) warnings.push(`SMS message exceeds 160 characters (${text.length})`);
 
       steps.push({
         type: 'sms',
-        delayMin: delay,
-        text
+        delayMin: delaySinceLastAction + nodeDelay,
+        text,
       });
 
-      cumulativeDelay = delay; // Reset for next step
+      delaySinceLastAction = 0;
     }
 
-    // Add connected nodes to queue with accumulated delay
-    const connectedNodes = adjacencyMap.get(nodeId) || [];
-    connectedNodes.forEach(targetId => {
-      if (!visited.has(targetId)) {
-        queue.push({ nodeId: targetId, delay: cumulativeDelay });
-      }
-    });
+    const outgoing = adjacencyMap.get(currentId) || [];
+    if (outgoing.length > 1) {
+      warnings.push(`Node ${currentId} has ${outgoing.length} outgoing paths; compiler will follow the first path only`);
+    }
+    currentId = outgoing[0] ?? null;
   }
 
   // Check for unvisited action nodes (disconnected nodes)
-  const unvisitedActionNodes = nodes.filter(node => 
-    !visited.has(node.id) && 
+  const unvisitedActionNodes = nodes.filter(node =>
+    !visited.has(node.id) &&
     (node.type === 'email' || node.type === 'sms')
   );
-  
+
   if (unvisitedActionNodes.length > 0) {
     warnings.push(`${unvisitedActionNodes.length} action node(s) are not connected to the flow`);
   }
@@ -173,7 +194,7 @@ export function validateCompiledWorkflow(compilation: FlowCompilationResult): {
     if (!step.text.trim()) {
       errors.push(`Step ${index + 1} (${step.type}) has no content`);
     }
-    
+
     if (step.type === 'email' && !step.subject?.trim()) {
       errors.push(`Email step ${index + 1} has no subject`);
     }
@@ -196,7 +217,7 @@ export function validateCompiledWorkflow(compilation: FlowCompilationResult): {
  * Creates a simple flow state for starter pack templates
  */
 export function createStarterFlowState(
-  triggerId: string, 
+  triggerId: string,
   steps: WorkflowStep[]
 ): { nodes: Node[]; edges: Edge[] } {
   const nodes: Node[] = [];

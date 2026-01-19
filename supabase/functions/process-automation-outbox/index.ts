@@ -64,7 +64,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const tenantIds = [...new Set((tenantRows || []).map((r: any) => r.tenant_id))];
-    
+
     if (tenantIds.length === 0) {
       console.log("📭 No tenants with queued messages");
       return new Response(
@@ -86,10 +86,10 @@ const handler = async (req: Request): Promise<Response> => {
     let allClaimedMessages: OutboxMessage[] = [];
     for (const tenantId of tenantIds) {
       const { data: tenantMessages, error: claimError } = await supabase
-        .rpc("claim_outbox_messages", { 
+        .rpc("claim_outbox_messages", {
           p_tenant_id: tenantId,
-          p_limit: BATCH_SIZE, 
-          p_worker_id: WORKER_ID 
+          p_limit: BATCH_SIZE,
+          p_worker_id: WORKER_ID
         });
 
       if (claimError) {
@@ -133,7 +133,7 @@ const handler = async (req: Request): Promise<Response> => {
 
         // 3. Check channel availability before attempting to send
         const channelStatus = isChannelAvailable(message.message_type);
-        
+
         if (!channelStatus.available) {
           console.log(`⏭️ Skipping ${message.message_type} step - channel not available: ${channelStatus.reason}`);
           await skipMessage(supabase, message, channelStatus.reason || 'Channel not configured');
@@ -145,7 +145,7 @@ const handler = async (req: Request): Promise<Response> => {
         }
 
         // 4. Send the message based on type
-        let sendResult: { success: boolean; error?: string; shouldSkip?: boolean; external_id?: string };
+        let sendResult: { success: boolean; error?: string; shouldSkip?: boolean; external_id?: string; canRetry?: boolean };
 
         if (message.message_type === "email") {
           sendResult = await sendEmail(supabase, message);
@@ -169,7 +169,7 @@ const handler = async (req: Request): Promise<Response> => {
         // 6. Update message status and log to crm_message_logs
         if (sendResult.success) {
           const sentAt = new Date().toISOString();
-          
+
           // Update outbox to sent
           await supabase
             .from("crm_outbox")
@@ -202,19 +202,16 @@ const handler = async (req: Request): Promise<Response> => {
             console.log(`📝 Logged to crm_message_logs: external_id=${sendResult.external_id}`);
           }
 
-          // Log success in automation logs
+          // Log success in automation logs (resilient to missing unique constraint)
           if (message.automation_id) {
-            await supabase.from("crm_automation_logs").upsert(
-              {
-                automation_id: message.automation_id,
-                customer_id: message.customer_id,
-                step_index: message.step_index,
-                message_type: message.message_type,
-                status: "sent",
-                sent_at: sentAt,
-              },
-              { onConflict: "automation_id,customer_id,step_index" }
-            );
+            await writeAutomationLog(supabase, {
+              automation_id: message.automation_id,
+              customer_id: message.customer_id,
+              step_index: message.step_index,
+              message_type: message.message_type,
+              status: 'sent',
+              sent_at: sentAt,
+            });
           }
 
           // Advance automation run to next step
@@ -228,14 +225,18 @@ const handler = async (req: Request): Promise<Response> => {
           const newRetryCount = (message.retry_count || 0) + 1;
           const maxRetries = message.max_retries || 3;
 
-          if (newRetryCount >= maxRetries) {
+          // If the sender tells us not to retry, treat as terminal immediately.
+          const isNonRetryable = sendResult.canRetry === false;
+          const effectiveRetryCount = isNonRetryable ? maxRetries : newRetryCount;
+
+          if (effectiveRetryCount >= maxRetries) {
             // Max retries reached, mark message as failed
             await supabase
               .from("crm_outbox")
               .update({
                 status: "failed",
                 error_message: sendResult.error,
-                retry_count: newRetryCount,
+                retry_count: effectiveRetryCount,
                 locked_until: null,
                 locked_by: null,
               })
@@ -253,34 +254,34 @@ const handler = async (req: Request): Promise<Response> => {
                 automation_id: message.automation_id,
                 customer_id: message.customer_id,
                 step_index: message.step_index,
-                retry_count: newRetryCount,
+                retry_count: effectiveRetryCount,
                 soft_failed: SOFT_FAILURE_MODE,
+                non_retryable: isNonRetryable,
               },
             });
 
             // Soft failure mode: Continue to next step instead of blocking entire automation
             if (SOFT_FAILURE_MODE && message.automation_run_id) {
               console.log(`⚠️ Soft failure mode: Step ${message.step_index} (${message.message_type}) failed, continuing to next step`);
-              
+
               // Log as soft_failed in automation logs
               if (message.automation_id) {
-                await supabase.from("crm_automation_logs").upsert(
-                  {
-                    automation_id: message.automation_id,
-                    customer_id: message.customer_id,
-                    step_index: message.step_index,
-                    message_type: message.message_type,
-                    status: "soft_failed",
-                    error_message: sendResult.error,
-                    skip_reason: `Failed after ${newRetryCount} retries - bypassed to continue automation`,
-                  },
-                  { onConflict: "automation_id,customer_id,step_index" }
-                );
+                await writeAutomationLog(supabase, {
+                  automation_id: message.automation_id,
+                  customer_id: message.customer_id,
+                  step_index: message.step_index,
+                  message_type: message.message_type,
+                  status: 'soft_failed',
+                  error_message: sendResult.error,
+                  skip_reason: isNonRetryable
+                    ? 'Non-retryable failure - bypassed to continue automation'
+                    : `Failed after ${effectiveRetryCount} retries - bypassed to continue automation`,
+                });
               }
-              
+
               // Continue to next step despite failure
               await advanceAutomationRun(supabase, message);
-              
+
             } else if (message.automation_run_id) {
               // Original behavior: mark entire automation as failed
               await supabase
@@ -293,7 +294,9 @@ const handler = async (req: Request): Promise<Response> => {
             }
 
             failed++;
-            console.error(`❌ Message ${message.id} failed after ${newRetryCount} retries: ${sendResult.error}`);
+            console.error(
+              `❌ Message ${message.id} failed${isNonRetryable ? ' (non-retryable)' : ''} after ${effectiveRetryCount} retries: ${sendResult.error}`
+            );
           } else {
             // Schedule retry with exponential backoff
             const backoffMinutes = Math.pow(2, newRetryCount);
@@ -365,7 +368,7 @@ async function skipMessage(
   reason: string
 ): Promise<void> {
   const now = new Date().toISOString();
-  
+
   await supabase
     .from("crm_outbox")
     .update({
@@ -412,7 +415,7 @@ async function skipMessage(
 async function sendEmail(
   supabase: ReturnType<typeof createClient>,
   message: OutboxMessage
-): Promise<{ success: boolean; error?: string; shouldSkip?: boolean; external_id?: string }> {
+): Promise<{ success: boolean; error?: string; shouldSkip?: boolean; external_id?: string; canRetry?: boolean }> {
   try {
     const templateData = message.template_data || {};
     let senderConfig: SenderConfig;
@@ -473,9 +476,13 @@ async function sendEmail(
 
     if (!data?.success) {
       if (data?.skipable) {
-        return { success: false, error: data.error, shouldSkip: true };
+        return { success: false, error: data.error, shouldSkip: true, canRetry: false };
       }
-      return { success: false, error: data?.error || "Email send failed" };
+      return {
+        success: false,
+        error: data?.error || "Email send failed",
+        canRetry: typeof data?.canRetry === 'boolean' ? data.canRetry : true,
+      };
     }
 
     console.log(`✅ [SendEmail] Email sent via ${senderConfig.deliveryMethod}: ${message.recipient}, external_id: ${data.external_id}`);
@@ -489,7 +496,7 @@ async function sendEmail(
 async function sendSMS(
   supabase: ReturnType<typeof createClient>,
   message: OutboxMessage
-): Promise<{ success: boolean; error?: string; shouldSkip?: boolean; external_id?: string }> {
+): Promise<{ success: boolean; error?: string; shouldSkip?: boolean; external_id?: string; canRetry?: boolean }> {
   try {
     const { data, error } = await supabase.functions.invoke("send-sms", {
       body: {
@@ -509,11 +516,20 @@ async function sendSMS(
     // Check for any skipable response (unsupported region, not configured, etc.)
     if (data?.skipable) {
       console.log(`📱 [SendSMS] Skipable SMS response: ${data.error || data.message}`);
-      return { success: false, error: data.message || data.error || 'SMS skipped', shouldSkip: true };
+      return {
+        success: false,
+        error: data.message || data.error || 'SMS skipped',
+        shouldSkip: true,
+        canRetry: false,
+      };
     }
 
     if (data?.error) {
-      return { success: false, error: data.error };
+      return {
+        success: false,
+        error: data.error,
+        canRetry: typeof data?.canRetry === 'boolean' ? data.canRetry : true,
+      };
     }
 
     // send-sms returns { sid, status, message }
@@ -523,6 +539,42 @@ async function sendSMS(
   } catch (err) {
     console.error(`❌ [SendSMS] Exception:`, err);
     return { success: false, error: err instanceof Error ? err.message : "SMS send failed" };
+  }
+}
+
+async function writeAutomationLog(
+  supabase: ReturnType<typeof createClient>,
+  row: {
+    automation_id: string;
+    customer_id: string;
+    step_index: number;
+    message_type: string;
+    status: string;
+    sent_at?: string;
+    error_message?: string;
+    skip_reason?: string;
+  }
+): Promise<void> {
+  // Prefer upsert when a unique constraint exists; fall back to insert otherwise.
+  const { error: upsertError } = await supabase
+    .from('crm_automation_logs')
+    .upsert(row as any, { onConflict: 'automation_id,customer_id,step_index' });
+
+  if (!upsertError) return;
+
+  const message = (upsertError as any)?.message || '';
+  const code = (upsertError as any)?.code;
+  const looksLikeMissingConstraint =
+    code === '42P10' || message.toLowerCase().includes('no unique') || message.toLowerCase().includes('on conflict');
+
+  if (!looksLikeMissingConstraint) {
+    console.error('⚠️ Failed to upsert crm_automation_logs:', upsertError);
+    return;
+  }
+
+  const { error: insertError } = await supabase.from('crm_automation_logs').insert(row as any);
+  if (insertError) {
+    console.error('⚠️ Failed to insert crm_automation_logs:', insertError);
   }
 }
 
@@ -580,7 +632,7 @@ async function advanceAutomationRun(
 
       if (customer && nextStep) {
         const nextChannelStatus = isChannelAvailable(nextStep.type);
-        
+
         // Enqueue next step with status='queued'
         const { error: insertError } = await supabase.from("crm_outbox").insert({
           tenant_id: message.tenant_id,
@@ -602,7 +654,7 @@ async function advanceAutomationRun(
             channel_skip_reason: nextChannelStatus.reason,
           },
         });
-        
+
         if (insertError) {
           console.error(`❌ Failed to enqueue step ${nextStepIndex}:`, insertError);
           return;
@@ -625,11 +677,11 @@ interface WorkflowStep {
 function normalizeWorkflowSteps(workflowSteps: any): WorkflowStep[] {
   if (Array.isArray(workflowSteps)) {
     console.log(`🔄 Normalizing array format (${workflowSteps.length} raw steps)`);
-    
+
     // Calculate cumulative delays from delay nodes
     let cumulativeDelayFromDelayNodes = 0;
     const normalizedSteps: WorkflowStep[] = [];
-    
+
     for (const step of workflowSteps) {
       // If this is a delay-type node, accumulate it for the next message step
       if (step.type === 'delay') {
@@ -637,30 +689,30 @@ function normalizeWorkflowSteps(workflowSteps: any): WorkflowStep[] {
         console.log(`  ⏳ Delay node: accumulated ${cumulativeDelayFromDelayNodes} min`);
         continue;
       }
-      
+
       // Only process email and sms steps
       if (step.type === 'email' || step.type === 'sms') {
         const stepDelay = parseStepDelay(step);
         const totalDelay = stepDelay + cumulativeDelayFromDelayNodes;
-        
+
         normalizedSteps.push({
           type: step.type as 'email' | 'sms',
           delayMin: totalDelay,
           subject: step.subject || '',
           text: step.content || step.text || ''
         });
-        
+
         console.log(`  📧 ${step.type} step: delay=${totalDelay}min, content=${(step.content || step.text || '').substring(0, 50)}...`);
-        
+
         // Reset cumulative delay after applying to a message step
         cumulativeDelayFromDelayNodes = 0;
       }
     }
-    
+
     console.log(`📋 Normalized ${normalizedSteps.length} message steps from ${workflowSteps.length} raw steps`);
     return normalizedSteps;
   }
-  
+
   // Handle React Flow format with nodes/edges
   if (workflowSteps && typeof workflowSteps === 'object' && Array.isArray(workflowSteps.nodes)) {
     console.log(`🔄 Converting React Flow format (${workflowSteps.nodes.length} nodes)`);
@@ -676,7 +728,7 @@ function normalizeWorkflowSteps(workflowSteps: any): WorkflowStep[] {
         };
       });
   }
-  
+
   console.log(`⚠️ Unknown workflow_steps format, returning empty array`);
   return [];
 }
@@ -686,7 +738,7 @@ function parseStepDelay(step: any): number {
   if (typeof step.delayMin === 'number' && !isNaN(step.delayMin)) {
     return step.delayMin;
   }
-  
+
   // Handle delayValue + delayUnit format
   if (step.delayValue !== undefined && step.delayUnit) {
     const value = parseInt(step.delayValue, 10) || 0;
@@ -698,26 +750,26 @@ function parseStepDelay(step: any): number {
       default: return 0;
     }
   }
-  
+
   // Handle string delay format
   if (step.delay !== undefined) {
     return parseDelayToMinutes(step.delay);
   }
-  
+
   return 0;
 }
 
 function parseDelayToMinutes(delay: string | number): number {
   if (typeof delay === 'number') return delay;
   if (!delay || delay === 'Immediate') return 0;
-  
+
   const lower = delay.toLowerCase();
   const match = lower.match(/(\d+)\s*(minute|hour|day|week)/);
   if (!match) return 0;
-  
+
   const value = parseInt(match[1], 10);
   const unit = match[2];
-  
+
   switch (unit) {
     case 'minute': return value;
     case 'hour': return value * 60;

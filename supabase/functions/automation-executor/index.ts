@@ -27,14 +27,14 @@ interface WorkflowStep {
 function parseDelayToMinutes(delay: string | number): number {
   if (typeof delay === 'number') return delay;
   if (!delay || delay === 'Immediate') return 0;
-  
+
   const lower = delay.toLowerCase();
   const match = lower.match(/(\d+)\s*(minute|hour|day|week)/);
   if (!match) return 0;
-  
+
   const value = parseInt(match[1], 10);
   const unit = match[2];
-  
+
   switch (unit) {
     case 'minute': return value;
     case 'hour': return value * 60;
@@ -50,7 +50,7 @@ function parseStepDelay(step: any): number {
   if (typeof step.delayMin === 'number' && !isNaN(step.delayMin)) {
     return step.delayMin;
   }
-  
+
   // Handle delayValue + delayUnit format (e.g., {delayValue: 2, delayUnit: "days"})
   if (step.delayValue !== undefined && step.delayUnit) {
     const value = parseInt(step.delayValue, 10) || 0;
@@ -62,12 +62,12 @@ function parseStepDelay(step: any): number {
       default: return 0;
     }
   }
-  
+
   // Handle delay string format (e.g., "24 hours", "Immediate")
   if (step.delay !== undefined) {
     return parseDelayToMinutes(step.delay);
   }
-  
+
   return 0; // Default to immediate
 }
 
@@ -76,39 +76,39 @@ function normalizeWorkflowSteps(workflowSteps: any): WorkflowStep[] {
   // If it's already an array, parse each step properly
   if (Array.isArray(workflowSteps)) {
     console.log(`🔄 Normalizing array format (${workflowSteps.length} steps)`);
-    
+
     // Calculate cumulative delays from delay nodes
     let cumulativeDelayFromDelayNodes = 0;
     const normalizedSteps: WorkflowStep[] = [];
-    
+
     for (const step of workflowSteps) {
       // If this is a delay-type node, accumulate it for the next message step
       if (step.type === 'delay') {
         cumulativeDelayFromDelayNodes += parseStepDelay(step);
         continue;
       }
-      
+
       // Only process email and sms steps
       if (step.type === 'email' || step.type === 'sms') {
         const stepDelay = parseStepDelay(step);
         const totalDelay = stepDelay + cumulativeDelayFromDelayNodes;
-        
+
         normalizedSteps.push({
           type: step.type as 'email' | 'sms',
           delayMin: totalDelay,
           subject: step.subject || '',
           text: step.content || step.text || ''
         });
-        
+
         // Reset cumulative delay after applying to a message step
         cumulativeDelayFromDelayNodes = 0;
       }
     }
-    
+
     console.log(`📋 Normalized ${normalizedSteps.length} message steps from array`);
     return normalizedSteps;
   }
-  
+
   // If it's React Flow format with nodes/edges
   if (workflowSteps && typeof workflowSteps === 'object' && Array.isArray(workflowSteps.nodes)) {
     console.log(`🔄 Converting React Flow format (${workflowSteps.nodes.length} nodes)`);
@@ -124,7 +124,7 @@ function normalizeWorkflowSteps(workflowSteps: any): WorkflowStep[] {
         };
       });
   }
-  
+
   // Fallback: return empty array
   console.log(`⚠️ Unknown workflow_steps format, returning empty array`);
   return [];
@@ -139,16 +139,16 @@ const handler = async (req: Request): Promise<Response> => {
     // Allow calls with apikey header (for pg_cron) or standard Authorization
     const authHeader = req.headers.get('Authorization');
     const apiKey = req.headers.get('apikey');
-    
+
     // If neither auth header nor apikey, check for service role in request
     if (!authHeader && !apiKey) {
       // For now, allow unauthenticated calls since this runs via cron
       // The function uses service role key internally anyway
       console.log('⚠️ No auth header, proceeding with service role');
     }
-    
+
     console.log('🤖 Automation Executor starting...');
-    
+
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
@@ -190,9 +190,9 @@ const handler = async (req: Request): Promise<Response> => {
       if (['segment.added', 'segment_added', 'persona.assigned', 'persona_assigned'].includes(automation.trigger_type)) {
         continue;
       }
-      
+
       console.log(`🔄 Processing automation: ${automation.name} (${automation.trigger_type})`);
-      
+
       try {
         // Check provider readiness before processing
         const providerCheck = await checkProviderReadiness(supabase, automation);
@@ -244,7 +244,7 @@ async function checkProviderReadiness(supabase: any, automation: any): Promise<{
   // Check channel availability
   const channels = checkChannelAvailability();
   console.log(`📊 [ProviderCheck] Channel availability: Email=${channels.email.available}, SMS=${channels.sms.available}`);
-  
+
   if (hasSMSSteps && !channels.sms.available) {
     console.log(`⚠️ Automation has SMS steps but SMS is not configured (${channels.sms.reason}). SMS steps will be skipped.`);
   }
@@ -320,23 +320,34 @@ async function processAutomation(supabase: any, automation: any) {
           .limit(1)
           .maybeSingle();
 
+        // Always compute a safe next run sequence number (even if no active run)
+        // to avoid unique violations when re-triggering after a completed run.
+        const { data: maxSeqData } = await supabase
+          .from('automation_runs')
+          .select('run_sequence')
+          .eq('automation_id', automation.id)
+          .eq('customer_id', customer.id)
+          .order('run_sequence', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
         // Handle overlapping automations based on overlap_behavior setting
         const overlapBehavior = automation.overlap_behavior || 'ignore';
-        let nextRunSequence = 1;
+        let nextRunSequence = (maxSeqData?.run_sequence || 0) + 1;
 
         if (existingRun) {
           switch (overlapBehavior) {
             case 'ignore':
               console.log(`⏭️ Skipping customer ${customer.email} - already has active run (ignore mode)`);
               continue;
-              
+
             case 'restart':
               console.log(`🔄 Restarting automation for ${customer.email} (cancelling existing run)`);
               // Cancel the existing run
               await supabase
                 .from('automation_runs')
-                .update({ 
-                  status: 'cancelled', 
+                .update({
+                  status: 'cancelled',
                   error_message: 'Cancelled due to re-trigger (restart mode)',
                   completed_at: new Date().toISOString()
                 })
@@ -344,35 +355,24 @@ async function processAutomation(supabase: any, automation: any) {
               // Skip any pending messages for the cancelled run
               await supabase
                 .from('crm_outbox')
-                .update({ 
-                  status: 'skipped', 
+                .update({
+                  status: 'skipped',
                   skip_reason: 'Run restarted',
                   skipped_at: new Date().toISOString()
                 })
                 .eq('automation_run_id', existingRun.id)
                 .eq('status', 'queued');
-              nextRunSequence = 1;
               break;
-              
+
             case 'parallel':
-              // Get max sequence number and increment
-              const { data: maxSeqData } = await supabase
-                .from('automation_runs')
-                .select('run_sequence')
-                .eq('automation_id', automation.id)
-                .eq('customer_id', customer.id)
-                .order('run_sequence', { ascending: false })
-                .limit(1)
-                .maybeSingle();
-              nextRunSequence = (maxSeqData?.run_sequence || 0) + 1;
               console.log(`🔀 Creating parallel run for ${customer.email} (sequence: ${nextRunSequence})`);
               break;
-              
+
             case 'queue':
               // Queue mode not supported for batch processing - skip
               console.log(`⏭️ Skipping customer ${customer.email} - queue mode not supported for batch processing`);
               continue;
-              
+
             default:
               console.log(`⏭️ Skipping customer ${customer.email} - already has active run`);
               continue;
@@ -391,7 +391,7 @@ async function processAutomation(supabase: any, automation: any) {
         const scheduledAt = calculateScheduledTime(firstStep.delayMin, automation, customer);
 
         await enqueueMessage(supabase, automation, customer, firstStep, 0, runId, scheduledAt);
-        
+
         // Update run with next scheduled time
         await supabase
           .from('automation_runs')
@@ -400,7 +400,7 @@ async function processAutomation(supabase: any, automation: any) {
 
         enqueued++;
         processed++;
-        
+
       } catch (customerError) {
         console.error(`❌ Error processing customer ${customer.id}:`, customerError);
       }
@@ -422,42 +422,68 @@ async function createAutomationRun(
   runSequence: number = 1
 ): Promise<string | null> {
   const channels = channelAvailability || checkChannelAvailability();
-  
-  const { data: run, error } = await supabase
-    .from('automation_runs')
-    .insert({
-      automation_id: automation.id,
-      customer_id: customer.id,
-      tenant_id: automation.tenant_id,
-      status: 'active',
-      current_step_index: 0,
-      total_steps: totalSteps,
-      run_sequence: runSequence,
-      trigger_data: {
-        trigger_type: automation.trigger_type,
-        triggered_at: new Date().toISOString(),
-        customer_email: customer.email,
-      },
-      metadata: {
-        automation_name: automation.name,
-        automation_version: automation.version,
-        overlap_behavior: automation.overlap_behavior || 'ignore',
-      },
-      channel_availability: {
-        email: { available: channels.email.available, reason: channels.email.reason },
-        sms: { available: channels.sms.available, reason: channels.sms.reason },
-      },
-    })
-    .select('id')
-    .single();
 
-  if (error) {
-    // Handle unique constraint violation (customer already in automation with same sequence)
-    if (error.code === '23505') {
-      console.log(`⏭️ Customer ${customer.id} already has a run for automation ${automation.id} with sequence ${runSequence}`);
-      return null;
+  async function tryInsert(sequence: number): Promise<{ id: string } | null> {
+    const { data: inserted, error } = await supabase
+      .from('automation_runs')
+      .insert({
+        automation_id: automation.id,
+        customer_id: customer.id,
+        tenant_id: automation.tenant_id,
+        status: 'active',
+        current_step_index: 0,
+        total_steps: totalSteps,
+        run_sequence: sequence,
+        trigger_data: {
+          trigger_type: automation.trigger_type,
+          triggered_at: new Date().toISOString(),
+          customer_email: customer.email,
+        },
+        metadata: {
+          automation_name: automation.name,
+          automation_version: automation.version,
+          overlap_behavior: automation.overlap_behavior || 'ignore',
+        },
+        channel_availability: {
+          email: { available: channels.email.available, reason: channels.email.reason },
+          sms: { available: channels.sms.available, reason: channels.sms.reason },
+        },
+      })
+      .select('id')
+      .single();
+
+    if (error) {
+      // Surface unique violation so we can retry with a new sequence
+      if (error.code === '23505') return null;
+      throw error;
     }
+
+    return inserted;
+  }
+
+  let run: { id: string } | null = null;
+  try {
+    run = await tryInsert(runSequence);
+    if (!run) {
+      // Unique violation: choose next available sequence and retry once.
+      const { data: maxSeqData } = await supabase
+        .from('automation_runs')
+        .select('run_sequence')
+        .eq('automation_id', automation.id)
+        .eq('customer_id', customer.id)
+        .order('run_sequence', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const nextSequence = (maxSeqData?.run_sequence || 0) + 1;
+      run = await tryInsert(nextSequence);
+    }
+  } catch (error) {
     console.error('❌ Failed to create automation run:', error);
+    return null;
+  }
+
+  if (!run) {
+    console.log(`⏭️ Customer ${customer.id} already has a run for automation ${automation.id} (sequence conflict)`);
     return null;
   }
 
@@ -468,20 +494,20 @@ async function createAutomationRun(
 function calculateScheduledTime(delayMin: number, automation: any, customer: any): Date {
   // Ensure delayMin is a valid number to prevent Invalid Date errors
   const safeDelayMin = typeof delayMin === 'number' && !isNaN(delayMin) ? delayMin : 0;
-  
+
   const baseTime = new Date();
-  
+
   // Handle special trigger types with different base times
   if (automation.trigger_type === 'birthday' && customer.custom_fields?.date_of_birth) {
     const birthday = new Date(customer.custom_fields.date_of_birth);
     const currentYear = new Date().getFullYear();
     const thisYearBirthday = new Date(currentYear, birthday.getMonth(), birthday.getDate());
-    
+
     // If birthday has passed this year, schedule for next year
     if (thisYearBirthday < new Date()) {
       thisYearBirthday.setFullYear(currentYear + 1);
     }
-    
+
     return new Date(thisYearBirthday.getTime() + safeDelayMin * 60 * 1000);
   }
 
@@ -491,7 +517,7 @@ function calculateScheduledTime(delayMin: number, automation: any, customer: any
 
 async function getEligibleCustomers(supabase: any, automation: any) {
   const { trigger_type, tenant_id } = automation;
-  
+
   let query = supabase
     .from('crm_customers')
     .select('*')
@@ -505,33 +531,33 @@ async function getEligibleCustomers(supabase: any, automation: any) {
       const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
       query = query.gte('created_at', oneDayAgo);
       break;
-      
+
     case 'first_purchase':
     case 'order.completed':
       // Customers with recent first/order purchase
       const purchaseWindow = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
       query = query.gte('last_purchase_date', purchaseWindow.split('T')[0]);
       break;
-      
+
     case 'repeat_purchase_90d':
       // Customers who haven't purchased in 90 days
       const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
       query = query.lt('last_purchase_date', ninetyDaysAgo);
       break;
-      
+
     case 'birthday':
     case 'purchase.anniversary':
       // Customers with birthday/anniversary today
       const today = new Date().toISOString().split('T')[0];
       query = query.like('custom_fields->date_of_birth', `%${today.slice(5)}%`);
       break;
-      
+
     case 'abandoned_cart':
       // Customers with abandoned carts
       const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
       query = query.gte('last_cart_abandoned_at', twoHoursAgo);
       break;
-      
+
     case 'review_request':
       // Customers with purchase 5 days ago
       const fiveDaysAgo = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
@@ -570,19 +596,19 @@ async function getEligibleCustomers(supabase: any, automation: any) {
       }
       // Query customers who were assigned this persona recently
       return await getCustomersAssignedToPersona(supabase, tenant_id, targetPersonaId);
-      
+
     default:
       console.log(`⚠️ Trigger type ${trigger_type} not implemented yet`);
       return [];
   }
 
   const { data: customers, error } = await query;
-  
+
   if (error) {
     console.error(`❌ Error fetching customers for ${trigger_type}:`, error);
     return [];
   }
-  
+
   return customers || [];
 }
 
@@ -596,7 +622,7 @@ async function enqueueMessage(
   scheduledAt: Date
 ) {
   const recipient = step.type === 'sms' ? customer.phone : customer.email;
-  
+
   // Check if recipient is missing
   if (!recipient) {
     console.log(`⚠️ No ${step.type} recipient for customer ${customer.email}, skipping step`);
@@ -675,7 +701,7 @@ async function enqueueMessage(
     });
     throw outboxError;
   }
-  
+
   console.log(`📬 [OUTBOX] Successfully inserted for customer ${customer.email}, type: ${step.type}`);
 
   // Log the automation step
@@ -687,7 +713,6 @@ async function enqueueMessage(
       step_index: stepIndex,
       message_type: step.type,
       status: 'queued',
-      scheduled_at: scheduledAt.toISOString(),
       created_at: new Date().toISOString()
     });
 
@@ -707,7 +732,7 @@ async function skipStep(
   reason: string
 ) {
   const now = new Date().toISOString();
-  
+
   // Insert skipped entry into outbox for tracking
   await supabase
     .from('crm_outbox')
@@ -797,12 +822,12 @@ async function advanceAfterSkip(
 function personalizeMessage(template: string, customer: any, automation: any): string {
   // Convert legacy tags first
   let normalized = convertLegacyTags(template);
-  
+
   // Create merge tag data from customer
   const mergeTagData = createMergeTagDataFromCustomer(customer, {
     company_name: 'Your Garden Center'
   });
-  
+
   // Add automation-specific placeholders to system
   mergeTagData.system = {
     ...mergeTagData.system,
@@ -811,7 +836,7 @@ function personalizeMessage(template: string, customer: any, automation: any): s
     current_year: new Date().getFullYear().toString(),
     current_date: new Date().toLocaleDateString()
   };
-  
+
   // Add custom automation data
   mergeTagData.custom = {
     ...mergeTagData.custom,
@@ -824,7 +849,7 @@ function personalizeMessage(template: string, customer: any, automation: any): s
     review_url: 'https://example.com/review',
     workshop_link: 'https://example.com/workshops'
   };
-  
+
   // Render with unified engine
   return renderMergeTags(normalized, mergeTagData);
 }
@@ -832,7 +857,7 @@ function personalizeMessage(template: string, customer: any, automation: any): s
 // Helper function to get customers recently added to a segment
 async function getCustomersAddedToSegment(supabase: any, tenantId: string, segmentId: string) {
   const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-  
+
   // Query customer_segments junction table for recent additions
   const { data: segmentMembers, error: segmentError } = await supabase
     .from('customer_segments')
@@ -869,7 +894,7 @@ async function getCustomersAddedToSegment(supabase: any, tenantId: string, segme
 // Helper function to get customers recently assigned to a persona
 async function getCustomersAssignedToPersona(supabase: any, tenantId: string, personaId: string) {
   const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-  
+
   // Query customer_personas junction table for recent assignments
   const { data: personaMembers, error: personaError } = await supabase
     .from('customer_personas')
@@ -987,9 +1012,19 @@ async function processPendingTriggerEvents(supabase: any): Promise<{ eventsProce
           .in('status', ['active', 'paused'])
           .maybeSingle();
 
+        // Always compute a safe next run sequence number (even if no active run)
+        const { data: maxSeqData } = await supabase
+          .from('automation_runs')
+          .select('run_sequence')
+          .eq('automation_id', automation.id)
+          .eq('customer_id', customer.id)
+          .order('run_sequence', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
         // Handle overlapping automations based on overlap_behavior setting
         const overlapBehavior = automation.overlap_behavior || 'ignore';
-        let nextRunSequence = 1;
+        let nextRunSequence = (maxSeqData?.run_sequence || 0) + 1;
 
         if (existingRun) {
           switch (overlapBehavior) {
@@ -998,14 +1033,14 @@ async function processPendingTriggerEvents(supabase: any): Promise<{ eventsProce
               console.log(`⏭️ Customer ${customer.email} already in active run (mode: ignore)`);
               await markEventProcessed(supabase, event.id, 'Customer already in active run (ignore mode)');
               continue;
-              
+
             case 'restart':
               // Cancel existing run and proceed with new one
               console.log(`🔄 Restarting automation for ${customer.email} (cancelling existing run)`);
               await supabase
                 .from('automation_runs')
-                .update({ 
-                  status: 'cancelled', 
+                .update({
+                  status: 'cancelled',
                   error_message: 'Cancelled due to re-trigger (restart mode)',
                   completed_at: new Date().toISOString()
                 })
@@ -1013,48 +1048,36 @@ async function processPendingTriggerEvents(supabase: any): Promise<{ eventsProce
               // Also cancel any pending outbox messages for this run
               await supabase
                 .from('crm_outbox')
-                .update({ 
-                  status: 'skipped', 
+                .update({
+                  status: 'skipped',
                   skip_reason: 'Run restarted',
                   skipped_at: new Date().toISOString()
                 })
                 .eq('automation_run_id', existingRun.id)
                 .eq('status', 'queued');
-              // Proceed to create new run with sequence 1
-              nextRunSequence = 1;
               break;
-              
+
             case 'parallel':
-              // Allow parallel runs - calculate next sequence number
-              const { data: maxSeqData } = await supabase
-                .from('automation_runs')
-                .select('run_sequence')
-                .eq('automation_id', automation.id)
-                .eq('customer_id', customer.id)
-                .order('run_sequence', { ascending: false })
-                .limit(1)
-                .maybeSingle();
-              nextRunSequence = (maxSeqData?.run_sequence || 0) + 1;
               console.log(`🔀 Parallel run for ${customer.email} (sequence: ${nextRunSequence})`);
               break;
-              
+
             case 'queue':
               // Queue the trigger to fire after current run completes
               console.log(`📋 Queueing trigger for ${customer.email} (existing run in progress)`);
               // Set queued_until to the next scheduled step time + buffer
-              const queuedUntil = existingRun.next_step_scheduled_at 
+              const queuedUntil = existingRun.next_step_scheduled_at
                 ? new Date(new Date(existingRun.next_step_scheduled_at).getTime() + 5 * 60 * 1000).toISOString()
                 : new Date(Date.now() + 60 * 60 * 1000).toISOString(); // Default 1 hour if no scheduled time
               await supabase
                 .from('automation_trigger_events')
-                .update({ 
+                .update({
                   queued_until: queuedUntil,
                   error_message: null
                 })
                 .eq('id', event.id);
               // Skip processing now - will be picked up later when queued_until passes
               continue;
-              
+
             default:
               // Unknown mode - default to ignore
               console.log(`⏭️ Customer ${customer.email} already in active run (unknown mode: ${overlapBehavior})`);
@@ -1116,7 +1139,7 @@ async function markEventProcessed(supabase: any, eventId: string, errorMessage?:
   if (errorMessage) {
     updateData.error_message = errorMessage;
   }
-  
+
   await supabase
     .from('automation_trigger_events')
     .update(updateData)

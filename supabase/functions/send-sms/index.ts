@@ -31,20 +31,20 @@ const BLOCKED_SHORTENERS = [
  */
 function normalizePhone(phone: string): string {
   if (!phone) return '';
-  
+
   // Remove all non-numeric characters
   const digits = phone.replace(/\D/g, '');
-  
+
   // If starts with 1 and is 11 digits, it's already normalized
   if (digits.length === 11 && digits.startsWith('1')) {
     return `+${digits}`;
   }
-  
+
   // If 10 digits, add +1
   if (digits.length === 10) {
     return `+1${digits}`;
   }
-  
+
   // Return as-is with + prefix if not matching expected formats
   return digits.startsWith('+') ? digits : `+${digits}`;
 }
@@ -111,10 +111,10 @@ async function handler(req: Request): Promise<Response> {
 
     if (!to || !body) {
       return new Response(
-        JSON.stringify({ error: 'Phone number and message body are required' }), 
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        JSON.stringify({ error: 'Phone number and message body are required' }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       );
     }
@@ -124,15 +124,15 @@ async function handler(req: Request): Promise<Response> {
     if (!smsStatus.available) {
       console.log(`📱 SMS not configured: ${smsStatus.reason}`);
       return new Response(
-        JSON.stringify({ 
+        JSON.stringify({
           error: 'SMS_NOT_CONFIGURED',
           skipable: true,
           message: smsStatus.reason || 'Mobile Text Alerts not configured. Step can be skipped.',
           canRetry: false
-        }), 
-        { 
+        }),
+        {
           status: 200, // Return 200 so caller can handle gracefully
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       );
     }
@@ -148,9 +148,9 @@ async function handler(req: Request): Promise<Response> {
           skipable: false,
           canRetry: false
         }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        {
+          status: 200, // Always return 200 so automation engine can decide retry/skip behavior
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       );
     }
@@ -162,19 +162,19 @@ async function handler(req: Request): Promise<Response> {
     // Check for unsupported international numbers (non-US/Canada)
     const digits = to.replace(/\D/g, '');
     const isUSCanada = digits.length === 10 || (digits.length === 11 && digits.startsWith('1'));
-    
+
     if (!isUSCanada) {
       console.log(`📱 Unsupported international number detected: ${formattedTo}`);
       return new Response(
-        JSON.stringify({ 
+        JSON.stringify({
           error: 'UNSUPPORTED_REGION',
           skipable: true,
           message: 'This phone number is in an unsupported region. SMS sending is only available for US/Canada numbers.',
           canRetry: false
-        }), 
-        { 
+        }),
+        {
           status: 200, // Return 200 so automation can continue
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       );
     }
@@ -208,7 +208,7 @@ async function handler(req: Request): Promise<Response> {
     console.log(`📱 [MTA] Validate response (HTTP ${validateParsed.status}):`, JSON.stringify(validateData));
 
     if (!validateParsed.ok) {
-      const errorMessage = validateData?.message || validateData?.error || 
+      const errorMessage = validateData?.message || validateData?.error ||
         `Recipient validation failed (HTTP ${validateParsed.status})`;
 
       return new Response(
@@ -218,9 +218,9 @@ async function handler(req: Request): Promise<Response> {
           skipable: false,
           canRetry: true
         }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        {
+          status: 200, // Always return 200 so caller can apply retries/backoff
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       );
     }
@@ -247,9 +247,9 @@ async function handler(req: Request): Promise<Response> {
           skipable: true,
           canRetry: false
         }),
-        { 
+        {
           status: 200, // Return 200 for soft failure
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       );
     }
@@ -269,7 +269,7 @@ async function handler(req: Request): Promise<Response> {
 
       const templatesParsed = await parseProviderResponse(templatesResponse);
       const templatesData = templatesParsed.json ?? null;
-      const templates = templatesData?.data || templatesData?.templates || 
+      const templates = templatesData?.data || templatesData?.templates ||
         (Array.isArray(templatesData) ? templatesData : []);
 
       if (Array.isArray(templates) && templates.length > 0) {
@@ -345,7 +345,7 @@ async function handler(req: Request): Promise<Response> {
     console.log(`📱 [MTA] Send response (HTTP ${sendParsed.status}):`, JSON.stringify(sendData));
 
     if (!sendParsed.ok) {
-      const errorMessage = sendData?.message || sendData?.error || 
+      const errorMessage = sendData?.message || sendData?.error ||
         `Failed to send message (HTTP ${sendParsed.status})`;
 
       return new Response(
@@ -355,9 +355,9 @@ async function handler(req: Request): Promise<Response> {
           skipable: false,
           canRetry: true
         }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        {
+          status: 200, // Always return 200 so caller can apply retries/backoff
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       );
     }
@@ -386,7 +386,7 @@ async function handler(req: Request): Promise<Response> {
         status: 'sent',
         message: 'SMS sent successfully via Mobile Text Alerts',
         skipable: false
-      }), 
+      }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
@@ -395,12 +395,12 @@ async function handler(req: Request): Promise<Response> {
   } catch (error) {
     console.error('Error in send-sms function:', error);
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         error: 'Internal server error',
         message: error.message,
         skipable: false,
         canRetry: true
-      }), 
+      }),
       {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

@@ -1,33 +1,50 @@
-import React, { useEffect, useState, lazy, Suspense } from 'react';
-import { useParams, useLocation } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { useToast } from '@/hooks/use-toast';
-import { ReviewLaunchModal } from '@/components/automation/flow/ReviewLaunchModal';
-import { AutomationFlowCanvas } from '@/components/automation/flow/AutomationFlowCanvas';
-import { FlowStatusBadge } from '@/components/automation/flow/FlowValidation';
-import { AudienceSelector } from '@/components/crm/AudienceSelector';
-import { Save, Users } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
-import { useIsMobile } from '@/hooks/use-mobile';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import React, { useEffect, useState, lazy, Suspense } from "react";
+import { useParams, useLocation } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { useToast } from "@/hooks/use-toast";
+import { ReviewLaunchModal } from "@/components/automation/flow/ReviewLaunchModal";
+import { AutomationFlowCanvas } from "@/components/automation/flow/AutomationFlowCanvas";
+import { FlowStatusBadge } from "@/components/automation/flow/FlowValidation";
+import { AudienceSelector } from "@/components/crm/AudienceSelector";
+import { Save, Users } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import {
+  extractTriggerConditions,
+  validateTriggerConditions,
+} from "@/lib/automation/extractTriggerConditions";
+import { useIsMobile } from "@/hooks/use-mobile";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 
-const GuidedAutomationBuilder = lazy(() => import('@/components/automation/GuidedAutomationBuilder').then(m => ({ default: m.GuidedAutomationBuilder })));
+const GuidedAutomationBuilder = lazy(() =>
+  import("@/components/automation/GuidedAutomationBuilder").then((m) => ({
+    default: m.GuidedAutomationBuilder,
+  })),
+);
 
 export const CRMAutomationBuilder = () => {
   const { automationId } = useParams();
   const location = useLocation();
   // If user navigated directly to canvas route, don't show the guide sidebar
-  const isDirectCanvasRoute = location.pathname === '/crm/automations/new/canvas';
-  const [automationName, setAutomationName] = useState('New Automation');
+  const isDirectCanvasRoute =
+    location.pathname === "/crm/automations/new/canvas";
+  const [automationName, setAutomationName] = useState("New Automation");
   const [isSaving, setIsSaving] = useState(false);
   const [isReviewOpen, setIsReviewOpen] = useState(false);
-  const [flowState, setFlowState] = useState<{ nodes: any[]; edges: any[] }>({ nodes: [], edges: [] });
+  const [flowState, setFlowState] = useState<{ nodes: any[]; edges: any[] }>({
+    nodes: [],
+    edges: [],
+  });
   const [selectedPersonas, setSelectedPersonas] = useState<any[]>([]);
   const [selectedSegments, setSelectedSegments] = useState<any[]>([]);
   const [showAudienceSelector, setShowAudienceSelector] = useState(false);
-  
+
   const { toast } = useToast();
   const { user } = useAuth();
   const [tenantId, setTenantId] = useState<string | null>(null);
@@ -43,7 +60,10 @@ export const CRMAutomationBuilder = () => {
       setSelectedPersonas(automationConfig.audience.personas || []);
       setSelectedSegments(automationConfig.audience.segments || []);
     }
-    toast({ title: 'Blueprint applied', description: 'We prefilled your canvas based on your selections.' });
+    toast({
+      title: "Blueprint applied",
+      description: "We prefilled your canvas based on your selections.",
+    });
     // Close guide sheet and mark guide as completed to hide sidebar
     setIsGuideOpen(false);
     setGuideCompleted(true);
@@ -65,14 +85,14 @@ export const CRMAutomationBuilder = () => {
     const fetchTenant = async () => {
       if (!user?.id) return;
       const { data, error } = await supabase
-        .from('users')
-        .select('tenant_id')
-        .eq('id', user.id)
+        .from("users")
+        .select("tenant_id")
+        .eq("id", user.id)
         .single();
       if (!error) {
         setTenantId(data?.tenant_id ?? null);
       } else {
-        console.error('Failed to fetch tenant_id:', error);
+        console.error("Failed to fetch tenant_id:", error);
       }
     };
     fetchTenant();
@@ -81,110 +101,136 @@ export const CRMAutomationBuilder = () => {
   // Helper to safely validate flow_state from DB
   type FlowState = { nodes: any[]; edges: any[] };
   const isFlowState = (value: any): value is FlowState => {
-    return !!value && typeof value === 'object' && Array.isArray((value as any).nodes) && Array.isArray((value as any).edges);
+    return (
+      !!value &&
+      typeof value === "object" &&
+      Array.isArray((value as any).nodes) &&
+      Array.isArray((value as any).edges)
+    );
   };
 
   const loadAutomation = async () => {
     if (!automationId) return;
-    
+
     try {
       const { data, error } = await supabase
-        .from('crm_automations')
-        .select('*')
-        .eq('id', automationId)
+        .from("crm_automations")
+        .select("*")
+        .eq("id", automationId)
         .single();
 
       if (error) {
-        console.error('Error loading automation:', error);
+        console.error("Error loading automation:", error);
         toast({
-          title: 'Error',
-          description: 'Failed to load automation',
-          variant: 'destructive'
+          title: "Error",
+          description: "Failed to load automation",
+          variant: "destructive",
         });
         return;
       }
 
       if (data) {
-        setAutomationName(data.name || 'Untitled Automation');
-        
+        setAutomationName(data.name || "Untitled Automation");
+
         // Load flow state if available and valid
         const rawFlow = (data as any).flow_state;
         if (isFlowState(rawFlow) && rawFlow.nodes.length > 0) {
           // Normalize edges to ensure proper format
           const normalizedEdges = rawFlow.edges.map((edge: any) => ({
-            id: edge.id || `${edge.source || edge.from}-${edge.target || edge.to}`,
+            id:
+              edge.id ||
+              `${edge.source || edge.from}-${edge.target || edge.to}`,
             source: edge.source || edge.from,
             target: edge.target || edge.to,
-            ...edge
+            ...edge,
           }));
           setFlowState({ nodes: rawFlow.nodes, edges: normalizedEdges });
         } else if (data.workflow_steps) {
           // Try to load from workflow_steps (array or object format)
           const workflowSteps = data.workflow_steps as any;
           if (Array.isArray(workflowSteps) && workflowSteps.length > 0) {
-            const reconstructedFlow = reconstructFlowFromWorkflowSteps(workflowSteps, data.trigger_type);
+            const reconstructedFlow = reconstructFlowFromWorkflowSteps(
+              workflowSteps,
+              data.trigger_type,
+            );
             setFlowState(reconstructedFlow);
-          } else if (workflowSteps?.nodes && Array.isArray(workflowSteps.nodes)) {
+          } else if (
+            workflowSteps?.nodes &&
+            Array.isArray(workflowSteps.nodes)
+          ) {
             // workflow_steps is stored as object with nodes/edges
-            const normalizedEdges = (workflowSteps.edges || []).map((edge: any) => ({
-              id: edge.id || `${edge.source || edge.from}-${edge.target || edge.to}`,
-              source: edge.source || edge.from,
-              target: edge.target || edge.to,
-              ...edge
-            }));
-            setFlowState({ 
-              nodes: workflowSteps.nodes, 
-              edges: normalizedEdges 
+            const normalizedEdges = (workflowSteps.edges || []).map(
+              (edge: any) => ({
+                id:
+                  edge.id ||
+                  `${edge.source || edge.from}-${edge.target || edge.to}`,
+                source: edge.source || edge.from,
+                target: edge.target || edge.to,
+                ...edge,
+              }),
+            );
+            setFlowState({
+              nodes: workflowSteps.nodes,
+              edges: normalizedEdges,
             });
           } else {
-            console.log('No valid flow_state or workflow_steps found:', { rawFlow, workflow_steps: data.workflow_steps });
+            console.log("No valid flow_state or workflow_steps found:", {
+              rawFlow,
+              workflow_steps: data.workflow_steps,
+            });
           }
         } else {
-          console.log('No valid flow_state or workflow_steps found:', { rawFlow, workflow_steps: data.workflow_steps });
+          console.log("No valid flow_state or workflow_steps found:", {
+            rawFlow,
+            workflow_steps: data.workflow_steps,
+          });
         }
       }
     } catch (error) {
-      console.error('Error loading automation:', error);
+      console.error("Error loading automation:", error);
       toast({
-        title: 'Error',
-        description: 'Failed to load automation',
-        variant: 'destructive'
+        title: "Error",
+        description: "Failed to load automation",
+        variant: "destructive",
       });
     }
   };
 
   // Helper to reconstruct flow from workflow_steps array
-  const reconstructFlowFromWorkflowSteps = (steps: any[], triggerType: string) => {
+  const reconstructFlowFromWorkflowSteps = (
+    steps: any[],
+    triggerType: string,
+  ) => {
     const nodes = [];
     const edges = [];
-    
+
     // Add trigger node
     nodes.push({
-      id: 'trigger-1',
-      type: 'trigger',
+      id: "trigger-1",
+      type: "trigger",
       position: { x: 100, y: 100 },
-      data: { triggerType: triggerType || 'manual' }
+      data: { triggerType: triggerType || "manual" },
     });
 
-    let previousNodeId = 'trigger-1';
-    
+    let previousNodeId = "trigger-1";
+
     // Add workflow step nodes
     steps.forEach((step, index) => {
       const nodeId = `${step.type}-${index + 1}`;
       nodes.push({
         id: nodeId,
         type: step.type,
-        position: { x: 100, y: 200 + (index * 100) },
-        data: { ...step }
+        position: { x: 100, y: 200 + index * 100 },
+        data: { ...step },
       });
-      
+
       // Connect to previous node
       edges.push({
         id: `${previousNodeId}-${nodeId}`,
         source: previousNodeId,
-        target: nodeId
+        target: nodeId,
       });
-      
+
       previousNodeId = nodeId;
     });
 
@@ -193,47 +239,85 @@ export const CRMAutomationBuilder = () => {
 
   // Map trigger IDs to database-accepted values
   const mapTriggerType = (triggerType?: string) => {
-    if (!triggerType) return 'manual';
-    
+    if (!triggerType) return "manual";
+
+    // If the trigger type is already a valid DB trigger type, keep it as-is.
+    // This prevents dropping canvas/trigger-specific types like 'segment.added' into 'manual'.
+    const passthroughTriggerTypes = new Set([
+      "manual",
+      "welcome",
+      "purchase_delay",
+      "seasonal",
+      "segment_joined",
+      "segment.added",
+      "segment_added",
+      "persona.assigned",
+      "persona_assigned",
+      "loyalty_members.segment_added",
+    ]);
+
+    if (passthroughTriggerTypes.has(triggerType)) return triggerType;
+
     const triggerMapping: Record<string, string> = {
-      'loyalty_join': 'welcome',
-      'first_purchase': 'welcome', 
-      'customer_birthday': 'seasonal',
-      'big_spender': 'purchase_delay',
-      'abandoned_cart': 'purchase_delay',
-      'review_request': 'purchase_delay',
-      'event_rsvp': 'seasonal',
-      'newsletter_opt_in': 'segment_joined',
-      'newsletter_signup': 'segment_joined',
-      'weekly_promotion': 'seasonal',
-      'seasonal_campaign': 'seasonal',
-      'inventory_clearance': 'manual',
-      'plant_care_reminder': 'seasonal',
-      'seasonal_tips': 'seasonal',
-      'problem_solving': 'manual',
-      'repeat_purchase_90d': 'purchase_delay',
-      'repeat_purchase_180d': 'purchase_delay'
+      loyalty_join: "welcome",
+      first_purchase: "welcome",
+      customer_birthday: "seasonal",
+      big_spender: "purchase_delay",
+      abandoned_cart: "purchase_delay",
+      review_request: "purchase_delay",
+      event_rsvp: "seasonal",
+      newsletter_opt_in: "segment_joined",
+      newsletter_signup: "segment_joined",
+      weekly_promotion: "seasonal",
+      seasonal_campaign: "seasonal",
+      inventory_clearance: "manual",
+      plant_care_reminder: "seasonal",
+      seasonal_tips: "seasonal",
+      problem_solving: "manual",
+      repeat_purchase_90d: "purchase_delay",
+      repeat_purchase_180d: "purchase_delay",
     };
-    
-    return triggerMapping[triggerType] || 'manual';
+
+    return triggerMapping[triggerType] || "manual";
   };
 
   const handleSaveDraft = async () => {
     if (!user?.id) {
-      toast({ title: 'Not signed in', description: 'Please sign in to save.', variant: 'destructive' });
+      toast({
+        title: "Not signed in",
+        description: "Please sign in to save.",
+        variant: "destructive",
+      });
       return;
     }
     setIsSaving(true);
 
     const currentFlowState = flowState;
-    const triggerNode = currentFlowState.nodes.find((n: any) => n.type === 'trigger');
+    const triggerNode = currentFlowState.nodes.find(
+      (n: any) => n.type === "trigger",
+    );
+    const triggerSubtype = String(triggerNode?.data?.triggerType || "manual");
+    const triggerConditions = {
+      ...extractTriggerConditions(currentFlowState),
+      subtype: triggerSubtype,
+    };
+
+    const overlapBehavior = String(
+      triggerNode?.data?.overlapBehavior || "ignore",
+    );
+
     const payload: any = {
       name: automationName,
       is_active: false,
-      trigger_type: mapTriggerType(triggerNode?.data.triggerType),
-      trigger_conditions: {},
-      workflow_steps: currentFlowState.nodes.filter(n => n.type !== 'trigger').length > 0 ? 
-        currentFlowState.nodes.filter(n => n.type !== 'trigger').map(n => ({ type: n.type, ...n.data })) : [],
+      trigger_type: mapTriggerType(triggerSubtype),
+      trigger_conditions: triggerConditions,
+      overlap_behavior: overlapBehavior,
+      workflow_steps:
+        currentFlowState.nodes.filter((n) => n.type !== "trigger").length > 0
+          ? currentFlowState.nodes
+              .filter((n) => n.type !== "trigger")
+              .map((n) => ({ type: n.type, ...n.data }))
+          : [],
       flow_state: currentFlowState,
       user_id: user?.id,
       ...(tenantId ? { tenant_id: tenantId } : {}),
@@ -242,29 +326,33 @@ export const CRMAutomationBuilder = () => {
     try {
       if (automationId) {
         const { error } = await supabase
-          .from('crm_automations')
+          .from("crm_automations")
           .update(payload)
-          .eq('id', automationId);
+          .eq("id", automationId);
 
         if (error) throw error;
       } else {
         const { data, error } = await supabase
-          .from('crm_automations')
+          .from("crm_automations")
           .insert(payload)
           .select()
           .single();
 
         if (error) throw error;
-        
+
         // Update the URL to include the new automation ID
         if (data?.id) {
-          window.history.replaceState({}, '', `/crm/automations/${data.id}`);
+          window.history.replaceState({}, "", `/crm/automations/${data.id}`);
         }
       }
-      toast({ title: 'Saved', description: 'Draft saved successfully.' });
+      toast({ title: "Saved", description: "Draft saved successfully." });
     } catch (e) {
       console.error(e);
-      toast({ title: 'Error', description: 'Failed to save draft.', variant: 'destructive' });
+      toast({
+        title: "Error",
+        description: "Failed to save draft.",
+        variant: "destructive",
+      });
     } finally {
       setIsSaving(false);
     }
@@ -272,21 +360,59 @@ export const CRMAutomationBuilder = () => {
 
   const handleActivate = async () => {
     if (!user?.id) {
-      toast({ title: 'Not signed in', description: 'Please sign in to activate.', variant: 'destructive' });
+      toast({
+        title: "Not signed in",
+        description: "Please sign in to activate.",
+        variant: "destructive",
+      });
       return;
     }
 
     setIsSaving(true);
 
     const currentFlowState = flowState;
-    const triggerNode = currentFlowState.nodes.find((n: any) => n.type === 'trigger');
+    const triggerNode = currentFlowState.nodes.find(
+      (n: any) => n.type === "trigger",
+    );
+    const triggerSubtype = String(triggerNode?.data?.triggerType || "manual");
+    const triggerConditions = {
+      ...extractTriggerConditions(currentFlowState),
+      subtype: triggerSubtype,
+    };
+
+    const mappedTriggerType = mapTriggerType(triggerSubtype);
+    const overlapBehavior = String(
+      triggerNode?.data?.overlapBehavior || "ignore",
+    );
+
+    // Validate trigger conditions before activating
+    const validation = validateTriggerConditions(
+      mappedTriggerType,
+      triggerConditions,
+    );
+    if (!validation.valid) {
+      toast({
+        title: "Missing Configuration",
+        description:
+          validation.message || "Please complete the trigger configuration.",
+        variant: "destructive",
+      });
+      setIsSaving(false);
+      return;
+    }
+
     const payload: any = {
       name: automationName,
       is_active: true,
-      trigger_type: mapTriggerType(triggerNode?.data.triggerType),
-      trigger_conditions: {},
-      workflow_steps: currentFlowState.nodes.filter(n => n.type !== 'trigger').length > 0 ? 
-        currentFlowState.nodes.filter(n => n.type !== 'trigger').map(n => ({ type: n.type, ...n.data })) : [],
+      trigger_type: mappedTriggerType,
+      trigger_conditions: triggerConditions,
+      overlap_behavior: overlapBehavior,
+      workflow_steps:
+        currentFlowState.nodes.filter((n) => n.type !== "trigger").length > 0
+          ? currentFlowState.nodes
+              .filter((n) => n.type !== "trigger")
+              .map((n) => ({ type: n.type, ...n.data }))
+          : [],
       flow_state: currentFlowState,
       user_id: user?.id,
       ...(tenantId ? { tenant_id: tenantId } : {}),
@@ -295,14 +421,14 @@ export const CRMAutomationBuilder = () => {
     try {
       if (automationId) {
         const { error } = await supabase
-          .from('crm_automations')
+          .from("crm_automations")
           .update(payload)
-          .eq('id', automationId);
+          .eq("id", automationId);
 
         if (error) throw error;
       } else {
         const { data, error } = await supabase
-          .from('crm_automations')
+          .from("crm_automations")
           .insert(payload)
           .select()
           .single();
@@ -310,11 +436,18 @@ export const CRMAutomationBuilder = () => {
         if (error) throw error;
       }
 
-      toast({ title: 'Activated', description: 'Automation has been activated successfully.' });
+      toast({
+        title: "Activated",
+        description: "Automation has been activated successfully.",
+      });
       setIsReviewOpen(false);
     } catch (e) {
       console.error(e);
-      toast({ title: 'Error', description: 'Failed to activate automation.', variant: 'destructive' });
+      toast({
+        title: "Error",
+        description: "Failed to activate automation.",
+        variant: "destructive",
+      });
     } finally {
       setIsSaving(false);
     }
@@ -347,7 +480,7 @@ export const CRMAutomationBuilder = () => {
               aria-label="Save draft"
             >
               <Save className="w-4 h-4" />
-              {isSaving ? 'Saving...' : 'Save Draft'}
+              {isSaving ? "Saving..." : "Save Draft"}
             </Button>
             {!automationId && (
               <Button
@@ -359,51 +492,61 @@ export const CRMAutomationBuilder = () => {
               </Button>
             )}
             <div className="flex items-center gap-2">
-              <FlowStatusBadge 
-                nodes={flowState.nodes} 
-                edges={flowState.edges} 
+              <FlowStatusBadge
+                nodes={flowState.nodes}
+                edges={flowState.edges}
                 selectedAudience={{
                   personas: selectedPersonas,
                   segments: selectedSegments,
-                  totalContacts: selectedSegments.reduce((total, segment) => 
-                    total + (segment.customer_count || 0), 0
-                  )
-                }} 
+                  totalContacts: selectedSegments.reduce(
+                    (total, segment) => total + (segment.customer_count || 0),
+                    0,
+                  ),
+                }}
                 onAddTrigger={() => {
                   const triggerNode = {
-                    id: 'trigger-1',
-                    type: 'trigger',
+                    id: "trigger-1",
+                    type: "trigger",
                     position: { x: 250, y: 50 },
-                    data: { 
-                      label: 'Trigger',
-                      triggerType: 'manual',
-                      description: 'Manual trigger'
-                    }
+                    data: {
+                      label: "Trigger",
+                      triggerType: "manual",
+                      description: "Manual trigger",
+                    },
                   };
-                  setFlowState(prev => ({
+                  setFlowState((prev) => ({
                     ...prev,
-                    nodes: [...prev.nodes.filter(n => n.type !== 'trigger'), triggerNode]
+                    nodes: [
+                      ...prev.nodes.filter((n) => n.type !== "trigger"),
+                      triggerNode,
+                    ],
                   }));
-                  toast({ title: 'Trigger Added', description: 'A trigger node has been added to your flow.' });
+                  toast({
+                    title: "Trigger Added",
+                    description: "A trigger node has been added to your flow.",
+                  });
                 }}
                 onOpenAudienceSelector={() => setShowAudienceSelector(true)}
                 onEditNode={(nodeId) => {
                   // For now, show a toast - this would need integration with the node editor
-                  const node = flowState.nodes.find(n => n.id === nodeId);
-                  toast({ 
-                    title: 'Edit Node', 
-                    description: `Please click on the ${node?.type || 'node'} in the canvas to edit it.` 
+                  const node = flowState.nodes.find((n) => n.id === nodeId);
+                  toast({
+                    title: "Edit Node",
+                    description: `Please click on the ${node?.type || "node"} in the canvas to edit it.`,
                   });
                 }}
                 onHighlightNodes={(nodeIds) => {
                   // For now, show a toast with the nodes to highlight
-                  toast({ 
-                    title: 'Nodes Need Attention', 
-                    description: `${nodeIds.length} disconnected node(s) found. Look for unconnected nodes in your flow.` 
+                  toast({
+                    title: "Nodes Need Attention",
+                    description: `${nodeIds.length} disconnected node(s) found. Look for unconnected nodes in your flow.`,
                   });
                 }}
               />
-              <Button onClick={() => setIsReviewOpen(true)} aria-label="Review and launch">
+              <Button
+                onClick={() => setIsReviewOpen(true)}
+                aria-label="Review and launch"
+              >
                 Review & Launch
               </Button>
             </div>
@@ -412,16 +555,25 @@ export const CRMAutomationBuilder = () => {
       </header>
 
       <div className="flex-1 flex min-h-0 overflow-hidden">
-        {!automationId && flowState.nodes.length === 0 && !guideCompleted && !isDirectCanvasRoute && (
-          <aside className="hidden md:block md:w-80 border-r p-6 overflow-y-auto">
-            <Suspense fallback={<div className="text-sm text-muted-foreground">Loading guide...</div>}>
-              <GuidedAutomationBuilder 
-                onComplete={handleGuideComplete}
-                onBack={() => {}}
-              />
-            </Suspense>
-          </aside>
-        )}
+        {!automationId &&
+          flowState.nodes.length === 0 &&
+          !guideCompleted &&
+          !isDirectCanvasRoute && (
+            <aside className="hidden md:block md:w-80 border-r p-6 overflow-y-auto">
+              <Suspense
+                fallback={
+                  <div className="text-sm text-muted-foreground">
+                    Loading guide...
+                  </div>
+                }
+              >
+                <GuidedAutomationBuilder
+                  onComplete={handleGuideComplete}
+                  onBack={() => {}}
+                />
+              </Suspense>
+            </aside>
+          )}
         <main className="flex-1 min-h-0 flex flex-col overflow-hidden">
           <AutomationFlowCanvas
             automationId={automationId}
@@ -445,8 +597,17 @@ export const CRMAutomationBuilder = () => {
             <SheetTitle>Guided Builder</SheetTitle>
           </SheetHeader>
           <div className="h-[calc(100vh-56px)] overflow-y-auto p-4">
-            <Suspense fallback={<div className="p-4 text-muted-foreground">Loading guide...</div>}>
-              <GuidedAutomationBuilder onComplete={handleGuideComplete} onBack={() => setIsGuideOpen(false)} />
+            <Suspense
+              fallback={
+                <div className="p-4 text-muted-foreground">
+                  Loading guide...
+                </div>
+              }
+            >
+              <GuidedAutomationBuilder
+                onComplete={handleGuideComplete}
+                onBack={() => setIsGuideOpen(false)}
+              />
             </Suspense>
           </div>
         </SheetContent>
@@ -457,7 +618,9 @@ export const CRMAutomationBuilder = () => {
         onOpenChange={setIsReviewOpen}
         automation={{
           name: automationName,
-          triggerType: flowState.nodes.find((n: any) => n.type === 'trigger')?.data.triggerType || 'manual',
+          triggerType:
+            flowState.nodes.find((n: any) => n.type === "trigger")?.data
+              .triggerType || "manual",
           flowSteps: [],
           selectedAudience: {
             personas: selectedPersonas,

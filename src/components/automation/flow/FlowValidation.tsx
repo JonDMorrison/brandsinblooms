@@ -208,8 +208,19 @@ export const FlowStatusBadge: React.FC<FlowValidationProps> = ({
 
   const handleFixClick = (issue: { type: 'error' | 'warning'; message: string }) => {
     // Handle different fix actions based on the issue type
-    if (issue.message.includes('trigger node')) {
+    if (issue.message.includes('must have a trigger node')) {
       onAddTrigger?.();
+    } else if (issue.message.includes('only have one trigger node')) {
+      // Keep the first trigger and remove extras (if parent didn't already enforce this)
+      const triggerNodes = nodes.filter(node => node.type === 'trigger');
+      if (triggerNodes.length > 1) {
+        const keepId = triggerNodes[0].id;
+        const extraIds = triggerNodes.slice(1).map(n => n.id);
+        onHighlightNodes?.([keepId, ...extraIds]);
+      }
+    } else if (issue.message.includes('Trigger node must be connected')) {
+      const triggerNode = nodes.find(node => node.type === 'trigger');
+      if (triggerNode) onHighlightNodes?.([triggerNode.id]);
     } else if (issue.message.includes('target audience')) {
       onOpenAudienceSelector?.();
     } else if (issue.message.includes('missing subject or content')) {
