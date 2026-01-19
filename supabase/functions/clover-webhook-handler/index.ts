@@ -665,7 +665,7 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    const payload: CloverWebhookPayload = JSON.parse(body);
+    const webhookPayload: CloverWebhookPayload = payload as CloverWebhookPayload;
     
     // Normalize payload fields (Clover may use camelCase or snake_case)
     const eventId = payload.eventId || payload.event_id || 'unknown';
