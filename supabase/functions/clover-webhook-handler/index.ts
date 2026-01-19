@@ -624,6 +624,30 @@ const handler = async (req: Request): Promise<Response> => {
   
   try {
     const body = await req.text();
+    console.log('📦 Raw body:', body);
+    
+    // Parse body to check for verification code FIRST
+    let payload: any;
+    try {
+      payload = JSON.parse(body);
+    } catch {
+      payload = {};
+    }
+    
+    // Check for Clover verification request (before signature check)
+    if (payload.verificationCode) {
+      console.log('');
+      console.log('🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑');
+      console.log('🔑 CLOVER VERIFICATION CODE:', payload.verificationCode);
+      console.log('🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑');
+      console.log('');
+      console.log('👆 Copy this code and enter it in the Clover dashboard');
+      console.log('');
+      return new Response(JSON.stringify({ success: true }), { 
+        status: 200, 
+        headers: { 'Content-Type': 'application/json', ...corsHeaders } 
+      });
+    }
     
     // Get signature from header (adjust header name after Clover meeting)
     const signature = req.headers.get('x-clover-signature') || 
