@@ -4,9 +4,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Target, Plus, Search, RefreshCw, Upload, FlaskConical } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Target, Plus, Search, RefreshCw, Upload, FlaskConical, Eye, EyeOff } from 'lucide-react';
 import { useCRMSegments } from '@/hooks/useCRMSegments';
 import { useSegmentCounts } from '@/hooks/useSegmentCounts';
+import { useSystemSegmentVisibility } from '@/hooks/useSystemSegmentVisibility';
 import { SegmentCard } from '@/components/crm/segments/SegmentCard';
 import { CustomSegmentModal } from '@/components/crm/segments/CustomSegmentModal';
 import { SegmentOverviewCard } from '@/components/crm/segments/SegmentOverviewCard';
@@ -58,11 +60,13 @@ const predefinedSegments = [
 export const CRMSegmentsPage: React.FC = () => {
   const { segments, loading, searchTerm, setSearchTerm, fetchSegments, createSegment, deleteSegment, bulkImportSegments } = useCRMSegments();
   const { counts, loading: countsLoading, refreshCounts } = useSegmentCounts();
+  const { hideSegment, showSegment, isHidden, hiddenCount } = useSystemSegmentVisibility();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showCustomBuilder, setShowCustomBuilder] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [highlightedSegment, setHighlightedSegment] = useState<string | null>(null);
   const [selectedSegment, setSelectedSegment] = useState<{ id: string; name: string } | null>(null);
+  const [activeTab, setActiveTab] = useState<'visible' | 'hidden'>('visible');
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
@@ -166,11 +170,15 @@ export const CRMSegmentsPage: React.FC = () => {
     }
   }, [searchParams, setSearchParams]);
 
-  // Filter predefined segments based on search term
+  // Filter predefined segments based on search term and visibility
   const filteredPredefinedSegments = predefinedSegments.filter(segment =>
     segment.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     segment.description.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  // Split into visible and hidden segments
+  const visibleSystemSegments = filteredPredefinedSegments.filter(s => !isHidden(s.id));
+  const hiddenSystemSegments = filteredPredefinedSegments.filter(s => isHidden(s.id));
 
   return (
     <div className={`${isMobile ? 'mobile-section' : 'p-6'} mobile-space-normal mobile-container`}>
@@ -237,43 +245,109 @@ export const CRMSegmentsPage: React.FC = () => {
           </CardContent>
         </Card>
 
-        {/* Predefined Segments */}
-        {filteredPredefinedSegments.length > 0 && (
-          <Card className="mobile-card-elevated">
-            <CardHeader className={isMobile ? 'p-4 pb-2' : ''}>
-              <CardTitle className={`flex items-center gap-2 ${isMobile ? 'mobile-text-heading' : ''}`}>
-                <Target className={`${isMobile ? 'mobile-icon-md' : 'h-5 w-5'}`} />
-                System Segments
-              </CardTitle>
-            </CardHeader>
-            <CardContent className={isMobile ? 'p-4 pt-2' : ''}>
-              <div className={`${isMobile ? 'grid grid-cols-1 gap-4' : 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'}`}>
-                {filteredPredefinedSegments.map((segment) => (
-                  <div
-                    key={segment.id}
-                    ref={(el) => (segmentRefs.current[segment.id] = el)}
-                    className={`transition-all duration-500 ${
-                      highlightedSegment === segment.id 
-                        ? 'ring-4 ring-primary ring-offset-4 bg-primary/20 shadow-2xl scale-105 rounded-lg' 
-                        : ''
-                    }`}
-                  >
-                    <SegmentOverviewCard
-                      name={segment.name}
-                      description={segment.description}
-                      estimatedCount={counts[segment.id as keyof typeof counts] || 0}
-                      isLoadingCount={countsLoading}
-                      icon={segment.icon}
-                      isSystem={true}
-                      onCreateCampaign={() => handleCreateCampaign(segment.id)}
-                      onViewDetails={() => handleViewSegmentDetails(segment.id)}
-                    />
+        {/* System Segments with Tabs */}
+        <Card className="mobile-card-elevated">
+          <CardHeader className={isMobile ? 'p-4 pb-2' : ''}>
+            <CardTitle className={`flex items-center gap-2 ${isMobile ? 'mobile-text-heading' : ''}`}>
+              <Target className={`${isMobile ? 'mobile-icon-md' : 'h-5 w-5'}`} />
+              System Segments
+            </CardTitle>
+          </CardHeader>
+          <CardContent className={isMobile ? 'p-4 pt-2' : ''}>
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'visible' | 'hidden')} className="w-full">
+              <TabsList className="mb-4">
+                <TabsTrigger value="visible" className="gap-2">
+                  <Eye className="h-4 w-4" />
+                  Visible
+                  {visibleSystemSegments.length > 0 && (
+                    <Badge variant="secondary" className="ml-1">{visibleSystemSegments.length}</Badge>
+                  )}
+                </TabsTrigger>
+                <TabsTrigger value="hidden" className="gap-2">
+                  <EyeOff className="h-4 w-4" />
+                  Hidden
+                  {hiddenCount > 0 && (
+                    <Badge variant="secondary" className="ml-1">{hiddenCount}</Badge>
+                  )}
+                </TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="visible">
+                {visibleSystemSegments.length > 0 ? (
+                  <div className={`${isMobile ? 'grid grid-cols-1 gap-4' : 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'}`}>
+                    {visibleSystemSegments.map((segment) => (
+                      <div
+                        key={segment.id}
+                        ref={(el) => (segmentRefs.current[segment.id] = el)}
+                        className={`transition-all duration-500 ${
+                          highlightedSegment === segment.id 
+                            ? 'ring-4 ring-primary ring-offset-4 bg-primary/20 shadow-2xl scale-105 rounded-lg' 
+                            : ''
+                        }`}
+                      >
+                        <SegmentOverviewCard
+                          name={segment.name}
+                          description={segment.description}
+                          estimatedCount={counts[segment.id as keyof typeof counts] || 0}
+                          isLoadingCount={countsLoading}
+                          icon={segment.icon}
+                          isSystem={true}
+                          isHidden={false}
+                          onCreateCampaign={() => handleCreateCampaign(segment.id)}
+                          onViewDetails={() => handleViewSegmentDetails(segment.id)}
+                          onHide={() => hideSegment(segment.id)}
+                        />
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
+                ) : (
+                  <div className="text-center py-8">
+                    <EyeOff className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">All system segments are hidden</h3>
+                    <p className="text-muted-foreground mb-4">
+                      Switch to the "Hidden" tab to make them visible again.
+                    </p>
+                  </div>
+                )}
+              </TabsContent>
+              
+              <TabsContent value="hidden">
+                {hiddenSystemSegments.length > 0 ? (
+                  <div className={`${isMobile ? 'grid grid-cols-1 gap-4' : 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'}`}>
+                    {hiddenSystemSegments.map((segment) => (
+                      <div
+                        key={segment.id}
+                        ref={(el) => (segmentRefs.current[segment.id] = el)}
+                        className="opacity-70"
+                      >
+                        <SegmentOverviewCard
+                          name={segment.name}
+                          description={segment.description}
+                          estimatedCount={counts[segment.id as keyof typeof counts] || 0}
+                          isLoadingCount={countsLoading}
+                          icon={segment.icon}
+                          isSystem={true}
+                          isHidden={true}
+                          onCreateCampaign={() => handleCreateCampaign(segment.id)}
+                          onViewDetails={() => handleViewSegmentDetails(segment.id)}
+                          onShow={() => showSegment(segment.id)}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <Eye className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">No hidden segments</h3>
+                    <p className="text-muted-foreground">
+                      Hide segments you don't need by clicking the hide icon on any segment card.
+                    </p>
+                  </div>
+                )}
+              </TabsContent>
+            </Tabs>
+          </CardContent>
+        </Card>
 
         {/* Custom Segments */}
         <Card className="mobile-card-elevated">
