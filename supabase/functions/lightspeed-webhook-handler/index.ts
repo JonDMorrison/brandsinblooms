@@ -9,14 +9,25 @@ Deno.serve(async (req) => {
   }
 
   try {
-    console.log('[LS-WEBHOOK] Webhook received');
+    console.log('[CLOVER-WEBHOOK] Webhook received');
 
     const payload = await req.json();
-    console.log('[LS-WEBHOOK] Event:', payload.event_type);
+    console.log('[CLOVER-WEBHOOK] Payload:', JSON.stringify(payload));
+
+    // Check for verification request from Clover
+    if (payload.verificationCode) {
+      console.log('🔑🔑🔑 CLOVER VERIFICATION CODE:', payload.verificationCode);
+      console.log('👆 Enter this code in the Clover dashboard to complete verification');
+      return new Response(JSON.stringify({ success: true }), { 
+        status: 200, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      });
+    }
 
     // Extract event details
-    const eventType = payload.event_type;
-    const data = payload.data;
+    const eventType = payload.event_type || payload.type;
+    const data = payload.data || payload;
+    console.log('[CLOVER-WEBHOOK] Event:', eventType);
 
     // Create admin client
     const supabaseAdmin = createClient(
