@@ -347,6 +347,15 @@ verify_jwt = true
 [functions.clover-test-connection]
 verify_jwt = true
 
+[functions.clover-webhook-handler]
+verify_jwt = false
+
+[functions.clover-webhook-health]
+verify_jwt = false
+
+[functions.clover-manage-webhooks]
+verify_jwt = true
+
 [functions.clover-test-harness]
 verify_jwt = true
 
