@@ -1,17 +1,17 @@
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { 
-  Zap, 
-  Mail, 
-  MessageSquare, 
-  Clock, 
+import React, { useState, useEffect } from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import {
+  Zap,
+  Mail,
+  MessageSquare,
+  Clock,
   GitBranch,
   Sparkles,
   Plus,
-  X
-} from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+  X,
+} from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 interface FloatingToolbarProps {
   onAddNode: (nodeType: string, position?: { x: number; y: number }) => void;
@@ -31,48 +31,51 @@ export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({
   hasTrigger = false,
 }) => {
   const [isExpanded, setIsExpanded] = useState(() => {
-    const saved = localStorage.getItem('automation.toolbarExpanded');
+    const saved = localStorage.getItem("automation.toolbarExpanded");
     return saved ? JSON.parse(saved) : true;
   });
 
   useEffect(() => {
-    localStorage.setItem('automation.toolbarExpanded', JSON.stringify(isExpanded));
+    localStorage.setItem(
+      "automation.toolbarExpanded",
+      JSON.stringify(isExpanded),
+    );
   }, [isExpanded]);
   const nodeTypes = [
     {
-      type: 'trigger',
-      label: 'Trigger',
+      type: "trigger",
+      label: "Trigger",
       icon: Zap,
-      color: 'text-green-600',
-      description: 'Start automation',
+      color: "text-green-600",
+      description: "Start automation",
     },
     {
-      type: 'email',
-      label: 'Email',
+      type: "email",
+      label: "Email",
       icon: Mail,
-      color: 'text-blue-600',
-      description: 'Send email',
+      color: "text-blue-600",
+      description: "Send email",
     },
     {
-      type: 'sms',
-      label: 'SMS',
+      type: "sms",
+      label: "SMS",
       icon: MessageSquare,
-      color: 'text-purple-600',
-      description: 'Send SMS',
+      color: "text-purple-600",
+      description: "Send SMS",
     },
     {
-      type: 'delay',
-      label: 'Delay',
+      type: "delay",
+      label: "Delay",
       icon: Clock,
-      color: 'text-orange-600',
-      description: 'Wait period',
+      color: "text-orange-600",
+      description: "Wait period",
     },
     {
-      type: 'split',
-      label: 'Split',
+      type: "split",
+      label: "Split",
       icon: GitBranch,
-      color: 'text-indigo-600',
-      description: 'Branch flow',
+      color: "text-indigo-600",
+      description: "Branch flow",
     },
   ];
 
@@ -111,11 +114,11 @@ export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({
                 <X className="w-3 h-3" />
               </Button>
             </div>
-            
+
             <div className="grid grid-cols-1 gap-2">
               {nodeTypes.map((nodeType) => {
                 const Icon = nodeType.icon;
-                const isTriggerButton = nodeType.type === 'trigger';
+                const isTriggerButton = nodeType.type === "trigger";
                 const isDisabled = isTriggerButton && hasTrigger;
                 return (
                   <Button
@@ -128,9 +131,13 @@ export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({
                   >
                     <Icon className={`w-4 h-4 ${nodeType.color}`} />
                     <div className="text-left">
-                      <div className="text-sm font-medium">{nodeType.label}</div>
+                      <div className="text-sm font-medium">
+                        {nodeType.label}
+                      </div>
                       <div className="text-xs text-muted-foreground">
-                        {isDisabled ? 'Only one trigger allowed' : nodeType.description}
+                        {isDisabled
+                          ? "Only one trigger allowed"
+                          : nodeType.description}
                       </div>
                     </div>
                   </Button>

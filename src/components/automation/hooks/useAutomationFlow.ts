@@ -81,7 +81,7 @@ export const useAutomationFlow = (
   const deleteNode = useCallback(
     (nodeId: string) => {
       setNodes((nds) => nds.filter((node) => node.id !== nodeId));
-      setEdges((eds) => 
+      setEdges((eds) =>
         eds.filter((edge) => edge.source !== nodeId && edge.target !== nodeId)
       );
       setIsDirty(true);
@@ -178,9 +178,9 @@ export const useAutomationFlow = (
 
 // Empty default flow - users will add their own nodes or select from presets
 function getDefaultWelcomeFlow(): { nodes: Node[]; edges: Edge[] } {
-  return { 
-    nodes: [], 
-    edges: [] 
+  return {
+    nodes: [],
+    edges: []
   };
 }
 

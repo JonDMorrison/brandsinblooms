@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState, useMemo } from 'react';
+import React, { useCallback, useEffect, useState, useMemo } from "react";
 import {
   ReactFlow,
   MiniMap,
@@ -12,32 +12,37 @@ import {
   Node,
   NodeTypes,
   BackgroundVariant,
-} from '@xyflow/react';
-import '@xyflow/react/dist/style.css';
+} from "@xyflow/react";
+import "@xyflow/react/dist/style.css";
 
-import TriggerNode from './nodes/TriggerNode';
-import EmailNode from './nodes/EmailNode';
-import SMSNode from './nodes/SMSNode';
-import DelayNode from './nodes/DelayNode';
-import SplitNode from './nodes/SplitNode';
-import { FloatingToolbar } from './FloatingToolbar';
-import { FlowValidation, FlowStatusBadge } from './FlowValidation';
-import { AIAssistant } from './AIAssistant';
-import { ReviewLaunchModal } from './ReviewLaunchModal';
-import { NodeEditorDialog } from './NodeEditorDialog';
-import { useAutomationFlow } from '../hooks/useAutomationFlow';
-import { Button } from '@/components/ui/button';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import TriggerNode from "./nodes/TriggerNode";
+import EmailNode from "./nodes/EmailNode";
+import SMSNode from "./nodes/SMSNode";
+import DelayNode from "./nodes/DelayNode";
+import SplitNode from "./nodes/SplitNode";
+import { FloatingToolbar } from "./FloatingToolbar";
+import { FlowValidation, FlowStatusBadge } from "./FlowValidation";
+import { AIAssistant } from "./AIAssistant";
+import { ReviewLaunchModal } from "./ReviewLaunchModal";
+import { NodeEditorDialog } from "./NodeEditorDialog";
+import { useAutomationFlow } from "../hooks/useAutomationFlow";
+import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
-import { AudienceSelector } from '@/components/crm/AudienceSelector';
-import { useSegmentSelector } from '@/hooks/useSegmentSelector';
-import { Play, Save, Users, Map, Plus } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/integrations/supabase/client';
-import { compileFlow } from '@/lib/automation/compiler';
-import { normalizeTriggerId } from '@/lib/automation/normalize';
-import { triggerRequiresAudience } from '@/lib/automation/triggerCatalog';
+import { AudienceSelector } from "@/components/crm/AudienceSelector";
+import { useSegmentSelector } from "@/hooks/useSegmentSelector";
+import { Play, Save, Users, Map, Plus } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import { compileFlow } from "@/lib/automation/compiler";
+import { normalizeTriggerId } from "@/lib/automation/normalize";
+import { triggerRequiresAudience } from "@/lib/automation/triggerCatalog";
 
 const nodeTypes: NodeTypes = {
   trigger: TriggerNode,
@@ -73,8 +78,8 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
   onLaunch,
   onSaveDraft,
   onReviewLaunch,
-  automationName = '',
-  triggerType = '',
+  automationName = "",
+  triggerType = "",
   className,
   selectedPersonas = [],
   selectedSegments = [],
@@ -98,17 +103,21 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
   const [showAISuggestions, setShowAISuggestions] = useState(false);
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [isLaunchLoading, setIsLaunchLoading] = useState(false);
-  const [editingNode, setEditingNode] = useState<{id: string; type: string; data: any} | null>(null);
+  const [editingNode, setEditingNode] = useState<{
+    id: string;
+    type: string;
+    data: any;
+  } | null>(null);
   const [showAudienceSelector, setShowAudienceSelector] = useState(false);
   const [showMinimap, setShowMinimap] = useState(() => {
-    const saved = localStorage.getItem('automation.showMinimap');
+    const saved = localStorage.getItem("automation.showMinimap");
     return saved ? JSON.parse(saved) : false;
   });
 
   useEffect(() => {
-    localStorage.setItem('automation.showMinimap', JSON.stringify(showMinimap));
+    localStorage.setItem("automation.showMinimap", JSON.stringify(showMinimap));
   }, [showMinimap]);
-  
+
   const { toast } = useToast();
 
   // Stable callback for editing nodes
@@ -117,22 +126,59 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
   }, []);
 
   // Stable callback for deleting nodes
-  const handleDeleteNode = useCallback((id: string) => {
-    deleteNode(id);
-  }, [deleteNode]);
+  const handleDeleteNode = useCallback(
+    (id: string) => {
+      deleteNode(id);
+    },
+    [deleteNode],
+  );
 
   // Memoized nodeTypes with stable callbacks
-  const memoizedNodeTypes = useMemo(() => ({
-    trigger: (props: any) => <TriggerNode {...props} onEdit={handleEditNode} onDelete={handleDeleteNode} />,
-    email: (props: any) => <EmailNode {...props} onEdit={handleEditNode} onDelete={handleDeleteNode} />,
-    sms: (props: any) => <SMSNode {...props} onEdit={handleEditNode} onDelete={handleDeleteNode} />,
-    delay: (props: any) => <DelayNode {...props} onEdit={handleEditNode} onDelete={handleDeleteNode} />,
-    split: (props: any) => <SplitNode {...props} onEdit={handleEditNode} onDelete={handleDeleteNode} />,
-  }), [handleEditNode, handleDeleteNode]);
+  const memoizedNodeTypes = useMemo(
+    () => ({
+      trigger: (props: any) => (
+        <TriggerNode
+          {...props}
+          onEdit={handleEditNode}
+          onDelete={handleDeleteNode}
+        />
+      ),
+      email: (props: any) => (
+        <EmailNode
+          {...props}
+          onEdit={handleEditNode}
+          onDelete={handleDeleteNode}
+        />
+      ),
+      sms: (props: any) => (
+        <SMSNode
+          {...props}
+          onEdit={handleEditNode}
+          onDelete={handleDeleteNode}
+        />
+      ),
+      delay: (props: any) => (
+        <DelayNode
+          {...props}
+          onEdit={handleEditNode}
+          onDelete={handleDeleteNode}
+        />
+      ),
+      split: (props: any) => (
+        <SplitNode
+          {...props}
+          onEdit={handleEditNode}
+          onDelete={handleDeleteNode}
+        />
+      ),
+    }),
+    [handleEditNode, handleDeleteNode],
+  );
 
   // Calculate total audience
-  const totalAudienceContacts = selectedSegments.reduce((total, segment) => 
-    total + (segment.customer_count || 0), 0
+  const totalAudienceContacts = selectedSegments.reduce(
+    (total, segment) => total + (segment.customer_count || 0),
+    0,
   );
 
   // Handle node selection
@@ -140,27 +186,35 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
     (event: React.MouseEvent, node: Node) => {
       setSelectedNode(node.id);
     },
-    [setSelectedNode]
+    [setSelectedNode],
   );
 
   // Handle connection validation
-  const isValidConnection = useCallback((connection: Connection) => {
-    // Don't allow connections to trigger nodes
-    if (connection.target && nodes.find(n => n.id === connection.target)?.type === 'trigger') {
-      return false;
-    }
-    
-    // Don't allow multiple inputs to non-split nodes
-    const targetNode = nodes.find(n => n.id === connection.target);
-    if (targetNode && targetNode.type !== 'split') {
-      const existingConnections = edges.filter(e => e.target === connection.target);
-      if (existingConnections.length > 0) {
+  const isValidConnection = useCallback(
+    (connection: Connection) => {
+      // Don't allow connections to trigger nodes
+      if (
+        connection.target &&
+        nodes.find((n) => n.id === connection.target)?.type === "trigger"
+      ) {
         return false;
       }
-    }
 
-    return true;
-  }, [nodes, edges]);
+      // Don't allow multiple inputs to non-split nodes
+      const targetNode = nodes.find((n) => n.id === connection.target);
+      if (targetNode && targetNode.type !== "split") {
+        const existingConnections = edges.filter(
+          (e) => e.target === connection.target,
+        );
+        if (existingConnections.length > 0) {
+          return false;
+        }
+      }
+
+      return true;
+    },
+    [nodes, edges],
+  );
 
   // Auto-save when flow changes (debounced to prevent excessive saves)
   useEffect(() => {
@@ -170,20 +224,20 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
         onSave?.({ nodes, edges });
       }
     }, 100); // 100ms debounce
-    
+
     return () => clearTimeout(timeoutId);
   }, [nodes, edges, autoSave, onSave]);
 
   const handleAddNode = useCallback(
     (nodeType: string, position?: { x: number; y: number }) => {
-      const defaultPosition = position || { 
-        x: Math.random() * 300 + 100, 
-        y: Math.random() * 300 + 100 
+      const defaultPosition = position || {
+        x: Math.random() * 300 + 100,
+        y: Math.random() * 300 + 100,
       };
-      
+
       addNode(nodeType, defaultPosition);
     },
-    [addNode]
+    [addNode],
   );
 
   const handleReviewAndLaunch = useCallback(() => {
@@ -196,160 +250,210 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
 
   const handleLaunch = useCallback(async () => {
     if (!onLaunch) return;
-    
+
     setIsLaunchLoading(true);
     try {
       // Compile flow state to workflow steps
       const compilation = compileFlow({ nodes, edges });
-      const triggerNode = nodes.find(n => n.type === 'trigger');
-      const normalizedTrigger = triggerNode ? normalizeTriggerId(String(triggerNode.data?.triggerType) || 'loyalty_join') : 'loyalty_join';
-      
+      const triggerNode = nodes.find((n) => n.type === "trigger");
+      const normalizedTrigger = triggerNode
+        ? normalizeTriggerId(
+            String(triggerNode.data?.triggerType) || "loyalty_join",
+          )
+        : "loyalty_join";
+
       const automationData = {
         name: automationName,
         triggerType: normalizedTrigger,
-        flowSteps: nodes.filter(n => n.type !== 'trigger'),
+        flowSteps: nodes.filter((n) => n.type !== "trigger"),
         workflowSteps: compilation.steps,
         selectedAudience: {
           personas: selectedPersonas,
           segments: selectedSegments,
-          totalContacts: totalAudienceContacts
+          totalContacts: totalAudienceContacts,
         },
         flowState: { nodes, edges },
-        compilation
+        compilation,
       };
-      
+
       await onLaunch(automationData);
       setShowReviewModal(false);
-      
+
       toast({
         title: "Automation Activated",
         description: `${automationName} is now running and will process new customers automatically.`,
       });
     } catch (error) {
-      console.error('Launch error:', error);
+      console.error("Launch error:", error);
       toast({
         title: "Launch Failed",
-        description: "There was an error activating your automation. Please try again.",
+        description:
+          "There was an error activating your automation. Please try again.",
         variant: "destructive",
       });
     } finally {
       setIsLaunchLoading(false);
     }
-  }, [onLaunch, automationName, nodes, edges, selectedPersonas, selectedSegments, totalAudienceContacts, toast]);
+  }, [
+    onLaunch,
+    automationName,
+    nodes,
+    edges,
+    selectedPersonas,
+    selectedSegments,
+    totalAudienceContacts,
+    toast,
+  ]);
 
   const { user } = useAuth();
   const [isTestSending, setIsTestSending] = useState(false);
 
-  const handleTestSend = useCallback(async (recipientEmail?: string) => {
-    console.log('🧪 Send Test button clicked!', { isTestSending, user: user?.email, recipientEmail });
-    
-    if (isTestSending) {
-      console.log('❌ Already sending test, ignoring click');
-      return;
-    }
-    
-    try {
-      console.log('🚀 Starting test send process...');
-      setIsTestSending(true);
-      
-      // Check if user is authenticated
-      console.log('🔐 Checking authentication...', user?.email);
-      if (!user?.email) {
-        console.log('❌ No user email found');
-        toast({
-          title: "Authentication Required",
-          description: "Please log in to send test emails.",
-          variant: "destructive",
-        });
+  const handleTestSend = useCallback(
+    async (recipientEmail?: string) => {
+      console.log("🧪 Send Test button clicked!", {
+        isTestSending,
+        user: user?.email,
+        recipientEmail,
+      });
+
+      if (isTestSending) {
+        console.log("❌ Already sending test, ignoring click");
         return;
       }
 
-      // Find email nodes in the flow
-      console.log('📧 Looking for email nodes...', nodes.length, 'total nodes');
-      nodes.forEach((node, index) => {
-        console.log(`📧 Node ${index}:`, {
-          id: node.id,
-          type: node.type,
-          dataKeys: Object.keys(node.data || {}),
-          hasSubject: !!node.data?.subject,
-          hasBody: !!node.data?.body,
-          hasContent: !!node.data?.content,
-          hasMessage: !!node.data?.message,
-          data: node.data
+      try {
+        console.log("🚀 Starting test send process...");
+        setIsTestSending(true);
+
+        // Check if user is authenticated
+        console.log("🔐 Checking authentication...", user?.email);
+        if (!user?.email) {
+          console.log("❌ No user email found");
+          toast({
+            title: "Authentication Required",
+            description: "Please log in to send test emails.",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        // Find email nodes in the flow
+        console.log(
+          "📧 Looking for email nodes...",
+          nodes.length,
+          "total nodes",
+        );
+        nodes.forEach((node, index) => {
+          console.log(`📧 Node ${index}:`, {
+            id: node.id,
+            type: node.type,
+            dataKeys: Object.keys(node.data || {}),
+            hasSubject: !!node.data?.subject,
+            hasBody: !!node.data?.body,
+            hasContent: !!node.data?.content,
+            hasMessage: !!node.data?.message,
+            data: node.data,
+          });
         });
-      });
-      
-      // Try different field names for email content
-      const emailNodes = nodes.filter(node => {
-        if (node.type !== 'email') return false;
-        const hasSubject = !!node.data?.subject;
-        const hasContent = !!(node.data?.body || node.data?.content || node.data?.message);
-        console.log(`📧 Checking ${node.id}:`, { hasSubject, hasContent, data: node.data });
-        return hasSubject && hasContent;
-      });
-      console.log('📧 Found email nodes:', emailNodes.length);
-      
-      if (emailNodes.length === 0) {
-        console.log('❌ No email nodes with content found');
+
+        // Try different field names for email content
+        const emailNodes = nodes.filter((node) => {
+          if (node.type !== "email") return false;
+          const hasSubject = !!node.data?.subject;
+          const hasContent = !!(
+            node.data?.body ||
+            node.data?.content ||
+            node.data?.message
+          );
+          console.log(`📧 Checking ${node.id}:`, {
+            hasSubject,
+            hasContent,
+            data: node.data,
+          });
+          return hasSubject && hasContent;
+        });
+        console.log("📧 Found email nodes:", emailNodes.length);
+
+        if (emailNodes.length === 0) {
+          console.log("❌ No email nodes with content found");
+          toast({
+            title: "No Email Content",
+            description:
+              "Add at least one email step with content to send a test.",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        // Use the first email node for testing
+        const firstEmailNode = emailNodes[0];
+        const subject = firstEmailNode.data?.subject;
+        const content =
+          firstEmailNode.data?.body ||
+          firstEmailNode.data?.content ||
+          firstEmailNode.data?.message;
+        console.log("📮 Preparing to send test email:", {
+          subject,
+          contentLength:
+            typeof content === "string" ? content.length : "unknown",
+          content,
+        });
+
+        const targetEmail = recipientEmail?.trim() || user.email;
+
+        // Send test email using the Supabase edge function
+        console.log("🚀 Calling send-test-email function...");
+        const { data, error } = await supabase.functions.invoke(
+          "send-test-email",
+          {
+            body: {
+              email: targetEmail,
+              subject: subject,
+              content: content,
+              testName: user.user_metadata?.full_name || "Test User",
+              campaignId: `automation-${automationName?.replace(/\s+/g, "-").toLowerCase()}`,
+            },
+          },
+        );
+
+        console.log("📬 Function response:", { data, error });
+
+        if (error) {
+          console.log("❌ Function returned error:", error);
+          try {
+            const server = await (error as any)?.context?.response?.json();
+            console.log("🧾 Server error payload:", server);
+            const reason = server?.reason || server?.error || error.message;
+            const hint = server?.hint ? ` — ${server.hint}` : "";
+            throw new Error(`${reason}${hint}`);
+          } catch (e) {
+            throw new Error(
+              (error as any)?.message || "Failed to send test email",
+            );
+          }
+        }
+
+        console.log("✅ Test email sent successfully!");
         toast({
-          title: "No Email Content",
-          description: "Add at least one email step with content to send a test.",
+          title: "Test Email Sent! 📧",
+          description: `Sent to ${targetEmail}${(data as any)?.usedFrom ? ` — From: ${(data as any).usedFrom}` : ""}`,
+        });
+      } catch (error) {
+        console.error("❌ Test send error:", error);
+        toast({
+          title: "Test Send Failed",
+          description:
+            error instanceof Error
+              ? error.message
+              : "There was an error sending the test email. Please try again.",
           variant: "destructive",
         });
-        return;
+      } finally {
+        setIsTestSending(false);
       }
-
-      // Use the first email node for testing
-      const firstEmailNode = emailNodes[0];
-      const subject = firstEmailNode.data?.subject;
-      const content = firstEmailNode.data?.body || firstEmailNode.data?.content || firstEmailNode.data?.message;
-      console.log('📮 Preparing to send test email:', { subject, contentLength: typeof content === 'string' ? content.length : 'unknown', content });
-
-      const targetEmail = (recipientEmail?.trim()) || user.email;
-
-      // Send test email using the Supabase edge function
-      console.log('🚀 Calling send-test-email function...');
-      const { data, error } = await supabase.functions.invoke('send-test-email', {
-        body: {
-          email: targetEmail,
-          subject: subject,
-          content: content,
-          testName: user.user_metadata?.full_name || 'Test User',
-          campaignId: `automation-${automationName?.replace(/\s+/g, '-').toLowerCase()}`
-        }
-      });
-
-      console.log('📬 Function response:', { data, error });
-
-      if (error) {
-        console.log('❌ Function returned error:', error);
-        try {
-          const server = await (error as any)?.context?.response?.json();
-          console.log('🧾 Server error payload:', server);
-          const reason = server?.reason || server?.error || error.message;
-          const hint = server?.hint ? ` — ${server.hint}` : '';
-          throw new Error(`${reason}${hint}`);
-        } catch (e) {
-          throw new Error((error as any)?.message || 'Failed to send test email');
-        }
-      }
-      
-      console.log('✅ Test email sent successfully!');
-      toast({
-        title: "Test Email Sent! 📧",
-        description: `Sent to ${targetEmail}${(data as any)?.usedFrom ? ` — From: ${(data as any).usedFrom}` : ''}`,
-      });
-    } catch (error) {
-      console.error('❌ Test send error:', error);
-      toast({
-        title: "Test Send Failed",
-        description: error instanceof Error ? error.message : "There was an error sending the test email. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsTestSending(false);
-    }
-  }, [nodes, automationName, user, toast, isTestSending]);
+    },
+    [nodes, automationName, user, toast, isTestSending],
+  );
 
   const handleSaveDraft = useCallback(() => {
     if (onSaveDraft) {
@@ -367,23 +471,32 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
   const selectedAudience = {
     personas: selectedPersonas,
     segments: selectedSegments,
-    totalContacts: totalAudienceContacts
+    totalContacts: totalAudienceContacts,
   };
 
   // Get current trigger type to determine if audience is required
-  const triggerNode = nodes.find(n => n.type === 'trigger');
-  const currentTriggerType = triggerNode?.data?.triggerType as string || '';
-  const audienceRequired = !currentTriggerType || triggerRequiresAudience(currentTriggerType);
+  const triggerNode = nodes.find((n) => n.type === "trigger");
+  const currentTriggerType = (triggerNode?.data?.triggerType as string) || "";
+  const audienceRequired =
+    !currentTriggerType || triggerRequiresAudience(currentTriggerType);
 
-  const hasValidFlow = nodes.some(n => n.type === 'trigger') && 
-                     nodes.some(n => n.type === 'email' || n.type === 'sms');
-  const hasAudience = selectedPersonas.length > 0 || selectedSegments.length > 0;
+  const hasValidFlow =
+    nodes.some((n) => n.type === "trigger") &&
+    nodes.some((n) => n.type === "email" || n.type === "sms");
+  const hasAudience =
+    selectedPersonas.length > 0 || selectedSegments.length > 0;
   // For event-based triggers, audience is not required
   const isReadyToLaunch = hasValidFlow && (!audienceRequired || hasAudience);
 
   return (
-    <div className={`relative w-full h-full flex flex-col overflow-hidden ${className}`}>
-      <section role="region" aria-label="Automation canvas" className="w-full flex-1 min-h-0 overflow-hidden">
+    <div
+      className={`relative w-full h-full flex flex-col overflow-hidden ${className}`}
+    >
+      <section
+        role="region"
+        aria-label="Automation canvas"
+        className="w-full flex-1 min-h-0 overflow-hidden"
+      >
         <div className="w-full h-full rounded-lg bg-muted/30">
           <ReactFlow
             nodes={nodes}
@@ -399,7 +512,7 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
               padding: 50,
               minZoom: 0.5,
               maxZoom: 1.2,
-              includeHiddenNodes: false
+              includeHiddenNodes: false,
             }}
             attributionPosition="bottom-left"
             className="bg-background"
@@ -414,12 +527,18 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
                 nodeBorderRadius={8}
                 maskColor="rgba(0, 0, 0, 0.05)"
                 position="top-left"
-                style={{ width: 160, height: 100, borderRadius: 8, left: 16, top: 16 }}
+                style={{
+                  width: 160,
+                  height: 100,
+                  borderRadius: 8,
+                  left: 16,
+                  top: 16,
+                }}
                 pannable={false}
                 zoomable={false}
               />
             )}
-            
+
             {/* Canvas Controls - Top corners */}
             <div className="absolute top-4 left-4 z-10">
               <Button
@@ -432,7 +551,7 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
                 <Map className="w-4 h-4" />
               </Button>
             </div>
-            
+
             {/* Stacked Controls - Top Right */}
             <div className="absolute top-4 right-4 z-10 flex flex-col gap-2">
               <TooltipProvider>
@@ -441,7 +560,7 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => handleAddNode('email')}
+                      onClick={() => handleAddNode("email")}
                       className="w-8 h-8 p-0 bg-background/80 backdrop-blur-sm hover:bg-background/90"
                       aria-label="Add new node"
                     >
@@ -451,7 +570,7 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
                   <TooltipContent>Add new step</TooltipContent>
                 </Tooltip>
               </TooltipProvider>
-              
+
               {/* Only show audience selector when required by trigger type */}
               {audienceRequired && (
                 <TooltipProvider>
@@ -465,13 +584,16 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
                       >
                         <Users className="w-4 h-4" />
                         <span className="hidden sm:inline">
-                          {selectedPersonas.length > 0 || selectedSegments.length > 0 
-                            ? `${selectedPersonas.length + selectedSegments.length} Selected` 
-                            : 'Select Audience'}
+                          {selectedPersonas.length > 0 ||
+                          selectedSegments.length > 0
+                            ? `${selectedPersonas.length + selectedSegments.length} Selected`
+                            : "Select Audience"}
                         </span>
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent>Choose target audience for this automation</TooltipContent>
+                    <TooltipContent>
+                      Choose target audience for this automation
+                    </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
               )}
@@ -512,7 +634,7 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
         onToggleAISuggestions={() => setShowAISuggestions(!showAISuggestions)}
         showAISuggestions={showAISuggestions}
         isModalOpen={showAudienceSelector}
-        hasTrigger={nodes.some(n => n.type === 'trigger')}
+        hasTrigger={nodes.some((n) => n.type === "trigger")}
       />
 
       {/* AI Suggestions Panel */}
@@ -520,7 +642,8 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
         <div className="absolute top-4 right-4 w-80 bg-white rounded-lg shadow-lg border p-4 z-50">
           <h3 className="font-semibold mb-2">AI Suggestions</h3>
           <p className="text-sm text-muted-foreground">
-            Intelligent suggestions will appear here based on your selected node.
+            Intelligent suggestions will appear here based on your selected
+            node.
           </p>
         </div>
       )}
@@ -532,17 +655,20 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
         automation={{
           name: automationName,
           triggerType: normalizeTriggerId(
-            String(nodes.find(n => n.type === 'trigger')?.data?.triggerType || triggerType || 'loyalty_join')
+            String(
+              nodes.find((n) => n.type === "trigger")?.data?.triggerType ||
+                triggerType ||
+                "loyalty_join",
+            ),
           ),
-          flowSteps: nodes.filter(n => n.type !== 'trigger'),
-          selectedAudience
+          flowSteps: nodes.filter((n) => n.type !== "trigger"),
+          selectedAudience,
         }}
         onLaunch={handleLaunch}
         onTestSend={handleTestSend}
         isLoading={isLaunchLoading}
         isTestSending={isTestSending}
       />
-
 
       {/* Node Editor Dialog */}
       <NodeEditorDialog
