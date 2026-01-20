@@ -535,6 +535,87 @@ export type Database = {
         }
         Relationships: []
       }
+      automation_email_executions: {
+        Row: {
+          automation_id: string
+          automation_node_id: string
+          created_at: string | null
+          customer_id: string | null
+          email: string
+          error: string | null
+          id: string
+          outbox_id: string | null
+          reason: string | null
+          resend_message_id: string | null
+          status: string
+          tenant_id: string
+        }
+        Insert: {
+          automation_id: string
+          automation_node_id: string
+          created_at?: string | null
+          customer_id?: string | null
+          email: string
+          error?: string | null
+          id?: string
+          outbox_id?: string | null
+          reason?: string | null
+          resend_message_id?: string | null
+          status: string
+          tenant_id: string
+        }
+        Update: {
+          automation_id?: string
+          automation_node_id?: string
+          created_at?: string | null
+          customer_id?: string | null
+          email?: string
+          error?: string | null
+          id?: string
+          outbox_id?: string | null
+          reason?: string | null
+          resend_message_id?: string | null
+          status?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automation_email_executions_automation_id_fkey"
+            columns: ["automation_id"]
+            isOneToOne: false
+            referencedRelation: "crm_automations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automation_email_executions_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "crm_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automation_email_executions_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customer_360_enriched"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automation_email_executions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "admin_tenant_overview"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "automation_email_executions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       automation_events: {
         Row: {
           automation_id: string | null
