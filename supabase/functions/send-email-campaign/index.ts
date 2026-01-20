@@ -4,6 +4,7 @@ import { Resend } from "https://esm.sh/resend@2";
 import { renderMergeTags, convertLegacyTags, createMergeTagDataFromCustomer, type MergeTagData } from "../_shared/mergeTagEngine.ts";
 import { generateServerFooterHtml, type CompanyProfileData } from "../_shared/footerGenerator.ts";
 import { extractLinks, getUniqueUrls, rewriteLinksSync, hasPII } from "../_shared/linkRewriter.ts";
+import { renderEmailForRecipient, normalizeMergeTokens, type CustomerShape, type CompanyProfileShape } from "../_shared/emailRenderer.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
