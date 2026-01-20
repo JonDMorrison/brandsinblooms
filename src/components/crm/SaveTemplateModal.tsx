@@ -25,7 +25,8 @@ const renderBlocksToPreviewHtml = (blocks: EmailBlock[]): string => {
     const headline = (block as any).headline || (block as any).title || '';
     const body = (block as any).body || (block as any).content || '';
     const imageUrl = (block as any).imageUrl || '';
-    switch (block.type) {
+    const blockType = block.block_type || (block as any).type || 'text';
+    switch (blockType) {
       case 'header':
       case 'newsletter-header':
         return `<div style="background:#1f2937;padding:20px;text-align:center;"><h1 style="color:#fff;font-size:18px;margin:0;">${headline}</h1></div>`;
