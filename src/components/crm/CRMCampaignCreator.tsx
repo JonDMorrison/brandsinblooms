@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { useSegmentCounts } from '@/hooks/useSegmentCounts';
+import { useTenant } from '@/hooks/useTenant';
 import { Loader2, Mail, Users, Sparkles, Send, Eye } from 'lucide-react';
 import { useSenderConfiguration } from '@/hooks/useSenderConfiguration';
 import { SharedSenderConfirmationModal } from './campaigns/SharedSenderConfirmationModal';
@@ -848,6 +849,30 @@ const { counts: segmentCounts } = useSegmentCounts();
 
   // Sender configuration for domain verification
   const { senderConfig, loading: loadingSenderConfig, refetch: refetchSenderConfig } = useSenderConfiguration();
+
+  // Tenant context for customer count
+  const { tenant } = useTenant();
+
+  // Total customer count for "All Contacts" audience
+  const [totalCustomerCount, setTotalCustomerCount] = useState<number>(0);
+  
+  // Fetch total customer count when tenant is available
+  useEffect(() => {
+    const fetchTotalCustomerCount = async () => {
+      if (!tenant?.id) return;
+      
+      const { count, error } = await supabase
+        .from('crm_customers')
+        .select('*', { count: 'exact', head: true })
+        .eq('tenant_id', tenant.id);
+      
+      if (!error && count !== null) {
+        setTotalCustomerCount(count);
+      }
+    };
+    
+    fetchTotalCustomerCount();
+  }, [tenant?.id]);
 
   // Footer and company data - pass campaignId to load campaign-specific styling
   const { footerSettings, campaignOverrides, setCampaignOverrides } = useFooterSettings(existingCampaignId || undefined);
@@ -4628,7 +4653,11 @@ const { counts: segmentCounts } = useSegmentCounts();
         subjectLine={subjectLine}
         selectedSegments={selectedSegments}
         selectedPersonas={selectedPersonas}
-        totalContacts={selectedPersonas.reduce((total, persona) => total + (persona.customerCount || persona.customer_count || 0), 0) + selectedSegments.reduce((total, segment) => total + (segment.customerCount || segment.customer_count || 0), 0)}
+        totalContacts={
+          selectedSegments.length === 0 && selectedPersonas.length === 0
+            ? totalCustomerCount
+            : selectedPersonas.reduce((total, persona) => total + (persona.customerCount || persona.customer_count || 0), 0) + selectedSegments.reduce((total, segment) => total + (segment.customerCount || segment.customer_count || 0), 0)
+        }
         loading={sending}
       />
 
@@ -4642,7 +4671,11 @@ const { counts: segmentCounts } = useSegmentCounts();
         }}
         senderConfig={senderConfig}
         campaignName={campaignName}
-        recipientCount={selectedPersonas.reduce((total, persona) => total + (persona.customerCount || 0), 0) + selectedSegments.reduce((total, segment) => total + (segment.customerCount || 0), 0)}
+        recipientCount={
+          selectedSegments.length === 0 && selectedPersonas.length === 0
+            ? totalCustomerCount
+            : selectedPersonas.reduce((total, persona) => total + (persona.customerCount || 0), 0) + selectedSegments.reduce((total, segment) => total + (segment.customerCount || 0), 0)
+        }
       />
 
       {/* Warmup Limit Modal */}
