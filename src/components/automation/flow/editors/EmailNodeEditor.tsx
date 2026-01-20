@@ -16,6 +16,7 @@ import { TextareaWithMergeTags } from '@/components/ui/textarea-with-merge-tags'
 import { AutomationTemplateBrowser } from '@/components/automation/AutomationTemplateBrowser';
 import { useTenant } from '@/hooks/useTenant';
 import { useQuery } from '@tanstack/react-query';
+import { EmailNodeExecutionPanel } from '@/components/crm/automation/EmailNodeExecutionPanel';
 
 // Enhanced source template attribution
 interface SourceTemplate {
@@ -54,6 +55,8 @@ type PreviewMode = 'none' | 'sample' | 'customer';
 
 interface EmailNodeEditorProps {
   data: EmailNodeData;
+  nodeId?: string;
+  automationId?: string;
   onSave: (data: EmailNodeData) => void;
   onCancel: () => void;
 }
@@ -70,6 +73,8 @@ const emailTemplates = [
 
 export const EmailNodeEditor: React.FC<EmailNodeEditorProps> = ({
   data,
+  nodeId,
+  automationId,
   onSave,
   onCancel
 }) => {
@@ -392,6 +397,15 @@ export const EmailNodeEditor: React.FC<EmailNodeEditorProps> = ({
               </div>
             </AlertDescription>
           </Alert>
+        )}
+
+        {/* Execution Stats Panel - only show if automation exists */}
+        {automationId && nodeId && (
+          <EmailNodeExecutionPanel
+            automationId={automationId}
+            nodeId={nodeId}
+            className="border-muted"
+          />
         )}
         
         {/* Use Saved Template Button - only show if no template applied */}
