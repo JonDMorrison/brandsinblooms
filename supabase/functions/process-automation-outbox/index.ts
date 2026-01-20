@@ -15,6 +15,7 @@ interface OutboxMessage {
   tenant_id: string;
   automation_id: string | null;
   automation_run_id: string | null;
+  automation_node_id: string | null;
   customer_id: string;
   message_type: "email" | "sms";
   recipient: string;
@@ -415,27 +416,34 @@ async function skipMessage(
 }
 
 /**
- * Get the automation node ID for a given step index
+ * Get the automation node ID - prefer stored value, fallback to derivation for legacy outbox items
  */
 async function getAutomationNodeId(
   supabase: ReturnType<typeof createClient>,
-  automationId: string,
-  stepIndex: number
+  message: OutboxMessage
 ): Promise<string | null> {
+  // Prefer the stored node ID (new behavior)
+  if (message.automation_node_id) {
+    return message.automation_node_id;
+  }
+
+  // Fallback: derive from step_index for legacy outbox items
+  if (!message.automation_id) return null;
+  
   try {
     const { data: automation } = await supabase
       .from("crm_automations")
       .select("workflow_steps")
-      .eq("id", automationId)
+      .eq("id", message.automation_id)
       .single();
 
-    if (!automation?.workflow_steps) return null;
+    if (!automation?.workflow_steps) return `step-${message.step_index}`;
 
     const steps = automation.workflow_steps as Array<{ id?: string; node_id?: string }>;
-    const step = steps[stepIndex];
-    return step?.id || step?.node_id || `step-${stepIndex}`;
+    const step = steps[message.step_index];
+    return step?.id || step?.node_id || `step-${message.step_index}`;
   } catch {
-    return `step-${stepIndex}`;
+    return `step-${message.step_index}`;
   }
 }
 
@@ -444,10 +452,9 @@ async function sendEmail(
   message: OutboxMessage
 ): Promise<{ success: boolean; error?: string; shouldSkip?: boolean; external_id?: string; canRetry?: boolean }> {
   // Get automation node ID for execution logging
-  let automationNodeId: string | null = null;
-  if (message.automation_id) {
-    automationNodeId = await getAutomationNodeId(supabase, message.automation_id, message.step_index);
-  }
+  const automationNodeId = message.automation_id 
+    ? await getAutomationNodeId(supabase, message) 
+    : null;
 
   try {
     // Check suppression/opt-out status before sending (for automation emails)

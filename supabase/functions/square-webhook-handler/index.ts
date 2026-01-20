@@ -133,6 +133,7 @@ async function fireAutomationTriggers(supabase: any, tenantId: string, customerI
       
       await supabase.from('crm_outbox').insert({
         tenant_id: tenantId, automation_id: automation.id, customer_id: customerId,
+        automation_node_id: step.id || step.node_id || `step-${i}`,
         message_type: messageType, recipient, content: personalizeMessage(step.text, customer, eventData),
         subject: step.subject ? personalizeMessage(step.subject, customer, eventData) : undefined,
         template_data: { automation_name: automation.name, step_index: i, customer_data: customer, event_data: eventData, trigger_type: automation.trigger_type },
