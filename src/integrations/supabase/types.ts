@@ -6628,6 +6628,97 @@ export type Database = {
           },
         ]
       }
+      email_test_sends: {
+        Row: {
+          automation_id: string | null
+          automation_node_id: string | null
+          campaign_id: string | null
+          created_at: string
+          customer_id: string | null
+          diagnostics: Json | null
+          error: string | null
+          id: string
+          status: string
+          subject: string | null
+          tenant_id: string
+          to_email: string
+          user_id: string
+        }
+        Insert: {
+          automation_id?: string | null
+          automation_node_id?: string | null
+          campaign_id?: string | null
+          created_at?: string
+          customer_id?: string | null
+          diagnostics?: Json | null
+          error?: string | null
+          id?: string
+          status?: string
+          subject?: string | null
+          tenant_id: string
+          to_email: string
+          user_id: string
+        }
+        Update: {
+          automation_id?: string | null
+          automation_node_id?: string | null
+          campaign_id?: string | null
+          created_at?: string
+          customer_id?: string | null
+          diagnostics?: Json | null
+          error?: string | null
+          id?: string
+          status?: string
+          subject?: string | null
+          tenant_id?: string
+          to_email?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_test_sends_automation_id_fkey"
+            columns: ["automation_id"]
+            isOneToOne: false
+            referencedRelation: "crm_automations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_test_sends_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "crm_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_test_sends_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "crm_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_test_sends_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customer_360_enriched"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_test_sends_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "admin_tenant_overview"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "email_test_sends_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_tracking_events: {
         Row: {
           bounce_type: string | null
