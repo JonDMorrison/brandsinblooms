@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.10";
 import { resolveSender, buildFromAddress, type SenderConfig } from "../_shared/senderResolver.ts";
 import { checkSMSAvailability, isChannelAvailable } from "../_shared/channelAvailability.ts";
+import { renderEmailForRecipient, type CustomerShape, type CompanyProfileShape } from "../_shared/emailRenderer.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -433,7 +434,7 @@ async function sendEmail(
       console.log(`📧 [SendEmail] Dynamically resolved sender: ${senderConfig.deliveryMethod} (${senderConfig.fromEmail})`);
     }
 
-    // Get company name for display
+    // Get company profile for unified rendering
     const { data: tenantUser } = await supabase
       .from("users")
       .select("id")
@@ -442,21 +443,51 @@ async function sendEmail(
       .single();
 
     let companyName = "Your Business";
+    let companyProfile: CompanyProfileShape | null = null;
     if (tenantUser?.id) {
-      const { data: companyProfile } = await supabase
+      const { data: profile } = await supabase
         .from("company_profiles")
-        .select("company_name")
+        .select("company_name, location_info, company_email, company_phone, website_url")
         .eq("user_id", tenantUser.id)
         .single();
-      companyName = companyProfile?.company_name || "Your Business";
+      companyName = profile?.company_name || "Your Business";
+      companyProfile = profile;
     }
+
+    // Fetch customer data for unified rendering
+    const { data: customer } = await supabase
+      .from("crm_customers")
+      .select("id, email, first_name, last_name, phone")
+      .eq("id", message.customer_id)
+      .single();
+
+    // Use unified renderer for consistent merge tag handling
+    const customerShape: CustomerShape | null = customer ? {
+      id: customer.id,
+      email: customer.email,
+      first_name: customer.first_name,
+      last_name: customer.last_name,
+      phone: customer.phone,
+    } : null;
+
+    const rendered = renderEmailForRecipient({
+      tenantId: message.tenant_id,
+      html: message.content,
+      subject: message.subject || "Message from automation",
+      customer: customerShape,
+      companyProfile,
+      mode: 'send',
+      includeFooter: true,
+    });
+
+    console.log(`📧 [SendEmail] Unified renderer diagnostics: ${rendered.diagnostics.usedTags.length} tags, ${rendered.diagnostics.missingTags.length} missing`);
 
     // Call the transactional email function (returns external_id)
     const { data, error } = await supabase.functions.invoke("send-transactional-email", {
       body: {
         to: message.recipient,
-        subject: message.subject || "Message from automation",
-        html_content: message.content,
+        subject: rendered.renderedSubject,
+        html_content: rendered.renderedHtml,
         from_name: companyName,
         from_email: senderConfig.fromEmail,
         tags: [

@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { renderMergeTags, convertLegacyTags, createMergeTagDataFromCustomer } from "../_shared/mergeTagEngine.ts";
 import { checkSMSAvailability, isChannelAvailable } from "../_shared/channelAvailability.ts";
+import { renderEmailForRecipient, normalizeMergeTokens } from "../_shared/emailRenderer.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -385,8 +386,6 @@ async function sendAutomationSms(customer: Customer, step: WorkflowStep, automat
 function personalizeContent(content: string, customer: Customer): string {
   // Use unified email renderer for consistency with campaign sends
   // This ensures automation emails render identically to campaign emails
-  const { renderEmailForRecipient, normalizeMergeTokens } = await import("../_shared/emailRenderer.ts");
-  
   const result = renderEmailForRecipient({
     tenantId: customer.tenant_id || '',
     html: content,
