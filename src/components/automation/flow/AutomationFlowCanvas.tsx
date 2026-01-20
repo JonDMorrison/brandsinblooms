@@ -676,6 +676,8 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
         onOpenChange={(open) => !open && setEditingNode(null)}
         nodeType={editingNode?.type || null}
         nodeData={editingNode?.data || null}
+        nodeId={editingNode?.id}
+        automationId={automationId}
         onSave={(data) => {
           if (editingNode) {
             updateNode(editingNode.id, data);
