@@ -453,3 +453,197 @@ export const regenerateCampaignContent = async (
     throw error;
   }
 };
+
+// =====================================================
+// SCHEDULED CAMPAIGN MANAGEMENT FUNCTIONS
+// =====================================================
+
+/**
+ * Update a campaign's scheduled time
+ */
+export const updateCampaignSchedule = async (
+  campaignId: string, 
+  scheduledAt: string,
+  timezone?: string
+): Promise<boolean> => {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('User not authenticated');
+
+    const { error } = await supabase
+      .from('crm_campaigns')
+      .update({
+        scheduled_at: scheduledAt,
+        status: 'scheduled',
+        updated_at: new Date().toISOString(),
+        metadata: timezone ? { scheduled_timezone: timezone } : undefined
+      })
+      .eq('id', campaignId)
+      .eq('user_id', user.id);
+
+    if (error) throw error;
+
+    toast.success('Schedule updated successfully');
+    return true;
+  } catch (error: any) {
+    console.error('Error updating campaign schedule:', error);
+    toast.error(`Failed to update schedule: ${error.message}`);
+    return false;
+  }
+};
+
+/**
+ * Unschedule a campaign - revert to draft status
+ */
+export const unscheduleCampaign = async (campaignId: string): Promise<boolean> => {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('User not authenticated');
+
+    // First check current status
+    const { data: campaign, error: fetchError } = await supabase
+      .from('crm_campaigns')
+      .select('status')
+      .eq('id', campaignId)
+      .eq('user_id', user.id)
+      .single();
+
+    if (fetchError) throw fetchError;
+
+    if (campaign.status === 'sending') {
+      toast.error('Cannot unschedule a campaign that is currently sending');
+      return false;
+    }
+
+    if (campaign.status === 'sent') {
+      toast.error('Cannot unschedule a campaign that has already been sent');
+      return false;
+    }
+
+    const { error } = await supabase
+      .from('crm_campaigns')
+      .update({
+        scheduled_at: null,
+        status: 'draft',
+        send_started_at: null,
+        send_error: null,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', campaignId)
+      .eq('user_id', user.id);
+
+    if (error) throw error;
+
+    toast.success('Campaign unscheduled - returned to draft');
+    return true;
+  } catch (error: any) {
+    console.error('Error unscheduling campaign:', error);
+    toast.error(`Failed to unschedule: ${error.message}`);
+    return false;
+  }
+};
+
+/**
+ * Send a scheduled campaign immediately
+ * Uses atomic claim to prevent double-sends
+ */
+export const sendScheduledCampaignNow = async (campaignId: string): Promise<{
+  success: boolean;
+  error?: string;
+}> => {
+  try {
+    console.log('🚀 Attempting to send scheduled campaign now:', campaignId);
+
+    // Step 1: Atomically claim the campaign
+    const claimResult = await claimCampaignForSend(campaignId);
+
+    if (!claimResult.success) {
+      const errorMsg = claimResult.errorMessage || 'Failed to claim campaign';
+      console.error('❌ Claim failed:', errorMsg);
+      toast.error(errorMsg);
+      return { success: false, error: errorMsg };
+    }
+
+    console.log('✅ Campaign claimed, previous status:', claimResult.previousStatus);
+
+    // Step 2: Clear scheduled_at since we're sending now
+    await supabase
+      .from('crm_campaigns')
+      .update({ scheduled_at: null })
+      .eq('id', campaignId);
+
+    // Step 3: Send via edge function
+    console.log('📧 Invoking send-email-campaign...');
+    const { data: sendResult, error: sendError } = await supabase.functions.invoke('send-email-campaign', {
+      body: { campaignId }
+    });
+
+    if (sendError) {
+      console.error('Edge function send error:', sendError);
+      await supabase
+        .from('crm_campaigns')
+        .update({ 
+          status: 'failed', 
+          send_error: sendError.message 
+        })
+        .eq('id', campaignId);
+      toast.error(`Send failed: ${sendError.message}`);
+      return { success: false, error: sendError.message };
+    }
+
+    if (sendResult?.error) {
+      console.error('Send result error:', sendResult.error);
+      await supabase
+        .from('crm_campaigns')
+        .update({ 
+          status: 'failed', 
+          send_error: sendResult.error 
+        })
+        .eq('id', campaignId);
+      toast.error(`Send failed: ${sendResult.error}`);
+      return { success: false, error: sendResult.error };
+    }
+
+    const sentCount = sendResult?.metrics?.sent || 0;
+    console.log('✅ Campaign sent successfully:', sendResult);
+    toast.success(`Campaign sent to ${sentCount} customers!`);
+    
+    return { success: true };
+  } catch (error: any) {
+    console.error('Error sending campaign now:', error);
+    toast.error(`Failed to send: ${error.message}`);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
+ * Get campaign status info for display
+ */
+export const getCampaignStatusInfo = (
+  status: string,
+  scheduledAt?: string | null,
+  sendError?: string | null
+): {
+  label: string;
+  variant: 'default' | 'secondary' | 'destructive' | 'outline';
+  isPastDue: boolean;
+  isLocked: boolean;
+} => {
+  const isPastDue = status === 'scheduled' && scheduledAt && new Date(scheduledAt) < new Date();
+  const isLocked = ['scheduled', 'sending', 'sent'].includes(status);
+
+  switch (status) {
+    case 'draft':
+      return { label: 'Draft', variant: 'secondary', isPastDue: false, isLocked: false };
+    case 'scheduled':
+      return { label: 'Scheduled', variant: 'default', isPastDue, isLocked: true };
+    case 'sending':
+      return { label: 'Sending', variant: 'default', isPastDue: false, isLocked: true };
+    case 'sent':
+      return { label: 'Sent', variant: 'outline', isPastDue: false, isLocked: true };
+    case 'failed':
+      return { label: 'Failed', variant: 'destructive', isPastDue: false, isLocked: false };
+    default:
+      return { label: status, variant: 'secondary', isPastDue: false, isLocked: false };
+  }
+};
