@@ -10,7 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { useSegmentCounts } from '@/hooks/useSegmentCounts';
 import { useTenant } from '@/hooks/useTenant';
-import { Loader2, Mail, Users, Sparkles, Send, Eye } from 'lucide-react';
+import { Loader2, Mail, Users, Sparkles, Send, Eye, Lock, X } from 'lucide-react';
 import { useSenderConfiguration } from '@/hooks/useSenderConfiguration';
 import { SharedSenderConfirmationModal } from './campaigns/SharedSenderConfirmationModal';
 import { CampaignSendConfirmationModal } from './campaigns/CampaignSendConfirmationModal';
@@ -21,7 +21,7 @@ import { FullEmailPreview } from './FullEmailPreview';
 import { ContentBlock } from '@/types/emailBuilder';
 import { convertNewsletterToCRM } from '@/utils/newsletterToCrmSync';
 import { supabase } from '@/integrations/supabase/client';
-import { saveCampaignAsDraft, sendCampaign, CampaignData } from '@/utils/crmCampaignService';
+import { saveCampaignAsDraft, sendCampaign, CampaignData, updateCampaignSchedule, unscheduleCampaign, sendScheduledCampaignNow } from '@/utils/crmCampaignService';
 import { imageGenerationService } from '@/services/imageGenerationService';
 import { SaveIndicator } from '@/components/crm/SaveIndicator';
 // Footer HTML is generated server-side in send-test-email and send-email-campaign edge functions
@@ -36,6 +36,7 @@ import { AIPersonalizationDialog } from './AIPersonalizationDialog';
 import { SenderStatusIndicator } from './campaigns/SenderStatusIndicator';
 import { CampaignActionBar } from './CampaignActionBar';
 import { ScheduleOption } from './ScheduleSelector';
+import { ScheduledCampaignBanner } from './ScheduledCampaignBanner';
 import { CampaignReadiness } from './CampaignReadiness';
 import { createBlockPrompt } from '@/utils/blockPromptBuilder';
 import { normalizeAIResponse, applyAIToBlock } from '@/lib/newsletter/aiMapping';
@@ -602,6 +603,15 @@ const { counts: segmentCounts } = useSegmentCounts();
   
   // Schedule state
   const [schedule, setSchedule] = useState<ScheduleOption>({ type: 'now' });
+  
+  // Campaign status tracking (for scheduled campaigns)
+  const [campaignStatus, setCampaignStatus] = useState<string>('draft');
+  const [scheduledAt, setScheduledAt] = useState<string | null>(null);
+  const [isScheduleProcessing, setIsScheduleProcessing] = useState(false);
+  
+  // Derived: is content locked (scheduled or sending)
+  const isContentLocked = campaignStatus === 'scheduled' || campaignStatus === 'sending';
+  
   const [pendingDraftData, setPendingDraftData] = useState<{
     state: any;
     draftTimestamp?: string;
@@ -2766,11 +2776,29 @@ const { counts: segmentCounts } = useSegmentCounts();
       setCampaignName(campaign.name);
       setSubjectLine(campaign.subject_line || campaign.name); // Handle missing subject field
       setPreheaderText(campaign.preheader || '');
+      
+      // Restore scheduled campaign state
+      setCampaignStatus(campaign.status || 'draft');
+      setScheduledAt(campaign.scheduled_at || null);
+      
+      // Sync schedule state with loaded campaign
+      if (campaign.status === 'scheduled' && campaign.scheduled_at) {
+        const metadata = campaign.metadata as Record<string, unknown> | null;
+        setSchedule({
+          type: 'scheduled',
+          date: new Date(campaign.scheduled_at),
+          timezone: (metadata?.scheduled_timezone as string) || Intl.DateTimeFormat().resolvedOptions().timeZone
+        });
+      } else {
+        setSchedule({ type: 'now' });
+      }
 
       console.log('📋 Campaign metadata restored:', {
         name: campaign.name,
         subject: campaign.subject_line,
-        preheader: campaign.preheader
+        preheader: campaign.preheader,
+        status: campaign.status,
+        scheduledAt: campaign.scheduled_at
       });
 
         // CANONICAL: Use normalizeBlockFromDatabase for consistent field mapping
@@ -4310,6 +4338,72 @@ const { counts: segmentCounts } = useSegmentCounts();
     }
   };
 
+  // =====================================================
+  // SCHEDULED CAMPAIGN MANAGEMENT HANDLERS
+  // =====================================================
+  
+  const handleEditSchedule = async (newSchedule: ScheduleOption) => {
+    if (!existingCampaignId || newSchedule.type !== 'scheduled' || !newSchedule.date) {
+      return;
+    }
+    
+    setIsScheduleProcessing(true);
+    try {
+      const success = await updateCampaignSchedule(
+        existingCampaignId,
+        newSchedule.date.toISOString(),
+        newSchedule.timezone
+      );
+      
+      if (success) {
+        setSchedule(newSchedule);
+        setScheduledAt(newSchedule.date.toISOString());
+        setCampaignStatus('scheduled');
+      }
+    } finally {
+      setIsScheduleProcessing(false);
+    }
+  };
+  
+  const handleUnschedule = async () => {
+    if (!existingCampaignId) return;
+    
+    setIsScheduleProcessing(true);
+    try {
+      const success = await unscheduleCampaign(existingCampaignId);
+      
+      if (success) {
+        setSchedule({ type: 'now' });
+        setScheduledAt(null);
+        setCampaignStatus('draft');
+      }
+    } finally {
+      setIsScheduleProcessing(false);
+    }
+  };
+  
+  const handleSendScheduledNow = async () => {
+    if (!existingCampaignId) return;
+    
+    setIsScheduleProcessing(true);
+    setSending(true);
+    try {
+      const result = await sendScheduledCampaignNow(existingCampaignId);
+      
+      if (result.success) {
+        setCampaignStatus('sent');
+        setScheduledAt(null);
+        setSchedule({ type: 'now' });
+        navigate('/crm/campaigns');
+      } else {
+        setCampaignStatus('failed');
+      }
+    } finally {
+      setIsScheduleProcessing(false);
+      setSending(false);
+    }
+  };
+
   // Memoize email HTML to update when blocks or other dependencies change
   const emailHTMLContent = useMemo(() => {
     console.log('📧 [emailHTMLContent] Recalculating email HTML. campaignOverrides:', {
@@ -4360,6 +4454,17 @@ const { counts: segmentCounts } = useSegmentCounts();
       />
 
       <div className="max-w-7xl mx-auto p-6 space-y-6">
+        {/* Scheduled Campaign Banner - shows when campaign is scheduled */}
+        <ScheduledCampaignBanner
+          status={campaignStatus}
+          scheduledAt={scheduledAt}
+          timezone={schedule.type === 'scheduled' ? schedule.timezone : undefined}
+          onEditSchedule={handleEditSchedule}
+          onSendNow={handleSendScheduledNow}
+          onUnschedule={handleUnschedule}
+          isProcessing={isScheduleProcessing}
+        />
+        
         {/* Page Header */}
         <div>
           <h1 className="text-2xl font-bold text-gray-900">
@@ -4480,7 +4585,26 @@ const { counts: segmentCounts } = useSegmentCounts();
        />
 
          {/* Email Content Builder - Full Width */}
-        <Card>
+        <Card className="relative">
+          {/* Content Lock Overlay - shown when campaign is scheduled */}
+          {isContentLocked && (
+            <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-10 flex items-center justify-center rounded-lg">
+              <div className="text-center p-6">
+                <Lock className="h-8 w-8 mx-auto mb-3 text-muted-foreground" />
+                <h3 className="font-semibold text-lg mb-2">Content Locked</h3>
+                <p className="text-muted-foreground mb-4 max-w-md">
+                  This campaign is {campaignStatus === 'sending' ? 'currently sending' : 'scheduled'}. 
+                  {campaignStatus === 'scheduled' && ' Unschedule to edit content.'}
+                </p>
+                {campaignStatus === 'scheduled' && (
+                  <Button variant="outline" size="sm" onClick={handleUnschedule} disabled={isScheduleProcessing}>
+                    <X className="h-4 w-4 mr-1" />
+                    Unschedule to Edit
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle>Email Content</CardTitle>
@@ -4496,6 +4620,16 @@ const { counts: segmentCounts } = useSegmentCounts();
           <CleanEmailBlockEditor
             blocks={blocks}
             onBlocksChange={(newBlocks) => {
+              // Block changes when content is locked
+              if (isContentLocked) {
+                toast({
+                  title: 'Content Locked',
+                  description: 'Unschedule the campaign to edit content.',
+                  variant: 'destructive'
+                });
+                return;
+              }
+              
               console.log('[CRM CAMPAIGN CREATOR] Blocks changed:', newBlocks.length);
               
               // DEBUG: Log overlay values for header blocks when blocks change
