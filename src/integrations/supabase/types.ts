@@ -6629,6 +6629,97 @@ export type Database = {
           },
         ]
       }
+      email_send_log: {
+        Row: {
+          automation_id: string | null
+          automation_node_id: string | null
+          campaign_id: string | null
+          created_at: string | null
+          customer_id: string | null
+          error_message: string | null
+          id: string
+          resend_message_id: string | null
+          status: string | null
+          subject: string | null
+          tenant_id: string
+          to_email: string
+          tracked_links_count: number | null
+        }
+        Insert: {
+          automation_id?: string | null
+          automation_node_id?: string | null
+          campaign_id?: string | null
+          created_at?: string | null
+          customer_id?: string | null
+          error_message?: string | null
+          id?: string
+          resend_message_id?: string | null
+          status?: string | null
+          subject?: string | null
+          tenant_id: string
+          to_email: string
+          tracked_links_count?: number | null
+        }
+        Update: {
+          automation_id?: string | null
+          automation_node_id?: string | null
+          campaign_id?: string | null
+          created_at?: string | null
+          customer_id?: string | null
+          error_message?: string | null
+          id?: string
+          resend_message_id?: string | null
+          status?: string | null
+          subject?: string | null
+          tenant_id?: string
+          to_email?: string
+          tracked_links_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_send_log_automation_id_fkey"
+            columns: ["automation_id"]
+            isOneToOne: false
+            referencedRelation: "crm_automations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_send_log_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "crm_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_send_log_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "crm_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_send_log_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customer_360_enriched"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_send_log_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "admin_tenant_overview"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "email_send_log_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_senders: {
         Row: {
           created_at: string
@@ -6872,6 +6963,8 @@ export type Database = {
       }
       email_tracking_events: {
         Row: {
+          automation_id: string | null
+          automation_node_id: string | null
           bounce_type: string | null
           campaign_id: string
           created_at: string
@@ -6894,6 +6987,8 @@ export type Database = {
           webhook_delivery_id: string | null
         }
         Insert: {
+          automation_id?: string | null
+          automation_node_id?: string | null
           bounce_type?: string | null
           campaign_id: string
           created_at?: string
@@ -6916,6 +7011,8 @@ export type Database = {
           webhook_delivery_id?: string | null
         }
         Update: {
+          automation_id?: string | null
+          automation_node_id?: string | null
           bounce_type?: string | null
           campaign_id?: string
           created_at?: string
@@ -6938,6 +7035,13 @@ export type Database = {
           webhook_delivery_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "email_tracking_events_automation_id_fkey"
+            columns: ["automation_id"]
+            isOneToOne: false
+            referencedRelation: "crm_automations"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "email_tracking_events_campaign_id_fkey"
             columns: ["campaign_id"]
