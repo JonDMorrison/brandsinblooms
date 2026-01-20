@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useSubscription } from '@/hooks/useSubscription';
+import { useTenant } from '@/hooks/useTenant';
 import { supabase } from '@/integrations/supabase/client';
 
 interface CRMOnboardingStatus {
@@ -15,6 +16,7 @@ interface CRMOnboardingStatus {
 
 export const useCRMOnboardingStatus = (): CRMOnboardingStatus => {
   const { user } = useAuth();
+  const { tenant } = useTenant();
   const { subscription } = useSubscription();
   const [isLoading, setIsLoading] = useState(true);
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
@@ -23,7 +25,7 @@ export const useCRMOnboardingStatus = (): CRMOnboardingStatus => {
   const [campaignCount, setCampaignCount] = useState(0);
 
   const checkOnboardingStatus = async () => {
-    if (!user?.id) return;
+    if (!user?.id || !tenant?.id) return;
 
     try {
       setIsLoading(true);
@@ -37,12 +39,12 @@ export const useCRMOnboardingStatus = (): CRMOnboardingStatus => {
 
       setHasCompletedOnboarding(!!profile?.crm_onboarding_completed_at);
 
-      // Get current counts to determine if onboarding should show
+      // Get current counts with explicit tenant_id filtering
       const [customersResult, segmentsResult, emailCampaignsResult, smsCampaignsResult] = await Promise.all([
-        supabase.from('crm_customers').select('id', { count: 'exact' }),
-        supabase.from('crm_segments').select('id', { count: 'exact' }),
-        supabase.from('crm_campaigns').select('id', { count: 'exact' }),
-        supabase.from('crm_sms_campaigns').select('id', { count: 'exact' })
+        supabase.from('crm_customers').select('id', { count: 'exact', head: true }).eq('tenant_id', tenant.id),
+        supabase.from('crm_segments').select('id', { count: 'exact', head: true }).eq('tenant_id', tenant.id),
+        supabase.from('crm_campaigns').select('id', { count: 'exact', head: true }).eq('tenant_id', tenant.id),
+        supabase.from('crm_sms_campaigns').select('id', { count: 'exact', head: true }).eq('tenant_id', tenant.id)
       ]);
 
       const customers = customersResult.count || 0;
@@ -81,7 +83,7 @@ export const useCRMOnboardingStatus = (): CRMOnboardingStatus => {
 
   useEffect(() => {
     checkOnboardingStatus();
-  }, [user?.id]);
+  }, [user?.id, tenant?.id]);
 
   // Should show onboarding if:
   // - CRM is enabled in subscription
