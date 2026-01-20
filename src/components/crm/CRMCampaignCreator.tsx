@@ -35,6 +35,7 @@ import { AIWriterDialog } from './ai-writer/AIWriterDialog';
 import { AIPersonalizationDialog } from './AIPersonalizationDialog';
 import { SenderStatusIndicator } from './campaigns/SenderStatusIndicator';
 import { CampaignActionBar } from './CampaignActionBar';
+import { ScheduleOption } from './ScheduleSelector';
 import { CampaignReadiness } from './CampaignReadiness';
 import { createBlockPrompt } from '@/utils/blockPromptBuilder';
 import { normalizeAIResponse, applyAIToBlock } from '@/lib/newsletter/aiMapping';
@@ -598,6 +599,9 @@ const { counts: segmentCounts } = useSegmentCounts();
   
   // Draft restoration dialog state
   const [showDraftDialog, setShowDraftDialog] = useState(false);
+  
+  // Schedule state
+  const [schedule, setSchedule] = useState<ScheduleOption>({ type: 'now' });
   const [pendingDraftData, setPendingDraftData] = useState<{
     state: any;
     draftTimestamp?: string;
@@ -4195,7 +4199,9 @@ const { counts: segmentCounts } = useSegmentCounts();
         content: generateEmailHTML(),
         preheader: preheaderText,
         segments: selectedSegments,
-        schedule: { type: 'immediate' },
+        schedule: schedule.type === 'scheduled' 
+          ? { type: 'scheduled', send_at: schedule.date?.toISOString() }
+          : { type: 'immediate' },
         content_blocks: blocks
       };
 
@@ -4343,6 +4349,8 @@ const { counts: segmentCounts } = useSegmentCounts();
         sending={sending}
         loading={loading}
         hasGeneratingImages={hasGeneratingImages}
+        schedule={schedule}
+        onScheduleChange={setSchedule}
         onSend={handleSendCampaign}
         onSave={handleSave}
         onPreview={() => setShowPreview(true)}
