@@ -383,10 +383,26 @@ async function sendAutomationSms(customer: Customer, step: WorkflowStep, automat
 }
 
 function personalizeContent(content: string, customer: Customer): string {
-  // Convert legacy tags and render with unified engine
-  const normalized = convertLegacyTags(content);
-  const mergeTagData = createMergeTagDataFromCustomer(customer as unknown as Record<string, unknown>, {});
-  return renderMergeTags(normalized, mergeTagData);
+  // Use unified email renderer for consistency with campaign sends
+  // This ensures automation emails render identically to campaign emails
+  const { renderEmailForRecipient, normalizeMergeTokens } = await import("../_shared/emailRenderer.ts");
+  
+  const result = renderEmailForRecipient({
+    tenantId: customer.tenant_id || '',
+    html: content,
+    subject: '',
+    customer: {
+      email: customer.email,
+      first_name: customer.first_name,
+      last_name: customer.last_name,
+      phone: customer.phone,
+    },
+    companyProfile: null,
+    mode: 'send',
+    includeFooter: false, // Footer handled separately in automation
+  });
+  
+  return result.renderedHtml;
 }
 
 serve(handler);
