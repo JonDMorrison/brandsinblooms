@@ -721,6 +721,29 @@ const { counts: segmentCounts } = useSegmentCounts();
   });
   const [selectedSegments, setSelectedSegments] = useState<any[]>([]);
   
+  // Fetch total customer count for "All Contacts" audience option
+  const [totalCustomerCount, setTotalCustomerCount] = useState<number>(0);
+  useEffect(() => {
+    const fetchTotalCustomers = async () => {
+      try {
+        // RLS automatically scopes this to the current user's tenant
+        const { count, error } = await supabase
+          .from('crm_customers')
+          .select('id', { count: 'exact', head: true })
+          .not('email', 'is', null);
+        
+        if (!error && count !== null) {
+          setTotalCustomerCount(count);
+          console.log('📊 Total customers with email:', count);
+        }
+      } catch (error) {
+        console.error('Failed to fetch total customer count:', error);
+      }
+    };
+    
+    fetchTotalCustomers();
+  }, []);
+  
   // Initialize selectedSegments from URL
   useEffect(() => {
     const loadSegmentFromUrl = async () => {
@@ -4628,7 +4651,13 @@ const { counts: segmentCounts } = useSegmentCounts();
         subjectLine={subjectLine}
         selectedSegments={selectedSegments}
         selectedPersonas={selectedPersonas}
-        totalContacts={selectedPersonas.reduce((total, persona) => total + (persona.customerCount || persona.customer_count || 0), 0) + selectedSegments.reduce((total, segment) => total + (segment.customerCount || segment.customer_count || 0), 0)}
+        totalContacts={
+          // When no segments/personas selected ("All Contacts"), use total customer count
+          selectedSegments.length === 0 && selectedPersonas.length === 0
+            ? totalCustomerCount
+            : selectedPersonas.reduce((total, persona) => total + (persona.customerCount || persona.customer_count || 0), 0) + 
+              selectedSegments.reduce((total, segment) => total + (segment.customerCount || segment.customer_count || 0), 0)
+        }
         loading={sending}
       />
 
@@ -4642,7 +4671,12 @@ const { counts: segmentCounts } = useSegmentCounts();
         }}
         senderConfig={senderConfig}
         campaignName={campaignName}
-        recipientCount={selectedPersonas.reduce((total, persona) => total + (persona.customerCount || 0), 0) + selectedSegments.reduce((total, segment) => total + (segment.customerCount || 0), 0)}
+        recipientCount={
+          selectedSegments.length === 0 && selectedPersonas.length === 0
+            ? totalCustomerCount
+            : selectedPersonas.reduce((total, persona) => total + (persona.customerCount || 0), 0) + 
+              selectedSegments.reduce((total, segment) => total + (segment.customerCount || 0), 0)
+        }
       />
 
       {/* Warmup Limit Modal */}
