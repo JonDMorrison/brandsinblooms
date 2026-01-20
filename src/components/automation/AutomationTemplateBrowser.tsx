@@ -1,12 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, Search, Layout, Mail, Clock } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Loader2, Search, Layout, Mail, Clock, Zap, AlertTriangle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
+import { toast } from 'sonner';
 
 interface SavedTemplate {
   id: string;
@@ -18,6 +22,8 @@ interface SavedTemplate {
   layout_json: any;
   usage_count: number | null;
   created_at: string;
+  automation_ready?: boolean;
+  rendered_preview_html?: string | null;
 }
 
 interface AutomationTemplateBrowserProps {
@@ -39,6 +45,8 @@ export const AutomationTemplateBrowser: React.FC<AutomationTemplateBrowserProps>
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTemplate, setSelectedTemplate] = useState<SavedTemplate | null>(null);
   const [rendering, setRendering] = useState(false);
+  const [automationReadyOnly, setAutomationReadyOnly] = useState(true);
+  const [selectedTagFilter, setSelectedTagFilter] = useState<string | null>(null);
 
   useEffect(() => {
     if (open) {
@@ -67,15 +75,33 @@ export const AutomationTemplateBrowser: React.FC<AutomationTemplateBrowserProps>
     }
   };
 
-  const filteredTemplates = templates.filter(template => {
-    if (!searchQuery) return true;
-    const query = searchQuery.toLowerCase();
-    return (
-      template.name.toLowerCase().includes(query) ||
-      template.description?.toLowerCase().includes(query) ||
-      template.tags?.some(tag => tag.toLowerCase().includes(query))
-    );
-  });
+  // Extract all unique tags for filtering
+  const allTags = useMemo(() => {
+    const tagSet = new Set<string>();
+    templates.forEach(t => t.tags?.forEach(tag => tagSet.add(tag)));
+    return Array.from(tagSet).sort();
+  }, [templates]);
+
+  const filteredTemplates = useMemo(() => {
+    return templates.filter(template => {
+      // Automation-ready filter
+      if (automationReadyOnly && !template.automation_ready) return false;
+      
+      // Tag filter
+      if (selectedTagFilter && !template.tags?.includes(selectedTagFilter)) return false;
+      
+      // Search filter
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        return (
+          template.name.toLowerCase().includes(query) ||
+          template.description?.toLowerCase().includes(query) ||
+          template.tags?.some(tag => tag.toLowerCase().includes(query))
+        );
+      }
+      return true;
+    });
+  }, [templates, searchQuery, automationReadyOnly, selectedTagFilter]);
 
   const handleSelectTemplate = async (template: SavedTemplate) => {
     setSelectedTemplate(template);
@@ -85,6 +111,11 @@ export const AutomationTemplateBrowser: React.FC<AutomationTemplateBrowserProps>
       // Convert EmailBlocks to simple HTML for automation
       const blocks = template.layout_json as any[];
       const html = renderBlocksToHtml(blocks);
+      
+      // Show warning if not automation-ready
+      if (!template.automation_ready) {
+        toast.warning("This template wasn't marked automation-ready. Verify it works as an automated message.");
+      }
       
       onSelectTemplate(template, html);
       onClose();
@@ -177,19 +208,58 @@ export const AutomationTemplateBrowser: React.FC<AutomationTemplateBrowserProps>
         </DialogHeader>
 
         <div className="space-y-4">
-          {/* Search */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search templates..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-            />
+          {/* Search + Filters */}
+          <div className="space-y-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search templates..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            
+            {/* Automation-ready toggle */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="automation-ready-filter"
+                  checked={automationReadyOnly}
+                  onCheckedChange={setAutomationReadyOnly}
+                />
+                <Label htmlFor="automation-ready-filter" className="text-sm flex items-center gap-1">
+                  <Zap className="h-3 w-3 text-amber-500" />
+                  Automation-ready only
+                </Label>
+              </div>
+              <span className="text-xs text-muted-foreground">{filteredTemplates.length} templates</span>
+            </div>
+            
+            {/* Tag filter chips */}
+            {allTags.length > 0 && (
+              <div className="flex flex-wrap gap-1">
+                {allTags.slice(0, 8).map(tag => (
+                  <Badge
+                    key={tag}
+                    variant={selectedTagFilter === tag ? "default" : "outline"}
+                    className="cursor-pointer text-xs"
+                    onClick={() => setSelectedTagFilter(selectedTagFilter === tag ? null : tag)}
+                  >
+                    {tag}
+                  </Badge>
+                ))}
+                {selectedTagFilter && (
+                  <Button variant="ghost" size="sm" className="h-5 px-2 text-xs" onClick={() => setSelectedTagFilter(null)}>
+                    Clear
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Template Grid */}
-          <ScrollArea className="h-[400px]">
+          <ScrollArea className="h-[350px]">
             {loading ? (
               <div className="flex items-center justify-center h-32">
                 <Loader2 className="h-6 w-6 animate-spin" />
@@ -198,7 +268,7 @@ export const AutomationTemplateBrowser: React.FC<AutomationTemplateBrowserProps>
               <div className="flex flex-col items-center justify-center h-32 text-muted-foreground">
                 <Mail className="h-8 w-8 mb-2" />
                 <p>No templates found</p>
-                <p className="text-sm">Save a campaign as a template first</p>
+                <p className="text-sm">{automationReadyOnly ? 'Try disabling "Automation-ready only"' : 'Save a campaign as a template first'}</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-1">
@@ -214,17 +284,35 @@ export const AutomationTemplateBrowser: React.FC<AutomationTemplateBrowserProps>
                     `}
                   >
                     <div className="flex items-start gap-3">
-                      <div className="w-12 h-12 rounded bg-muted flex items-center justify-center flex-shrink-0">
-                        <Mail className="h-6 w-6 text-muted-foreground" />
+                      {/* Preview Thumbnail */}
+                      <div className="w-16 h-20 rounded border bg-white flex-shrink-0 overflow-hidden">
+                        {template.rendered_preview_html ? (
+                          <div 
+                            className="w-full h-full overflow-hidden transform scale-[0.25] origin-top-left"
+                            style={{ width: '400%', height: '400%' }}
+                            dangerouslySetInnerHTML={{ __html: template.rendered_preview_html }}
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center bg-muted">
+                            <Mail className="h-6 w-6 text-muted-foreground" />
+                          </div>
+                        )}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-medium truncate">{template.name}</h3>
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-medium truncate">{template.name}</h3>
+                          {template.automation_ready && (
+                            <Badge variant="secondary" className="text-xs gap-1 flex-shrink-0">
+                              <Zap className="h-3 w-3 text-amber-500" />
+                            </Badge>
+                          )}
+                        </div>
                         {template.description && (
-                          <p className="text-sm text-muted-foreground line-clamp-2 mt-1">
+                          <p className="text-sm text-muted-foreground line-clamp-1 mt-1">
                             {template.description}
                           </p>
                         )}
-                        <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
+                        <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
                           <Clock className="h-3 w-3" />
                           {format(new Date(template.created_at), 'MMM d, yyyy')}
                           {template.usage_count ? (
@@ -232,8 +320,8 @@ export const AutomationTemplateBrowser: React.FC<AutomationTemplateBrowserProps>
                           ) : null}
                         </div>
                         {template.tags && template.tags.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-2">
-                            {template.tags.slice(0, 3).map((tag) => (
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {template.tags.slice(0, 2).map((tag) => (
                               <Badge key={tag} variant="secondary" className="text-xs">
                                 {tag}
                               </Badge>

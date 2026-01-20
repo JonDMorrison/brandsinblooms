@@ -4,10 +4,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { EmailBlock } from '@/types/emailBuilder';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Loader2, Save } from 'lucide-react';
+import { Loader2, Save, Zap } from 'lucide-react';
 import { TemplateTagSelector } from './TemplateTagSelector';
 
 interface SaveTemplateModalProps {
@@ -16,6 +17,27 @@ interface SaveTemplateModalProps {
   blocks: EmailBlock[];
   onTemplateSaved?: () => void;
 }
+
+// Simple block-to-HTML renderer for preview thumbnail
+const renderBlocksToPreviewHtml = (blocks: EmailBlock[]): string => {
+  if (!blocks?.length) return '';
+  return blocks.map(block => {
+    const headline = (block as any).headline || (block as any).title || '';
+    const body = (block as any).body || (block as any).content || '';
+    const imageUrl = (block as any).imageUrl || '';
+    switch (block.type) {
+      case 'header':
+      case 'newsletter-header':
+        return `<div style="background:#1f2937;padding:20px;text-align:center;"><h1 style="color:#fff;font-size:18px;margin:0;">${headline}</h1></div>`;
+      case 'text':
+        return `<div style="padding:10px;"><p style="font-size:12px;margin:0;color:#374151;">${body.slice(0, 100)}${body.length > 100 ? '...' : ''}</p></div>`;
+      case 'image':
+        return imageUrl ? `<div style="padding:10px;"><img src="${imageUrl}" style="max-width:100%;height:auto;border-radius:4px;" /></div>` : '';
+      default:
+        return body ? `<div style="padding:10px;"><p style="font-size:12px;margin:0;">${body.slice(0, 80)}</p></div>` : '';
+    }
+  }).join('');
+};
 
 export const SaveTemplateModal: React.FC<SaveTemplateModalProps> = ({
   open,
@@ -26,6 +48,7 @@ export const SaveTemplateModal: React.FC<SaveTemplateModalProps> = ({
   const [templateName, setTemplateName] = useState('');
   const [description, setDescription] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [automationReady, setAutomationReady] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {
@@ -41,12 +64,14 @@ export const SaveTemplateModal: React.FC<SaveTemplateModalProps> = ({
 
     setSaving(true);
     try {
-      // Get current user
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         toast.error('You must be logged in to save templates');
         return;
       }
+
+      // Generate lightweight preview HTML for thumbnails
+      const renderedPreviewHtml = renderBlocksToPreviewHtml(blocks);
 
       const { error } = await supabase
         .from('saved_campaign_templates')
@@ -56,7 +81,9 @@ export const SaveTemplateModal: React.FC<SaveTemplateModalProps> = ({
           layout_json: blocks as any,
           category: 'email',
           tags: selectedTags,
-          user_id: user.id
+          user_id: user.id,
+          automation_ready: automationReady,
+          rendered_preview_html: renderedPreviewHtml
         });
 
       if (error) throw error;
@@ -65,6 +92,7 @@ export const SaveTemplateModal: React.FC<SaveTemplateModalProps> = ({
       setTemplateName('');
       setDescription('');
       setSelectedTags([]);
+      setAutomationReady(false);
       onTemplateSaved?.();
       onClose();
     } catch (error) {
@@ -125,6 +153,25 @@ export const SaveTemplateModal: React.FC<SaveTemplateModalProps> = ({
             onTagsChange={setSelectedTags}
             disabled={saving}
           />
+          
+          {/* Automation Ready Checkbox */}
+          <div className="flex items-start gap-3 p-3 rounded-lg border bg-muted/30">
+            <Checkbox
+              id="automation-ready"
+              checked={automationReady}
+              onCheckedChange={(checked) => setAutomationReady(checked === true)}
+              disabled={saving}
+            />
+            <div className="flex-1">
+              <Label htmlFor="automation-ready" className="flex items-center gap-2 cursor-pointer">
+                <Zap className="h-4 w-4 text-amber-500" />
+                Usable in automations
+              </Label>
+              <p className="text-xs text-muted-foreground mt-1">
+                Mark this template as ready for automated email sequences
+              </p>
+            </div>
+          </div>
           
           <div className="text-sm text-muted-foreground">
             This template will include {blocks.length} block{blocks.length !== 1 ? 's' : ''} and can be reused in future campaigns.

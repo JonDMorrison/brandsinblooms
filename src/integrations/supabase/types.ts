@@ -9811,6 +9811,7 @@ export type Database = {
       }
       saved_campaign_templates: {
         Row: {
+          automation_ready: boolean | null
           category: string | null
           created_at: string
           description: string | null
@@ -9818,6 +9819,7 @@ export type Database = {
           is_public: boolean | null
           layout_json: Json
           name: string
+          rendered_preview_html: string | null
           tags: string[] | null
           tenant_id: string | null
           thumbnail_url: string | null
@@ -9826,6 +9828,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          automation_ready?: boolean | null
           category?: string | null
           created_at?: string
           description?: string | null
@@ -9833,6 +9836,7 @@ export type Database = {
           is_public?: boolean | null
           layout_json?: Json
           name: string
+          rendered_preview_html?: string | null
           tags?: string[] | null
           tenant_id?: string | null
           thumbnail_url?: string | null
@@ -9841,6 +9845,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          automation_ready?: boolean | null
           category?: string | null
           created_at?: string
           description?: string | null
@@ -9848,6 +9853,7 @@ export type Database = {
           is_public?: boolean | null
           layout_json?: Json
           name?: string
+          rendered_preview_html?: string | null
           tags?: string[] | null
           tenant_id?: string | null
           thumbnail_url?: string | null
