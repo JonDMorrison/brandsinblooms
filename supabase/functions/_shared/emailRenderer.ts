@@ -28,6 +28,8 @@ import { generateServerFooterHtml, type CompanyProfileData } from "./footerGener
 export interface RenderEmailParams {
   tenantId: string;
   campaignId?: string;
+  automationId?: string;
+  automationNodeId?: string;
   subject?: string;
   html: string;
   customer: CustomerShape | null;
@@ -35,6 +37,8 @@ export interface RenderEmailParams {
   mode: 'preview' | 'send';
   /** If true, appends the footer. Default: true for send, false for preview */
   includeFooter?: boolean;
+  /** If true, rewrites links for click tracking. Default: true for send, false for preview */
+  enableLinkTracking?: boolean;
 }
 
 export interface CustomerShape {
