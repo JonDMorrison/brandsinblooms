@@ -12,6 +12,8 @@ interface NodeEditorDialogProps {
   onOpenChange: (open: boolean) => void;
   nodeType: string | null;
   nodeData: any;
+  nodeId?: string;
+  automationId?: string;
   onSave: (data: any) => void;
 }
 
@@ -20,6 +22,8 @@ export const NodeEditorDialog: React.FC<NodeEditorDialogProps> = ({
   onOpenChange,
   nodeType,
   nodeData,
+  nodeId,
+  automationId,
   onSave
 }) => {
   const handleSave = (data: any) => {
@@ -39,6 +43,8 @@ export const NodeEditorDialog: React.FC<NodeEditorDialogProps> = ({
         return (
           <EmailNodeEditor
             data={nodeData}
+            nodeId={nodeId}
+            automationId={automationId}
             onSave={handleSave}
             onCancel={handleCancel}
           />

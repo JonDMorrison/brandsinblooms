@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.10";
 import { resolveSender, buildFromAddress, type SenderConfig } from "../_shared/senderResolver.ts";
 import { checkSMSAvailability, isChannelAvailable } from "../_shared/channelAvailability.ts";
 import { renderEmailForRecipient, type CustomerShape, type CompanyProfileShape } from "../_shared/emailRenderer.ts";
+import { logAutomationEmailExecution, checkAlreadySent, checkAndLogSuppression } from "../_shared/automationEmailExecution.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
