@@ -414,11 +414,81 @@ async function skipMessage(
   console.log(`⏭️ Marked message ${message.id} as skipped: ${reason}`);
 }
 
+/**
+ * Get the automation node ID for a given step index
+ */
+async function getAutomationNodeId(
+  supabase: ReturnType<typeof createClient>,
+  automationId: string,
+  stepIndex: number
+): Promise<string | null> {
+  try {
+    const { data: automation } = await supabase
+      .from("crm_automations")
+      .select("workflow_steps")
+      .eq("id", automationId)
+      .single();
+
+    if (!automation?.workflow_steps) return null;
+
+    const steps = automation.workflow_steps as Array<{ id?: string; node_id?: string }>;
+    const step = steps[stepIndex];
+    return step?.id || step?.node_id || `step-${stepIndex}`;
+  } catch {
+    return `step-${stepIndex}`;
+  }
+}
+
 async function sendEmail(
   supabase: ReturnType<typeof createClient>,
   message: OutboxMessage
 ): Promise<{ success: boolean; error?: string; shouldSkip?: boolean; external_id?: string; canRetry?: boolean }> {
+  // Get automation node ID for execution logging
+  let automationNodeId: string | null = null;
+  if (message.automation_id) {
+    automationNodeId = await getAutomationNodeId(supabase, message.automation_id, message.step_index);
+  }
+
   try {
+    // Check suppression/opt-out status before sending (for automation emails)
+    if (message.automation_id && automationNodeId) {
+      const suppressionCheck = await checkAndLogSuppression(supabase, {
+        tenantId: message.tenant_id,
+        automationId: message.automation_id,
+        automationNodeId,
+        customerId: message.customer_id,
+        email: message.recipient,
+        outboxId: message.id,
+      });
+
+      if (!suppressionCheck.allowed) {
+        console.log(`⏭️ [SendEmail] Suppression check failed: ${suppressionCheck.reason}`);
+        return { success: false, error: suppressionCheck.reason, shouldSkip: true, canRetry: false };
+      }
+
+      // Check if already sent to prevent duplicates
+      const alreadySent = await checkAlreadySent(supabase, {
+        automationId: message.automation_id,
+        automationNodeId,
+        customerId: message.customer_id,
+      });
+
+      if (alreadySent) {
+        console.log(`⏭️ [SendEmail] Already sent to customer ${message.customer_id}`);
+        await logAutomationEmailExecution(supabase, {
+          tenant_id: message.tenant_id,
+          automation_id: message.automation_id,
+          automation_node_id: automationNodeId,
+          customer_id: message.customer_id,
+          email: message.recipient,
+          status: 'skipped',
+          reason: 'already_sent',
+          outbox_id: message.id,
+        });
+        return { success: false, error: 'already_sent', shouldSkip: true, canRetry: false };
+      }
+    }
+
     const templateData = message.template_data || {};
     let senderConfig: SenderConfig;
 
@@ -500,6 +570,20 @@ async function sendEmail(
 
     if (error) {
       console.error(`❌ [SendEmail] Invoke error:`, error.message);
+      // Log failure for automation emails
+      if (message.automation_id && automationNodeId) {
+        await logAutomationEmailExecution(supabase, {
+          tenant_id: message.tenant_id,
+          automation_id: message.automation_id,
+          automation_node_id: automationNodeId,
+          customer_id: message.customer_id,
+          email: message.recipient,
+          status: 'failed',
+          reason: 'send_error',
+          error: error.message,
+          outbox_id: message.id,
+        });
+      }
       return { success: false, error: error.message };
     }
 
@@ -507,6 +591,21 @@ async function sendEmail(
     console.log(`📧 [SendEmail] Response:`, JSON.stringify(data));
 
     if (!data?.success) {
+      // Log failure for automation emails
+      if (message.automation_id && automationNodeId) {
+        await logAutomationEmailExecution(supabase, {
+          tenant_id: message.tenant_id,
+          automation_id: message.automation_id,
+          automation_node_id: automationNodeId,
+          customer_id: message.customer_id,
+          email: message.recipient,
+          status: 'failed',
+          reason: data?.skipable ? 'send_error' : 'send_error',
+          error: data?.error || 'Email send failed',
+          outbox_id: message.id,
+        });
+      }
+
       if (data?.skipable) {
         return { success: false, error: data.error, shouldSkip: true, canRetry: false };
       }
@@ -517,10 +616,38 @@ async function sendEmail(
       };
     }
 
+    // Log success for automation emails
+    if (message.automation_id && automationNodeId) {
+      await logAutomationEmailExecution(supabase, {
+        tenant_id: message.tenant_id,
+        automation_id: message.automation_id,
+        automation_node_id: automationNodeId,
+        customer_id: message.customer_id,
+        email: message.recipient,
+        status: 'sent',
+        resend_message_id: data.external_id,
+        outbox_id: message.id,
+      });
+    }
+
     console.log(`✅ [SendEmail] Email sent via ${senderConfig.deliveryMethod}: ${message.recipient}, external_id: ${data.external_id}`);
     return { success: true, external_id: data.external_id };
   } catch (err) {
     console.error(`❌ [SendEmail] Exception:`, err);
+    // Log failure for automation emails
+    if (message.automation_id && automationNodeId) {
+      await logAutomationEmailExecution(supabase, {
+        tenant_id: message.tenant_id,
+        automation_id: message.automation_id,
+        automation_node_id: automationNodeId,
+        customer_id: message.customer_id,
+        email: message.recipient,
+        status: 'failed',
+        reason: 'send_error',
+        error: err instanceof Error ? err.message : 'Email send failed',
+        outbox_id: message.id,
+      });
+    }
     return { success: false, error: err instanceof Error ? err.message : "Email send failed" };
   }
 }
