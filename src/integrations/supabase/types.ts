@@ -2396,7 +2396,9 @@ export type Database = {
           scheduled_at: string | null
           segment_id: string | null
           send_blocked_reason: string | null
+          send_error: string | null
           send_reasoning: string | null
+          send_started_at: string | null
           sender_display_name: string | null
           sender_email: string | null
           sender_name: string | null
@@ -2436,7 +2438,9 @@ export type Database = {
           scheduled_at?: string | null
           segment_id?: string | null
           send_blocked_reason?: string | null
+          send_error?: string | null
           send_reasoning?: string | null
+          send_started_at?: string | null
           sender_display_name?: string | null
           sender_email?: string | null
           sender_name?: string | null
@@ -2476,7 +2480,9 @@ export type Database = {
           scheduled_at?: string | null
           segment_id?: string | null
           send_blocked_reason?: string | null
+          send_error?: string | null
           send_reasoning?: string | null
+          send_started_at?: string | null
           sender_display_name?: string | null
           sender_email?: string | null
           sender_name?: string | null
@@ -12383,6 +12389,14 @@ export type Database = {
         Returns: Json
       }
       check_trial_expiration_emails: { Args: never; Returns: number }
+      claim_campaign_for_send: {
+        Args: { campaign_id: string }
+        Returns: {
+          error_message: string
+          previous_status: string
+          success: boolean
+        }[]
+      }
       claim_next_pos_sync_job: {
         Args: { p_provider?: Database["public"]["Enums"]["pos_provider"] }
         Returns: {
@@ -12456,6 +12470,57 @@ export type Database = {
         SetofOptions: {
           from: "*"
           to: "crm_outbox"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      claim_scheduled_campaigns: {
+        Args: { batch_size?: number }
+        Returns: {
+          actual_sender_email: string | null
+          auto_send_enabled: boolean | null
+          click_rate: number | null
+          content: string | null
+          created_at: string | null
+          delivery_method: string | null
+          from_email_domain_id: string | null
+          id: string
+          metadata: Json | null
+          metrics: Json | null
+          metrics_parity_snapshot: Json | null
+          name: string
+          open_rate: number | null
+          persona_ids: string[] | null
+          predicted_segment_ids: string[] | null
+          preheader: string | null
+          preheader_text: string | null
+          rollup_refreshed_at: string | null
+          scheduled_at: string | null
+          segment_id: string | null
+          send_blocked_reason: string | null
+          send_error: string | null
+          send_reasoning: string | null
+          send_started_at: string | null
+          sender_display_name: string | null
+          sender_email: string | null
+          sender_name: string | null
+          sent_at: string | null
+          source_campaign_id: string | null
+          source_content_task_id: string | null
+          status: string | null
+          subject_line: string | null
+          synced_from: string | null
+          template_id: string | null
+          tenant_id: string | null
+          total_clicks: number | null
+          total_opens: number | null
+          total_sent: number | null
+          updated_at: string | null
+          user_id: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "crm_campaigns"
           isOneToOne: false
           isSetofReturn: true
         }

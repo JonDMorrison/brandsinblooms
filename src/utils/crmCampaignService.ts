@@ -274,22 +274,90 @@ export const saveCampaignAsDraft = async (campaignData: CampaignData) => {
   }
 };
 
+/**
+ * Atomically claims a campaign for sending to prevent double-sends.
+ * Uses a Postgres RPC with FOR UPDATE to ensure only one caller can claim.
+ */
+export const claimCampaignForSend = async (campaignId: string): Promise<{
+  success: boolean;
+  previousStatus?: string;
+  errorMessage?: string;
+}> => {
+  try {
+    const { data, error } = await supabase.rpc('claim_campaign_for_send', {
+      campaign_id: campaignId
+    });
+
+    if (error) {
+      console.error('RPC claim error:', error);
+      return { success: false, errorMessage: error.message };
+    }
+
+    if (!data || data.length === 0) {
+      return { success: false, errorMessage: 'No response from claim function' };
+    }
+
+    const result = data[0];
+    return {
+      success: result.success,
+      previousStatus: result.previous_status,
+      errorMessage: result.error_message
+    };
+  } catch (err: any) {
+    console.error('Claim campaign error:', err);
+    return { success: false, errorMessage: err.message };
+  }
+};
+
 export const sendCampaign = async (campaignData: CampaignData) => {
   try {
     // First save as draft
     const campaign = await saveCampaignAsDraft(campaignData);
 
-    // For immediate sends, invoke the edge function directly
+    // For immediate sends, use atomic claim then send
     if (campaignData.schedule.type === 'immediate') {
-      console.log('🚀 Sending campaign immediately via edge function:', campaign.id);
+      console.log('🚀 Claiming campaign for immediate send:', campaign.id);
       
+      // Step 1: Atomically claim the campaign (prevents double-sends)
+      const claimResult = await claimCampaignForSend(campaign.id);
+      
+      if (!claimResult.success) {
+        const errorMsg = claimResult.errorMessage || 'Failed to claim campaign';
+        console.error('❌ Claim failed:', errorMsg);
+        throw new Error(errorMsg);
+      }
+      
+      console.log('✅ Campaign claimed, previous status:', claimResult.previousStatus);
+      
+      // Step 2: Send via edge function
+      console.log('📧 Invoking send-email-campaign...');
       const { data: sendResult, error: sendError } = await supabase.functions.invoke('send-email-campaign', {
         body: { campaignId: campaign.id }
       });
 
       if (sendError) {
         console.error('Edge function send error:', sendError);
+        // Mark as failed since we already claimed it
+        await supabase
+          .from('crm_campaigns')
+          .update({ 
+            status: 'failed', 
+            send_error: sendError.message 
+          })
+          .eq('id', campaign.id);
         throw new Error(sendError.message || 'Failed to send campaign via email service');
+      }
+
+      if (sendResult?.error) {
+        console.error('Send result error:', sendResult.error);
+        await supabase
+          .from('crm_campaigns')
+          .update({ 
+            status: 'failed', 
+            send_error: sendResult.error 
+          })
+          .eq('id', campaign.id);
+        throw new Error(sendResult.error);
       }
 
       console.log('✅ Campaign sent successfully via edge function:', sendResult);
@@ -332,7 +400,7 @@ export const sendCampaign = async (campaignData: CampaignData) => {
     toast.success(`Campaign "${campaignData.name}" scheduled successfully!`);
     return campaign;
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error sending campaign:', error);
     toast.error(`Failed to send campaign: ${error.message}`);
     throw error;
