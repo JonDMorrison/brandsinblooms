@@ -8,6 +8,7 @@ import { Search, Plus, X, Users, Target, Settings, Loader2 } from 'lucide-react'
 import { CustomSegmentBuilder } from '@/components/crm/CustomSegmentBuilder';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useTenant } from '@/hooks/useTenant';
 
 interface Customer {
   id: string;
@@ -53,6 +54,7 @@ export const CustomSegmentModal: React.FC<CustomSegmentModalProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [addingCustomers, setAddingCustomers] = useState(false);
   const { toast } = useToast();
+  const { tenant } = useTenant();
   
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -76,10 +78,16 @@ export const CustomSegmentModal: React.FC<CustomSegmentModalProps> = ({
     
     setIsCalculating(true);
     try {
-      // Get total customer count for estimation
+      // Get total customer count for estimation with explicit tenant filtering
+      if (!tenant?.id) {
+        setEstimatedCount(0);
+        return;
+      }
+      
       const { count, error } = await supabase
         .from('crm_customers')
-        .select('*', { count: 'exact', head: true });
+        .select('*', { count: 'exact', head: true })
+        .eq('tenant_id', tenant.id);
 
       // Check if this request was aborted
       if (abortController.signal.aborted) return;
