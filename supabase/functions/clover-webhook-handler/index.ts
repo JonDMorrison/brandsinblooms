@@ -235,6 +235,7 @@ async function fireAutomationTriggers(
       await supabase.from('crm_outbox').insert({
         tenant_id: tenantId,
         automation_id: automation.id,
+        automation_node_id: step.id || step.node_id || `step-${i}`,
         customer_id: customerId,
         message_type: messageType,
         recipient,
