@@ -437,6 +437,21 @@ const handler = async (req: Request): Promise<Response> => {
         const suppressionReason = eventType === 'unsubscribed' ? 'unsubscribed' : 
                                   eventType === 'bounced' ? 'bounced' : 'complaint';
         
+        // Build detailed meta for the suppression record
+        const suppressionMeta: Record<string, any> = {
+          event_id: insertedEvent?.id,
+          provider_message_id: providerMessageId,
+          occurred_at: eventTsProvider
+        };
+        
+        if (eventType === 'bounced' && payload.data.bounce) {
+          suppressionMeta.bounce_type = payload.data.bounce.type;
+          suppressionMeta.bounce_message = payload.data.bounce.message;
+        }
+        if (eventType === 'complained' && payload.data.complaint) {
+          suppressionMeta.complaint_type = payload.data.complaint.feedback_type;
+        }
+        
         await supabase
           .from('suppression_list')
           .upsert({
@@ -454,6 +469,25 @@ const handler = async (req: Request): Promise<Response> => {
           });
         
         console.log(`📝 Added ${payload.data.to[0]} to suppression list (${suppressionReason})`);
+        
+        // ========== UPDATE CUSTOMER SUPPRESSED FLAG ==========
+        // Also set the customer's suppressed flag for fast filtering
+        if (metadata.tenantId) {
+          const { error: customerUpdateError } = await supabase
+            .from('crm_customers')
+            .update({ 
+              suppressed: true,
+              updated_at: new Date().toISOString()
+            })
+            .eq('email', payload.data.to[0])
+            .eq('tenant_id', metadata.tenantId);
+          
+          if (customerUpdateError) {
+            console.warn('⚠️ Failed to update customer suppressed flag:', customerUpdateError);
+          } else {
+            console.log(`📝 Set suppressed=true for customer with email ${payload.data.to[0]}`);
+          }
+        }
       } catch (err) {
         console.error('⚠️ Non-fatal: Failed to update suppression list:', err);
       }

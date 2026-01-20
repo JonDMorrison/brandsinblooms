@@ -6720,6 +6720,85 @@ export type Database = {
           },
         ]
       }
+      email_send_skips: {
+        Row: {
+          automation_id: string | null
+          automation_node_id: string | null
+          campaign_id: string | null
+          created_at: string | null
+          customer_id: string | null
+          email: string
+          id: string
+          reason: string
+          tenant_id: string
+        }
+        Insert: {
+          automation_id?: string | null
+          automation_node_id?: string | null
+          campaign_id?: string | null
+          created_at?: string | null
+          customer_id?: string | null
+          email: string
+          id?: string
+          reason: string
+          tenant_id: string
+        }
+        Update: {
+          automation_id?: string | null
+          automation_node_id?: string | null
+          campaign_id?: string | null
+          created_at?: string | null
+          customer_id?: string | null
+          email?: string
+          id?: string
+          reason?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_send_skips_automation_id_fkey"
+            columns: ["automation_id"]
+            isOneToOne: false
+            referencedRelation: "crm_automations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_send_skips_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "crm_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_send_skips_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "crm_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_send_skips_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customer_360_enriched"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_send_skips_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "admin_tenant_overview"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "email_send_skips_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_senders: {
         Row: {
           created_at: string
