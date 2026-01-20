@@ -10,8 +10,10 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
+import { toZonedTime } from 'date-fns-tz';
 import { useEmailCampaignSummary } from '@/hooks/useEmailCampaignSummary';
 import { CampaignMetricsInline } from '@/components/crm/campaigns/CampaignMetricsColumns';
+import { ScheduledCampaignActions, ScheduledTimeBadge } from '@/components/crm/ScheduledCampaignActions';
 import { 
   Plus, 
   Mail, 
@@ -23,8 +25,7 @@ import {
   Sparkles,
   Clock,
   Copy,
-  MoreHorizontal,
-  RefreshCw
+  AlertTriangle
 } from 'lucide-react';
 
 interface Campaign {
@@ -37,6 +38,7 @@ interface Campaign {
   created_at: string;
   segment_id: string;
   metrics: any;
+  metadata?: any;
   total_sent: number;
   total_opens: number;
   total_clicks: number;
@@ -100,16 +102,28 @@ const CRMCampaigns = () => {
     return campaign.status === activeTab;
   });
 
-  const getStatusBadge = (status: string) => {
-    const variants = {
+  const getStatusBadge = (status: string, scheduledAt?: string | null) => {
+    const variants: Record<string, 'default' | 'secondary' | 'outline' | 'destructive'> = {
       draft: 'secondary',
       scheduled: 'default',
-      sent: 'outline'
-    } as const;
+      sending: 'default',
+      sent: 'outline',
+      failed: 'destructive'
+    };
     
-    return <Badge variant={variants[status as keyof typeof variants] || 'secondary'}>
-      {status.charAt(0).toUpperCase() + status.slice(1)}
-    </Badge>;
+    const isPastDue = status === 'scheduled' && scheduledAt && new Date(scheduledAt) < new Date();
+    
+    return (
+      <div className="flex flex-col gap-1">
+        <Badge variant={variants[status] || 'secondary'} className={isPastDue ? 'border-amber-500' : ''}>
+          {isPastDue && <AlertTriangle className="h-3 w-3 mr-1" />}
+          {status.charAt(0).toUpperCase() + status.slice(1)}
+        </Badge>
+        {status === 'scheduled' && scheduledAt && (
+          <ScheduledTimeBadge scheduledAt={scheduledAt} status={status} />
+        )}
+      </div>
+    );
   };
 
   const campaignTemplates = [
@@ -328,7 +342,7 @@ const CRMCampaigns = () => {
                             {campaign.crm_segments?.name || 'No segment'}
                           </TableCell>
                           <TableCell>
-                            {getStatusBadge(campaign.status)}
+                            {getStatusBadge(campaign.status, campaign.scheduled_at)}
                           </TableCell>
                           <TableCell>
                             <CampaignMetricsInline
@@ -359,9 +373,12 @@ const CRMCampaigns = () => {
                                   <Copy className="h-4 w-4" />
                                 </Link>
                               </Button>
-                              <Button variant="ghost" size="sm">
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
+                              <ScheduledCampaignActions
+                                campaign={campaign}
+                                onActionComplete={loadCampaigns}
+                                onView={() => navigate(`/crm/campaigns/${campaign.id}`)}
+                                onDuplicate={() => navigate(`/crm/campaigns/new?duplicate=${campaign.id}`)}
+                              />
                             </div>
                           </TableCell>
                         </TableRow>
