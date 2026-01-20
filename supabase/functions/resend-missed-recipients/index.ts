@@ -311,11 +311,11 @@ serve(async (req) => {
     };
 
     // Generate shared footer template
-    const sharedFooterTemplate = generateServerFooterHtml({
-      profile: profileData,
-      unsubscribeUrl: '{{UNSUBSCRIBE_URL}}',
-      preferencesUrl: '{{PREFERENCES_URL}}'
-    });
+    const sharedFooterTemplate = generateServerFooterHtml(
+      profileData,
+      '{{UNSUBSCRIBE_URL}}',
+      '{{PREFERENCES_URL}}'
+    );
 
     // Get tracked links for this campaign
     const { data: trackedLinks } = await supabase
