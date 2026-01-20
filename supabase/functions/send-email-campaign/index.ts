@@ -388,60 +388,15 @@ serve(async (req) => {
       );
     }
 
-    // Calculate remaining capacity for warmup enforcement
-    let isPartialSend = false;
-    let originalRecipientCount = recipientCount;
-    let remainingCapacity = recipientCount;
-
-    if (!quotaCheck?.using_fallback && quotaCheck?.limits) {
-      const dailyLimit = quotaCheck.limits.daily_limit || 50;
+    // Log quota info (no longer blocking or truncating)
+    if (quotaCheck?.limits) {
+      const dailyLimit = quotaCheck.limits.daily_limit || 5000;
       const dailyUsed = quotaCheck.limits.daily_used || 0;
-      remainingCapacity = Math.max(0, dailyLimit - dailyUsed);
-      
-      console.log(`📧 Domain warmup check: daily_limit=${dailyLimit}, daily_used=${dailyUsed}, remaining=${remainingCapacity}`);
-      
-      if (recipientCount > remainingCapacity) {
-        if (remainingCapacity === 0) {
-          // No capacity left today
-          await supabase
-            .from('crm_campaigns')
-            .update({ 
-              status: 'blocked_by_warmup', 
-              send_blocked_reason: `Daily sending limit (${dailyLimit}) reached. ${dailyUsed} emails already sent today. Try again tomorrow or wait for your domain to warm up.`
-            })
-            .eq('id', campaignId);
-
-          return new Response(
-            JSON.stringify({ 
-              error: 'Send blocked by warmup limit',
-              reason: 'daily_limit_reached',
-              message: `Daily limit of ${dailyLimit} emails reached. Try again tomorrow.`,
-              warmup_stage: quotaCheck.domain?.warmup_stage,
-              daily_limit: dailyLimit,
-              daily_used: dailyUsed
-            }),
-            { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
-        
-        // Partial send: truncate to remaining capacity
-        console.log(`⚠️ Truncating recipients from ${recipientCount} to ${remainingCapacity} due to warmup limits`);
-        customers = customers.slice(0, remainingCapacity);
-        recipientCount = customers.length;
-        isPartialSend = true;
-      }
+      console.log(`📧 Domain quota info: daily_limit=${dailyLimit}, daily_used=${dailyUsed}, sending=${recipientCount}`);
     }
 
-    if (!quotaCheck?.allowed && !isPartialSend) {
-      await supabase
-        .from('crm_campaigns')
-        .update({ status: 'blocked', send_blocked_reason: quotaCheck?.message })
-        .eq('id', campaignId);
-
-      return new Response(
-        JSON.stringify({ error: 'Send blocked', reason: quotaCheck?.reason, message: quotaCheck?.message }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    if (!quotaCheck?.allowed) {
+      console.warn(`📧 Quota check returned allowed=false, but proceeding anyway: ${quotaCheck?.message}`);
     }
 
     // Determine sender
