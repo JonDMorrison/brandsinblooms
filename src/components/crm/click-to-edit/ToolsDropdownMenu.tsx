@@ -53,16 +53,22 @@ const MenuItem: React.FC<MenuItemProps> = ({
     disabled={disabled}
     className={cn(
       "flex flex-col items-center justify-center gap-1.5 p-3 text-center text-xs",
-      "hover:bg-accent transition-colors rounded-lg",
+      "hover:bg-muted transition-colors rounded-lg",
       variant === 'destructive' && "text-destructive hover:bg-destructive/10",
-      active && "bg-accent",
+      active && "bg-primary text-primary-foreground",
       disabled && "opacity-50 cursor-not-allowed"
     )}
   >
-    <span className="w-7 h-7 flex items-center justify-center text-gray-700">
+    <span className={cn(
+      "w-7 h-7 flex items-center justify-center",
+      active ? "text-primary-foreground" : "text-gray-700"
+    )}>
       {React.cloneElement(icon as React.ReactElement, { className: 'h-6 w-6' })}
     </span>
-    <span className="font-medium leading-tight text-gray-700">{label}</span>
+    <span className={cn(
+      "font-medium leading-tight",
+      active ? "text-primary-foreground" : "text-gray-700"
+    )}>{label}</span>
   </button>
 );
 
