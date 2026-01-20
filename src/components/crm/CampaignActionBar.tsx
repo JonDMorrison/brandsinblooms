@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Send, Save, Eye, Users, Sparkles, Loader2 } from 'lucide-react';
+import { Send, Save, Eye, Users, Sparkles, Loader2, CalendarIcon } from 'lucide-react';
 import { SenderStatusIndicator } from './campaigns/SenderStatusIndicator';
 import { SaveIndicator } from './SaveIndicator';
 import { ShortenAllBlocksButton } from './ShortenAllBlocksButton';
+import { ScheduleSelector, ScheduleOption } from './ScheduleSelector';
 import { 
   Breadcrumb,
   BreadcrumbItem,
@@ -15,6 +16,7 @@ import {
 } from '@/components/ui/breadcrumb';
 import type { SenderConfig } from '@/hooks/useSenderConfiguration';
 import type { ContentBlock } from '@/types/emailBuilder';
+
 interface CampaignActionBarProps {
   // Campaign status
   campaignName: string;
@@ -35,6 +37,10 @@ interface CampaignActionBarProps {
   sending: boolean;
   loading: boolean;
   hasGeneratingImages?: boolean; // Track if any blocks are generating images
+  
+  // Schedule
+  schedule?: ScheduleOption;
+  onScheduleChange?: (schedule: ScheduleOption) => void;
   
   // Actions
   onSend: () => void;
@@ -63,6 +69,8 @@ export const CampaignActionBar: React.FC<CampaignActionBarProps> = ({
   sending,
   loading,
   hasGeneratingImages = false,
+  schedule = { type: 'now' },
+  onScheduleChange,
   onSend,
   onSave,
   onPreview,
@@ -166,7 +174,16 @@ export const CampaignActionBar: React.FC<CampaignActionBarProps> = ({
                       </>
                     )}
                   </Button>
-                </div>
+              </div>
+              )}
+
+              {/* Schedule Selector - visible when not sticky */}
+              {!isSticky && onScheduleChange && (
+                <ScheduleSelector
+                  schedule={schedule}
+                  onScheduleChange={onScheduleChange}
+                  disabled={loading || sending}
+                />
               )}
 
               {/* Save button - always visible */}
@@ -181,7 +198,7 @@ export const CampaignActionBar: React.FC<CampaignActionBarProps> = ({
                 <span>Save</span>
               </Button>
 
-              {/* Send button - hidden when sticky */}
+              {/* Send/Schedule button - hidden when sticky */}
               {!isSticky && (
                 <Button
                   onClick={onSend}
@@ -193,12 +210,17 @@ export const CampaignActionBar: React.FC<CampaignActionBarProps> = ({
                   {sending ? (
                     <>
                       <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                      <span>Sending...</span>
+                      <span>{schedule.type === 'scheduled' ? 'Scheduling...' : 'Sending...'}</span>
                     </>
                   ) : hasGeneratingImages ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin" />
                       <span>Generating...</span>
+                    </>
+                  ) : schedule.type === 'scheduled' ? (
+                    <>
+                      <CalendarIcon className="h-4 w-4" />
+                      <span>Schedule</span>
                     </>
                   ) : (
                     <>

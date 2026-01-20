@@ -3,13 +3,14 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { NativeSelect } from '@/components/ui/native-select';
-import { Sparkles, RefreshCw, Loader2, Clock } from 'lucide-react';
+import { Sparkles, RefreshCw, Loader2, Clock, Layout } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { regenerateEmailContent } from '@/utils/aiContentRegenerator';
 import { toast } from '@/utils/toast';
 import { MediaSelectorImage } from '@/components/crm/MediaSelectorImage';
 import { InputWithMergeTags } from '@/components/ui/input-with-merge-tags';
 import { TextareaWithMergeTags } from '@/components/ui/textarea-with-merge-tags';
+import { AutomationTemplateBrowser } from '@/components/automation/AutomationTemplateBrowser';
 
 interface EmailNodeData {
   subject: string;
@@ -18,6 +19,8 @@ interface EmailNodeData {
   imageUrl?: string;
   imageMetadata?: any;
   delay?: string;
+  templateId?: string;
+  templateName?: string;
 }
 
 interface EmailNodeEditorProps {
@@ -47,12 +50,15 @@ export const EmailNodeEditor: React.FC<EmailNodeEditorProps> = ({
     template: data.template || '',
     imageUrl: data.imageUrl || '',
     imageMetadata: data.imageMetadata || null,
-    delay: data.delay || 'Immediate'
+    delay: data.delay || 'Immediate',
+    templateId: data.templateId || '',
+    templateName: data.templateName || ''
   });
 
   const [errors, setErrors] = useState<Partial<EmailNodeData>>({});
   const [isGenerating, setIsGenerating] = useState(false);
   const [isImproving, setIsImproving] = useState(false);
+  const [showTemplateBrowser, setShowTemplateBrowser] = useState(false);
 
   useEffect(() => {
     setFormData({
@@ -61,7 +67,9 @@ export const EmailNodeEditor: React.FC<EmailNodeEditorProps> = ({
       template: data.template || '',
       imageUrl: data.imageUrl || '',
       imageMetadata: data.imageMetadata || null,
-      delay: data.delay || 'Immediate'
+      delay: data.delay || 'Immediate',
+      templateId: data.templateId || '',
+      templateName: data.templateName || ''
     });
   }, [data]);
 
@@ -191,6 +199,18 @@ export const EmailNodeEditor: React.FC<EmailNodeEditorProps> = ({
     }
   };
 
+  const handleTemplateSelect = (template: any, renderedHtml: string) => {
+    setFormData(prev => ({
+      ...prev,
+      subject: template.name,
+      content: renderedHtml,
+      templateId: template.id,
+      templateName: template.name,
+      template: '' // Clear the simple template dropdown
+    }));
+    toast.success(`Template "${template.name}" applied!`);
+  };
+
   return (
     <Card className="w-full max-w-2xl" onKeyDown={handleKeyDown}>
       <CardHeader>
@@ -199,6 +219,29 @@ export const EmailNodeEditor: React.FC<EmailNodeEditorProps> = ({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4 max-h-[70vh] overflow-y-auto">
+        {/* Use Saved Template Button */}
+        <div className="p-3 border border-dashed rounded-lg bg-muted/30">
+          <div className="flex items-center justify-between">
+            <div>
+              <Label className="text-sm font-medium">Use a Saved Template</Label>
+              <p className="text-xs text-muted-foreground mt-1">
+                {formData.templateName 
+                  ? `Using: ${formData.templateName}` 
+                  : 'Import a newsletter design you created in Campaigns'}
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setShowTemplateBrowser(true)}
+            >
+              <Layout className="h-4 w-4 mr-2" />
+              Browse Templates
+            </Button>
+          </div>
+        </div>
+
         <div className="space-y-2">
           <Label htmlFor="delay" className="flex items-center gap-2">
             <Clock className="h-4 w-4" />
@@ -361,6 +404,13 @@ export const EmailNodeEditor: React.FC<EmailNodeEditorProps> = ({
           </Button>
         </div>
       </CardContent>
+
+      {/* Template Browser Modal */}
+      <AutomationTemplateBrowser
+        open={showTemplateBrowser}
+        onClose={() => setShowTemplateBrowser(false)}
+        onSelectTemplate={handleTemplateSelect}
+      />
     </Card>
   );
 };
