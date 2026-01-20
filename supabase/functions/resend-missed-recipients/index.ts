@@ -108,7 +108,7 @@ serve(async (req) => {
   }
 
   try {
-    const { campaignId, dryRun = true, maxRecipients } = await req.json();
+    const { campaignId, dryRun = true, maxRecipients, bypassWarmup = false } = await req.json();
 
     if (!campaignId) {
       return new Response(
@@ -249,8 +249,8 @@ serve(async (req) => {
     const activeDomain = activeDomains?.[0];
     const activeDomainId = activeDomain?.id || null;
 
-    // Check warmup limits
-    if (activeDomain) {
+    // Check warmup limits (can be bypassed with bypassWarmup flag)
+    if (activeDomain && !bypassWarmup) {
       const remainingCapacity = Math.max(0, (activeDomain.daily_limit || 200) - (activeDomain.daily_sent_count || 0));
       if (missedCustomers.length > remainingCapacity) {
         console.log(`⚠️ Truncating to ${remainingCapacity} due to warmup limits`);
@@ -267,6 +267,8 @@ serve(async (req) => {
           { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
+    } else if (bypassWarmup) {
+      console.log(`⚠️ WARMUP BYPASS ENABLED - sending all ${missedCustomers.length} recipients`);
     }
 
     // Build sender info
