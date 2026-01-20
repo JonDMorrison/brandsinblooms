@@ -1,19 +1,29 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
-import { CustomerPersonaSelector } from '@/components/crm/CustomerPersonaSelector';
-import { CustomerSegmentSelector } from '@/components/crm/CustomerSegmentSelector';
-import { CustomFieldsManager } from '@/components/crm/CustomFieldsManager';
-import { CustomerConsentManager } from '@/components/crm/CustomerConsentManager';
-import { Mail, Phone, Calendar, DollarSign, Save, User, ArrowLeft, Edit } from 'lucide-react';
-import { format } from 'date-fns';
+import React, { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { CustomerPersonaSelector } from "@/components/crm/CustomerPersonaSelector";
+import { CustomerSegmentSelector } from "@/components/crm/CustomerSegmentSelector";
+import { CustomFieldsManager } from "@/components/crm/CustomFieldsManager";
+import { CustomerConsentManager } from "@/components/crm/CustomerConsentManager";
+import { CustomerActivityPanel } from "@/components/activity/CustomerActivityPanel";
+import {
+  Mail,
+  Phone,
+  Calendar,
+  DollarSign,
+  Save,
+  User,
+  ArrowLeft,
+  Edit,
+} from "lucide-react";
+import { format } from "date-fns";
 
 interface Customer {
   id: string;
@@ -43,10 +53,10 @@ export const CustomerDetailPage: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [personaId, setPersonaId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
-    first_name: '',
-    last_name: '',
-    email: '',
-    phone: ''
+    first_name: "",
+    last_name: "",
+    email: "",
+    phone: "",
   });
   const { toast } = useToast();
 
@@ -60,47 +70,47 @@ export const CustomerDetailPage: React.FC = () => {
     try {
       setIsLoading(true);
       const { data: user } = await supabase.auth.getUser();
-      if (!user.user) throw new Error('User not authenticated');
+      if (!user.user) throw new Error("User not authenticated");
 
       const { data: userRecord } = await supabase
-        .from('users')
-        .select('tenant_id')
-        .eq('id', user.user.id)
+        .from("users")
+        .select("tenant_id")
+        .eq("id", user.user.id)
         .single();
 
-      if (!userRecord?.tenant_id) throw new Error('No tenant found');
+      if (!userRecord?.tenant_id) throw new Error("No tenant found");
       setTenantId(userRecord.tenant_id);
 
       const { data, error } = await supabase
-        .from('crm_customers')
-        .select('*')
-        .eq('id', customerId)
-        .eq('tenant_id', userRecord.tenant_id)
+        .from("crm_customers")
+        .select("*")
+        .eq("id", customerId)
+        .eq("tenant_id", userRecord.tenant_id)
         .single();
 
       if (error) throw error;
-      
+
       if (data) {
         setCustomer({
           ...data,
-          custom_fields: (data.custom_fields as Record<string, any>) || {}
+          custom_fields: (data.custom_fields as Record<string, any>) || {},
         });
         setFormData({
-          first_name: data.first_name || '',
-          last_name: data.last_name || '',
-          email: data.email || '',
-          phone: data.phone || ''
+          first_name: data.first_name || "",
+          last_name: data.last_name || "",
+          email: data.email || "",
+          phone: data.phone || "",
         });
         setPersonaId(data.persona_id || null);
       }
     } catch (error) {
-      console.error('Error fetching customer:', error);
+      console.error("Error fetching customer:", error);
       toast({
-        title: 'Error loading customer',
-        description: 'Could not load customer details.',
-        variant: 'destructive',
+        title: "Error loading customer",
+        description: "Could not load customer details.",
+        variant: "destructive",
       });
-      navigate('/crm/customers');
+      navigate("/crm/customers");
     } finally {
       setIsLoading(false);
     }
@@ -108,36 +118,36 @@ export const CustomerDetailPage: React.FC = () => {
 
   const handleSave = async () => {
     if (!customer) return;
-    
+
     try {
       setIsSaving(true);
-      
+
       const { error } = await supabase
-        .from('crm_customers')
+        .from("crm_customers")
         .update({
           first_name: formData.first_name || null,
           last_name: formData.last_name || null,
           email: formData.email,
           phone: formData.phone || null,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
         })
-        .eq('id', customer.id);
+        .eq("id", customer.id);
 
       if (error) throw error;
 
       toast({
-        title: 'Customer updated',
-        description: 'Customer details have been successfully updated.',
+        title: "Customer updated",
+        description: "Customer details have been successfully updated.",
       });
 
       setIsEditing(false);
       await fetchCustomer();
     } catch (error) {
-      console.error('Error updating customer:', error);
+      console.error("Error updating customer:", error);
       toast({
-        title: 'Error updating customer',
-        description: 'There was a problem updating the customer details.',
-        variant: 'destructive',
+        title: "Error updating customer",
+        description: "There was a problem updating the customer details.",
+        variant: "destructive",
       });
     } finally {
       setIsSaving(false);
@@ -173,10 +183,10 @@ export const CustomerDetailPage: React.FC = () => {
     <div className="p-6 space-y-6 max-w-5xl mx-auto">
       {/* Header */}
       <div className="space-y-4">
-        <Button 
-          variant="ghost" 
+        <Button
+          variant="ghost"
           size="sm"
-          onClick={() => navigate('/crm/customers')}
+          onClick={() => navigate("/crm/customers")}
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back to Customers
@@ -184,10 +194,9 @@ export const CustomerDetailPage: React.FC = () => {
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-2">
             <User className="h-8 w-8" />
-            {customer.first_name || customer.last_name 
-              ? `${customer.first_name || ''} ${customer.last_name || ''}`.trim()
-              : customer.email
-            }
+            {customer.first_name || customer.last_name
+              ? `${customer.first_name || ""} ${customer.last_name || ""}`.trim()
+              : customer.email}
           </h1>
           <p className="text-muted-foreground">Customer Details</p>
         </div>
@@ -201,39 +210,50 @@ export const CustomerDetailPage: React.FC = () => {
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="space-y-1">
-              <Label className="text-sm font-medium text-muted-foreground">Total Spent</Label>
+              <Label className="text-sm font-medium text-muted-foreground">
+                Total Spent
+              </Label>
               <div className="flex items-center gap-2">
                 <DollarSign className="h-5 w-5 text-primary" />
                 <span className="text-2xl font-bold">
-                  ${customer.total_spent?.toFixed(2) || '0.00'}
+                  ${customer.total_spent?.toFixed(2) || "0.00"}
                 </span>
               </div>
             </div>
             <div className="space-y-1">
-              <Label className="text-sm font-medium text-muted-foreground">Last Purchase</Label>
+              <Label className="text-sm font-medium text-muted-foreground">
+                Last Purchase
+              </Label>
               <div className="flex items-center gap-2">
                 <Calendar className="h-5 w-5 text-primary" />
                 <span className="text-lg font-semibold">
-                  {customer.last_purchase_date 
-                    ? format(new Date(customer.last_purchase_date), 'MMM d, yyyy')
-                    : 'No purchases'
-                  }
+                  {customer.last_purchase_date
+                    ? format(
+                        new Date(customer.last_purchase_date),
+                        "MMM d, yyyy",
+                      )
+                    : "No purchases"}
                 </span>
               </div>
             </div>
             <div className="space-y-1">
-              <Label className="text-sm font-medium text-muted-foreground">Customer Since</Label>
+              <Label className="text-sm font-medium text-muted-foreground">
+                Customer Since
+              </Label>
               <div className="flex items-center gap-2">
                 <Calendar className="h-5 w-5 text-primary" />
                 <span className="text-lg font-semibold">
-                  {format(new Date(customer.created_at), 'MMM d, yyyy')}
+                  {format(new Date(customer.created_at), "MMM d, yyyy")}
                 </span>
               </div>
             </div>
           </div>
           {customer.sms_opt_in && (
             <div className="mt-4">
-              <Badge variant="secondary" className="bg-green-100 text-green-800">
+              <Badge
+                variant="secondary"
+                className="bg-green-100 text-green-800"
+              >
                 SMS Opt-in
               </Badge>
             </div>
@@ -247,34 +267,34 @@ export const CustomerDetailPage: React.FC = () => {
           <CardTitle className="text-lg flex items-center justify-between">
             Customer Information
             {!isEditing ? (
-              <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsEditing(true)}
+              >
                 <Edit className="h-4 w-4 mr-2" />
                 Edit
               </Button>
             ) : (
               <div className="flex gap-2">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={() => {
                     setIsEditing(false);
                     setFormData({
-                      first_name: customer.first_name || '',
-                      last_name: customer.last_name || '',
-                      email: customer.email || '',
-                      phone: customer.phone || ''
+                      first_name: customer.first_name || "",
+                      last_name: customer.last_name || "",
+                      email: customer.email || "",
+                      phone: customer.phone || "",
                     });
                   }}
                 >
                   Cancel
                 </Button>
-                <Button 
-                  size="sm" 
-                  onClick={handleSave}
-                  disabled={isSaving}
-                >
+                <Button size="sm" onClick={handleSave} disabled={isSaving}>
                   <Save className="h-4 w-4 mr-2" />
-                  {isSaving ? 'Saving...' : 'Save'}
+                  {isSaving ? "Saving..." : "Save"}
                 </Button>
               </div>
             )}
@@ -289,7 +309,12 @@ export const CustomerDetailPage: React.FC = () => {
                   <Input
                     id="first_name"
                     value={formData.first_name}
-                    onChange={(e) => setFormData(prev => ({ ...prev, first_name: e.target.value }))}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        first_name: e.target.value,
+                      }))
+                    }
                     placeholder="First name"
                   />
                 </div>
@@ -298,7 +323,12 @@ export const CustomerDetailPage: React.FC = () => {
                   <Input
                     id="last_name"
                     value={formData.last_name}
-                    onChange={(e) => setFormData(prev => ({ ...prev, last_name: e.target.value }))}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        last_name: e.target.value,
+                      }))
+                    }
                     placeholder="Last name"
                   />
                 </div>
@@ -309,7 +339,9 @@ export const CustomerDetailPage: React.FC = () => {
                   id="email"
                   type="email"
                   value={formData.email}
-                  onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, email: e.target.value }))
+                  }
                   placeholder="Email address"
                   required
                 />
@@ -320,7 +352,9 @@ export const CustomerDetailPage: React.FC = () => {
                   id="phone"
                   type="tel"
                   value={formData.phone}
-                  onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, phone: e.target.value }))
+                  }
                   placeholder="Phone number"
                 />
               </div>
@@ -328,26 +362,33 @@ export const CustomerDetailPage: React.FC = () => {
           ) : (
             <div className="space-y-4">
               <div>
-                <Label className="text-sm font-medium text-muted-foreground">Name</Label>
+                <Label className="text-sm font-medium text-muted-foreground">
+                  Name
+                </Label>
                 <div className="font-medium text-lg">
-                  {customer.first_name || customer.last_name 
-                    ? `${customer.first_name || ''} ${customer.last_name || ''}`.trim()
-                    : 'No name provided'
-                  }
+                  {customer.first_name || customer.last_name
+                    ? `${customer.first_name || ""} ${customer.last_name || ""}`.trim()
+                    : "No name provided"}
                 </div>
               </div>
               <div>
-                <Label className="text-sm font-medium text-muted-foreground">Email</Label>
+                <Label className="text-sm font-medium text-muted-foreground">
+                  Email
+                </Label>
                 <div className="flex items-center gap-2">
                   <Mail className="h-4 w-4 text-muted-foreground" />
                   <span className="text-lg">{customer.email}</span>
                 </div>
               </div>
               <div>
-                <Label className="text-sm font-medium text-muted-foreground">Phone</Label>
+                <Label className="text-sm font-medium text-muted-foreground">
+                  Phone
+                </Label>
                 <div className="flex items-center gap-2">
                   <Phone className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-lg">{customer.phone || 'No phone number'}</span>
+                  <span className="text-lg">
+                    {customer.phone || "No phone number"}
+                  </span>
                 </div>
               </div>
             </div>
@@ -361,8 +402,8 @@ export const CustomerDetailPage: React.FC = () => {
           <CardTitle className="text-lg">Customer Persona</CardTitle>
         </CardHeader>
         <CardContent>
-          <CustomerPersonaSelector 
-            value={personaId} 
+          <CustomerPersonaSelector
+            value={personaId}
             onChange={handlePersonaUpdate}
             customerId={customer.id}
           />
@@ -379,15 +420,18 @@ export const CustomerDetailPage: React.FC = () => {
         </CardContent>
       </Card>
 
+      {/* Activity */}
+      <CustomerActivityPanel customerId={customer.id} />
+
       {/* Consent Management Section */}
-      <CustomerConsentManager 
+      <CustomerConsentManager
         customer={{
           id: customer.id,
           email: customer.email,
           phone: customer.phone,
           email_opt_in: customer.email_opt_in ?? null,
           sms_opt_in: customer.sms_opt_in ?? null,
-          tenant_id: tenantId
+          tenant_id: tenantId,
         }}
         onConsentUpdated={fetchCustomer}
       />
