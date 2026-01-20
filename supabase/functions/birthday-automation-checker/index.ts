@@ -174,6 +174,7 @@ Deno.serve(async (req) => {
               .insert({
                 tenant_id: customer.tenant_id,
                 automation_id: automation.id,
+                automation_node_id: step.id || step.node_id || `step-${i}`,
                 customer_id: customer.id,
                 message_type: messageType,
                 recipient: recipient,

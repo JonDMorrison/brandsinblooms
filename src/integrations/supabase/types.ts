@@ -3163,6 +3163,7 @@ export type Database = {
       crm_outbox: {
         Row: {
           automation_id: string | null
+          automation_node_id: string | null
           automation_run_id: string | null
           content: string
           created_at: string | null
@@ -3189,6 +3190,7 @@ export type Database = {
         }
         Insert: {
           automation_id?: string | null
+          automation_node_id?: string | null
           automation_run_id?: string | null
           content: string
           created_at?: string | null
@@ -3215,6 +3217,7 @@ export type Database = {
         }
         Update: {
           automation_id?: string | null
+          automation_node_id?: string | null
           automation_run_id?: string | null
           content?: string
           created_at?: string | null
@@ -12955,6 +12958,7 @@ export type Database = {
         Args: { p_limit?: number; p_tenant_id: string; p_worker_id?: string }
         Returns: {
           automation_id: string | null
+          automation_node_id: string | null
           automation_run_id: string | null
           content: string
           created_at: string | null
