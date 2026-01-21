@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -39,46 +40,42 @@ interface Campaign {
 
 const CRMCampaignReport: React.FC = () => {
   const { campaignId } = useParams<{ campaignId: string }>();
-  const [campaign, setCampaign] = useState<Campaign | null>(null);
-  const [segments, setSegments] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (campaignId) {
-      loadCampaignData();
-    }
-  }, [campaignId]);
-
-  const loadCampaignData = async () => {
-    try {
-      // Get campaign data
-      const { data: campaignData, error: campaignError } = await supabase
+  const { data: campaign, isLoading: campaignLoading } = useQuery({
+    queryKey: ['campaign-report', campaignId],
+    queryFn: async () => {
+      const { data, error } = await supabase
         .from('crm_campaigns')
         .select('*')
         .eq('id', campaignId)
         .single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!campaignId,
+    staleTime: 0, // Always refetch on mount
+    refetchOnMount: 'always',
+  });
 
-      if (campaignError) throw campaignError;
-      setCampaign(campaignData);
-
-      // Get segment data
-      const { data: segmentData, error: segmentError } = await supabase
+  const { data: segments = [] } = useQuery({
+    queryKey: ['campaign-report-segments', campaignId],
+    queryFn: async () => {
+      const { data, error } = await supabase
         .from('campaign_segments')
         .select(`
           *,
           crm_segments(*)
         `)
         .eq('campaign_id', campaignId);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!campaignId,
+    staleTime: 0,
+    refetchOnMount: 'always',
+  });
 
-      if (segmentError) throw segmentError;
-      setSegments(segmentData || []);
-
-    } catch (error) {
-      console.error('Failed to load campaign data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const loading = campaignLoading;
 
   const calculateRate = (numerator: number, denominator: number) => {
     if (denominator === 0) return 0;
@@ -127,7 +124,7 @@ const CRMCampaignReport: React.FC = () => {
     );
   }
 
-  const rawMetrics = campaign.metrics || {};
+  const rawMetrics = (campaign.metrics as Record<string, number> | null) || {};
   const metrics = {
     sent: rawMetrics.sent ?? 0,
     delivered: rawMetrics.delivered ?? 0,
