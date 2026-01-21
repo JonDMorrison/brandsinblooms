@@ -19,6 +19,7 @@ import { RedirectWithQuery } from '@/components/RedirectWithQuery';
 import { CRMCampaignCreatorPage } from '@/pages/CRMCampaignCreatorPage';
 import { NavigationTracker } from '@/components/NavigationTracker';
 import { CRMCampaignBuilderPage } from '@/pages/CRMCampaignBuilderPage';
+import CRMCampaignReport from '@/pages/crm/CRMCampaignReport';
 import { CRMAutomationBuilderPage } from '@/pages/crm/CRMAutomationBuilderPage';
 import { CRMAutomationGuidePage } from '@/pages/crm/CRMAutomationGuidePage';
 import { AutomationWizardLandingPage } from '@/pages/crm/AutomationWizardLandingPage';
@@ -260,6 +261,13 @@ function App() {
             <ProtectedRoute>
               <SidebarLayout>
                 <CRMCampaignsPage />
+              </SidebarLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/crm/campaigns/:campaignId/analytics" element={
+            <ProtectedRoute>
+              <SidebarLayout>
+                <CRMCampaignReport />
               </SidebarLayout>
             </ProtectedRoute>
           } />
