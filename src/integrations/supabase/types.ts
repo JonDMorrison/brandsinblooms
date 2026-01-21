@@ -2358,6 +2358,81 @@ export type Database = {
         }
         Relationships: []
       }
+      crm_activity_events: {
+        Row: {
+          activity_type: string
+          actor_id: string | null
+          actor_type: string
+          created_at: string
+          customer_id: string | null
+          description: Json
+          error_message: string | null
+          id: string
+          integration_name: string | null
+          links: Json
+          metadata: Json
+          related_entities: Json
+          source: string
+          status: string
+          tenant_id: string
+          timestamp: string
+          title: string
+        }
+        Insert: {
+          activity_type: string
+          actor_id?: string | null
+          actor_type: string
+          created_at?: string
+          customer_id?: string | null
+          description?: Json
+          error_message?: string | null
+          id?: string
+          integration_name?: string | null
+          links?: Json
+          metadata?: Json
+          related_entities?: Json
+          source: string
+          status: string
+          tenant_id: string
+          timestamp?: string
+          title: string
+        }
+        Update: {
+          activity_type?: string
+          actor_id?: string | null
+          actor_type?: string
+          created_at?: string
+          customer_id?: string | null
+          description?: Json
+          error_message?: string | null
+          id?: string
+          integration_name?: string | null
+          links?: Json
+          metadata?: Json
+          related_entities?: Json
+          source?: string
+          status?: string
+          tenant_id?: string
+          timestamp?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_activity_events_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "crm_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_activity_events_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customer_360_enriched"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       crm_automation_logs: {
         Row: {
           automation_id: string
@@ -13129,6 +13204,39 @@ export type Database = {
       get_active_sync_job_count: {
         Args: { p_tenant_id: string }
         Returns: number
+      }
+      get_activity_feed: {
+        Args: {
+          p_activity_types?: string[]
+          p_actor_types?: string[]
+          p_customer_id?: string
+          p_end?: string
+          p_limit?: number
+          p_offset?: number
+          p_persona_ids?: string[]
+          p_search?: string
+          p_segment_ids?: string[]
+          p_sources?: string[]
+          p_start?: string
+          p_status?: string[]
+        }
+        Returns: {
+          activity_type: string
+          actor_id: string
+          actor_type: string
+          customer_id: string
+          description: Json
+          error_message: string
+          id: string
+          integration_name: string
+          links: Json
+          metadata: Json
+          related_entities: Json
+          source: string
+          status: string
+          timestamp: string
+          title: string
+        }[]
       }
       get_admin_user_data: {
         Args: never
