@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import mailchimpLogo from '@/assets/logos/mailchimp.png';
 import klaviyoLogo from '@/assets/logos/klaviyo.png';
 import constantContactLogo from '@/assets/logos/constant-contact.png';
+import { MailchimpStatusBadge } from '@/components/integrations/MailchimpStatusBadge';
 
 export default function CRMIntegrationsPage() {
   const navigate = useNavigate();
@@ -16,18 +17,21 @@ export default function CRMIntegrationsPage() {
       name: 'Mailchimp',
       description: 'Import contacts, segments, and tags from Mailchimp',
       logo: mailchimpLogo,
+      hasStatusBadge: true,
     },
     {
       id: 'klaviyo',
       name: 'Klaviyo',
       description: 'Import contacts, segments, and lists from Klaviyo',
       logo: klaviyoLogo,
+      hasStatusBadge: false,
     },
     {
       id: 'constant_contact',
       name: 'Constant Contact',
       description: 'Import contacts and lists from Constant Contact',
       logo: constantContactLogo,
+      hasStatusBadge: false,
     },
   ];
 
@@ -56,19 +60,28 @@ export default function CRMIntegrationsPage() {
         {providers.map((provider) => (
           <Card key={provider.id} className="bg-card border border-border rounded-xl">
             <CardContent className="p-4">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center overflow-hidden">
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center overflow-hidden flex-shrink-0">
                   <img 
                     src={provider.logo} 
                     alt={`${provider.name} logo`}
                     className="w-8 h-8 object-contain"
                   />
                 </div>
-                <div className="flex-1">
+                <div className="flex-1 min-w-0">
                   <h3 className="font-semibold">{provider.name}</h3>
                   <p className="text-sm text-muted-foreground">{provider.description}</p>
+                  
+                  {provider.hasStatusBadge && provider.id === 'mailchimp' && (
+                    <div className="mt-2">
+                      <MailchimpStatusBadge onRetry={() => handleStartMigration(provider.id)} />
+                    </div>
+                  )}
                 </div>
-                <Button onClick={() => handleStartMigration(provider.id)}>
+                <Button 
+                  onClick={() => handleStartMigration(provider.id)}
+                  className="flex-shrink-0"
+                >
                   Import
                 </Button>
               </div>
