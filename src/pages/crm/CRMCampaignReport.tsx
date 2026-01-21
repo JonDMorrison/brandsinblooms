@@ -127,8 +127,15 @@ const CRMCampaignReport: React.FC = () => {
     );
   }
 
-  const metrics = campaign.metrics || {
-    sent: 0, delivered: 0, opened: 0, clicked: 0, bounced: 0, unsubscribed: 0, revenue: 0
+  const rawMetrics = campaign.metrics || {};
+  const metrics = {
+    sent: rawMetrics.sent ?? 0,
+    delivered: rawMetrics.delivered ?? 0,
+    opened: rawMetrics.opened ?? 0,
+    clicked: rawMetrics.clicked ?? 0,
+    bounced: rawMetrics.bounced ?? 0,
+    unsubscribed: rawMetrics.unsubscribed ?? 0,
+    revenue: rawMetrics.revenue ?? 0,
   };
 
   const openRate = calculateRate(metrics.opened, metrics.delivered);
