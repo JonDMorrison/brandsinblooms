@@ -10,7 +10,7 @@ export interface EmailDomain {
   domain: string;
   resend_domain_id?: string;
   provider?: 'domain_connect' | 'cloudflare' | 'manual';
-  status: 'pending' | 'pending_dns' | 'verifying' | 'active' | 'failed' | 'error';
+  status: 'pending' | 'pending_dns' | 'verifying' | 'warming_up' | 'active' | 'paused' | 'blocked' | 'failed' | 'error';
   env?: 'prod' | 'dev';
   is_sandbox?: boolean;
   is_entri_managed?: boolean;
