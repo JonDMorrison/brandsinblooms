@@ -82,6 +82,9 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Declare outside try block so it's accessible in catch
+  let appOriginFromState: string | undefined;
+
   try {
     // Parse query parameters from the URL (OAuth callback is a GET request)
     const url = new URL(req.url);
@@ -139,7 +142,7 @@ Deno.serve(async (req) => {
     // Override provider from claims and derive redirectUri/user/tenant
     provider = (claims?.provider as string) || provider;
     const redirectUri = claims?.redirectUri as string;
-    const appOriginFromState = claims?.appOrigin as string | undefined;
+    appOriginFromState = claims?.appOrigin as string | undefined;
     const uid = claims?.uid as string;
 
     const { data: userRow, error: userErr } = await supabase
@@ -215,7 +218,13 @@ Deno.serve(async (req) => {
     }
 
     if (!tokenData.access_token) {
-      throw new Error('Failed to obtain access token');
+      console.error('[migrations-oauth-callback] Token exchange failed:', {
+        provider,
+        error: tokenData.error,
+        error_description: tokenData.error_description,
+        response: JSON.stringify(tokenData)
+      });
+      throw new Error(`Failed to obtain access token: ${tokenData.error_description || tokenData.error || 'Unknown error'}`);
     }
 
     // Encrypt access token before storing
