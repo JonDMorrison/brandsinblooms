@@ -175,7 +175,35 @@ export const EmailDomainsList = () => {
   };
   
   const computeReadinessFromLegacy = (domain: EmailDomain, resendStatus: any): ReadinessDisplay => {
-    // Check for conflicts FIRST (highest priority error)
+    // Check DNS verification status FIRST
+    const records = resendStatus?.records || [];
+    const allDnsVerified = records.length > 0 && records.every((r: any) => r.dns_verified || r.status === 'verified');
+    const resendVerified = resendStatus?.status === 'verified' || resendStatus?.dkim_verified;
+    
+    // Check for paused status (reputation issues) - show connected but with warning
+    if (domain.status === 'paused') {
+      const notes = (domain as any).notes || '';
+      const isPausedForReputation = notes.includes('bounce') || notes.includes('complaint') || notes.includes('reputation');
+      return {
+        status: 'CONNECTED_READY',
+        badge: { text: 'Paused', variant: 'amber' },
+        message: isPausedForReputation 
+          ? 'Domain paused due to reputation monitoring.' 
+          : 'Domain is currently paused.',
+        subMessage: 'Contact support for assistance.',
+        showForceCheck: false
+      };
+    }
+    
+    // If DNS is verified OR domain is active, show CONNECTED_READY - user should feel DONE
+    if (allDnsVerified || resendVerified || domain.status === 'active' || resendStatus?.verification_phase === 'dns_present_waiting_provider') {
+      return mapReadinessToDisplay(
+        'CONNECTED_READY',
+        'Your email domain is connected and ready to use.'
+      );
+    }
+    
+    // Check for conflicts (highest priority error after checking active status)
     if (resendStatus?.dns_conflict_detected) {
       return mapReadinessToDisplay(
         'ACTION_REQUIRED_DNS_CONFLICT',
@@ -185,25 +213,13 @@ export const EmailDomainsList = () => {
       );
     }
     
-    // Check if domain is not connected (Entri not set up)
-    if (!domain.is_entri_managed && !domain.entri_connection_id) {
+    // Domain has no DNS configured and isn't connected via any method
+    if (!domain.is_entri_managed && !domain.entri_connection_id && !domain.resend_domain_id) {
       return mapReadinessToDisplay(
         'DOMAIN_NOT_CONNECTED',
         "Domain isn't connected to BloomSuite yet.",
         'Set up automatic DNS configuration to get started.',
         'Connect DNS'
-      );
-    }
-    
-    // Check DNS verification status
-    const records = resendStatus?.records || [];
-    const allDnsVerified = records.length > 0 && records.every((r: any) => r.dns_verified || r.status === 'verified');
-    
-    // If DNS is verified, show CONNECTED_READY - user should feel DONE
-    if (allDnsVerified || domain.status === 'active' || resendStatus?.verification_phase === 'dns_present_waiting_provider') {
-      return mapReadinessToDisplay(
-        'CONNECTED_READY',
-        'Your email domain is connected and ready to use.'
       );
     }
     
@@ -215,6 +231,27 @@ export const EmailDomainsList = () => {
         'Click Retry to try again.',
         'Retry'
       );
+    }
+    
+    // Domain is pending/warming up - still in progress
+    if (domain.status === 'pending_dns' || domain.status === 'verifying') {
+      return {
+        status: 'CONNECTED_READY',
+        badge: { text: 'Verifying', variant: 'amber' },
+        message: 'DNS verification in progress.',
+        subMessage: 'This may take a few minutes.',
+        showForceCheck: true
+      };
+    }
+    
+    if (domain.status === 'warming_up') {
+      return {
+        status: 'CONNECTED_READY',
+        badge: { text: 'Warming Up', variant: 'amber' },
+        message: 'Your domain is connected and warming up.',
+        subMessage: 'Sending limits will increase over time.',
+        showForceCheck: false
+      };
     }
     
     return mapReadinessToDisplay(
