@@ -97,24 +97,37 @@ export function useCampaignBounces(campaignId: string): UseCampaignBouncesResult
       if (!tenantId) throw new Error('Campaign not found');
 
       // Add to suppression list
-      const suppressionRecords = unsuppressedEmails.map(email => ({
-        tenant_id: tenantId,
-        email: email.email,
-        suppression_type: 'bounced',
-        channel: 'email',
-        reason: 'Manual cleanup from campaign report',
-        auto_suppressed: false,
-        suppressed_at: new Date().toISOString(),
-      }));
-
-      const { error: suppressError } = await supabase
+      // Insert suppressions one by one to avoid constraint issues
+      // Filter out any that already exist
+      const emailsToCheck = unsuppressedEmails.map(e => e.email);
+      const { data: existingSuppressions } = await supabase
         .from('suppression_list')
-        .upsert(suppressionRecords, {
-          onConflict: 'tenant_id,email,suppression_type',
-          ignoreDuplicates: true,
-        });
+        .select('email')
+        .eq('tenant_id', tenantId)
+        .in('email', emailsToCheck)
+        .eq('suppression_type', 'bounced')
+        .is('lifted_at', null);
 
-      if (suppressError) throw suppressError;
+      const existingSet = new Set(existingSuppressions?.map(s => s.email) || []);
+      const newEmails = unsuppressedEmails.filter(e => !existingSet.has(e.email));
+
+      if (newEmails.length > 0) {
+        const suppressionRecords = newEmails.map(email => ({
+          tenant_id: tenantId,
+          email: email.email,
+          suppression_type: 'bounced',
+          channel: 'email',
+          reason: 'Manual cleanup from campaign report',
+          auto_suppressed: false,
+          suppressed_at: new Date().toISOString(),
+        }));
+
+        const { error: suppressError } = await supabase
+          .from('suppression_list')
+          .insert(suppressionRecords);
+
+        if (suppressError) throw suppressError;
+      }
 
       // Update crm_customers.suppressed flag
       const emails = unsuppressedEmails.map(e => e.email);
