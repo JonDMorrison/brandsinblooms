@@ -182,16 +182,12 @@ export function sanitizeDnsRecords(records: DnsRecord[], domain: string): Saniti
     }
   }
 
-  // === DMARC: Keep single TXT on _dmarc ===
+  // === DMARC: NEVER include in auto-setup ===
+  // DMARC is informational only and must be configured manually
+  // Auto-applying DMARC can conflict with existing email policies
   if (dmarcRecords.length > 0) {
-    const dmarcTxt = dmarcRecords.find(r => r.type === 'TXT');
-    if (dmarcTxt) {
-      sanitized.push(dmarcTxt);
-      if (dmarcRecords.length > 1) {
-        warnings.push(`Found ${dmarcRecords.length} DMARC records. Keeping first TXT only.`);
-        dropped.push(...dmarcRecords.filter(r => r !== dmarcTxt));
-      }
-    }
+    warnings.push(`DMARC records excluded from auto-setup (${dmarcRecords.length} record(s)). Configure manually if needed.`);
+    dropped.push(...dmarcRecords);
   }
 
   // === Other records: Only add if not conflicting ===
@@ -257,14 +253,15 @@ export function validateCanonicalRecords(records: DnsRecord[]): ValidationResult
     errors.push('Missing SPF record (required for sender verification)');
   }
 
-  // Find DMARC
+  // Find DMARC - but note it should NOT be in auto-setup records
   const dmarcRecords = records.filter(r => 
     r.host === '_dmarc' || r.value.includes('DMARC')
   );
   const hasDmarc = dmarcRecords.length > 0;
   
-  if (!hasDmarc) {
-    warnings.push('No DMARC record found. Recommended for email policy enforcement.');
+  // SAFETY: DMARC in auto-setup is a violation - it should have been stripped
+  if (hasDmarc) {
+    errors.push('DMARC record found in auto-setup payload. This is unsafe and should be removed.');
   }
 
   // Cloudflare proxy warning
