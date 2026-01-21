@@ -21,6 +21,14 @@ interface UseCampaignBouncesResult {
   isSuppressing: boolean;
 }
 
+function extractEmailAddress(value: string | null | undefined): string {
+  if (!value) return '';
+  const trimmed = value.trim();
+  // Handles formats like: "Name <email@domain.com>"
+  const angleMatch = trimmed.match(/<([^>]+)>/);
+  return (angleMatch?.[1] ?? trimmed).trim();
+}
+
 export function useCampaignBounces(campaignId: string): UseCampaignBouncesResult {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -50,25 +58,32 @@ export function useCampaignBounces(campaignId: string): UseCampaignBouncesResult
       if (!tenantId) return [];
 
       // Get emails that are already suppressed
-      const emails = bounceEvents.map(e => e.customer_email).filter(Boolean);
+      const emails = bounceEvents
+        .map(e => extractEmailAddress(e.customer_email))
+        .filter((e): e is string => Boolean(e));
+
+      const uniqueEmails = Array.from(new Set(emails));
+
+      if (uniqueEmails.length === 0) return [];
       const { data: suppressions } = await supabase
         .from('suppression_list')
         .select('email')
         .eq('tenant_id', tenantId)
-        .in('email', emails)
+        .in('email', uniqueEmails)
         .is('lifted_at', null);
 
       const suppressedSet = new Set(suppressions?.map(s => s.email) || []);
 
       return bounceEvents.map(event => {
         const eventData = event.event_data as Record<string, any> | null;
+        const email = extractEmailAddress(event.customer_email);
         return {
           id: event.id,
-          email: event.customer_email,
+          email,
           bounceType: eventData?.bounce_type || null,
           bounceMessage: eventData?.bounce_message || null,
           occurredAt: event.created_at,
-          isSuppressed: suppressedSet.has(event.customer_email),
+          isSuppressed: suppressedSet.has(email),
           customerId: event.customer_id,
         };
       });
@@ -81,8 +96,12 @@ export function useCampaignBounces(campaignId: string): UseCampaignBouncesResult
   // Mutation to suppress all bounced emails
   const { mutate: suppressAll, isPending: isSuppressing } = useMutation({
     mutationFn: async () => {
-      const unsuppressedEmails = bouncedEmails.filter(e => !e.isSuppressed);
-      if (unsuppressedEmails.length === 0) {
+      const unsuppressedEmails = bouncedEmails.filter(e => !e.isSuppressed && !!e.email);
+      const uniqueEmails = Array.from(
+        new Set(unsuppressedEmails.map(e => e.email.trim()).filter(Boolean))
+      );
+
+      if (uniqueEmails.length === 0) {
         return { count: 0 };
       }
 
@@ -99,7 +118,7 @@ export function useCampaignBounces(campaignId: string): UseCampaignBouncesResult
       // Add to suppression list
       // Insert suppressions one by one to avoid constraint issues
       // Filter out any that already exist
-      const emailsToCheck = unsuppressedEmails.map(e => e.email);
+      const emailsToCheck = uniqueEmails;
       const { data: existingSuppressions } = await supabase
         .from('suppression_list')
         .select('email')
@@ -109,12 +128,12 @@ export function useCampaignBounces(campaignId: string): UseCampaignBouncesResult
         .is('lifted_at', null);
 
       const existingSet = new Set(existingSuppressions?.map(s => s.email) || []);
-      const newEmails = unsuppressedEmails.filter(e => !existingSet.has(e.email));
+      const newEmails = uniqueEmails.filter(email => !existingSet.has(email));
 
       if (newEmails.length > 0) {
         const suppressionRecords = newEmails.map(email => ({
           tenant_id: tenantId,
-          email: email.email,
+          email,
           suppression_type: 'bounced',
           channel: 'email',
           reason: 'Manual cleanup from campaign report',
@@ -130,7 +149,7 @@ export function useCampaignBounces(campaignId: string): UseCampaignBouncesResult
       }
 
       // Update crm_customers.suppressed flag
-      const emails = unsuppressedEmails.map(e => e.email);
+      const emails = uniqueEmails;
       const { error: customerError } = await supabase
         .from('crm_customers')
         .update({ 
@@ -144,7 +163,7 @@ export function useCampaignBounces(campaignId: string): UseCampaignBouncesResult
         console.warn('Failed to update customer suppressed flags:', customerError);
       }
 
-      return { count: unsuppressedEmails.length };
+      return { count: uniqueEmails.length };
     },
     onSuccess: (result) => {
       toast({
