@@ -4,7 +4,6 @@ import { HelmetProvider } from "react-helmet-async";
 import { Toaster } from "sonner";
 import { Toaster as ShadcnToaster } from "@/components/ui/toaster";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { SidebarProvider } from "@/components/ui/sidebar";
 import { SidebarLayout } from "@/components/SidebarLayout";
 
 import { ProtectedRoute } from "@/components/ProtectedRoute";
@@ -15,10 +14,10 @@ import { ForgotPasswordSentPage } from "@/pages/ForgotPasswordSentPage";
 import { ResetPasswordPage } from "@/pages/ResetPasswordPage";
 import { SmartRootRoute } from "@/components/SmartRootRoute";
 import { DataProviderWrapper } from "@/components/DataProviderWrapper";
-import { RedirectWithQuery } from "@/components/RedirectWithQuery";
 import { CRMCampaignCreatorPage } from "@/pages/CRMCampaignCreatorPage";
 import { NavigationTracker } from "@/components/NavigationTracker";
 import { CRMCampaignBuilderPage } from "@/pages/CRMCampaignBuilderPage";
+import CRMCampaignReport from "@/pages/crm/CRMCampaignReport";
 import { CRMAutomationBuilderPage } from "@/pages/crm/CRMAutomationBuilderPage";
 import { CRMAutomationGuidePage } from "@/pages/crm/CRMAutomationGuidePage";
 import { AutomationWizardLandingPage } from "@/pages/crm/AutomationWizardLandingPage";
@@ -29,7 +28,6 @@ import { NewsletterNewPage } from "@/pages/NewsletterNewPage";
 import { TemplatesPage } from "@/pages/TemplatesPage";
 import { WebsitePage } from "@/pages/WebsitePage";
 import { WebsiteWaitlistPage } from "@/pages/WebsiteWaitlistPage";
-import Index from "@/pages/Index";
 import SocialMediaPage from "@/pages/SocialMediaPage";
 import { CRMDashboardPage } from "@/pages/crm/CRMDashboardPage";
 import SMSTestingDemo from "@/pages/SMSTestingDemo";
@@ -40,7 +38,6 @@ import { CRMSegmentsPage } from "@/pages/crm/CRMSegmentsPage";
 import CRMSegmentsBetaPage from "@/pages/crm/CRMSegmentsBetaPage";
 import { CRMPersonasPage } from "@/pages/crm/CRMPersonasPage";
 import AddCustomer from "@/pages/crm/AddCustomer";
-import { CustomerDetailPage } from "@/pages/crm/CustomerDetailPage";
 import CustomerDashboardPage from "@/pages/crm/CustomerDashboardPage";
 import CRMAnalytics from "@/pages/crm/CRMAnalytics";
 import CRMAutomations from "@/pages/crm/CRMAutomations";
@@ -329,6 +326,16 @@ function App() {
                 <ProtectedRoute>
                   <SidebarLayout>
                     <CRMCampaignsPage />
+                  </SidebarLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/crm/campaigns/:campaignId/analytics"
+              element={
+                <ProtectedRoute>
+                  <SidebarLayout>
+                    <CRMCampaignReport />
                   </SidebarLayout>
                 </ProtectedRoute>
               }
