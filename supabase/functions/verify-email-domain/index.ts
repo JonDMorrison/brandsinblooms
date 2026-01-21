@@ -38,12 +38,13 @@ const handler = async (req: Request): Promise<Response> => {
           // In a real implementation, you would use DNS lookup APIs
           console.log(`Checking ${record.type} record for ${record.name}: ${record.value}`);
           
-          // Simulate DNS lookup with a simple check
-          // You can integrate with DNS over HTTPS APIs like Cloudflare or Google
+          // DNS verification using Cloudflare DNS over HTTPS
           if (record.type === 'TXT') {
             verified = await verifyTXTRecord(record.name, record.value);
           } else if (record.type === 'CNAME') {
             verified = await verifyCNAMERecord(record.name, record.value);
+          } else if (record.type === 'MX') {
+            verified = await verifyMXRecord(record.name, record.value);
           }
 
           console.log(`Verification result for ${record.name}: ${verified}`);
@@ -187,6 +188,55 @@ async function verifyCNAMERecord(name: string, expectedValue: string): Promise<b
     return found;
   } catch (error) {
     console.error(`Error verifying CNAME record for ${name}:`, error);
+    return false;
+  }
+}
+
+// Helper function to verify MX records
+async function verifyMXRecord(name: string, expectedValue: string): Promise<boolean> {
+  try {
+    const response = await fetch(
+      `https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(name)}&type=MX`,
+      {
+        headers: {
+          'Accept': 'application/dns-json'
+        }
+      }
+    );
+
+    if (!response.ok) {
+      console.log(`DNS lookup failed for ${name}: ${response.status}`);
+      return false;
+    }
+
+    const data = await response.json();
+    
+    if (!data.Answer || data.Answer.length === 0) {
+      console.log(`No MX records found for ${name}`);
+      return false;
+    }
+
+    // Check MX records (type 15)
+    // MX record data format: "priority mailserver" e.g. "10 feedback-smtp.us-east-1.amazonses.com."
+    const mxRecords = data.Answer
+      .filter((answer: any) => answer.type === 15) // MX record type
+      .map((answer: any) => {
+        // Extract just the mail server (remove priority and trailing dot)
+        const parts = answer.data.split(' ');
+        return parts.length > 1 ? parts[1].replace(/\.$/, '') : answer.data.replace(/\.$/, '');
+      });
+
+    const found = mxRecords.some((record: string) => 
+      record === expectedValue || record.includes(expectedValue) || expectedValue.includes(record)
+    );
+
+    console.log(`MX records for ${name}:`, mxRecords);
+    console.log(`Looking for: ${expectedValue}`);
+    console.log(`Match found: ${found}`);
+
+    return found;
+  } catch (error) {
+    console.error(`Error verifying MX record for ${name}:`, error);
     return false;
   }
 }
