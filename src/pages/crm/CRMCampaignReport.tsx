@@ -1,20 +1,32 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { 
   Mail, 
   Eye, 
   MousePointer, 
   TrendingUp, 
   Users, 
-  Calendar,
   DollarSign,
-  AlertTriangle
+  AlertTriangle,
+  Loader2,
+  Trash2
 } from 'lucide-react';
+import { BouncedEmailsList } from '@/components/crm/BouncedEmailsList';
+import { useCampaignBounces } from '@/hooks/useCampaignBounces';
 
 interface CampaignMetrics {
   sent: number;
@@ -40,6 +52,10 @@ interface Campaign {
 
 const CRMCampaignReport: React.FC = () => {
   const { campaignId } = useParams<{ campaignId: string }>();
+  const navigate = useNavigate();
+  const [showCleanupDialog, setShowCleanupDialog] = useState(false);
+  
+  const { unsuppressedCount, suppressAll, isSuppressing } = useCampaignBounces(campaignId || '');
 
   const { data: campaign, isLoading: campaignLoading } = useQuery({
     queryKey: ['campaign-report', campaignId],
@@ -269,9 +285,22 @@ const CRMCampaignReport: React.FC = () => {
                   <span>Delivered:</span>
                   <span>{metrics.delivered.toLocaleString()}</span>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex justify-between items-center">
                   <span>Bounced:</span>
-                  <span>{metrics.bounced.toLocaleString()}</span>
+                  <div className="flex items-center gap-2">
+                    <span>{metrics.bounced.toLocaleString()}</span>
+                    {metrics.bounced > 0 && unsuppressedCount > 0 && (
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-6 px-2 text-xs text-destructive hover:text-destructive"
+                        onClick={() => setShowCleanupDialog(true)}
+                      >
+                        <Trash2 className="h-3 w-3 mr-1" />
+                        Suppress
+                      </Button>
+                    )}
+                  </div>
                 </div>
                 <div className="flex justify-between">
                   <span>Unsubscribed:</span>
@@ -351,9 +380,29 @@ const CRMCampaignReport: React.FC = () => {
                 )}
 
                 {bounceRate > 2 && (
-                  <div className="flex items-center gap-2 text-red-600">
-                    <AlertTriangle className="h-4 w-4" />
-                    <span className="text-sm">High bounce rate detected. Consider cleaning your email list.</span>
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 bg-destructive/10 rounded-lg border border-destructive/20">
+                    <div className="flex items-center gap-2 text-destructive">
+                      <AlertTriangle className="h-4 w-4 shrink-0" />
+                      <span className="text-sm">High bounce rate detected ({bounceRate.toFixed(1)}%). Consider cleaning your email list.</span>
+                    </div>
+                    <div className="flex gap-2 shrink-0">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => navigate('/settings/email/suppression')}
+                      >
+                        View Suppression List
+                      </Button>
+                      {unsuppressedCount > 0 && (
+                        <Button 
+                          variant="destructive" 
+                          size="sm"
+                          onClick={() => setShowCleanupDialog(true)}
+                        >
+                          Clean Bounces
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
@@ -361,6 +410,46 @@ const CRMCampaignReport: React.FC = () => {
           </Card>
         )}
       </div>
+
+      {/* Cleanup Dialog */}
+      <Dialog open={showCleanupDialog} onOpenChange={setShowCleanupDialog}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Trash2 className="h-5 w-5 text-destructive" />
+              Clean Bounced Emails
+            </DialogTitle>
+            <DialogDescription>
+              Review bounced emails from this campaign. Suppressing them will prevent future sends to these addresses.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {campaignId && <BouncedEmailsList campaignId={campaignId} />}
+          
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setShowCleanupDialog(false)}>
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={() => {
+                suppressAll();
+                setShowCleanupDialog(false);
+              }}
+              disabled={isSuppressing || unsuppressedCount === 0}
+            >
+              {isSuppressing ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Suppressing...
+                </>
+              ) : (
+                `Suppress ${unsuppressedCount} Email${unsuppressedCount !== 1 ? 's' : ''}`
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
