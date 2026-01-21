@@ -55,35 +55,10 @@ interface EntriBrowserEventDetail {
   lastStatus?: string;
 }
 
-// Fallback DNS records - ONLY used when backend fails
-// These include the canonical Resend records WITH MX priority
-const FALLBACK_EMAIL_DNS_RECORDS: EntriDnsRecord[] = [
-  {
-    type: 'CNAME',
-    host: 'resend._domainkey',
-    value: 'resend._domainkey.resend.com',
-    ttl: 3600
-  },
-  {
-    type: 'MX',
-    host: 'send',
-    value: 'feedback-smtp.us-east-1.amazonses.com',
-    priority: 10,
-    ttl: 3600
-  },
-  {
-    type: 'TXT',
-    host: 'send',
-    value: 'v=spf1 include:amazonses.com ~all',
-    ttl: 3600
-  },
-  {
-    type: 'TXT',
-    host: '_dmarc',
-    value: 'v=DMARC1; p=quarantine; rua=mailto:dmarc@bloomsuite.app',
-    ttl: 3600
-  }
-];
+// SAFETY: NO FALLBACK RECORDS
+// If Resend fails to return DNS records, we abort automatic setup.
+// We NEVER guess DNS values - this prevents email disruption.
+// Automatic setup is only allowed with records directly from Resend API.
 
 // Entri configuration from centralized config
 const ENTRI_APPLICATION_ID = emailDomainsConfig.entriAppId;
@@ -189,18 +164,61 @@ export const useEntriConnect = () => {
 
       const normalizedDomain = normalizeDomain(domain);
 
-      // Use provided DNS records or fallback defaults
+      // SAFETY: Abort if no DNS records from backend
+      // We NEVER use fallback records - they could disrupt existing email
       if (!dnsRecords || dnsRecords.length === 0) {
-        console.warn('⚠️ No DNS records provided to Entri, using fallback records.');
+        console.error('❌ No DNS records from Resend. Aborting automatic setup for safety.');
+        toast.error('Unable to retrieve DNS records. Please use manual setup.');
+        onCancel?.();
+        setIsLoading(false);
+        return;
       }
-      const records = dnsRecords && dnsRecords.length > 0 ? dnsRecords : FALLBACK_EMAIL_DNS_RECORDS;
+
+      // SAFETY: Strip any DMARC or root-level records before sending to Entri
+      // We NEVER auto-configure root-domain email policy
+      const safeRecords = dnsRecords.filter(r => {
+        const host = r.host.toLowerCase();
+        // Block DMARC records
+        if (host === '_dmarc' || host.startsWith('_dmarc.')) {
+          console.warn(`🛡️ Stripped DMARC record from auto-apply: ${host}`);
+          return false;
+        }
+        // Block root-level records (@ or empty host)
+        if (host === '@' || host === '') {
+          console.warn(`🛡️ Stripped root-level record from auto-apply: ${r.type} ${host}`);
+          return false;
+        }
+        return true;
+      });
+
+      // SAFETY: Verify we still have required subdomain records after filtering
+      const hasDkim = safeRecords.some(r => r.host.includes('domainkey'));
+      const hasMxOrSpf = safeRecords.some(r => r.type === 'MX' || (r.type === 'TXT' && r.value.includes('spf')));
+      
+      if (!hasDkim || !hasMxOrSpf) {
+        console.error('❌ Missing required subdomain records after safety filter. Aborting.');
+        toast.error('DNS configuration incomplete. Please use manual setup.');
+        onCancel?.();
+        setIsLoading(false);
+        return;
+      }
+
+      // SAFETY: Perform silent DNS preflight check
+      // If target subdomains already have records, abort to manual
+      const preflightPassed = await performDnsPreflightCheck(normalizedDomain, safeRecords);
+      if (!preflightPassed) {
+        console.log('🛡️ DNS preflight detected existing records. Falling back to manual setup.');
+        onCancel?.();
+        setIsLoading(false);
+        return;
+      }
       
       // Log records being sent to Entri for debugging
       console.log(`📋 Opening Entri for domain: ${normalizedDomain}`);
-      console.log(`📋 DNS records being applied (${records.length}):`, JSON.stringify(records, null, 2));
+      console.log(`📋 Safe DNS records being applied (${safeRecords.length}):`, JSON.stringify(safeRecords, null, 2));
       
       // Verify MX records have priority
-      const mxRecords = records.filter(r => r.type === 'MX');
+      const mxRecords = safeRecords.filter(r => r.type === 'MX');
       for (const mx of mxRecords) {
         if (mx.priority === undefined) {
           console.error(`❌ MX record "${mx.host}" is missing priority!`);
@@ -208,6 +226,8 @@ export const useEntriConnect = () => {
           console.log(`✅ MX record "${mx.host}" has priority: ${mx.priority}`);
         }
       }
+      
+      const records = safeRecords;
 
       // Fetch authenticated JWT token from server
       const tokenData = await fetchEntriToken();
@@ -355,7 +375,90 @@ export const useEntriConnect = () => {
     validateRecordsStrict,
     isLoading,
     isScriptLoaded,
-    isEntriConfigured: emailDomainsConfig.isEntriConfigured(),
-    FALLBACK_RECORDS: FALLBACK_EMAIL_DNS_RECORDS
+    isEntriConfigured: emailDomainsConfig.isEntriConfigured()
   };
 };
+
+/**
+ * SAFETY: Silent DNS preflight check
+ * Checks if target subdomains already have DNS records.
+ * If ANY conflict is detected, returns false (abort auto-setup).
+ * This check is invisible to the user - no technical explanations shown.
+ */
+async function performDnsPreflightCheck(domain: string, records: EntriDnsRecord[]): Promise<boolean> {
+  try {
+    // Extract unique hosts we're about to write
+    const targetHosts = new Set<string>();
+    for (const r of records) {
+      const host = r.host.toLowerCase();
+      // Build FQDN for lookup
+      let fqdn: string;
+      if (host === '@' || host === '') {
+        fqdn = domain;
+      } else if (host.endsWith(domain)) {
+        fqdn = host;
+      } else {
+        fqdn = `${host}.${domain}`;
+      }
+      targetHosts.add(fqdn);
+    }
+
+    console.log(`🔍 DNS Preflight: Checking ${targetHosts.size} target hosts...`);
+
+    // Check each target host for existing records
+    for (const fqdn of targetHosts) {
+      try {
+        // Check for TXT records
+        const txtResponse = await fetch(
+          `https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(fqdn)}&type=TXT`,
+          { headers: { 'Accept': 'application/dns-json' } }
+        );
+        if (txtResponse.ok) {
+          const txtData = await txtResponse.json();
+          if (txtData.Answer && txtData.Answer.length > 0) {
+            console.log(`🛡️ Preflight: Found existing TXT at ${fqdn}`);
+            return false;
+          }
+        }
+
+        // Check for CNAME records
+        const cnameResponse = await fetch(
+          `https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(fqdn)}&type=CNAME`,
+          { headers: { 'Accept': 'application/dns-json' } }
+        );
+        if (cnameResponse.ok) {
+          const cnameData = await cnameResponse.json();
+          if (cnameData.Answer && cnameData.Answer.length > 0) {
+            console.log(`🛡️ Preflight: Found existing CNAME at ${fqdn}`);
+            return false;
+          }
+        }
+
+        // Check for MX records (only for send subdomain)
+        if (fqdn.startsWith('send.')) {
+          const mxResponse = await fetch(
+            `https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(fqdn)}&type=MX`,
+            { headers: { 'Accept': 'application/dns-json' } }
+          );
+          if (mxResponse.ok) {
+            const mxData = await mxResponse.json();
+            if (mxData.Answer && mxData.Answer.length > 0) {
+              console.log(`🛡️ Preflight: Found existing MX at ${fqdn}`);
+              return false;
+            }
+          }
+        }
+      } catch (lookupError) {
+        // DNS lookup failed - treat as safe to proceed (no existing records detected)
+        console.log(`🔍 Preflight: Lookup for ${fqdn} inconclusive, proceeding...`);
+      }
+    }
+
+    console.log(`✅ DNS Preflight: All clear, no conflicts detected.`);
+    return true;
+  } catch (error) {
+    // If preflight check fails entirely, be conservative and allow manual
+    console.error('🛡️ Preflight check failed, aborting auto-setup:', error);
+    return false;
+  }
+}

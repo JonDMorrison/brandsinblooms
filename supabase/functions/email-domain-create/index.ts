@@ -346,53 +346,35 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
     
-    // If Resend didn't return records, log a warning and use fallback
+    // SAFETY: If Resend didn't return records, we ABORT - never use fallback
+    // Fallback records could disrupt existing email configurations
     if (dnsRecords.length === 0) {
-      console.warn(`⚠️ No DNS records returned from Resend API, using fallback records`);
-      
-      // Fallback: Basic Resend records structure
-      // Note: These are approximations - real records should come from Resend
-      dnsRecords.push(
-        { 
-          name: `resend._domainkey.${finalDomain}`, 
-          type: 'CNAME', 
-          value: 'resend._domainkey.resend.dev', 
-          purpose: 'dkim', 
-          required: true,
-          source: 'system'
-        },
-        { 
-          name: `send.${finalDomain}`, 
-          type: 'MX', 
-          value: 'feedback-smtp.us-east-1.amazonses.com', 
-          priority: 10,
-          purpose: 'mx', 
-          required: true,
-          source: 'system'
-        },
-        { 
-          name: `send.${finalDomain}`, 
-          type: 'TXT', 
-          value: 'v=spf1 include:amazonses.com ~all', 
-          purpose: 'spf', 
-          required: true,
-          source: 'system'
-        }
-      );
+      console.error(`❌ No DNS records returned from Resend API. Aborting for safety.`);
+      return corsJsonResponse({ 
+        error: 'DNS configuration unavailable',
+        message: 'Unable to retrieve DNS records from email provider. Please try again or use manual setup.',
+        requiresManualSetup: true
+      }, { status: 503 });
     }
     
-    // Add DMARC record (we add this ourselves since Resend doesn't manage DMARC)
-    const hasDmarc = dnsRecords.some(r => r.purpose === 'dmarc');
-    if (!hasDmarc) {
-      dnsRecords.push({ 
-        name: `_dmarc.${finalDomain}`, 
-        type: 'TXT', 
-        value: `v=DMARC1; p=quarantine; rua=mailto:dmarc@bloomsuite.app${reportEmail ? `,mailto:${reportEmail}` : ''}`, 
-        purpose: 'dmarc', 
-        required: false,
-        source: 'system'
-      });
+    // SAFETY: Strip any DMARC records - we NEVER auto-configure root email policy
+    // DMARC is informational only and must be set up manually by the client
+    const originalCount = dnsRecords.length;
+    const safeDnsRecords = dnsRecords.filter(r => {
+      if (r.purpose === 'dmarc' || r.name.includes('_dmarc')) {
+        console.log(`🛡️ Stripped DMARC record from response: ${r.name}`);
+        return false;
+      }
+      return true;
+    });
+    
+    if (safeDnsRecords.length < originalCount) {
+      console.log(`🛡️ Removed ${originalCount - safeDnsRecords.length} DMARC record(s) for safety`);
     }
+    
+    // Replace the array with the safe version
+    dnsRecords.length = 0;
+    dnsRecords.push(...safeDnsRecords);
     
     // === CRITICAL: Do NOT add synthetic return-path CNAME ===
     // Resend's model uses MX + SPF TXT on the 'send' subdomain, not a CNAME
