@@ -622,13 +622,16 @@ const updateDomainReputationStats = async (supabase: any, domainId: string, even
   updates.bounce_rate_30d = bounces / totalSent;
   updates.complaint_rate_30d = complaints / totalSent;
 
-  // Auto-pause thresholds
-  const BOUNCE_THRESHOLD = 0.08;     // 8%
-  const COMPLAINT_THRESHOLD = 0.005; // 0.5%
+  // Auto-pause thresholds (relaxed to reduce false positives for small lists)
+  const BOUNCE_THRESHOLD = 0.15;     // 15% (was 8%)
+  const COMPLAINT_THRESHOLD = 0.01;  // 1% (was 0.5%)
+  const MIN_SENDS_FOR_PAUSE = 50;    // Don't auto-pause until at least 50 emails sent
 
-  if (updates.bounce_rate_30d >= BOUNCE_THRESHOLD || updates.complaint_rate_30d >= COMPLAINT_THRESHOLD) {
+  // Only auto-pause if we have enough data AND thresholds are exceeded
+  if (totalSent >= MIN_SENDS_FOR_PAUSE && 
+      (updates.bounce_rate_30d >= BOUNCE_THRESHOLD || updates.complaint_rate_30d >= COMPLAINT_THRESHOLD)) {
     updates.status = 'paused';
-    updates.notes = `Auto-paused: ${eventType} rate exceeded threshold (${eventType === 'bounced' ? updates.bounce_rate_30d * 100 : updates.complaint_rate_30d * 100}%)`;
+    updates.notes = `Auto-paused: ${eventType} rate exceeded threshold (${eventType === 'bounced' ? (updates.bounce_rate_30d * 100).toFixed(1) : (updates.complaint_rate_30d * 100).toFixed(2)}%)`;
     console.warn(`⚠️ Domain ${domainId} AUTO-PAUSED due to high ${eventType} rate`);
   }
 

@@ -83,14 +83,15 @@ export const WARMUP_SCHEDULE: WarmupSchedule[] = [
   { stage: 4, minDays: 0, dailyLimit: 2000, hourlyLimit: 500 },
 ];
 
-// Reputation thresholds
+// Reputation thresholds (relaxed to reduce false positives for small lists)
 export const REPUTATION_THRESHOLDS = {
-  BOUNCE_WARNING: 0.03,      // 3% - warning
-  BOUNCE_CRITICAL: 0.05,     // 5% - block sends
-  BOUNCE_AUTO_PAUSE: 0.08,   // 8% - auto-pause domain
-  COMPLAINT_WARNING: 0.001,  // 0.1% - warning
-  COMPLAINT_CRITICAL: 0.002, // 0.2% - block sends
-  COMPLAINT_AUTO_PAUSE: 0.005, // 0.5% - auto-pause domain
+  BOUNCE_WARNING: 0.05,       // 5% - warning
+  BOUNCE_CRITICAL: 0.10,      // 10% - block sends
+  BOUNCE_AUTO_PAUSE: 0.15,    // 15% - auto-pause domain
+  COMPLAINT_WARNING: 0.003,   // 0.3% - warning
+  COMPLAINT_CRITICAL: 0.005,  // 0.5% - block sends
+  COMPLAINT_AUTO_PAUSE: 0.01, // 1% - auto-pause domain
+  MIN_SENDS_FOR_PAUSE: 50,    // Minimum emails before auto-pause kicks in
 };
 
 /**
