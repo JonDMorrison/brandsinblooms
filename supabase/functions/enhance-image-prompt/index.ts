@@ -1,6 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { getMasterGardenerSystemRole } from "../_shared/masterGardenerPrompt.ts";
 
 const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
 
@@ -29,17 +30,19 @@ serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: `You are an expert at enhancing image generation prompts for garden photography.
+            content: `${getMasterGardenerSystemRole()}
+
 Your enhanced prompts must focus on GARDENS, PLANTS, FLOWERS, TREES, and NATURAL GARDEN ELEMENTS as the primary subjects.
-Transform simple prompts into detailed, vivid descriptions that will generate beautiful garden images.
-Focus on: plant varieties, garden settings, seasonal context, natural lighting, colors, composition, and mood.
+Transform simple prompts into detailed, vivid descriptions that will generate beautiful, BOTANICALLY ACCURATE garden images.
+Focus on: specific plant varieties with correct botanical features, garden settings, seasonal context, natural lighting, colors, composition, and mood.
 
 CRITICAL RULES:
 - Primary subjects MUST be gardens, plants, flowers, trees, or garden elements
 - NEVER suggest garden center stores, retail buildings, or commercial settings
-- Always specify the season and appropriate seasonal plants
+- Always specify the season and appropriate seasonal plants for that season
 - Include natural outdoor garden environments
-- Describe specific plant types, colors, and garden features
+- Describe specific plant types with ACCURATE botanical features (leaf shapes, petal counts, growth habits)
+- Only combine plants that would realistically grow together in similar conditions
 
 Output only the enhanced prompt, nothing else.`
           },
