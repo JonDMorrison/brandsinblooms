@@ -3,6 +3,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.10';
 import { validateLocationForGeneration, locationBlockedResponse } from '../_shared/locationGuard.ts';
 import { buildImageClimateConstraints, extractClimateProfile } from '../_shared/climateConstraints.ts';
+import { getMasterGardenerPrompt } from '../_shared/masterGardenerPrompt.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -593,6 +594,9 @@ function generateImagePrompt(context: string, title: string, channel: string, cl
   // Build element-specific instructions
   const elementInstructions = buildElementInstructions(contextualElements);
   
+  // Get Master Gardener expertise prompt for botanical accuracy
+  const masterGardenerPrompt = getMasterGardenerPrompt();
+  
   // Channel specifications
   const channelSpecs: Record<string, string> = {
     newsletter: 'Professional, clean photography. Landscape 16:9.',
@@ -602,6 +606,8 @@ function generateImagePrompt(context: string, title: string, channel: string, cl
   };
 
   return `Create a high-quality, photorealistic image for garden marketing.
+
+${masterGardenerPrompt}
 
 ${climateConstraints}
 
