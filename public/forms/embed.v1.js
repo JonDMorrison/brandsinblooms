@@ -1,9 +1,11 @@
 /**
- * BloomSuite Forms Embed Script v1.0
+ * BloomSuite Forms Embed Script v1.0.1
  * 
  * Features:
  * - No iframe (inline rendering)
- * - Scoped CSS with bs-form- prefix
+ * - Scoped CSS with bs-form- prefix (external CSS file)
+ * - CSP-friendly: no 'unsafe-inline' required for styles
+ * - Fallback mode for strict CSP environments
  * - Multiple forms per page
  * - Graceful ad-blocker fallback
  * - NEVER pre-checks consent checkboxes
@@ -16,82 +18,48 @@
 
   // ─── Configuration ───────────────────────────────────────────────────────
   var API_BASE = window.BLOOMSUITE_API_BASE || 'https://udldmkqwnxhdeztyqcau.supabase.co/functions/v1';
-  var SCRIPT_VERSION = '1.0.0';
+  var SCRIPT_VERSION = '1.0.1';
   var INIT_TIMEOUT_MS = 10000;
   var CSS_PREFIX = 'bs-form-';
   
-  // ─── Scoped CSS (all classes prefixed with bs-form-) ─────────────────────
-  var SCOPED_STYLES = [
-    // Reset & container
-    '.' + CSS_PREFIX + 'container { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.5; color: #1f2937; max-width: 100%; }',
-    '.' + CSS_PREFIX + 'container *, .' + CSS_PREFIX + 'container *::before, .' + CSS_PREFIX + 'container *::after { box-sizing: border-box; }',
-    
-    // Form wrapper
-    '.' + CSS_PREFIX + 'wrapper { background: #ffffff; padding: 0; }',
-    
-    // Field wrapper
-    '.' + CSS_PREFIX + 'field { margin-bottom: 16px; }',
-    '.' + CSS_PREFIX + 'field:last-of-type { margin-bottom: 20px; }',
-    
-    // Labels
-    '.' + CSS_PREFIX + 'label { display: block; font-weight: 500; font-size: 14px; color: #374151; margin-bottom: 6px; }',
-    '.' + CSS_PREFIX + 'required { color: #dc2626; margin-left: 2px; }',
-    
-    // Text inputs
-    '.' + CSS_PREFIX + 'input { display: block; width: 100%; padding: 10px 12px; font-size: 14px; line-height: 1.5; color: #1f2937; background-color: #ffffff; border: 1px solid #d1d5db; border-radius: var(--bs-form-radius, 8px); transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out; -webkit-appearance: none; appearance: none; }',
-    '.' + CSS_PREFIX + 'input:focus { outline: none; border-color: var(--bs-form-primary, #22C55E); box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.15); }',
-    '.' + CSS_PREFIX + 'input::placeholder { color: #9ca3af; }',
-    '.' + CSS_PREFIX + 'input:disabled { background-color: #f3f4f6; cursor: not-allowed; }',
-    
-    // Select
-    '.' + CSS_PREFIX + 'select { display: block; width: 100%; padding: 10px 36px 10px 12px; font-size: 14px; line-height: 1.5; color: #1f2937; background-color: #ffffff; background-image: url("data:image/svg+xml,%3csvg xmlns=\'http://www.w3.org/2000/svg\' fill=\'none\' viewBox=\'0 0 20 20\'%3e%3cpath stroke=\'%236b7280\' stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'1.5\' d=\'M6 8l4 4 4-4\'/%3e%3c/svg%3e"); background-position: right 12px center; background-repeat: no-repeat; background-size: 16px 12px; border: 1px solid #d1d5db; border-radius: var(--bs-form-radius, 8px); -webkit-appearance: none; appearance: none; cursor: pointer; }',
-    '.' + CSS_PREFIX + 'select:focus { outline: none; border-color: var(--bs-form-primary, #22C55E); box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.15); }',
-    
-    // Checkbox wrapper
-    '.' + CSS_PREFIX + 'checkbox-wrap { display: flex; align-items: flex-start; gap: 10px; }',
-    '.' + CSS_PREFIX + 'checkbox { flex-shrink: 0; width: 18px; height: 18px; margin-top: 2px; accent-color: var(--bs-form-primary, #22C55E); cursor: pointer; }',
-    '.' + CSS_PREFIX + 'checkbox-text { font-size: 14px; color: #4b5563; line-height: 1.5; cursor: pointer; -webkit-user-select: none; user-select: none; }',
-    
-    // Consent fields (special styling)
-    '.' + CSS_PREFIX + 'consent { background: #f9fafb; padding: 12px; border-radius: var(--bs-form-radius, 8px); border: 1px solid #e5e7eb; }',
-    '.' + CSS_PREFIX + 'consent .' + CSS_PREFIX + 'checkbox-text { font-size: 13px; color: #6b7280; }',
-    
-    // Submit button
-    '.' + CSS_PREFIX + 'submit { display: block; width: 100%; padding: 12px 24px; font-size: 16px; font-weight: 600; color: #ffffff; background-color: var(--bs-form-primary, #22C55E); border: none; border-radius: var(--bs-form-radius, 8px); cursor: pointer; transition: background-color 0.15s ease-in-out, transform 0.1s ease-in-out; -webkit-appearance: none; appearance: none; }',
-    '.' + CSS_PREFIX + 'submit:hover { background-color: var(--bs-form-primary-hover, #16a34a); }',
-    '.' + CSS_PREFIX + 'submit:active { transform: scale(0.98); }',
-    '.' + CSS_PREFIX + 'submit:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }',
-    '.' + CSS_PREFIX + 'submit-outline { background-color: transparent; border: 2px solid var(--bs-form-primary, #22C55E); color: var(--bs-form-primary, #22C55E); }',
-    '.' + CSS_PREFIX + 'submit-outline:hover { background-color: var(--bs-form-primary, #22C55E); color: #ffffff; }',
-    '.' + CSS_PREFIX + 'submit-rounded { border-radius: 9999px; }',
-    
-    // Error states
-    '.' + CSS_PREFIX + 'error-msg { color: #dc2626; font-size: 13px; margin-top: 6px; }',
-    '.' + CSS_PREFIX + 'input-error { border-color: #dc2626; }',
-    '.' + CSS_PREFIX + 'input-error:focus { box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15); }',
-    
-    // Success state
-    '.' + CSS_PREFIX + 'success { text-align: center; padding: 32px 24px; background: #f0fdf4; border-radius: var(--bs-form-radius, 8px); border: 1px solid #bbf7d0; }',
-    '.' + CSS_PREFIX + 'success-icon { width: 56px; height: 56px; margin: 0 auto 16px; background: #22C55E; border-radius: 50%; display: flex; align-items: center; justify-content: center; }',
-    '.' + CSS_PREFIX + 'success-icon svg { width: 28px; height: 28px; stroke: #ffffff; fill: none; }',
-    '.' + CSS_PREFIX + 'success-text { font-size: 18px; font-weight: 600; color: #166534; margin: 0; }',
-    
-    // Loading state
-    '.' + CSS_PREFIX + 'loading { text-align: center; padding: 48px 24px; color: #6b7280; font-size: 14px; }',
-    '.' + CSS_PREFIX + 'spinner { display: inline-block; width: 24px; height: 24px; border: 2px solid #e5e7eb; border-top-color: var(--bs-form-primary, #22C55E); border-radius: 50%; animation: ' + CSS_PREFIX + 'spin 0.8s linear infinite; margin-bottom: 12px; }',
-    '@keyframes ' + CSS_PREFIX + 'spin { to { transform: rotate(360deg); } }',
-    
-    // Branding
-    '.' + CSS_PREFIX + 'branding { text-align: center; margin-top: 16px; font-size: 12px; color: #9ca3af; }',
-    '.' + CSS_PREFIX + 'branding a { color: #6b7280; text-decoration: none; }',
-    '.' + CSS_PREFIX + 'branding a:hover { text-decoration: underline; }',
-    
-    // Honeypot (hidden from users & screen readers)
-    '.' + CSS_PREFIX + 'hp { position: absolute !important; left: -9999px !important; top: -9999px !important; opacity: 0 !important; pointer-events: none !important; height: 0 !important; overflow: hidden !important; }',
-    
-    // Blocked/error fallback
-    '.' + CSS_PREFIX + 'blocked { text-align: center; padding: 24px; background: #fef2f2; border-radius: 8px; border: 1px solid #fecaca; color: #991b1b; font-size: 14px; }'
+  // Detect script base URL for loading CSS from same origin
+  var SCRIPT_BASE = (function() {
+    var scripts = document.getElementsByTagName('script');
+    for (var i = scripts.length - 1; i >= 0; i--) {
+      var src = scripts[i].src || '';
+      if (src.indexOf('embed') !== -1 && src.indexOf('bloomsuite') !== -1 || 
+          src.indexOf('/forms/embed') !== -1) {
+        return src.replace(/embed[^/]*\.js.*$/, '');
+      }
+    }
+    // Fallback: use current script
+    try {
+      return document.currentScript.src.replace(/embed[^/]*\.js.*$/, '');
+    } catch (e) {
+      return '';
+    }
+  })();
+
+  // ─── Minimal Fallback CSS (for CSP-blocked environments) ─────────────────
+  // These are absolute minimum styles for a usable form when external CSS fails
+  var FALLBACK_STYLES = [
+    '.' + CSS_PREFIX + 'container{font-family:sans-serif;line-height:1.5}',
+    '.' + CSS_PREFIX + 'field{margin-bottom:1em}',
+    '.' + CSS_PREFIX + 'label{display:block;margin-bottom:.25em;font-weight:bold}',
+    '.' + CSS_PREFIX + 'input,.' + CSS_PREFIX + 'select{width:100%;padding:.5em;border:1px solid #ccc}',
+    '.' + CSS_PREFIX + 'submit{padding:.75em 1.5em;background:#22C55E;color:#fff;border:none;cursor:pointer;width:100%}',
+    '.' + CSS_PREFIX + 'checkbox-wrap{display:flex;gap:.5em;align-items:flex-start}',
+    '.' + CSS_PREFIX + 'consent{padding:.75em;background:#f5f5f5;border:1px solid #ddd;margin-bottom:1em}',
+    '.' + CSS_PREFIX + 'success{text-align:center;padding:2em;background:#f0fdf4;border:1px solid #bbf7d0}',
+    '.' + CSS_PREFIX + 'loading{text-align:center;padding:2em}',
+    '.' + CSS_PREFIX + 'blocked{text-align:center;padding:1.5em;background:#fef2f2;border:1px solid #fecaca;color:#991b1b}',
+    '.' + CSS_PREFIX + 'error-msg{color:#dc2626;font-size:.875em;margin-top:.25em}',
+    '.' + CSS_PREFIX + 'hp{position:absolute!important;left:-9999px!important;opacity:0!important;pointer-events:none!important;height:0!important}'
   ].join('\n');
+
+  // Track CSS loading state
+  var cssLoaded = false;
+  var cssFailed = false;
 
   // ─── Utility Functions ───────────────────────────────────────────────────
   
@@ -149,14 +117,74 @@
     return el;
   }
 
-  // ─── Style Injection ─────────────────────────────────────────────────────
+  // ─── Style Loading (External CSS with inline fallback) ───────────────────
   
+  /**
+   * Load external CSS file from same origin as embed.js
+   * Falls back to minimal inline styles if blocked by CSP
+   */
+  function loadStyles(callback) {
+    if (document.getElementById(CSS_PREFIX + 'styles')) {
+      callback(true);
+      return;
+    }
+
+    // Try to load external CSS first (CSP-friendly)
+    var cssUrl = SCRIPT_BASE + 'embed.css';
+    var link = document.createElement('link');
+    link.id = CSS_PREFIX + 'styles';
+    link.rel = 'stylesheet';
+    link.type = 'text/css';
+    link.href = cssUrl;
+
+    var timeout = setTimeout(function() {
+      // CSS load timeout - fall back to inline
+      if (!cssLoaded) {
+        cssFailed = true;
+        injectFallbackStyles();
+        callback(false);
+      }
+    }, 3000);
+
+    link.onload = function() {
+      clearTimeout(timeout);
+      cssLoaded = true;
+      callback(true);
+    };
+
+    link.onerror = function() {
+      clearTimeout(timeout);
+      cssFailed = true;
+      injectFallbackStyles();
+      callback(false);
+    };
+
+    (document.head || document.documentElement).appendChild(link);
+  }
+
+  /**
+   * Inject minimal fallback styles (only used if external CSS fails)
+   * Uses <style> tag - may be blocked by strict CSP, but form remains usable
+   */
+  function injectFallbackStyles() {
+    if (document.getElementById(CSS_PREFIX + 'fallback-styles')) return;
+    
+    try {
+      var style = document.createElement('style');
+      style.id = CSS_PREFIX + 'fallback-styles';
+      style.textContent = FALLBACK_STYLES;
+      (document.head || document.documentElement).appendChild(style);
+    } catch (e) {
+      // CSP blocked inline styles - form will still work with browser defaults
+      console.warn('[BloomSuite] Inline styles blocked by CSP. Form will render with default browser styles.');
+    }
+  }
+
+  /**
+   * Legacy function for backward compatibility
+   */
   function injectStyles() {
-    if (document.getElementById(CSS_PREFIX + 'styles')) return;
-    var style = document.createElement('style');
-    style.id = CSS_PREFIX + 'styles';
-    style.textContent = SCOPED_STYLES;
-    (document.head || document.documentElement).appendChild(style);
+    loadStyles(function() {});
   }
 
   // ─── API Functions ───────────────────────────────────────────────────────

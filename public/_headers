@@ -40,3 +40,9 @@
   Cache-Control: public, max-age=3600, stale-while-revalidate=86400
   Access-Control-Allow-Origin: *
   Content-Type: application/javascript; charset=utf-8
+
+# CSS file for embed.js - immutable (versioned with JS)
+/forms/embed.css
+  Cache-Control: public, max-age=31536000, immutable
+  Access-Control-Allow-Origin: *
+  Content-Type: text/css; charset=utf-8
