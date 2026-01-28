@@ -689,8 +689,9 @@ Deno.serve(async (req) => {
     // ─── Step 8: Apply audience rules (personas) with safe error handling ───
     // Audience rules come from forms.audience_json, NOT settings_json
     const personaIds = audience.assign_personas || [];
-    const audienceErrors: string[] = [];
+    const debugInfo: Record<string, unknown> = {};
     let personasAssigned = 0;
+    let personaErrors: string[] = [];
     
     if (personaIds.length > 0) {
       try {
@@ -703,56 +704,75 @@ Deno.serve(async (req) => {
 
         if (personaValidationError) {
           console.warn('[submit-form] Persona validation error:', personaValidationError.message);
-          audienceErrors.push(`Persona validation failed: ${personaValidationError.message}`);
+          personaErrors.push(`validation_failed`);
+          debugInfo.persona_validation_error = personaValidationError.code;
         } else {
           const validPersonaIds = validPersonas?.map(p => p.id) || [];
-          const invalidPersonaIds = personaIds.filter(id => !validPersonaIds.includes(id));
+          const invalidCount = personaIds.filter(id => !validPersonaIds.includes(id)).length;
           
-          if (invalidPersonaIds.length > 0) {
-            console.warn(`[submit-form] Invalid persona IDs ignored: ${invalidPersonaIds.join(', ')}`);
-            audienceErrors.push(`Invalid personas ignored: ${invalidPersonaIds.length}`);
+          if (invalidCount > 0) {
+            console.warn(`[submit-form] Invalid persona IDs ignored: ${invalidCount}`);
+            debugInfo.invalid_persona_count = invalidCount;
           }
 
           if (validPersonaIds.length > 0) {
-            // Batch insert persona assignments using upsert with onConflict
-            // This handles duplicates gracefully - if customer already has persona, it's ignored
-            const personaAssignments = validPersonaIds.map(personaId => ({
-              customer_id: customerId,
-              persona_id: personaId,
-              tenant_id: tenantId,
-              assigned_at: now,
-              assignment_source: 'form',
-            }));
-
-            const { error: personaInsertError } = await supabase
+            // ─── IDEMPOTENT INSERT: Check existing assignments first ───
+            // The DB has partial unique indexes, so we manually dedupe to avoid errors
+            const { data: existingAssignments } = await supabase
               .from('customer_personas')
-              .upsert(personaAssignments, {
-                onConflict: 'customer_id,persona_id',
-                ignoreDuplicates: true, // Silently skip if already assigned
-              });
+              .select('persona_id')
+              .eq('customer_id', customerId)
+              .in('persona_id', validPersonaIds);
 
-            if (personaInsertError) {
-              console.warn('[submit-form] Persona insert error:', personaInsertError.message);
-              audienceErrors.push(`Persona assignment failed: ${personaInsertError.message}`);
+            const existingPersonaIds = new Set(existingAssignments?.map(a => a.persona_id) || []);
+            const newPersonaIds = validPersonaIds.filter(id => !existingPersonaIds.has(id));
+
+            if (newPersonaIds.length > 0) {
+              // Only insert personas not already assigned
+              const personaAssignments = newPersonaIds.map(personaId => ({
+                customer_id: customerId,
+                persona_id: personaId,
+              }));
+
+              const { error: personaInsertError } = await supabase
+                .from('customer_personas')
+                .insert(personaAssignments);
+
+              if (personaInsertError) {
+                // Handle race condition: if duplicate key error, it's actually success
+                if (personaInsertError.code === '23505') {
+                  // Unique violation = already assigned, treat as success
+                  personasAssigned = validPersonaIds.length;
+                  debugInfo.persona_race_condition = true;
+                } else {
+                  console.warn('[submit-form] Persona insert error:', personaInsertError.message);
+                  personaErrors.push(`insert_failed`);
+                  debugInfo.persona_insert_error = personaInsertError.code;
+                }
+              } else {
+                personasAssigned = newPersonaIds.length;
+                console.log(`[submit-form] Assigned ${personasAssigned} new personas to customer ${customerId.slice(0, 8)}...`);
+              }
             } else {
+              // All personas already assigned
               personasAssigned = validPersonaIds.length;
-              console.log(`[submit-form] Assigned ${personasAssigned} personas to customer ${customerId.slice(0, 8)}...`);
+              debugInfo.personas_already_assigned = true;
             }
           }
         }
       } catch (personaError) {
         const errorMsg = (personaError as Error).message;
         console.warn('[submit-form] Unexpected persona assignment error:', errorMsg);
-        audienceErrors.push(`Unexpected error: ${errorMsg}`);
+        personaErrors.push(`unexpected_error`);
+        debugInfo.persona_unexpected_error = errorMsg.slice(0, 100); // Truncate, no PII
         // Non-fatal - submission is still accepted
       }
     }
 
-    // ─── Step 9: Trigger segment evaluation for real-time membership updates ───
-    // This evaluates the customer against all dynamic segments and updates memberships
+    // ─── Step 9: Trigger segment evaluation (BEST-EFFORT) ───────────────────
+    // If this fails, submission still returns 200. Error is recorded for debugging.
     let segmentsJoined: string[] = [];
     let segmentsLeft: string[] = [];
-    let segmentEvaluationError: string | null = null;
     
     try {
       const segmentResponse = await fetch(
@@ -773,7 +793,8 @@ Deno.serve(async (req) => {
       if (!segmentResponse.ok) {
         const errorText = await segmentResponse.text();
         console.warn('[submit-form] Segment evaluation failed:', errorText);
-        segmentEvaluationError = errorText;
+        debugInfo.segment_eval_status = segmentResponse.status;
+        debugInfo.segment_eval_error = errorText.slice(0, 100); // Truncate, no PII
       } else {
         const segmentResult = await segmentResponse.json();
         segmentsJoined = segmentResult.segments_joined || [];
@@ -783,13 +804,16 @@ Deno.serve(async (req) => {
     } catch (segmentError) {
       const errorMsg = (segmentError as Error).message;
       console.warn('[submit-form] Error triggering segment evaluation:', errorMsg);
-      segmentEvaluationError = errorMsg;
+      debugInfo.segment_eval_exception = errorMsg.slice(0, 100); // Truncate, no PII
       // Non-fatal - submission is still accepted
     }
 
-    // ─── Step 10: Update submission metadata with audience results ─────────
-    // Record audience processing results for audit trail
-    if (audienceErrors.length > 0 || personasAssigned > 0 || segmentsJoined.length > 0) {
+    // ─── Step 10: Update submission metadata with debug info ─────────────────
+    // Record audience processing results for audit trail (no PII in debug)
+    const hasAudienceActivity = personasAssigned > 0 || personaErrors.length > 0 || 
+                                segmentsJoined.length > 0 || Object.keys(debugInfo).length > 0;
+    
+    if (hasAudienceActivity) {
       try {
         await supabase
           .from('form_submissions')
@@ -799,12 +823,13 @@ Deno.serve(async (req) => {
               audience_processing: {
                 personas_requested: personaIds.length,
                 personas_assigned: personasAssigned,
-                personas_errors: audienceErrors.length > 0 ? audienceErrors : null,
+                personas_errors: personaErrors.length > 0 ? personaErrors : null,
                 segments_joined: segmentsJoined.length > 0 ? segmentsJoined : null,
                 segments_left: segmentsLeft.length > 0 ? segmentsLeft : null,
-                segment_evaluation_error: segmentEvaluationError,
                 processed_at: new Date().toISOString(),
               },
+              // Debug info: error codes only, no PII, no raw messages
+              debug: Object.keys(debugInfo).length > 0 ? debugInfo : undefined,
             },
           })
           .eq('form_id', formId)
