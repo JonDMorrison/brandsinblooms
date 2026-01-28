@@ -445,3 +445,9 @@ verify_jwt = false
 
 [functions.test-climate-e2e]
 verify_jwt = false
+
+[functions.get-form-config]
+verify_jwt = false
+
+[functions.submit-form]
+verify_jwt = false
