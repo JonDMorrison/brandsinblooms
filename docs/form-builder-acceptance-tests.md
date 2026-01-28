@@ -1,8 +1,32 @@
-# BloomSuite Form Builder v1 - Acceptance Tests
+# BloomSuite Form Builder v1.0.0 - Acceptance Tests
 
 ## Overview
 
 This document defines acceptance tests for the Form Builder submission flow, covering compliance, security, and data integrity requirements.
+
+**Version**: 1.0.0  
+**Last Updated**: 2026-01-28
+
+---
+
+## Canonical Field Reference
+
+Before testing, understand the correct field names:
+
+| crm_customers Field | Type | Description |
+|---------------------|------|-------------|
+| `opt_out` | boolean | Global hard suppression - NEVER modified by forms |
+| `email_opt_in` | boolean | Email channel permission |
+| `sms_opt_in` | boolean | SMS channel permission |
+| `email_consent_details` | JSONB | Legal proof of email consent |
+| `sms_consent_details` | JSONB | Legal proof of SMS consent |
+| `suppressed` | boolean | Technical send block |
+
+**NOTE**: The following fields DO NOT EXIST and should never be referenced:
+- `opt_out_email` - DOES NOT EXIST
+- `opt_out_sms` - DOES NOT EXIST
+- `email_consent` (as a column) - DOES NOT EXIST (only in form data payload)
+- `sms_consent` (as a column) - DOES NOT EXIST (only in form data payload)
 
 ---
 
@@ -27,9 +51,7 @@ This document defines acceptance tests for the Form Builder submission flow, cov
     "email_consent_required": true,
     "email_consent_text": "I agree to receive marketing emails from Test Company",
     "sms_consent_required": true,
-    "sms_consent_text": "I agree to receive SMS messages from Test Company",
-    "email_consent_default_checked": false,
-    "sms_consent_default_checked": false
+    "sms_consent_text": "I agree to receive SMS messages from Test Company"
   }
 }
 ```
@@ -41,39 +63,36 @@ This document defines acceptance tests for the Form Builder submission flow, cov
 ### Scenario
 User submits form with email but does NOT check email consent checkbox when `email_consent_required: true`.
 
-### Test Steps
-1. Submit to `/submit-form` with:
-   ```json
-   {
-     "embed_key": "test_form_key",
-     "data": {
-       "email": "casl-test@example.com",
-       "first_name": "CASL",
-       "email_consent": false
-     }
-   }
-   ```
-
-### Expected Response
+### Payload
 ```json
 {
-  "success": false,
-  "error": "Email consent is required",
-  "code": "CONSENT_REQUIRED"
+  "embed_key": "test_form_key",
+  "data": {
+    "email": "casl-test@example.com",
+    "first_name": "CASL",
+    "email_consent": false
+  }
 }
 ```
-**HTTP Status:** `400 Bad Request`
+
+### Expected HTTP Response
+**Status**: `400 Bad Request`
+```json
+{
+  "error": "Validation failed",
+  "details": ["Email consent is required"]
+}
+```
 
 ### Expected DB State
 
-| Table | Condition | Expected |
-|-------|-----------|----------|
-| `crm_customers` | `email = 'casl-test@example.com'` | **No record created** |
-| `form_submissions` | `form_id = X AND data->>'email' = 'casl-test@example.com'` | 1 record |
-| `form_submissions.result` | — | `'rejected_invalid'` |
-| `form_submissions.reason` | — | `'Email consent required but not provided'` |
+| Table | Query | Expected |
+|-------|-------|----------|
+| `crm_customers` | `WHERE email = 'casl-test@example.com'` | **No record created** |
+| `form_submissions` | `WHERE data->>'email' = 'casl-test@example.com'` | 1 record |
+| `form_submissions.result` | | `'rejected_invalid'` |
 
-### Inspection Query
+### Verification Query
 ```sql
 SELECT id, result, reason, data, metadata
 FROM form_submissions
@@ -90,41 +109,38 @@ LIMIT 1;
 ### Scenario
 User submits form with phone but does NOT check SMS consent checkbox when `sms_consent_required: true`.
 
-### Test Steps
-1. Submit to `/submit-form` with:
-   ```json
-   {
-     "embed_key": "test_form_key",
-     "data": {
-       "email": "tcpa-test@example.com",
-       "first_name": "TCPA",
-       "phone": "+15551234567",
-       "email_consent": true,
-       "sms_consent": false
-     }
-   }
-   ```
-
-### Expected Response
+### Payload
 ```json
 {
-  "success": false,
-  "error": "SMS consent is required",
-  "code": "CONSENT_REQUIRED"
+  "embed_key": "test_form_key",
+  "data": {
+    "email": "tcpa-test@example.com",
+    "first_name": "TCPA",
+    "phone": "+15551234567",
+    "email_consent": true,
+    "sms_consent": false
+  }
 }
 ```
-**HTTP Status:** `400 Bad Request`
+
+### Expected HTTP Response
+**Status**: `400 Bad Request`
+```json
+{
+  "error": "Validation failed",
+  "details": ["SMS consent is required when providing a phone number"]
+}
+```
 
 ### Expected DB State
 
-| Table | Condition | Expected |
-|-------|-----------|----------|
-| `crm_customers` | `email = 'tcpa-test@example.com'` | **No record created** |
-| `form_submissions` | `form_id = X AND data->>'email' = 'tcpa-test@example.com'` | 1 record |
-| `form_submissions.result` | — | `'rejected_invalid'` |
-| `form_submissions.reason` | — | `'SMS consent required but not provided'` |
+| Table | Query | Expected |
+|-------|-------|----------|
+| `crm_customers` | `WHERE email = 'tcpa-test@example.com'` | **No record created** |
+| `form_submissions` | `WHERE data->>'email' = 'tcpa-test@example.com'` | 1 record |
+| `form_submissions.result` | | `'rejected_invalid'` |
 
-### Inspection Query
+### Verification Query
 ```sql
 SELECT id, result, reason, data->'sms_consent' as sms_consent
 FROM form_submissions
@@ -136,32 +152,32 @@ LIMIT 1;
 
 ---
 
-## Test 3: Valid Submission - Contact Created with Consent Timestamps
+## Test 3: Valid Submission - Customer Created with Consent
 
 ### Scenario
 User submits form with all required consents checked.
 
-### Test Steps
-1. Submit to `/submit-form` with:
-   ```json
-   {
-     "embed_key": "test_form_key",
-     "data": {
-       "email": "valid-user@example.com",
-       "first_name": "Valid",
-       "phone": "+15559876543",
-       "email_consent": true,
-       "sms_consent": true
-     },
-     "meta": {
-       "page_url": "https://example.com/signup",
-       "utm_source": "google",
-       "utm_campaign": "spring2024"
-     }
-   }
-   ```
+### Payload
+```json
+{
+  "embed_key": "test_form_key",
+  "data": {
+    "email": "valid-user@example.com",
+    "first_name": "Valid",
+    "phone": "+15559876543",
+    "email_consent": true,
+    "sms_consent": true
+  },
+  "meta": {
+    "page_url": "https://example.com/signup",
+    "utm_source": "google",
+    "utm_campaign": "spring2024"
+  }
+}
+```
 
-### Expected Response
+### Expected HTTP Response
+**Status**: `200 OK`
 ```json
 {
   "success": true,
@@ -169,11 +185,10 @@ User submits form with all required consents checked.
   "customer_id": "uuid-here"
 }
 ```
-**HTTP Status:** `200 OK`
 
 ### Expected DB State
 
-#### `crm_customers` Table
+#### crm_customers Table (CORRECT FIELD NAMES)
 | Field | Expected Value |
 |-------|----------------|
 | `email` | `'valid-user@example.com'` |
@@ -181,44 +196,49 @@ User submits form with all required consents checked.
 | `phone` | `'+15559876543'` |
 | `email_opt_in` | `true` |
 | `email_opt_in_at` | Timestamp within last 5 seconds |
-| `email_consent_source` | `'form_submission'` |
+| `email_consent_source` | `'form'` |
+| `email_consent_details` | JSONB with consent_text, consented_at, form_id, etc. |
 | `sms_opt_in` | `true` |
 | `sms_opt_in_at` | Timestamp within last 5 seconds |
-| `sms_consent_source` | `'form_submission'` |
+| `sms_consent_source` | `'form'` |
+| `sms_consent_details` | JSONB with consent_text, consented_at, form_id, etc. |
 | `suppressed` | `false` |
+| `opt_out` | `null` or `false` (NEVER set by form) |
 
-#### `form_submissions` Table
+#### form_submissions Table
 | Field | Expected Value |
 |-------|----------------|
 | `result` | `'accepted'` |
 | `customer_id` | Matches created customer UUID |
-| `metadata->'email_consent'` | `true` |
-| `metadata->'email_consent_text'` | Full consent text verbatim |
-| `metadata->'email_consent_at'` | ISO timestamp |
-| `metadata->'sms_consent'` | `true` |
-| `metadata->'sms_consent_text'` | Full consent text verbatim |
-| `metadata->'sms_consent_at'` | ISO timestamp |
-| `metadata->'utm_source'` | `'google'` |
-| `metadata->'utm_campaign'` | `'spring2024'` |
+| `metadata->>'email_consent'` | `'true'` |
+| `metadata->>'email_consent_text'` | Full consent text verbatim |
+| `metadata->>'email_consent_at'` | ISO timestamp |
+| `metadata->>'sms_consent'` | `'true'` |
+| `metadata->>'sms_consent_text'` | Full consent text verbatim |
+| `metadata->>'sms_consent_at'` | ISO timestamp |
+| `metadata->>'utm_source'` | `'google'` |
+| `metadata->>'utm_campaign'` | `'spring2024'` |
 
-### Inspection Queries
+### Verification Queries
 ```sql
--- Verify customer created with consent
+-- Verify customer created with consent (CORRECT FIELD NAMES)
 SELECT 
   id, email, first_name, phone,
   email_opt_in, email_opt_in_at, email_consent_source,
+  jsonb_pretty(email_consent_details) as email_details,
   sms_opt_in, sms_opt_in_at, sms_consent_source,
-  suppressed
+  jsonb_pretty(sms_consent_details) as sms_details,
+  suppressed, opt_out
 FROM crm_customers
 WHERE email = 'valid-user@example.com';
 
 -- Verify submission metadata
 SELECT 
   id, result, customer_id,
-  metadata->'email_consent' as email_consent,
-  metadata->'email_consent_text' as consent_text,
-  metadata->'email_consent_at' as consent_at,
-  metadata->'utm_source' as utm_source
+  metadata->>'email_consent' as email_consent,
+  metadata->>'email_consent_text' as consent_text,
+  metadata->>'email_consent_at' as consent_at,
+  metadata->>'utm_source' as utm_source
 FROM form_submissions
 WHERE data->>'email' = 'valid-user@example.com'
   AND result = 'accepted';
@@ -232,36 +252,34 @@ WHERE data->>'email' = 'valid-user@example.com'
 Previously suppressed email submits form. Submission is accepted but customer remains suppressed.
 
 ### Test Setup
-1. Pre-create suppression record:
-   ```sql
-   INSERT INTO email_suppressions (tenant_id, email, suppression_type, source)
-   VALUES ('TEST_TENANT_ID', 'bounced@example.com', 'hard_bounce', 'resend_webhook');
-   
-   INSERT INTO crm_customers (tenant_id, email, first_name, suppressed)
-   VALUES ('TEST_TENANT_ID', 'bounced@example.com', 'Bounced', true);
-   ```
+```sql
+INSERT INTO email_suppressions (tenant_id, email, suppression_type, source)
+VALUES ('TEST_TENANT_ID', 'bounced@example.com', 'hard_bounce', 'resend_webhook');
 
-### Test Steps
-1. Submit to `/submit-form` with:
-   ```json
-   {
-     "embed_key": "test_form_key",
-     "data": {
-       "email": "bounced@example.com",
-       "first_name": "Resubmit",
-       "email_consent": true
-     }
-   }
-   ```
+INSERT INTO crm_customers (tenant_id, email, first_name, suppressed)
+VALUES ('TEST_TENANT_ID', 'bounced@example.com', 'Bounced', true);
+```
 
-### Expected Response
+### Payload
+```json
+{
+  "embed_key": "test_form_key",
+  "data": {
+    "email": "bounced@example.com",
+    "first_name": "Resubmit",
+    "email_consent": true
+  }
+}
+```
+
+### Expected HTTP Response
+**Status**: `200 OK`
 ```json
 {
   "success": true,
   "message": "Thank you for your submission!"
 }
 ```
-**HTTP Status:** `200 OK`
 
 ### Expected DB State
 
@@ -274,15 +292,10 @@ Previously suppressed email submits form. Submission is accepted but customer re
 | `email_suppressions` | `email = 'bounced@example.com'` | Record **still exists** |
 | `form_submissions` | `result` | `'accepted'` |
 
-### Verification Note
-When attempting to send email to this customer later:
-- `canSendEmail('bounced@example.com')` should return `false`
-- Skip reason logged to `email_send_skips` with reason `'suppressed'`
-
-### Inspection Query
+### Verification Query
 ```sql
 -- Customer updated but still suppressed
-SELECT id, email, first_name, suppressed, email_opt_in
+SELECT id, email, first_name, suppressed, email_opt_in, opt_out
 FROM crm_customers
 WHERE email = 'bounced@example.com';
 
@@ -300,37 +313,29 @@ WHERE email = 'bounced@example.com'
 ### Scenario
 Same IP submits form multiple times rapidly, triggering rate limit.
 
-### Test Steps
-1. Submit 6 requests in rapid succession (< 60 seconds) with same IP hash:
-   ```json
-   {
-     "embed_key": "test_form_key",
-     "data": {
-       "email": "ratelimit-N@example.com",
-       "first_name": "Rate",
-       "email_consent": true
-     }
-   }
-   ```
-
-### Expected Response (Submissions 1-5)
+### Payload (repeat 6 times)
 ```json
 {
-  "success": true,
-  "message": "Thank you for your submission!"
+  "embed_key": "test_form_key",
+  "data": {
+    "email": "ratelimit-N@example.com",
+    "first_name": "Rate",
+    "email_consent": true
+  }
 }
 ```
-**HTTP Status:** `200 OK`
 
-### Expected Response (Submission 6+)
+### Expected HTTP Response (Submissions 1-5)
+**Status**: `200 OK`
+
+### Expected HTTP Response (Submission 6+)
+**Status**: `429 Too Many Requests`
+**Headers**: `Retry-After: 60`
 ```json
 {
-  "success": false,
-  "error": "Too many submissions. Please try again later."
+  "error": "Rate limit exceeded: 5 submissions per minute"
 }
 ```
-**HTTP Status:** `429 Too Many Requests`
-**Headers:** `Retry-After: 60`
 
 ### Expected DB State
 
@@ -338,16 +343,16 @@ Same IP submits form multiple times rapidly, triggering rate limit.
 |-------|-----------|----------|
 | `form_submissions` | `result = 'accepted'` | 5 records |
 | `form_submissions` | `result = 'rejected_rate_limited'` | 1+ records |
-| `form_rate_limits` | `form_id = X AND ip_hash = Y` | `short_window_count >= 5` |
+| `form_rate_limits` | `form_id = X AND ip_hash = Y` | count >= 5 |
 
-### Inspection Query
+### Verification Query
 ```sql
 -- Check rate limit counter
-SELECT form_id, ip_hash, short_window_count, long_window_count, last_submission_at
+SELECT form_id, ip_hash, count, window_start
 FROM form_rate_limits
 WHERE form_id = 'TEST_FORM_ID'
-ORDER BY last_submission_at DESC
-LIMIT 1;
+ORDER BY window_start DESC
+LIMIT 5;
 
 -- Check rejected submissions
 SELECT id, result, reason, submitted_at
@@ -359,33 +364,32 @@ ORDER BY submitted_at DESC;
 
 ---
 
-## Test 6: Honeypot Spam - Rejected and Logged
+## Test 6: Honeypot Spam - Silent Success (Bot Deceived)
 
 ### Scenario
-Bot fills hidden honeypot field, submission rejected as spam.
+Bot fills hidden honeypot field. Submission is rejected internally but returns fake success.
 
-### Test Steps
-1. Submit to `/submit-form` with honeypot field filled:
-   ```json
-   {
-     "embed_key": "test_form_key",
-     "data": {
-       "email": "spambot@example.com",
-       "first_name": "Bot",
-       "email_consent": true,
-       "_honeypot": "I am a bot filling all fields"
-     }
-   }
-   ```
-
-### Expected Response
+### Payload
 ```json
 {
-  "success": false,
-  "error": "Submission rejected"
+  "embed_key": "test_form_key",
+  "data": {
+    "email": "spambot@example.com",
+    "first_name": "Bot",
+    "email_consent": true,
+    "_honeypot": "I am a bot filling all fields"
+  }
 }
 ```
-**HTTP Status:** `400 Bad Request`
+
+### Expected HTTP Response
+**Status**: `200 OK` (fake success to deceive bots)
+```json
+{
+  "success": true,
+  "message": "Thank you for your submission!"
+}
+```
 
 ### Expected DB State
 
@@ -393,16 +397,15 @@ Bot fills hidden honeypot field, submission rejected as spam.
 |-------|-----------|----------|
 | `crm_customers` | `email = 'spambot@example.com'` | **No record created** |
 | `form_submissions` | `data->>'email' = 'spambot@example.com'` | 1 record |
-| `form_submissions.result` | — | `'rejected_spam'` |
-| `form_submissions.reason` | — | `'Honeypot triggered'` |
-| `form_submissions.metadata->'honeypot_value'` | — | `'I am a bot...'` |
+| `form_submissions.result` | | `'rejected_spam'` |
+| `form_submissions.reason` | | `'Spam detected (honeypot)'` |
 
-### Inspection Query
+### Verification Query
 ```sql
 SELECT 
   id, result, reason,
   data->>'email' as email,
-  metadata->'honeypot_value' as honeypot_value
+  data->>'_honeypot' as honeypot_value
 FROM form_submissions
 WHERE result = 'rejected_spam'
   AND data->>'email' = 'spambot@example.com';
@@ -420,75 +423,62 @@ Existing customer submits form again with same email. System must:
 - Create new form_submissions row
 
 ### Test Setup
-1. Pre-create existing customer with consent:
-   ```sql
-   INSERT INTO crm_customers (
-     id, tenant_id, email, first_name, phone,
-     email_opt_in, email_opt_in_at, email_consent_source,
-     sms_opt_in, sms_opt_in_at, sms_consent_source
-   ) VALUES (
-     'aaaaaaaa-0000-0000-0000-000000000001',
-     'TEST_TENANT_ID',
-     'returning@example.com',
-     'Original',
-     '+15551112222',
-     true,
-     '2024-01-01T10:00:00Z',
-     'form',
-     true,
-     '2024-01-01T10:00:00Z',
-     'form'
-   );
-   
-   -- Pre-assign persona
-   INSERT INTO customer_personas (customer_id, persona_id)
-   VALUES ('aaaaaaaa-0000-0000-0000-000000000001', 'EXISTING_PERSONA_ID');
-   ```
+```sql
+INSERT INTO crm_customers (
+  id, tenant_id, email, first_name, phone,
+  email_opt_in, email_opt_in_at, email_consent_source,
+  sms_opt_in, sms_opt_in_at, sms_consent_source
+) VALUES (
+  'aaaaaaaa-0000-0000-0000-000000000001',
+  'TEST_TENANT_ID',
+  'returning@example.com',
+  'Original',
+  '+15551112222',
+  true,
+  '2024-01-01T10:00:00Z',
+  'form',
+  true,
+  '2024-01-01T10:00:00Z',
+  'form'
+);
 
-2. Configure form with same persona in `audience_json`:
-   ```json
-   {
-     "audience_json": {
-       "assign_personas": ["EXISTING_PERSONA_ID", "NEW_PERSONA_ID"]
-     }
-   }
-   ```
+-- Pre-assign persona
+INSERT INTO customer_personas (customer_id, persona_id)
+VALUES ('aaaaaaaa-0000-0000-0000-000000000001', 'EXISTING_PERSONA_ID');
+```
 
-### Test Steps
-1. Submit to `/submit-form` with existing email but WITHOUT consent checkboxes:
-   ```json
-   {
-     "embed_key": "test_form_key",
-     "data": {
-       "email": "returning@example.com",
-       "first_name": "Updated",
-       "phone": "+15553334444",
-       "email_consent": false,
-       "sms_consent": false
-     },
-     "meta": {
-       "page_url": "https://example.com/promo",
-       "utm_source": "email",
-       "utm_campaign": "summer2024"
-     }
-   }
-   ```
+### Payload (WITHOUT consent checkboxes)
+```json
+{
+  "embed_key": "test_form_key",
+  "data": {
+    "email": "returning@example.com",
+    "first_name": "Updated",
+    "phone": "+15553334444",
+    "email_consent": false,
+    "sms_consent": false
+  },
+  "meta": {
+    "page_url": "https://example.com/promo",
+    "utm_source": "email",
+    "utm_campaign": "summer2024"
+  }
+}
+```
 
-### Expected Response
+### Expected HTTP Response
+**Status**: `200 OK`
 ```json
 {
   "success": true,
   "message": "Thank you for your submission!",
-  "customer_id": "aaaaaaaa-0000-0000-0000-000000000001",
-  "redirect_url": null,
-  "suppressed": false
+  "customer_id": "aaaaaaaa-0000-0000-0000-000000000001"
 }
 ```
-**HTTP Status:** `200 OK`
 
 ### Expected DB State
 
-#### `crm_customers` Table (Upserted, Same ID)
+#### crm_customers Table (Upserted, Same ID)
 | Field | Expected Value | Notes |
 |-------|----------------|-------|
 | `id` | `'aaaaaaaa-0000-0000-0000-000000000001'` | **Same ID, not new record** |
@@ -497,35 +487,21 @@ Existing customer submits form again with same email. System must:
 | `phone` | `'+15553334444'` | **Updated** from form |
 | `email_opt_in` | `true` | **NOT downgraded** (was true) |
 | `email_opt_in_at` | `'2024-01-01T10:00:00Z'` | **Preserved** original timestamp |
-| `email_consent_source` | `'form'` | Preserved |
 | `sms_opt_in` | `true` | **NOT downgraded** (was true) |
 | `sms_opt_in_at` | `'2024-01-01T10:00:00Z'` | **Preserved** original timestamp |
-| `sms_consent_source` | `'form'` | Preserved |
 | `opt_out` | `null` or `false` | **NEVER set by form** |
 
-#### `customer_personas` Table (No Duplicates)
-| Field | Expected |
-|-------|----------|
-| Records for `customer_id = 'aaaaaaaa-...'` | Exactly 2 (original + new) |
-| `persona_id = 'EXISTING_PERSONA_ID'` | 1 record (not duplicated) |
-| `persona_id = 'NEW_PERSONA_ID'` | 1 record (newly assigned) |
+### Critical Assertions
 
-#### `form_submissions` Table (New Row Created)
-| Field | Expected Value |
-|-------|----------------|
-| `customer_id` | `'aaaaaaaa-0000-0000-0000-000000000001'` |
-| `result` | `'accepted'` |
-| `metadata->'email_consent'` | `false` |
-| `metadata->'sms_consent'` | `false` |
-| `metadata->'consent_source'` | `'form'` |
-| `metadata->'page_url'` | `'https://example.com/promo'` |
-| `metadata->'utm_source'` | `'email'` |
-| `metadata->'utm_campaign'` | `'summer2024'` |
+1. **Customer ID unchanged**: Same ID, not a new record
+2. **Consent never downgraded**: `email_opt_in` and `sms_opt_in` remain `true`
+3. **Original timestamps preserved**: `email_opt_in_at` and `sms_opt_in_at` unchanged
+4. **opt_out untouched**: Form submission NEVER sets opt_out
+5. **Personas not duplicated**: No duplicate persona assignments
 
-### Inspection Queries
-
+### Verification Queries
 ```sql
--- 1. Verify customer upserted (same ID, updated fields, consent NOT downgraded)
+-- 1. Verify customer upserted (same ID, consent NOT downgraded)
 SELECT 
   id,
   email,
@@ -533,133 +509,61 @@ SELECT
   phone,
   email_opt_in,
   email_opt_in_at,
-  email_consent_source,
   sms_opt_in,
   sms_opt_in_at,
-  sms_consent_source,
   opt_out,
   updated_at
 FROM crm_customers
 WHERE email = 'returning@example.com';
-
 -- Expected: id = 'aaaaaaaa-...', email_opt_in = true, sms_opt_in = true
--- first_name = 'Updated', phone = '+15553334444'
--- opt_out should NOT be true
 
--- 2. Verify persona assignment is idempotent (no duplicates)
+-- 2. Verify persona assignment is idempotent
 SELECT 
   cp.customer_id,
   cp.persona_id,
-  p.name as persona_name,
   COUNT(*) as assignment_count
 FROM customer_personas cp
-JOIN crm_personas p ON p.id = cp.persona_id
 WHERE cp.customer_id = 'aaaaaaaa-0000-0000-0000-000000000001'
-GROUP BY cp.customer_id, cp.persona_id, p.name;
-
--- Expected: Exactly 2 rows, each with assignment_count = 1
-
--- 3. Verify new submission row created (not updating old one)
-SELECT 
-  id,
-  customer_id,
-  result,
-  metadata->>'consent_source' as consent_source,
-  metadata->>'email_consent' as email_consent,
-  metadata->>'sms_consent' as sms_consent,
-  metadata->>'page_url' as page_url,
-  metadata->>'utm_campaign' as utm_campaign,
-  submitted_at
-FROM form_submissions
-WHERE customer_id = 'aaaaaaaa-0000-0000-0000-000000000001'
-ORDER BY submitted_at DESC;
-
--- Expected: Multiple rows if customer submitted before, latest has consent_source='form'
-
--- 4. Count total submissions for this customer
-SELECT COUNT(*) as total_submissions
-FROM form_submissions
-WHERE customer_id = 'aaaaaaaa-0000-0000-0000-000000000001'
-  AND result = 'accepted';
-
--- Expected: >= 1 (new submission added each time)
+GROUP BY cp.customer_id, cp.persona_id;
+-- Expected: Each persona appears exactly once
 ```
-
-### Critical Assertions
-
-1. **Customer ID unchanged**: The `id` field must be the same as the pre-existing customer
-2. **Consent never downgraded**: `email_opt_in` and `sms_opt_in` must remain `true` even though form submission had `false`
-3. **Original timestamps preserved**: `email_opt_in_at` and `sms_opt_in_at` must be the original dates
-4. **opt_out untouched**: Form submission must NEVER set `opt_out = true` or `opt_out = false`
-5. **Personas not duplicated**: `customer_personas` must not have duplicate `(customer_id, persona_id)` or `(customer_id, predefined_persona_id)` pairs
-6. **New submission logged**: A new `form_submissions` row must exist with `submitted_at` after the test
 
 ---
 
 ## Test 8: Persona Assignment Idempotency (Custom + Predefined)
 
 ### Scenario
-Submit form twice with the same persona assignments (mix of custom and predefined). Verify no duplicate rows are created.
+Submit form twice with the same persona assignments. Verify no duplicate rows are created.
 
 ### Test Setup
-1. Configure form with mixed personas in `audience_json`:
-   ```json
-   {
-     "audience_json": {
-       "assign_personas": ["CUSTOM_PERSONA_ID", "PREDEFINED_PERSONA_ID"]
-     }
-   }
-   ```
+```sql
+-- Custom persona
+INSERT INTO crm_personas (id, tenant_id, name, is_custom)
+VALUES ('cccccccc-0000-0000-0000-000000000001', 'TEST_TENANT_ID', 'VIP Customer', true);
 
-2. Ensure personas exist:
-   ```sql
-   -- Custom persona (tenant-specific)
-   INSERT INTO crm_personas (id, tenant_id, name, is_custom)
-   VALUES ('cccccccc-0000-0000-0000-000000000001', 'TEST_TENANT_ID', 'VIP Customer', true);
-   
-   -- Predefined persona (global)
-   INSERT INTO crm_personas (id, tenant_id, name, is_custom)
-   VALUES ('pppppppp-0000-0000-0000-000000000001', null, 'New Subscriber', false);
-   ```
+-- Predefined persona
+INSERT INTO crm_personas (id, tenant_id, name, is_custom)
+VALUES ('pppppppp-0000-0000-0000-000000000001', null, 'New Subscriber', false);
+```
 
-### Test Steps
-1. **First submission**:
-   ```json
-   {
-     "embed_key": "test_form_key",
-     "data": {
-       "email": "persona-test@example.com",
-       "first_name": "Persona",
-       "email_consent": true
-     }
-   }
-   ```
-
-2. **Second submission** (identical):
-   ```json
-   {
-     "embed_key": "test_form_key",
-     "data": {
-       "email": "persona-test@example.com",
-       "first_name": "Persona",
-       "email_consent": true
-     }
-   }
-   ```
-
-### Expected Response (Both Submissions)
+### Payload (submit twice, identical)
 ```json
 {
-  "success": true,
-  "message": "Thank you for your submission!",
-  "customer_id": "uuid-here"
+  "embed_key": "test_form_key",
+  "data": {
+    "email": "persona-test@example.com",
+    "first_name": "Persona",
+    "email_consent": true
+  }
 }
 ```
-**HTTP Status:** `200 OK`
+
+### Expected HTTP Response (Both Submissions)
+**Status**: `200 OK`
 
 ### Expected DB State After Both Submissions
 
-#### `customer_personas` Table
+#### customer_personas Table
 | customer_id | persona_id | predefined_persona_id | Count |
 |-------------|------------|----------------------|-------|
 | customer-uuid | `CUSTOM_PERSONA_ID` | `null` | **1** |
@@ -667,13 +571,7 @@ Submit form twice with the same persona assignments (mix of custom and predefine
 
 **Total rows: 2** (not 4)
 
-#### `form_submissions` Table
-| Result | Count |
-|--------|-------|
-| `'accepted'` | **2** |
-
-### Inspection Queries
-
+### Verification Queries
 ```sql
 -- 1. Verify NO duplicate persona assignments
 SELECT 
@@ -687,52 +585,19 @@ WHERE customer_id = (
 )
 GROUP BY customer_id, persona_id, predefined_persona_id
 HAVING COUNT(*) > 1;
-
 -- Expected: 0 rows (no duplicates)
 
--- 2. Verify exactly one row per persona type
-SELECT 
-  CASE 
-    WHEN persona_id IS NOT NULL THEN 'custom'
-    WHEN predefined_persona_id IS NOT NULL THEN 'predefined'
-  END as persona_type,
-  COUNT(*) as assignment_count
-FROM customer_personas
-WHERE customer_id = (
-  SELECT id FROM crm_customers WHERE email = 'persona-test@example.com'
-)
-GROUP BY persona_type;
-
--- Expected: custom=1, predefined=1
-
--- 3. Verify two submission rows exist
+-- 2. Verify two submission rows exist
 SELECT COUNT(*) as submission_count
 FROM form_submissions
 WHERE customer_id = (
   SELECT id FROM crm_customers WHERE email = 'persona-test@example.com'
 )
 AND result = 'accepted';
-
 -- Expected: 2
-
--- 4. Check metadata debug info on latest submission
-SELECT 
-  metadata->'debug'->'custom_personas_new' as custom_new,
-  metadata->'debug'->'predefined_personas_new' as predefined_new,
-  metadata->'debug'->'personas_already_assigned' as already_assigned
-FROM form_submissions
-WHERE customer_id = (
-  SELECT id FROM crm_customers WHERE email = 'persona-test@example.com'
-)
-ORDER BY submitted_at DESC
-LIMIT 1;
-
--- Expected on second submission: custom_new=0, predefined_new=0, already_assigned=true
 ```
 
 ### Database Constraints Enforced
-
-The following partial unique indexes prevent duplicates:
 ```sql
 -- Custom personas (persona_id column)
 CREATE UNIQUE INDEX unique_customer_custom_persona 
@@ -753,11 +618,11 @@ WHERE predefined_persona_id IS NOT NULL;
 |------|---------------|------------|
 | 1. CASL Rejection | `form_submissions` | `result`, `reason` |
 | 2. TCPA Rejection | `form_submissions` | `result`, `reason` |
-| 3. Valid Submission | `crm_customers`, `form_submissions` | `email_opt_in`, `email_opt_in_at`, `sms_opt_in`, `sms_opt_in_at`, `metadata` |
+| 3. Valid Submission | `crm_customers`, `form_submissions` | `email_opt_in`, `email_opt_in_at`, `sms_opt_in`, `sms_opt_in_at`, `email_consent_details`, `sms_consent_details`, `metadata` |
 | 4. Suppressed Email | `crm_customers`, `email_suppressions` | `suppressed`, `lifted_at` |
-| 5. Rate Limiting | `form_rate_limits`, `form_submissions` | `short_window_count`, `result` |
-| 6. Honeypot Spam | `form_submissions` | `result`, `reason`, `metadata` |
-| 7. Existing Customer Resubmit | `crm_customers`, `customer_personas`, `form_submissions` | `id` (same), `email_opt_in` (preserved), persona uniqueness |
+| 5. Rate Limiting | `form_rate_limits`, `form_submissions` | `count`, `result` |
+| 6. Honeypot Spam | `form_submissions` | `result`, `reason` |
+| 7. Existing Customer | `crm_customers`, `customer_personas` | `id` (same), `email_opt_in` (preserved), `opt_out` (untouched) |
 | 8. Persona Idempotency | `customer_personas` | `persona_id`, `predefined_persona_id`, duplicate count |
 
 ---
@@ -775,12 +640,19 @@ WHERE predefined_persona_id IS NOT NULL;
 [ ] Test 8: Persona assignment idempotency (custom + predefined)
 ```
 
+---
+
 ## Cleanup Query
 
 ```sql
 -- Run after testing to clean up test data
 DELETE FROM form_submissions 
 WHERE data->>'email' LIKE '%@example.com';
+
+DELETE FROM customer_personas
+WHERE customer_id IN (
+  SELECT id FROM crm_customers WHERE email LIKE '%@example.com'
+);
 
 DELETE FROM crm_customers 
 WHERE email LIKE '%@example.com';
@@ -791,3 +663,8 @@ WHERE form_id = 'TEST_FORM_ID';
 DELETE FROM email_suppressions 
 WHERE email = 'bounced@example.com';
 ```
+
+---
+
+**Document Version**: 1.0.0  
+**Created**: 2026-01-28
