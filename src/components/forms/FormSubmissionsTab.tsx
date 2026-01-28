@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -11,12 +11,13 @@ import {
   Clock, 
   Mail, 
   MessageSquare,
-  Shield,
   Bot,
-  Ban
+  TrendingUp,
+  TrendingDown,
+  Eye
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { format, formatDistanceToNow } from 'date-fns';
+import { format, formatDistanceToNow, subDays } from 'date-fns';
 import { FormSubmission, FormSubmissionMetadata } from '@/types/formBuilder';
 import {
   Tooltip,
@@ -24,9 +25,14 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { Button } from '@/components/ui/button';
+import { SubmissionFilters, SubmissionResultFilter } from './submissions/SubmissionFilters';
+import { SubmissionDetailModal } from './submissions/SubmissionDetailModal';
+import { SubmissionExport } from './submissions/SubmissionExport';
 
 interface FormSubmissionsTabProps {
   formId: string;
+  formName?: string;
 }
 
 type SubmissionResult = 'accepted' | 'rejected_invalid' | 'rejected_rate_limited' | 'rejected_spam';
@@ -54,7 +60,13 @@ const resultConfig: Record<SubmissionResult, { label: string; variant: 'default'
   },
 };
 
-export function FormSubmissionsTab({ formId }: FormSubmissionsTabProps) {
+export function FormSubmissionsTab({ formId, formName = 'Form' }: FormSubmissionsTabProps) {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [resultFilter, setResultFilter] = useState<SubmissionResultFilter>('all');
+  const [consentFilter, setConsentFilter] = useState<'all' | 'email' | 'sms' | 'both' | 'none'>('all');
+  const [selectedSubmission, setSelectedSubmission] = useState<FormSubmission | null>(null);
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
+
   const { data: submissions, isLoading, error } = useQuery({
     queryKey: ['form-submissions', formId],
     queryFn: async () => {
@@ -63,11 +75,10 @@ export function FormSubmissionsTab({ formId }: FormSubmissionsTabProps) {
         .select('*')
         .eq('form_id', formId)
         .order('submitted_at', { ascending: false })
-        .limit(100);
+        .limit(500);
 
       if (error) throw error;
       
-      // Cast to our type
       return (data || []).map(row => ({
         ...row,
         metadata: row.metadata as unknown as FormSubmissionMetadata,
@@ -77,25 +88,112 @@ export function FormSubmissionsTab({ formId }: FormSubmissionsTabProps) {
     },
   });
 
-  // Calculate stats
-  const stats = React.useMemo(() => {
-    if (!submissions) return { total: 0, accepted: 0, rejected: 0, rate: 0 };
+  // Filter submissions
+  const filteredSubmissions = useMemo(() => {
+    if (!submissions) return [];
+    
+    return submissions.filter(sub => {
+      // Search filter
+      if (searchQuery) {
+        const email = sub.data?.email || sub.data?.Email || '';
+        if (!email.toLowerCase().includes(searchQuery.toLowerCase())) {
+          return false;
+        }
+      }
+
+      // Result filter
+      if (resultFilter !== 'all' && sub.result !== resultFilter) {
+        return false;
+      }
+
+      // Consent filter
+      const metadata = sub.metadata || {};
+      const hasEmail = metadata.email_consent === true;
+      const hasSms = metadata.sms_consent === true;
+      
+      switch (consentFilter) {
+        case 'email':
+          if (!hasEmail || hasSms) return false;
+          break;
+        case 'sms':
+          if (!hasSms || hasEmail) return false;
+          break;
+        case 'both':
+          if (!hasEmail || !hasSms) return false;
+          break;
+        case 'none':
+          if (hasEmail || hasSms) return false;
+          break;
+      }
+
+      return true;
+    });
+  }, [submissions, searchQuery, resultFilter, consentFilter]);
+
+  // Calculate stats with trend
+  const stats = useMemo(() => {
+    if (!submissions) return { 
+      total: 0, 
+      accepted: 0, 
+      rejected: 0, 
+      rate: 0,
+      last7Days: 0,
+      previous7Days: 0,
+      trend: 0
+    };
     
     const accepted = submissions.filter(s => s.result === 'accepted').length;
     const rejected = submissions.length - accepted;
+    
+    const now = new Date();
+    const sevenDaysAgo = subDays(now, 7);
+    const fourteenDaysAgo = subDays(now, 14);
+    
+    const last7Days = submissions.filter(s => 
+      new Date(s.submitted_at) >= sevenDaysAgo
+    ).length;
+    
+    const previous7Days = submissions.filter(s => {
+      const date = new Date(s.submitted_at);
+      return date >= fourteenDaysAgo && date < sevenDaysAgo;
+    }).length;
+    
+    const trend = previous7Days === 0 
+      ? (last7Days > 0 ? 100 : 0) 
+      : Math.round(((last7Days - previous7Days) / previous7Days) * 100);
     
     return {
       total: submissions.length,
       accepted,
       rejected,
       rate: submissions.length > 0 ? Math.round((accepted / submissions.length) * 100) : 0,
+      last7Days,
+      previous7Days,
+      trend,
     };
   }, [submissions]);
+
+  const activeFiltersCount = [
+    searchQuery ? 1 : 0,
+    resultFilter !== 'all' ? 1 : 0,
+    consentFilter !== 'all' ? 1 : 0,
+  ].reduce((a, b) => a + b, 0);
+
+  const handleClearFilters = () => {
+    setSearchQuery('');
+    setResultFilter('all');
+    setConsentFilter('all');
+  };
+
+  const handleViewDetails = (submission: FormSubmission) => {
+    setSelectedSubmission(submission);
+    setDetailModalOpen(true);
+  };
 
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[1, 2, 3, 4].map(i => (
             <Skeleton key={i} className="h-24" />
           ))}
@@ -140,8 +238,19 @@ export function FormSubmissionsTab({ formId }: FormSubmissionsTabProps) {
         </Card>
         <Card>
           <CardContent className="pt-6">
-            <div className="text-2xl font-bold">{stats.rate}%</div>
-            <p className="text-sm text-muted-foreground">Success Rate</p>
+            <div className="flex items-center gap-2">
+              <span className="text-2xl font-bold">{stats.last7Days}</span>
+              {stats.trend !== 0 && (
+                <Badge 
+                  variant={stats.trend > 0 ? 'default' : 'secondary'} 
+                  className={`text-xs ${stats.trend > 0 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}
+                >
+                  {stats.trend > 0 ? <TrendingUp className="h-3 w-3 mr-1" /> : <TrendingDown className="h-3 w-3 mr-1" />}
+                  {Math.abs(stats.trend)}%
+                </Badge>
+              )}
+            </div>
+            <p className="text-sm text-muted-foreground">Last 7 days</p>
           </CardContent>
         </Card>
       </div>
@@ -149,13 +258,33 @@ export function FormSubmissionsTab({ formId }: FormSubmissionsTabProps) {
       {/* Submissions Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Recent Submissions</CardTitle>
-          <CardDescription>
-            Last 100 submissions to this form
-          </CardDescription>
+          <div className="flex flex-col sm:flex-row justify-between gap-4">
+            <div>
+              <CardTitle>Recent Submissions</CardTitle>
+              <CardDescription>
+                {filteredSubmissions.length === submissions?.length 
+                  ? `Showing ${submissions?.length || 0} submissions`
+                  : `Showing ${filteredSubmissions.length} of ${submissions?.length || 0} submissions`
+                }
+              </CardDescription>
+            </div>
+            <SubmissionExport submissions={filteredSubmissions} formName={formName} />
+          </div>
         </CardHeader>
         <CardContent>
-          {submissions && submissions.length > 0 ? (
+          {/* Filters */}
+          <SubmissionFilters
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            resultFilter={resultFilter}
+            onResultFilterChange={setResultFilter}
+            consentFilter={consentFilter}
+            onConsentFilterChange={setConsentFilter}
+            activeFiltersCount={activeFiltersCount}
+            onClearFilters={handleClearFilters}
+          />
+
+          {filteredSubmissions.length > 0 ? (
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
@@ -164,16 +293,31 @@ export function FormSubmissionsTab({ formId }: FormSubmissionsTabProps) {
                     <TableHead>Email</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Consent</TableHead>
-                    <TableHead>Page URL</TableHead>
-                    <TableHead>Reason</TableHead>
+                    <TableHead>Source</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {submissions.map((submission) => (
-                    <SubmissionRow key={submission.id} submission={submission} />
+                  {filteredSubmissions.map((submission) => (
+                    <SubmissionRow 
+                      key={submission.id} 
+                      submission={submission}
+                      onViewDetails={() => handleViewDetails(submission)}
+                    />
                   ))}
                 </TableBody>
               </Table>
+            </div>
+          ) : submissions && submissions.length > 0 ? (
+            <div className="text-center py-12">
+              <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+              <h3 className="text-lg font-medium mb-2">No matching submissions</h3>
+              <p className="text-muted-foreground mb-4">
+                Try adjusting your filters or search query.
+              </p>
+              <Button variant="outline" onClick={handleClearFilters}>
+                Clear filters
+              </Button>
             </div>
           ) : (
             <div className="text-center py-12">
@@ -186,24 +330,33 @@ export function FormSubmissionsTab({ formId }: FormSubmissionsTabProps) {
           )}
         </CardContent>
       </Card>
+
+      {/* Detail Modal */}
+      <SubmissionDetailModal
+        submission={selectedSubmission}
+        open={detailModalOpen}
+        onOpenChange={setDetailModalOpen}
+      />
     </div>
   );
 }
 
-function SubmissionRow({ submission }: { submission: FormSubmission }) {
+interface SubmissionRowProps {
+  submission: FormSubmission;
+  onViewDetails: () => void;
+}
+
+function SubmissionRow({ submission, onViewDetails }: SubmissionRowProps) {
   const resultInfo = resultConfig[submission.result] || resultConfig.rejected_invalid;
   const metadata = submission.metadata || {};
   
-  // Extract email from submission data
   const email = submission.data?.email || submission.data?.Email || '—';
   
-  // Format page URL for display
-  const pageUrl = metadata.page_url 
-    ? new URL(metadata.page_url).pathname 
-    : '—';
+  // Get UTM source or page for source column
+  const source = metadata.utm_source || (metadata.page_url ? 'Direct' : '—');
 
   return (
-    <TableRow>
+    <TableRow className="cursor-pointer hover:bg-muted/50" onClick={onViewDetails}>
       <TableCell className="whitespace-nowrap">
         <TooltipProvider>
           <Tooltip>
@@ -235,39 +388,13 @@ function SubmissionRow({ submission }: { submission: FormSubmission }) {
       </TableCell>
       
       <TableCell>
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger className="text-left">
-              <span className="text-sm text-muted-foreground max-w-[150px] truncate block">
-                {pageUrl}
-              </span>
-            </TooltipTrigger>
-            <TooltipContent>
-              {metadata.page_url || 'No page URL recorded'}
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        <span className="text-sm text-muted-foreground">{source}</span>
       </TableCell>
       
-      <TableCell>
-        {submission.reason ? (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger>
-                <Badge variant="outline" className="text-xs">
-                  {submission.reason.length > 30 
-                    ? `${submission.reason.slice(0, 30)}...` 
-                    : submission.reason}
-                </Badge>
-              </TooltipTrigger>
-              <TooltipContent className="max-w-xs">
-                {submission.reason}
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        ) : (
-          <span className="text-muted-foreground">—</span>
-        )}
+      <TableCell className="text-right">
+        <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); onViewDetails(); }}>
+          <Eye className="h-4 w-4" />
+        </Button>
       </TableCell>
     </TableRow>
   );
@@ -285,59 +412,14 @@ function ConsentBadges({ metadata }: { metadata: FormSubmissionMetadata }) {
   return (
     <div className="flex gap-1">
       {hasEmailConsent && (
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger>
-              <Badge variant="outline" className="flex items-center gap-1">
-                <Mail className="h-3 w-3" />
-                Email
-              </Badge>
-            </TooltipTrigger>
-            <TooltipContent>
-              <div className="text-xs">
-                <p className="font-medium">Email consent given</p>
-                {metadata.email_consent_text && (
-                  <p className="text-muted-foreground mt-1">
-                    "{metadata.email_consent_text}"
-                  </p>
-                )}
-                {metadata.email_consent_at && (
-                  <p className="text-muted-foreground mt-1">
-                    at {format(new Date(metadata.email_consent_at), 'PPpp')}
-                  </p>
-                )}
-              </div>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        <Badge variant="outline" className="flex items-center gap-1 text-xs">
+          <Mail className="h-3 w-3" />
+        </Badge>
       )}
-      
       {hasSmsConsent && (
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger>
-              <Badge variant="outline" className="flex items-center gap-1">
-                <MessageSquare className="h-3 w-3" />
-                SMS
-              </Badge>
-            </TooltipTrigger>
-            <TooltipContent>
-              <div className="text-xs">
-                <p className="font-medium">SMS consent given</p>
-                {metadata.sms_consent_text && (
-                  <p className="text-muted-foreground mt-1">
-                    "{metadata.sms_consent_text}"
-                  </p>
-                )}
-                {metadata.sms_consent_at && (
-                  <p className="text-muted-foreground mt-1">
-                    at {format(new Date(metadata.sms_consent_at), 'PPpp')}
-                  </p>
-                )}
-              </div>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        <Badge variant="outline" className="flex items-center gap-1 text-xs">
+          <MessageSquare className="h-3 w-3" />
+        </Badge>
       )}
     </div>
   );
