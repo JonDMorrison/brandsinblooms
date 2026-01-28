@@ -1,0 +1,340 @@
+/**
+ * BloomSuite Forms Embed Stylesheet v1.0.0
+ * 
+ * Served from same origin as embed.js to avoid CSP issues.
+ * All classes prefixed with bs-form- for scoping.
+ */
+
+/* ─── Reset & Container ─────────────────────────────────────────────────── */
+.bs-form-container {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  color: #1f2937;
+  max-width: 100%;
+}
+
+.bs-form-container *,
+.bs-form-container *::before,
+.bs-form-container *::after {
+  box-sizing: border-box;
+}
+
+/* ─── Form Wrapper ──────────────────────────────────────────────────────── */
+.bs-form-wrapper {
+  background: #ffffff;
+  padding: 0;
+}
+
+/* ─── Field Wrapper ─────────────────────────────────────────────────────── */
+.bs-form-field {
+  margin-bottom: 16px;
+}
+
+.bs-form-field:last-of-type {
+  margin-bottom: 20px;
+}
+
+/* ─── Labels ────────────────────────────────────────────────────────────── */
+.bs-form-label {
+  display: block;
+  font-weight: 500;
+  font-size: 14px;
+  color: #374151;
+  margin-bottom: 6px;
+}
+
+.bs-form-required {
+  color: #dc2626;
+  margin-left: 2px;
+}
+
+/* ─── Text Inputs ───────────────────────────────────────────────────────── */
+.bs-form-input {
+  display: block;
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #1f2937;
+  background-color: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: var(--bs-form-radius, 8px);
+  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.bs-form-input:focus {
+  outline: none;
+  border-color: var(--bs-form-primary, #22C55E);
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.15);
+}
+
+.bs-form-input::placeholder {
+  color: #9ca3af;
+}
+
+.bs-form-input:disabled {
+  background-color: #f3f4f6;
+  cursor: not-allowed;
+}
+
+/* ─── Select ────────────────────────────────────────────────────────────── */
+.bs-form-select {
+  display: block;
+  width: 100%;
+  padding: 10px 36px 10px 12px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #1f2937;
+  background-color: #ffffff;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+  background-position: right 12px center;
+  background-repeat: no-repeat;
+  background-size: 16px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: var(--bs-form-radius, 8px);
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: pointer;
+}
+
+.bs-form-select:focus {
+  outline: none;
+  border-color: var(--bs-form-primary, #22C55E);
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.15);
+}
+
+/* ─── Checkbox ──────────────────────────────────────────────────────────── */
+.bs-form-checkbox-wrap {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.bs-form-checkbox {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  accent-color: var(--bs-form-primary, #22C55E);
+  cursor: pointer;
+}
+
+.bs-form-checkbox-text {
+  font-size: 14px;
+  color: #4b5563;
+  line-height: 1.5;
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* ─── Consent Fields ────────────────────────────────────────────────────── */
+.bs-form-consent {
+  background: #f9fafb;
+  padding: 12px;
+  border-radius: var(--bs-form-radius, 8px);
+  border: 1px solid #e5e7eb;
+}
+
+.bs-form-consent .bs-form-checkbox-text {
+  font-size: 13px;
+  color: #6b7280;
+}
+
+/* ─── Submit Button ─────────────────────────────────────────────────────── */
+.bs-form-submit {
+  display: block;
+  width: 100%;
+  padding: 12px 24px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #ffffff;
+  background-color: var(--bs-form-primary, #22C55E);
+  border: none;
+  border-radius: var(--bs-form-radius, 8px);
+  cursor: pointer;
+  transition: background-color 0.15s ease-in-out, transform 0.1s ease-in-out;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.bs-form-submit:hover {
+  background-color: var(--bs-form-primary-hover, #16a34a);
+}
+
+.bs-form-submit:active {
+  transform: scale(0.98);
+}
+
+.bs-form-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.bs-form-submit-outline {
+  background-color: transparent;
+  border: 2px solid var(--bs-form-primary, #22C55E);
+  color: var(--bs-form-primary, #22C55E);
+}
+
+.bs-form-submit-outline:hover {
+  background-color: var(--bs-form-primary, #22C55E);
+  color: #ffffff;
+}
+
+.bs-form-submit-rounded {
+  border-radius: 9999px;
+}
+
+/* ─── Error States ──────────────────────────────────────────────────────── */
+.bs-form-error-msg {
+  color: #dc2626;
+  font-size: 13px;
+  margin-top: 6px;
+}
+
+.bs-form-input-error {
+  border-color: #dc2626;
+}
+
+.bs-form-input-error:focus {
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15);
+}
+
+/* ─── Success State ─────────────────────────────────────────────────────── */
+.bs-form-success {
+  text-align: center;
+  padding: 32px 24px;
+  background: #f0fdf4;
+  border-radius: var(--bs-form-radius, 8px);
+  border: 1px solid #bbf7d0;
+}
+
+.bs-form-success-icon {
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 16px;
+  background: #22C55E;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bs-form-success-icon svg {
+  width: 28px;
+  height: 28px;
+  stroke: #ffffff;
+  fill: none;
+}
+
+.bs-form-success-text {
+  font-size: 18px;
+  font-weight: 600;
+  color: #166534;
+  margin: 0;
+}
+
+/* ─── Loading State ─────────────────────────────────────────────────────── */
+.bs-form-loading {
+  text-align: center;
+  padding: 48px 24px;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.bs-form-spinner {
+  display: inline-block;
+  width: 24px;
+  height: 24px;
+  border: 2px solid #e5e7eb;
+  border-top-color: var(--bs-form-primary, #22C55E);
+  border-radius: 50%;
+  animation: bs-form-spin 0.8s linear infinite;
+  margin-bottom: 12px;
+}
+
+@keyframes bs-form-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ─── Branding ──────────────────────────────────────────────────────────── */
+.bs-form-branding {
+  text-align: center;
+  margin-top: 16px;
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+.bs-form-branding a {
+  color: #6b7280;
+  text-decoration: none;
+}
+
+.bs-form-branding a:hover {
+  text-decoration: underline;
+}
+
+/* ─── Honeypot (hidden from users & screen readers) ─────────────────────── */
+.bs-form-hp {
+  position: absolute !important;
+  left: -9999px !important;
+  top: -9999px !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  height: 0 !important;
+  overflow: hidden !important;
+}
+
+/* ─── Blocked/Error Fallback ────────────────────────────────────────────── */
+.bs-form-blocked {
+  text-align: center;
+  padding: 24px;
+  background: #fef2f2;
+  border-radius: 8px;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+  font-size: 14px;
+}
+
+/* ─── Fallback Mode (no external CSS loaded) ────────────────────────────── */
+/* These minimal inline-safe styles apply when CSS fails to load */
+.bs-form-fallback .bs-form-field {
+  margin-bottom: 1em;
+}
+
+.bs-form-fallback .bs-form-label {
+  display: block;
+  margin-bottom: 0.25em;
+  font-weight: bold;
+}
+
+.bs-form-fallback .bs-form-input,
+.bs-form-fallback .bs-form-select {
+  width: 100%;
+  padding: 0.5em;
+  border: 1px solid #ccc;
+}
+
+.bs-form-fallback .bs-form-submit {
+  padding: 0.75em 1.5em;
+  background: #22C55E;
+  color: white;
+  border: none;
+  cursor: pointer;
+}
+
+.bs-form-fallback .bs-form-checkbox-wrap {
+  display: block;
+}
+
+.bs-form-fallback .bs-form-consent {
+  padding: 0.75em;
+  background: #f5f5f5;
+  border: 1px solid #ddd;
+}
