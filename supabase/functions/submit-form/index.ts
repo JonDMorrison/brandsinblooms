@@ -2,9 +2,11 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
+
+// ─── Types ─────────────────────────────────────────────────────────────────
 
 interface FormField {
   id: string;
@@ -22,6 +24,13 @@ interface FormCompliance {
   sms_consent_text: string;
 }
 
+interface FormSettings {
+  success_message?: string;
+  success_redirect_url?: string | null;
+  assign_personas?: string[];
+  assign_tags?: string[];
+}
+
 interface SubmissionMeta {
   page_url?: string;
   referrer?: string;
@@ -33,33 +42,45 @@ interface SubmissionMeta {
 
 interface SubmissionPayload {
   embed_key: string;
-  data: Record<string, any>;
+  data: Record<string, unknown>;
   meta?: SubmissionMeta;
-  honeypot?: string; // Hidden field for spam detection
 }
 
-// Rate limit configuration
+// ─── Rate Limit Configuration ──────────────────────────────────────────────
 const RATE_LIMIT_SHORT_WINDOW_SECONDS = 60;
 const RATE_LIMIT_SHORT_MAX = 5;
 const RATE_LIMIT_LONG_WINDOW_SECONDS = 600; // 10 minutes
 const RATE_LIMIT_LONG_MAX = 20;
 
+// ─── Helper Functions ──────────────────────────────────────────────────────
+
 /**
- * Hash IP address for privacy
+ * Hash IP address for privacy (SHA-256 with salt)
  */
 async function hashIP(ip: string): Promise<string> {
   const encoder = new TextEncoder();
-  const data = encoder.encode(ip + Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'));
+  const salt = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || 'default-salt';
+  const data = encoder.encode(ip + salt);
   const hashBuffer = await crypto.subtle.digest('SHA-256', data);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
 /**
+ * Extract client IP from request headers
+ */
+function getClientIP(req: Request): string {
+  return req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+    || req.headers.get('cf-connecting-ip')
+    || req.headers.get('x-real-ip')
+    || 'unknown';
+}
+
+/**
  * Check rate limits using database-backed table
  */
 async function checkRateLimit(
-  supabase: any,
+  supabase: ReturnType<typeof createClient>,
   tenantId: string,
   formId: string,
   ipHash: string
@@ -76,7 +97,7 @@ async function checkRateLimit(
     .eq('ip_hash', ipHash)
     .gte('window_start', shortWindowStart.toISOString());
 
-  const shortWindowCount = shortWindowData?.reduce((sum: number, r: any) => sum + r.count, 0) || 0;
+  const shortWindowCount = shortWindowData?.reduce((sum: number, r: { count: number }) => sum + r.count, 0) || 0;
   
   if (shortWindowCount >= RATE_LIMIT_SHORT_MAX) {
     return { allowed: false, reason: `Rate limit exceeded: ${RATE_LIMIT_SHORT_MAX} submissions per minute` };
@@ -92,23 +113,22 @@ async function checkRateLimit(
     .eq('ip_hash', ipHash)
     .gte('window_start', longWindowStart.toISOString());
 
-  const longWindowCount = longWindowData?.reduce((sum: number, r: any) => sum + r.count, 0) || 0;
+  const longWindowCount = longWindowData?.reduce((sum: number, r: { count: number }) => sum + r.count, 0) || 0;
   
   if (longWindowCount >= RATE_LIMIT_LONG_MAX) {
     return { allowed: false, reason: `Rate limit exceeded: ${RATE_LIMIT_LONG_MAX} submissions per 10 minutes` };
   }
 
-  // Record this submission attempt
-  const windowStart = new Date(Math.floor(now.getTime() / 60000) * 60000); // Round to minute
+  // Record this submission attempt (rounded to minute)
+  const windowStart = new Date(Math.floor(now.getTime() / 60000) * 60000);
   
-  // Try to update existing record first
   const { data: existing } = await supabase
     .from('form_rate_limits')
     .select('id, count')
     .eq('form_id', formId)
     .eq('ip_hash', ipHash)
     .eq('window_start', windowStart.toISOString())
-    .single();
+    .maybeSingle();
 
   if (existing) {
     await supabase
@@ -131,11 +151,28 @@ async function checkRateLimit(
 }
 
 /**
+ * Check for honeypot spam (hidden fields that bots fill out)
+ */
+function checkHoneypot(data: Record<string, unknown>): boolean {
+  // Common honeypot field names
+  const honeypotFields = ['_honeypot', 'honeypot', '_hp', 'website', 'url', '_blank'];
+  
+  for (const field of honeypotFields) {
+    const value = data[field];
+    if (value !== undefined && value !== null && value !== '') {
+      return true; // Spam detected
+    }
+  }
+  
+  return false;
+}
+
+/**
  * Validate required fields
  */
-function validateFields(
+function validateRequiredFields(
   fields: FormField[],
-  data: Record<string, any>
+  data: Record<string, unknown>
 ): { valid: boolean; errors: string[] } {
   const errors: string[] = [];
 
@@ -147,7 +184,7 @@ function validateFields(
       }
     }
 
-    // Email validation
+    // Email format validation
     if (field.type === 'email' && data[field.id]) {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(String(data[field.id]))) {
@@ -155,7 +192,7 @@ function validateFields(
       }
     }
 
-    // Phone validation (basic)
+    // Phone format validation (basic)
     if (field.type === 'phone' && data[field.id]) {
       const phone = String(data[field.id]).replace(/\D/g, '');
       if (phone.length < 10) {
@@ -168,40 +205,35 @@ function validateFields(
 }
 
 /**
- * Validate consent requirements
+ * Validate consent requirements (CASL/TCPA compliance)
  */
-function validateConsent(
+function validateConsentRules(
   fields: FormField[],
   compliance: FormCompliance,
-  data: Record<string, any>
+  data: Record<string, unknown>
 ): { valid: boolean; errors: string[] } {
   const errors: string[] = [];
 
-  // Check if email field exists
+  // Check field presence
   const hasEmailField = fields.some(f => f.type === 'email' || f.mapping_key === 'email');
   const hasPhoneField = fields.some(f => f.type === 'phone' || f.mapping_key === 'phone');
 
-  // Email consent validation
+  // Email consent validation (CASL)
   if (hasEmailField && compliance.email_consent_required) {
     const emailConsentField = fields.find(f => f.type === 'email_consent');
-    if (emailConsentField) {
-      if (!data[emailConsentField.id]) {
-        errors.push('Email consent is required');
-      }
-    } else {
-      // No explicit consent field but consent is required
+    const consentValue = emailConsentField ? data[emailConsentField.id] : data['email_consent'];
+    
+    if (!consentValue) {
       errors.push('Email consent is required');
     }
   }
 
-  // SMS consent validation (TCPA requirement)
+  // SMS consent validation (TCPA) - must be separate from email
   if (hasPhoneField && compliance.sms_consent_required) {
     const smsConsentField = fields.find(f => f.type === 'sms_consent');
-    if (smsConsentField) {
-      if (!data[smsConsentField.id]) {
-        errors.push('SMS consent is required when providing a phone number');
-      }
-    } else {
+    const consentValue = smsConsentField ? data[smsConsentField.id] : data['sms_consent'];
+    
+    if (!consentValue) {
       errors.push('SMS consent is required when providing a phone number');
     }
   }
@@ -210,25 +242,59 @@ function validateConsent(
 }
 
 /**
- * Extract mapped values from form data
+ * Extract mapped values from form data based on field definitions
  */
 function extractMappedValues(
   fields: FormField[],
-  data: Record<string, any>
-): Record<string, any> {
-  const mapped: Record<string, any> = {};
+  data: Record<string, unknown>
+): Record<string, string | undefined> {
+  const mapped: Record<string, string | undefined> = {};
 
   for (const field of fields) {
     const value = data[field.id];
     if (value !== undefined && value !== null && value !== '') {
       if (field.mapping_key && field.mapping_key !== 'custom') {
-        mapped[field.mapping_key] = value;
+        mapped[field.mapping_key] = String(value);
       }
     }
   }
 
   return mapped;
 }
+
+/**
+ * Record submission to form_submissions table
+ */
+async function recordSubmission(
+  supabase: ReturnType<typeof createClient>,
+  params: {
+    tenantId: string;
+    formId: string;
+    customerId?: string;
+    data: Record<string, unknown>;
+    metadata: Record<string, unknown>;
+    ipHash: string;
+    result: 'accepted' | 'rejected_invalid' | 'rejected_rate_limited' | 'rejected_spam';
+    reason?: string;
+  }
+): Promise<void> {
+  try {
+    await supabase.from('form_submissions').insert({
+      tenant_id: params.tenantId,
+      form_id: params.formId,
+      customer_id: params.customerId || null,
+      data: params.data,
+      metadata: params.metadata,
+      ip_hash: params.ipHash,
+      result: params.result,
+      reason: params.reason || null,
+    });
+  } catch (error) {
+    console.error('[submit-form] Failed to record submission:', error);
+  }
+}
+
+// ─── Main Handler ──────────────────────────────────────────────────────────
 
 Deno.serve(async (req) => {
   // Handle CORS preflight
@@ -244,26 +310,33 @@ Deno.serve(async (req) => {
   }
 
   const startTime = Date.now();
+  
+  // Variables needed for submission recording
+  let tenantId: string | undefined;
+  let formId: string | undefined;
+  let ipHash: string | undefined;
+  let submissionData: Record<string, unknown> = {};
+  let submissionMeta: Record<string, unknown> = {};
 
   try {
+    // Parse request body
     const payload: SubmissionPayload = await req.json();
-    const { embed_key, data, meta, honeypot } = payload;
+    const { embed_key, data, meta } = payload;
+    submissionData = data || {};
+    submissionMeta = { ...meta, user_agent: req.headers.get('user-agent') };
 
-    // Validate embed_key
-    if (!embed_key || !/^[a-f0-9]{32}$/i.test(embed_key)) {
+    // ─── Step 1: Validate embed_key and look up form ───────────────────────
+    if (!embed_key || typeof embed_key !== 'string') {
       return new Response(
-        JSON.stringify({ error: 'Invalid embed_key' }),
+        JSON.stringify({ error: 'embed_key is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Honeypot check (spam detection)
-    if (honeypot) {
-      console.log(`[submit-form] Honeypot triggered for embed_key: ${embed_key}`);
-      // Silently accept but don't process
+    if (!/^[a-f0-9]{32}$/i.test(embed_key)) {
       return new Response(
-        JSON.stringify({ success: true, message: 'Thank you for your submission!' }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: 'Invalid embed_key format' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -271,67 +344,95 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Step 1: Look up form by embed_key, confirm published
+    // Look up form by embed_key - tenant_id ONLY from this record
     const { data: form, error: formError } = await supabase
       .from('forms')
-      .select('id, tenant_id, fields_json, settings_json, compliance_json')
-      .eq('embed_key', embed_key)
-      .eq('status', 'published')
-      .single();
+      .select('id, tenant_id, status, fields_json, settings_json, compliance_json')
+      .eq('embed_key', embed_key.toLowerCase())
+      .maybeSingle();
 
-    if (formError || !form) {
-      console.log(`[submit-form] Form not found for embed_key: ${embed_key}`);
+    if (formError) {
+      console.error('[submit-form] Database error:', formError.message);
       return new Response(
-        JSON.stringify({ error: 'Form not found or not published' }),
+        JSON.stringify({ error: 'Internal server error' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Validate form exists and is published
+    if (!form || form.status !== 'published') {
+      console.log(`[submit-form] Form not found or not published: ${embed_key.slice(0, 8)}...`);
+      return new Response(
+        JSON.stringify({ error: 'Form not found' }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const formId = form.id;
-    const tenantId = form.tenant_id;
-    const fields = form.fields_json as FormField[];
-    const compliance = form.compliance_json as FormCompliance;
-    const settings = form.settings_json as any;
+    // Extract form data - tenant_id derived from form record ONLY
+    formId = form.id;
+    tenantId = form.tenant_id;
+    const fields = (form.fields_json || []) as FormField[];
+    const compliance = (form.compliance_json || {}) as FormCompliance;
+    const settings = (form.settings_json || {}) as FormSettings;
 
-    // Step 2: Rate limit using DB-backed table
-    const clientIP = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() 
-                  || req.headers.get('cf-connecting-ip') 
-                  || 'unknown';
-    const ipHash = await hashIP(clientIP);
+    // Get client IP and hash it
+    const clientIP = getClientIP(req);
+    ipHash = await hashIP(clientIP);
 
+    // ─── Step 2: DB-backed rate limiting ───────────────────────────────────
     const rateLimitResult = await checkRateLimit(supabase, tenantId, formId, ipHash);
     
     if (!rateLimitResult.allowed) {
       console.log(`[submit-form] Rate limited: ${rateLimitResult.reason}`);
       
-      // Record rejected submission
-      await supabase.from('form_submissions').insert({
-        tenant_id: tenantId,
-        form_id: formId,
-        data: data,
-        metadata: { ...meta, user_agent: req.headers.get('user-agent') },
-        ip_hash: ipHash,
+      await recordSubmission(supabase, {
+        tenantId,
+        formId,
+        data: submissionData,
+        metadata: submissionMeta,
+        ipHash,
         result: 'rejected_rate_limited',
         reason: rateLimitResult.reason,
       });
 
       return new Response(
         JSON.stringify({ error: rateLimitResult.reason }),
-        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json', 'Retry-After': '60' } }
       );
     }
 
-    // Step 3: Validate required fields
-    const fieldValidation = validateFields(fields, data);
+    // ─── Step 3: Honeypot spam check ───────────────────────────────────────
+    if (checkHoneypot(submissionData)) {
+      console.log(`[submit-form] Honeypot triggered for form: ${formId.slice(0, 8)}...`);
+      
+      await recordSubmission(supabase, {
+        tenantId,
+        formId,
+        data: submissionData,
+        metadata: submissionMeta,
+        ipHash,
+        result: 'rejected_spam',
+        reason: 'Spam detected (honeypot)',
+      });
+
+      // Return fake success to not tip off bots
+      return new Response(
+        JSON.stringify({ success: true, message: 'Thank you for your submission!' }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // ─── Step 4: Validate required fields ──────────────────────────────────
+    const fieldValidation = validateRequiredFields(fields, submissionData);
     if (!fieldValidation.valid) {
-      await supabase.from('form_submissions').insert({
-        tenant_id: tenantId,
-        form_id: formId,
-        data: data,
-        metadata: { ...meta, user_agent: req.headers.get('user-agent') },
-        ip_hash: ipHash,
+      await recordSubmission(supabase, {
+        tenantId,
+        formId,
+        data: submissionData,
+        metadata: submissionMeta,
+        ipHash,
         result: 'rejected_invalid',
-        reason: fieldValidation.errors.join(', '),
+        reason: fieldValidation.errors.join('; '),
       });
 
       return new Response(
@@ -340,17 +441,17 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Step 4: Consent validation
-    const consentValidation = validateConsent(fields, compliance, data);
+    // ─── Step 5: Validate consent rules ────────────────────────────────────
+    const consentValidation = validateConsentRules(fields, compliance, submissionData);
     if (!consentValidation.valid) {
-      await supabase.from('form_submissions').insert({
-        tenant_id: tenantId,
-        form_id: formId,
-        data: data,
-        metadata: { ...meta, user_agent: req.headers.get('user-agent') },
-        ip_hash: ipHash,
+      await recordSubmission(supabase, {
+        tenantId,
+        formId,
+        data: submissionData,
+        metadata: submissionMeta,
+        ipHash,
         result: 'rejected_invalid',
-        reason: consentValidation.errors.join(', '),
+        reason: consentValidation.errors.join('; '),
       });
 
       return new Response(
@@ -359,35 +460,40 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Step 5: Extract mapped values
-    const mappedValues = extractMappedValues(fields, data);
+    // ─── Step 6: Extract and validate mapped values ────────────────────────
+    const mappedValues = extractMappedValues(fields, submissionData);
     const email = mappedValues.email?.toLowerCase()?.trim();
-    const phone = mappedValues.phone ? String(mappedValues.phone).replace(/\D/g, '') : null;
+    const phone = mappedValues.phone ? String(mappedValues.phone).replace(/\D/g, '') : undefined;
     const firstName = mappedValues.first_name?.trim();
     const lastName = mappedValues.last_name?.trim();
 
     if (!email) {
+      await recordSubmission(supabase, {
+        tenantId,
+        formId,
+        data: submissionData,
+        metadata: submissionMeta,
+        ipHash,
+        result: 'rejected_invalid',
+        reason: 'Email is required',
+      });
+
       return new Response(
         JSON.stringify({ error: 'Email is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Step 6: Check consent field values
+    // Determine consent values
     const emailConsentField = fields.find(f => f.type === 'email_consent');
     const smsConsentField = fields.find(f => f.type === 'sms_consent');
-    const emailConsent = emailConsentField ? !!data[emailConsentField.id] : false;
-    const smsConsent = smsConsentField ? !!data[smsConsentField.id] : false;
+    const emailConsent = emailConsentField ? !!submissionData[emailConsentField.id] : !!submissionData['email_consent'];
+    const smsConsent = smsConsentField ? !!submissionData[smsConsentField.id] : !!submissionData['sms_consent'];
     const now = new Date().toISOString();
 
-    // Build metadata for submission
-    const submissionMetadata = {
-      page_url: meta?.page_url,
-      referrer: meta?.referrer,
-      utm_source: meta?.utm_source,
-      utm_medium: meta?.utm_medium,
-      utm_campaign: meta?.utm_campaign,
-      user_agent: req.headers.get('user-agent'),
+    // Build full metadata with compliance info
+    const fullMetadata = {
+      ...submissionMeta,
       email_consent: emailConsent,
       email_consent_text: emailConsent ? compliance.email_consent_text : null,
       email_consent_at: emailConsent ? now : null,
@@ -398,30 +504,31 @@ Deno.serve(async (req) => {
       form_embed_key: embed_key,
     };
 
-    // Step 7: Check if customer is suppressed (don't block, just note)
+    // ─── Step 6: Upsert customer (never overwrite opt-in to false) ─────────
+    // First check existing customer state
     const { data: existingCustomer } = await supabase
       .from('crm_customers')
       .select('id, suppressed, email_opt_in, sms_opt_in')
       .eq('tenant_id', tenantId)
       .eq('email', email)
-      .single();
+      .maybeSingle();
 
     const isSuppressed = existingCustomer?.suppressed === true;
 
-    // Step 8: Upsert customer
-    const customerData: Record<string, any> = {
+    // Build customer data - ONLY set opt-in to true, never to false
+    const customerData: Record<string, unknown> = {
       tenant_id: tenantId,
       email: email,
       updated_at: now,
     };
 
-    // Only set names if provided
+    // Set names only if provided (don't overwrite with empty)
     if (firstName) customerData.first_name = firstName;
     if (lastName) customerData.last_name = lastName;
     if (phone) customerData.phone = phone;
 
-    // Only update opt-in if consent was given (never downgrade)
-    if (emailConsent && !existingCustomer?.email_opt_in) {
+    // Email opt-in: ONLY upgrade to true, never downgrade
+    if (emailConsent && existingCustomer?.email_opt_in !== true) {
       customerData.email_opt_in = true;
       customerData.email_opt_in_at = now;
       customerData.email_consent_source = 'form';
@@ -434,7 +541,8 @@ Deno.serve(async (req) => {
       };
     }
 
-    if (smsConsent && phone && !existingCustomer?.sms_opt_in) {
+    // SMS opt-in: ONLY upgrade to true, never downgrade
+    if (smsConsent && phone && existingCustomer?.sms_opt_in !== true) {
       customerData.sms_opt_in = true;
       customerData.sms_opt_in_at = now;
       customerData.sms_consent_source = 'form';
@@ -447,6 +555,8 @@ Deno.serve(async (req) => {
       };
     }
 
+    // IMPORTANT: Do NOT set opt_out=true - this is only for explicit unsubscribes
+
     // Upsert customer
     const { data: customer, error: customerError } = await supabase
       .from('crm_customers')
@@ -458,32 +568,49 @@ Deno.serve(async (req) => {
       .single();
 
     if (customerError) {
-      console.error('[submit-form] Customer upsert error:', customerError);
+      console.error('[submit-form] Customer upsert error:', customerError.message);
       throw customerError;
     }
 
     const customerId = customer.id;
 
-    // Step 9: Insert form submission record
-    const { error: submissionError } = await supabase.from('form_submissions').insert({
-      tenant_id: tenantId,
-      form_id: formId,
-      customer_id: customerId,
-      data: data,
-      metadata: submissionMetadata,
-      ip_hash: ipHash,
+    // ─── Step 7: Record accepted submission ────────────────────────────────
+    await recordSubmission(supabase, {
+      tenantId,
+      formId,
+      customerId,
+      data: submissionData,
+      metadata: fullMetadata,
+      ipHash,
       result: 'accepted',
     });
 
-    if (submissionError) {
-      console.error('[submit-form] Submission insert error:', submissionError);
+    // ─── Step 8: Assign personas ───────────────────────────────────────────
+    const personaIds = settings.assign_personas || [];
+    
+    if (personaIds.length > 0) {
+      try {
+        // Insert persona assignments (ignore conflicts)
+        for (const personaId of personaIds) {
+          await supabase
+            .from('customer_personas')
+            .upsert({
+              customer_id: customerId,
+              persona_id: personaId,
+              tenant_id: tenantId,
+            }, {
+              onConflict: 'customer_id,persona_id',
+              ignoreDuplicates: true,
+            });
+        }
+        console.log(`[submit-form] Assigned ${personaIds.length} personas to customer ${customerId.slice(0, 8)}...`);
+      } catch (personaError) {
+        console.warn('[submit-form] Persona assignment error:', personaError);
+        // Non-fatal
+      }
     }
 
-    // Step 10: Persona assignment (if any configured in form settings)
-    // This would need to be added to form settings - for now we skip
-    // TODO: Add audience.assign_personas to form model and process here
-
-    // Step 11: Trigger segment evaluation
+    // ─── Step 9: Trigger segment evaluation ────────────────────────────────
     try {
       const segmentResponse = await fetch(
         `${supabaseUrl}/functions/v1/evaluate-customer-segments`,
@@ -501,32 +628,56 @@ Deno.serve(async (req) => {
       );
 
       if (!segmentResponse.ok) {
-        console.warn('[submit-form] Segment evaluation failed:', await segmentResponse.text());
+        const errorText = await segmentResponse.text();
+        console.warn('[submit-form] Segment evaluation failed:', errorText);
       } else {
-        console.log('[submit-form] Segment evaluation triggered successfully');
+        const segmentResult = await segmentResponse.json();
+        console.log(`[submit-form] Segment evaluation complete: joined=${segmentResult.segments_joined?.length || 0}, left=${segmentResult.segments_left?.length || 0}`);
       }
     } catch (segmentError) {
       console.warn('[submit-form] Error triggering segment evaluation:', segmentError);
-      // Non-fatal - don't fail the submission
+      // Non-fatal
     }
 
+    // ─── Success Response ──────────────────────────────────────────────────
     const duration = Date.now() - startTime;
-    console.log(`[submit-form] Submission accepted in ${duration}ms for customer ${customerId}${isSuppressed ? ' (suppressed)' : ''}`);
+    console.log(`[submit-form] Accepted in ${duration}ms for customer ${customerId.slice(0, 8)}...${isSuppressed ? ' (suppressed)' : ''}`);
 
-    // Return success
     return new Response(
       JSON.stringify({
         success: true,
         message: settings.success_message || 'Thank you for your submission!',
         redirect_url: settings.success_redirect_url || null,
         customer_id: customerId,
-        suppressed: isSuppressed,
+        suppressed: isSuppressed, // Inform caller if sends will be blocked
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
-    console.error('[submit-form] Error:', error);
+    console.error('[submit-form] Unexpected error:', (error as Error).message);
+    
+    // Try to record failed submission if we have enough context
+    if (tenantId && formId && ipHash) {
+      try {
+        const supabase = createClient(
+          Deno.env.get('SUPABASE_URL')!,
+          Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+        );
+        await recordSubmission(supabase, {
+          tenantId,
+          formId,
+          data: submissionData,
+          metadata: submissionMeta,
+          ipHash,
+          result: 'rejected_invalid',
+          reason: `Internal error: ${(error as Error).message}`,
+        });
+      } catch {
+        // Ignore recording errors
+      }
+    }
+
     return new Response(
       JSON.stringify({ error: 'Internal server error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
