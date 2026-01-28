@@ -14,6 +14,8 @@ import { FormDesignTab } from '@/components/forms/FormDesignTab';
 import { FormAudienceTab } from '@/components/forms/FormAudienceTab';
 import { FormComplianceTab } from '@/components/forms/FormComplianceTab';
 import { FormPublishTab } from '@/components/forms/FormPublishTab';
+import { FormSubmissionsTab } from '@/components/forms/FormSubmissionsTab';
+import { FormTestMatrix } from '@/components/forms/FormTestMatrix';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function FormEditorPage() {
@@ -133,12 +135,13 @@ export default function FormEditorPage() {
 
       {/* Tabs */}
       <Tabs defaultValue="build" className="w-full">
-        <TabsList className="grid w-full grid-cols-5 max-w-2xl">
+        <TabsList className="grid w-full grid-cols-6 max-w-3xl">
           <TabsTrigger value="build">Build</TabsTrigger>
           <TabsTrigger value="design">Design</TabsTrigger>
           <TabsTrigger value="audience">Audience</TabsTrigger>
           <TabsTrigger value="compliance">Compliance</TabsTrigger>
           <TabsTrigger value="publish">Publish</TabsTrigger>
+          <TabsTrigger value="submissions">Submissions</TabsTrigger>
         </TabsList>
 
         <TabsContent value="build" className="mt-6">
@@ -193,6 +196,13 @@ export default function FormEditorPage() {
             onSave={handleSave}
             isSaving={isSaving}
           />
+        </TabsContent>
+
+        <TabsContent value="submissions" className="mt-6">
+          <div className="space-y-6">
+            <FormSubmissionsTab formId={form.id} />
+            <FormTestMatrix form={form} />
+          </div>
         </TabsContent>
       </Tabs>
     </div>
