@@ -688,6 +688,7 @@ Deno.serve(async (req) => {
 
     // ─── Step 8: Apply audience rules (personas) with safe error handling ───
     // Audience rules come from forms.audience_json, NOT settings_json
+    // Supports both custom personas (persona_id) and predefined personas (predefined_persona_id)
     const personaIds = audience.assign_personas || [];
     const debugInfo: Record<string, unknown> = {};
     let personasAssigned = 0;
@@ -695,10 +696,10 @@ Deno.serve(async (req) => {
     
     if (personaIds.length > 0) {
       try {
-        // Validate personas exist and belong to tenant (or are predefined/global)
+        // Validate personas exist and determine their type (custom vs predefined)
         const { data: validPersonas, error: personaValidationError } = await supabase
           .from('crm_personas')
-          .select('id')
+          .select('id, is_custom')
           .in('id', personaIds)
           .or(`tenant_id.eq.${tenantId},is_custom.eq.false`);
 
@@ -707,58 +708,100 @@ Deno.serve(async (req) => {
           personaErrors.push(`validation_failed`);
           debugInfo.persona_validation_error = personaValidationError.code;
         } else {
-          const validPersonaIds = validPersonas?.map(p => p.id) || [];
-          const invalidCount = personaIds.filter(id => !validPersonaIds.includes(id)).length;
+          // Separate custom and predefined personas
+          const customPersonas = validPersonas?.filter(p => p.is_custom === true) || [];
+          const predefinedPersonas = validPersonas?.filter(p => p.is_custom === false) || [];
+          
+          const customPersonaIds = customPersonas.map(p => p.id);
+          const predefinedPersonaIds = predefinedPersonas.map(p => p.id);
+          
+          const invalidCount = personaIds.filter(id => 
+            ![...customPersonaIds, ...predefinedPersonaIds].includes(id)
+          ).length;
           
           if (invalidCount > 0) {
             console.warn(`[submit-form] Invalid persona IDs ignored: ${invalidCount}`);
             debugInfo.invalid_persona_count = invalidCount;
           }
 
-          if (validPersonaIds.length > 0) {
-            // ─── IDEMPOTENT INSERT: Check existing assignments first ───
-            // The DB has partial unique indexes, so we manually dedupe to avoid errors
-            const { data: existingAssignments } = await supabase
-              .from('customer_personas')
-              .select('persona_id')
-              .eq('customer_id', customerId)
-              .in('persona_id', validPersonaIds);
+          // ─── IDEMPOTENT INSERT: Check existing assignments for BOTH types ───
+          // DB has partial unique indexes:
+          // - unique_customer_custom_persona(customer_id, persona_id) WHERE persona_id IS NOT NULL
+          // - unique_customer_predefined_persona(customer_id, predefined_persona_id) WHERE predefined_persona_id IS NOT NULL
+          
+          // Get all existing assignments for this customer
+          const { data: existingAssignments } = await supabase
+            .from('customer_personas')
+            .select('persona_id, predefined_persona_id')
+            .eq('customer_id', customerId);
 
-            const existingPersonaIds = new Set(existingAssignments?.map(a => a.persona_id) || []);
-            const newPersonaIds = validPersonaIds.filter(id => !existingPersonaIds.has(id));
+          const existingCustomIds = new Set(
+            existingAssignments?.filter(a => a.persona_id)?.map(a => a.persona_id) || []
+          );
+          const existingPredefinedIds = new Set(
+            existingAssignments?.filter(a => a.predefined_persona_id)?.map(a => a.predefined_persona_id) || []
+          );
 
-            if (newPersonaIds.length > 0) {
-              // Only insert personas not already assigned
-              const personaAssignments = newPersonaIds.map(personaId => ({
+          // Filter to only new assignments
+          const newCustomPersonaIds = customPersonaIds.filter(id => !existingCustomIds.has(id));
+          const newPredefinedPersonaIds = predefinedPersonaIds.filter(id => !existingPredefinedIds.has(id));
+
+          const totalNew = newCustomPersonaIds.length + newPredefinedPersonaIds.length;
+
+          if (totalNew > 0) {
+            // Build insert records for both types
+            const personaAssignments: Array<{
+              customer_id: string;
+              persona_id?: string;
+              predefined_persona_id?: string;
+            }> = [];
+
+            // Custom personas use persona_id column
+            for (const personaId of newCustomPersonaIds) {
+              personaAssignments.push({
                 customer_id: customerId,
                 persona_id: personaId,
-              }));
+              });
+            }
 
-              const { error: personaInsertError } = await supabase
-                .from('customer_personas')
-                .insert(personaAssignments);
+            // Predefined personas use predefined_persona_id column
+            for (const personaId of newPredefinedPersonaIds) {
+              personaAssignments.push({
+                customer_id: customerId,
+                predefined_persona_id: personaId,
+              });
+            }
 
-              if (personaInsertError) {
-                // Handle race condition: if duplicate key error, it's actually success
-                if (personaInsertError.code === '23505') {
-                  // Unique violation = already assigned, treat as success
-                  personasAssigned = validPersonaIds.length;
-                  debugInfo.persona_race_condition = true;
-                } else {
-                  console.warn('[submit-form] Persona insert error:', personaInsertError.message);
-                  personaErrors.push(`insert_failed`);
-                  debugInfo.persona_insert_error = personaInsertError.code;
-                }
+            const { error: personaInsertError } = await supabase
+              .from('customer_personas')
+              .insert(personaAssignments);
+
+            if (personaInsertError) {
+              // Handle race condition: if duplicate key error, it's actually success
+              if (personaInsertError.code === '23505') {
+                // Unique violation = already assigned, treat as success
+                personasAssigned = customPersonaIds.length + predefinedPersonaIds.length;
+                debugInfo.persona_race_condition = true;
               } else {
-                personasAssigned = newPersonaIds.length;
-                console.log(`[submit-form] Assigned ${personasAssigned} new personas to customer ${customerId.slice(0, 8)}...`);
+                console.warn('[submit-form] Persona insert error:', personaInsertError.message);
+                personaErrors.push(`insert_failed`);
+                debugInfo.persona_insert_error = personaInsertError.code;
               }
             } else {
-              // All personas already assigned
-              personasAssigned = validPersonaIds.length;
-              debugInfo.personas_already_assigned = true;
+              personasAssigned = totalNew;
+              console.log(`[submit-form] Assigned ${personasAssigned} new personas (${newCustomPersonaIds.length} custom, ${newPredefinedPersonaIds.length} predefined) to customer ${customerId.slice(0, 8)}...`);
             }
+          } else {
+            // All personas already assigned
+            personasAssigned = customPersonaIds.length + predefinedPersonaIds.length;
+            debugInfo.personas_already_assigned = true;
           }
+
+          // Log breakdown for debugging
+          debugInfo.custom_personas_requested = customPersonaIds.length;
+          debugInfo.predefined_personas_requested = predefinedPersonaIds.length;
+          debugInfo.custom_personas_new = newCustomPersonaIds.length;
+          debugInfo.predefined_personas_new = newPredefinedPersonaIds.length;
         }
       } catch (personaError) {
         const errorMsg = (personaError as Error).message;
