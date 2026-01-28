@@ -2728,6 +2728,7 @@ export type Database = {
           email: string
           email_bounce_rate: number | null
           email_click_rate: number | null
+          email_consent_details: Json | null
           email_consent_ip: string | null
           email_consent_method: string | null
           email_consent_source: string | null
@@ -2768,6 +2769,7 @@ export type Database = {
           signup_campaign: string | null
           signup_referrer_id: string | null
           signup_source: string | null
+          sms_consent_details: Json | null
           sms_consent_ip: string | null
           sms_consent_method: string | null
           sms_consent_source: string | null
@@ -2810,6 +2812,7 @@ export type Database = {
           email: string
           email_bounce_rate?: number | null
           email_click_rate?: number | null
+          email_consent_details?: Json | null
           email_consent_ip?: string | null
           email_consent_method?: string | null
           email_consent_source?: string | null
@@ -2850,6 +2853,7 @@ export type Database = {
           signup_campaign?: string | null
           signup_referrer_id?: string | null
           signup_source?: string | null
+          sms_consent_details?: Json | null
           sms_consent_ip?: string | null
           sms_consent_method?: string | null
           sms_consent_source?: string | null
@@ -2892,6 +2896,7 @@ export type Database = {
           email?: string
           email_bounce_rate?: number | null
           email_click_rate?: number | null
+          email_consent_details?: Json | null
           email_consent_ip?: string | null
           email_consent_method?: string | null
           email_consent_source?: string | null
@@ -2932,6 +2937,7 @@ export type Database = {
           signup_campaign?: string | null
           signup_referrer_id?: string | null
           signup_source?: string | null
+          sms_consent_details?: Json | null
           sms_consent_ip?: string | null
           sms_consent_method?: string | null
           sms_consent_source?: string | null
@@ -7299,6 +7305,184 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customer_360_enriched"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      form_rate_limits: {
+        Row: {
+          count: number
+          form_id: string
+          id: string
+          ip_hash: string
+          tenant_id: string
+          window_start: string
+        }
+        Insert: {
+          count?: number
+          form_id: string
+          id?: string
+          ip_hash: string
+          tenant_id: string
+          window_start?: string
+        }
+        Update: {
+          count?: number
+          form_id?: string
+          id?: string
+          ip_hash?: string
+          tenant_id?: string
+          window_start?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "form_rate_limits_form_id_fkey"
+            columns: ["form_id"]
+            isOneToOne: false
+            referencedRelation: "forms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "form_rate_limits_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "admin_tenant_overview"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "form_rate_limits_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      form_submissions: {
+        Row: {
+          customer_id: string | null
+          data: Json
+          form_id: string
+          id: string
+          ip_hash: string | null
+          metadata: Json
+          reason: string | null
+          result: string
+          submitted_at: string
+          tenant_id: string
+        }
+        Insert: {
+          customer_id?: string | null
+          data?: Json
+          form_id: string
+          id?: string
+          ip_hash?: string | null
+          metadata?: Json
+          reason?: string | null
+          result?: string
+          submitted_at?: string
+          tenant_id: string
+        }
+        Update: {
+          customer_id?: string | null
+          data?: Json
+          form_id?: string
+          id?: string
+          ip_hash?: string | null
+          metadata?: Json
+          reason?: string | null
+          result?: string
+          submitted_at?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "form_submissions_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "crm_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "form_submissions_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customer_360_enriched"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "form_submissions_form_id_fkey"
+            columns: ["form_id"]
+            isOneToOne: false
+            referencedRelation: "forms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "form_submissions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "admin_tenant_overview"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "form_submissions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      forms: {
+        Row: {
+          compliance_json: Json
+          created_at: string
+          embed_key: string | null
+          fields_json: Json
+          id: string
+          name: string
+          settings_json: Json
+          status: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          compliance_json?: Json
+          created_at?: string
+          embed_key?: string | null
+          fields_json?: Json
+          id?: string
+          name: string
+          settings_json?: Json
+          status?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          compliance_json?: Json
+          created_at?: string
+          embed_key?: string | null
+          fields_json?: Json
+          id?: string
+          name?: string
+          settings_json?: Json
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "forms_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "admin_tenant_overview"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "forms_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
         ]
