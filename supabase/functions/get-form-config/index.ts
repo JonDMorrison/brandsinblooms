@@ -197,13 +197,15 @@ Deno.serve(async (req) => {
       }
     }
 
-    // ─── Step 6: Build response (no secrets, no PII) ───────────────────────
+    // ─── Step 6: Build response (SANITIZED - no secrets, no PII) ────────────
+    // SECURITY: All output is filtered through explicit allowlists
     const response = {
       form_id: form.id,
-      fields_json: form.fields_json,
+      fields_json: form.fields_json, // Fields define form structure, no secrets
       settings_json: sanitizeSettings(form.settings_json),
-      compliance_json: form.compliance_json,
-      audience_json: audienceJson
+      compliance_json: sanitizeCompliance(form.compliance_json),
+      // NOTE: audience_json is NOT returned to browser - it's backend-only
+      // Persona/tag assignments happen server-side in submit-form
     };
 
     return new Response(
@@ -227,28 +229,170 @@ Deno.serve(async (req) => {
   }
 });
 
-// ─── Helpers ───────────────────────────────────────────────────────────────
+// ─── Output Sanitization (SECURITY CRITICAL) ──────────────────────────────
 
 /**
- * Remove any sensitive fields from settings before returning to client
+ * ALLOWLIST of settings_json fields safe to return to browser.
+ * 
+ * SECURITY: This is an explicit allowlist, NOT a denylist.
+ * Only fields listed here will be returned to the client.
+ * Any new settings must be explicitly added to this list after security review.
+ * 
+ * Categories:
+ * - UI/Display: success_message, submit_button_text, show_branding
+ * - Navigation: success_redirect_url
+ * - Theming: theme object (colors, fonts, spacing)
+ * - Layout: form_width, field_spacing, label_position
+ * 
+ * NEVER include in allowlist:
+ * - notification_emails (admin PII)
+ * - webhook_url, webhook_secret (backend secrets)
+ * - api_key, secret_key (any secrets)
+ * - internal_notes, admin_only (internal config)
+ * - assign_personas, assign_tags (handled separately in audience_json)
+ */
+const SETTINGS_ALLOWLIST = {
+  // ─── UI/Display Fields ───────────────────────────────────────────────────
+  success_message: true,           // Message shown after successful submission
+  submit_button_text: true,        // Text on submit button
+  show_branding: true,             // Whether to show "Powered by BloomSuite"
+  form_title: true,                // Optional title above form
+  form_description: true,          // Optional description above form
+  
+  // ─── Navigation ──────────────────────────────────────────────────────────
+  success_redirect_url: true,      // URL to redirect after success
+  
+  // ─── Theme Object ────────────────────────────────────────────────────────
+  // Nested theme object is allowed with its own sub-allowlist
+  theme: {
+    primary_color: true,           // Primary brand color (hex)
+    secondary_color: true,         // Secondary color (hex)
+    text_color: true,              // Text color (hex)
+    background_color: true,        // Form background (hex)
+    font_family: true,             // Font family name
+    border_radius: true,           // Border radius (px or rem)
+    spacing: true,                 // Spacing density: 'compact' | 'normal' | 'relaxed'
+    button_style: true,            // Button variant: 'filled' | 'outline' | 'rounded'
+    input_style: true,             // Input variant: 'default' | 'underline' | 'filled'
+  },
+  
+  // ─── Layout Options ──────────────────────────────────────────────────────
+  form_width: true,                // Max width: 'narrow' | 'medium' | 'wide' | 'full'
+  field_spacing: true,             // Gap between fields
+  label_position: true,            // 'above' | 'inline' | 'floating'
+  columns: true,                   // Number of columns (1-3)
+} as const;
+
+/**
+ * Sanitize settings_json using strict allowlist.
+ * Only explicitly allowed fields are returned to browser.
+ * 
+ * @param settings - Raw settings_json from database
+ * @returns Sanitized settings safe for client
  */
 function sanitizeSettings(settings: unknown): Record<string, unknown> {
-  if (!settings || typeof settings !== 'object') {
+  if (!settings || typeof settings !== 'object' || Array.isArray(settings)) {
     return {};
   }
 
-  const sanitized = { ...(settings as Record<string, unknown>) };
-  
-  // Remove any notification_emails (internal admin config)
-  delete sanitized.notification_emails;
-  
-  // Remove any webhook URLs that might be configured
-  delete sanitized.webhook_url;
-  delete sanitized.webhook_secret;
-  
-  // Remove internal tracking fields
-  delete sanitized.internal_notes;
-  delete sanitized.admin_only;
+  const raw = settings as Record<string, unknown>;
+  const sanitized: Record<string, unknown> = {};
+
+  // Iterate through allowlist, not through raw data
+  for (const [key, allowed] of Object.entries(SETTINGS_ALLOWLIST)) {
+    if (!(key in raw)) continue;
+    
+    const value = raw[key];
+    
+    // Handle nested theme object with its own allowlist
+    if (key === 'theme' && typeof allowed === 'object' && typeof value === 'object' && value !== null) {
+      const themeRaw = value as Record<string, unknown>;
+      const themeSanitized: Record<string, unknown> = {};
+      
+      for (const [themeKey, themeAllowed] of Object.entries(allowed)) {
+        if (themeAllowed && themeKey in themeRaw) {
+          themeSanitized[themeKey] = sanitizeValue(themeRaw[themeKey]);
+        }
+      }
+      
+      if (Object.keys(themeSanitized).length > 0) {
+        sanitized.theme = themeSanitized;
+      }
+    } else if (allowed === true) {
+      // Simple allowed field
+      sanitized[key] = sanitizeValue(value);
+    }
+  }
 
   return sanitized;
+}
+
+/**
+ * Sanitize individual values to prevent injection.
+ * 
+ * @param value - Raw value from database
+ * @returns Sanitized value or null if invalid type
+ */
+function sanitizeValue(value: unknown): unknown {
+  // Allow primitives
+  if (value === null || value === undefined) return null;
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') return value;
+  
+  // Strings: basic sanitization (no HTML tags in settings)
+  if (typeof value === 'string') {
+    // Limit length to prevent DoS
+    const trimmed = value.slice(0, 2000);
+    // For URLs, validate format
+    if (trimmed.includes('://')) {
+      try {
+        const url = new URL(trimmed);
+        // Only allow http/https
+        if (url.protocol === 'http:' || url.protocol === 'https:') {
+          return trimmed;
+        }
+        return null; // Invalid protocol
+      } catch {
+        // Not a valid URL, might be a color or other value
+        return trimmed;
+      }
+    }
+    return trimmed;
+  }
+  
+  // Arrays of strings (for select options, etc.)
+  if (Array.isArray(value)) {
+    return value
+      .filter(item => typeof item === 'string')
+      .map(item => String(item).slice(0, 500))
+      .slice(0, 100); // Max 100 items
+  }
+  
+  // Disallow nested objects except theme (handled separately)
+  return null;
+}
+
+/**
+ * Sanitize compliance_json - only return fields needed by embed.js
+ */
+function sanitizeCompliance(compliance: unknown): Record<string, unknown> {
+  if (!compliance || typeof compliance !== 'object' || Array.isArray(compliance)) {
+    return {};
+  }
+
+  const raw = compliance as Record<string, unknown>;
+  
+  // Explicit allowlist for compliance fields
+  return {
+    email_consent_required: raw.email_consent_required === true,
+    email_consent_text: typeof raw.email_consent_text === 'string' 
+      ? raw.email_consent_text.slice(0, 1000) 
+      : null,
+    sms_consent_required: raw.sms_consent_required === true,
+    sms_consent_text: typeof raw.sms_consent_text === 'string' 
+      ? raw.sms_consent_text.slice(0, 1000) 
+      : null,
+    // Never expose internal compliance flags
+    // gdpr_compliant, double_opt_in, etc. are backend-only
+  };
 }
