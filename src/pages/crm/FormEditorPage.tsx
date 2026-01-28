@@ -151,6 +151,13 @@ export default function FormEditorPage() {
               setFields(newFields);
               markChanged();
             }}
+            onApplyTemplate={(templateData) => {
+              if (templateData.name) setName(templateData.name);
+              if (templateData.fields_json) setFields(templateData.fields_json);
+              if (templateData.settings_json) setSettings(templateData.settings_json);
+              if (templateData.compliance_json) setCompliance(templateData.compliance_json);
+              markChanged();
+            }}
           />
         </TabsContent>
 
@@ -185,6 +192,7 @@ export default function FormEditorPage() {
                 markChanged();
               }}
               hasPhoneField={fields.some(f => f.type === 'phone')}
+              hasEmailField={fields.some(f => f.type === 'email')}
             />
           )}
         </TabsContent>
