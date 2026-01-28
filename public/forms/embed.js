@@ -1,5 +1,5 @@
 /**
- * BloomSuite Forms Embed Script v1.1.0
+ * BloomSuite Forms Embed Script v1.2.0
  * 
  * Features:
  * - No iframe (inline rendering)
@@ -11,6 +11,7 @@
  * - NEVER pre-checks consent checkboxes
  * - Zero external dependencies
  * - Display modes: inline, modal, slide-in
+ * - Display triggers: delay, scroll depth, click selector
  * 
  * Browser Support: Chrome 60+, Firefox 55+, Safari 11+, Edge 79+
  */
@@ -19,7 +20,7 @@
 
   // ─── Configuration ───────────────────────────────────────────────────────
   var API_BASE = window.BLOOMSUITE_API_BASE || 'https://udldmkqwnxhdeztyqcau.supabase.co/functions/v1';
-  var SCRIPT_VERSION = '1.1.0';
+  var SCRIPT_VERSION = '1.2.0';
   var INIT_TIMEOUT_MS = 10000;
   var CSS_PREFIX = 'bs-form-';
   
@@ -28,6 +29,14 @@
     INLINE: 'inline',
     MODAL: 'modal',
     SLIDE_IN: 'slide-in'
+  };
+  
+  // Supported trigger types
+  var TRIGGER_TYPES = {
+    MANUAL: 'manual',      // Click trigger button (default)
+    DELAY: 'delay',        // Show after X milliseconds
+    SCROLL: 'scroll',      // Show at X% scroll depth
+    CLICK: 'click'         // Show when clicking a selector (modal only)
   };
   
   // Detect script base URL for loading CSS from same origin
@@ -92,6 +101,176 @@
   
   // Track active display mode instances
   var activeModals = {};
+  
+  // Track active triggers to prevent duplicates
+  var activeTriggers = {};
+
+  // ─── Display Trigger Engine ──────────────────────────────────────────────
+  
+  /**
+   * Parse trigger configuration from data attributes
+   * Returns { type, value, selector } or null
+   */
+  function parseTriggerConfig(container) {
+    var triggerType = container.getAttribute('data-trigger');
+    if (!triggerType) return null;
+    
+    var config = { type: triggerType, fired: false };
+    
+    switch (triggerType) {
+      case TRIGGER_TYPES.DELAY:
+        // data-trigger="delay" data-delay="3000"
+        config.value = parseInt(container.getAttribute('data-delay'), 10) || 3000;
+        break;
+        
+      case TRIGGER_TYPES.SCROLL:
+        // data-trigger="scroll" data-scroll-depth="50"
+        config.value = parseInt(container.getAttribute('data-scroll-depth'), 10) || 50;
+        break;
+        
+      case TRIGGER_TYPES.CLICK:
+        // data-trigger="click" data-click-selector=".my-button"
+        config.selector = container.getAttribute('data-click-selector') || null;
+        if (!config.selector) {
+          console.warn('[BloomSuite] Click trigger requires data-click-selector');
+          return null;
+        }
+        break;
+        
+      default:
+        return null;
+    }
+    
+    return config;
+  }
+  
+  /**
+   * Setup delay trigger
+   * Opens form after specified milliseconds
+   */
+  function setupDelayTrigger(triggerId, delayMs, openFn) {
+    if (activeTriggers[triggerId]) return;
+    
+    activeTriggers[triggerId] = {
+      type: 'delay',
+      fired: false,
+      cleanup: null
+    };
+    
+    var timeoutId = setTimeout(function() {
+      if (!activeTriggers[triggerId].fired) {
+        activeTriggers[triggerId].fired = true;
+        openFn();
+      }
+    }, delayMs);
+    
+    activeTriggers[triggerId].cleanup = function() {
+      clearTimeout(timeoutId);
+    };
+  }
+  
+  /**
+   * Setup scroll depth trigger
+   * Opens form when user scrolls past X% of page
+   */
+  function setupScrollTrigger(triggerId, scrollPercent, openFn) {
+    if (activeTriggers[triggerId]) return;
+    
+    activeTriggers[triggerId] = {
+      type: 'scroll',
+      fired: false,
+      cleanup: null
+    };
+    
+    var handler = function() {
+      if (activeTriggers[triggerId].fired) return;
+      
+      // Calculate current scroll percentage
+      var scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+      var docHeight = Math.max(
+        document.body.scrollHeight,
+        document.documentElement.scrollHeight
+      ) - window.innerHeight;
+      
+      if (docHeight <= 0) return; // Page too short
+      
+      var currentPercent = (scrollTop / docHeight) * 100;
+      
+      if (currentPercent >= scrollPercent) {
+        activeTriggers[triggerId].fired = true;
+        openFn();
+      }
+    };
+    
+    // Throttle scroll handler
+    var throttled = throttle(handler, 100);
+    window.addEventListener('scroll', throttled, { passive: true });
+    
+    activeTriggers[triggerId].cleanup = function() {
+      window.removeEventListener('scroll', throttled);
+    };
+    
+    // Check immediately in case page is already scrolled
+    handler();
+  }
+  
+  /**
+   * Setup click selector trigger (modal only)
+   * Opens form when user clicks matching element
+   */
+  function setupClickTrigger(triggerId, selector, openFn) {
+    if (activeTriggers[triggerId]) return;
+    
+    activeTriggers[triggerId] = {
+      type: 'click',
+      fired: false,
+      cleanup: null
+    };
+    
+    var handler = function(e) {
+      // Check if clicked element matches selector
+      var target = e.target;
+      while (target && target !== document) {
+        if (target.matches && target.matches(selector)) {
+          e.preventDefault();
+          openFn();
+          return;
+        }
+        target = target.parentElement;
+      }
+    };
+    
+    document.addEventListener('click', handler, true);
+    
+    activeTriggers[triggerId].cleanup = function() {
+      document.removeEventListener('click', handler, true);
+    };
+  }
+  
+  /**
+   * Cleanup a trigger
+   */
+  function cleanupTrigger(triggerId) {
+    var trigger = activeTriggers[triggerId];
+    if (trigger && trigger.cleanup) {
+      trigger.cleanup();
+    }
+    delete activeTriggers[triggerId];
+  }
+  
+  /**
+   * Simple throttle function
+   */
+  function throttle(fn, wait) {
+    var lastTime = 0;
+    return function() {
+      var now = Date.now();
+      if (now - lastTime >= wait) {
+        lastTime = now;
+        fn.apply(this, arguments);
+      }
+    };
+  }
 
   // ─── Utility Functions ───────────────────────────────────────────────────
   
@@ -850,7 +1029,7 @@
 
   /**
    * Initialize a single form container
-   * Reads display mode from data attribute, wraps accordingly
+   * Reads display mode and trigger from data attributes
    */
   function initForm(container) {
     var embedKey = container.getAttribute('data-bloomsuite-form');
@@ -865,11 +1044,70 @@
       return;
     }
     
-    // For non-inline modes, create trigger button in container
+    // For non-inline modes, handle triggers
     if (displayMode === DISPLAY_MODES.MODAL || displayMode === DISPLAY_MODES.SLIDE_IN) {
       var buttonText = container.getAttribute('data-button-text') || 'Open Form';
       var title = container.getAttribute('data-form-title') || 'Get in Touch';
+      var triggerId = generateId();
       
+      // Parse trigger configuration
+      var triggerConfig = parseTriggerConfig(container);
+      
+      // Create the modal/slide-in wrapper
+      var wrapperId;
+      var openFn;
+      
+      if (displayMode === DISPLAY_MODES.MODAL) {
+        wrapperId = createModalWrapper(embedKey, { title: title });
+        openFn = function() { openModal(wrapperId); };
+      } else {
+        wrapperId = createSlideInWrapper(embedKey, { title: title });
+        openFn = function() { openSlideIn(wrapperId); };
+      }
+      
+      // If automatic trigger is configured, set it up
+      if (triggerConfig) {
+        // Hide the container (no button needed for automatic triggers)
+        container.style.display = 'none';
+        
+        switch (triggerConfig.type) {
+          case TRIGGER_TYPES.DELAY:
+            setupDelayTrigger(triggerId, triggerConfig.value, openFn);
+            break;
+            
+          case TRIGGER_TYPES.SCROLL:
+            setupScrollTrigger(triggerId, triggerConfig.value, openFn);
+            break;
+            
+          case TRIGGER_TYPES.CLICK:
+            // Click trigger only works with modal
+            if (displayMode !== DISPLAY_MODES.MODAL) {
+              console.warn('[BloomSuite] Click trigger only supported for modal mode');
+            } else {
+              setupClickTrigger(triggerId, triggerConfig.selector, openFn);
+            }
+            break;
+        }
+        
+        // Store trigger reference
+        container._bsTrigger = {
+          triggerId: triggerId,
+          wrapperId: wrapperId,
+          open: openFn,
+          close: function() {
+            if (displayMode === DISPLAY_MODES.MODAL) closeModal(wrapperId);
+            else closeSlideIn(wrapperId);
+          },
+          destroy: function() {
+            cleanupTrigger(triggerId);
+            destroyModal(wrapperId);
+          }
+        };
+        
+        return;
+      }
+      
+      // MANUAL TRIGGER: Create button
       var trigger = createTriggerButton(embedKey, {
         mode: displayMode,
         buttonText: buttonText,
@@ -937,6 +1175,7 @@
   window.BloomSuiteForms = {
     version: SCRIPT_VERSION,
     modes: DISPLAY_MODES,
+    triggers: TRIGGER_TYPES,
     init: init,
     initForm: initForm,
     // Display mode API
@@ -947,7 +1186,9 @@
     createSlideIn: createSlideInWrapper,
     openSlideIn: openSlideIn,
     closeSlideIn: closeSlideIn,
-    createTrigger: createTriggerButton
+    createTrigger: createTriggerButton,
+    // Trigger management
+    cleanupTrigger: cleanupTrigger
   };
 
 })(window, document);
