@@ -55,11 +55,27 @@ const RATE_LIMIT_LONG_MAX = 20;
 // ─── Helper Functions ──────────────────────────────────────────────────────
 
 /**
- * Hash IP address for privacy (SHA-256 with salt)
+ * Get rate limit salt from environment
+ * IMPORTANT: Do NOT use SUPABASE_SERVICE_ROLE_KEY as salt - use dedicated RATE_LIMIT_SALT
+ */
+function getRateLimitSalt(): string {
+  const salt = Deno.env.get('RATE_LIMIT_SALT');
+  
+  if (!salt) {
+    // Log warning but don't expose any secrets
+    console.warn('[submit-form] RATE_LIMIT_SALT not configured - using fallback. Set this env var for better security.');
+    return 'bloomsuite-form-rate-limit-v1';
+  }
+  
+  return salt;
+}
+
+/**
+ * Hash IP address for privacy (SHA-256 with dedicated salt)
  */
 async function hashIP(ip: string): Promise<string> {
   const encoder = new TextEncoder();
-  const salt = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || 'default-salt';
+  const salt = getRateLimitSalt();
   const data = encoder.encode(ip + salt);
   const hashBuffer = await crypto.subtle.digest('SHA-256', data);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
@@ -77,19 +93,69 @@ function getClientIP(req: Request): string {
 }
 
 /**
- * Check rate limits using database-backed table
+ * Atomic rate limit check and increment using UPSERT
+ * 
+ * Why this fixes burst race conditions:
+ * - Previous approach: SELECT → check count → UPDATE/INSERT (3 queries, race window)
+ * - New approach: Single atomic UPSERT with ON CONFLICT DO UPDATE
+ * - The unique constraint on (form_id, ip_hash, window_start) ensures exactly one row per minute window
+ * - Postgres guarantees atomicity of the UPSERT, so concurrent requests serialize properly
+ * - The RETURNING clause gives us the new count immediately for decision-making
  */
 async function checkRateLimit(
   supabase: ReturnType<typeof createClient>,
   tenantId: string,
   formId: string,
   ipHash: string
-): Promise<{ allowed: boolean; reason?: string }> {
+): Promise<{ allowed: boolean; reason?: string; count?: number }> {
   const now = new Date();
   
-  // Check short window (60 seconds)
+  // Calculate window boundaries
   const shortWindowStart = new Date(now.getTime() - RATE_LIMIT_SHORT_WINDOW_SECONDS * 1000);
+  const longWindowStart = new Date(now.getTime() - RATE_LIMIT_LONG_WINDOW_SECONDS * 1000);
   
+  // Current minute window (rounded to minute boundary)
+  const currentWindowStart = new Date(Math.floor(now.getTime() / 60000) * 60000);
+
+  // Step 1: Atomic increment for current window using raw SQL via RPC
+  // This uses ON CONFLICT DO UPDATE to atomically increment the counter
+  const { data: upsertResult, error: upsertError } = await supabase.rpc(
+    'upsert_rate_limit',
+    {
+      p_tenant_id: tenantId,
+      p_form_id: formId,
+      p_ip_hash: ipHash,
+      p_window_start: currentWindowStart.toISOString()
+    }
+  );
+
+  if (upsertError) {
+    // If RPC doesn't exist, fall back to direct upsert
+    console.warn('[submit-form] Rate limit RPC failed, using direct upsert:', upsertError.message);
+    
+    // Fallback: Direct upsert (still atomic due to unique constraint)
+    const { error: insertError } = await supabase
+      .from('form_rate_limits')
+      .upsert(
+        {
+          tenant_id: tenantId,
+          form_id: formId,
+          ip_hash: ipHash,
+          window_start: currentWindowStart.toISOString(),
+          count: 1,
+        },
+        { 
+          onConflict: 'form_id,ip_hash,window_start',
+          ignoreDuplicates: false 
+        }
+      );
+
+    if (insertError && !insertError.message.includes('duplicate')) {
+      console.error('[submit-form] Rate limit upsert error:', insertError);
+    }
+  }
+
+  // Step 2: Count submissions in short window (last 60 seconds)
   const { data: shortWindowData } = await supabase
     .from('form_rate_limits')
     .select('count')
@@ -99,13 +165,15 @@ async function checkRateLimit(
 
   const shortWindowCount = shortWindowData?.reduce((sum: number, r: { count: number }) => sum + r.count, 0) || 0;
   
-  if (shortWindowCount >= RATE_LIMIT_SHORT_MAX) {
-    return { allowed: false, reason: `Rate limit exceeded: ${RATE_LIMIT_SHORT_MAX} submissions per minute` };
+  if (shortWindowCount > RATE_LIMIT_SHORT_MAX) {
+    return { 
+      allowed: false, 
+      reason: `Rate limit exceeded: ${RATE_LIMIT_SHORT_MAX} submissions per minute`,
+      count: shortWindowCount 
+    };
   }
 
-  // Check long window (10 minutes)
-  const longWindowStart = new Date(now.getTime() - RATE_LIMIT_LONG_WINDOW_SECONDS * 1000);
-  
+  // Step 3: Count submissions in long window (last 10 minutes)
   const { data: longWindowData } = await supabase
     .from('form_rate_limits')
     .select('count')
@@ -115,39 +183,15 @@ async function checkRateLimit(
 
   const longWindowCount = longWindowData?.reduce((sum: number, r: { count: number }) => sum + r.count, 0) || 0;
   
-  if (longWindowCount >= RATE_LIMIT_LONG_MAX) {
-    return { allowed: false, reason: `Rate limit exceeded: ${RATE_LIMIT_LONG_MAX} submissions per 10 minutes` };
+  if (longWindowCount > RATE_LIMIT_LONG_MAX) {
+    return { 
+      allowed: false, 
+      reason: `Rate limit exceeded: ${RATE_LIMIT_LONG_MAX} submissions per 10 minutes`,
+      count: longWindowCount 
+    };
   }
 
-  // Record this submission attempt (rounded to minute)
-  const windowStart = new Date(Math.floor(now.getTime() / 60000) * 60000);
-  
-  const { data: existing } = await supabase
-    .from('form_rate_limits')
-    .select('id, count')
-    .eq('form_id', formId)
-    .eq('ip_hash', ipHash)
-    .eq('window_start', windowStart.toISOString())
-    .maybeSingle();
-
-  if (existing) {
-    await supabase
-      .from('form_rate_limits')
-      .update({ count: existing.count + 1 })
-      .eq('id', existing.id);
-  } else {
-    await supabase
-      .from('form_rate_limits')
-      .insert({
-        tenant_id: tenantId,
-        form_id: formId,
-        ip_hash: ipHash,
-        window_start: windowStart.toISOString(),
-        count: 1,
-      });
-  }
-
-  return { allowed: true };
+  return { allowed: true, count: shortWindowCount };
 }
 
 /**
