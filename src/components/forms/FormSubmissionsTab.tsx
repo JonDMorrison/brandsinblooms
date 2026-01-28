@@ -14,10 +14,12 @@ import {
   Bot,
   TrendingUp,
   TrendingDown,
-  Eye
+  Eye,
+  AlertCircle,
+  ShieldX
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { format, formatDistanceToNow, subDays } from 'date-fns';
+import { format, formatDistanceToNow, subDays, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { FormSubmission, FormSubmissionMetadata } from '@/types/formBuilder';
 import {
   Tooltip,
@@ -26,7 +28,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
-import { SubmissionFilters, SubmissionResultFilter } from './submissions/SubmissionFilters';
+import { SubmissionFilters, SubmissionResultFilter, DateRange } from './submissions/SubmissionFilters';
 import { SubmissionDetailModal } from './submissions/SubmissionDetailModal';
 import { SubmissionExport } from './submissions/SubmissionExport';
 
@@ -37,33 +39,47 @@ interface FormSubmissionsTabProps {
 
 type SubmissionResult = 'accepted' | 'rejected_invalid' | 'rejected_rate_limited' | 'rejected_spam';
 
-const resultConfig: Record<SubmissionResult, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline'; icon: React.ReactNode }> = {
+const resultConfig: Record<SubmissionResult, { 
+  label: string; 
+  shortLabel: string;
+  variant: 'default' | 'secondary' | 'destructive' | 'outline'; 
+  icon: React.ReactNode;
+  color: string;
+}> = {
   accepted: { 
     label: 'Accepted', 
+    shortLabel: 'Accepted',
     variant: 'default', 
-    icon: <CheckCircle className="h-3.5 w-3.5" /> 
+    icon: <CheckCircle className="h-3.5 w-3.5" />,
+    color: 'text-green-600'
   },
   rejected_invalid: { 
-    label: 'Invalid', 
+    label: 'Invalid Data', 
+    shortLabel: 'Invalid',
     variant: 'destructive', 
-    icon: <XCircle className="h-3.5 w-3.5" /> 
+    icon: <AlertCircle className="h-3.5 w-3.5" />,
+    color: 'text-destructive'
   },
   rejected_rate_limited: { 
     label: 'Rate Limited', 
+    shortLabel: 'Rate Limit',
     variant: 'secondary', 
-    icon: <Clock className="h-3.5 w-3.5" /> 
+    icon: <Clock className="h-3.5 w-3.5" />,
+    color: 'text-yellow-600'
   },
   rejected_spam: { 
-    label: 'Spam', 
+    label: 'Spam Detected', 
+    shortLabel: 'Spam',
     variant: 'destructive', 
-    icon: <Bot className="h-3.5 w-3.5" /> 
+    icon: <Bot className="h-3.5 w-3.5" />,
+    color: 'text-destructive'
   },
 };
 
 export function FormSubmissionsTab({ formId, formName = 'Form' }: FormSubmissionsTabProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [resultFilter, setResultFilter] = useState<SubmissionResultFilter>('all');
-  const [consentFilter, setConsentFilter] = useState<'all' | 'email' | 'sms' | 'both' | 'none'>('all');
+  const [dateRange, setDateRange] = useState<DateRange>({ from: undefined, to: undefined });
   const [selectedSubmission, setSelectedSubmission] = useState<FormSubmission | null>(null);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
 
@@ -93,7 +109,7 @@ export function FormSubmissionsTab({ formId, formName = 'Form' }: FormSubmission
     if (!submissions) return [];
     
     return submissions.filter(sub => {
-      // Search filter
+      // Email search filter
       if (searchQuery) {
         const email = sub.data?.email || sub.data?.Email || '';
         if (!email.toLowerCase().includes(searchQuery.toLowerCase())) {
@@ -101,45 +117,40 @@ export function FormSubmissionsTab({ formId, formName = 'Form' }: FormSubmission
         }
       }
 
-      // Result filter
-      if (resultFilter !== 'all' && sub.result !== resultFilter) {
-        return false;
+      // Date range filter
+      if (dateRange.from || dateRange.to) {
+        const submittedDate = new Date(sub.submitted_at);
+        const fromDate = dateRange.from ? startOfDay(dateRange.from) : new Date(0);
+        const toDate = dateRange.to ? endOfDay(dateRange.to) : new Date();
+        
+        if (!isWithinInterval(submittedDate, { start: fromDate, end: toDate })) {
+          return false;
+        }
       }
 
-      // Consent filter
-      const metadata = sub.metadata || {};
-      const hasEmail = metadata.email_consent === true;
-      const hasSms = metadata.sms_consent === true;
-      
-      switch (consentFilter) {
-        case 'email':
-          if (!hasEmail || hasSms) return false;
-          break;
-        case 'sms':
-          if (!hasSms || hasEmail) return false;
-          break;
-        case 'both':
-          if (!hasEmail || !hasSms) return false;
-          break;
-        case 'none':
-          if (hasEmail || hasSms) return false;
-          break;
+      // Result filter (accepted vs any rejection)
+      if (resultFilter === 'accepted' && sub.result !== 'accepted') {
+        return false;
+      }
+      if (resultFilter === 'rejected' && sub.result === 'accepted') {
+        return false;
       }
 
       return true;
     });
-  }, [submissions, searchQuery, resultFilter, consentFilter]);
+  }, [submissions, searchQuery, resultFilter, dateRange]);
 
-  // Calculate stats with trend
+  // Calculate stats
   const stats = useMemo(() => {
     if (!submissions) return { 
       total: 0, 
       accepted: 0, 
       rejected: 0, 
-      rate: 0,
+      acceptRate: 0,
       last7Days: 0,
       previous7Days: 0,
-      trend: 0
+      trend: 0,
+      rejectionBreakdown: { invalid: 0, rateLimit: 0, spam: 0 }
     };
     
     const accepted = submissions.filter(s => s.result === 'accepted').length;
@@ -161,28 +172,35 @@ export function FormSubmissionsTab({ formId, formName = 'Form' }: FormSubmission
     const trend = previous7Days === 0 
       ? (last7Days > 0 ? 100 : 0) 
       : Math.round(((last7Days - previous7Days) / previous7Days) * 100);
+
+    const rejectionBreakdown = {
+      invalid: submissions.filter(s => s.result === 'rejected_invalid').length,
+      rateLimit: submissions.filter(s => s.result === 'rejected_rate_limited').length,
+      spam: submissions.filter(s => s.result === 'rejected_spam').length,
+    };
     
     return {
       total: submissions.length,
       accepted,
       rejected,
-      rate: submissions.length > 0 ? Math.round((accepted / submissions.length) * 100) : 0,
+      acceptRate: submissions.length > 0 ? Math.round((accepted / submissions.length) * 100) : 0,
       last7Days,
       previous7Days,
       trend,
+      rejectionBreakdown,
     };
   }, [submissions]);
 
   const activeFiltersCount = [
     searchQuery ? 1 : 0,
     resultFilter !== 'all' ? 1 : 0,
-    consentFilter !== 'all' ? 1 : 0,
+    (dateRange.from || dateRange.to) ? 1 : 0,
   ].reduce((a, b) => a + b, 0);
 
   const handleClearFilters = () => {
     setSearchQuery('');
     setResultFilter('all');
-    setConsentFilter('all');
+    setDateRange({ from: undefined, to: undefined });
   };
 
   const handleViewDetails = (submission: FormSubmission) => {
@@ -226,7 +244,12 @@ export function FormSubmissionsTab({ formId, formName = 'Form' }: FormSubmission
         </Card>
         <Card>
           <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-green-600">{stats.accepted}</div>
+            <div className="flex items-center gap-2">
+              <span className="text-2xl font-bold text-green-600">{stats.accepted}</span>
+              <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                {stats.acceptRate}%
+              </Badge>
+            </div>
             <p className="text-sm text-muted-foreground">Accepted</p>
           </CardContent>
         </Card>
@@ -234,6 +257,19 @@ export function FormSubmissionsTab({ formId, formName = 'Form' }: FormSubmission
           <CardContent className="pt-6">
             <div className="text-2xl font-bold text-destructive">{stats.rejected}</div>
             <p className="text-sm text-muted-foreground">Rejected</p>
+            {stats.rejected > 0 && (
+              <div className="flex gap-2 mt-2 text-xs text-muted-foreground">
+                {stats.rejectionBreakdown.invalid > 0 && (
+                  <span>{stats.rejectionBreakdown.invalid} invalid</span>
+                )}
+                {stats.rejectionBreakdown.rateLimit > 0 && (
+                  <span>{stats.rejectionBreakdown.rateLimit} rate limit</span>
+                )}
+                {stats.rejectionBreakdown.spam > 0 && (
+                  <span>{stats.rejectionBreakdown.spam} spam</span>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
         <Card>
@@ -242,8 +278,8 @@ export function FormSubmissionsTab({ formId, formName = 'Form' }: FormSubmission
               <span className="text-2xl font-bold">{stats.last7Days}</span>
               {stats.trend !== 0 && (
                 <Badge 
-                  variant={stats.trend > 0 ? 'default' : 'secondary'} 
-                  className={`text-xs ${stats.trend > 0 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}
+                  variant="outline" 
+                  className={`text-xs ${stats.trend > 0 ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}`}
                 >
                   {stats.trend > 0 ? <TrendingUp className="h-3 w-3 mr-1" /> : <TrendingDown className="h-3 w-3 mr-1" />}
                   {Math.abs(stats.trend)}%
@@ -260,10 +296,10 @@ export function FormSubmissionsTab({ formId, formName = 'Form' }: FormSubmission
         <CardHeader>
           <div className="flex flex-col sm:flex-row justify-between gap-4">
             <div>
-              <CardTitle>Recent Submissions</CardTitle>
+              <CardTitle>Submissions</CardTitle>
               <CardDescription>
                 {filteredSubmissions.length === submissions?.length 
-                  ? `Showing ${submissions?.length || 0} submissions`
+                  ? `${submissions?.length || 0} total submissions`
                   : `Showing ${filteredSubmissions.length} of ${submissions?.length || 0} submissions`
                 }
               </CardDescription>
@@ -278,8 +314,8 @@ export function FormSubmissionsTab({ formId, formName = 'Form' }: FormSubmission
             onSearchChange={setSearchQuery}
             resultFilter={resultFilter}
             onResultFilterChange={setResultFilter}
-            consentFilter={consentFilter}
-            onConsentFilterChange={setConsentFilter}
+            dateRange={dateRange}
+            onDateRangeChange={setDateRange}
             activeFiltersCount={activeFiltersCount}
             onClearFilters={handleClearFilters}
           />
@@ -289,12 +325,12 @@ export function FormSubmissionsTab({ formId, formName = 'Form' }: FormSubmission
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Time</TableHead>
+                    <TableHead className="w-[140px]">Timestamp</TableHead>
                     <TableHead>Email</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Consent</TableHead>
-                    <TableHead>Source</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                    <TableHead className="w-[120px]">Status</TableHead>
+                    <TableHead>Rejection Reason</TableHead>
+                    <TableHead className="w-[100px]">Consent</TableHead>
+                    <TableHead className="text-right w-[80px]">Details</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -349,21 +385,23 @@ interface SubmissionRowProps {
 function SubmissionRow({ submission, onViewDetails }: SubmissionRowProps) {
   const resultInfo = resultConfig[submission.result] || resultConfig.rejected_invalid;
   const metadata = submission.metadata || {};
+  const isRejected = submission.result !== 'accepted';
   
   const email = submission.data?.email || submission.data?.Email || '—';
-  
-  // Get UTM source or page for source column
-  const source = metadata.utm_source || (metadata.page_url ? 'Direct' : '—');
 
   return (
     <TableRow className="cursor-pointer hover:bg-muted/50" onClick={onViewDetails}>
+      {/* Timestamp */}
       <TableCell className="whitespace-nowrap">
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger className="text-left">
-              <span className="text-sm">
+              <div className="text-sm">
+                {format(new Date(submission.submitted_at), 'MMM d, HH:mm')}
+              </div>
+              <div className="text-xs text-muted-foreground">
                 {formatDistanceToNow(new Date(submission.submitted_at), { addSuffix: true })}
-              </span>
+              </div>
             </TooltipTrigger>
             <TooltipContent>
               {format(new Date(submission.submitted_at), 'PPpp')}
@@ -372,27 +410,54 @@ function SubmissionRow({ submission, onViewDetails }: SubmissionRowProps) {
         </TooltipProvider>
       </TableCell>
       
+      {/* Email */}
       <TableCell>
         <span className="font-mono text-sm">{email}</span>
       </TableCell>
       
+      {/* Status */}
       <TableCell>
-        <Badge variant={resultInfo.variant} className="flex items-center gap-1 w-fit">
+        <Badge 
+          variant={resultInfo.variant} 
+          className={`flex items-center gap-1 w-fit ${isRejected ? '' : 'bg-green-100 text-green-800 border-green-200'}`}
+        >
           {resultInfo.icon}
-          {resultInfo.label}
+          {resultInfo.shortLabel}
         </Badge>
       </TableCell>
       
+      {/* Rejection Reason */}
+      <TableCell>
+        {isRejected ? (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger className="text-left">
+                <span className="text-sm text-muted-foreground line-clamp-1 max-w-[200px]">
+                  {submission.reason || resultInfo.label}
+                </span>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">
+                <p>{submission.reason || `Rejected: ${resultInfo.label}`}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        ) : (
+          <span className="text-muted-foreground text-sm">—</span>
+        )}
+      </TableCell>
+      
+      {/* Consent */}
       <TableCell>
         <ConsentBadges metadata={metadata} />
       </TableCell>
       
-      <TableCell>
-        <span className="text-sm text-muted-foreground">{source}</span>
-      </TableCell>
-      
+      {/* Actions */}
       <TableCell className="text-right">
-        <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); onViewDetails(); }}>
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          onClick={(e) => { e.stopPropagation(); onViewDetails(); }}
+        >
           <Eye className="h-4 w-4" />
         </Button>
       </TableCell>
@@ -412,14 +477,28 @@ function ConsentBadges({ metadata }: { metadata: FormSubmissionMetadata }) {
   return (
     <div className="flex gap-1">
       {hasEmailConsent && (
-        <Badge variant="outline" className="flex items-center gap-1 text-xs">
-          <Mail className="h-3 w-3" />
-        </Badge>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger>
+              <Badge variant="outline" className="flex items-center gap-1 text-xs bg-blue-50 border-blue-200">
+                <Mail className="h-3 w-3 text-blue-600" />
+              </Badge>
+            </TooltipTrigger>
+            <TooltipContent>Email consent given</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       )}
       {hasSmsConsent && (
-        <Badge variant="outline" className="flex items-center gap-1 text-xs">
-          <MessageSquare className="h-3 w-3" />
-        </Badge>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger>
+              <Badge variant="outline" className="flex items-center gap-1 text-xs bg-purple-50 border-purple-200">
+                <MessageSquare className="h-3 w-3 text-purple-600" />
+              </Badge>
+            </TooltipTrigger>
+            <TooltipContent>SMS consent given</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       )}
     </div>
   );
