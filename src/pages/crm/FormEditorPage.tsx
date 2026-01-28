@@ -200,7 +200,7 @@ export default function FormEditorPage() {
 
         <TabsContent value="submissions" className="mt-6">
           <div className="space-y-6">
-            <FormSubmissionsTab formId={form.id} />
+            <FormSubmissionsTab formId={form.id} formName={form.name} />
             <FormTestMatrix form={form} />
           </div>
         </TabsContent>

@@ -2,10 +2,10 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Separator } from '@/components/ui/separator';
 import { 
   Globe, 
   Code, 
@@ -14,7 +14,11 @@ import {
   AlertTriangle, 
   ExternalLink,
   Loader2,
-  Send
+  Send,
+  FileCode,
+  BookOpen,
+  Shield,
+  Zap
 } from 'lucide-react';
 import { Form } from '@/types/formBuilder';
 import { supabase } from '@/integrations/supabase/client';
@@ -32,19 +36,39 @@ export function FormPublishTab({ form, hasChanges, onSave, isSaving }: FormPubli
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isPublishing, setIsPublishing] = useState(false);
-  const [copiedEmbed, setCopiedEmbed] = useState(false);
-  const [copiedLink, setCopiedLink] = useState(false);
+  const [copiedItem, setCopiedItem] = useState<string | null>(null);
 
   const isPublished = form.status === 'published';
   const formUrl = `${window.location.origin}/f/${form.embed_key}`;
+  const embedKey = form.embed_key;
   
-  const embedCode = `<iframe 
+  // Multiple embed options
+  const iframeCode = `<iframe 
   src="${formUrl}" 
   width="100%" 
   height="500" 
   frameborder="0"
   style="border: none; max-width: 500px;"
 ></iframe>`;
+
+  const jsEmbedCode = `<!-- BloomSuite Form Embed -->
+<div data-bloomsuite-form="${embedKey}"></div>
+<script src="${window.location.origin}/forms/embed.js" async></script>`;
+
+  const reactCode = `// React Component
+import { useEffect } from 'react';
+
+export function BloomSuiteForm() {
+  useEffect(() => {
+    const script = document.createElement('script');
+    script.src = '${window.location.origin}/forms/embed.js';
+    script.async = true;
+    document.body.appendChild(script);
+    return () => { document.body.removeChild(script); };
+  }, []);
+
+  return <div data-bloomsuite-form="${embedKey}" />;
+}`;
 
   const handlePublish = async () => {
     if (hasChanges) {
@@ -111,18 +135,13 @@ export function FormPublishTab({ form, hasChanges, onSave, isSaving }: FormPubli
     }
   };
 
-  const copyToClipboard = async (text: string, type: 'embed' | 'link') => {
+  const copyToClipboard = async (text: string, id: string) => {
     await navigator.clipboard.writeText(text);
-    if (type === 'embed') {
-      setCopiedEmbed(true);
-      setTimeout(() => setCopiedEmbed(false), 2000);
-    } else {
-      setCopiedLink(true);
-      setTimeout(() => setCopiedLink(false), 2000);
-    }
+    setCopiedItem(id);
+    setTimeout(() => setCopiedItem(null), 2000);
     toast({
       title: 'Copied!',
-      description: type === 'embed' ? 'Embed code copied to clipboard' : 'Link copied to clipboard',
+      description: 'Code copied to clipboard.',
     });
   };
 
@@ -161,9 +180,7 @@ export function FormPublishTab({ form, hasChanges, onSave, isSaving }: FormPubli
                 onClick={handleUnpublish}
                 disabled={isPublishing}
               >
-                {isPublishing ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                ) : null}
+                {isPublishing && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                 Unpublish
               </Button>
             ) : (
@@ -192,9 +209,10 @@ export function FormPublishTab({ form, hasChanges, onSave, isSaving }: FormPubli
         </CardContent>
       </Card>
 
-      {/* Share Options */}
+      {/* Share & Embed Options */}
       {isPublished && (
         <>
+          {/* Direct Link */}
           <Card>
             <CardHeader>
               <CardTitle>Direct Link</CardTitle>
@@ -204,21 +222,18 @@ export function FormPublishTab({ form, hasChanges, onSave, isSaving }: FormPubli
             </CardHeader>
             <CardContent>
               <div className="flex gap-2">
-                <Input value={formUrl} readOnly />
+                <Input value={formUrl} readOnly className="font-mono text-sm" />
                 <Button 
                   variant="outline" 
                   onClick={() => copyToClipboard(formUrl, 'link')}
                 >
-                  {copiedLink ? (
-                    <Check className="h-4 w-4" />
-                  ) : (
-                    <Copy className="h-4 w-4" />
-                  )}
+                  {copiedItem === 'link' ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                 </Button>
               </div>
             </CardContent>
           </Card>
 
+          {/* Embed Code Options */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -230,26 +245,124 @@ export function FormPublishTab({ form, hasChanges, onSave, isSaving }: FormPubli
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3">
-                <pre className="p-4 bg-muted rounded-lg overflow-x-auto text-sm">
-                  <code>{embedCode}</code>
+              <Tabs defaultValue="js" className="w-full">
+                <TabsList className="grid w-full grid-cols-3">
+                  <TabsTrigger value="js" className="flex items-center gap-2">
+                    <Zap className="h-4 w-4" />
+                    JavaScript
+                  </TabsTrigger>
+                  <TabsTrigger value="iframe" className="flex items-center gap-2">
+                    <FileCode className="h-4 w-4" />
+                    iFrame
+                  </TabsTrigger>
+                  <TabsTrigger value="react" className="flex items-center gap-2">
+                    <Code className="h-4 w-4" />
+                    React
+                  </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="js" className="mt-4">
+                  <div className="space-y-3">
+                    <div className="flex items-start gap-2 p-3 bg-green-50 border border-green-200 rounded-lg">
+                      <Check className="h-4 w-4 text-green-600 mt-0.5" />
+                      <div className="text-sm text-green-800">
+                        <strong>Recommended:</strong> Lightweight, responsive, and automatically styled.
+                      </div>
+                    </div>
+                    <pre className="p-4 bg-muted rounded-lg overflow-x-auto text-sm">
+                      <code>{jsEmbedCode}</code>
+                    </pre>
+                    <Button 
+                      variant="outline" 
+                      onClick={() => copyToClipboard(jsEmbedCode, 'js')}
+                    >
+                      {copiedItem === 'js' ? <Check className="h-4 w-4 mr-2" /> : <Copy className="h-4 w-4 mr-2" />}
+                      Copy Code
+                    </Button>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="iframe" className="mt-4">
+                  <div className="space-y-3">
+                    <pre className="p-4 bg-muted rounded-lg overflow-x-auto text-sm">
+                      <code>{iframeCode}</code>
+                    </pre>
+                    <Button 
+                      variant="outline" 
+                      onClick={() => copyToClipboard(iframeCode, 'iframe')}
+                    >
+                      {copiedItem === 'iframe' ? <Check className="h-4 w-4 mr-2" /> : <Copy className="h-4 w-4 mr-2" />}
+                      Copy Code
+                    </Button>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="react" className="mt-4">
+                  <div className="space-y-3">
+                    <pre className="p-4 bg-muted rounded-lg overflow-x-auto text-sm">
+                      <code>{reactCode}</code>
+                    </pre>
+                    <Button 
+                      variant="outline" 
+                      onClick={() => copyToClipboard(reactCode, 'react')}
+                    >
+                      {copiedItem === 'react' ? <Check className="h-4 w-4 mr-2" /> : <Copy className="h-4 w-4 mr-2" />}
+                      Copy Code
+                    </Button>
+                  </div>
+                </TabsContent>
+              </Tabs>
+            </CardContent>
+          </Card>
+
+          {/* Integration Guide */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <BookOpen className="h-5 w-5" />
+                Integration Guide
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="p-4 border rounded-lg">
+                  <h4 className="font-medium flex items-center gap-2 mb-2">
+                    <Shield className="h-4 w-4 text-green-600" />
+                    Consent & Compliance
+                  </h4>
+                  <ul className="text-sm text-muted-foreground space-y-1">
+                    <li>• Consent checkboxes are never pre-checked</li>
+                    <li>• All consent proofs stored in database</li>
+                    <li>• CASL & TCPA compliant by default</li>
+                    <li>• Existing opt-ins never downgraded</li>
+                  </ul>
+                </div>
+                <div className="p-4 border rounded-lg">
+                  <h4 className="font-medium flex items-center gap-2 mb-2">
+                    <Zap className="h-4 w-4 text-blue-600" />
+                    Features
+                  </h4>
+                  <ul className="text-sm text-muted-foreground space-y-1">
+                    <li>• Automatic UTM parameter capture</li>
+                    <li>• Spam protection with honeypot</li>
+                    <li>• Rate limiting (5/min per IP)</li>
+                    <li>• Real-time submission tracking</li>
+                  </ul>
+                </div>
+              </div>
+
+              <Separator />
+
+              <div>
+                <h4 className="font-medium mb-2">Content Security Policy (CSP)</h4>
+                <p className="text-sm text-muted-foreground mb-2">
+                  If your site uses CSP, add these directives:
+                </p>
+                <pre className="p-3 bg-muted rounded-lg text-xs overflow-x-auto">
+                  <code>script-src 'self' {window.location.origin};</code>
+                  {'\n'}
+                  <code>connect-src 'self' {window.location.origin};</code>
                 </pre>
-                <Button 
-                  variant="outline" 
-                  onClick={() => copyToClipboard(embedCode, 'embed')}
-                >
-                  {copiedEmbed ? (
-                    <>
-                      <Check className="h-4 w-4 mr-2" />
-                      Copied!
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="h-4 w-4 mr-2" />
-                      Copy Embed Code
-                    </>
-                  )}
-                </Button>
               </div>
             </CardContent>
           </Card>
