@@ -272,6 +272,119 @@
     };
   }
 
+  // ─── Accessibility Utilities ─────────────────────────────────────────────
+  
+  /**
+   * Get all focusable elements within a container
+   */
+  function getFocusableElements(container) {
+    var focusableSelectors = [
+      'button:not([disabled])',
+      'input:not([disabled]):not([type="hidden"])',
+      'select:not([disabled])',
+      'textarea:not([disabled])',
+      'a[href]',
+      '[tabindex]:not([tabindex="-1"])'
+    ].join(', ');
+    
+    return Array.prototype.slice.call(container.querySelectorAll(focusableSelectors));
+  }
+  
+  /**
+   * Create a focus trap for modal/dialog accessibility
+   * Returns cleanup function
+   */
+  function createFocusTrap(container, closeCallback) {
+    var previousActiveElement = document.activeElement;
+    var focusableElements = [];
+    var firstFocusable = null;
+    var lastFocusable = null;
+    
+    function updateFocusableElements() {
+      focusableElements = getFocusableElements(container);
+      firstFocusable = focusableElements[0] || null;
+      lastFocusable = focusableElements[focusableElements.length - 1] || null;
+    }
+    
+    function handleKeyDown(e) {
+      if (e.key !== 'Tab') return;
+      
+      updateFocusableElements();
+      
+      if (focusableElements.length === 0) {
+        e.preventDefault();
+        return;
+      }
+      
+      if (e.shiftKey) {
+        // Shift+Tab: if on first element, go to last
+        if (document.activeElement === firstFocusable) {
+          e.preventDefault();
+          lastFocusable.focus();
+        }
+      } else {
+        // Tab: if on last element, go to first
+        if (document.activeElement === lastFocusable) {
+          e.preventDefault();
+          firstFocusable.focus();
+        }
+      }
+    }
+    
+    // Set initial focus
+    function setInitialFocus() {
+      updateFocusableElements();
+      // Try to focus the close button first, then first focusable
+      var closeBtn = container.querySelector('[aria-label="Close form"]');
+      if (closeBtn) {
+        closeBtn.focus();
+      } else if (firstFocusable) {
+        firstFocusable.focus();
+      } else {
+        // Fallback: make container focusable temporarily
+        container.setAttribute('tabindex', '-1');
+        container.focus();
+      }
+    }
+    
+    // Delay initial focus to allow form to render
+    setTimeout(setInitialFocus, 100);
+    
+    container.addEventListener('keydown', handleKeyDown);
+    
+    // Return cleanup function
+    return function cleanup() {
+      container.removeEventListener('keydown', handleKeyDown);
+      // Restore focus to previous element
+      if (previousActiveElement && previousActiveElement.focus) {
+        try {
+          previousActiveElement.focus();
+        } catch (e) {
+          // Element may no longer be focusable
+        }
+      }
+    };
+  }
+  
+  /**
+   * Announce message to screen readers
+   */
+  function announceToScreenReader(message) {
+    var announcement = document.createElement('div');
+    announcement.setAttribute('role', 'status');
+    announcement.setAttribute('aria-live', 'polite');
+    announcement.setAttribute('aria-atomic', 'true');
+    announcement.className = CSS_PREFIX + 'sr-only';
+    announcement.style.cssText = 'position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;';
+    announcement.textContent = message;
+    
+    document.body.appendChild(announcement);
+    
+    setTimeout(function() {
+      announcement.remove();
+    }, 1000);
+  }
+
   // ─── Utility Functions ───────────────────────────────────────────────────
   
   /**
@@ -791,16 +904,31 @@
     overlay.setAttribute('role', 'dialog');
     overlay.setAttribute('aria-modal', 'true');
     overlay.setAttribute('aria-labelledby', modalId + '-title');
+    overlay.setAttribute('aria-describedby', modalId + '-desc');
     
     // Create modal content
     var content = createElement('div', 'modal-content');
+    content.setAttribute('role', 'document');
     
-    // Close button
+    // Accessible title (visually hidden if no title provided)
+    var titleEl = createElement('h2', 'modal-title');
+    titleEl.id = modalId + '-title';
+    titleEl.textContent = options.title || 'Form';
+    if (!options.title) {
+      titleEl.className += ' ' + CSS_PREFIX + 'sr-only';
+    }
+    
+    // Description for screen readers
+    var descEl = createElement('p', 'sr-only');
+    descEl.id = modalId + '-desc';
+    descEl.textContent = 'Press Escape to close this dialog';
+    
+    // Close button - MUST be keyboard accessible and visible
     var closeBtn = createElement('button', 'modal-close', {
       type: 'button',
       'aria-label': 'Close form'
     });
-    closeBtn.innerHTML = '&times;';
+    closeBtn.innerHTML = '<span aria-hidden="true">&times;</span>';
     closeBtn.addEventListener('click', function() {
       closeModal(modalId);
     });
@@ -809,11 +937,13 @@
     var body = createElement('div', 'modal-body');
     body.setAttribute('data-bloomsuite-form', embedKey);
     
+    content.appendChild(titleEl);
+    content.appendChild(descEl);
     content.appendChild(closeBtn);
     content.appendChild(body);
     overlay.appendChild(content);
     
-    // Close on overlay click
+    // Close on overlay click (but not on content click)
     overlay.addEventListener('click', function(e) {
       if (e.target === overlay) {
         closeModal(modalId);
@@ -823,6 +953,8 @@
     // Close on Escape key
     var escHandler = function(e) {
       if (e.key === 'Escape' && overlay.classList.contains(CSS_PREFIX + 'open')) {
+        e.preventDefault();
+        e.stopPropagation();
         closeModal(modalId);
       }
     };
@@ -831,12 +963,16 @@
     // Append to body
     document.body.appendChild(overlay);
     
-    // Store reference
+    // Store reference (focusTrapCleanup added on open)
     activeModals[modalId] = {
       overlay: overlay,
+      content: content,
       body: body,
+      closeBtn: closeBtn,
       embedKey: embedKey,
-      escHandler: escHandler
+      escHandler: escHandler,
+      focusTrapCleanup: null,
+      type: 'modal'
     };
     
     return modalId;
@@ -844,6 +980,7 @@
 
   /**
    * Open modal and initialize form inside it
+   * Activates focus trap for accessibility
    */
   function openModal(modalId) {
     var modal = activeModals[modalId];
@@ -853,27 +990,51 @@
     modal.overlay.classList.add(CSS_PREFIX + 'open');
     document.body.style.overflow = 'hidden';
     
+    // Announce to screen readers
+    announceToScreenReader('Form dialog opened. Press Escape to close.');
+    
     // Initialize form inside modal body (uses existing renderForm)
     initForm(modal.body);
+    
+    // Setup focus trap after form renders
+    setTimeout(function() {
+      modal.focusTrapCleanup = createFocusTrap(modal.content, function() {
+        closeModal(modalId);
+      });
+    }, 150);
   }
 
   /**
-   * Close modal
+   * Close modal and cleanup focus trap
    */
   function closeModal(modalId) {
     var modal = activeModals[modalId];
     if (!modal) return;
     
+    // Cleanup focus trap (restores previous focus)
+    if (modal.focusTrapCleanup) {
+      modal.focusTrapCleanup();
+      modal.focusTrapCleanup = null;
+    }
+    
     modal.overlay.classList.remove(CSS_PREFIX + 'open');
     document.body.style.overflow = '';
+    
+    // Announce to screen readers
+    announceToScreenReader('Form dialog closed.');
   }
 
   /**
-   * Destroy modal and cleanup
+   * Destroy modal and cleanup all handlers
    */
   function destroyModal(modalId) {
     var modal = activeModals[modalId];
     if (!modal) return;
+    
+    // Cleanup focus trap
+    if (modal.focusTrapCleanup) {
+      modal.focusTrapCleanup();
+    }
     
     document.removeEventListener('keydown', modal.escHandler);
     modal.overlay.remove();
@@ -904,11 +1065,17 @@
     title.textContent = options.title || 'Get in Touch';
     title.id = panelId + '-title';
     
+    // Description for screen readers
+    var descEl = createElement('p', 'sr-only');
+    descEl.id = panelId + '-desc';
+    descEl.textContent = 'Press Escape to close this panel';
+    
+    // Close button - MUST be keyboard accessible
     var closeBtn = createElement('button', 'slidein-close', {
       type: 'button',
       'aria-label': 'Close form'
     });
-    closeBtn.innerHTML = '&times;';
+    closeBtn.innerHTML = '<span aria-hidden="true">&times;</span>';
     closeBtn.addEventListener('click', function() {
       closeSlideIn(panelId);
     });
@@ -921,6 +1088,7 @@
     body.setAttribute('data-bloomsuite-form', embedKey);
     
     panel.appendChild(header);
+    panel.appendChild(descEl);
     panel.appendChild(body);
     overlay.appendChild(panel);
     
@@ -934,6 +1102,8 @@
     // Close on Escape key
     var escHandler = function(e) {
       if (e.key === 'Escape' && overlay.classList.contains(CSS_PREFIX + 'open')) {
+        e.preventDefault();
+        e.stopPropagation();
         closeSlideIn(panelId);
       }
     };
@@ -945,9 +1115,12 @@
     // Store reference
     activeModals[panelId] = {
       overlay: overlay,
+      panel: panel,
       body: body,
+      closeBtn: closeBtn,
       embedKey: embedKey,
       escHandler: escHandler,
+      focusTrapCleanup: null,
       type: 'slidein'
     };
     
@@ -956,28 +1129,49 @@
 
   /**
    * Open slide-in panel and initialize form inside it
+   * Activates focus trap for accessibility
    */
   function openSlideIn(panelId) {
-    var panel = activeModals[panelId];
-    if (!panel) return;
+    var panelData = activeModals[panelId];
+    if (!panelData) return;
     
     // Show overlay
-    panel.overlay.classList.add(CSS_PREFIX + 'open');
+    panelData.overlay.classList.add(CSS_PREFIX + 'open');
     document.body.style.overflow = 'hidden';
     
+    // Announce to screen readers
+    announceToScreenReader('Form panel opened. Press Escape to close.');
+    
     // Initialize form inside panel body (uses existing renderForm)
-    initForm(panel.body);
+    initForm(panelData.body);
+    
+    // Setup focus trap after form renders
+    setTimeout(function() {
+      panelData.focusTrapCleanup = createFocusTrap(panelData.panel, function() {
+        closeSlideIn(panelId);
+      });
+    }, 150);
   }
 
   /**
-   * Close slide-in panel
+   * Close slide-in panel and cleanup focus trap
    */
   function closeSlideIn(panelId) {
-    var panel = activeModals[panelId];
-    if (!panel) return;
+    var panelData = activeModals[panelId];
+    if (!panelData) return;
     
-    panel.overlay.classList.remove(CSS_PREFIX + 'open');
+    // Cleanup focus trap (restores previous focus)
+    if (panelData.focusTrapCleanup) {
+      panelData.focusTrapCleanup();
+      panelData.focusTrapCleanup = null;
+    }
+    
+    panelData.overlay.classList.remove(CSS_PREFIX + 'open');
     document.body.style.overflow = '';
+    
+    // Announce to screen readers
+    announceToScreenReader('Form panel closed.');
+  }
   }
 
   /**
