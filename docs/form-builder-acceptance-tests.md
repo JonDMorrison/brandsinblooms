@@ -591,8 +591,159 @@ WHERE customer_id = 'aaaaaaaa-0000-0000-0000-000000000001'
 2. **Consent never downgraded**: `email_opt_in` and `sms_opt_in` must remain `true` even though form submission had `false`
 3. **Original timestamps preserved**: `email_opt_in_at` and `sms_opt_in_at` must be the original dates
 4. **opt_out untouched**: Form submission must NEVER set `opt_out = true` or `opt_out = false`
-5. **Personas not duplicated**: `customer_personas` must not have duplicate `(customer_id, persona_id)` pairs
+5. **Personas not duplicated**: `customer_personas` must not have duplicate `(customer_id, persona_id)` or `(customer_id, predefined_persona_id)` pairs
 6. **New submission logged**: A new `form_submissions` row must exist with `submitted_at` after the test
+
+---
+
+## Test 8: Persona Assignment Idempotency (Custom + Predefined)
+
+### Scenario
+Submit form twice with the same persona assignments (mix of custom and predefined). Verify no duplicate rows are created.
+
+### Test Setup
+1. Configure form with mixed personas in `audience_json`:
+   ```json
+   {
+     "audience_json": {
+       "assign_personas": ["CUSTOM_PERSONA_ID", "PREDEFINED_PERSONA_ID"]
+     }
+   }
+   ```
+
+2. Ensure personas exist:
+   ```sql
+   -- Custom persona (tenant-specific)
+   INSERT INTO crm_personas (id, tenant_id, name, is_custom)
+   VALUES ('cccccccc-0000-0000-0000-000000000001', 'TEST_TENANT_ID', 'VIP Customer', true);
+   
+   -- Predefined persona (global)
+   INSERT INTO crm_personas (id, tenant_id, name, is_custom)
+   VALUES ('pppppppp-0000-0000-0000-000000000001', null, 'New Subscriber', false);
+   ```
+
+### Test Steps
+1. **First submission**:
+   ```json
+   {
+     "embed_key": "test_form_key",
+     "data": {
+       "email": "persona-test@example.com",
+       "first_name": "Persona",
+       "email_consent": true
+     }
+   }
+   ```
+
+2. **Second submission** (identical):
+   ```json
+   {
+     "embed_key": "test_form_key",
+     "data": {
+       "email": "persona-test@example.com",
+       "first_name": "Persona",
+       "email_consent": true
+     }
+   }
+   ```
+
+### Expected Response (Both Submissions)
+```json
+{
+  "success": true,
+  "message": "Thank you for your submission!",
+  "customer_id": "uuid-here"
+}
+```
+**HTTP Status:** `200 OK`
+
+### Expected DB State After Both Submissions
+
+#### `customer_personas` Table
+| customer_id | persona_id | predefined_persona_id | Count |
+|-------------|------------|----------------------|-------|
+| customer-uuid | `CUSTOM_PERSONA_ID` | `null` | **1** |
+| customer-uuid | `null` | `PREDEFINED_PERSONA_ID` | **1** |
+
+**Total rows: 2** (not 4)
+
+#### `form_submissions` Table
+| Result | Count |
+|--------|-------|
+| `'accepted'` | **2** |
+
+### Inspection Queries
+
+```sql
+-- 1. Verify NO duplicate persona assignments
+SELECT 
+  customer_id,
+  persona_id,
+  predefined_persona_id,
+  COUNT(*) as duplicate_count
+FROM customer_personas
+WHERE customer_id = (
+  SELECT id FROM crm_customers WHERE email = 'persona-test@example.com'
+)
+GROUP BY customer_id, persona_id, predefined_persona_id
+HAVING COUNT(*) > 1;
+
+-- Expected: 0 rows (no duplicates)
+
+-- 2. Verify exactly one row per persona type
+SELECT 
+  CASE 
+    WHEN persona_id IS NOT NULL THEN 'custom'
+    WHEN predefined_persona_id IS NOT NULL THEN 'predefined'
+  END as persona_type,
+  COUNT(*) as assignment_count
+FROM customer_personas
+WHERE customer_id = (
+  SELECT id FROM crm_customers WHERE email = 'persona-test@example.com'
+)
+GROUP BY persona_type;
+
+-- Expected: custom=1, predefined=1
+
+-- 3. Verify two submission rows exist
+SELECT COUNT(*) as submission_count
+FROM form_submissions
+WHERE customer_id = (
+  SELECT id FROM crm_customers WHERE email = 'persona-test@example.com'
+)
+AND result = 'accepted';
+
+-- Expected: 2
+
+-- 4. Check metadata debug info on latest submission
+SELECT 
+  metadata->'debug'->'custom_personas_new' as custom_new,
+  metadata->'debug'->'predefined_personas_new' as predefined_new,
+  metadata->'debug'->'personas_already_assigned' as already_assigned
+FROM form_submissions
+WHERE customer_id = (
+  SELECT id FROM crm_customers WHERE email = 'persona-test@example.com'
+)
+ORDER BY submitted_at DESC
+LIMIT 1;
+
+-- Expected on second submission: custom_new=0, predefined_new=0, already_assigned=true
+```
+
+### Database Constraints Enforced
+
+The following partial unique indexes prevent duplicates:
+```sql
+-- Custom personas (persona_id column)
+CREATE UNIQUE INDEX unique_customer_custom_persona 
+ON customer_personas (customer_id, persona_id) 
+WHERE persona_id IS NOT NULL;
+
+-- Predefined personas (predefined_persona_id column)
+CREATE UNIQUE INDEX unique_customer_predefined_persona 
+ON customer_personas (customer_id, predefined_persona_id) 
+WHERE predefined_persona_id IS NOT NULL;
+```
 
 ---
 
@@ -607,6 +758,7 @@ WHERE customer_id = 'aaaaaaaa-0000-0000-0000-000000000001'
 | 5. Rate Limiting | `form_rate_limits`, `form_submissions` | `short_window_count`, `result` |
 | 6. Honeypot Spam | `form_submissions` | `result`, `reason`, `metadata` |
 | 7. Existing Customer Resubmit | `crm_customers`, `customer_personas`, `form_submissions` | `id` (same), `email_opt_in` (preserved), persona uniqueness |
+| 8. Persona Idempotency | `customer_personas` | `persona_id`, `predefined_persona_id`, duplicate count |
 
 ---
 
@@ -620,6 +772,7 @@ WHERE customer_id = 'aaaaaaaa-0000-0000-0000-000000000001'
 [ ] Test 5: Rate limiting (5 quick submissions)
 [ ] Test 6: Honeypot spam detection
 [ ] Test 7: Existing customer resubmission (idempotent upsert)
+[ ] Test 8: Persona assignment idempotency (custom + predefined)
 ```
 
 ## Cleanup Query
