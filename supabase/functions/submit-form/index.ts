@@ -528,24 +528,51 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Determine consent values
+    // ─── Step 6a: Determine consent values from form data ────────────────────
     const emailConsentField = fields.find(f => f.type === 'email_consent');
     const smsConsentField = fields.find(f => f.type === 'sms_consent');
-    const emailConsent = emailConsentField ? !!submissionData[emailConsentField.id] : !!submissionData['email_consent'];
-    const smsConsent = smsConsentField ? !!submissionData[smsConsentField.id] : !!submissionData['sms_consent'];
+    
+    // Extract consent boolean values (explicitly check for true)
+    const emailConsent = emailConsentField 
+      ? submissionData[emailConsentField.id] === true 
+      : submissionData['email_consent'] === true;
+    const smsConsent = smsConsentField 
+      ? submissionData[smsConsentField.id] === true 
+      : submissionData['sms_consent'] === true;
+    
     const now = new Date().toISOString();
 
-    // Build full metadata with compliance info
-    const fullMetadata = {
-      ...submissionMeta,
-      email_consent: emailConsent,
-      email_consent_text: emailConsent ? compliance.email_consent_text : null,
-      email_consent_at: emailConsent ? now : null,
-      sms_consent: smsConsent,
-      sms_consent_text: smsConsent ? compliance.sms_consent_text : null,
-      sms_consent_at: smsConsent ? now : null,
-      consent_source: 'form',
+    // ─── Step 6b: Build comprehensive metadata for audit trail ─────────────────
+    // CASL/TCPA Compliance: ALWAYS store consent state, text, and timestamp
+    // regardless of whether consent was granted or not
+    const fullMetadata: Record<string, unknown> = {
+      // Page & tracking context (ALWAYS captured)
+      page_url: meta?.page_url || null,
+      referrer: meta?.referrer || null,
+      utm_source: meta?.utm_source || null,
+      utm_medium: meta?.utm_medium || null,
+      utm_campaign: meta?.utm_campaign || null,
+      user_agent: meta?.user_agent || req.headers.get('user-agent') || null,
+      
+      // Form identification
       form_embed_key: embed_key,
+      form_id: formId,
+      consent_source: 'form',
+      
+      // Email consent (ALWAYS store - even if false)
+      email_consent: emailConsent,
+      email_consent_text: compliance.email_consent_text || null,
+      email_consent_at: emailConsent ? now : null,
+      email_consent_required: compliance.email_consent_required || false,
+      
+      // SMS consent (ALWAYS store - even if false)
+      sms_consent: smsConsent,
+      sms_consent_text: compliance.sms_consent_text || null,
+      sms_consent_at: smsConsent ? now : null,
+      sms_consent_required: compliance.sms_consent_required || false,
+      
+      // Submission timestamp
+      submitted_at: now,
     };
 
     // ─── Step 6: Upsert customer (never overwrite opt-in to false) ─────────
@@ -571,35 +598,66 @@ Deno.serve(async (req) => {
     if (lastName) customerData.last_name = lastName;
     if (phone) customerData.phone = phone;
 
-    // Email opt-in: ONLY upgrade to true, never downgrade
-    if (emailConsent && existingCustomer?.email_opt_in !== true) {
-      customerData.email_opt_in = true;
-      customerData.email_opt_in_at = now;
-      customerData.email_consent_source = 'form';
+    // ─── CRITICAL: CASL/TCPA Compliant Opt-In Logic ───────────────────────────
+    // 
+    // Rules:
+    // 1. ONLY set email_opt_in=true when explicit consent is granted
+    // 2. NEVER set email_opt_in=false from a form submission (that would be an unsubscribe)
+    // 3. NEVER touch opt_out field - that's only for explicit unsubscribe actions
+    // 4. Store verbatim consent text for legal defensibility
+    // 
+    // This ensures:
+    // - Existing subscribers are not accidentally unsubscribed
+    // - Consent is only "upgraded", never "downgraded"
+    // - Full audit trail is maintained in email_consent_details
+
+    // Email opt-in: ONLY upgrade to true, NEVER downgrade or set false
+    if (emailConsent === true) {
+      // Only update if not already opted in (preserve original opt-in date if already true)
+      if (existingCustomer?.email_opt_in !== true) {
+        customerData.email_opt_in = true;
+        customerData.email_opt_in_at = now;
+        customerData.email_consent_source = 'form';
+      }
+      // Always update consent details with latest submission (for audit trail)
       customerData.email_consent_details = {
         consent_text: compliance.email_consent_text,
-        page_url: meta?.page_url,
+        consent_required: compliance.email_consent_required,
+        page_url: meta?.page_url || null,
+        referrer: meta?.referrer || null,
         form_id: formId,
         form_embed_key: embed_key,
+        user_agent: meta?.user_agent || null,
         captured_at: now,
       };
     }
+    // IMPORTANT: Do NOT set email_opt_in=false here - that's only for unsubscribe endpoint
 
-    // SMS opt-in: ONLY upgrade to true, never downgrade
-    if (smsConsent && phone && existingCustomer?.sms_opt_in !== true) {
-      customerData.sms_opt_in = true;
-      customerData.sms_opt_in_at = now;
-      customerData.sms_consent_source = 'form';
+    // SMS opt-in: ONLY upgrade to true, NEVER downgrade or set false
+    if (smsConsent === true && phone) {
+      // Only update if not already opted in (preserve original opt-in date if already true)
+      if (existingCustomer?.sms_opt_in !== true) {
+        customerData.sms_opt_in = true;
+        customerData.sms_opt_in_at = now;
+        customerData.sms_consent_source = 'form';
+      }
+      // Always update consent details with latest submission (for audit trail)
       customerData.sms_consent_details = {
         consent_text: compliance.sms_consent_text,
-        page_url: meta?.page_url,
+        consent_required: compliance.sms_consent_required,
+        phone: phone,
+        page_url: meta?.page_url || null,
+        referrer: meta?.referrer || null,
         form_id: formId,
         form_embed_key: embed_key,
+        user_agent: meta?.user_agent || null,
         captured_at: now,
       };
     }
+    // IMPORTANT: Do NOT set sms_opt_in=false here - that's only for unsubscribe endpoint
 
-    // IMPORTANT: Do NOT set opt_out=true - this is only for explicit unsubscribes
+    // CRITICAL: NEVER set opt_out=true from form submission
+    // opt_out is ONLY set by explicit unsubscribe actions (webhook, preference center, admin)
 
     // Upsert customer
     const { data: customer, error: customerError } = await supabase
