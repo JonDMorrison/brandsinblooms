@@ -9,10 +9,34 @@ Add this code to any webpage to embed a BloomSuite form:
 <div data-bloomsuite-form="YOUR_EMBED_KEY_HERE"></div>
 
 <!-- 2. Load the embed script (before </body>) -->
-<script src="https://brandsinblooms.lovable.app/forms/embed.js" async></script>
+<script src="https://forms.bloomsuite.com/embed.js" async></script>
 ```
 
 Replace `YOUR_EMBED_KEY_HERE` with your form's 32-character embed key.
+
+---
+
+## Script Versioning
+
+BloomSuite provides three URL patterns for embed.js:
+
+| URL | Description | Cache | Use Case |
+|-----|-------------|-------|----------|
+| `/embed.js` | **Stable channel** (alias for latest v1.x.x) | 1 hour | Recommended for most sites |
+| `/embed.v1.js` | **Major version alias** (latest v1.x.x) | 1 hour | Pin to major version |
+| `/embed.v1.0.0.js` | **Pinned version** (immutable) | 1 year | Maximum stability |
+
+### Recommended (Auto-Updates)
+```html
+<script src="https://forms.bloomsuite.com/embed.js" async></script>
+```
+
+### Pinned (Never Changes)
+```html
+<script src="https://forms.bloomsuite.com/embed.v1.0.0.js" async></script>
+```
+
+> **Note**: Pinned versions are immutable and cached for 1 year. Use for sites requiring strict change control.
 
 ---
 
@@ -28,7 +52,7 @@ You can embed multiple forms on the same page:
 <div data-bloomsuite-form="c3d4e5f6789012345678901234ab1234"></div>
 
 <!-- Single script handles all forms -->
-<script src="https://brandsinblooms.lovable.app/forms/embed.js" async></script>
+<script src="https://forms.bloomsuite.com/embed.js" async></script>
 ```
 
 ---
@@ -56,7 +80,7 @@ You can embed multiple forms on the same page:
   </main>
 
   <!-- Load embed script -->
-  <script src="https://brandsinblooms.lovable.app/forms/embed.js" async></script>
+  <script src="https://forms.bloomsuite.com/embed.js" async></script>
 </body>
 </html>
 ```
@@ -128,8 +152,8 @@ If your site uses a strict CSP, add these directives:
 ### Minimal CSP
 ```http
 Content-Security-Policy: 
-  script-src 'self' https://brandsinblooms.lovable.app;
-  connect-src 'self' https://udldmkqwnxhdeztyqcau.supabase.co;
+  script-src 'self' https://forms.bloomsuite.com;
+  connect-src 'self' https://api.bloomsuite.com;
   style-src 'self' 'unsafe-inline';
 ```
 
@@ -137,13 +161,13 @@ Content-Security-Policy:
 
 | Directive | Required Value | Why |
 |-----------|----------------|-----|
-| `script-src` | `https://brandsinblooms.lovable.app` | Load embed.js |
-| `connect-src` | `https://udldmkqwnxhdeztyqcau.supabase.co` | API calls to get-form-config and submit-form |
+| `script-src` | `https://forms.bloomsuite.com` | Load embed.js |
+| `connect-src` | `https://api.bloomsuite.com` | API calls to get-form-config and submit-form |
 | `style-src` | `'unsafe-inline'` | Injected scoped CSS styles |
 
 ### Example with Nonce (stricter)
 ```html
-<script nonce="abc123" src="https://brandsinblooms.lovable.app/forms/embed.js"></script>
+<script nonce="abc123" src="https://forms.bloomsuite.com/embed.js"></script>
 ```
 
 ```http
@@ -152,11 +176,15 @@ Content-Security-Policy: script-src 'nonce-abc123';
 
 ---
 
-## Script Hosting Options
+## Hosting Options
 
-### Option 1: CDN (Recommended)
+### Option 1: BloomSuite CDN (Recommended)
 ```html
-<script src="https://brandsinblooms.lovable.app/forms/embed.js" async></script>
+<!-- Stable channel - auto-updates to latest v1.x.x -->
+<script src="https://forms.bloomsuite.com/embed.js" async></script>
+
+<!-- OR pinned version - never changes -->
+<script src="https://forms.bloomsuite.com/embed.v1.0.0.js" async></script>
 ```
 
 ### Option 2: Self-Host
@@ -168,7 +196,7 @@ Download `embed.js` and host on your own domain:
 If self-hosting, set the API base before loading:
 ```html
 <script>
-  window.BLOOMSUITE_API_BASE = 'https://udldmkqwnxhdeztyqcau.supabase.co/functions/v1';
+  window.BLOOMSUITE_API_BASE = 'https://api.bloomsuite.com';
 </script>
 <script src="/js/bloomsuite-embed.js" async></script>
 ```
@@ -177,15 +205,17 @@ If self-hosting, set the API base before loading:
 
 ## Subresource Integrity (SRI)
 
-For maximum security, use SRI hash:
+For maximum security, use SRI hash with pinned versions:
 ```html
 <script 
-  src="https://brandsinblooms.lovable.app/forms/embed.js"
+  src="https://forms.bloomsuite.com/embed.v1.0.0.js"
   integrity="sha384-HASH_HERE"
   crossorigin="anonymous"
   async
 ></script>
 ```
+
+> **Note**: SRI should only be used with pinned versions (`embed.v1.0.0.js`), not the stable channel which may update.
 
 Generate hash with:
 ```bash
@@ -226,8 +256,8 @@ BloomSuiteForms.initForm(div);
 ## Troubleshooting
 
 ### Form Shows "Form Blocked"
-- **Cause**: Ad blocker blocking Supabase API calls
-- **Fix**: Whitelist `udldmkqwnxhdeztyqcau.supabase.co` or disable ad blocker
+- **Cause**: Ad blocker blocking API calls
+- **Fix**: Whitelist `api.bloomsuite.com` or disable ad blocker
 
 ### Form Shows "Form not found"
 - **Cause**: Invalid embed key or form not published
@@ -256,6 +286,60 @@ BloomSuiteForms.initForm(div);
 | Safari | 11+ | Full support |
 | Edge | 79+ (Chromium) | Full support |
 | IE 11 | ❌ | Not supported (no URLSearchParams) |
+
+---
+
+## Deployment Implementation Notes
+
+### Current Stack (Lovable + Vite)
+
+The embed.js files are served from the `public/forms/` directory:
+
+```
+public/forms/
+├── embed.js          # Stable channel (copied from latest v1.x.x)
+├── embed.v1.js       # Major version alias (copied from latest v1.x.x)
+└── embed.v1.0.0.js   # Pinned v1.0.0 (immutable)
+```
+
+### Cache Headers (public/_headers)
+
+```
+# Pinned versions - immutable, cache for 1 year
+/forms/embed.v*.*.*.js
+  Cache-Control: public, max-age=31536000, immutable
+
+# Stable/alias versions - short cache with revalidation
+/forms/embed.js
+  Cache-Control: public, max-age=3600, stale-while-revalidate=86400
+```
+
+### Release Process
+
+When releasing a new version (e.g., v1.1.0):
+
+1. Create `public/forms/embed.v1.1.0.js` with new code
+2. Copy to `public/forms/embed.js` (stable channel)
+3. Copy to `public/forms/embed.v1.js` (major version alias)
+4. Update `SCRIPT_VERSION` constant in the new file
+5. Publish to production
+
+### Production Domain Setup
+
+For production, configure a custom domain (e.g., `forms.bloomsuite.com`) pointing to the Lovable app, or use a CDN like Cloudflare/Fastly with:
+
+| Current (Development) | Production Target |
+|-----------------------|-------------------|
+| `brandsinblooms.lovable.app/forms/` | `forms.bloomsuite.com/` |
+| Supabase functions URL | `api.bloomsuite.com/` |
+
+### Final Production URLs
+
+| URL | Description |
+|-----|-------------|
+| `https://forms.bloomsuite.com/embed.js` | Stable channel |
+| `https://forms.bloomsuite.com/embed.v1.js` | Major version alias |
+| `https://forms.bloomsuite.com/embed.v1.0.0.js` | Pinned v1.0.0 |
 
 ---
 
