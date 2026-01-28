@@ -842,10 +842,13 @@ export type Database = {
           event_type: string
           form_id: string | null
           id: string
+          last_error_at: string | null
+          max_retries: number | null
           metadata: Json | null
           persona_id: string | null
           processed_at: string | null
           queued_until: string | null
+          retry_count: number | null
           segment_id: string | null
           submission_id: string | null
           tenant_id: string
@@ -858,10 +861,13 @@ export type Database = {
           event_type: string
           form_id?: string | null
           id?: string
+          last_error_at?: string | null
+          max_retries?: number | null
           metadata?: Json | null
           persona_id?: string | null
           processed_at?: string | null
           queued_until?: string | null
+          retry_count?: number | null
           segment_id?: string | null
           submission_id?: string | null
           tenant_id: string
@@ -874,10 +880,13 @@ export type Database = {
           event_type?: string
           form_id?: string | null
           id?: string
+          last_error_at?: string | null
+          max_retries?: number | null
           metadata?: Json | null
           persona_id?: string | null
           processed_at?: string | null
           queued_until?: string | null
+          retry_count?: number | null
           segment_id?: string | null
           submission_id?: string | null
           tenant_id?: string
@@ -7332,6 +7341,127 @@ export type Database = {
           },
         ]
       }
+      form_automation_executions: {
+        Row: {
+          automation_id: string
+          automation_run_id: string | null
+          completed_at: string | null
+          created_at: string
+          customer_id: string | null
+          duration_ms: number | null
+          error_details: Json | null
+          executed_at: string
+          failure_reason: string | null
+          id: string
+          max_retries: number
+          metadata: Json | null
+          next_retry_at: string | null
+          node_id: string | null
+          recipient: string | null
+          retry_count: number
+          started_at: string | null
+          status: string
+          step_index: number | null
+          step_type: string | null
+          submission_id: string
+          tenant_id: string
+          trigger_event_id: string | null
+        }
+        Insert: {
+          automation_id: string
+          automation_run_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          customer_id?: string | null
+          duration_ms?: number | null
+          error_details?: Json | null
+          executed_at?: string
+          failure_reason?: string | null
+          id?: string
+          max_retries?: number
+          metadata?: Json | null
+          next_retry_at?: string | null
+          node_id?: string | null
+          recipient?: string | null
+          retry_count?: number
+          started_at?: string | null
+          status: string
+          step_index?: number | null
+          step_type?: string | null
+          submission_id: string
+          tenant_id: string
+          trigger_event_id?: string | null
+        }
+        Update: {
+          automation_id?: string
+          automation_run_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          customer_id?: string | null
+          duration_ms?: number | null
+          error_details?: Json | null
+          executed_at?: string
+          failure_reason?: string | null
+          id?: string
+          max_retries?: number
+          metadata?: Json | null
+          next_retry_at?: string | null
+          node_id?: string | null
+          recipient?: string | null
+          retry_count?: number
+          started_at?: string | null
+          status?: string
+          step_index?: number | null
+          step_type?: string | null
+          submission_id?: string
+          tenant_id?: string
+          trigger_event_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "form_automation_executions_automation_id_fkey"
+            columns: ["automation_id"]
+            isOneToOne: false
+            referencedRelation: "crm_automations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "form_automation_executions_automation_run_id_fkey"
+            columns: ["automation_run_id"]
+            isOneToOne: false
+            referencedRelation: "automation_runs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "form_automation_executions_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "crm_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "form_automation_executions_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customer_360_enriched"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "form_automation_executions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "admin_tenant_overview"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "form_automation_executions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       form_rate_limits: {
         Row: {
           count: number
@@ -13659,6 +13789,25 @@ export type Database = {
           p_action_type: string
           p_target_tenant_id?: string
           p_target_user_id?: string
+        }
+        Returns: string
+      }
+      log_form_automation_execution: {
+        Args: {
+          p_automation_id: string
+          p_automation_run_id: string
+          p_customer_id: string
+          p_error_details?: Json
+          p_failure_reason?: string
+          p_metadata?: Json
+          p_node_id?: string
+          p_recipient?: string
+          p_status: string
+          p_step_index?: number
+          p_step_type?: string
+          p_submission_id: string
+          p_tenant_id: string
+          p_trigger_event_id?: string
         }
         Returns: string
       }
