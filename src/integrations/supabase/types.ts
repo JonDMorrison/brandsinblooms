@@ -13990,6 +13990,15 @@ export type Database = {
         }
         Returns: boolean
       }
+      upsert_rate_limit: {
+        Args: {
+          p_form_id: string
+          p_ip_hash: string
+          p_tenant_id: string
+          p_window_start: string
+        }
+        Returns: number
+      }
     }
     Enums: {
       app_role: "master_admin" | "admin" | "user"
