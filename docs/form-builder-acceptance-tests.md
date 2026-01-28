@@ -410,6 +410,192 @@ WHERE result = 'rejected_spam'
 
 ---
 
+## Test 7: Existing Customer Resubmission - Idempotent Upsert
+
+### Scenario
+Existing customer submits form again with same email. System must:
+- Upsert to same customer record (not create duplicate)
+- Never downgrade consent (preserve existing opt-ins)
+- Not duplicate persona assignments
+- Create new form_submissions row
+
+### Test Setup
+1. Pre-create existing customer with consent:
+   ```sql
+   INSERT INTO crm_customers (
+     id, tenant_id, email, first_name, phone,
+     email_opt_in, email_opt_in_at, email_consent_source,
+     sms_opt_in, sms_opt_in_at, sms_consent_source
+   ) VALUES (
+     'aaaaaaaa-0000-0000-0000-000000000001',
+     'TEST_TENANT_ID',
+     'returning@example.com',
+     'Original',
+     '+15551112222',
+     true,
+     '2024-01-01T10:00:00Z',
+     'form',
+     true,
+     '2024-01-01T10:00:00Z',
+     'form'
+   );
+   
+   -- Pre-assign persona
+   INSERT INTO customer_personas (customer_id, persona_id)
+   VALUES ('aaaaaaaa-0000-0000-0000-000000000001', 'EXISTING_PERSONA_ID');
+   ```
+
+2. Configure form with same persona in `audience_json`:
+   ```json
+   {
+     "audience_json": {
+       "assign_personas": ["EXISTING_PERSONA_ID", "NEW_PERSONA_ID"]
+     }
+   }
+   ```
+
+### Test Steps
+1. Submit to `/submit-form` with existing email but WITHOUT consent checkboxes:
+   ```json
+   {
+     "embed_key": "test_form_key",
+     "data": {
+       "email": "returning@example.com",
+       "first_name": "Updated",
+       "phone": "+15553334444",
+       "email_consent": false,
+       "sms_consent": false
+     },
+     "meta": {
+       "page_url": "https://example.com/promo",
+       "utm_source": "email",
+       "utm_campaign": "summer2024"
+     }
+   }
+   ```
+
+### Expected Response
+```json
+{
+  "success": true,
+  "message": "Thank you for your submission!",
+  "customer_id": "aaaaaaaa-0000-0000-0000-000000000001",
+  "redirect_url": null,
+  "suppressed": false
+}
+```
+**HTTP Status:** `200 OK`
+
+### Expected DB State
+
+#### `crm_customers` Table (Upserted, Same ID)
+| Field | Expected Value | Notes |
+|-------|----------------|-------|
+| `id` | `'aaaaaaaa-0000-0000-0000-000000000001'` | **Same ID, not new record** |
+| `email` | `'returning@example.com'` | Unchanged |
+| `first_name` | `'Updated'` | **Updated** from form |
+| `phone` | `'+15553334444'` | **Updated** from form |
+| `email_opt_in` | `true` | **NOT downgraded** (was true) |
+| `email_opt_in_at` | `'2024-01-01T10:00:00Z'` | **Preserved** original timestamp |
+| `email_consent_source` | `'form'` | Preserved |
+| `sms_opt_in` | `true` | **NOT downgraded** (was true) |
+| `sms_opt_in_at` | `'2024-01-01T10:00:00Z'` | **Preserved** original timestamp |
+| `sms_consent_source` | `'form'` | Preserved |
+| `opt_out` | `null` or `false` | **NEVER set by form** |
+
+#### `customer_personas` Table (No Duplicates)
+| Field | Expected |
+|-------|----------|
+| Records for `customer_id = 'aaaaaaaa-...'` | Exactly 2 (original + new) |
+| `persona_id = 'EXISTING_PERSONA_ID'` | 1 record (not duplicated) |
+| `persona_id = 'NEW_PERSONA_ID'` | 1 record (newly assigned) |
+
+#### `form_submissions` Table (New Row Created)
+| Field | Expected Value |
+|-------|----------------|
+| `customer_id` | `'aaaaaaaa-0000-0000-0000-000000000001'` |
+| `result` | `'accepted'` |
+| `metadata->'email_consent'` | `false` |
+| `metadata->'sms_consent'` | `false` |
+| `metadata->'consent_source'` | `'form'` |
+| `metadata->'page_url'` | `'https://example.com/promo'` |
+| `metadata->'utm_source'` | `'email'` |
+| `metadata->'utm_campaign'` | `'summer2024'` |
+
+### Inspection Queries
+
+```sql
+-- 1. Verify customer upserted (same ID, updated fields, consent NOT downgraded)
+SELECT 
+  id,
+  email,
+  first_name,
+  phone,
+  email_opt_in,
+  email_opt_in_at,
+  email_consent_source,
+  sms_opt_in,
+  sms_opt_in_at,
+  sms_consent_source,
+  opt_out,
+  updated_at
+FROM crm_customers
+WHERE email = 'returning@example.com';
+
+-- Expected: id = 'aaaaaaaa-...', email_opt_in = true, sms_opt_in = true
+-- first_name = 'Updated', phone = '+15553334444'
+-- opt_out should NOT be true
+
+-- 2. Verify persona assignment is idempotent (no duplicates)
+SELECT 
+  cp.customer_id,
+  cp.persona_id,
+  p.name as persona_name,
+  COUNT(*) as assignment_count
+FROM customer_personas cp
+JOIN crm_personas p ON p.id = cp.persona_id
+WHERE cp.customer_id = 'aaaaaaaa-0000-0000-0000-000000000001'
+GROUP BY cp.customer_id, cp.persona_id, p.name;
+
+-- Expected: Exactly 2 rows, each with assignment_count = 1
+
+-- 3. Verify new submission row created (not updating old one)
+SELECT 
+  id,
+  customer_id,
+  result,
+  metadata->>'consent_source' as consent_source,
+  metadata->>'email_consent' as email_consent,
+  metadata->>'sms_consent' as sms_consent,
+  metadata->>'page_url' as page_url,
+  metadata->>'utm_campaign' as utm_campaign,
+  submitted_at
+FROM form_submissions
+WHERE customer_id = 'aaaaaaaa-0000-0000-0000-000000000001'
+ORDER BY submitted_at DESC;
+
+-- Expected: Multiple rows if customer submitted before, latest has consent_source='form'
+
+-- 4. Count total submissions for this customer
+SELECT COUNT(*) as total_submissions
+FROM form_submissions
+WHERE customer_id = 'aaaaaaaa-0000-0000-0000-000000000001'
+  AND result = 'accepted';
+
+-- Expected: >= 1 (new submission added each time)
+```
+
+### Critical Assertions
+
+1. **Customer ID unchanged**: The `id` field must be the same as the pre-existing customer
+2. **Consent never downgraded**: `email_opt_in` and `sms_opt_in` must remain `true` even though form submission had `false`
+3. **Original timestamps preserved**: `email_opt_in_at` and `sms_opt_in_at` must be the original dates
+4. **opt_out untouched**: Form submission must NEVER set `opt_out = true` or `opt_out = false`
+5. **Personas not duplicated**: `customer_personas` must not have duplicate `(customer_id, persona_id)` pairs
+6. **New submission logged**: A new `form_submissions` row must exist with `submitted_at` after the test
+
+---
+
 ## Summary: Tables & Fields to Inspect
 
 | Test | Primary Table | Key Fields |
@@ -420,6 +606,7 @@ WHERE result = 'rejected_spam'
 | 4. Suppressed Email | `crm_customers`, `email_suppressions` | `suppressed`, `lifted_at` |
 | 5. Rate Limiting | `form_rate_limits`, `form_submissions` | `short_window_count`, `result` |
 | 6. Honeypot Spam | `form_submissions` | `result`, `reason`, `metadata` |
+| 7. Existing Customer Resubmit | `crm_customers`, `customer_personas`, `form_submissions` | `id` (same), `email_opt_in` (preserved), persona uniqueness |
 
 ---
 
@@ -432,6 +619,7 @@ WHERE result = 'rejected_spam'
 [ ] Test 4: Suppressed email handling
 [ ] Test 5: Rate limiting (5 quick submissions)
 [ ] Test 6: Honeypot spam detection
+[ ] Test 7: Existing customer resubmission (idempotent upsert)
 ```
 
 ## Cleanup Query
