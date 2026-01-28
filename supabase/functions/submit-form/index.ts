@@ -27,8 +27,11 @@ interface FormCompliance {
 interface FormSettings {
   success_message?: string;
   success_redirect_url?: string | null;
-  assign_personas?: string[];
-  assign_tags?: string[];
+}
+
+interface FormAudience {
+  assign_personas?: string[]; // Array of persona IDs to assign
+  assign_tags?: string[];     // Array of tag names to assign
 }
 
 interface SubmissionMeta {
@@ -391,7 +394,7 @@ Deno.serve(async (req) => {
     // Look up form by embed_key - tenant_id ONLY from this record
     const { data: form, error: formError } = await supabase
       .from('forms')
-      .select('id, tenant_id, status, fields_json, settings_json, compliance_json')
+      .select('id, tenant_id, status, fields_json, settings_json, compliance_json, audience_json')
       .eq('embed_key', embed_key.toLowerCase())
       .maybeSingle();
 
@@ -418,6 +421,7 @@ Deno.serve(async (req) => {
     const fields = (form.fields_json || []) as FormField[];
     const compliance = (form.compliance_json || {}) as FormCompliance;
     const settings = (form.settings_json || {}) as FormSettings;
+    const audience = (form.audience_json || {}) as FormAudience;
 
     // Get client IP and hash it
     const clientIP = getClientIP(req);
@@ -687,32 +691,74 @@ Deno.serve(async (req) => {
       result: 'accepted',
     });
 
-    // ─── Step 8: Assign personas ───────────────────────────────────────────
-    const personaIds = settings.assign_personas || [];
+    // ─── Step 8: Apply audience rules (personas) with safe error handling ───
+    // Audience rules come from forms.audience_json, NOT settings_json
+    const personaIds = audience.assign_personas || [];
+    const audienceErrors: string[] = [];
+    let personasAssigned = 0;
     
     if (personaIds.length > 0) {
       try {
-        // Insert persona assignments (ignore conflicts)
-        for (const personaId of personaIds) {
-          await supabase
-            .from('customer_personas')
-            .upsert({
+        // Validate personas exist and belong to tenant (or are predefined/global)
+        const { data: validPersonas, error: personaValidationError } = await supabase
+          .from('crm_personas')
+          .select('id')
+          .in('id', personaIds)
+          .or(`tenant_id.eq.${tenantId},is_custom.eq.false`);
+
+        if (personaValidationError) {
+          console.warn('[submit-form] Persona validation error:', personaValidationError.message);
+          audienceErrors.push(`Persona validation failed: ${personaValidationError.message}`);
+        } else {
+          const validPersonaIds = validPersonas?.map(p => p.id) || [];
+          const invalidPersonaIds = personaIds.filter(id => !validPersonaIds.includes(id));
+          
+          if (invalidPersonaIds.length > 0) {
+            console.warn(`[submit-form] Invalid persona IDs ignored: ${invalidPersonaIds.join(', ')}`);
+            audienceErrors.push(`Invalid personas ignored: ${invalidPersonaIds.length}`);
+          }
+
+          if (validPersonaIds.length > 0) {
+            // Batch insert persona assignments using upsert with onConflict
+            // This handles duplicates gracefully - if customer already has persona, it's ignored
+            const personaAssignments = validPersonaIds.map(personaId => ({
               customer_id: customerId,
               persona_id: personaId,
               tenant_id: tenantId,
-            }, {
-              onConflict: 'customer_id,persona_id',
-              ignoreDuplicates: true,
-            });
+              assigned_at: now,
+              assignment_source: 'form',
+            }));
+
+            const { error: personaInsertError } = await supabase
+              .from('customer_personas')
+              .upsert(personaAssignments, {
+                onConflict: 'customer_id,persona_id',
+                ignoreDuplicates: true, // Silently skip if already assigned
+              });
+
+            if (personaInsertError) {
+              console.warn('[submit-form] Persona insert error:', personaInsertError.message);
+              audienceErrors.push(`Persona assignment failed: ${personaInsertError.message}`);
+            } else {
+              personasAssigned = validPersonaIds.length;
+              console.log(`[submit-form] Assigned ${personasAssigned} personas to customer ${customerId.slice(0, 8)}...`);
+            }
+          }
         }
-        console.log(`[submit-form] Assigned ${personaIds.length} personas to customer ${customerId.slice(0, 8)}...`);
       } catch (personaError) {
-        console.warn('[submit-form] Persona assignment error:', personaError);
-        // Non-fatal
+        const errorMsg = (personaError as Error).message;
+        console.warn('[submit-form] Unexpected persona assignment error:', errorMsg);
+        audienceErrors.push(`Unexpected error: ${errorMsg}`);
+        // Non-fatal - submission is still accepted
       }
     }
 
-    // ─── Step 9: Trigger segment evaluation ────────────────────────────────
+    // ─── Step 9: Trigger segment evaluation for real-time membership updates ───
+    // This evaluates the customer against all dynamic segments and updates memberships
+    let segmentsJoined: string[] = [];
+    let segmentsLeft: string[] = [];
+    let segmentEvaluationError: string | null = null;
+    
     try {
       const segmentResponse = await fetch(
         `${supabaseUrl}/functions/v1/evaluate-customer-segments`,
@@ -732,13 +778,48 @@ Deno.serve(async (req) => {
       if (!segmentResponse.ok) {
         const errorText = await segmentResponse.text();
         console.warn('[submit-form] Segment evaluation failed:', errorText);
+        segmentEvaluationError = errorText;
       } else {
         const segmentResult = await segmentResponse.json();
-        console.log(`[submit-form] Segment evaluation complete: joined=${segmentResult.segments_joined?.length || 0}, left=${segmentResult.segments_left?.length || 0}`);
+        segmentsJoined = segmentResult.segments_joined || [];
+        segmentsLeft = segmentResult.segments_left || [];
+        console.log(`[submit-form] Segment evaluation complete: joined=${segmentsJoined.length}, left=${segmentsLeft.length}`);
       }
     } catch (segmentError) {
-      console.warn('[submit-form] Error triggering segment evaluation:', segmentError);
-      // Non-fatal
+      const errorMsg = (segmentError as Error).message;
+      console.warn('[submit-form] Error triggering segment evaluation:', errorMsg);
+      segmentEvaluationError = errorMsg;
+      // Non-fatal - submission is still accepted
+    }
+
+    // ─── Step 10: Update submission metadata with audience results ─────────
+    // Record audience processing results for audit trail
+    if (audienceErrors.length > 0 || personasAssigned > 0 || segmentsJoined.length > 0) {
+      try {
+        await supabase
+          .from('form_submissions')
+          .update({
+            metadata: {
+              ...fullMetadata,
+              audience_processing: {
+                personas_requested: personaIds.length,
+                personas_assigned: personasAssigned,
+                personas_errors: audienceErrors.length > 0 ? audienceErrors : null,
+                segments_joined: segmentsJoined.length > 0 ? segmentsJoined : null,
+                segments_left: segmentsLeft.length > 0 ? segmentsLeft : null,
+                segment_evaluation_error: segmentEvaluationError,
+                processed_at: new Date().toISOString(),
+              },
+            },
+          })
+          .eq('form_id', formId)
+          .eq('customer_id', customerId)
+          .order('submitted_at', { ascending: false })
+          .limit(1);
+      } catch (updateError) {
+        console.warn('[submit-form] Failed to update submission with audience results:', updateError);
+        // Non-fatal
+      }
     }
 
     // ─── Success Response ──────────────────────────────────────────────────
