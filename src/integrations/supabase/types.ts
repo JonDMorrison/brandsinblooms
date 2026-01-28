@@ -840,11 +840,14 @@ export type Database = {
           customer_id: string | null
           error_message: string | null
           event_type: string
+          form_id: string | null
           id: string
+          metadata: Json | null
           persona_id: string | null
           processed_at: string | null
           queued_until: string | null
           segment_id: string | null
+          submission_id: string | null
           tenant_id: string
         }
         Insert: {
@@ -853,11 +856,14 @@ export type Database = {
           customer_id?: string | null
           error_message?: string | null
           event_type: string
+          form_id?: string | null
           id?: string
+          metadata?: Json | null
           persona_id?: string | null
           processed_at?: string | null
           queued_until?: string | null
           segment_id?: string | null
+          submission_id?: string | null
           tenant_id: string
         }
         Update: {
@@ -866,11 +872,14 @@ export type Database = {
           customer_id?: string | null
           error_message?: string | null
           event_type?: string
+          form_id?: string | null
           id?: string
+          metadata?: Json | null
           persona_id?: string | null
           processed_at?: string | null
           queued_until?: string | null
           segment_id?: string | null
+          submission_id?: string | null
           tenant_id?: string
         }
         Relationships: [
@@ -896,6 +905,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "automation_trigger_events_form_id_fkey"
+            columns: ["form_id"]
+            isOneToOne: false
+            referencedRelation: "forms"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "automation_trigger_events_persona_id_fkey"
             columns: ["persona_id"]
             isOneToOne: false
@@ -907,6 +923,13 @@ export type Database = {
             columns: ["segment_id"]
             isOneToOne: false
             referencedRelation: "crm_segments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automation_trigger_events_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "form_submissions"
             referencedColumns: ["id"]
           },
           {
