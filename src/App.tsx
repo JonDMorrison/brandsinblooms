@@ -98,6 +98,8 @@ import UsagePage from "@/pages/UsagePage";
 import EmailPreferences from "@/pages/EmailPreferences";
 import { ProductsPage, ProductDetailPage } from "@/pages/products";
 import ActivityCenterPage from "@/pages/ActivityCenterPage";
+import FormsPage from "@/pages/crm/FormsPage";
+import FormEditorPage from "@/pages/crm/FormEditorPage";
 
 // Public compliance pages
 import { SmsPage } from "@/pages/public/SmsPage";
@@ -426,6 +428,26 @@ function App() {
                 <ProtectedRoute>
                   <SidebarLayout>
                     <CRMAutomationBuilderPage />
+                  </SidebarLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/crm/forms"
+              element={
+                <ProtectedRoute>
+                  <SidebarLayout>
+                    <FormsPage />
+                  </SidebarLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/crm/forms/:formId"
+              element={
+                <ProtectedRoute>
+                  <SidebarLayout>
+                    <FormEditorPage />
                   </SidebarLayout>
                 </ProtectedRoute>
               }
