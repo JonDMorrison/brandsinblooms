@@ -1,10 +1,32 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
+// ─── CORS Headers (hardened for public embed access) ───────────────────────
+// These headers are included in ALL responses (success, error, 404, 429, etc.)
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-};
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'content-type',
+  'Access-Control-Max-Age': '86400', // Cache preflight for 24 hours
+} as const;
+
+/**
+ * Create a JSON response with CORS headers.
+ * IMPORTANT: All responses MUST use this helper to ensure CORS headers are always included.
+ */
+function jsonResponse(
+  body: Record<string, unknown>,
+  status: number,
+  extraHeaders: Record<string, string> = {}
+): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: {
+      ...corsHeaders,
+      'Content-Type': 'application/json',
+      ...extraHeaders,
+    },
+  });
+}
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -344,16 +366,16 @@ async function recordSubmission(
 // ─── Main Handler ──────────────────────────────────────────────────────────
 
 Deno.serve(async (req) => {
-  // Handle CORS preflight
+  // Handle CORS preflight - must include all CORS headers
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { 
+      status: 204,
+      headers: corsHeaders 
+    });
   }
 
   if (req.method !== 'POST') {
-    return new Response(
-      JSON.stringify({ error: 'Method not allowed' }),
-      { status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return jsonResponse({ error: 'Method not allowed' }, 405);
   }
 
   const startTime = Date.now();
@@ -374,17 +396,11 @@ Deno.serve(async (req) => {
 
     // ─── Step 1: Validate embed_key and look up form ───────────────────────
     if (!embed_key || typeof embed_key !== 'string') {
-      return new Response(
-        JSON.stringify({ error: 'embed_key is required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return jsonResponse({ error: 'embed_key is required' }, 400);
     }
 
     if (!/^[a-f0-9]{32}$/i.test(embed_key)) {
-      return new Response(
-        JSON.stringify({ error: 'Invalid embed_key format' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return jsonResponse({ error: 'Invalid embed_key format' }, 400);
     }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -400,19 +416,13 @@ Deno.serve(async (req) => {
 
     if (formError) {
       console.error('[submit-form] Database error:', formError.message);
-      return new Response(
-        JSON.stringify({ error: 'Internal server error' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return jsonResponse({ error: 'Internal server error' }, 500);
     }
 
     // Validate form exists and is published
     if (!form || form.status !== 'published') {
       console.log(`[submit-form] Form not found or not published: ${embed_key.slice(0, 8)}...`);
-      return new Response(
-        JSON.stringify({ error: 'Form not found' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return jsonResponse({ error: 'Form not found' }, 404);
     }
 
     // Extract form data - tenant_id derived from form record ONLY
@@ -443,10 +453,7 @@ Deno.serve(async (req) => {
         reason: rateLimitResult.reason,
       });
 
-      return new Response(
-        JSON.stringify({ error: rateLimitResult.reason }),
-        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json', 'Retry-After': '60' } }
-      );
+      return jsonResponse({ error: rateLimitResult.reason }, 429, { 'Retry-After': '60' });
     }
 
     // ─── Step 3: Honeypot spam check ───────────────────────────────────────
@@ -464,10 +471,7 @@ Deno.serve(async (req) => {
       });
 
       // Return fake success to not tip off bots
-      return new Response(
-        JSON.stringify({ success: true, message: 'Thank you for your submission!' }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return jsonResponse({ success: true, message: 'Thank you for your submission!' }, 200);
     }
 
     // ─── Step 4: Validate required fields ──────────────────────────────────
@@ -483,10 +487,7 @@ Deno.serve(async (req) => {
         reason: fieldValidation.errors.join('; '),
       });
 
-      return new Response(
-        JSON.stringify({ error: 'Validation failed', details: fieldValidation.errors }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return jsonResponse({ error: 'Validation failed', details: fieldValidation.errors }, 400);
     }
 
     // ─── Step 5: Validate consent rules ────────────────────────────────────
@@ -502,10 +503,7 @@ Deno.serve(async (req) => {
         reason: consentValidation.errors.join('; '),
       });
 
-      return new Response(
-        JSON.stringify({ error: 'Consent required', details: consentValidation.errors }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return jsonResponse({ error: 'Consent required', details: consentValidation.errors }, 400);
     }
 
     // ─── Step 6: Extract and validate mapped values ────────────────────────
@@ -526,10 +524,7 @@ Deno.serve(async (req) => {
         reason: 'Email is required',
       });
 
-      return new Response(
-        JSON.stringify({ error: 'Email is required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return jsonResponse({ error: 'Email is required' }, 400);
     }
 
     // ─── Step 6a: Determine consent values from form data ────────────────────
@@ -826,16 +821,13 @@ Deno.serve(async (req) => {
     const duration = Date.now() - startTime;
     console.log(`[submit-form] Accepted in ${duration}ms for customer ${customerId.slice(0, 8)}...${isSuppressed ? ' (suppressed)' : ''}`);
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        message: settings.success_message || 'Thank you for your submission!',
-        redirect_url: settings.success_redirect_url || null,
-        customer_id: customerId,
-        suppressed: isSuppressed, // Inform caller if sends will be blocked
-      }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return jsonResponse({
+      success: true,
+      message: settings.success_message || 'Thank you for your submission!',
+      redirect_url: settings.success_redirect_url || null,
+      customer_id: customerId,
+      suppressed: isSuppressed, // Inform caller if sends will be blocked
+    }, 200);
 
   } catch (error) {
     console.error('[submit-form] Unexpected error:', (error as Error).message);
@@ -861,9 +853,6 @@ Deno.serve(async (req) => {
       }
     }
 
-    return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return jsonResponse({ error: 'Internal server error' }, 500);
   }
 });
