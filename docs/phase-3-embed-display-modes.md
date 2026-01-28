@@ -1,50 +1,162 @@
-# Phase 3: Embed Display Modes
+# Phase 3: Embed Display Modes & Triggers
 
-This document describes the display mode architecture for BloomSuite form embeds.
+This document describes the display mode architecture and trigger system for BloomSuite form embeds.
 
 ## Architecture Overview
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                         Display Mode Architecture                        │
+│                    Display Mode + Trigger Architecture                   │
 ├─────────────────────────────────────────────────────────────────────────┤
 │                                                                          │
 │  ┌──────────────┐   ┌──────────────┐   ┌──────────────┐                │
 │  │   INLINE     │   │    MODAL     │   │   SLIDE-IN   │                │
 │  │   (default)  │   │              │   │              │                │
-│  └──────┬───────┘   └──────┬───────┘   └──────┬───────┘                │
-│         │                  │                  │                         │
-│         │                  │                  │                         │
-│         ▼                  ▼                  ▼                         │
+│  └──────────────┘   └──────┬───────┘   └──────┬───────┘                │
+│                            │                  │                         │
+│                            ▼                  ▼                         │
+│  ┌──────────────────────────────────────────────────────────────────┐  │
+│  │                   TRIGGER ENGINE (Client-Side)                    │  │
+│  │                                                                    │  │
+│  │  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐             │  │
+│  │  │ MANUAL  │  │  DELAY  │  │ SCROLL  │  │  CLICK  │             │  │
+│  │  │ (btn)   │  │  (ms)   │  │  (%)    │  │ (modal) │             │  │
+│  │  └─────────┘  └─────────┘  └─────────┘  └─────────┘             │  │
+│  │                                                                    │  │
+│  │  • Client-side only evaluation                                    │  │
+│  │  • No per-user state persistence (v1)                             │  │
+│  │  • Single-fire per page load                                      │  │
+│  └──────────────────────────────────────────────────────────────────┘  │
+│                              │                                          │
+│                              ▼                                          │
 │  ┌──────────────────────────────────────────────────────────────────┐  │
 │  │              PRESENTATION WRAPPER LAYER (Display Only)            │  │
-│  │                                                                    │  │
-│  │  • Creates container (overlay, panel, etc.)                       │  │
-│  │  • Handles open/close transitions                                 │  │
-│  │  • Manages focus trap & accessibility                             │  │
-│  │  • NEVER touches form logic                                       │  │
 │  └──────────────────────────────────────────────────────────────────┘  │
 │                              │                                          │
 │                              ▼                                          │
 │  ┌──────────────────────────────────────────────────────────────────┐  │
 │  │                  CORE FORM LAYER (Unchanged)                      │  │
 │  │                                                                    │  │
-│  │  renderForm()     →  Builds form DOM                              │  │
-│  │  renderField()    →  Creates field elements                       │  │
-│  │  handleSubmit()   →  Collects & validates data                    │  │
-│  │  submitData()     →  POSTs to /submit-form                        │  │
-│  │                                                                    │  │
-│  │  ⚠️ NEVER MODIFIED BY DISPLAY MODES                               │  │
-│  └──────────────────────────────────────────────────────────────────┘  │
-│                              │                                          │
-│                              ▼                                          │
-│  ┌──────────────────────────────────────────────────────────────────┐  │
-│  │                    SUBMISSION ENDPOINT                            │  │
-│  │                    /submit-form (unchanged)                       │  │
+│  │  renderForm() / handleSubmit() / submitData()                     │  │
+│  │  ⚠️ NEVER MODIFIED BY TRIGGERS OR DISPLAY MODES                   │  │
 │  └──────────────────────────────────────────────────────────────────┘  │
 │                                                                          │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
+
+## Display Trigger Configuration Schema
+
+### Data Attributes
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `data-trigger` | string | Trigger type: `delay`, `scroll`, `click` |
+| `data-delay` | number | Delay in milliseconds (for `delay` trigger) |
+| `data-scroll-depth` | number | Scroll percentage 0-100 (for `scroll` trigger) |
+| `data-click-selector` | string | CSS selector (for `click` trigger, modal only) |
+
+## Supported Triggers
+
+### 1. Manual (Default)
+
+User clicks a trigger button to open the form. This is the default when no `data-trigger` is specified.
+
+```html
+<div 
+  data-bloomsuite-form="abc123def456..."
+  data-display-mode="modal"
+  data-button-text="Contact Us"
+></div>
+```
+
+### 2. Delay Trigger
+
+Form opens automatically after a specified delay (milliseconds).
+
+```html
+<!-- Open modal after 3 seconds -->
+<div 
+  data-bloomsuite-form="abc123def456..."
+  data-display-mode="modal"
+  data-trigger="delay"
+  data-delay="3000"
+></div>
+
+<!-- Open slide-in after 5 seconds -->
+<div 
+  data-bloomsuite-form="abc123def456..."
+  data-display-mode="slide-in"
+  data-trigger="delay"
+  data-delay="5000"
+  data-form-title="Quick Question?"
+></div>
+```
+
+### 3. Scroll Depth Trigger
+
+Form opens when user scrolls past a percentage of the page.
+
+```html
+<!-- Open modal at 50% scroll -->
+<div 
+  data-bloomsuite-form="abc123def456..."
+  data-display-mode="modal"
+  data-trigger="scroll"
+  data-scroll-depth="50"
+></div>
+
+<!-- Open slide-in at 75% scroll -->
+<div 
+  data-bloomsuite-form="abc123def456..."
+  data-display-mode="slide-in"
+  data-trigger="scroll"
+  data-scroll-depth="75"
+  data-form-title="Before You Go..."
+></div>
+```
+
+### 4. Click Selector Trigger (Modal Only)
+
+Form opens when user clicks any element matching a CSS selector. **Only works with modal mode.**
+
+```html
+<!-- Open modal when clicking any .cta-button -->
+<div 
+  data-bloomsuite-form="abc123def456..."
+  data-display-mode="modal"
+  data-trigger="click"
+  data-click-selector=".cta-button"
+></div>
+
+<!-- Then anywhere on the page -->
+<button class="cta-button">Get Started</button>
+<a href="#" class="cta-button">Learn More</a>
+```
+
+## Trigger Logic Details
+
+### Evaluation Rules
+
+| Rule | Description |
+|------|-------------|
+| Client-side only | All trigger logic runs in browser JavaScript |
+| Single-fire | Each trigger fires at most once per page load |
+| No persistence | No cookies, localStorage, or server state (v1) |
+| No conditions | Simple triggers only, no complex AND/OR logic |
+
+### Trigger Behavior
+
+| Trigger | When It Fires | Cleanup |
+|---------|---------------|---------|
+| `delay` | After X ms from page load | Timeout cleared on destroy |
+| `scroll` | When scroll % ≥ threshold | Scroll listener removed on destroy |
+| `click` | When matching element clicked | Click listener removed on destroy |
+
+### Edge Cases
+
+- **Delay**: Fires even if user has scrolled or interacted
+- **Scroll**: Checks immediately on init (if already scrolled past threshold)
+- **Click**: Prevents default action on clicked element, bubbles up to check parent elements
 
 ## Supported Display Modes
 
@@ -81,25 +193,18 @@ Form opens in a panel sliding from the right edge.
 ></div>
 ```
 
-## Mode Selection Mechanism
+## Complete Attribute Reference
 
-Display mode is determined by the `data-display-mode` attribute:
-
-| Attribute Value | Mode | Behavior |
-|-----------------|------|----------|
-| (none) | inline | Form renders in place |
-| `inline` | inline | Form renders in place |
-| `modal` | modal | Trigger button + centered overlay |
-| `slide-in` | slide-in | Trigger button + right panel |
-
-### Attribute Reference
-
-| Attribute | Modes | Description |
-|-----------|-------|-------------|
-| `data-bloomsuite-form` | All | Required. The 32-char embed key |
-| `data-display-mode` | All | `inline`, `modal`, or `slide-in` |
-| `data-button-text` | modal, slide-in | Text for trigger button |
-| `data-form-title` | slide-in | Title in panel header |
+| Attribute | Type | Modes | Description |
+|-----------|------|-------|-------------|
+| `data-bloomsuite-form` | string | All | Required. 32-char embed key |
+| `data-display-mode` | string | All | `inline`, `modal`, or `slide-in` |
+| `data-button-text` | string | modal, slide-in | Text for manual trigger button |
+| `data-form-title` | string | slide-in | Title in panel header |
+| `data-trigger` | string | modal, slide-in | `delay`, `scroll`, or `click` |
+| `data-delay` | number | modal, slide-in | Delay in ms (for delay trigger) |
+| `data-scroll-depth` | number | modal, slide-in | Scroll % 0-100 (for scroll trigger) |
+| `data-click-selector` | string | modal only | CSS selector (for click trigger) |
 
 ## Implementation Details
 
