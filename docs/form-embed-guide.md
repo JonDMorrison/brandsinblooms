@@ -147,14 +147,14 @@ These are sent in the `meta` object:
 
 ## Content Security Policy (CSP)
 
-If your site uses a strict CSP, add these directives:
+BloomSuite forms are designed to work with strict CSP policies. The embed script loads an external CSS file from the same origin, avoiding the need for `'unsafe-inline'` styles.
 
-### Minimal CSP
+### Minimal CSP (Recommended)
 ```http
 Content-Security-Policy: 
   script-src 'self' https://forms.bloomsuite.com;
+  style-src 'self' https://forms.bloomsuite.com;
   connect-src 'self' https://api.bloomsuite.com;
-  style-src 'self' 'unsafe-inline';
 ```
 
 ### Detailed Breakdown
@@ -162,16 +162,38 @@ Content-Security-Policy:
 | Directive | Required Value | Why |
 |-----------|----------------|-----|
 | `script-src` | `https://forms.bloomsuite.com` | Load embed.js |
+| `style-src` | `https://forms.bloomsuite.com` | Load embed.css (external stylesheet) |
 | `connect-src` | `https://api.bloomsuite.com` | API calls to get-form-config and submit-form |
-| `style-src` | `'unsafe-inline'` | Injected scoped CSS styles |
 
-### Example with Nonce (stricter)
+> **Note**: `'unsafe-inline'` for styles is **NOT required**. The form loads styles from an external CSS file.
+
+### Fallback Mode
+
+If the external CSS fails to load (due to network issues or CSP blocking the stylesheet):
+1. The script attempts to inject minimal inline fallback styles
+2. If inline styles are also blocked, the form renders with browser default styling
+3. **Forms remain fully functional** in all cases
+
+### Example with Nonce (strictest)
 ```html
 <script nonce="abc123" src="https://forms.bloomsuite.com/embed.js"></script>
 ```
 
 ```http
-Content-Security-Policy: script-src 'nonce-abc123';
+Content-Security-Policy: 
+  script-src 'nonce-abc123';
+  style-src https://forms.bloomsuite.com;
+  connect-src https://api.bloomsuite.com;
+```
+
+### Self-Hosted CSP
+
+If self-hosting embed.js and embed.css on your domain:
+```http
+Content-Security-Policy: 
+  script-src 'self';
+  style-src 'self';
+  connect-src https://api.bloomsuite.com;
 ```
 
 ---
@@ -338,12 +360,19 @@ For production, configure a custom domain (e.g., `forms.bloomsuite.com`) pointin
 | URL | Description |
 |-----|-------------|
 | `https://forms.bloomsuite.com/embed.js` | Stable channel |
+| `https://forms.bloomsuite.com/embed.css` | External stylesheet |
 | `https://forms.bloomsuite.com/embed.v1.js` | Major version alias |
-| `https://forms.bloomsuite.com/embed.v1.0.0.js` | Pinned v1.0.0 |
+| `https://forms.bloomsuite.com/embed.v1.0.1.js` | Pinned v1.0.1 |
 
 ---
 
 ## Changelog
+
+### v1.0.1 (2026-01-28)
+- **CSP-friendly**: Moved styles to external `embed.css` file
+- No longer requires `'unsafe-inline'` in style-src directive
+- Added fallback mode for environments where CSS fails to load
+- Forms remain functional with browser default styling in strictest CSP environments
 
 ### v1.0.0 (2026-01-28)
 - Initial release
