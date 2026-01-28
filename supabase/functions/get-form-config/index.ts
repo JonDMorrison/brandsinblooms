@@ -1,10 +1,32 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
+// ─── CORS Headers (hardened for public embed access) ───────────────────────
+// These headers are included in ALL responses (success, error, 404, 429, etc.)
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
   'Access-Control-Allow-Methods': 'GET, OPTIONS',
-};
+  'Access-Control-Allow-Headers': 'content-type',
+  'Access-Control-Max-Age': '86400', // Cache preflight for 24 hours
+} as const;
+
+/**
+ * Create a JSON response with CORS headers.
+ * IMPORTANT: All responses MUST use this helper to ensure CORS headers are always included.
+ */
+function jsonResponse(
+  body: Record<string, unknown>,
+  status: number,
+  extraHeaders: Record<string, string> = {}
+): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: {
+      ...corsHeaders,
+      'Content-Type': 'application/json',
+      ...extraHeaders,
+    },
+  });
+}
 
 // ─── In-Memory Rate Limiting ───────────────────────────────────────────────
 // Lightweight first-layer protection (per IP, resets on cold start)
@@ -87,17 +109,17 @@ function hashString(str: string): number {
 
 // ─── Main Handler ──────────────────────────────────────────────────────────
 Deno.serve(async (req) => {
-  // Handle CORS preflight
+  // Handle CORS preflight - must include all CORS headers
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { 
+      status: 204,
+      headers: corsHeaders 
+    });
   }
 
   // Only allow GET requests
   if (req.method !== 'GET') {
-    return new Response(
-      JSON.stringify({ error: 'Method not allowed' }),
-      { status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return jsonResponse({ error: 'Method not allowed' }, 405);
   }
 
   try {
@@ -107,16 +129,10 @@ Deno.serve(async (req) => {
     if (isRateLimited(clientIP)) {
       // Log rate limit hit without PII
       console.log(`[get-form-config] Rate limit exceeded for IP hash: ${hashString(clientIP).toString(16)}`);
-      return new Response(
-        JSON.stringify({ error: 'Too many requests. Please try again later.' }),
-        { 
-          status: 429, 
-          headers: { 
-            ...corsHeaders, 
-            'Content-Type': 'application/json',
-            'Retry-After': '60'
-          } 
-        }
+      return jsonResponse(
+        { error: 'Too many requests. Please try again later.' },
+        429,
+        { 'Retry-After': '60' }
       );
     }
 
@@ -126,10 +142,7 @@ Deno.serve(async (req) => {
 
     const validation = validateEmbedKey(embedKey);
     if (!validation.valid) {
-      return new Response(
-        JSON.stringify({ error: validation.error }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return jsonResponse({ error: validation.error }, 400);
     }
 
     // ─── Step 3: Fetch form from database ──────────────────────────────────
@@ -147,19 +160,13 @@ Deno.serve(async (req) => {
     // ─── Step 4: Validate form exists and is published ─────────────────────
     if (error) {
       console.error('[get-form-config] Database error:', error.message);
-      return new Response(
-        JSON.stringify({ error: 'Internal server error' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return jsonResponse({ error: 'Internal server error' }, 500);
     }
 
     if (!form) {
       // Log without exposing the embed_key (just first 8 chars for debugging)
       console.log(`[get-form-config] Form not found: ${embedKey!.slice(0, 8)}...`);
-      return new Response(
-        JSON.stringify({ error: 'Form not found' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return jsonResponse({ error: 'Form not found' }, 404);
     }
 
     // Check if form has a status field and validate it
@@ -172,10 +179,7 @@ Deno.serve(async (req) => {
 
     if (statusError || !statusCheck || statusCheck.status !== 'published') {
       console.log(`[get-form-config] Form not published: ${embedKey!.slice(0, 8)}...`);
-      return new Response(
-        JSON.stringify({ error: 'Form not found' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return jsonResponse({ error: 'Form not found' }, 404);
     }
 
     // ─── Step 5: Build audience_json from related tables ───────────────────
@@ -199,7 +203,7 @@ Deno.serve(async (req) => {
 
     // ─── Step 6: Build response (SANITIZED - no secrets, no PII) ────────────
     // SECURITY: All output is filtered through explicit allowlists
-    const response = {
+    const responseData = {
       form_id: form.id,
       fields_json: form.fields_json, // Fields define form structure, no secrets
       settings_json: sanitizeSettings(form.settings_json),
@@ -208,24 +212,11 @@ Deno.serve(async (req) => {
       // Persona/tag assignments happen server-side in submit-form
     };
 
-    return new Response(
-      JSON.stringify(response),
-      { 
-        status: 200,
-        headers: { 
-          ...corsHeaders, 
-          'Content-Type': 'application/json',
-          'Cache-Control': 'public, max-age=60', // Cache for 1 minute
-        } 
-      }
-    );
+    return jsonResponse(responseData, 200, { 'Cache-Control': 'public, max-age=60' });
 
   } catch (error) {
     console.error('[get-form-config] Unexpected error:', (error as Error).message);
-    return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return jsonResponse({ error: 'Internal server error' }, 500);
   }
 });
 
