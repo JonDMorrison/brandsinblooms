@@ -6,39 +6,44 @@ import type {
 import { cn } from "@/lib/utils";
 
 function renderPart(part: ActivityDescriptionPart, idx: number) {
-  if (part.type === "text") {
-    return <span key={idx}>{part.text}</span>;
+  if (part.type === "text" && "text" in part) {
+    return <span key={idx}>{String(part.text)}</span>;
   }
 
-  if (part.type === "link") {
+  if (part.type === "link" && "href" in part && "text" in part) {
+    const href = String(part.href);
+    const text = String(part.text);
+    const target = "target" in part ? String(part.target) : "_self";
     return (
       <a
         key={idx}
-        href={part.href}
-        target={part.target ?? "_self"}
-        rel={part.target === "_blank" ? "noreferrer" : undefined}
+        href={href}
+        target={target as "_self" | "_blank" | "_parent" | "_top"}
+        rel={target === "_blank" ? "noreferrer" : undefined}
         className="text-brand-teal hover:underline"
       >
-        {part.text}
+        {text}
       </a>
     );
   }
 
-  if (part.type === "mention") {
-    if (part.href) {
+  if (part.type === "mention" && "label" in part) {
+    const label = String(part.label);
+    const href = "href" in part ? String(part.href) : undefined;
+    if (href) {
       return (
         <a
           key={idx}
-          href={part.href}
+          href={href}
           className="text-brand-teal hover:underline"
         >
-          {part.label}
+          {label}
         </a>
       );
     }
     return (
       <span key={idx} className="font-medium">
-        {part.label}
+        {label}
       </span>
     );
   }
