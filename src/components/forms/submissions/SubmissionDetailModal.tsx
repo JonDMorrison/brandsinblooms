@@ -31,7 +31,7 @@ interface SubmissionDetailModalProps {
   onOpenChange: (open: boolean) => void;
 }
 
-type SubmissionResult = 'accepted' | 'rejected_invalid' | 'rejected_rate_limited' | 'rejected_spam';
+import { SubmissionResult } from '@/types/formBuilder';
 
 const resultConfig: Record<SubmissionResult, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline'; icon: React.ReactNode; color: string }> = {
   accepted: { 
@@ -40,22 +40,10 @@ const resultConfig: Record<SubmissionResult, { label: string; variant: 'default'
     icon: <CheckCircle className="h-4 w-4" />,
     color: 'text-green-600'
   },
-  rejected_invalid: { 
-    label: 'Invalid', 
+  rejected: { 
+    label: 'Rejected', 
     variant: 'destructive', 
     icon: <XCircle className="h-4 w-4" />,
-    color: 'text-destructive'
-  },
-  rejected_rate_limited: { 
-    label: 'Rate Limited', 
-    variant: 'secondary', 
-    icon: <Clock className="h-4 w-4" />,
-    color: 'text-yellow-600'
-  },
-  rejected_spam: { 
-    label: 'Spam Detected', 
-    variant: 'destructive', 
-    icon: <Bot className="h-4 w-4" />,
     color: 'text-destructive'
   },
 };
@@ -63,8 +51,8 @@ const resultConfig: Record<SubmissionResult, { label: string; variant: 'default'
 export function SubmissionDetailModal({ submission, open, onOpenChange }: SubmissionDetailModalProps) {
   if (!submission) return null;
 
-  const resultInfo = resultConfig[submission.result] || resultConfig.rejected_invalid;
-  const metadata = submission.metadata || {};
+  const resultInfo = resultConfig[submission.result] || resultConfig.rejected;
+  const metadata = submission.metadata || {} as Partial<FormSubmissionMetadata>;
   const data = submission.data || {};
 
   return (

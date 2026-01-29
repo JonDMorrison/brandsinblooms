@@ -19,14 +19,17 @@ interface FormSubmittedEvent {
   // Timing
   timestamp: string;       // ISO 8601 timestamp of submission
 
-  // Consent snapshot (immutable record of what was agreed to)
+  // Consent snapshot (immutable record using CANONICAL keys)
   consent: {
-    email_consent: boolean;
-    email_consent_text: string | null;
-    email_consent_at: string | null;  // ISO 8601
-    sms_consent: boolean;
-    sms_consent_text: string | null;
-    sms_consent_at: string | null;    // ISO 8601
+    // ─── CANONICAL EMAIL CONSENT KEYS ───
+    email_consent: boolean;           // Whether consent was given
+    email_consent_text: string | null; // Verbatim consent text shown
+    email_consent_at: string | null;  // ISO 8601 timestamp
+    
+    // ─── CANONICAL SMS CONSENT KEYS ───
+    sms_consent: boolean;             // Whether consent was given
+    sms_consent_text: string | null;  // Verbatim consent text shown
+    sms_consent_at: string | null;    // ISO 8601 timestamp
   };
 
   // Attribution (optional)
@@ -34,6 +37,8 @@ interface FormSubmittedEvent {
   page_url: string | null;
 }
 ```
+
+> **Note:** The consent snapshot uses CANONICAL key names as defined in `docs/phase-3-canonical-semantics.md`
 
 ---
 

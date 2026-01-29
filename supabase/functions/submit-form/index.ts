@@ -332,6 +332,19 @@ function extractMappedValues(
 }
 
 /**
+ * Canonical result values:
+ * - accepted: Submission processed successfully
+ * - rejected: Submission failed (rejection details in reason + metadata.rejection_type)
+ * 
+ * rejection_type values (stored in metadata.rejection_type):
+ * - invalid: Validation errors
+ * - rate_limited: Rate limit exceeded
+ * - spam: Spam detected
+ */
+type CanonicalResult = 'accepted' | 'rejected';
+type RejectionType = 'invalid' | 'rate_limited' | 'spam';
+
+/**
  * Record submission to form_submissions table
  */
 async function recordSubmission(
@@ -343,17 +356,23 @@ async function recordSubmission(
     data: Record<string, unknown>;
     metadata: Record<string, unknown>;
     ipHash: string;
-    result: 'accepted' | 'rejected_invalid' | 'rejected_rate_limited' | 'rejected_spam';
+    result: CanonicalResult;
+    rejectionType?: RejectionType;
     reason?: string;
   }
 ): Promise<void> {
   try {
+    // Add rejection_type to metadata if present
+    const fullMetadata = params.rejectionType 
+      ? { ...params.metadata, rejection_type: params.rejectionType }
+      : params.metadata;
+
     await supabase.from('form_submissions').insert({
       tenant_id: params.tenantId,
       form_id: params.formId,
       customer_id: params.customerId || null,
       data: params.data,
-      metadata: params.metadata,
+      metadata: fullMetadata,
       ip_hash: params.ipHash,
       result: params.result,
       reason: params.reason || null,
@@ -449,7 +468,8 @@ Deno.serve(async (req) => {
         data: submissionData,
         metadata: submissionMeta,
         ipHash,
-        result: 'rejected_rate_limited',
+        result: 'rejected',
+        rejectionType: 'rate_limited',
         reason: rateLimitResult.reason,
       });
 
@@ -466,7 +486,8 @@ Deno.serve(async (req) => {
         data: submissionData,
         metadata: submissionMeta,
         ipHash,
-        result: 'rejected_spam',
+        result: 'rejected',
+        rejectionType: 'spam',
         reason: 'Spam detected (honeypot)',
       });
 
@@ -483,7 +504,8 @@ Deno.serve(async (req) => {
         data: submissionData,
         metadata: submissionMeta,
         ipHash,
-        result: 'rejected_invalid',
+        result: 'rejected',
+        rejectionType: 'invalid',
         reason: fieldValidation.errors.join('; '),
       });
 
@@ -499,7 +521,8 @@ Deno.serve(async (req) => {
         data: submissionData,
         metadata: submissionMeta,
         ipHash,
-        result: 'rejected_invalid',
+        result: 'rejected',
+        rejectionType: 'invalid',
         reason: consentValidation.errors.join('; '),
       });
 
@@ -520,7 +543,8 @@ Deno.serve(async (req) => {
         data: submissionData,
         metadata: submissionMeta,
         ipHash,
-        result: 'rejected_invalid',
+        result: 'rejected',
+        rejectionType: 'invalid',
         reason: 'Email is required',
       });
 

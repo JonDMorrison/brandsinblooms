@@ -118,6 +118,76 @@ After 3 failed attempts:
 2. Execution logged with `status: 'failed'`, `failure_reason: 'max_retries_exceeded'`
 3. No further automatic processing
 
+---
+
+## Worker Idempotency — Atomic Claim Pattern
+
+The `process-form-submitted` worker uses an atomic claim pattern to prevent double-processing:
+
+### Mechanism
+
+```sql
+-- claim_trigger_events RPC function uses FOR UPDATE SKIP LOCKED
+UPDATE automation_trigger_events
+SET claimed_at = NOW()
+WHERE id IN (
+  SELECT id FROM automation_trigger_events
+  WHERE event_type = 'form_submitted'
+    AND processed_at IS NULL
+    AND claimed_at IS NULL
+    AND retry_count < max_retries
+  ORDER BY created_at ASC
+  FOR UPDATE SKIP LOCKED
+  LIMIT 100
+)
+RETURNING *;
+```
+
+### Key Columns
+
+| Column | Purpose |
+|--------|---------|
+| `claimed_at` | When a worker claimed the event |
+| `processed_at` | When processing completed |
+| `retry_count` | Number of failed attempts |
+
+### How It Prevents Duplicates
+
+1. **Atomic Claim**: `FOR UPDATE SKIP LOCKED` ensures only one worker can claim each event
+2. **Claimed vs Processed**: Events remain claimed until `processed_at` is set
+3. **Stale Recovery**: Claims older than 15 min can be released via `release_stale_claims()`
+
+### Duplicate Prevention for Outbox
+
+The worker ONLY inserts to `crm_outbox` after successful claim. If the worker crashes:
+- Event remains claimed but not processed
+- After 15 min, `release_stale_claims()` releases it
+- Next worker can re-claim and retry
+
+### Unique Index Protection
+
+Duplicate events are also prevented by unique indexes:
+
+```sql
+-- (submission_id, automation_id) must be unique
+idx_automation_trigger_events_submission_automation_unique
+
+-- (form_id, submission_id) must be unique
+idx_automation_trigger_events_form_submission_unique
+```
+
+### Verification Query
+
+```sql
+-- Check for any duplicate processing
+SELECT submission_id, automation_id, COUNT(*)
+FROM automation_trigger_events
+WHERE event_type = 'form_submitted'
+GROUP BY submission_id, automation_id
+HAVING COUNT(*) > 1;
+-- Should return 0 rows
+```
+
 ## Support Tracing Guide
 
 ### Trace a Specific Form Submission
