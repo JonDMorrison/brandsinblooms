@@ -1,20 +1,21 @@
-import React, { useState } from 'react';
-import { useParams } from 'react-router-dom';
-import { CustomerDashboardLayout } from '@/components/crm/customer-dashboard/CustomerDashboardLayout';
-import { CustomerSnapshot } from '@/components/crm/customer-dashboard/CustomerSnapshot';
-import { EngagementHealthOverview } from '@/components/crm/customer-dashboard/EngagementHealthOverview';
-import { CustomerEventTimeline } from '@/components/crm/customer-dashboard/CustomerEventTimeline';
-import { ChannelDeepDive } from '@/components/crm/customer-dashboard/ChannelDeepDive';
-import { CrossChannelIntelligence } from '@/components/crm/customer-dashboard/CrossChannelIntelligence';
-import { PurchaseValueBehavior } from '@/components/crm/customer-dashboard/PurchaseValueBehavior';
-import { LoyaltyIncentivesImpact } from '@/components/crm/customer-dashboard/LoyaltyIncentivesImpact';
-import { RiskNegativeSignals } from '@/components/crm/customer-dashboard/RiskNegativeSignals';
-import { AIInsightsActions } from '@/components/crm/customer-dashboard/AIInsightsActions';
-import { EditCustomerDialog } from '@/components/crm/customer-dashboard/EditCustomerDialog';
-import { Skeleton } from '@/components/ui/skeleton';
-import { AlertCircle, RefreshCw } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { useCustomerDashboard } from '@/hooks/useCustomerDashboard';
+import React, { useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { CustomerDashboardLayout } from "@/components/crm/customer-dashboard/CustomerDashboardLayout";
+import { CustomerSnapshot } from "@/components/crm/customer-dashboard/CustomerSnapshot";
+import { EngagementHealthOverview } from "@/components/crm/customer-dashboard/EngagementHealthOverview";
+import { CustomerEventTimeline } from "@/components/crm/customer-dashboard/CustomerEventTimeline";
+import { CustomerActivityPanel } from "@/components/activity/CustomerActivityPanel";
+import { ChannelDeepDive } from "@/components/crm/customer-dashboard/ChannelDeepDive";
+import { CrossChannelIntelligence } from "@/components/crm/customer-dashboard/CrossChannelIntelligence";
+import { PurchaseValueBehavior } from "@/components/crm/customer-dashboard/PurchaseValueBehavior";
+import { LoyaltyIncentivesImpact } from "@/components/crm/customer-dashboard/LoyaltyIncentivesImpact";
+import { RiskNegativeSignals } from "@/components/crm/customer-dashboard/RiskNegativeSignals";
+import { AIInsightsActions } from "@/components/crm/customer-dashboard/AIInsightsActions";
+import { EditCustomerDialog } from "@/components/crm/customer-dashboard/EditCustomerDialog";
+import { Skeleton } from "@/components/ui/skeleton";
+import { AlertCircle, RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useCustomerDashboard } from "@/hooks/useCustomerDashboard";
 import {
   transformToSnapshotMetrics,
   transformToCustomerBasicInfo,
@@ -27,11 +28,14 @@ import {
   transformToRiskMetrics,
   transformToRecentRiskEvents,
   transformToTimelineEvents,
-} from '@/lib/customerDashboardTransformers';
+} from "@/lib/customerDashboardTransformers";
 
 const CustomerDashboardPage: React.FC = () => {
   const { customerId } = useParams<{ customerId: string }>();
-  const [timeRange, setTimeRange] = useState<'7d' | '30d' | '90d' | 'lifetime'>('30d');
+  const navigate = useNavigate();
+  const [timeRange, setTimeRange] = useState<"7d" | "30d" | "90d" | "lifetime">(
+    "30d",
+  );
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
   const {
@@ -62,14 +66,36 @@ const CustomerDashboardPage: React.FC = () => {
   } = useCustomerDashboard(customerId);
 
   // Transform data for components
-  const customerInfo = transformToCustomerBasicInfo(customer, lifecycleMetrics ?? null);
-  const snapshotMetrics = transformToSnapshotMetrics(customer, lifecycleMetrics ?? null, contentIntentMetrics ?? null, crossChannelMetrics ?? null);
-  const engagementMetrics = transformToEngagementMetrics(customer, crossChannelMetrics ?? null, lifecycleMetrics ?? null);
+  const customerInfo = transformToCustomerBasicInfo(
+    customer,
+    lifecycleMetrics ?? null,
+  );
+  const snapshotMetrics = transformToSnapshotMetrics(
+    customer,
+    lifecycleMetrics ?? null,
+    contentIntentMetrics ?? null,
+    crossChannelMetrics ?? null,
+  );
+  const engagementMetrics = transformToEngagementMetrics(
+    customer,
+    crossChannelMetrics ?? null,
+    lifecycleMetrics ?? null,
+  );
   const emailMetrics = transformToEmailMetrics(customer);
   const smsMetrics = transformToSmsMetrics(customer);
-  const crossChannelDisplayMetrics = transformToCrossChannelMetrics(crossChannelMetrics ?? null, customer, loyaltyMetrics ?? null);
-  const purchaseDisplayMetrics = transformToPurchaseMetrics(purchaseMetrics ?? null, postPurchaseMetrics ?? null);
-  const loyaltyDisplayMetrics = transformToLoyaltyMetrics(loyaltyMetrics ?? null, purchaseMetrics ?? null);
+  const crossChannelDisplayMetrics = transformToCrossChannelMetrics(
+    crossChannelMetrics ?? null,
+    customer,
+    loyaltyMetrics ?? null,
+  );
+  const purchaseDisplayMetrics = transformToPurchaseMetrics(
+    purchaseMetrics ?? null,
+    postPurchaseMetrics ?? null,
+  );
+  const loyaltyDisplayMetrics = transformToLoyaltyMetrics(
+    loyaltyMetrics ?? null,
+    purchaseMetrics ?? null,
+  );
   const riskDisplayMetrics = transformToRiskMetrics(riskSignals ?? null);
   const recentRiskEvents = transformToRecentRiskEvents(negativeEvents);
   const timelineDisplayEvents = transformToTimelineEvents(timelineEvents);
@@ -93,9 +119,11 @@ const CustomerDashboardPage: React.FC = () => {
       <CustomerDashboardLayout customerName="Customer Not Found">
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <AlertCircle className="h-16 w-16 text-muted-foreground mb-4" />
-          <h2 className="text-xl font-semibold mb-2">Unable to load customer data</h2>
+          <h2 className="text-xl font-semibold mb-2">
+            Unable to load customer data
+          </h2>
           <p className="text-muted-foreground mb-6 max-w-md">
-            {hasError 
+            {hasError
               ? "There was an error loading the customer data. Please try again."
               : "The customer you're looking for could not be found."}
           </p>
@@ -108,7 +136,7 @@ const CustomerDashboardPage: React.FC = () => {
     );
   }
 
-  const customerName = customerInfo?.name || customer.email.split('@')[0];
+  const customerName = customerInfo?.name || customer.email.split("@")[0];
 
   return (
     <>
@@ -118,6 +146,10 @@ const CustomerDashboardPage: React.FC = () => {
         selectedTimeRange={timeRange}
         onTimeRangeChange={setTimeRange}
         onEditCustomer={() => setIsEditDialogOpen(true)}
+        onViewActivityLog={() => {
+          if (!customerId) return;
+          navigate(`/activity?customer=${customerId}`);
+        }}
       >
         {/* 1. Customer Snapshot (Header) */}
         <CustomerSnapshot
@@ -126,7 +158,7 @@ const CustomerDashboardPage: React.FC = () => {
             name: customerName,
             email: customer.email,
             phone: customer.phone || undefined,
-            lifecycle_stage: lifecycleMetrics?.lifecycle_stage || 'New',
+            lifecycle_stage: lifecycleMetrics?.lifecycle_stage || "New",
             created_at: customer.created_at,
           }}
           metrics={snapshotMetrics}
@@ -135,7 +167,7 @@ const CustomerDashboardPage: React.FC = () => {
         {/* 2. Engagement Health Overview */}
         <EngagementHealthOverview
           metrics={engagementMetrics}
-          timelineData={engagementTimeline.map(d => ({
+          timelineData={engagementTimeline.map((d) => ({
             date: d.date,
             engagement: d.engagement,
           }))}
@@ -146,6 +178,9 @@ const CustomerDashboardPage: React.FC = () => {
           events={timelineDisplayEvents}
           hasMore={timelineEvents.length >= 50}
         />
+
+        {/* Activity Center (customer-scoped) */}
+        {customerId ? <CustomerActivityPanel customerId={customerId} /> : null}
 
         {/* 4. Channel Deep Dive */}
         <ChannelDeepDive
@@ -168,9 +203,7 @@ const CustomerDashboardPage: React.FC = () => {
         />
 
         {/* 7. Loyalty & Incentives Impact */}
-        <LoyaltyIncentivesImpact
-          metrics={loyaltyDisplayMetrics}
-        />
+        <LoyaltyIncentivesImpact metrics={loyaltyDisplayMetrics} />
 
         {/* 8. Risk & Negative Signals */}
         <RiskNegativeSignals

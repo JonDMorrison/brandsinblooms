@@ -62,7 +62,7 @@ public/forms/test-harness.html
    ```bash
    # Using npx serve
    npx serve public/forms
-   
+
    # Or Python
    cd public/forms && python -m http.server 8000
    ```
@@ -253,12 +253,12 @@ var escHandler = function(e) {
   if (e.key === 'Escape') {
     // Check modal is open
     if (!overlay.classList.contains(CSS_PREFIX + 'open')) return;
-    
+
     // Check focus is inside the modal OR on body (focus lost)
     var activeEl = document.activeElement;
     var focusInside = isElementInsideContainer(activeEl, overlay);
     var focusOnBody = activeEl === document.body || activeEl === document.documentElement;
-    
+
     if (focusInside || focusOnBody) {
       e.preventDefault();
       e.stopPropagation();
@@ -315,9 +315,9 @@ descEl.id = panelId + '-desc';    // ← Real element
 ```javascript
 function createFocusTrap(container, closeCallback) {
   var previousActiveElement = document.activeElement;  // ← Captured on open
-  
+
   // ... trap logic ...
-  
+
   return function cleanup() {
     // Restore focus to previous element (the trigger)
     if (previousActiveElement && typeof previousActiveElement.focus === 'function') {
@@ -379,7 +379,7 @@ function unlockBodyScroll() {
 // Modal overlay
 overlay.style.zIndex = '2147483640';  // Near max 32-bit signed int
 
-// Slide-in panel  
+// Slide-in panel
 overlay.style.zIndex = '2147483640';
 panel.style.zIndex = '2147483641';  // Panel above overlay
 ```

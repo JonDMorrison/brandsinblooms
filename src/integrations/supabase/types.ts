@@ -13666,6 +13666,39 @@ export type Database = {
           total_revenue: number
         }[]
       }
+      get_activity_feed: {
+        Args: {
+          p_customer_id?: string
+          p_limit?: number
+          p_offset?: number
+          p_search?: string
+          p_status?: string[]
+          p_actor_types?: string[]
+          p_sources?: string[]
+          p_activity_types?: string[]
+          p_start?: string
+          p_end?: string
+          p_segment_ids?: string[]
+          p_persona_ids?: string[]
+        }
+        Returns: {
+          id: string
+          timestamp: string
+          customer_id: string | null
+          actor_type: string
+          actor_id: string | null
+          source: string
+          integration_name: string | null
+          activity_type: string
+          status: string
+          title: string
+          description: Json
+          metadata: Json
+          related_entities: Json
+          links: Json
+          error_message: string | null
+        }[]
+      }
       get_customer_unified_timeline: {
         Args: {
           p_customer_id: string

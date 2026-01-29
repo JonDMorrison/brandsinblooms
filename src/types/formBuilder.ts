@@ -1,13 +1,13 @@
 // Form Builder Types
 
-export type FormFieldType = 
-  | 'email' 
-  | 'text' 
-  | 'phone' 
-  | 'select' 
-  | 'checkbox' 
-  | 'hidden' 
-  | 'email_consent' 
+export type FormFieldType =
+  | 'email'
+  | 'text'
+  | 'phone'
+  | 'select'
+  | 'checkbox'
+  | 'hidden'
+  | 'email_consent'
   | 'sms_consent';
 
 export interface FormFieldRules {
@@ -79,7 +79,7 @@ export interface Form {
  * Canonical result semantics:
  * - accepted: Submission processed successfully
  * - rejected: Submission failed (see reason + metadata.rejection_type for details)
- * 
+ *
  * rejection_type values (stored in metadata.rejection_type):
  * - invalid: Validation errors
  * - rate_limited: Rate limit exceeded
@@ -113,30 +113,30 @@ export interface FormSubmissionMetadata {
   utm_medium?: string;
   utm_campaign?: string;
   user_agent?: string;
-  
+
   // Form identification
   form_embed_key?: string;
   form_id?: string;
   consent_source?: string;
-  
+
   // Submission timestamp
   submitted_at?: string;
-  
+
   // ─── CANONICAL EMAIL CONSENT KEYS ───
   email_consent: boolean;           // Whether consent was given
   email_consent_text?: string;      // Verbatim consent text shown
   email_consent_at?: string;        // ISO 8601 timestamp when consent given
   email_consent_required?: boolean; // Whether consent was required
-  
+
   // ─── CANONICAL SMS CONSENT KEYS ───
   sms_consent: boolean;             // Whether consent was given
   sms_consent_text?: string;        // Verbatim consent text shown
   sms_consent_at?: string;          // ISO 8601 timestamp when consent given
   sms_consent_required?: boolean;   // Whether consent was required
-  
+
   // ─── REJECTION DETAILS (for rejected submissions) ───
   rejection_type?: RejectionType;   // invalid | rate_limited | spam
-  
+
   // ─── AUDIENCE PROCESSING ───
   audience_processing?: {
     personas_requested?: number;
@@ -146,7 +146,7 @@ export interface FormSubmissionMetadata {
     segments_left?: string[] | null;
     processed_at?: string;
   };
-  
+
   // Debug info (error codes only, no PII)
   debug?: Record<string, unknown>;
 }

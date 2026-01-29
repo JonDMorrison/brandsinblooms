@@ -1,13 +1,13 @@
-import React, { useState } from 'react';
-import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, Edit, Trash2 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import { ActionMenu, ActionMenuItem } from '@/components/ui/action-menu';
-import { useToast } from '@/hooks/use-toast';
+import React, { useState } from "react";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Activity, ArrowLeft, Edit, Trash2 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { ActionMenu, ActionMenuItem } from "@/components/ui/action-menu";
+import { useToast } from "@/hooks/use-toast";
 
-type TimeRange = '7d' | '30d' | '90d' | 'lifetime';
+type TimeRange = "7d" | "30d" | "90d" | "lifetime";
 
 interface CustomerDashboardLayoutProps {
   children: React.ReactNode;
@@ -25,12 +25,14 @@ interface CustomerDashboardLayoutProps {
   onExportReport?: () => void;
 }
 
-export const CustomerDashboardLayout: React.FC<CustomerDashboardLayoutProps> = ({
+export const CustomerDashboardLayout: React.FC<
+  CustomerDashboardLayoutProps
+> = ({
   children,
   customerName,
   customerId,
   onTimeRangeChange,
-  selectedTimeRange = '30d',
+  selectedTimeRange = "30d",
   className,
   onEditCustomer,
   onSendEmail,
@@ -54,8 +56,8 @@ export const CustomerDashboardLayout: React.FC<CustomerDashboardLayoutProps> = (
       onExportReport();
     } else {
       toast({
-        title: 'Export Started',
-        description: `Exporting report for ${customerName || 'customer'}...`,
+        title: "Export Started",
+        description: `Exporting report for ${customerName || "customer"}...`,
       });
     }
   };
@@ -65,8 +67,8 @@ export const CustomerDashboardLayout: React.FC<CustomerDashboardLayoutProps> = (
       onEditCustomer();
     } else {
       toast({
-        title: 'Edit Customer',
-        description: 'Edit functionality coming soon.',
+        title: "Edit Customer",
+        description: "Edit functionality coming soon.",
       });
     }
   };
@@ -76,8 +78,8 @@ export const CustomerDashboardLayout: React.FC<CustomerDashboardLayoutProps> = (
       onSendEmail();
     } else {
       toast({
-        title: 'Send Email',
-        description: 'Email functionality coming soon.',
+        title: "Send Email",
+        description: "Email functionality coming soon.",
       });
     }
   };
@@ -87,8 +89,8 @@ export const CustomerDashboardLayout: React.FC<CustomerDashboardLayoutProps> = (
       onSendSMS();
     } else {
       toast({
-        title: 'Send SMS',
-        description: 'SMS functionality coming soon.',
+        title: "Send SMS",
+        description: "SMS functionality coming soon.",
       });
     }
   };
@@ -98,8 +100,8 @@ export const CustomerDashboardLayout: React.FC<CustomerDashboardLayoutProps> = (
       onViewActivityLog();
     } else {
       toast({
-        title: 'Activity Log',
-        description: 'Scrolling to activity section.',
+        title: "Activity Log",
+        description: "Scrolling to activity section.",
       });
     }
   };
@@ -109,8 +111,8 @@ export const CustomerDashboardLayout: React.FC<CustomerDashboardLayoutProps> = (
       onAddNote();
     } else {
       toast({
-        title: 'Add Note',
-        description: 'Note functionality coming soon.',
+        title: "Add Note",
+        description: "Note functionality coming soon.",
       });
     }
   };
@@ -120,30 +122,31 @@ export const CustomerDashboardLayout: React.FC<CustomerDashboardLayoutProps> = (
       onDeleteCustomer();
     } else {
       toast({
-        title: 'Customer Deleted',
-        description: `${customerName || 'Customer'} has been deleted.`,
-        variant: 'destructive',
+        title: "Customer Deleted",
+        description: `${customerName || "Customer"} has been deleted.`,
+        variant: "destructive",
       });
-      navigate('/crm/customers');
+      navigate("/crm/customers");
     }
   };
 
   const menuItems: ActionMenuItem[] = [
-    { label: 'Edit Customer', icon: Edit, onClick: handleEdit },
+    { label: "Activity Log", icon: Activity, onClick: handleViewActivityLog },
+    { label: "Edit Customer", icon: Edit, onClick: handleEdit },
     {
-      label: 'Delete Customer',
+      label: "Delete Customer",
       icon: Trash2,
-      variant: 'destructive',
+      variant: "destructive",
       requiresConfirmation: true,
-      confirmationTitle: 'Delete Customer',
-      confirmationDescription: `Are you sure you want to delete ${customerName || 'this customer'}? This action cannot be undone.`,
-      confirmationActionLabel: 'Delete',
+      confirmationTitle: "Delete Customer",
+      confirmationDescription: `Are you sure you want to delete ${customerName || "this customer"}? This action cannot be undone.`,
+      confirmationActionLabel: "Delete",
       onClick: handleDeleteCustomer,
     },
   ];
 
   return (
-    <div className={cn('min-h-screen bg-background', className)}>
+    <div className={cn("min-h-screen bg-background", className)}>
       {/* Sticky Header */}
       <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -153,7 +156,7 @@ export const CustomerDashboardLayout: React.FC<CustomerDashboardLayoutProps> = (
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => navigate('/crm/customers')}
+                onClick={() => navigate("/crm/customers")}
                 className="gap-1.5"
               >
                 <ArrowLeft className="h-4 w-4" />
@@ -177,18 +180,22 @@ export const CustomerDashboardLayout: React.FC<CustomerDashboardLayoutProps> = (
                 className="hidden sm:block"
               >
                 <TabsList className="h-8">
-                  <TabsTrigger value="7d" className="text-xs px-2.5">7d</TabsTrigger>
-                  <TabsTrigger value="30d" className="text-xs px-2.5">30d</TabsTrigger>
-                  <TabsTrigger value="90d" className="text-xs px-2.5">90d</TabsTrigger>
-                  <TabsTrigger value="lifetime" className="text-xs px-2.5">All</TabsTrigger>
+                  <TabsTrigger value="7d" className="text-xs px-2.5">
+                    7d
+                  </TabsTrigger>
+                  <TabsTrigger value="30d" className="text-xs px-2.5">
+                    30d
+                  </TabsTrigger>
+                  <TabsTrigger value="90d" className="text-xs px-2.5">
+                    90d
+                  </TabsTrigger>
+                  <TabsTrigger value="lifetime" className="text-xs px-2.5">
+                    All
+                  </TabsTrigger>
                 </TabsList>
               </Tabs>
 
-              <ActionMenu
-                items={menuItems}
-                trigger="horizontal"
-                align="end"
-              />
+              <ActionMenu items={menuItems} trigger="horizontal" align="end" />
             </div>
           </div>
         </div>
@@ -196,9 +203,7 @@ export const CustomerDashboardLayout: React.FC<CustomerDashboardLayoutProps> = (
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="space-y-6">
-          {children}
-        </div>
+        <div className="space-y-6">{children}</div>
       </main>
     </div>
   );

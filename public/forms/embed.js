@@ -1,6 +1,6 @@
 /**
  * BloomSuite Forms Embed Script v1.4.0
- * 
+ *
  * Features:
  * - No iframe (inline rendering)
  * - Scoped CSS with bs-form- prefix (external CSS file)
@@ -14,26 +14,29 @@
  * - Display triggers: delay, scroll depth, click selector
  * - MutationObserver for late-loaded containers
  * - Fail-loud UI with diagnostic debug mode
- * 
+ *
  * Browser Support: Chrome 60+, Firefox 55+, Safari 11+, Edge 79+
  */
-(function(window, document) {
+(function (window, document) {
   'use strict';
 
   // ─── Configuration ───────────────────────────────────────────────────────
   var API_BASE = window.BLOOMSUITE_API_BASE || 'https://udldmkqwnxhdeztyqcau.supabase.co/functions/v1';
+  var SCRIPT_VERSION = '1.2.0';
+  var INIT_TIMEOUT_MS = 10000;
+  var CSS_PREFIX = 'bs-form-';
   var SCRIPT_VERSION = '1.4.0';
   var INIT_TIMEOUT_MS = 10000;
   var CSS_PREFIX = 'bs-form-';
   var INITIALIZED_ATTR = 'data-bs-initialized';
-  
+
   // Supported display modes
   var DISPLAY_MODES = {
     INLINE: 'inline',
     MODAL: 'modal',
     SLIDE_IN: 'slide-in'
   };
-  
+
   // Supported trigger types
   var TRIGGER_TYPES = {
     MANUAL: 'manual',      // Click trigger button (default)
@@ -41,14 +44,14 @@
     SCROLL: 'scroll',      // Show at X% scroll depth
     CLICK: 'click'         // Show when clicking a selector (modal only)
   };
-  
+
   // Detect script base URL for loading CSS from same origin
-  var SCRIPT_BASE = (function() {
+  var SCRIPT_BASE = (function () {
     var scripts = document.getElementsByTagName('script');
     for (var i = scripts.length - 1; i >= 0; i--) {
       var src = scripts[i].src || '';
-      if (src.indexOf('embed') !== -1 && src.indexOf('bloomsuite') !== -1 || 
-          src.indexOf('/forms/embed') !== -1) {
+      if (src.indexOf('embed') !== -1 && src.indexOf('bloomsuite') !== -1 ||
+        src.indexOf('/forms/embed') !== -1) {
         return src.replace(/embed[^/]*\.js.*$/, '');
       }
     }
@@ -107,18 +110,18 @@
   // Track CSS loading state
   var cssLoaded = false;
   var cssFailed = false;
-  
+
   // Track active display mode instances
   var activeModals = {};
-  
+
   // Track active triggers to prevent duplicates
   var activeTriggers = {};
-  
+
   // Track MutationObserver instance
   var mutationObserver = null;
 
   // ─── Display Trigger Engine ──────────────────────────────────────────────
-  
+
   /**
    * Parse trigger configuration from data attributes
    * Returns { type, value, selector } or null
@@ -126,20 +129,20 @@
   function parseTriggerConfig(container) {
     var triggerType = container.getAttribute('data-trigger');
     if (!triggerType) return null;
-    
+
     var config = { type: triggerType, fired: false };
-    
+
     switch (triggerType) {
       case TRIGGER_TYPES.DELAY:
         // data-trigger="delay" data-delay="3000"
         config.value = parseInt(container.getAttribute('data-delay'), 10) || 3000;
         break;
-        
+
       case TRIGGER_TYPES.SCROLL:
         // data-trigger="scroll" data-scroll-depth="50"
         config.value = parseInt(container.getAttribute('data-scroll-depth'), 10) || 50;
         break;
-        
+
       case TRIGGER_TYPES.CLICK:
         // data-trigger="click" data-click-selector=".my-button"
         config.selector = container.getAttribute('data-click-selector') || null;
@@ -148,98 +151,98 @@
           return null;
         }
         break;
-        
+
       default:
         return null;
     }
-    
+
     return config;
   }
-  
+
   /**
    * Setup delay trigger
    * Opens form after specified milliseconds
    */
   function setupDelayTrigger(triggerId, delayMs, openFn) {
     if (activeTriggers[triggerId]) return;
-    
+
     activeTriggers[triggerId] = {
       type: 'delay',
       fired: false,
       cleanup: null
     };
-    
-    var timeoutId = setTimeout(function() {
+
+    var timeoutId = setTimeout(function () {
       if (!activeTriggers[triggerId].fired) {
         activeTriggers[triggerId].fired = true;
         openFn();
       }
     }, delayMs);
-    
-    activeTriggers[triggerId].cleanup = function() {
+
+    activeTriggers[triggerId].cleanup = function () {
       clearTimeout(timeoutId);
     };
   }
-  
+
   /**
    * Setup scroll depth trigger
    * Opens form when user scrolls past X% of page
    */
   function setupScrollTrigger(triggerId, scrollPercent, openFn) {
     if (activeTriggers[triggerId]) return;
-    
+
     activeTriggers[triggerId] = {
       type: 'scroll',
       fired: false,
       cleanup: null
     };
-    
-    var handler = function() {
+
+    var handler = function () {
       if (activeTriggers[triggerId].fired) return;
-      
+
       // Calculate current scroll percentage
       var scrollTop = window.pageYOffset || document.documentElement.scrollTop;
       var docHeight = Math.max(
         document.body.scrollHeight,
         document.documentElement.scrollHeight
       ) - window.innerHeight;
-      
+
       if (docHeight <= 0) return; // Page too short
-      
+
       var currentPercent = (scrollTop / docHeight) * 100;
-      
+
       if (currentPercent >= scrollPercent) {
         activeTriggers[triggerId].fired = true;
         openFn();
       }
     };
-    
+
     // Throttle scroll handler
     var throttled = throttle(handler, 100);
     window.addEventListener('scroll', throttled, { passive: true });
-    
-    activeTriggers[triggerId].cleanup = function() {
+
+    activeTriggers[triggerId].cleanup = function () {
       window.removeEventListener('scroll', throttled);
     };
-    
+
     // Check immediately in case page is already scrolled
     handler();
   }
-  
+
   /**
    * Setup click selector trigger (modal only)
    * Opens form when user clicks matching element
    */
   function setupClickTrigger(triggerId, selector, openFn) {
     if (activeTriggers[triggerId]) return;
-    
+
     activeTriggers[triggerId] = {
       type: 'click',
       fired: false,
       cleanup: null
     };
-    
-    var handler = function(e) {
+
+    var handler = function (e) {
       // Check if clicked element matches selector
       var target = e.target;
       while (target && target !== document) {
@@ -251,14 +254,14 @@
         target = target.parentElement;
       }
     };
-    
+
     document.addEventListener('click', handler, true);
-    
-    activeTriggers[triggerId].cleanup = function() {
+
+    activeTriggers[triggerId].cleanup = function () {
       document.removeEventListener('click', handler, true);
     };
   }
-  
+
   /**
    * Cleanup a trigger
    */
@@ -269,13 +272,13 @@
     }
     delete activeTriggers[triggerId];
   }
-  
+
   /**
    * Simple throttle function
    */
   function throttle(fn, wait) {
     var lastTime = 0;
-    return function() {
+    return function () {
       var now = Date.now();
       if (now - lastTime >= wait) {
         lastTime = now;
@@ -285,7 +288,7 @@
   }
 
   // ─── Accessibility Utilities ─────────────────────────────────────────────
-  
+
   /**
    * Get all focusable elements within a container
    */
@@ -298,10 +301,10 @@
       'a[href]',
       '[tabindex]:not([tabindex="-1"])'
     ].join(', ');
-    
+
     return Array.prototype.slice.call(container.querySelectorAll(focusableSelectors));
   }
-  
+
   /**
    * Check if an element is inside a specific container
    */
@@ -313,14 +316,14 @@
     }
     return false;
   }
-  
+
   /**
    * Lock body scroll - iOS Safari safe
    * Uses position:fixed + scroll position tracking to prevent iOS bounce
    */
   var savedScrollPosition = 0;
   var scrollLockCount = 0;
-  
+
   function lockBodyScroll() {
     if (scrollLockCount === 0) {
       savedScrollPosition = window.pageYOffset || document.documentElement.scrollTop;
@@ -333,7 +336,7 @@
     }
     scrollLockCount++;
   }
-  
+
   function unlockBodyScroll() {
     scrollLockCount--;
     if (scrollLockCount <= 0) {
@@ -347,7 +350,7 @@
       window.scrollTo(0, savedScrollPosition);
     }
   }
-  
+
   /**
    * Create a focus trap for modal/dialog accessibility
    * Returns cleanup function
@@ -358,18 +361,18 @@
     var firstFocusable = null;
     var lastFocusable = null;
     var containerMadeFocusable = false;
-    
+
     function updateFocusableElements() {
       focusableElements = getFocusableElements(container);
       firstFocusable = focusableElements[0] || null;
       lastFocusable = focusableElements[focusableElements.length - 1] || null;
     }
-    
+
     function handleKeyDown(e) {
       if (e.key !== 'Tab') return;
-      
+
       updateFocusableElements();
-      
+
       // Fallback: if no focusable elements, trap on container
       if (focusableElements.length === 0) {
         e.preventDefault();
@@ -378,7 +381,7 @@
         }
         return;
       }
-      
+
       if (e.shiftKey) {
         // Shift+Tab: if on first element, go to last
         if (document.activeElement === firstFocusable) {
@@ -393,7 +396,7 @@
         }
       }
     }
-    
+
     // Set initial focus
     function setInitialFocus() {
       updateFocusableElements();
@@ -410,21 +413,21 @@
         container.focus();
       }
     }
-    
+
     // Delay initial focus to allow form to render
     setTimeout(setInitialFocus, 100);
-    
+
     container.addEventListener('keydown', handleKeyDown);
-    
+
     // Return cleanup function
     return function cleanup() {
       container.removeEventListener('keydown', handleKeyDown);
-      
+
       // Remove temporary tabindex if we added it
       if (containerMadeFocusable) {
         container.removeAttribute('tabindex');
       }
-      
+
       // Restore focus to previous element (the trigger)
       if (previousActiveElement && typeof previousActiveElement.focus === 'function') {
         try {
@@ -438,13 +441,13 @@
       }
     };
   }
-  
+
   /**
    * Announce message to screen readers (debounced to prevent double-announce)
    */
   var lastAnnouncement = '';
   var lastAnnouncementTime = 0;
-  
+
   function announceToScreenReader(message) {
     // Debounce: skip if same message within 500ms
     var now = Date.now();
@@ -453,7 +456,7 @@
     }
     lastAnnouncement = message;
     lastAnnouncementTime = now;
-    
+
     var announcement = document.createElement('div');
     announcement.setAttribute('role', 'status');
     announcement.setAttribute('aria-live', 'polite');
@@ -461,10 +464,10 @@
     announcement.className = CSS_PREFIX + 'sr-only';
     announcement.style.cssText = 'position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;';
     announcement.textContent = message;
-    
+
     document.body.appendChild(announcement);
-    
-    setTimeout(function() {
+
+    setTimeout(function () {
       if (announcement.parentNode) {
         announcement.remove();
       }
@@ -472,7 +475,7 @@
   }
 
   // ─── Utility Functions ───────────────────────────────────────────────────
-  
+
   /**
    * Get URL query parameter
    */
@@ -526,7 +529,7 @@
     }
     return el;
   }
-  
+
   /**
    * Generate unique ID
    */
@@ -535,7 +538,7 @@
   }
 
   // ─── Style Loading (External CSS with inline fallback) ───────────────────
-  
+
   /**
    * Load external CSS file from same origin as embed.js
    * Falls back to minimal inline styles if blocked by CSP
@@ -554,7 +557,7 @@
     link.type = 'text/css';
     link.href = cssUrl;
 
-    var timeout = setTimeout(function() {
+    var timeout = setTimeout(function () {
       // CSS load timeout - fall back to inline
       if (!cssLoaded) {
         cssFailed = true;
@@ -563,13 +566,13 @@
       }
     }, 3000);
 
-    link.onload = function() {
+    link.onload = function () {
       clearTimeout(timeout);
       cssLoaded = true;
       callback(true);
     };
 
-    link.onerror = function() {
+    link.onerror = function () {
       clearTimeout(timeout);
       cssFailed = true;
       injectFallbackStyles();
@@ -585,7 +588,7 @@
    */
   function injectFallbackStyles() {
     if (document.getElementById(CSS_PREFIX + 'fallback-styles')) return;
-    
+
     try {
       var style = document.createElement('style');
       style.id = CSS_PREFIX + 'fallback-styles';
@@ -601,7 +604,7 @@
    * Legacy function for backward compatibility
    */
   function injectStyles() {
-    loadStyles(function() {});
+    loadStyles(function () { });
   }
 
   // ─── API Functions ───────────────────────────────────────────────────────
@@ -618,16 +621,16 @@
       error: null,
       blocked: false
     };
-    
+
     var xhr = new XMLHttpRequest();
     xhr.open('GET', url, true);
     xhr.timeout = INIT_TIMEOUT_MS;
-    
-    xhr.onreadystatechange = function() {
+
+    xhr.onreadystatechange = function () {
       if (xhr.readyState !== 4) return;
-      
+
       diagnostics.status = xhr.status;
-      
+
       if (xhr.status === 200) {
         try {
           var data = JSON.parse(xhr.responseText);
@@ -649,18 +652,18 @@
         callback(new Error('Form not found'), null, diagnostics);
       }
     };
-    
-    xhr.onerror = function() {
+
+    xhr.onerror = function () {
       diagnostics.blocked = true;
       diagnostics.error = 'Network error (possibly blocked)';
       callback(new Error('BLOCKED'), null, diagnostics);
     };
-    
-    xhr.ontimeout = function() {
+
+    xhr.ontimeout = function () {
       diagnostics.error = 'Request timeout (' + INIT_TIMEOUT_MS + 'ms)';
       callback(new Error('Timeout'), null, diagnostics);
     };
-    
+
     try {
       xhr.send();
     } catch (e) {
@@ -676,15 +679,15 @@
    */
   function submitData(embedKey, formData, meta, callback) {
     var url = API_BASE + '/submit-form';
-    
+
     var xhr = new XMLHttpRequest();
     xhr.open('POST', url, true);
     xhr.setRequestHeader('Content-Type', 'application/json');
     xhr.timeout = 30000;
-    
-    xhr.onreadystatechange = function() {
+
+    xhr.onreadystatechange = function () {
       if (xhr.readyState !== 4) return;
-      
+
       try {
         var data = JSON.parse(xhr.responseText);
         if (xhr.status >= 200 && xhr.status < 300) {
@@ -696,21 +699,21 @@
         callback(new Error('Submission failed'));
       }
     };
-    
-    xhr.onerror = function() {
+
+    xhr.onerror = function () {
       callback(new Error('Network error'));
     };
-    
-    xhr.ontimeout = function() {
+
+    xhr.ontimeout = function () {
       callback(new Error('Request timeout'));
     };
-    
+
     var payload = {
       embed_key: embedKey,
       data: formData,
       meta: meta
     };
-    
+
     xhr.send(JSON.stringify(payload));
   }
 
@@ -723,7 +726,7 @@
     var errorBox = createElement('div', 'error-box');
     var title = '';
     var hints = [];
-    
+
     switch (errorType) {
       case 'BLOCKED':
         title = 'Form Could Not Load';
@@ -733,7 +736,7 @@
           'If using a firewall or proxy, ensure API requests are permitted'
         ];
         break;
-        
+
       case 'NOT_FOUND':
         title = 'Form Not Available';
         hints = [
@@ -742,7 +745,7 @@
           'Check that the form status is set to <strong>Published</strong>'
         ];
         break;
-        
+
       case 'INVALID_KEY':
         title = 'Invalid Form Configuration';
         hints = [
@@ -751,7 +754,7 @@
           'Ensure the <code>data-bloomsuite-form</code> attribute contains a valid 32-character key'
         ];
         break;
-        
+
       case 'TIMEOUT':
         title = 'Connection Timed Out';
         hints = [
@@ -760,7 +763,7 @@
           'Try refreshing the page'
         ];
         break;
-        
+
       case 'EARLY_LOAD':
         title = 'Script Loaded Too Early';
         hints = [
@@ -769,7 +772,7 @@
           'This ensures the form container exists before initialization'
         ];
         break;
-        
+
       default:
         title = 'Form Load Error';
         hints = [
@@ -778,22 +781,22 @@
           'Contact support if the problem persists'
         ];
     }
-    
+
     var html = '<strong>' + escapeHtml(title) + '</strong>';
     html += '<ul>';
     for (var i = 0; i < hints.length; i++) {
       html += '<li>' + hints[i] + '</li>';
     }
     html += '</ul>';
-    
+
     errorBox.innerHTML = html;
-    
+
     // Add debug panel if enabled
     if (container.getAttribute('data-debug') === 'true') {
       var debugPanel = renderDebugPanel(diagnostics, embedKey);
       errorBox.appendChild(debugPanel);
     }
-    
+
     container.innerHTML = '';
     container.appendChild(errorBox);
   }
@@ -803,10 +806,10 @@
    */
   function renderDebugPanel(diagnostics, embedKey) {
     var panel = createElement('div', 'debug-panel');
-    
+
     var dl = document.createElement('dl');
     dl.style.margin = '0';
-    
+
     var items = [
       ['Version', SCRIPT_VERSION],
       ['API Base', API_BASE],
@@ -816,7 +819,7 @@
       ['Blocked', diagnostics && diagnostics.blocked ? 'Yes' : 'No'],
       ['Error', diagnostics && diagnostics.error ? diagnostics.error : 'None']
     ];
-    
+
     for (var i = 0; i < items.length; i++) {
       var dt = document.createElement('dt');
       dt.textContent = items[i][0];
@@ -825,7 +828,7 @@
       dl.appendChild(dt);
       dl.appendChild(dd);
     }
-    
+
     panel.appendChild(dl);
     return panel;
   }
@@ -834,10 +837,10 @@
    * Render loading state (shown immediately before network call)
    */
   function renderLoadingState(container) {
-    container.innerHTML = 
+    container.innerHTML =
       '<div class="' + CSS_PREFIX + 'loading">' +
-        '<div class="' + CSS_PREFIX + 'spinner"></div>' +
-        '<div>Loading BloomSuite form…</div>' +
+      '<div class="' + CSS_PREFIX + 'spinner"></div>' +
+      '<div>Loading BloomSuite form…</div>' +
       '</div>';
   }
 
@@ -865,9 +868,9 @@
     // CRITICAL: Never pre-checked
     if (field.type === 'email_consent' || field.type === 'sms_consent') {
       wrapper.className = CSS_PREFIX + 'field ' + CSS_PREFIX + 'consent';
-      
+
       var checkWrap = createElement('div', 'checkbox-wrap');
-      
+
       var checkbox = createElement('input', 'checkbox', {
         type: 'checkbox',
         id: fieldId,
@@ -876,13 +879,13 @@
       // NEVER pre-check consent checkboxes (CASL/TCPA requirement)
       checkbox.checked = false;
       if (field.required) checkbox.required = true;
-      
+
       var labelText = createElement('label', 'checkbox-text', { for: fieldId });
       labelText.innerHTML = escapeHtml(field.label);
       if (field.required) {
         labelText.innerHTML += ' <span class="' + CSS_PREFIX + 'required">*</span>';
       }
-      
+
       checkWrap.appendChild(checkbox);
       checkWrap.appendChild(labelText);
       wrapper.appendChild(checkWrap);
@@ -892,17 +895,17 @@
     // Regular checkbox
     if (field.type === 'checkbox') {
       var checkWrap2 = createElement('div', 'checkbox-wrap');
-      
+
       var checkbox2 = createElement('input', 'checkbox', {
         type: 'checkbox',
         id: fieldId,
         name: field.id
       });
       checkbox2.checked = false; // Never pre-checked
-      
+
       var labelText2 = createElement('label', 'checkbox-text', { for: fieldId });
       labelText2.textContent = field.label;
-      
+
       checkWrap2.appendChild(checkbox2);
       checkWrap2.appendChild(labelText2);
       wrapper.appendChild(checkWrap2);
@@ -924,19 +927,19 @@
         name: field.id
       });
       if (field.required) select.required = true;
-      
+
       var defaultOpt = document.createElement('option');
       defaultOpt.value = '';
       defaultOpt.textContent = field.placeholder || 'Select an option';
       select.appendChild(defaultOpt);
-      
-      (field.options || []).forEach(function(opt) {
+
+      (field.options || []).forEach(function (opt) {
         var option = document.createElement('option');
         option.value = opt;
         option.textContent = opt;
         select.appendChild(option);
       });
-      
+
       wrapper.appendChild(select);
       return wrapper;
     }
@@ -947,9 +950,9 @@
       name: field.id,
       placeholder: field.placeholder || ''
     });
-    
+
     if (field.required) input.required = true;
-    
+
     switch (field.type) {
       case 'email':
         input.type = 'email';
@@ -962,7 +965,7 @@
       default:
         input.type = 'text';
     }
-    
+
     wrapper.appendChild(input);
     return wrapper;
   }
@@ -978,60 +981,60 @@
     var settings = config.settings_json || {};
     var compliance = config.compliance_json || {};
     var theme = settings.theme || {};
-    
+
     // Create container
     var formContainer = createElement('div', 'container');
-    
+
     // Apply theme CSS variables
     var primaryColor = theme.primary_color || '#22C55E';
     formContainer.style.setProperty('--bs-form-primary', primaryColor);
     formContainer.style.setProperty('--bs-form-primary-hover', darkenColor(primaryColor, -20));
     formContainer.style.setProperty('--bs-form-radius', theme.border_radius || '8px');
-    
+
     // Create form element
     var formEl = createElement('form', 'wrapper');
     formEl.setAttribute('novalidate', 'true');
     formEl.setAttribute('autocomplete', 'on');
-    
+
     // Honeypot field (spam trap)
     var honeypot = createElement('div', 'hp');
     honeypot.setAttribute('aria-hidden', 'true');
     honeypot.innerHTML = '<input type="text" name="_hp_website" tabindex="-1" autocomplete="off">';
     formEl.appendChild(honeypot);
-    
+
     // Render each field
-    fields.forEach(function(field) {
+    fields.forEach(function (field) {
       formEl.appendChild(renderField(field, compliance));
     });
-    
+
     // Submit button
     var submitBtn = createElement('button', 'submit', { type: 'submit' });
     submitBtn.textContent = settings.submit_button_text || 'Submit';
-    
+
     // Button style variants
     if (theme.button_style === 'outline') {
       submitBtn.className += ' ' + CSS_PREFIX + 'submit-outline';
     } else if (theme.button_style === 'rounded') {
       submitBtn.className += ' ' + CSS_PREFIX + 'submit-rounded';
     }
-    
+
     formEl.appendChild(submitBtn);
-    
+
     // Branding
     if (settings.show_branding !== false) {
       var branding = createElement('div', 'branding');
       branding.innerHTML = 'Powered by <a href="https://bloomsuite.com" target="_blank" rel="noopener noreferrer">BloomSuite</a>';
       formEl.appendChild(branding);
     }
-    
+
     // Form submission handler - SINGLE PATH, never duplicated
-    formEl.addEventListener('submit', function(e) {
+    formEl.addEventListener('submit', function (e) {
       e.preventDefault();
       handleSubmit(formEl, container, embedKey, settings, compliance);
     });
-    
+
     formContainer.appendChild(formEl);
-    
+
     // Replace container content
     container.innerHTML = '';
     container.appendChild(formContainer);
@@ -1044,29 +1047,29 @@
   function handleSubmit(formEl, container, embedKey, settings, compliance) {
     var submitBtn = formEl.querySelector('.' + CSS_PREFIX + 'submit');
     var originalText = submitBtn.textContent;
-    
+
     // Collect form data
     var formData = {};
     var inputs = formEl.querySelectorAll('input, select');
-    
+
     for (var i = 0; i < inputs.length; i++) {
       var input = inputs[i];
       var name = input.name;
       if (!name || name.charAt(0) === '_') continue; // Skip honeypot
-      
+
       if (input.type === 'checkbox') {
         formData[name] = input.checked;
       } else {
         formData[name] = input.value;
       }
     }
-    
+
     // Include honeypot value (empty = human, filled = bot)
     var hpInput = formEl.querySelector('input[name="_hp_website"]');
     if (hpInput && hpInput.value) {
       formData._honeypot = hpInput.value;
     }
-    
+
     // Collect metadata
     var meta = {
       page_url: window.location.href,
@@ -1076,44 +1079,44 @@
       utm_campaign: getParam('utm_campaign'),
       user_agent: navigator.userAgent
     };
-    
+
     // Disable button
     submitBtn.disabled = true;
     submitBtn.textContent = 'Submitting...';
-    
+
     // Clear previous errors
     var existingError = formEl.querySelector('.' + CSS_PREFIX + 'error-msg');
     if (existingError) existingError.remove();
-    
+
     // Submit - SINGLE SUBMISSION PATH
-    submitData(embedKey, formData, meta, function(err, result) {
+    submitData(embedKey, formData, meta, function (err, result) {
       if (err) {
         // Show error
         submitBtn.disabled = false;
         submitBtn.textContent = originalText;
-        
+
         var errorDiv = createElement('div', 'error-msg');
         errorDiv.textContent = err.message || 'Submission failed. Please try again.';
         submitBtn.parentNode.insertBefore(errorDiv, submitBtn);
         return;
       }
-      
+
       // Success - show message or redirect
       if (result.redirect_url) {
         window.location.href = result.redirect_url;
         return;
       }
-      
+
       // Show success message
       var successDiv = createElement('div', 'success');
-      successDiv.innerHTML = 
+      successDiv.innerHTML =
         '<div class="' + CSS_PREFIX + 'success-icon">' +
-          '<svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
-            '<path d="M5 13l4 4L19 7"></path>' +
-          '</svg>' +
+        '<svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+        '<path d="M5 13l4 4L19 7"></path>' +
+        '</svg>' +
         '</div>' +
         '<p class="' + CSS_PREFIX + 'success-text">' + escapeHtml(result.message || settings.success_message || 'Thank you!') + '</p>';
-      
+
       container.innerHTML = '';
       container.appendChild(successDiv);
     });
@@ -1131,7 +1134,7 @@
   function createModalWrapper(embedKey, options) {
     var modalId = generateId();
     options = options || {};
-    
+
     // Create overlay with explicit high z-index for host isolation
     var overlay = createElement('div', 'modal-overlay');
     overlay.id = modalId;
@@ -1140,11 +1143,11 @@
     overlay.setAttribute('aria-modal', 'true');
     overlay.setAttribute('aria-labelledby', modalId + '-title');
     overlay.setAttribute('aria-describedby', modalId + '-desc');
-    
+
     // Create modal content
     var content = createElement('div', 'modal-content');
     content.setAttribute('role', 'document');
-    
+
     // Accessible title (visually hidden if no title provided)
     var titleEl = createElement('h2', 'modal-title');
     titleEl.id = modalId + '-title';
@@ -1152,50 +1155,50 @@
     if (!options.title) {
       titleEl.className += ' ' + CSS_PREFIX + 'sr-only';
     }
-    
+
     // Description for screen readers
     var descEl = createElement('p', 'sr-only');
     descEl.id = modalId + '-desc';
     descEl.textContent = 'Press Escape to close this dialog';
-    
+
     // Close button - MUST be keyboard accessible and visible
     var closeBtn = createElement('button', 'modal-close', {
       type: 'button',
       'aria-label': 'Close form'
     });
     closeBtn.innerHTML = '<span aria-hidden="true">&times;</span>';
-    closeBtn.addEventListener('click', function() {
+    closeBtn.addEventListener('click', function () {
       closeModal(modalId);
     });
-    
+
     // Modal body - this is where the form renders (unchanged)
     var body = createElement('div', 'modal-body');
     body.setAttribute('data-bloomsuite-form', embedKey);
-    
+
     content.appendChild(titleEl);
     content.appendChild(descEl);
     content.appendChild(closeBtn);
     content.appendChild(body);
     overlay.appendChild(content);
-    
+
     // Close on overlay click (but not on content click)
-    overlay.addEventListener('click', function(e) {
+    overlay.addEventListener('click', function (e) {
       if (e.target === overlay) {
         closeModal(modalId);
       }
     });
-    
+
     // Close on Escape key - ONLY when modal is open AND focus is inside
-    var escHandler = function(e) {
+    var escHandler = function (e) {
       if (e.key === 'Escape') {
         // Check modal is open
         if (!overlay.classList.contains(CSS_PREFIX + 'open')) return;
-        
+
         // Check focus is inside the modal OR on body (focus lost)
         var activeEl = document.activeElement;
         var focusInside = isElementInsideContainer(activeEl, overlay);
         var focusOnBody = activeEl === document.body || activeEl === document.documentElement;
-        
+
         if (focusInside || focusOnBody) {
           e.preventDefault();
           e.stopPropagation();
@@ -1204,10 +1207,10 @@
       }
     };
     document.addEventListener('keydown', escHandler, true); // Use capture to fire first
-    
+
     // Append to body
     document.body.appendChild(overlay);
-    
+
     // Store reference (focusTrapCleanup added on open)
     activeModals[modalId] = {
       overlay: overlay,
@@ -1219,7 +1222,7 @@
       focusTrapCleanup: null,
       type: 'modal'
     };
-    
+
     return modalId;
   }
 
@@ -1230,20 +1233,20 @@
   function openModal(modalId) {
     var modal = activeModals[modalId];
     if (!modal) return;
-    
+
     // Show overlay with iOS-safe scroll lock
     modal.overlay.classList.add(CSS_PREFIX + 'open');
     lockBodyScroll();
-    
+
     // Announce to screen readers
     announceToScreenReader('Form dialog opened. Press Escape to close.');
-    
+
     // Initialize form inside modal body (uses existing renderForm)
     initForm(modal.body);
-    
+
     // Setup focus trap after form renders
-    setTimeout(function() {
-      modal.focusTrapCleanup = createFocusTrap(modal.content, function() {
+    setTimeout(function () {
+      modal.focusTrapCleanup = createFocusTrap(modal.content, function () {
         closeModal(modalId);
       });
     }, 150);
@@ -1255,16 +1258,16 @@
   function closeModal(modalId) {
     var modal = activeModals[modalId];
     if (!modal) return;
-    
+
     // Cleanup focus trap (restores previous focus)
     if (modal.focusTrapCleanup) {
       modal.focusTrapCleanup();
       modal.focusTrapCleanup = null;
     }
-    
+
     modal.overlay.classList.remove(CSS_PREFIX + 'open');
     unlockBodyScroll();
-    
+
     // Announce to screen readers
     announceToScreenReader('Form dialog closed.');
   }
@@ -1275,12 +1278,12 @@
   function destroyModal(modalId) {
     var modal = activeModals[modalId];
     if (!modal) return;
-    
+
     // Cleanup focus trap
     if (modal.focusTrapCleanup) {
       modal.focusTrapCleanup();
     }
-    
+
     // Remove ESC handler with capture to match addEventListener
     document.removeEventListener('keydown', modal.escHandler, true);
     modal.overlay.remove();
@@ -1294,12 +1297,12 @@
   function createSlideInWrapper(embedKey, options) {
     var panelId = generateId();
     options = options || {};
-    
+
     // Create overlay with explicit high z-index for host isolation
     var overlay = createElement('div', 'slidein-overlay');
     overlay.id = panelId;
     overlay.style.zIndex = '2147483640'; // Near max 32-bit int for isolation
-    
+
     // Create panel
     var panel = createElement('div', 'slidein-panel');
     panel.setAttribute('role', 'dialog');
@@ -1307,59 +1310,59 @@
     panel.setAttribute('aria-labelledby', panelId + '-title');
     panel.setAttribute('aria-describedby', panelId + '-desc');
     panel.style.zIndex = '2147483641'; // Above overlay
-    
+
     // Header
     var header = createElement('div', 'slidein-header');
-    
+
     var title = createElement('h2', 'slidein-title');
     title.textContent = options.title || 'Get in Touch';
     title.id = panelId + '-title';
-    
+
     // Description for screen readers
     var descEl = createElement('p', 'sr-only');
     descEl.id = panelId + '-desc';
     descEl.textContent = 'Press Escape to close this panel';
-    
+
     // Close button - MUST be keyboard accessible
     var closeBtn = createElement('button', 'slidein-close', {
       type: 'button',
       'aria-label': 'Close form'
     });
     closeBtn.innerHTML = '<span aria-hidden="true">&times;</span>';
-    closeBtn.addEventListener('click', function() {
+    closeBtn.addEventListener('click', function () {
       closeSlideIn(panelId);
     });
-    
+
     header.appendChild(title);
     header.appendChild(closeBtn);
-    
+
     // Body - this is where the form renders (unchanged)
     var body = createElement('div', 'slidein-body');
     body.setAttribute('data-bloomsuite-form', embedKey);
-    
+
     panel.appendChild(header);
     panel.appendChild(descEl);
     panel.appendChild(body);
     overlay.appendChild(panel);
-    
+
     // Close on overlay click
-    overlay.addEventListener('click', function(e) {
+    overlay.addEventListener('click', function (e) {
       if (e.target === overlay) {
         closeSlideIn(panelId);
       }
     });
-    
+
     // Close on Escape key - ONLY when panel is open AND focus is inside
-    var escHandler = function(e) {
+    var escHandler = function (e) {
       if (e.key === 'Escape') {
         // Check panel is open
         if (!overlay.classList.contains(CSS_PREFIX + 'open')) return;
-        
+
         // Check focus is inside the panel OR on body (focus lost)
         var activeEl = document.activeElement;
         var focusInside = isElementInsideContainer(activeEl, panel);
         var focusOnBody = activeEl === document.body || activeEl === document.documentElement;
-        
+
         if (focusInside || focusOnBody) {
           e.preventDefault();
           e.stopPropagation();
@@ -1368,10 +1371,10 @@
       }
     };
     document.addEventListener('keydown', escHandler, true); // Use capture to fire first
-    
+
     // Append to body
     document.body.appendChild(overlay);
-    
+
     // Store reference
     activeModals[panelId] = {
       overlay: overlay,
@@ -1383,7 +1386,7 @@
       focusTrapCleanup: null,
       type: 'slidein'
     };
-    
+
     return panelId;
   }
 
@@ -1394,20 +1397,20 @@
   function openSlideIn(panelId) {
     var panelData = activeModals[panelId];
     if (!panelData) return;
-    
+
     // Show overlay with iOS-safe scroll lock
     panelData.overlay.classList.add(CSS_PREFIX + 'open');
     lockBodyScroll();
-    
+
     // Announce to screen readers
     announceToScreenReader('Form panel opened. Press Escape to close.');
-    
+
     // Initialize form inside panel body (uses existing renderForm)
     initForm(panelData.body);
-    
+
     // Setup focus trap after form renders
-    setTimeout(function() {
-      panelData.focusTrapCleanup = createFocusTrap(panelData.panel, function() {
+    setTimeout(function () {
+      panelData.focusTrapCleanup = createFocusTrap(panelData.panel, function () {
         closeSlideIn(panelId);
       });
     }, 150);
@@ -1419,16 +1422,16 @@
   function closeSlideIn(panelId) {
     var panelData = activeModals[panelId];
     if (!panelData) return;
-    
+
     // Cleanup focus trap (restores previous focus)
     if (panelData.focusTrapCleanup) {
       panelData.focusTrapCleanup();
       panelData.focusTrapCleanup = null;
     }
-    
+
     panelData.overlay.classList.remove(CSS_PREFIX + 'open');
     unlockBodyScroll();
-    
+
     // Announce to screen readers
     announceToScreenReader('Form panel closed.');
   }
@@ -1441,38 +1444,38 @@
     var mode = options.mode || DISPLAY_MODES.MODAL;
     var buttonText = options.buttonText || 'Open Form';
     var wrapperId = null;
-    
+
     // Create wrapper based on mode
     if (mode === DISPLAY_MODES.MODAL) {
       wrapperId = createModalWrapper(embedKey, options);
     } else if (mode === DISPLAY_MODES.SLIDE_IN) {
       wrapperId = createSlideInWrapper(embedKey, options);
     }
-    
+
     // Create trigger button
     var button = createElement('button', 'trigger', { type: 'button' });
     button.textContent = buttonText;
-    
-    button.addEventListener('click', function() {
+
+    button.addEventListener('click', function () {
       if (mode === DISPLAY_MODES.MODAL) {
         openModal(wrapperId);
       } else if (mode === DISPLAY_MODES.SLIDE_IN) {
         openSlideIn(wrapperId);
       }
     });
-    
+
     return {
       button: button,
       wrapperId: wrapperId,
-      open: function() {
+      open: function () {
         if (mode === DISPLAY_MODES.MODAL) openModal(wrapperId);
         else if (mode === DISPLAY_MODES.SLIDE_IN) openSlideIn(wrapperId);
       },
-      close: function() {
+      close: function () {
         if (mode === DISPLAY_MODES.MODAL) closeModal(wrapperId);
         else if (mode === DISPLAY_MODES.SLIDE_IN) closeSlideIn(wrapperId);
       },
-      destroy: function() {
+      destroy: function () {
         destroyModal(wrapperId);
       }
     };
@@ -1490,57 +1493,57 @@
     if (container.getAttribute(INITIALIZED_ATTR) === 'true') {
       return;
     }
-    
+
     var embedKey = container.getAttribute('data-bloomsuite-form');
     if (!embedKey) return;
-    
+
     // Mark as initialized immediately to prevent double-init
     container.setAttribute(INITIALIZED_ATTR, 'true');
-    
+
     // Get display mode (default: inline)
     var displayMode = container.getAttribute('data-display-mode') || DISPLAY_MODES.INLINE;
-    
+
     // Validate embed key format (32 hex chars)
     if (!/^[a-f0-9]{32}$/i.test(embedKey)) {
       renderErrorBox(container, 'INVALID_KEY', null, embedKey);
       return;
     }
-    
+
     // For non-inline modes, handle triggers
     if (displayMode === DISPLAY_MODES.MODAL || displayMode === DISPLAY_MODES.SLIDE_IN) {
       var buttonText = container.getAttribute('data-button-text') || 'Open Form';
       var title = container.getAttribute('data-form-title') || 'Get in Touch';
       var triggerId = generateId();
-      
+
       // Parse trigger configuration
       var triggerConfig = parseTriggerConfig(container);
-      
+
       // Create the modal/slide-in wrapper
       var wrapperId;
       var openFn;
-      
+
       if (displayMode === DISPLAY_MODES.MODAL) {
         wrapperId = createModalWrapper(embedKey, { title: title });
-        openFn = function() { openModal(wrapperId); };
+        openFn = function () { openModal(wrapperId); };
       } else {
         wrapperId = createSlideInWrapper(embedKey, { title: title });
-        openFn = function() { openSlideIn(wrapperId); };
+        openFn = function () { openSlideIn(wrapperId); };
       }
-      
+
       // If automatic trigger is configured, set it up
       if (triggerConfig) {
         // Hide the container (no button needed for automatic triggers)
         container.style.display = 'none';
-        
+
         switch (triggerConfig.type) {
           case TRIGGER_TYPES.DELAY:
             setupDelayTrigger(triggerId, triggerConfig.value, openFn);
             break;
-            
+
           case TRIGGER_TYPES.SCROLL:
             setupScrollTrigger(triggerId, triggerConfig.value, openFn);
             break;
-            
+
           case TRIGGER_TYPES.CLICK:
             // Click trigger only works with modal
             if (displayMode !== DISPLAY_MODES.MODAL) {
@@ -1550,46 +1553,46 @@
             }
             break;
         }
-        
+
         // Store trigger reference
         container._bsTrigger = {
           triggerId: triggerId,
           wrapperId: wrapperId,
           open: openFn,
-          close: function() {
+          close: function () {
             if (displayMode === DISPLAY_MODES.MODAL) closeModal(wrapperId);
             else closeSlideIn(wrapperId);
           },
-          destroy: function() {
+          destroy: function () {
             cleanupTrigger(triggerId);
             destroyModal(wrapperId);
           }
         };
-        
+
         return;
       }
-      
+
       // MANUAL TRIGGER: Create button
       var trigger = createTriggerButton(embedKey, {
         mode: displayMode,
         buttonText: buttonText,
         title: title
       });
-      
+
       container.innerHTML = '';
       container.appendChild(trigger.button);
-      
+
       // Store trigger reference on container
       container._bsTrigger = trigger;
       return;
     }
-    
+
     // INLINE MODE: Render form directly (default behavior)
     // Show loading state IMMEDIATELY (fail-loud pattern)
     renderLoadingState(container);
-    
+
     // Fetch config
-    fetchConfig(embedKey, function(err, config, diagnostics) {
+    fetchConfig(embedKey, function (err, config, diagnostics) {
       if (err) {
         var errorType = 'UNKNOWN';
         if (err.message === 'BLOCKED') {
@@ -1599,11 +1602,11 @@
         } else if (err.message === 'Timeout') {
           errorType = 'TIMEOUT';
         }
-        
+
         renderErrorBox(container, errorType, diagnostics, embedKey);
         return;
       }
-      
+
       // Render form - UNCHANGED CORE LOGIC
       renderForm(container, config, embedKey);
     });
@@ -1628,27 +1631,27 @@
    */
   function startObserver() {
     if (mutationObserver) return; // Already running
-    
+
     if (typeof MutationObserver === 'undefined') {
       // Fallback for old browsers: poll periodically
       setInterval(init, 2000);
       return;
     }
-    
-    mutationObserver = new MutationObserver(function(mutations) {
+
+    mutationObserver = new MutationObserver(function (mutations) {
       var shouldInit = false;
-      
+
       for (var i = 0; i < mutations.length; i++) {
         var mutation = mutations[i];
-        
+
         // Check added nodes for form containers
         if (mutation.addedNodes) {
           for (var j = 0; j < mutation.addedNodes.length; j++) {
             var node = mutation.addedNodes[j];
-            
+
             // Skip non-element nodes
             if (node.nodeType !== 1) continue;
-            
+
             // Check if the added node itself is a form container
             if (node.hasAttribute && node.hasAttribute('data-bloomsuite-form')) {
               if (node.getAttribute(INITIALIZED_ATTR) !== 'true') {
@@ -1656,7 +1659,7 @@
                 break;
               }
             }
-            
+
             // Check descendants of added node
             if (node.querySelectorAll) {
               var descendants = node.querySelectorAll('[data-bloomsuite-form]:not([' + INITIALIZED_ATTR + '="true"])');
@@ -1667,16 +1670,16 @@
             }
           }
         }
-        
+
         if (shouldInit) break;
       }
-      
+
       if (shouldInit) {
         // Debounce: wait a tick before initializing
         setTimeout(init, 10);
       }
     });
-    
+
     mutationObserver.observe(document.body, {
       childList: true,
       subtree: true
@@ -1733,7 +1736,7 @@
     startObserver: startObserver,
     stopObserver: stopObserver,
     // Debug info
-    getConfig: function() {
+    getConfig: function () {
       return {
         version: SCRIPT_VERSION,
         apiBase: API_BASE,

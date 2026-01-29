@@ -1,29 +1,29 @@
-import React from 'react';
+import React from "react";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogDescription,
-} from '@/components/ui/dialog';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { 
-  CheckCircle, 
-  XCircle, 
-  Clock, 
-  Bot, 
-  Mail, 
+} from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  CheckCircle,
+  XCircle,
+  Clock,
+  Bot,
+  Mail,
   MessageSquare,
   Globe,
   Link2,
   User,
   MapPin,
-  Calendar
-} from 'lucide-react';
-import { format } from 'date-fns';
-import { FormSubmission, FormSubmissionMetadata } from '@/types/formBuilder';
+  Calendar,
+} from "lucide-react";
+import { format } from "date-fns";
+import { FormSubmission, FormSubmissionMetadata } from "@/types/formBuilder";
 
 interface SubmissionDetailModalProps {
   submission: FormSubmission | null;
@@ -31,28 +31,41 @@ interface SubmissionDetailModalProps {
   onOpenChange: (open: boolean) => void;
 }
 
-import { SubmissionResult } from '@/types/formBuilder';
+import { SubmissionResult } from "@/types/formBuilder";
 
-const resultConfig: Record<SubmissionResult, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline'; icon: React.ReactNode; color: string }> = {
-  accepted: { 
-    label: 'Accepted', 
-    variant: 'default', 
+const resultConfig: Record<
+  SubmissionResult,
+  {
+    label: string;
+    variant: "default" | "secondary" | "destructive" | "outline";
+    icon: React.ReactNode;
+    color: string;
+  }
+> = {
+  accepted: {
+    label: "Accepted",
+    variant: "default",
     icon: <CheckCircle className="h-4 w-4" />,
-    color: 'text-green-600'
+    color: "text-green-600",
   },
-  rejected: { 
-    label: 'Rejected', 
-    variant: 'destructive', 
+  rejected: {
+    label: "Rejected",
+    variant: "destructive",
     icon: <XCircle className="h-4 w-4" />,
-    color: 'text-destructive'
+    color: "text-destructive",
   },
 };
 
-export function SubmissionDetailModal({ submission, open, onOpenChange }: SubmissionDetailModalProps) {
+export function SubmissionDetailModal({
+  submission,
+  open,
+  onOpenChange,
+}: SubmissionDetailModalProps) {
   if (!submission) return null;
 
   const resultInfo = resultConfig[submission.result] || resultConfig.rejected;
-  const metadata = submission.metadata || {} as Partial<FormSubmissionMetadata>;
+  const metadata =
+    submission.metadata || ({} as Partial<FormSubmissionMetadata>);
   const data = submission.data || {};
 
   return (
@@ -61,13 +74,16 @@ export function SubmissionDetailModal({ submission, open, onOpenChange }: Submis
         <DialogHeader className="p-6 pb-0">
           <DialogTitle className="flex items-center gap-3">
             <span>Submission Details</span>
-            <Badge variant={resultInfo.variant} className="flex items-center gap-1">
+            <Badge
+              variant={resultInfo.variant}
+              className="flex items-center gap-1"
+            >
               {resultInfo.icon}
               {resultInfo.label}
             </Badge>
           </DialogTitle>
           <DialogDescription>
-            Submitted {format(new Date(submission.submitted_at), 'PPpp')}
+            Submitted {format(new Date(submission.submitted_at), "PPpp")}
           </DialogDescription>
         </DialogHeader>
 
@@ -76,8 +92,12 @@ export function SubmissionDetailModal({ submission, open, onOpenChange }: Submis
             {/* Rejection Reason */}
             {submission.reason && (
               <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
-                <p className="text-sm font-medium text-destructive">Rejection Reason</p>
-                <p className="text-sm text-muted-foreground mt-1">{submission.reason}</p>
+                <p className="text-sm font-medium text-destructive">
+                  Rejection Reason
+                </p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {submission.reason}
+                </p>
               </div>
             )}
 
@@ -89,15 +109,18 @@ export function SubmissionDetailModal({ submission, open, onOpenChange }: Submis
               </h3>
               <div className="bg-muted/50 rounded-lg p-4 space-y-3">
                 {Object.entries(data).map(([key, value]) => {
-                  if (key.startsWith('_')) return null; // Skip internal fields like _honeypot
-                  const displayValue = typeof value === 'boolean' 
-                    ? (value ? 'Yes' : 'No') 
-                    : String(value || '—');
-                  
+                  if (key.startsWith("_")) return null; // Skip internal fields like _honeypot
+                  const displayValue =
+                    typeof value === "boolean"
+                      ? value
+                        ? "Yes"
+                        : "No"
+                      : String(value || "—");
+
                   return (
                     <div key={key} className="flex justify-between items-start">
                       <span className="text-sm text-muted-foreground capitalize">
-                        {key.replace(/_/g, ' ')}
+                        {key.replace(/_/g, " ")}
                       </span>
                       <span className="text-sm font-medium text-right max-w-[60%] break-words">
                         {displayValue}
@@ -153,13 +176,17 @@ export function SubmissionDetailModal({ submission, open, onOpenChange }: Submis
                 )}
                 {metadata.referrer && (
                   <div className="flex justify-between items-start">
-                    <span className="text-sm text-muted-foreground">Referrer</span>
+                    <span className="text-sm text-muted-foreground">
+                      Referrer
+                    </span>
                     <span className="text-sm font-mono text-right max-w-[60%] break-all">
                       {metadata.referrer}
                     </span>
                   </div>
                 )}
-                {(metadata.utm_source || metadata.utm_medium || metadata.utm_campaign) && (
+                {(metadata.utm_source ||
+                  metadata.utm_medium ||
+                  metadata.utm_campaign) && (
                   <>
                     <Separator className="my-2" />
                     <div className="flex flex-wrap gap-2">
@@ -225,23 +252,30 @@ export function SubmissionDetailModal({ submission, open, onOpenChange }: Submis
 }
 
 interface ConsentCardProps {
-  type: 'email' | 'sms';
+  type: "email" | "sms";
   consented: boolean;
   text?: string;
   timestamp?: string;
 }
 
 function ConsentCard({ type, consented, text, timestamp }: ConsentCardProps) {
-  const Icon = type === 'email' ? Mail : MessageSquare;
-  const label = type === 'email' ? 'Email Marketing' : 'SMS Messages';
+  const Icon = type === "email" ? Mail : MessageSquare;
+  const label = type === "email" ? "Email Marketing" : "SMS Messages";
 
   return (
-    <div className={`p-3 rounded-lg border ${consented ? 'bg-green-50 border-green-200' : 'bg-muted/30 border-muted'}`}>
+    <div
+      className={`p-3 rounded-lg border ${consented ? "bg-green-50 border-green-200" : "bg-muted/30 border-muted"}`}
+    >
       <div className="flex items-center gap-2 mb-2">
-        <Icon className={`h-4 w-4 ${consented ? 'text-green-600' : 'text-muted-foreground'}`} />
+        <Icon
+          className={`h-4 w-4 ${consented ? "text-green-600" : "text-muted-foreground"}`}
+        />
         <span className="text-sm font-medium">{label}</span>
         {consented ? (
-          <Badge variant="outline" className="ml-auto text-xs bg-green-100 text-green-800 border-green-200">
+          <Badge
+            variant="outline"
+            className="ml-auto text-xs bg-green-100 text-green-800 border-green-200"
+          >
             Consented
           </Badge>
         ) : (
@@ -256,7 +290,7 @@ function ConsentCard({ type, consented, text, timestamp }: ConsentCardProps) {
       {consented && timestamp && (
         <p className="text-xs text-muted-foreground">
           <Calendar className="h-3 w-3 inline mr-1" />
-          {format(new Date(timestamp), 'PPpp')}
+          {format(new Date(timestamp), "PPpp")}
         </p>
       )}
     </div>

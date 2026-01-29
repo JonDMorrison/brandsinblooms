@@ -196,7 +196,7 @@ HAVING COUNT(*) > 1;
 
 ```sql
 -- Find all automation executions for a submission
-SELECT 
+SELECT
   fae.status,
   fae.step_type,
   fae.failure_reason,
@@ -216,7 +216,7 @@ ORDER BY fae.executed_at;
 
 ```sql
 -- Recent failures with details
-SELECT 
+SELECT
   fae.automation_id,
   ca.name as automation_name,
   fae.failure_reason,
@@ -237,7 +237,7 @@ ORDER BY failure_count DESC;
 
 ```sql
 -- Execution breakdown by status
-SELECT 
+SELECT
   status,
   COUNT(*) as count,
   COUNT(CASE WHEN step_type = 'email' THEN 1 END) as emails,
@@ -254,7 +254,7 @@ GROUP BY status;
 
 ```sql
 -- Events stuck in retry or unprocessed
-SELECT 
+SELECT
   ate.id,
   ate.event_type,
   ate.form_id,
@@ -274,7 +274,7 @@ ORDER BY ate.created_at;
 
 ```sql
 -- Breakdown of skip reasons
-SELECT 
+SELECT
   failure_reason,
   COUNT(*) as skip_count
 FROM form_automation_executions

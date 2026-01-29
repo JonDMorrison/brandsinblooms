@@ -2,6 +2,7 @@ import React from "react";
 import logoImage from "@/assets/bloomsuite-logo-correct.png";
 import {
   LayoutDashboard,
+  Activity,
   Send,
   Calendar,
   ClipboardList,
@@ -153,6 +154,11 @@ const AppSidebar: React.FC = () => {
           title: "Customers",
           url: "/crm/customers",
           icon: Users,
+        },
+        {
+          title: "Activity",
+          url: "/activity",
+          icon: Activity,
         },
         {
           title: "Segments",
