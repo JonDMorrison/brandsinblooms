@@ -4,6 +4,7 @@ import { resolveSender, buildFromAddress, type SenderConfig } from "../_shared/s
 import { checkSMSAvailability, isChannelAvailable } from "../_shared/channelAvailability.ts";
 import { renderEmailForRecipient, type CustomerShape, type CompanyProfileShape } from "../_shared/emailRenderer.ts";
 import { logAutomationEmailExecution, checkAlreadySent, checkAndLogSuppression } from "../_shared/automationEmailExecution.ts";
+import { logActivityEvent } from "../_shared/activityLogger.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -429,7 +430,7 @@ async function getAutomationNodeId(
 
   // Fallback: derive from step_index for legacy outbox items
   if (!message.automation_id) return null;
-  
+
   try {
     const { data: automation } = await supabase
       .from("crm_automations")
@@ -452,8 +453,8 @@ async function sendEmail(
   message: OutboxMessage
 ): Promise<{ success: boolean; error?: string; shouldSkip?: boolean; external_id?: string; canRetry?: boolean }> {
   // Get automation node ID for execution logging
-  const automationNodeId = message.automation_id 
-    ? await getAutomationNodeId(supabase, message) 
+  const automationNodeId = message.automation_id
+    ? await getAutomationNodeId(supabase, message)
     : null;
 
   try {
@@ -775,6 +776,45 @@ async function advanceAutomationRun(
           next_step_scheduled_at: null,
         })
         .eq("id", message.automation_run_id);
+
+      const tenantId = run.tenant_id || run.automation?.tenant_id;
+      if (tenantId) {
+        const { data: customer } = await supabase
+          .from('crm_customers')
+          .select('first_name, last_name, email')
+          .eq('id', message.customer_id)
+          .maybeSingle();
+
+        await logActivityEvent(supabase, {
+          tenant_id: tenantId,
+          customer_id: message.customer_id,
+          actor_type: 'automation',
+          source: 'automation',
+          activity_type: 'automation.completed',
+          status: 'success',
+          title: `Automation completed: ${run.automation?.name || 'Automation'}`,
+          description: {
+            parts: [
+              { type: 'text', text: 'Automation run completed.' },
+            ],
+          },
+          metadata: {
+            automation_id: message.automation_id,
+            automation_run_id: message.automation_run_id,
+            customer_name:
+              `${customer?.first_name ?? ''} ${customer?.last_name ?? ''}`.trim() ||
+              customer?.email ||
+              'Customer',
+            customer_first_name: customer?.first_name ?? null,
+            customer_last_name: customer?.last_name ?? null,
+          },
+          related_entities: {
+            automation_id: message.automation_id,
+            automation_run_id: message.automation_run_id,
+            customer_id: message.customer_id,
+          },
+        });
+      }
 
       console.log(`🎉 Automation run ${message.automation_run_id} completed`);
     } else {

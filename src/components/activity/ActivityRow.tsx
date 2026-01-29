@@ -1,115 +1,146 @@
-import React, { useMemo, useState } from "react";
-import { format, formatDistanceToNowStrict } from "date-fns";
-import {
-  AlertTriangle,
-  CheckCircle2,
-  Clock,
-  ExternalLink,
-  Info,
-  XCircle,
-} from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+import React, { useMemo } from "react";
+import { ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ActivityEvent } from "@/types/activity";
 import { ActivityDescription } from "./ActivityDescription";
 
-function statusIcon(status: string) {
-  switch (status) {
-    case "success":
-      return <CheckCircle2 className="h-4 w-4 text-green-600" />;
-    case "failed":
-      return <XCircle className="h-4 w-4 text-red-600" />;
-    case "warning":
-      return <AlertTriangle className="h-4 w-4 text-amber-600" />;
-    case "pending":
-      return <Clock className="h-4 w-4 text-muted-foreground" />;
-    default:
-      return <Info className="h-4 w-4 text-muted-foreground" />;
-  }
-}
-
-function statusVariant(status: string): any {
-  switch (status) {
-    case "success":
-      return "secondary";
-    case "failed":
-      return "destructive";
-    case "warning":
-      return "outline";
-    case "pending":
-      return "outline";
-    default:
-      return "outline";
-  }
+function formatActivityType(value?: string) {
+  if (!value) return "";
+  const normalized = value.replace(/_/g, " ");
+  const parts = normalized.split(".").filter(Boolean);
+  const joined = parts.join(" ");
+  if (!joined) return "";
+  return joined.charAt(0).toUpperCase() + joined.slice(1);
 }
 
 export function ActivityRow({
   event,
   className,
+  customerNameOverride,
 }: {
   event: ActivityEvent;
   className?: string;
+  customerNameOverride?: string;
 }) {
-  const [open, setOpen] = useState(false);
-
-  const ts = useMemo(() => new Date(event.timestamp), [event.timestamp]);
-  const relative = useMemo(() => {
-    try {
-      return formatDistanceToNowStrict(ts, { addSuffix: true });
-    } catch {
-      return "";
-    }
-  }, [ts]);
+  const isCustomerCreated =
+    String(event.activity_type) === "customer.created" ||
+    String(event.title).toLowerCase().includes("customer created");
 
   const customerHref = event.customer_id
     ? `/crm/customers/${event.customer_id}`
     : null;
 
+  const customerName = useMemo(() => {
+    if (
+      typeof customerNameOverride === "string" &&
+      customerNameOverride.trim()
+    ) {
+      return customerNameOverride.trim();
+    }
+
+    const metadata = (event.metadata as any) ?? {};
+    const metaName =
+      metadata.customer_name ||
+      `${metadata.customer_first_name ?? ""} ${metadata.customer_last_name ?? ""}`.trim();
+
+    if (metaName) return metaName;
+
+    const related = (event.related_entities as any) ?? {};
+    const relatedName =
+      related.customer_name ||
+      `${related.customer_first_name ?? ""} ${related.customer_last_name ?? ""}`.trim() ||
+      related.customer?.name ||
+      related.customer?.full_name ||
+      `${related.customer?.first_name ?? ""} ${related.customer?.last_name ?? ""}`.trim() ||
+      `${related.customer?.firstName ?? ""} ${related.customer?.lastName ?? ""}`.trim();
+
+    if (typeof relatedName === "string" && relatedName.trim())
+      return relatedName.trim();
+
+    if (isCustomerCreated) {
+      const parts = (event.description as any)?.parts || [];
+      const textPart = parts.find((p: any) => p?.type === "text" && p?.text);
+      if (typeof textPart?.text === "string") return textPart.text;
+    }
+
+    return "";
+  }, [
+    customerNameOverride,
+    event.description,
+    event.metadata,
+    event.related_entities,
+    isCustomerCreated,
+  ]);
+
+  const shouldShowCustomer =
+    Boolean(event.customer_id) && !isCustomerCreated && Boolean(customerName);
+
+  const detailHref = `/activity/${encodeURIComponent(String(event.id))}`;
+
   const links = Array.isArray(event.links) ? event.links : [];
 
   return (
-    <div className={cn("rounded-lg border bg-card p-4", className)}>
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-start gap-3 min-w-0">
-          <div className="mt-0.5">{statusIcon(String(event.status))}</div>
+    <div className={cn("py-1", className)}>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <div className="font-medium truncate">{event.title}</div>
-              <Badge variant={statusVariant(String(event.status))}>
-                {String(event.status)}
-              </Badge>
-              <Badge variant="outline">{String(event.actor_type)}</Badge>
-              <Badge variant="outline">{String(event.source)}</Badge>
-              {event.integration_name ? (
-                <Badge variant="outline">{event.integration_name}</Badge>
-              ) : null}
+              {isCustomerCreated ? null : (
+                <div className="font-medium truncate">{event.title}</div>
+              )}
             </div>
 
             <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
-              <span title={format(ts, "PPpp")}>
-                {relative || format(ts, "PPpp")}
-              </span>
-              {event.activity_type ? (
-                <span className="truncate">• {event.activity_type}</span>
-              ) : null}
-              {customerHref ? (
-                <a
-                  href={customerHref}
-                  className="text-brand-teal hover:underline"
-                >
-                  • View customer
-                </a>
+              {event.activity_type && !isCustomerCreated ? (
+                <span className="truncate">
+                  • {formatActivityType(String(event.activity_type))}
+                </span>
               ) : null}
             </div>
 
-            <div className="mt-2">
-              <ActivityDescription description={event.description} />
+            <div className="text-sm">
+              {isCustomerCreated ? (
+                <span>
+                  {customerName ? (
+                    <>
+                      Customer{" "}
+                      {customerHref ? (
+                        <a
+                          href={customerHref}
+                          className="text-brand-teal hover:underline"
+                        >
+                          {customerName}
+                        </a>
+                      ) : (
+                        <span className="font-medium">{customerName}</span>
+                      )}{" "}
+                      has been created.
+                    </>
+                  ) : (
+                    <>Customer has been created.</>
+                  )}
+                </span>
+              ) : (
+                <div className="flex flex-wrap items-baseline gap-1">
+                  {shouldShowCustomer ? (
+                    <span className="text-muted-foreground">
+                      Customer{" "}
+                      {customerHref ? (
+                        <a
+                          href={customerHref}
+                          className="text-brand-teal hover:underline"
+                        >
+                          {customerName}
+                        </a>
+                      ) : (
+                        <span className="font-medium">{customerName}</span>
+                      )}{" "}
+                      —
+                    </span>
+                  ) : null}
+                  <ActivityDescription description={event.description} />
+                </div>
+              )}
             </div>
 
             {event.error_message ? (
@@ -121,6 +152,13 @@ export function ActivityRow({
         </div>
 
         <div className="flex items-center gap-2">
+          <a
+            href={detailHref}
+            className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+          >
+            <ExternalLink className="h-3 w-3" />
+            <span className="hidden sm:inline">Details</span>
+          </a>
           {links
             .filter((l) => l && typeof l === "object" && l.href)
             .slice(0, 2)
@@ -134,32 +172,6 @@ export function ActivityRow({
                 <span className="hidden sm:inline">Link</span>
               </a>
             ))}
-
-          <Collapsible open={open} onOpenChange={setOpen}>
-            <CollapsibleTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-7 px-2 text-xs">
-                {open ? "Hide" : "Details"}
-              </Button>
-            </CollapsibleTrigger>
-            <CollapsibleContent className="mt-2">
-              <div className="rounded-md bg-muted/40 p-3 text-xs">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                  <div>
-                    <div className="text-muted-foreground mb-1">Metadata</div>
-                    <pre className="whitespace-pre-wrap break-words">
-                      {JSON.stringify(event.metadata ?? {}, null, 2)}
-                    </pre>
-                  </div>
-                  <div>
-                    <div className="text-muted-foreground mb-1">Related</div>
-                    <pre className="whitespace-pre-wrap break-words">
-                      {JSON.stringify(event.related_entities ?? {}, null, 2)}
-                    </pre>
-                  </div>
-                </div>
-              </div>
-            </CollapsibleContent>
-          </Collapsible>
         </div>
       </div>
     </div>

@@ -25,7 +25,7 @@ import {
   Bug,
 } from "lucide-react";
 import { useLocation } from "react-router-dom";
-import { NavLink } from '@/components/ui/link';
+import { NavLink } from "@/components/ui/link";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   Sidebar,
@@ -50,7 +50,6 @@ import {
 import { useProFeatures } from "@/hooks/useProFeatures";
 import { useIsSuperAdmin } from "@/hooks/useIsSuperAdmin";
 
-
 interface SidebarItem {
   title: string;
   url: string;
@@ -61,12 +60,16 @@ interface SidebarItem {
 const AppSidebar: React.FC = () => {
   const { isAuthenticated } = useAuth();
   const { isPro } = useProFeatures();
-  const { data: isSuperAdmin, isLoading: isLoadingSuperAdmin } = useIsSuperAdmin();
+  const { data: isSuperAdmin, isLoading: isLoadingSuperAdmin } =
+    useIsSuperAdmin();
   const location = useLocation();
   const { state } = useSidebar();
-  
-  console.log('🎨 AppSidebar - Admin status:', { isSuperAdmin, isLoadingSuperAdmin });
-  
+
+  console.log("🎨 AppSidebar - Admin status:", {
+    isSuperAdmin,
+    isLoadingSuperAdmin,
+  });
+
   const currentPath = location.pathname;
   const isCollapsed = state === "collapsed";
 
@@ -145,70 +148,78 @@ const AppSidebar: React.FC = () => {
       url: "/calendar",
       icon: Calendar,
     },
-    ...(isPro ? [{
-      title: "CRM",
-      url: "/crm",
-      icon: UserCircle,
-      items: [
-        {
-          title: "Dashboard",
-          url: "/crm",
-          icon: BarChart3,
-        },
-        {
-          title: "Customers",
-          url: "/crm/customers",
-          icon: Users,
-        },
-        {
-          title: "Activity",
-          url: "/activity",
-          icon: Activity,
-        },
-        {
-          title: "Segments",
-          url: "/crm/segments",
-          icon: Target,
-        },
-        {
-          title: "Personas",
-          url: "/crm/personas",
-          icon: Target,
-        },
-        {
-          title: "Campaign Analytics",
-          url: "/crm/analytics",
-          icon: BarChart3,
-        },
-        {
-          title: "Campaigns",
-          url: "/crm/campaigns",
-          icon: Mail,
-        },
-      ],
-    }] : []),
+    ...(isPro
+      ? [
+          {
+            title: "CRM",
+            url: "/crm",
+            icon: UserCircle,
+            items: [
+              {
+                title: "Dashboard",
+                url: "/crm",
+                icon: BarChart3,
+              },
+              {
+                title: "Customers",
+                url: "/crm/customers",
+                icon: Users,
+              },
+              {
+                title: "Activity",
+                url: "/activity",
+                icon: Activity,
+              },
+              {
+                title: "Segments",
+                url: "/crm/segments",
+                icon: Target,
+              },
+              {
+                title: "Personas",
+                url: "/crm/personas",
+                icon: Target,
+              },
+              {
+                title: "Campaign Analytics",
+                url: "/crm/analytics",
+                icon: BarChart3,
+              },
+              {
+                title: "Campaigns",
+                url: "/crm/campaigns",
+                icon: Mail,
+              },
+            ],
+          },
+        ]
+      : []),
     {
       title: "Settings",
       url: "/settings",
       icon: Settings,
     },
-    ...(!isLoadingSuperAdmin && isSuperAdmin ? [{
-      title: "Admin",
-      url: "/admin",
-      icon: Shield,
-      items: [
-        {
-          title: "Reported Problems",
-          url: "/admin/reported-problems",
-          icon: Bug,
-        },
-        {
-          title: "OAuth Debug",
-          url: "/admin/oauth-debug",
-          icon: Shield,
-        },
-      ],
-    }] : []),
+    ...(!isLoadingSuperAdmin && isSuperAdmin
+      ? [
+          {
+            title: "Admin",
+            url: "/admin",
+            icon: Shield,
+            items: [
+              {
+                title: "Reported Problems",
+                url: "/admin/reported-problems",
+                icon: Bug,
+              },
+              {
+                title: "OAuth Debug",
+                url: "/admin/oauth-debug",
+                icon: Shield,
+              },
+            ],
+          },
+        ]
+      : []),
   ];
 
   const isActive = (path: string) => currentPath === path;
@@ -216,19 +227,22 @@ const AppSidebar: React.FC = () => {
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="flex flex-row items-center p-4">
-        <NavLink to="/dashboard" className="font-semibold flex items-center gap-2">
+        <NavLink
+          to="/dashboard"
+          className="font-semibold flex items-center gap-2"
+        >
           <div className="w-6 h-6 flex items-center justify-center flex-shrink-0">
-            <img 
-              src={logoImage} 
-              alt="BloomSuite Logo" 
+            <img
+              src={logoImage}
+              alt="BloomSuite Logo"
               className="w-full h-full object-contain"
-              style={{ background: 'transparent' }}
+              style={{ background: "transparent" }}
             />
           </div>
           {!isCollapsed && <span>BloomSuite</span>}
         </NavLink>
       </SidebarHeader>
-      
+
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel>Main Navigation</SidebarGroupLabel>
@@ -238,7 +252,11 @@ const AppSidebar: React.FC = () => {
                 item.items ? (
                   isCollapsed ? (
                     <SidebarMenuItem key={item.title}>
-                      <SidebarMenuButton asChild className="w-full" tooltip={item.title}>
+                      <SidebarMenuButton
+                        asChild
+                        className="w-full"
+                        tooltip={item.title}
+                      >
                         <NavLink
                           to={item.url}
                           className={({ isActive }) =>
@@ -253,11 +271,16 @@ const AppSidebar: React.FC = () => {
                   ) : (
                     <Collapsible
                       key={item.title}
-                      defaultOpen={item.items.some((subItem) => isActive(subItem.url))}
+                      defaultOpen={item.items.some((subItem) =>
+                        isActive(subItem.url),
+                      )}
                     >
                       <SidebarMenuItem>
                         <CollapsibleTrigger asChild>
-                          <SidebarMenuButton className="group w-full" tooltip={item.title}>
+                          <SidebarMenuButton
+                            className="group w-full"
+                            tooltip={item.title}
+                          >
                             <item.icon className="h-4 w-4" />
                             {!isCollapsed && <span>{item.title}</span>}
                             {!isCollapsed && (
@@ -293,17 +316,23 @@ const AppSidebar: React.FC = () => {
                   )
                 ) : (
                   <SidebarMenuItem key={item.title}>
-                     <SidebarMenuButton asChild className="w-full" tooltip={item.title}>
-                        <NavLink 
-                          to={item.url} 
-                          className={({ isActive }) => isActive ? "bg-accent text-accent-foreground" : ""}
-                        >
-                         <item.icon className="h-4 w-4" />
-                         {!isCollapsed && <span>{item.title}</span>}
-                       </NavLink>
-                     </SidebarMenuButton>
+                    <SidebarMenuButton
+                      asChild
+                      className="w-full"
+                      tooltip={item.title}
+                    >
+                      <NavLink
+                        to={item.url}
+                        className={({ isActive }) =>
+                          isActive ? "bg-accent text-accent-foreground" : ""
+                        }
+                      >
+                        <item.icon className="h-4 w-4" />
+                        {!isCollapsed && <span>{item.title}</span>}
+                      </NavLink>
+                    </SidebarMenuButton>
                   </SidebarMenuItem>
-                )
+                ),
               )}
             </SidebarMenu>
           </SidebarGroupContent>

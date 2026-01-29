@@ -1,31 +1,32 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { NativeSelect } from '@/components/ui/NativeSelect';
-import { Switch } from '@/components/ui/switch';
-import { Badge } from '@/components/ui/badge';
-import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/hooks/useAuth';
-import { useTenant } from '@/hooks/useTenant';
-import { supabase } from '@/integrations/supabase/client';
-import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
-import { 
-  ArrowLeft, 
-  Plus, 
-  X, 
-  Save, 
-  User, 
-  Mail, 
-  Phone, 
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { NativeSelect } from "@/components/ui/NativeSelect";
+import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+import { useTenant } from "@/hooks/useTenant";
+import { supabase } from "@/integrations/supabase/client";
+import { logActivity } from "@/lib/activityLogger";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
+import {
+  ArrowLeft,
+  Plus,
+  X,
+  Save,
+  User,
+  Mail,
+  Phone,
   DollarSign,
   Calendar,
   MessageSquare,
-  Tag
-} from 'lucide-react';
+  Tag,
+} from "lucide-react";
 
 type CustomerFormData = {
   email: string;
@@ -55,66 +56,68 @@ const AddCustomer = () => {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const { tenant, loading: tenantLoading, error: tenantError } = useTenant();
-  
+
   const [formData, setFormData] = useState<CustomerFormData>({
-    email: '',
-    first_name: '',
-    last_name: '',
-    phone: '',
-    persona_id: '',
-    persona: '',
+    email: "",
+    first_name: "",
+    last_name: "",
+    phone: "",
+    persona_id: "",
+    persona: "",
     tags: [],
     sms_opt_in: false,
     email_opt_in: false,
     lifetime_value: 0,
-    last_purchase_date: '',
+    last_purchase_date: "",
     custom_fields: {},
-    notes: '',
+    notes: "",
     // Identity & Profile Behavior Metrics
-    signup_source: 'manual',
-    preferred_channel: 'none',
-    city: '',
-    state_region: '',
-    postal_code: '',
+    signup_source: "manual",
+    preferred_channel: "none",
+    city: "",
+    state_region: "",
+    postal_code: "",
   });
 
-  const [newTag, setNewTag] = useState('');
+  const [newTag, setNewTag] = useState("");
 
   // Fetch CRM personas for selection
   const { data: crmPersonas = [], isLoading: personasLoading } = useQuery({
-    queryKey: ['crm-personas', tenant?.id],
+    queryKey: ["crm-personas", tenant?.id],
     enabled: !!tenant?.id,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('crm_personas')
-        .select('id, persona_name, persona_description')
-        .eq('tenant_id', tenant!.id)
-        .order('persona_name');
+        .from("crm_personas")
+        .select("id, persona_name, persona_description")
+        .eq("tenant_id", tenant!.id)
+        .order("persona_name");
       if (error) throw error;
       return data || [];
-    }
+    },
   });
 
   const addCustomerMutation = useMutation({
     mutationFn: async (customerData: CustomerFormData) => {
       if (!user?.id) {
-        throw new Error('User not authenticated');
+        throw new Error("User not authenticated");
       }
-      
+
       if (!tenant?.id) {
-        throw new Error('You are not assigned to a tenant. Please contact support or create an organization to continue.');
+        throw new Error(
+          "You are not assigned to a tenant. Please contact support or create an organization to continue.",
+        );
       }
 
       const normalizedEmail = customerData.email.trim().toLowerCase();
 
       // Calculate preferred channel based on opt-in status
-      let preferredChannel = 'none';
+      let preferredChannel = "none";
       if (customerData.email_opt_in && customerData.sms_opt_in) {
-        preferredChannel = 'both';
+        preferredChannel = "both";
       } else if (customerData.email_opt_in) {
-        preferredChannel = 'email';
+        preferredChannel = "email";
       } else if (customerData.sms_opt_in) {
-        preferredChannel = 'sms';
+        preferredChannel = "sms";
       }
 
       const now = new Date().toISOString();
@@ -138,72 +141,117 @@ const AddCustomer = () => {
         lifetime_value: customerData.lifetime_value || null,
         custom_fields: {
           ...customerData.custom_fields,
-          notes: customerData.notes
+          notes: customerData.notes,
         },
         // Identity & Profile Behavior Metrics
-        signup_source: customerData.signup_source || 'manual',
+        signup_source: customerData.signup_source || "manual",
         preferred_channel: preferredChannel,
         city: customerData.city || null,
         state_region: customerData.state_region || null,
         postal_code: customerData.postal_code || null,
         // Standard fields
         user_id: user.id,
-        tenant_id: tenant.id
+        tenant_id: tenant.id,
       };
-      
+
       const { data, error } = await supabase
-        .from('crm_customers')
+        .from("crm_customers")
         .insert([dataToInsert])
-        .select()
+        .select("id, tenant_id, first_name, last_name, email, phone")
         .single();
-      
+
       if (error) {
-        console.error('Database error:', error);
+        console.error("Database error:", error);
         throw error;
       }
       return data;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['customers'] });
-      toast({ 
+    onSuccess: async (createdCustomer) => {
+      queryClient.invalidateQueries({ queryKey: ["customers"] });
+      const tenantId = createdCustomer?.tenant_id ?? tenant?.id ?? null;
+      if (tenantId) {
+        await logActivity({
+          tenantId,
+          customerId: createdCustomer?.id ?? null,
+          actorType: "user",
+          actorId: user?.id ?? null,
+          source: "ui",
+          activityType: "customer.created",
+          status: "success",
+          title: "Customer created",
+          description: {
+            parts: [
+              {
+                type: "text",
+                text:
+                  `${createdCustomer?.first_name ?? ""} ${createdCustomer?.last_name ?? ""}`.trim() ||
+                  createdCustomer?.email ||
+                  "Customer",
+              },
+            ],
+          },
+          metadata: {
+            email: createdCustomer?.email,
+            phone: createdCustomer?.phone,
+            customer_name:
+              `${createdCustomer?.first_name ?? ""} ${createdCustomer?.last_name ?? ""}`.trim() ||
+              createdCustomer?.email ||
+              "Customer",
+            customer_first_name: createdCustomer?.first_name ?? null,
+            customer_last_name: createdCustomer?.last_name ?? null,
+          },
+          relatedEntities: {
+            customer_id: createdCustomer?.id ?? null,
+          },
+        });
+      }
+      queryClient.invalidateQueries({ queryKey: ["activity-feed"] });
+      toast({
         title: "Customer added successfully",
-        description: "The new customer has been added to your database."
+        description: "The new customer has been added to your database.",
       });
-      navigate('/crm/customers');
+      navigate("/crm/customers");
     },
     onError: async (error: any) => {
-      console.error('Error adding customer:', error);
+      console.error("Error adding customer:", error);
 
       // Handle persona constraint errors specifically
-      if (error?.message?.includes('persona_check') || error?.message?.includes('persona')) {
-        toast({ 
-          title: "Invalid Persona", 
-          description: "Please select a valid persona (Newbie, Struggler, Regular, or Expert)", 
-          variant: "destructive" 
+      if (
+        error?.message?.includes("persona_check") ||
+        error?.message?.includes("persona")
+      ) {
+        toast({
+          title: "Invalid Persona",
+          description:
+            "Please select a valid persona (Newbie, Struggler, Regular, or Expert)",
+          variant: "destructive",
         });
         return;
       }
 
       // Handle duplicate customer (unique email) errors by opening the existing record.
       const isDuplicate =
-        error?.code === '23505' ||
+        error?.code === "23505" ||
         error?.status === 409 ||
-        String(error?.message || '').toLowerCase().includes('duplicate');
+        String(error?.message || "")
+          .toLowerCase()
+          .includes("duplicate");
 
       if (isDuplicate && tenant?.id) {
         const normalizedEmail = formData.email.trim().toLowerCase();
         try {
           const { data: existing, error: fetchError } = await supabase
-            .from('crm_customers')
-            .select('id, first_name, last_name, email')
-            .eq('tenant_id', tenant.id)
-            .eq('email', normalizedEmail)
+            .from("crm_customers")
+            .select("id, first_name, last_name, email")
+            .eq("tenant_id", tenant.id)
+            .eq("email", normalizedEmail)
             .maybeSingle();
 
           if (!fetchError && existing?.id) {
             toast({
-              title: 'Customer already exists',
-              description: 'Opening the existing customer profile instead of creating a duplicate.',
+              title: "Customer already exists",
+              description:
+                "Opening the existing customer profile instead of creating a duplicate.",
             });
             navigate(`/crm/customers/${existing.id}`);
             return;
@@ -213,29 +261,30 @@ const AddCustomer = () => {
         }
 
         toast({
-          title: 'Duplicate customer',
-          description: 'A customer with this email already exists. Try searching by just the first name, last name, or email.',
-          variant: 'destructive',
+          title: "Duplicate customer",
+          description:
+            "A customer with this email already exists. Try searching by just the first name, last name, or email.",
+          variant: "destructive",
         });
         return;
       }
 
-      toast({ 
-        title: "Error adding customer", 
-        description: error.message, 
-        variant: "destructive" 
+      toast({
+        title: "Error adding customer",
+        description: error.message,
+        variant: "destructive",
       });
-    }
+    },
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.email.trim()) {
       toast({
         title: "Email required",
         description: "Please enter a valid email address.",
-        variant: "destructive"
+        variant: "destructive",
       });
       return;
     }
@@ -244,26 +293,26 @@ const AddCustomer = () => {
   };
 
   const handleInputChange = (field: keyof CustomerFormData, value: any) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [field]: value
+      [field]: value,
     }));
   };
 
   const addTag = () => {
     if (newTag.trim() && !formData.tags.includes(newTag.trim())) {
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
-        tags: [...prev.tags, newTag.trim()]
+        tags: [...prev.tags, newTag.trim()],
       }));
-      setNewTag('');
+      setNewTag("");
     }
   };
 
   const removeTag = (tagToRemove: string) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      tags: prev.tags.filter(tag => tag !== tagToRemove)
+      tags: prev.tags.filter((tag) => tag !== tagToRemove),
     }));
   };
 
@@ -274,7 +323,9 @@ const AddCustomer = () => {
         <div className="flex items-center justify-center py-12">
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Loading organization information...</p>
+            <p className="text-muted-foreground">
+              Loading organization information...
+            </p>
           </div>
         </div>
       </div>
@@ -286,32 +337,42 @@ const AddCustomer = () => {
     return (
       <div className="container mx-auto p-6 max-w-4xl">
         <div className="mb-6">
-          <h1 className="text-3xl font-bold text-foreground">Add New Customer</h1>
+          <h1 className="text-3xl font-bold text-foreground">
+            Add New Customer
+          </h1>
           <p className="text-muted-foreground">
             Add a new customer to your garden center database
           </p>
         </div>
-        
+
         <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-6 text-center">
           <div className="mb-4">
-            <svg className="mx-auto h-12 w-12 text-destructive" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.314 16.5c-.77.833.192 2.5 1.732 2.5z" />
+            <svg
+              className="mx-auto h-12 w-12 text-destructive"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.314 16.5c-.77.833.192 2.5 1.732 2.5z"
+              />
             </svg>
           </div>
-          <h3 className="text-lg font-semibold text-destructive mb-2">Organization Required</h3>
+          <h3 className="text-lg font-semibold text-destructive mb-2">
+            Organization Required
+          </h3>
           <p className="text-muted-foreground mb-4">{tenantError}</p>
           <div className="flex justify-center gap-3">
             <Button
               variant="outline"
-              onClick={() => navigate('/crm/customers')}
+              onClick={() => navigate("/crm/customers")}
             >
               Go Back
             </Button>
-            <Button
-              onClick={() => window.location.reload()}
-            >
-              Retry
-            </Button>
+            <Button onClick={() => window.location.reload()}>Retry</Button>
           </div>
         </div>
       </div>
@@ -320,19 +381,21 @@ const AddCustomer = () => {
 
   return (
     <div className="container mx-auto p-6 max-w-4xl">
-      <Button 
-        variant="ghost" 
-        size="sm" 
+      <Button
+        variant="ghost"
+        size="sm"
         onClick={() => {
-          console.log('Back to Customers button clicked, attempting navigation...');
-          navigate('/crm/customers');
+          console.log(
+            "Back to Customers button clicked, attempting navigation...",
+          );
+          navigate("/crm/customers");
         }}
         className="flex items-center gap-2 mb-4"
       >
         <ArrowLeft className="h-4 w-4" />
         Back to Customers
       </Button>
-      
+
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-foreground">Add New Customer</h1>
         <p className="text-muted-foreground">
@@ -357,7 +420,9 @@ const AddCustomer = () => {
                   <Input
                     id="first_name"
                     value={formData.first_name}
-                    onChange={(e) => handleInputChange('first_name', e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange("first_name", e.target.value)
+                    }
                     placeholder="Enter first name"
                   />
                 </div>
@@ -366,12 +431,14 @@ const AddCustomer = () => {
                   <Input
                     id="last_name"
                     value={formData.last_name}
-                    onChange={(e) => handleInputChange('last_name', e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange("last_name", e.target.value)
+                    }
                     placeholder="Enter last name"
                   />
                 </div>
               </div>
-              
+
               <div>
                 <Label htmlFor="email">Email Address *</Label>
                 <div className="relative">
@@ -380,7 +447,7 @@ const AddCustomer = () => {
                     id="email"
                     type="email"
                     value={formData.email}
-                    onChange={(e) => handleInputChange('email', e.target.value)}
+                    onChange={(e) => handleInputChange("email", e.target.value)}
                     placeholder="customer@example.com"
                     className="pl-10"
                     required
@@ -395,7 +462,7 @@ const AddCustomer = () => {
                   <Input
                     id="phone"
                     value={formData.phone}
-                    onChange={(e) => handleInputChange('phone', e.target.value)}
+                    onChange={(e) => handleInputChange("phone", e.target.value)}
                     placeholder="(555) 123-4567"
                     className="pl-10"
                   />
@@ -415,11 +482,16 @@ const AddCustomer = () => {
             <CardContent className="space-y-4">
               <div>
                 <Label htmlFor="persona">Gardening Persona</Label>
-                <NativeSelect 
-                  value={formData.persona_id || ''}
-                  onChange={(e) => handleInputChange('persona_id', e.target.value)}
+                <NativeSelect
+                  value={formData.persona_id || ""}
+                  onChange={(e) =>
+                    handleInputChange("persona_id", e.target.value)
+                  }
                   placeholder="Select a persona..."
-                  options={crmPersonas.map(p => ({ value: p.id, label: p.persona_name }))}
+                  options={crmPersonas.map((p) => ({
+                    value: p.id,
+                    label: p.persona_name,
+                  }))}
                   disabled={personasLoading}
                 />
               </div>
@@ -434,7 +506,12 @@ const AddCustomer = () => {
                     step="0.01"
                     min="0"
                     value={formData.lifetime_value}
-                    onChange={(e) => handleInputChange('lifetime_value', parseFloat(e.target.value) || 0)}
+                    onChange={(e) =>
+                      handleInputChange(
+                        "lifetime_value",
+                        parseFloat(e.target.value) || 0,
+                      )
+                    }
                     placeholder="0.00"
                     className="pl-10"
                   />
@@ -449,7 +526,9 @@ const AddCustomer = () => {
                     id="last_purchase_date"
                     type="date"
                     value={formData.last_purchase_date}
-                    onChange={(e) => handleInputChange('last_purchase_date', e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange("last_purchase_date", e.target.value)
+                    }
                     className="pl-10"
                   />
                 </div>
@@ -474,7 +553,9 @@ const AddCustomer = () => {
                     value={newTag}
                     onChange={(e) => setNewTag(e.target.value)}
                     placeholder="Add a tag..."
-                    onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addTag())}
+                    onKeyPress={(e) =>
+                      e.key === "Enter" && (e.preventDefault(), addTag())
+                    }
                   />
                   <Button type="button" onClick={addTag} size="sm">
                     <Plus className="h-4 w-4" />
@@ -482,10 +563,14 @@ const AddCustomer = () => {
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {formData.tags.map((tag, index) => (
-                    <Badge key={index} variant="secondary" className="flex items-center gap-1">
+                    <Badge
+                      key={index}
+                      variant="secondary"
+                      className="flex items-center gap-1"
+                    >
                       {tag}
-                      <X 
-                        className="h-3 w-3 cursor-pointer" 
+                      <X
+                        className="h-3 w-3 cursor-pointer"
                         onClick={() => removeTag(tag)}
                       />
                     </Badge>
@@ -497,7 +582,9 @@ const AddCustomer = () => {
                 <Switch
                   id="sms_opt_in"
                   checked={formData.sms_opt_in}
-                  onCheckedChange={(checked) => handleInputChange('sms_opt_in', checked)}
+                  onCheckedChange={(checked) =>
+                    handleInputChange("sms_opt_in", checked)
+                  }
                 />
                 <Label htmlFor="sms_opt_in" className="flex items-center gap-2">
                   <MessageSquare className="h-4 w-4" />
@@ -509,9 +596,14 @@ const AddCustomer = () => {
                 <Switch
                   id="email_opt_in"
                   checked={formData.email_opt_in}
-                  onCheckedChange={(checked) => handleInputChange('email_opt_in', checked)}
+                  onCheckedChange={(checked) =>
+                    handleInputChange("email_opt_in", checked)
+                  }
                 />
-                <Label htmlFor="email_opt_in" className="flex items-center gap-2">
+                <Label
+                  htmlFor="email_opt_in"
+                  className="flex items-center gap-2"
+                >
                   <Mail className="h-4 w-4" />
                   Email Marketing Opt-in
                 </Label>
@@ -532,15 +624,17 @@ const AddCustomer = () => {
                 <Label htmlFor="signup_source">Signup Source</Label>
                 <NativeSelect
                   value={formData.signup_source}
-                  onChange={(e) => handleInputChange('signup_source', e.target.value)}
+                  onChange={(e) =>
+                    handleInputChange("signup_source", e.target.value)
+                  }
                   options={[
-                    { value: 'manual', label: 'Manual Entry' },
-                    { value: 'organic', label: 'Organic (Website)' },
-                    { value: 'paid', label: 'Paid Advertising' },
-                    { value: 'referral', label: 'Referral' },
-                    { value: 'qr_code', label: 'QR Code' },
-                    { value: 'event', label: 'Event / Trade Show' },
-                    { value: 'walk_in', label: 'Walk-in' },
+                    { value: "manual", label: "Manual Entry" },
+                    { value: "organic", label: "Organic (Website)" },
+                    { value: "paid", label: "Paid Advertising" },
+                    { value: "referral", label: "Referral" },
+                    { value: "qr_code", label: "QR Code" },
+                    { value: "event", label: "Event / Trade Show" },
+                    { value: "walk_in", label: "Walk-in" },
                   ]}
                 />
               </div>
@@ -551,7 +645,7 @@ const AddCustomer = () => {
                   <Input
                     id="city"
                     value={formData.city}
-                    onChange={(e) => handleInputChange('city', e.target.value)}
+                    onChange={(e) => handleInputChange("city", e.target.value)}
                     placeholder="City"
                   />
                 </div>
@@ -560,7 +654,9 @@ const AddCustomer = () => {
                   <Input
                     id="state_region"
                     value={formData.state_region}
-                    onChange={(e) => handleInputChange('state_region', e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange("state_region", e.target.value)
+                    }
                     placeholder="State"
                   />
                 </div>
@@ -571,7 +667,9 @@ const AddCustomer = () => {
                 <Input
                   id="postal_code"
                   value={formData.postal_code}
-                  onChange={(e) => handleInputChange('postal_code', e.target.value)}
+                  onChange={(e) =>
+                    handleInputChange("postal_code", e.target.value)
+                  }
                   placeholder="Zip / Postal Code"
                 />
               </div>
@@ -589,7 +687,7 @@ const AddCustomer = () => {
                 <Textarea
                   id="notes"
                   value={formData.notes}
-                  onChange={(e) => handleInputChange('notes', e.target.value)}
+                  onChange={(e) => handleInputChange("notes", e.target.value)}
                   placeholder="Add any additional notes about this customer..."
                   rows={4}
                 />
@@ -600,23 +698,23 @@ const AddCustomer = () => {
 
         {/* Submit Button */}
         <div className="flex justify-end gap-4">
-          <Button 
-            type="button" 
-            variant="outline" 
+          <Button
+            type="button"
+            variant="outline"
             onClick={() => {
-              console.log('Cancel button clicked, attempting navigation...');
-              navigate('/crm/customers');
+              console.log("Cancel button clicked, attempting navigation...");
+              navigate("/crm/customers");
             }}
           >
             Cancel
           </Button>
-          <Button 
-            type="submit" 
+          <Button
+            type="submit"
             disabled={addCustomerMutation.isPending}
             className="flex items-center gap-2"
           >
             <Save className="h-4 w-4" />
-            {addCustomerMutation.isPending ? 'Adding...' : 'Add Customer'}
+            {addCustomerMutation.isPending ? "Adding..." : "Add Customer"}
           </Button>
         </div>
       </form>

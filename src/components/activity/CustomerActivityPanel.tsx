@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
 import { useIntersectionSentinel } from "@/hooks/useIntersectionSentinel";
+import { supabase } from "@/integrations/supabase/client";
 
 export function CustomerActivityPanel({ customerId }: { customerId: string }) {
   const feed = useActivityFeed(
@@ -13,6 +14,35 @@ export function CustomerActivityPanel({ customerId }: { customerId: string }) {
     },
     { pageSize: 10, enabled: !!customerId },
   );
+
+  const [customerName, setCustomerName] = React.useState<string>("");
+
+  React.useEffect(() => {
+    let cancelled = false;
+
+    async function run() {
+      if (!customerId) return;
+
+      const { data, error } = await supabase
+        .from("crm_customers")
+        .select("first_name, last_name")
+        .eq("id", customerId)
+        .maybeSingle();
+
+      if (cancelled) return;
+      if (error) return;
+
+      const first = String((data as any)?.first_name ?? "").trim();
+      const last = String((data as any)?.last_name ?? "").trim();
+      const full = `${first} ${last}`.trim();
+      if (full) setCustomerName(full);
+    }
+
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [customerId]);
 
   const events = feed.data?.pages.flat() ?? [];
 
@@ -56,7 +86,11 @@ export function CustomerActivityPanel({ customerId }: { customerId: string }) {
         ) : null}
 
         {events.map((ev) => (
-          <ActivityRow key={ev.id} event={ev} />
+          <ActivityRow
+            key={ev.id}
+            event={ev}
+            customerNameOverride={customerName || undefined}
+          />
         ))}
 
         <div ref={sentinelRef} />

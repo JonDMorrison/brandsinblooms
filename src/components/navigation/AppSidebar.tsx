@@ -1,17 +1,17 @@
-import { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { useState } from "react";
+import { Link, useLocation } from "react-router-dom";
 import logoImage from "@/assets/bloomsuite-logo-correct.png";
-import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { useIsSuperAdmin } from '@/hooks/useIsSuperAdmin';
-import { 
-  Home, 
-  BarChart3, 
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { useIsSuperAdmin } from "@/hooks/useIsSuperAdmin";
+import {
+  Home,
+  BarChart3,
   Activity,
   Calendar,
-  Users, 
-  Settings, 
+  Users,
+  Settings,
   Bell,
   MessageSquare,
   Mail,
@@ -32,8 +32,8 @@ import {
   Shield,
   Bug,
   Package,
-  FileInput
-} from 'lucide-react';
+  FileInput,
+} from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -48,7 +48,7 @@ import {
   SidebarFooter,
   SidebarSeparator,
   useSidebar,
-} from '@/components/ui/sidebar';
+} from "@/components/ui/sidebar";
 // import { LogoWithText } from '@/components/ui/logo';
 
 interface SidebarItem {
@@ -66,11 +66,16 @@ interface SidebarGroup {
 
 export function AppSidebar() {
   const location = useLocation();
-  const { state, toggleSidebar, isMobile, setOpen, setOpenMobile } = useSidebar();
+  const { state, toggleSidebar, isMobile, setOpen, setOpenMobile } =
+    useSidebar();
   const isCollapsed = state === "collapsed";
-  const { data: isSuperAdmin, isLoading: isLoadingSuperAdmin } = useIsSuperAdmin();
-  
-  console.log('🎨 navigation/AppSidebar - Admin status:', { isSuperAdmin, isLoadingSuperAdmin });
+  const { data: isSuperAdmin, isLoading: isLoadingSuperAdmin } =
+    useIsSuperAdmin();
+
+  console.log("🎨 navigation/AppSidebar - Admin status:", {
+    isSuperAdmin,
+    isLoadingSuperAdmin,
+  });
 
   const sidebarGroups: SidebarGroup[] = [
     {
@@ -93,10 +98,10 @@ export function AppSidebar() {
         },
         {
           title: "Calendar",
-          url: "/calendar", 
+          url: "/calendar",
           icon: Calendar,
-        }
-      ]
+        },
+      ],
     },
     {
       label: "CRM & Marketing",
@@ -135,8 +140,8 @@ export function AppSidebar() {
           title: "Forms",
           url: "/crm/forms",
           icon: FileInput,
-        }
-      ]
+        },
+      ],
     },
     {
       label: "Content & Publishing",
@@ -155,8 +160,8 @@ export function AppSidebar() {
           title: "SMS Campaigns",
           url: "/sms",
           icon: MessageSquare,
-        }
-      ]
+        },
+      ],
     },
     {
       label: "Settings & Support",
@@ -185,38 +190,42 @@ export function AppSidebar() {
           title: "Support",
           url: "/support",
           icon: LifeBuoy,
-        }
-      ]
+        },
+      ],
     },
-    ...(!isLoadingSuperAdmin && isSuperAdmin ? [{
-      label: "Admin",
-      items: [
-        {
-          title: "Reported Problems",
-          url: "/admin/reported-problems",
-          icon: Bug,
-        }
-      ]
-    }] : [])
+    ...(!isLoadingSuperAdmin && isSuperAdmin
+      ? [
+          {
+            label: "Admin",
+            items: [
+              {
+                title: "Reported Problems",
+                url: "/admin/reported-problems",
+                icon: Bug,
+              },
+            ],
+          },
+        ]
+      : []),
   ];
 
   const isItemActive = (url: string) => {
-    if (url === '/') {
-      return location.pathname === '/';
+    if (url === "/") {
+      return location.pathname === "/";
     }
     return location.pathname.startsWith(url);
   };
 
   const isGroupActive = (items: SidebarItem[]) => {
-    return items.some(item => isItemActive(item.url));
+    return items.some((item) => isItemActive(item.url));
   };
 
   return (
     <Sidebar variant="inset" className="md:bg-transparent bg-white">
       <SidebarHeader className="md:bg-transparent bg-white">
         <div className="flex items-center justify-between px-4 py-2 h-12">
-          <Link 
-            to="/" 
+          <Link
+            to="/"
             className="flex items-center gap-2"
             onClick={() => {
               // Auto-collapse sidebar only on mobile for better UX
@@ -226,15 +235,17 @@ export function AppSidebar() {
             }}
           >
             <div className="w-6 h-6 flex items-center justify-center">
-              <img 
-                src={logoImage} 
-                alt="BloomSuite Logo" 
+              <img
+                src={logoImage}
+                alt="BloomSuite Logo"
                 className="w-full h-full object-contain"
-                style={{ background: 'transparent' }}
+                style={{ background: "transparent" }}
               />
             </div>
             {!isCollapsed && (
-              <span className="font-bold text-xl tracking-tight">BloomSuite</span>
+              <span className="font-bold text-xl tracking-tight">
+                BloomSuite
+              </span>
             )}
           </Link>
           <Button
@@ -264,20 +275,20 @@ export function AppSidebar() {
                     const isActive = isItemActive(item.url);
                     return (
                       <SidebarMenuItem key={item.title}>
-                        <SidebarMenuButton 
-                          asChild 
+                        <SidebarMenuButton
+                          asChild
                           isActive={isActive}
                           tooltip={item.title}
                           className="group"
-                          data-testid={`sidebar-link-${item.title.toLowerCase().replace(/\s+/g, '-')}`}
+                          data-testid={`sidebar-link-${item.title.toLowerCase().replace(/\s+/g, "-")}`}
                         >
-                          <Link 
+                          <Link
                             to={item.url}
                             className={cn(
                               "flex items-center gap-3 w-full transition-colors",
-                              isActive 
-                                ? "text-primary font-semibold bg-primary/10" 
-                                : "text-muted-foreground hover:text-foreground"
+                              isActive
+                                ? "text-primary font-semibold bg-primary/10"
+                                : "text-muted-foreground hover:text-foreground",
                             )}
                             onClick={() => {
                               // Auto-collapse sidebar only on mobile for better UX

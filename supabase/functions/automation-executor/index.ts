@@ -3,6 +3,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.10';
 import { renderMergeTags, convertLegacyTags, createMergeTagDataFromCustomer, GLOBAL_FALLBACKS } from "../_shared/mergeTagEngine.ts";
 import { resolveSender, type SenderConfig } from "../_shared/senderResolver.ts";
 import { checkChannelAvailability, isChannelAvailable, type ChannelAvailability } from "../_shared/channelAvailability.ts";
+import { logActivityEvent } from "../_shared/activityLogger.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -457,6 +458,35 @@ async function createAutomationRun(
       if (error.code === '23505') return null;
       throw error;
     }
+
+    await logActivityEvent(supabase, {
+      tenant_id: automation.tenant_id,
+      customer_id: customer.id,
+      actor_type: 'automation',
+      source: 'automation',
+      activity_type: 'automation.started',
+      status: 'success',
+      title: `Automation started: ${automation.name || 'Automation'}`,
+      description: {
+        parts: [
+          { type: 'text', text: 'Automation run started.' },
+        ],
+      },
+      metadata: {
+        automation_id: automation.id,
+        automation_run_id: inserted.id,
+        run_sequence: sequence,
+        trigger_type: automation.trigger_type,
+        customer_name: `${customer.first_name ?? ''} ${customer.last_name ?? ''}`.trim() || customer.email || 'Customer',
+        customer_first_name: customer.first_name ?? null,
+        customer_last_name: customer.last_name ?? null,
+      },
+      related_entities: {
+        automation_id: automation.id,
+        automation_run_id: inserted.id,
+        customer_id: customer.id,
+      },
+    });
 
     return inserted;
   }
