@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
-import type { UseInfiniteQueryResult } from "@tanstack/react-query";
+import type { UseInfiniteQueryResult, InfiniteData } from "@tanstack/react-query";
 import { ChevronDown, ChevronRight, ExternalLink } from "lucide-react";
 
 import type { ActivityEvent } from "@/types/activity";
@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
 type FeedLike = Pick<
-  UseInfiniteQueryResult<ActivityEvent[], unknown>,
+  UseInfiniteQueryResult<InfiniteData<ActivityEvent[], unknown>, Error>,
   | "data"
   | "isLoading"
   | "isError"
