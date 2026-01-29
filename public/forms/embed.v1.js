@@ -1,5 +1,5 @@
 /**
- * BloomSuite Forms Embed Script v1.4.0
+ * BloomSuite Forms Embed Script v1.5.0
  *
  * Features:
  * - No iframe (inline rendering)
@@ -14,6 +14,7 @@
  * - Display triggers: delay, scroll depth, click selector
  * - MutationObserver for late-loaded containers
  * - Fail-loud UI with diagnostic debug mode
+ * - Supabase Storage hosting support
  *
  * Browser Support: Chrome 60+, Firefox 55+, Safari 11+, Edge 79+
  */
@@ -22,7 +23,7 @@
 
   // ─── Configuration ───────────────────────────────────────────────────────
   var API_BASE = window.BLOOMSUITE_API_BASE || 'https://udldmkqwnxhdeztyqcau.supabase.co/functions/v1';
-  var SCRIPT_VERSION = '1.4.0';
+  var SCRIPT_VERSION = '1.5.0';
   var INIT_TIMEOUT_MS = 10000;
   var CSS_PREFIX = 'bs-form-';
   var INITIALIZED_ATTR = 'data-bs-initialized';
@@ -43,22 +44,43 @@
   };
 
   // Detect script base URL for loading CSS from same origin
+  // Handles: lovableproject.com, supabase.co/storage, cdn.bloomsuite.app, etc.
   var SCRIPT_BASE = (function () {
     var scripts = document.getElementsByTagName('script');
     for (var i = scripts.length - 1; i >= 0; i--) {
       var src = scripts[i].src || '';
-      if (src.indexOf('embed') !== -1 && src.indexOf('bloomsuite') !== -1 ||
-        src.indexOf('/forms/embed') !== -1) {
+      // Match any embed script URL pattern
+      if (src.indexOf('/forms/embed') !== -1 || 
+          (src.indexOf('embed') !== -1 && (
+            src.indexOf('bloomsuite') !== -1 ||
+            src.indexOf('supabase.co/storage') !== -1
+          ))) {
+        // Handle Supabase Storage URLs: .../assets/forms/embed.v1.js
+        // Handle standard URLs: .../forms/embed.v1.js
+        // Extract base path up to and including /forms/
+        var match = src.match(/^(.*\/forms\/)/);
+        if (match) {
+          return match[1];
+        }
+        // Fallback: strip embed*.js filename
         return src.replace(/embed[^/]*\.js.*$/, '');
       }
     }
     // Fallback: use current script
     try {
-      return document.currentScript.src.replace(/embed[^/]*\.js.*$/, '');
+      var currentSrc = document.currentScript.src;
+      var currentMatch = currentSrc.match(/^(.*\/forms\/)/);
+      if (currentMatch) {
+        return currentMatch[1];
+      }
+      return currentSrc.replace(/embed[^/]*\.js.*$/, '');
     } catch (e) {
       return '';
     }
   })();
+
+  // CSS URL override - allows explicit CSS path when auto-detection fails
+  var CSS_URL = window.BLOOMSUITE_CSS_URL || (SCRIPT_BASE + 'embed.css');
 
   // ─── Minimal Fallback CSS (for CSP-blocked environments) ─────────────────
   // These are absolute minimum styles for a usable form when external CSS fails
@@ -546,13 +568,12 @@
       return;
     }
 
-    // Try to load external CSS first (CSP-friendly)
-    var cssUrl = SCRIPT_BASE + 'embed.css';
+    // Use explicit CSS_URL (supports Supabase Storage, CDN, or custom paths)
     var link = document.createElement('link');
     link.id = CSS_PREFIX + 'styles';
     link.rel = 'stylesheet';
     link.type = 'text/css';
-    link.href = cssUrl;
+    link.href = CSS_URL;
 
     var timeout = setTimeout(function () {
       // CSS load timeout - fall back to inline
