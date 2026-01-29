@@ -119,13 +119,8 @@ export function useActivityEvent(eventId?: string) {
         });
       }
 
-      const { data, error } = await supabase.rpc('get_activity_event', {
-        p_event_id: eventId,
-      });
-      if (error) throw error;
-      const row = Array.isArray(data) ? data[0] : data;
-      if (!row) return null;
-      return normalizeEvent(row);
+      // Unknown prefix - return null
+      return null;
     },
   });
 }

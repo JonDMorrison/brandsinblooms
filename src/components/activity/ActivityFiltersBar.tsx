@@ -140,7 +140,7 @@ export function ActivityFiltersBar({ className }: ActivityFiltersBarProps) {
       let error: any = null;
       try {
         const rpcResult = await withTimeout(
-          supabase.rpc("get_activity_feed", {
+          Promise.resolve(supabase.rpc("get_activity_feed", {
             p_customer_id: null,
             p_limit: 300,
             p_offset: 0,
@@ -153,7 +153,7 @@ export function ActivityFiltersBar({ className }: ActivityFiltersBarProps) {
             p_end: null,
             p_segment_ids: null,
             p_persona_ids: null,
-          }),
+          })),
           8000,
         );
 
@@ -162,11 +162,11 @@ export function ActivityFiltersBar({ className }: ActivityFiltersBarProps) {
 
         if (error) {
           const fallback = await withTimeout(
-            supabase
+            Promise.resolve(supabase
               .from("crm_activity_events")
               .select("activity_type")
               .order("timestamp", { ascending: false })
-              .limit(500),
+              .limit(500)),
             8000,
           );
           data = (fallback as any)?.data;
