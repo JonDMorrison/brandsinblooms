@@ -1,0 +1,1 @@
+DELETE FROM crm_activity_events WHERE tenant_id = '13b62ff0-4dc0-4451-a851-bb142a25ea62';
