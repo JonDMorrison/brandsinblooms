@@ -1,5 +1,5 @@
 /**
- * BloomSuite Forms Embed Script v1.3.0
+ * BloomSuite Forms Embed Script v1.4.0
  * 
  * Features:
  * - No iframe (inline rendering)
@@ -12,6 +12,8 @@
  * - Zero external dependencies
  * - Display modes: inline, modal, slide-in
  * - Display triggers: delay, scroll depth, click selector
+ * - MutationObserver for late-loaded containers
+ * - Fail-loud UI with diagnostic debug mode
  * 
  * Browser Support: Chrome 60+, Firefox 55+, Safari 11+, Edge 79+
  */
@@ -20,9 +22,10 @@
 
   // ─── Configuration ───────────────────────────────────────────────────────
   var API_BASE = window.BLOOMSUITE_API_BASE || 'https://udldmkqwnxhdeztyqcau.supabase.co/functions/v1';
-  var SCRIPT_VERSION = '1.3.0';
+  var SCRIPT_VERSION = '1.4.0';
   var INIT_TIMEOUT_MS = 10000;
   var CSS_PREFIX = 'bs-form-';
+  var INITIALIZED_ATTR = 'data-bs-initialized';
   
   // Supported display modes
   var DISPLAY_MODES = {
@@ -68,10 +71,16 @@
     '.' + CSS_PREFIX + 'checkbox-wrap{display:flex;gap:.5em;align-items:flex-start}',
     '.' + CSS_PREFIX + 'consent{padding:.75em;background:#f5f5f5;border:1px solid #ddd;margin-bottom:1em}',
     '.' + CSS_PREFIX + 'success{text-align:center;padding:2em;background:#f0fdf4;border:1px solid #bbf7d0}',
-    '.' + CSS_PREFIX + 'loading{text-align:center;padding:2em}',
+    '.' + CSS_PREFIX + 'loading{text-align:center;padding:2em;color:#666}',
     '.' + CSS_PREFIX + 'blocked{text-align:center;padding:1.5em;background:#fef2f2;border:1px solid #fecaca;color:#991b1b}',
+    '.' + CSS_PREFIX + 'error-box{padding:1em;background:#fef2f2;border:1px solid #fecaca;border-radius:6px;color:#991b1b;font-size:14px}',
+    '.' + CSS_PREFIX + 'error-box strong{display:block;margin-bottom:.5em}',
+    '.' + CSS_PREFIX + 'error-box ul{margin:.5em 0 0;padding-left:1.25em}',
     '.' + CSS_PREFIX + 'error-msg{color:#dc2626;font-size:.875em;margin-top:.25em}',
     '.' + CSS_PREFIX + 'hp{position:absolute!important;left:-9999px!important;opacity:0!important;pointer-events:none!important;height:0!important}',
+    '.' + CSS_PREFIX + 'debug-panel{margin-top:1em;padding:.75em;background:#f0f9ff;border:1px solid #bae6fd;border-radius:4px;font-family:monospace;font-size:12px}',
+    '.' + CSS_PREFIX + 'debug-panel dt{font-weight:bold;color:#0369a1}',
+    '.' + CSS_PREFIX + 'debug-panel dd{margin:0 0 .5em 0;color:#334155;word-break:break-all}',
     // Modal styles
     '.' + CSS_PREFIX + 'modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;opacity:0;visibility:hidden;transition:opacity 0.2s,visibility 0.2s}',
     '.' + CSS_PREFIX + 'modal-overlay.bs-form-open{opacity:1;visibility:visible}',
@@ -104,6 +113,9 @@
   
   // Track active triggers to prevent duplicates
   var activeTriggers = {};
+  
+  // Track MutationObserver instance
+  var mutationObserver = null;
 
   // ─── Display Trigger Engine ──────────────────────────────────────────────
   
@@ -596,9 +608,16 @@
 
   /**
    * Fetch form configuration
+   * Returns additional diagnostic info for debug mode
    */
   function fetchConfig(embedKey, callback) {
     var url = API_BASE + '/get-form-config?embed_key=' + encodeURIComponent(embedKey);
+    var diagnostics = {
+      url: url,
+      status: null,
+      error: null,
+      blocked: false
+    };
     
     var xhr = new XMLHttpRequest();
     xhr.open('GET', url, true);
@@ -607,33 +626,47 @@
     xhr.onreadystatechange = function() {
       if (xhr.readyState !== 4) return;
       
+      diagnostics.status = xhr.status;
+      
       if (xhr.status === 200) {
         try {
           var data = JSON.parse(xhr.responseText);
-          callback(null, data);
+          callback(null, data, diagnostics);
         } catch (e) {
-          callback(new Error('Invalid response'));
+          diagnostics.error = 'Invalid JSON response';
+          callback(new Error('Invalid response'), null, diagnostics);
         }
       } else if (xhr.status === 0) {
         // Network error or blocked
-        callback(new Error('BLOCKED'));
+        diagnostics.blocked = true;
+        diagnostics.error = 'Request blocked (status 0)';
+        callback(new Error('BLOCKED'), null, diagnostics);
+      } else if (xhr.status === 404) {
+        diagnostics.error = 'Form not found or not published';
+        callback(new Error('NOT_FOUND'), null, diagnostics);
       } else {
-        callback(new Error('Form not found'));
+        diagnostics.error = 'HTTP ' + xhr.status;
+        callback(new Error('Form not found'), null, diagnostics);
       }
     };
     
     xhr.onerror = function() {
-      callback(new Error('BLOCKED'));
+      diagnostics.blocked = true;
+      diagnostics.error = 'Network error (possibly blocked)';
+      callback(new Error('BLOCKED'), null, diagnostics);
     };
     
     xhr.ontimeout = function() {
-      callback(new Error('Timeout'));
+      diagnostics.error = 'Request timeout (' + INIT_TIMEOUT_MS + 'ms)';
+      callback(new Error('Timeout'), null, diagnostics);
     };
     
     try {
       xhr.send();
     } catch (e) {
-      callback(new Error('BLOCKED'));
+      diagnostics.blocked = true;
+      diagnostics.error = 'Send failed: ' + e.message;
+      callback(new Error('BLOCKED'), null, diagnostics);
     }
   }
 
@@ -679,6 +712,133 @@
     };
     
     xhr.send(JSON.stringify(payload));
+  }
+
+  // ─── Error UI Rendering ──────────────────────────────────────────────────
+
+  /**
+   * Render comprehensive error box with troubleshooting tips
+   */
+  function renderErrorBox(container, errorType, diagnostics, embedKey) {
+    var errorBox = createElement('div', 'error-box');
+    var title = '';
+    var hints = [];
+    
+    switch (errorType) {
+      case 'BLOCKED':
+        title = 'Form Could Not Load';
+        hints = [
+          'Check if an <strong>ad blocker</strong> or privacy extension is blocking the request',
+          'Verify your site\'s <strong>Content Security Policy (CSP)</strong> allows connections to <code>' + escapeHtml(API_BASE.replace('https://', '')) + '</code>',
+          'If using a firewall or proxy, ensure API requests are permitted'
+        ];
+        break;
+        
+      case 'NOT_FOUND':
+        title = 'Form Not Available';
+        hints = [
+          'The <strong>embed key</strong> may be invalid or the form is not published',
+          'Verify the form exists in your BloomSuite dashboard',
+          'Check that the form status is set to <strong>Published</strong>'
+        ];
+        break;
+        
+      case 'INVALID_KEY':
+        title = 'Invalid Form Configuration';
+        hints = [
+          'The embed key format is incorrect',
+          'Copy the embed code again from BloomSuite dashboard',
+          'Ensure the <code>data-bloomsuite-form</code> attribute contains a valid 32-character key'
+        ];
+        break;
+        
+      case 'TIMEOUT':
+        title = 'Connection Timed Out';
+        hints = [
+          'Check your internet connection',
+          'The API server may be temporarily unavailable',
+          'Try refreshing the page'
+        ];
+        break;
+        
+      case 'EARLY_LOAD':
+        title = 'Script Loaded Too Early';
+        hints = [
+          'Change the script tag from <code>async</code> to <code>defer</code>',
+          'Or add <code>BloomSuiteForms.init()</code> after your page content',
+          'This ensures the form container exists before initialization'
+        ];
+        break;
+        
+      default:
+        title = 'Form Load Error';
+        hints = [
+          'An unexpected error occurred',
+          'Try refreshing the page',
+          'Contact support if the problem persists'
+        ];
+    }
+    
+    var html = '<strong>' + escapeHtml(title) + '</strong>';
+    html += '<ul>';
+    for (var i = 0; i < hints.length; i++) {
+      html += '<li>' + hints[i] + '</li>';
+    }
+    html += '</ul>';
+    
+    errorBox.innerHTML = html;
+    
+    // Add debug panel if enabled
+    if (container.getAttribute('data-debug') === 'true') {
+      var debugPanel = renderDebugPanel(diagnostics, embedKey);
+      errorBox.appendChild(debugPanel);
+    }
+    
+    container.innerHTML = '';
+    container.appendChild(errorBox);
+  }
+
+  /**
+   * Render debug panel with diagnostic information
+   */
+  function renderDebugPanel(diagnostics, embedKey) {
+    var panel = createElement('div', 'debug-panel');
+    
+    var dl = document.createElement('dl');
+    dl.style.margin = '0';
+    
+    var items = [
+      ['Version', SCRIPT_VERSION],
+      ['API Base', API_BASE],
+      ['Embed Key', embedKey ? (embedKey.substring(0, 8) + '...') : '(missing)'],
+      ['Config URL', diagnostics && diagnostics.url ? diagnostics.url : '(not fetched)'],
+      ['Status', diagnostics && diagnostics.status !== null ? String(diagnostics.status) : 'N/A'],
+      ['Blocked', diagnostics && diagnostics.blocked ? 'Yes' : 'No'],
+      ['Error', diagnostics && diagnostics.error ? diagnostics.error : 'None']
+    ];
+    
+    for (var i = 0; i < items.length; i++) {
+      var dt = document.createElement('dt');
+      dt.textContent = items[i][0];
+      var dd = document.createElement('dd');
+      dd.textContent = items[i][1];
+      dl.appendChild(dt);
+      dl.appendChild(dd);
+    }
+    
+    panel.appendChild(dl);
+    return panel;
+  }
+
+  /**
+   * Render loading state (shown immediately before network call)
+   */
+  function renderLoadingState(container) {
+    container.innerHTML = 
+      '<div class="' + CSS_PREFIX + 'loading">' +
+        '<div class="' + CSS_PREFIX + 'spinner"></div>' +
+        '<div>Loading BloomSuite form…</div>' +
+      '</div>';
   }
 
   // ─── Field Rendering ─────────────────────────────────────────────────────
@@ -1323,17 +1483,26 @@
   /**
    * Initialize a single form container
    * Reads display mode and trigger from data attributes
+   * IDEMPOTENT: Checks for data-bs-initialized marker
    */
   function initForm(container) {
+    // Skip if already initialized (idempotency check)
+    if (container.getAttribute(INITIALIZED_ATTR) === 'true') {
+      return;
+    }
+    
     var embedKey = container.getAttribute('data-bloomsuite-form');
     if (!embedKey) return;
+    
+    // Mark as initialized immediately to prevent double-init
+    container.setAttribute(INITIALIZED_ATTR, 'true');
     
     // Get display mode (default: inline)
     var displayMode = container.getAttribute('data-display-mode') || DISPLAY_MODES.INLINE;
     
     // Validate embed key format (32 hex chars)
     if (!/^[a-f0-9]{32}$/i.test(embedKey)) {
-      container.innerHTML = '<div class="' + CSS_PREFIX + 'error-msg">Invalid form configuration</div>';
+      renderErrorBox(container, 'INVALID_KEY', null, embedKey);
       return;
     }
     
@@ -1416,26 +1585,22 @@
     }
     
     // INLINE MODE: Render form directly (default behavior)
-    // Show loading
-    container.innerHTML = 
-      '<div class="' + CSS_PREFIX + 'loading">' +
-        '<div class="' + CSS_PREFIX + 'spinner"></div>' +
-        '<div>Loading form...</div>' +
-      '</div>';
+    // Show loading state IMMEDIATELY (fail-loud pattern)
+    renderLoadingState(container);
     
     // Fetch config
-    fetchConfig(embedKey, function(err, config) {
+    fetchConfig(embedKey, function(err, config, diagnostics) {
       if (err) {
+        var errorType = 'UNKNOWN';
         if (err.message === 'BLOCKED') {
-          // Graceful ad-blocker fallback
-          container.innerHTML = 
-            '<div class="' + CSS_PREFIX + 'blocked">' +
-              '<strong>Form Blocked</strong><br>' +
-              'Please disable your ad blocker to use this form, or contact us directly.' +
-            '</div>';
-        } else {
-          container.innerHTML = '<div class="' + CSS_PREFIX + 'error-msg">' + escapeHtml(err.message) + '</div>';
+          errorType = 'BLOCKED';
+        } else if (err.message === 'NOT_FOUND') {
+          errorType = 'NOT_FOUND';
+        } else if (err.message === 'Timeout') {
+          errorType = 'TIMEOUT';
         }
+        
+        renderErrorBox(container, errorType, diagnostics, embedKey);
         return;
       }
       
@@ -1445,23 +1610,105 @@
   }
 
   /**
-   * Initialize all forms on page
+   * Initialize all forms on page (idempotent)
+   * Safe to call multiple times
    */
   function init() {
     injectStyles();
-    var containers = document.querySelectorAll('[data-bloomsuite-form]');
+    var containers = document.querySelectorAll('[data-bloomsuite-form]:not([' + INITIALIZED_ATTR + '="true"])');
     for (var i = 0; i < containers.length; i++) {
       initForm(containers[i]);
     }
   }
 
+  // ─── MutationObserver for Late-Loaded Containers ─────────────────────────
+
+  /**
+   * Start watching for dynamically added form containers
+   */
+  function startObserver() {
+    if (mutationObserver) return; // Already running
+    
+    if (typeof MutationObserver === 'undefined') {
+      // Fallback for old browsers: poll periodically
+      setInterval(init, 2000);
+      return;
+    }
+    
+    mutationObserver = new MutationObserver(function(mutations) {
+      var shouldInit = false;
+      
+      for (var i = 0; i < mutations.length; i++) {
+        var mutation = mutations[i];
+        
+        // Check added nodes for form containers
+        if (mutation.addedNodes) {
+          for (var j = 0; j < mutation.addedNodes.length; j++) {
+            var node = mutation.addedNodes[j];
+            
+            // Skip non-element nodes
+            if (node.nodeType !== 1) continue;
+            
+            // Check if the added node itself is a form container
+            if (node.hasAttribute && node.hasAttribute('data-bloomsuite-form')) {
+              if (node.getAttribute(INITIALIZED_ATTR) !== 'true') {
+                shouldInit = true;
+                break;
+              }
+            }
+            
+            // Check descendants of added node
+            if (node.querySelectorAll) {
+              var descendants = node.querySelectorAll('[data-bloomsuite-form]:not([' + INITIALIZED_ATTR + '="true"])');
+              if (descendants.length > 0) {
+                shouldInit = true;
+                break;
+              }
+            }
+          }
+        }
+        
+        if (shouldInit) break;
+      }
+      
+      if (shouldInit) {
+        // Debounce: wait a tick before initializing
+        setTimeout(init, 10);
+      }
+    });
+    
+    mutationObserver.observe(document.body, {
+      childList: true,
+      subtree: true
+    });
+  }
+
+  /**
+   * Stop the MutationObserver
+   */
+  function stopObserver() {
+    if (mutationObserver) {
+      mutationObserver.disconnect();
+      mutationObserver = null;
+    }
+  }
+
   // ─── Bootstrap ───────────────────────────────────────────────────────────
+
+  /**
+   * Full initialization: styles + forms + observer
+   */
+  function bootstrap() {
+    injectStyles();
+    init();
+    startObserver();
+  }
 
   // Run on DOM ready
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
+    document.addEventListener('DOMContentLoaded', bootstrap);
   } else {
-    init();
+    bootstrap();
   }
 
   // Expose API for manual control
@@ -1481,7 +1728,20 @@
     closeSlideIn: closeSlideIn,
     createTrigger: createTriggerButton,
     // Trigger management
-    cleanupTrigger: cleanupTrigger
+    cleanupTrigger: cleanupTrigger,
+    // Observer management
+    startObserver: startObserver,
+    stopObserver: stopObserver,
+    // Debug info
+    getConfig: function() {
+      return {
+        version: SCRIPT_VERSION,
+        apiBase: API_BASE,
+        scriptBase: SCRIPT_BASE,
+        cssLoaded: cssLoaded,
+        cssFailed: cssFailed
+      };
+    }
   };
 
 })(window, document);
