@@ -1,5 +1,5 @@
 /**
- * BloomSuite Forms Embed Script v1.2.0
+ * BloomSuite Forms Embed Script v1.3.0
  * 
  * Features:
  * - No iframe (inline rendering)
@@ -20,7 +20,7 @@
 
   // ─── Configuration ───────────────────────────────────────────────────────
   var API_BASE = window.BLOOMSUITE_API_BASE || 'https://udldmkqwnxhdeztyqcau.supabase.co/functions/v1';
-  var SCRIPT_VERSION = '1.2.0';
+  var SCRIPT_VERSION = '1.3.0';
   var INIT_TIMEOUT_MS = 10000;
   var CSS_PREFIX = 'bs-form-';
   
@@ -291,6 +291,52 @@
   }
   
   /**
+   * Check if an element is inside a specific container
+   */
+  function isElementInsideContainer(element, container) {
+    var node = element;
+    while (node) {
+      if (node === container) return true;
+      node = node.parentElement;
+    }
+    return false;
+  }
+  
+  /**
+   * Lock body scroll - iOS Safari safe
+   * Uses position:fixed + scroll position tracking to prevent iOS bounce
+   */
+  var savedScrollPosition = 0;
+  var scrollLockCount = 0;
+  
+  function lockBodyScroll() {
+    if (scrollLockCount === 0) {
+      savedScrollPosition = window.pageYOffset || document.documentElement.scrollTop;
+      document.body.style.overflow = 'hidden';
+      document.body.style.position = 'fixed';
+      document.body.style.top = '-' + savedScrollPosition + 'px';
+      document.body.style.left = '0';
+      document.body.style.right = '0';
+      document.body.style.width = '100%';
+    }
+    scrollLockCount++;
+  }
+  
+  function unlockBodyScroll() {
+    scrollLockCount--;
+    if (scrollLockCount <= 0) {
+      scrollLockCount = 0;
+      document.body.style.overflow = '';
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.left = '';
+      document.body.style.right = '';
+      document.body.style.width = '';
+      window.scrollTo(0, savedScrollPosition);
+    }
+  }
+  
+  /**
    * Create a focus trap for modal/dialog accessibility
    * Returns cleanup function
    */
@@ -299,6 +345,7 @@
     var focusableElements = [];
     var firstFocusable = null;
     var lastFocusable = null;
+    var containerMadeFocusable = false;
     
     function updateFocusableElements() {
       focusableElements = getFocusableElements(container);
@@ -311,8 +358,12 @@
       
       updateFocusableElements();
       
+      // Fallback: if no focusable elements, trap on container
       if (focusableElements.length === 0) {
         e.preventDefault();
+        if (containerMadeFocusable) {
+          container.focus();
+        }
         return;
       }
       
@@ -343,6 +394,7 @@
       } else {
         // Fallback: make container focusable temporarily
         container.setAttribute('tabindex', '-1');
+        containerMadeFocusable = true;
         container.focus();
       }
     }
@@ -355,10 +407,19 @@
     // Return cleanup function
     return function cleanup() {
       container.removeEventListener('keydown', handleKeyDown);
-      // Restore focus to previous element
-      if (previousActiveElement && previousActiveElement.focus) {
+      
+      // Remove temporary tabindex if we added it
+      if (containerMadeFocusable) {
+        container.removeAttribute('tabindex');
+      }
+      
+      // Restore focus to previous element (the trigger)
+      if (previousActiveElement && typeof previousActiveElement.focus === 'function') {
         try {
-          previousActiveElement.focus();
+          // Check if element is still in DOM
+          if (document.contains(previousActiveElement)) {
+            previousActiveElement.focus();
+          }
         } catch (e) {
           // Element may no longer be focusable
         }
@@ -367,9 +428,20 @@
   }
   
   /**
-   * Announce message to screen readers
+   * Announce message to screen readers (debounced to prevent double-announce)
    */
+  var lastAnnouncement = '';
+  var lastAnnouncementTime = 0;
+  
   function announceToScreenReader(message) {
+    // Debounce: skip if same message within 500ms
+    var now = Date.now();
+    if (message === lastAnnouncement && (now - lastAnnouncementTime) < 500) {
+      return;
+    }
+    lastAnnouncement = message;
+    lastAnnouncementTime = now;
+    
     var announcement = document.createElement('div');
     announcement.setAttribute('role', 'status');
     announcement.setAttribute('aria-live', 'polite');
@@ -381,7 +453,9 @@
     document.body.appendChild(announcement);
     
     setTimeout(function() {
-      announcement.remove();
+      if (announcement.parentNode) {
+        announcement.remove();
+      }
     }, 1000);
   }
 
@@ -898,9 +972,10 @@
     var modalId = generateId();
     options = options || {};
     
-    // Create overlay
+    // Create overlay with explicit high z-index for host isolation
     var overlay = createElement('div', 'modal-overlay');
     overlay.id = modalId;
+    overlay.style.zIndex = '2147483640'; // Near max 32-bit int for isolation
     overlay.setAttribute('role', 'dialog');
     overlay.setAttribute('aria-modal', 'true');
     overlay.setAttribute('aria-labelledby', modalId + '-title');
@@ -950,15 +1025,25 @@
       }
     });
     
-    // Close on Escape key
+    // Close on Escape key - ONLY when modal is open AND focus is inside
     var escHandler = function(e) {
-      if (e.key === 'Escape' && overlay.classList.contains(CSS_PREFIX + 'open')) {
-        e.preventDefault();
-        e.stopPropagation();
-        closeModal(modalId);
+      if (e.key === 'Escape') {
+        // Check modal is open
+        if (!overlay.classList.contains(CSS_PREFIX + 'open')) return;
+        
+        // Check focus is inside the modal OR on body (focus lost)
+        var activeEl = document.activeElement;
+        var focusInside = isElementInsideContainer(activeEl, overlay);
+        var focusOnBody = activeEl === document.body || activeEl === document.documentElement;
+        
+        if (focusInside || focusOnBody) {
+          e.preventDefault();
+          e.stopPropagation();
+          closeModal(modalId);
+        }
       }
     };
-    document.addEventListener('keydown', escHandler);
+    document.addEventListener('keydown', escHandler, true); // Use capture to fire first
     
     // Append to body
     document.body.appendChild(overlay);
@@ -986,9 +1071,9 @@
     var modal = activeModals[modalId];
     if (!modal) return;
     
-    // Show overlay
+    // Show overlay with iOS-safe scroll lock
     modal.overlay.classList.add(CSS_PREFIX + 'open');
-    document.body.style.overflow = 'hidden';
+    lockBodyScroll();
     
     // Announce to screen readers
     announceToScreenReader('Form dialog opened. Press Escape to close.');
@@ -1018,7 +1103,7 @@
     }
     
     modal.overlay.classList.remove(CSS_PREFIX + 'open');
-    document.body.style.overflow = '';
+    unlockBodyScroll();
     
     // Announce to screen readers
     announceToScreenReader('Form dialog closed.');
@@ -1036,7 +1121,8 @@
       modal.focusTrapCleanup();
     }
     
-    document.removeEventListener('keydown', modal.escHandler);
+    // Remove ESC handler with capture to match addEventListener
+    document.removeEventListener('keydown', modal.escHandler, true);
     modal.overlay.remove();
     delete activeModals[modalId];
   }
@@ -1049,14 +1135,18 @@
     var panelId = generateId();
     options = options || {};
     
-    // Create overlay
+    // Create overlay with explicit high z-index for host isolation
     var overlay = createElement('div', 'slidein-overlay');
     overlay.id = panelId;
+    overlay.style.zIndex = '2147483640'; // Near max 32-bit int for isolation
     
     // Create panel
     var panel = createElement('div', 'slidein-panel');
     panel.setAttribute('role', 'dialog');
     panel.setAttribute('aria-modal', 'true');
+    panel.setAttribute('aria-labelledby', panelId + '-title');
+    panel.setAttribute('aria-describedby', panelId + '-desc');
+    panel.style.zIndex = '2147483641'; // Above overlay
     
     // Header
     var header = createElement('div', 'slidein-header');
@@ -1099,15 +1189,25 @@
       }
     });
     
-    // Close on Escape key
+    // Close on Escape key - ONLY when panel is open AND focus is inside
     var escHandler = function(e) {
-      if (e.key === 'Escape' && overlay.classList.contains(CSS_PREFIX + 'open')) {
-        e.preventDefault();
-        e.stopPropagation();
-        closeSlideIn(panelId);
+      if (e.key === 'Escape') {
+        // Check panel is open
+        if (!overlay.classList.contains(CSS_PREFIX + 'open')) return;
+        
+        // Check focus is inside the panel OR on body (focus lost)
+        var activeEl = document.activeElement;
+        var focusInside = isElementInsideContainer(activeEl, panel);
+        var focusOnBody = activeEl === document.body || activeEl === document.documentElement;
+        
+        if (focusInside || focusOnBody) {
+          e.preventDefault();
+          e.stopPropagation();
+          closeSlideIn(panelId);
+        }
       }
     };
-    document.addEventListener('keydown', escHandler);
+    document.addEventListener('keydown', escHandler, true); // Use capture to fire first
     
     // Append to body
     document.body.appendChild(overlay);
@@ -1135,9 +1235,9 @@
     var panelData = activeModals[panelId];
     if (!panelData) return;
     
-    // Show overlay
+    // Show overlay with iOS-safe scroll lock
     panelData.overlay.classList.add(CSS_PREFIX + 'open');
-    document.body.style.overflow = 'hidden';
+    lockBodyScroll();
     
     // Announce to screen readers
     announceToScreenReader('Form panel opened. Press Escape to close.');
@@ -1167,11 +1267,10 @@
     }
     
     panelData.overlay.classList.remove(CSS_PREFIX + 'open');
-    document.body.style.overflow = '';
+    unlockBodyScroll();
     
     // Announce to screen readers
     announceToScreenReader('Form panel closed.');
-  }
   }
 
   /**

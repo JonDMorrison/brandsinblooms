@@ -1,6 +1,8 @@
 # Phase 3: Embed Display Modes & Triggers
 
-This document describes the display mode architecture and trigger system for BloomSuite form embeds.
+This document describes the display mode architecture, trigger system, and accessibility implementation for BloomSuite form embeds.
+
+**Current Version:** 1.3.0
 
 ## Architecture Overview
 
@@ -44,6 +46,348 @@ This document describes the display mode architecture and trigger system for Blo
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
+---
+
+## Test Harness
+
+### File Location
+
+```
+public/forms/test-harness.html
+```
+
+### Running Locally
+
+1. Serve the forms directory:
+   ```bash
+   # Using npx serve
+   npx serve public/forms
+   
+   # Or Python
+   cd public/forms && python -m http.server 8000
+   ```
+
+2. Open in browser:
+   ```
+   http://localhost:5000/test-harness.html  # npx serve
+   http://localhost:8000/test-harness.html  # python
+   ```
+
+3. Replace placeholder embed keys with valid 32-char keys from your forms.
+
+---
+
+## Manual Test Checklist
+
+### Focus Trap Tests
+
+| Test | Steps | Pass Criteria |
+|------|-------|---------------|
+| **FT-1: Initial Focus** | Open modal via button click | Focus moves to close button or first form field automatically |
+| **FT-2: Tab Forward** | Press Tab repeatedly inside modal | Focus cycles through: Close btn → Form fields → Submit btn → Close btn (loops) |
+| **FT-3: Tab Backward** | Press Shift+Tab from close button | Focus moves to last focusable element (submit button) |
+| **FT-4: Fallback Focus** | Open modal with empty/no-field form | Container becomes focusable; Tab doesn't escape modal |
+| **FT-5: No Escape** | Tab while modal is open | Focus NEVER leaves the modal to underlying page elements |
+
+### ESC Handler Tests
+
+| Test | Steps | Pass Criteria |
+|------|-------|---------------|
+| **ESC-1: Close When Focused Inside** | Open modal, ensure focus is on a form field, press ESC | Modal closes |
+| **ESC-2: Close When Focus Lost** | Open modal, click somewhere that removes focus (body), press ESC | Modal still closes (focus on body accepted) |
+| **ESC-3: No Close When Outside** | Open modal, Alt+Tab to another window, return, click outside modal but don't close, press ESC while focus is on page element outside | Modal does NOT close |
+| **ESC-4: Host Page Isolation** | Open host page modal, press ESC | Only host modal closes, BloomSuite ESC handler does not interfere |
+| **ESC-5: Capture Phase** | Host page has ESC listener, open BloomSuite modal, press ESC | BloomSuite modal closes first (uses capture phase) |
+
+### ARIA Attribute Verification
+
+| Element | Attribute | Expected Value |
+|---------|-----------|----------------|
+| Modal overlay | `role` | `"dialog"` |
+| Modal overlay | `aria-modal` | `"true"` |
+| Modal overlay | `aria-labelledby` | `"{modalId}-title"` (points to real h2 element) |
+| Modal overlay | `aria-describedby` | `"{modalId}-desc"` (points to real p.sr-only element) |
+| Slide-in panel | `role` | `"dialog"` |
+| Slide-in panel | `aria-modal` | `"true"` |
+| Slide-in panel | `aria-labelledby` | `"{panelId}-title"` |
+| Slide-in panel | `aria-describedby` | `"{panelId}-desc"` |
+| Close button | `aria-label` | `"Close form"` |
+| Close button | `type` | `"button"` |
+
+**Verification Script (run in browser console):**
+```javascript
+// Check modal ARIA
+var modal = document.querySelector('[role="dialog"]');
+if (modal) {
+  var labelId = modal.getAttribute('aria-labelledby');
+  var descId = modal.getAttribute('aria-describedby');
+  console.log('aria-labelledby points to:', document.getElementById(labelId));
+  console.log('aria-describedby points to:', document.getElementById(descId));
+}
+```
+
+### Focus Restoration Tests
+
+| Test | Steps | Pass Criteria |
+|------|-------|---------------|
+| **FR-1: Button Trigger** | Click trigger button → Modal opens → Close modal | Focus returns to the trigger button |
+| **FR-2: CTA Click Trigger** | Click `.cta-button` → Modal opens → Close modal | Focus returns to the clicked CTA button |
+| **FR-3: Scroll Trigger** | Scroll to trigger slide-in → Close panel | Focus returns to `document.body` (no trigger element) |
+| **FR-4: DOM Removal** | Open modal, remove trigger button from DOM while open, close modal | No error; focus defaults to body |
+
+### iOS Safari Scroll Lock Tests
+
+| Test | Steps | Pass Criteria |
+|------|-------|---------------|
+| **iOS-1: Lock on Open** | On iOS Safari, open modal | Background does NOT scroll when swiping |
+| **iOS-2: No Bounce** | Modal open, swipe up/down on modal content | No "rubber band" bounce effect on body |
+| **iOS-3: Position Restore** | Scroll to middle of page, open modal, close modal | Page returns to exact previous scroll position |
+| **iOS-4: Multiple Opens** | Open modal, close, scroll, open again, close | Each time scroll position correctly saved/restored |
+
+**Implementation Notes:**
+```javascript
+// iOS-safe scroll lock uses position:fixed
+function lockBodyScroll() {
+  savedScrollPosition = window.pageYOffset;
+  document.body.style.overflow = 'hidden';
+  document.body.style.position = 'fixed';
+  document.body.style.top = '-' + savedScrollPosition + 'px';
+  document.body.style.left = '0';
+  document.body.style.right = '0';
+  document.body.style.width = '100%';
+}
+
+function unlockBodyScroll() {
+  document.body.style.overflow = '';
+  document.body.style.position = '';
+  document.body.style.top = '';
+  document.body.style.left = '';
+  document.body.style.right = '';
+  document.body.style.width = '';
+  window.scrollTo(0, savedScrollPosition);
+}
+```
+
+### Z-Index and Overlay Isolation Tests
+
+| Test | Steps | Pass Criteria |
+|------|-------|---------------|
+| **Z-1: Above Host Modals** | Host page has z-index:9999 modal, open BloomSuite modal | BloomSuite modal appears on top |
+| **Z-2: Overlay Click** | Click dark overlay area | Modal/panel closes |
+| **Z-3: Content Click** | Click inside modal content | Modal does NOT close |
+| **Z-4: Nested Forms** | Page has multiple BloomSuite embeds, open one | Only that modal's overlay is visible |
+
+**Z-Index Values:**
+| Layer | Z-Index |
+|-------|---------|
+| Modal overlay | `2147483640` |
+| Slide-in panel | `2147483641` |
+
+### Screen Reader Tests
+
+| Test | Tool | Steps | Pass Criteria |
+|------|------|-------|---------------|
+| **SR-1: Open Announcement** | VoiceOver/NVDA | Open modal | Announces: "Form dialog opened. Press Escape to close." |
+| **SR-2: Close Announcement** | VoiceOver/NVDA | Close modal | Announces: "Form dialog closed." |
+| **SR-3: No Double Announce** | VoiceOver/NVDA | Open modal quickly twice | Only one announcement per state change |
+| **SR-4: Title Read** | VoiceOver/NVDA | Open modal, navigate to title | Reads the form title as heading level 2 |
+| **SR-5: Close Button** | VoiceOver/NVDA | Focus close button | Announces: "Close form, button" |
+
+**Debounce Implementation:**
+```javascript
+var lastAnnouncement = '';
+var lastAnnouncementTime = 0;
+
+function announceToScreenReader(message) {
+  var now = Date.now();
+  if (message === lastAnnouncement && (now - lastAnnouncementTime) < 500) {
+    return; // Skip duplicate
+  }
+  lastAnnouncement = message;
+  lastAnnouncementTime = now;
+  // ... create announcement element
+}
+```
+
+---
+
+## Code Verification Notes
+
+### 1. Focus Trap Has Fallback Focus Target
+
+**Location:** `embed.js` → `createFocusTrap()` → `setInitialFocus()`
+
+```javascript
+function setInitialFocus() {
+  updateFocusableElements();
+  var closeBtn = container.querySelector('[aria-label="Close form"]');
+  if (closeBtn) {
+    closeBtn.focus();
+  } else if (firstFocusable) {
+    firstFocusable.focus();
+  } else {
+    // Fallback: make container focusable temporarily
+    container.setAttribute('tabindex', '-1');
+    containerMadeFocusable = true;
+    container.focus();
+  }
+}
+```
+
+**Cleanup removes temporary tabindex:**
+```javascript
+return function cleanup() {
+  if (containerMadeFocusable) {
+    container.removeAttribute('tabindex');
+  }
+  // ...
+};
+```
+
+### 2. ESC Handler Only Fires When Modal Is Open AND Focus Inside
+
+**Location:** `embed.js` → `createModalWrapper()` → `escHandler`
+
+```javascript
+var escHandler = function(e) {
+  if (e.key === 'Escape') {
+    // Check modal is open
+    if (!overlay.classList.contains(CSS_PREFIX + 'open')) return;
+    
+    // Check focus is inside the modal OR on body (focus lost)
+    var activeEl = document.activeElement;
+    var focusInside = isElementInsideContainer(activeEl, overlay);
+    var focusOnBody = activeEl === document.body || activeEl === document.documentElement;
+    
+    if (focusInside || focusOnBody) {
+      e.preventDefault();
+      e.stopPropagation();
+      closeModal(modalId);
+    }
+  }
+};
+document.addEventListener('keydown', escHandler, true); // Capture phase
+```
+
+**Helper function:**
+```javascript
+function isElementInsideContainer(element, container) {
+  var node = element;
+  while (node) {
+    if (node === container) return true;
+    node = node.parentElement;
+  }
+  return false;
+}
+```
+
+### 3. aria-labelledby and aria-describedby Point to Real Element IDs
+
+**Modal:**
+```javascript
+overlay.setAttribute('aria-labelledby', modalId + '-title');
+overlay.setAttribute('aria-describedby', modalId + '-desc');
+
+var titleEl = createElement('h2', 'modal-title');
+titleEl.id = modalId + '-title';  // ← Real element
+
+var descEl = createElement('p', 'sr-only');
+descEl.id = modalId + '-desc';    // ← Real element
+descEl.textContent = 'Press Escape to close this dialog';
+```
+
+**Slide-in:**
+```javascript
+panel.setAttribute('aria-labelledby', panelId + '-title');
+panel.setAttribute('aria-describedby', panelId + '-desc');
+
+var title = createElement('h2', 'slidein-title');
+title.id = panelId + '-title';    // ← Real element
+
+var descEl = createElement('p', 'sr-only');
+descEl.id = panelId + '-desc';    // ← Real element
+```
+
+### 4. Focus Restore Always Returns to Trigger Element
+
+**Location:** `embed.js` → `createFocusTrap()` → cleanup function
+
+```javascript
+function createFocusTrap(container, closeCallback) {
+  var previousActiveElement = document.activeElement;  // ← Captured on open
+  
+  // ... trap logic ...
+  
+  return function cleanup() {
+    // Restore focus to previous element (the trigger)
+    if (previousActiveElement && typeof previousActiveElement.focus === 'function') {
+      try {
+        if (document.contains(previousActiveElement)) {
+          previousActiveElement.focus();
+        }
+      } catch (e) {
+        // Element may no longer be focusable
+      }
+    }
+  };
+}
+```
+
+### 5. Background Scroll Lock Works on iOS Safari
+
+**Location:** `embed.js` → `lockBodyScroll()` / `unlockBodyScroll()`
+
+Uses `position: fixed` with scroll position tracking - the only reliable method for iOS Safari:
+
+```javascript
+var savedScrollPosition = 0;
+var scrollLockCount = 0;  // Supports nested modals
+
+function lockBodyScroll() {
+  if (scrollLockCount === 0) {
+    savedScrollPosition = window.pageYOffset || document.documentElement.scrollTop;
+    document.body.style.overflow = 'hidden';
+    document.body.style.position = 'fixed';
+    document.body.style.top = '-' + savedScrollPosition + 'px';
+    document.body.style.left = '0';
+    document.body.style.right = '0';
+    document.body.style.width = '100%';
+  }
+  scrollLockCount++;
+}
+
+function unlockBodyScroll() {
+  scrollLockCount--;
+  if (scrollLockCount <= 0) {
+    scrollLockCount = 0;
+    document.body.style.overflow = '';
+    document.body.style.position = '';
+    document.body.style.top = '';
+    document.body.style.left = '';
+    document.body.style.right = '';
+    document.body.style.width = '';
+    window.scrollTo(0, savedScrollPosition);  // ← Restore position
+  }
+}
+```
+
+### 6. Z-Index and Overlay Isolation Prevents Host Collisions
+
+**Location:** `embed.js` → `createModalWrapper()` / `createSlideInWrapper()`
+
+```javascript
+// Modal overlay
+overlay.style.zIndex = '2147483640';  // Near max 32-bit signed int
+
+// Slide-in panel  
+overlay.style.zIndex = '2147483640';
+panel.style.zIndex = '2147483641';  // Panel above overlay
+```
+
+This ensures BloomSuite overlays appear above virtually any host page z-index.
+
+---
+
 ## Display Trigger Configuration Schema
 
 ### Data Attributes
@@ -54,144 +398,6 @@ This document describes the display mode architecture and trigger system for Blo
 | `data-delay` | number | Delay in milliseconds (for `delay` trigger) |
 | `data-scroll-depth` | number | Scroll percentage 0-100 (for `scroll` trigger) |
 | `data-click-selector` | string | CSS selector (for `click` trigger, modal only) |
-
-## Supported Triggers
-
-### 1. Manual (Default)
-
-User clicks a trigger button to open the form. This is the default when no `data-trigger` is specified.
-
-```html
-<div 
-  data-bloomsuite-form="abc123def456..."
-  data-display-mode="modal"
-  data-button-text="Contact Us"
-></div>
-```
-
-### 2. Delay Trigger
-
-Form opens automatically after a specified delay (milliseconds).
-
-```html
-<!-- Open modal after 3 seconds -->
-<div 
-  data-bloomsuite-form="abc123def456..."
-  data-display-mode="modal"
-  data-trigger="delay"
-  data-delay="3000"
-></div>
-
-<!-- Open slide-in after 5 seconds -->
-<div 
-  data-bloomsuite-form="abc123def456..."
-  data-display-mode="slide-in"
-  data-trigger="delay"
-  data-delay="5000"
-  data-form-title="Quick Question?"
-></div>
-```
-
-### 3. Scroll Depth Trigger
-
-Form opens when user scrolls past a percentage of the page.
-
-```html
-<!-- Open modal at 50% scroll -->
-<div 
-  data-bloomsuite-form="abc123def456..."
-  data-display-mode="modal"
-  data-trigger="scroll"
-  data-scroll-depth="50"
-></div>
-
-<!-- Open slide-in at 75% scroll -->
-<div 
-  data-bloomsuite-form="abc123def456..."
-  data-display-mode="slide-in"
-  data-trigger="scroll"
-  data-scroll-depth="75"
-  data-form-title="Before You Go..."
-></div>
-```
-
-### 4. Click Selector Trigger (Modal Only)
-
-Form opens when user clicks any element matching a CSS selector. **Only works with modal mode.**
-
-```html
-<!-- Open modal when clicking any .cta-button -->
-<div 
-  data-bloomsuite-form="abc123def456..."
-  data-display-mode="modal"
-  data-trigger="click"
-  data-click-selector=".cta-button"
-></div>
-
-<!-- Then anywhere on the page -->
-<button class="cta-button">Get Started</button>
-<a href="#" class="cta-button">Learn More</a>
-```
-
-## Trigger Logic Details
-
-### Evaluation Rules
-
-| Rule | Description |
-|------|-------------|
-| Client-side only | All trigger logic runs in browser JavaScript |
-| Single-fire | Each trigger fires at most once per page load |
-| No persistence | No cookies, localStorage, or server state (v1) |
-| No conditions | Simple triggers only, no complex AND/OR logic |
-
-### Trigger Behavior
-
-| Trigger | When It Fires | Cleanup |
-|---------|---------------|---------|
-| `delay` | After X ms from page load | Timeout cleared on destroy |
-| `scroll` | When scroll % ≥ threshold | Scroll listener removed on destroy |
-| `click` | When matching element clicked | Click listener removed on destroy |
-
-### Edge Cases
-
-- **Delay**: Fires even if user has scrolled or interacted
-- **Scroll**: Checks immediately on init (if already scrolled past threshold)
-- **Click**: Prevents default action on clicked element, bubbles up to check parent elements
-
-## Supported Display Modes
-
-### 1. Inline (Default)
-
-Form renders directly in the container element.
-
-```html
-<div data-bloomsuite-form="abc123def456..."></div>
-```
-
-### 2. Modal
-
-Form opens in a centered overlay dialog.
-
-```html
-<div 
-  data-bloomsuite-form="abc123def456..."
-  data-display-mode="modal"
-  data-button-text="Contact Us"
-></div>
-```
-
-### 3. Slide-In
-
-Form opens in a panel sliding from the right edge.
-
-```html
-<div 
-  data-bloomsuite-form="abc123def456..."
-  data-display-mode="slide-in"
-  data-button-text="Get Quote"
-  data-form-title="Request a Quote"
-></div>
-```
 
 ## Complete Attribute Reference
 
@@ -206,300 +412,36 @@ Form opens in a panel sliding from the right edge.
 | `data-scroll-depth` | number | modal, slide-in | Scroll % 0-100 (for scroll trigger) |
 | `data-click-selector` | string | modal only | CSS selector (for click trigger) |
 
-## Accessibility Implementation
+---
 
-### Accessibility Checklist ✓
+## Accessibility Summary
 
-| Feature | Modal | Slide-In | Implementation |
-|---------|-------|----------|----------------|
-| **Focus Trap** | ✅ | ✅ | Tab cycles within dialog only |
-| **ESC Closes** | ✅ | ✅ | `keydown` listener with `e.preventDefault()` |
-| **ARIA role="dialog"** | ✅ | ✅ | Set on overlay/panel element |
-| **ARIA aria-modal="true"** | ✅ | ✅ | Indicates modal behavior |
-| **ARIA aria-labelledby** | ✅ | ✅ | Points to title element |
-| **ARIA aria-describedby** | ✅ | ✅ | Points to "Press Escape to close" text |
-| **Close Button Visible** | ✅ | ✅ | Top-right corner, styled `×` |
-| **Close Button Keyboard** | ✅ | ✅ | Focusable `<button>` with `aria-label` |
-| **Focus Restore** | ✅ | ✅ | Returns to triggering element on close |
-| **Screen Reader Announce** | ✅ | ✅ | `role="status"` announcements on open/close |
-| **Body Scroll Lock** | ✅ | ✅ | `overflow: hidden` on `<body>` |
+### WCAG 2.1 Compliance
 
-### Code Implementation Notes
+| Criterion | Level | Status | Notes |
+|-----------|-------|--------|-------|
+| 2.1.1 Keyboard | A | ✅ | All functions keyboard accessible |
+| 2.1.2 No Keyboard Trap | A | ✅ | ESC always available to close |
+| 2.4.3 Focus Order | A | ✅ | Logical tab order within dialogs |
+| 2.4.7 Focus Visible | AA | ✅ | Browser default + custom outline |
+| 4.1.2 Name, Role, Value | A | ✅ | ARIA roles and labels implemented |
 
-#### 1. Focus Trap
+### Tested Assistive Technologies
 
-```javascript
-// Focus trap cycles Tab key within dialog
-function createFocusTrap(container, closeCallback) {
-  var focusableElements = getFocusableElements(container);
-  var firstFocusable = focusableElements[0];
-  var lastFocusable = focusableElements[focusableElements.length - 1];
-  
-  function handleKeyDown(e) {
-    if (e.key !== 'Tab') return;
-    
-    if (e.shiftKey && document.activeElement === firstFocusable) {
-      e.preventDefault();
-      lastFocusable.focus();
-    } else if (!e.shiftKey && document.activeElement === lastFocusable) {
-      e.preventDefault();
-      firstFocusable.focus();
-    }
-  }
-  
-  container.addEventListener('keydown', handleKeyDown);
-  
-  // Return cleanup function that restores previous focus
-  return function() {
-    container.removeEventListener('keydown', handleKeyDown);
-    previousActiveElement.focus();
-  };
-}
-```
+| Technology | Platform | Status |
+|------------|----------|--------|
+| VoiceOver | macOS/iOS | ✅ Tested |
+| NVDA | Windows | ✅ Tested |
+| JAWS | Windows | ⏳ Pending |
+| TalkBack | Android | ⏳ Pending |
 
-#### 2. ESC Key Handling
+---
 
-```javascript
-// ESC closes dialog with proper event handling
-var escHandler = function(e) {
-  if (e.key === 'Escape' && isOpen) {
-    e.preventDefault();      // Prevent other handlers
-    e.stopPropagation();     // Stop bubbling
-    closeModal(modalId);
-  }
-};
-document.addEventListener('keydown', escHandler);
-```
+## Version History
 
-#### 3. ARIA Attributes
-
-```html
-<!-- Modal structure -->
-<div role="dialog" 
-     aria-modal="true" 
-     aria-labelledby="modal-title" 
-     aria-describedby="modal-desc">
-  <div role="document">
-    <h2 id="modal-title">Form Title</h2>
-    <p id="modal-desc" class="sr-only">Press Escape to close this dialog</p>
-    <button aria-label="Close form">×</button>
-    <!-- form content -->
-  </div>
-</div>
-```
-
-#### 4. Dismiss Button
-
-```javascript
-// Close button is a proper button element
-var closeBtn = createElement('button', 'modal-close', {
-  type: 'button',
-  'aria-label': 'Close form'  // Screen reader text
-});
-closeBtn.innerHTML = '<span aria-hidden="true">&times;</span>';
-```
-
-#### 5. Screen Reader Announcements
-
-```javascript
-// Announce state changes to screen readers
-function announceToScreenReader(message) {
-  var el = document.createElement('div');
-  el.setAttribute('role', 'status');
-  el.setAttribute('aria-live', 'polite');
-  el.setAttribute('aria-atomic', 'true');
-  el.className = 'sr-only';  // Visually hidden
-  el.textContent = message;
-  document.body.appendChild(el);
-  setTimeout(() => el.remove(), 1000);
-}
-
-// Usage
-openModal() → announceToScreenReader('Form dialog opened. Press Escape to close.');
-closeModal() → announceToScreenReader('Form dialog closed.');
-```
-
-#### 6. Focus Restoration
-
-```javascript
-// Store previous focus on open
-var previousActiveElement = document.activeElement;
-
-// On close, restore focus
-function cleanup() {
-  if (previousActiveElement && previousActiveElement.focus) {
-    previousActiveElement.focus();
-  }
-}
-```
-
-### CSS for Screen Reader Only Text
-
-```css
-.bs-form-sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
-}
-```
-
-## Implementation Details
-
-### Wrapper Layer Responsibilities
-
-The display mode wrapper ONLY handles:
-
-1. **Container Creation**: Overlay, panel, close button
-2. **Visibility Transitions**: CSS animations for open/close
-3. **Event Handling**: Close on Escape, click outside
-4. **Accessibility**: Focus trap, ARIA attributes, announcements
-5. **Body Scroll Lock**: Prevent background scroll when open
-6. **Focus Management**: Trap on open, restore on close
-
-### What Wrappers NEVER Do
-
-- ❌ Modify field rendering
-- ❌ Change validation logic
-- ❌ Duplicate submission code
-- ❌ Alter form data collection
-- ❌ Handle API responses
-
-### Submission Path Confirmation
-
-**The submission path is 100% unchanged:**
-
-```
-User clicks Submit
-       │
-       ▼
-handleSubmit() (unchanged)
-       │
-       ▼
-submitData() → POST /submit-form (unchanged)
-       │
-       ▼
-Success: Show message / Redirect
-Error: Show error message
-```
-
-All three display modes use the exact same:
-- `handleSubmit()` function
-- `submitData()` function
-- Form data collection logic
-- Error handling
-- Success message display
-
-## JavaScript API
-
-### Programmatic Control
-
-```javascript
-// Access the API
-var forms = window.BloomSuiteForms;
-
-// Create a modal
-var modalId = forms.createModal('abc123def456...', { title: 'Contact' });
-forms.openModal(modalId);
-forms.closeModal(modalId);
-forms.destroyModal(modalId);
-
-// Create a slide-in
-var panelId = forms.createSlideIn('abc123def456...', { title: 'Get Quote' });
-forms.openSlideIn(panelId);
-forms.closeSlideIn(panelId);
-
-// Create trigger button
-var trigger = forms.createTrigger('abc123def456...', {
-  mode: 'modal',
-  buttonText: 'Open Form',
-  title: 'Contact Us'
-});
-
-document.getElementById('my-container').appendChild(trigger.button);
-trigger.open();  // Programmatic open
-trigger.close(); // Programmatic close
-trigger.destroy(); // Cleanup
-```
-
-### Available Modes Constant
-
-```javascript
-BloomSuiteForms.modes = {
-  INLINE: 'inline',
-  MODAL: 'modal',
-  SLIDE_IN: 'slide-in'
-};
-```
-
-## CSS Classes Reference
-
-### Modal Classes
-
-| Class | Description |
-|-------|-------------|
-| `bs-form-modal-overlay` | Full-screen overlay backdrop |
-| `bs-form-modal-content` | Centered modal box |
-| `bs-form-modal-close` | Close button (×) |
-| `bs-form-modal-body` | Form container inside modal |
-| `bs-form-open` | Applied when modal is visible |
-
-### Slide-In Classes
-
-| Class | Description |
-|-------|-------------|
-| `bs-form-slidein-overlay` | Full-screen overlay backdrop |
-| `bs-form-slidein-panel` | Right-edge panel |
-| `bs-form-slidein-header` | Panel header with title |
-| `bs-form-slidein-title` | Title text |
-| `bs-form-slidein-close` | Close button (×) |
-| `bs-form-slidein-body` | Form container inside panel |
-| `bs-form-open` | Applied when panel is visible |
-
-### Trigger Button
-
-| Class | Description |
-|-------|-------------|
-| `bs-form-trigger` | Trigger button styling |
-
-## Accessibility
-
-### Keyboard Navigation
-
-- **Escape**: Closes modal/slide-in
-- **Tab**: Trapped within modal when open
-- **Enter/Space**: Activates buttons
-
-### ARIA Attributes
-
-```html
-<!-- Modal -->
-<div role="dialog" aria-modal="true" aria-labelledby="modal-title">
-  ...
-</div>
-
-<!-- Slide-in -->
-<div role="dialog" aria-modal="true" aria-labelledby="panel-title">
-  ...
-</div>
-```
-
-## Migration Notes
-
-### Upgrading from v1.0.x
-
-1. **No breaking changes** - Existing inline forms work identically
-2. Add `data-display-mode` attribute to use new modes
-3. Script version updated to 1.1.0
-
-### Version Compatibility
-
-| embed.js Version | Modes Supported |
-|------------------|-----------------|
-| 1.0.x | inline only |
-| 1.1.0+ | inline, modal, slide-in |
+| Version | Changes |
+|---------|---------|
+| 1.3.0 | Added iOS-safe scroll lock, ESC focus scope check, z-index isolation, announcement debouncing |
+| 1.2.0 | Added display triggers (delay, scroll, click) |
+| 1.1.0 | Added modal and slide-in display modes |
+| 1.0.0 | Initial inline embed release |
