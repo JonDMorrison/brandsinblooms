@@ -836,6 +836,7 @@ export type Database = {
       automation_trigger_events: {
         Row: {
           automation_id: string | null
+          claimed_at: string | null
           created_at: string | null
           customer_id: string | null
           error_message: string | null
@@ -855,6 +856,7 @@ export type Database = {
         }
         Insert: {
           automation_id?: string | null
+          claimed_at?: string | null
           created_at?: string | null
           customer_id?: string | null
           error_message?: string | null
@@ -874,6 +876,7 @@ export type Database = {
         }
         Update: {
           automation_id?: string | null
+          claimed_at?: string | null
           created_at?: string | null
           customer_id?: string | null
           error_message?: string | null
@@ -13461,6 +13464,35 @@ export type Database = {
         }
         Returns: boolean
       }
+      claim_trigger_events: {
+        Args: { p_event_type: string; p_limit?: number }
+        Returns: {
+          automation_id: string | null
+          claimed_at: string | null
+          created_at: string | null
+          customer_id: string | null
+          error_message: string | null
+          event_type: string
+          form_id: string | null
+          id: string
+          last_error_at: string | null
+          max_retries: number | null
+          metadata: Json | null
+          persona_id: string | null
+          processed_at: string | null
+          queued_until: string | null
+          retry_count: number | null
+          segment_id: string | null
+          submission_id: string | null
+          tenant_id: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "automation_trigger_events"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       cleanup_expired_oauth_states: { Args: never; Returns: undefined }
       cleanup_old_oauth_codes: { Args: never; Returns: undefined }
       cleanup_stale_sync_jobs: { Args: never; Returns: number }
@@ -13964,6 +13996,10 @@ export type Database = {
       }
       refresh_all_risk_signals: {
         Args: { p_tenant_id: string }
+        Returns: number
+      }
+      release_stale_claims: {
+        Args: { p_stale_threshold_minutes?: number }
         Returns: number
       }
       reserve_sms_send_tokens: {

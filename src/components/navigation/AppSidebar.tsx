@@ -30,7 +30,8 @@ import {
   ChevronRight,
   Shield,
   Bug,
-  Package
+  Package,
+  FileInput
 } from 'lucide-react';
 import {
   Sidebar,
@@ -123,6 +124,11 @@ export function AppSidebar() {
           title: "Personas",
           url: "/crm/personas",
           icon: UserCircle,
+        },
+        {
+          title: "Forms",
+          url: "/crm/forms",
+          icon: FileInput,
         }
       ]
     },

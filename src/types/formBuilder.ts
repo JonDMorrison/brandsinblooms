@@ -1,13 +1,13 @@
 // Form Builder Types
 
-export type FormFieldType = 
-  | 'email' 
-  | 'text' 
-  | 'phone' 
-  | 'select' 
-  | 'checkbox' 
-  | 'hidden' 
-  | 'email_consent' 
+export type FormFieldType =
+  | 'email'
+  | 'text'
+  | 'phone'
+  | 'select'
+  | 'checkbox'
+  | 'hidden'
+  | 'email_consent'
   | 'sms_consent';
 
 export interface FormFieldRules {
@@ -75,6 +75,19 @@ export interface Form {
   updated_at: string;
 }
 
+/**
+ * Canonical result semantics:
+ * - accepted: Submission processed successfully
+ * - rejected: Submission failed (see reason + metadata.rejection_type for details)
+ *
+ * rejection_type values (stored in metadata.rejection_type):
+ * - invalid: Validation errors
+ * - rate_limited: Rate limit exceeded
+ * - spam: Spam detected (honeypot triggered)
+ */
+export type SubmissionResult = 'accepted' | 'rejected';
+export type RejectionType = 'invalid' | 'rate_limited' | 'spam';
+
 export interface FormSubmission {
   id: string;
   tenant_id: string;
@@ -83,26 +96,59 @@ export interface FormSubmission {
   data: Record<string, any>;
   metadata: FormSubmissionMetadata;
   ip_hash?: string;
-  result: 'accepted' | 'rejected_invalid' | 'rejected_rate_limited' | 'rejected_spam';
+  result: SubmissionResult;
   reason?: string;
   submitted_at: string;
 }
 
+/**
+ * Canonical consent metadata keys.
+ * All form submissions MUST use these exact key names for consistency.
+ */
 export interface FormSubmissionMetadata {
+  // Page & attribution context
   page_url?: string;
   referrer?: string;
   utm_source?: string;
   utm_medium?: string;
   utm_campaign?: string;
   user_agent?: string;
-  email_consent?: boolean;
-  email_consent_text?: string;
-  email_consent_at?: string;
-  sms_consent?: boolean;
-  sms_consent_text?: string;
-  sms_consent_at?: string;
-  consent_source?: string;
+
+  // Form identification
   form_embed_key?: string;
+  form_id?: string;
+  consent_source?: string;
+
+  // Submission timestamp
+  submitted_at?: string;
+
+  // ─── CANONICAL EMAIL CONSENT KEYS ───
+  email_consent: boolean;           // Whether consent was given
+  email_consent_text?: string;      // Verbatim consent text shown
+  email_consent_at?: string;        // ISO 8601 timestamp when consent given
+  email_consent_required?: boolean; // Whether consent was required
+
+  // ─── CANONICAL SMS CONSENT KEYS ───
+  sms_consent: boolean;             // Whether consent was given
+  sms_consent_text?: string;        // Verbatim consent text shown
+  sms_consent_at?: string;          // ISO 8601 timestamp when consent given
+  sms_consent_required?: boolean;   // Whether consent was required
+
+  // ─── REJECTION DETAILS (for rejected submissions) ───
+  rejection_type?: RejectionType;   // invalid | rate_limited | spam
+
+  // ─── AUDIENCE PROCESSING ───
+  audience_processing?: {
+    personas_requested?: number;
+    personas_assigned?: number;
+    personas_errors?: string[] | null;
+    segments_joined?: string[] | null;
+    segments_left?: string[] | null;
+    processed_at?: string;
+  };
+
+  // Debug info (error codes only, no PII)
+  debug?: Record<string, unknown>;
 }
 
 // Form Templates

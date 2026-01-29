@@ -85,13 +85,13 @@ const RATE_LIMIT_LONG_MAX = 20;
  */
 function getRateLimitSalt(): string {
   const salt = Deno.env.get('RATE_LIMIT_SALT');
-  
+
   if (!salt) {
     // Log warning but don't expose any secrets
     console.warn('[submit-form] RATE_LIMIT_SALT not configured - using fallback. Set this env var for better security.');
     return 'bloomsuite-form-rate-limit-v1';
   }
-  
+
   return salt;
 }
 
@@ -119,7 +119,7 @@ function getClientIP(req: Request): string {
 
 /**
  * Atomic rate limit check and increment using UPSERT
- * 
+ *
  * Why this fixes burst race conditions:
  * - Previous approach: SELECT → check count → UPDATE/INSERT (3 queries, race window)
  * - New approach: Single atomic UPSERT with ON CONFLICT DO UPDATE
@@ -134,11 +134,11 @@ async function checkRateLimit(
   ipHash: string
 ): Promise<{ allowed: boolean; reason?: string; count?: number }> {
   const now = new Date();
-  
+
   // Calculate window boundaries
   const shortWindowStart = new Date(now.getTime() - RATE_LIMIT_SHORT_WINDOW_SECONDS * 1000);
   const longWindowStart = new Date(now.getTime() - RATE_LIMIT_LONG_WINDOW_SECONDS * 1000);
-  
+
   // Current minute window (rounded to minute boundary)
   const currentWindowStart = new Date(Math.floor(now.getTime() / 60000) * 60000);
 
@@ -157,7 +157,7 @@ async function checkRateLimit(
   if (upsertError) {
     // If RPC doesn't exist, fall back to direct upsert
     console.warn('[submit-form] Rate limit RPC failed, using direct upsert:', upsertError.message);
-    
+
     // Fallback: Direct upsert (still atomic due to unique constraint)
     const { error: insertError } = await supabase
       .from('form_rate_limits')
@@ -169,9 +169,9 @@ async function checkRateLimit(
           window_start: currentWindowStart.toISOString(),
           count: 1,
         },
-        { 
+        {
           onConflict: 'form_id,ip_hash,window_start',
-          ignoreDuplicates: false 
+          ignoreDuplicates: false
         }
       );
 
@@ -189,12 +189,12 @@ async function checkRateLimit(
     .gte('window_start', shortWindowStart.toISOString());
 
   const shortWindowCount = shortWindowData?.reduce((sum: number, r: { count: number }) => sum + r.count, 0) || 0;
-  
+
   if (shortWindowCount > RATE_LIMIT_SHORT_MAX) {
-    return { 
-      allowed: false, 
+    return {
+      allowed: false,
       reason: `Rate limit exceeded: ${RATE_LIMIT_SHORT_MAX} submissions per minute`,
-      count: shortWindowCount 
+      count: shortWindowCount
     };
   }
 
@@ -207,12 +207,12 @@ async function checkRateLimit(
     .gte('window_start', longWindowStart.toISOString());
 
   const longWindowCount = longWindowData?.reduce((sum: number, r: { count: number }) => sum + r.count, 0) || 0;
-  
+
   if (longWindowCount > RATE_LIMIT_LONG_MAX) {
-    return { 
-      allowed: false, 
+    return {
+      allowed: false,
       reason: `Rate limit exceeded: ${RATE_LIMIT_LONG_MAX} submissions per 10 minutes`,
-      count: longWindowCount 
+      count: longWindowCount
     };
   }
 
@@ -225,14 +225,14 @@ async function checkRateLimit(
 function checkHoneypot(data: Record<string, unknown>): boolean {
   // Common honeypot field names
   const honeypotFields = ['_honeypot', 'honeypot', '_hp', 'website', 'url', '_blank'];
-  
+
   for (const field of honeypotFields) {
     const value = data[field];
     if (value !== undefined && value !== null && value !== '') {
       return true; // Spam detected
     }
   }
-  
+
   return false;
 }
 
@@ -291,7 +291,7 @@ function validateConsentRules(
   if (hasEmailField && compliance.email_consent_required) {
     const emailConsentField = fields.find(f => f.type === 'email_consent');
     const consentValue = emailConsentField ? data[emailConsentField.id] : data['email_consent'];
-    
+
     if (!consentValue) {
       errors.push('Email consent is required');
     }
@@ -301,7 +301,7 @@ function validateConsentRules(
   if (hasPhoneField && compliance.sms_consent_required) {
     const smsConsentField = fields.find(f => f.type === 'sms_consent');
     const consentValue = smsConsentField ? data[smsConsentField.id] : data['sms_consent'];
-    
+
     if (!consentValue) {
       errors.push('SMS consent is required when providing a phone number');
     }
@@ -332,6 +332,19 @@ function extractMappedValues(
 }
 
 /**
+ * Canonical result values:
+ * - accepted: Submission processed successfully
+ * - rejected: Submission failed (rejection details in reason + metadata.rejection_type)
+ *
+ * rejection_type values (stored in metadata.rejection_type):
+ * - invalid: Validation errors
+ * - rate_limited: Rate limit exceeded
+ * - spam: Spam detected
+ */
+type CanonicalResult = 'accepted' | 'rejected';
+type RejectionType = 'invalid' | 'rate_limited' | 'spam';
+
+/**
  * Record submission to form_submissions table
  */
 async function recordSubmission(
@@ -343,17 +356,23 @@ async function recordSubmission(
     data: Record<string, unknown>;
     metadata: Record<string, unknown>;
     ipHash: string;
-    result: 'accepted' | 'rejected_invalid' | 'rejected_rate_limited' | 'rejected_spam';
+    result: CanonicalResult;
+    rejectionType?: RejectionType;
     reason?: string;
   }
 ): Promise<void> {
   try {
+    // Add rejection_type to metadata if present
+    const fullMetadata = params.rejectionType
+      ? { ...params.metadata, rejection_type: params.rejectionType }
+      : params.metadata;
+
     await supabase.from('form_submissions').insert({
       tenant_id: params.tenantId,
       form_id: params.formId,
       customer_id: params.customerId || null,
       data: params.data,
-      metadata: params.metadata,
+      metadata: fullMetadata,
       ip_hash: params.ipHash,
       result: params.result,
       reason: params.reason || null,
@@ -368,9 +387,9 @@ async function recordSubmission(
 Deno.serve(async (req) => {
   // Handle CORS preflight - must include all CORS headers
   if (req.method === 'OPTIONS') {
-    return new Response(null, { 
+    return new Response(null, {
       status: 204,
-      headers: corsHeaders 
+      headers: corsHeaders
     });
   }
 
@@ -379,7 +398,7 @@ Deno.serve(async (req) => {
   }
 
   const startTime = Date.now();
-  
+
   // Variables needed for submission recording
   let tenantId: string | undefined;
   let formId: string | undefined;
@@ -439,17 +458,18 @@ Deno.serve(async (req) => {
 
     // ─── Step 2: DB-backed rate limiting ───────────────────────────────────
     const rateLimitResult = await checkRateLimit(supabase, tenantId, formId, ipHash);
-    
+
     if (!rateLimitResult.allowed) {
       console.log(`[submit-form] Rate limited: ${rateLimitResult.reason}`);
-      
+
       await recordSubmission(supabase, {
         tenantId,
         formId,
         data: submissionData,
         metadata: submissionMeta,
         ipHash,
-        result: 'rejected_rate_limited',
+        result: 'rejected',
+        rejectionType: 'rate_limited',
         reason: rateLimitResult.reason,
       });
 
@@ -459,14 +479,15 @@ Deno.serve(async (req) => {
     // ─── Step 3: Honeypot spam check ───────────────────────────────────────
     if (checkHoneypot(submissionData)) {
       console.log(`[submit-form] Honeypot triggered for form: ${formId.slice(0, 8)}...`);
-      
+
       await recordSubmission(supabase, {
         tenantId,
         formId,
         data: submissionData,
         metadata: submissionMeta,
         ipHash,
-        result: 'rejected_spam',
+        result: 'rejected',
+        rejectionType: 'spam',
         reason: 'Spam detected (honeypot)',
       });
 
@@ -483,7 +504,8 @@ Deno.serve(async (req) => {
         data: submissionData,
         metadata: submissionMeta,
         ipHash,
-        result: 'rejected_invalid',
+        result: 'rejected',
+        rejectionType: 'invalid',
         reason: fieldValidation.errors.join('; '),
       });
 
@@ -499,7 +521,8 @@ Deno.serve(async (req) => {
         data: submissionData,
         metadata: submissionMeta,
         ipHash,
-        result: 'rejected_invalid',
+        result: 'rejected',
+        rejectionType: 'invalid',
         reason: consentValidation.errors.join('; '),
       });
 
@@ -520,7 +543,8 @@ Deno.serve(async (req) => {
         data: submissionData,
         metadata: submissionMeta,
         ipHash,
-        result: 'rejected_invalid',
+        result: 'rejected',
+        rejectionType: 'invalid',
         reason: 'Email is required',
       });
 
@@ -530,15 +554,15 @@ Deno.serve(async (req) => {
     // ─── Step 6a: Determine consent values from form data ────────────────────
     const emailConsentField = fields.find(f => f.type === 'email_consent');
     const smsConsentField = fields.find(f => f.type === 'sms_consent');
-    
+
     // Extract consent boolean values (explicitly check for true)
-    const emailConsent = emailConsentField 
-      ? submissionData[emailConsentField.id] === true 
+    const emailConsent = emailConsentField
+      ? submissionData[emailConsentField.id] === true
       : submissionData['email_consent'] === true;
-    const smsConsent = smsConsentField 
-      ? submissionData[smsConsentField.id] === true 
+    const smsConsent = smsConsentField
+      ? submissionData[smsConsentField.id] === true
       : submissionData['sms_consent'] === true;
-    
+
     const now = new Date().toISOString();
 
     // ─── Step 6b: Build comprehensive metadata for audit trail ─────────────────
@@ -552,24 +576,24 @@ Deno.serve(async (req) => {
       utm_medium: meta?.utm_medium || null,
       utm_campaign: meta?.utm_campaign || null,
       user_agent: meta?.user_agent || req.headers.get('user-agent') || null,
-      
+
       // Form identification
       form_embed_key: embed_key,
       form_id: formId,
       consent_source: 'form',
-      
+
       // Email consent (ALWAYS store - even if false)
       email_consent: emailConsent,
       email_consent_text: compliance.email_consent_text || null,
       email_consent_at: emailConsent ? now : null,
       email_consent_required: compliance.email_consent_required || false,
-      
+
       // SMS consent (ALWAYS store - even if false)
       sms_consent: smsConsent,
       sms_consent_text: compliance.sms_consent_text || null,
       sms_consent_at: smsConsent ? now : null,
       sms_consent_required: compliance.sms_consent_required || false,
-      
+
       // Submission timestamp
       submitted_at: now,
     };
@@ -598,13 +622,13 @@ Deno.serve(async (req) => {
     if (phone) customerData.phone = phone;
 
     // ─── CRITICAL: CASL/TCPA Compliant Opt-In Logic ───────────────────────────
-    // 
+    //
     // Rules:
     // 1. ONLY set email_opt_in=true when explicit consent is granted
     // 2. NEVER set email_opt_in=false from a form submission (that would be an unsubscribe)
     // 3. NEVER touch opt_out field - that's only for explicit unsubscribe actions
     // 4. Store verbatim consent text for legal defensibility
-    // 
+    //
     // This ensures:
     // - Existing subscribers are not accidentally unsubscribed
     // - Consent is only "upgraded", never "downgraded"
@@ -693,7 +717,7 @@ Deno.serve(async (req) => {
     const debugInfo: Record<string, unknown> = {};
     let personasAssigned = 0;
     let personaErrors: string[] = [];
-    
+
     if (personaIds.length > 0) {
       try {
         // Validate personas exist and determine their type (custom vs predefined)
@@ -711,14 +735,14 @@ Deno.serve(async (req) => {
           // Separate custom and predefined personas
           const customPersonas = validPersonas?.filter(p => p.is_custom === true) || [];
           const predefinedPersonas = validPersonas?.filter(p => p.is_custom === false) || [];
-          
+
           const customPersonaIds = customPersonas.map(p => p.id);
           const predefinedPersonaIds = predefinedPersonas.map(p => p.id);
-          
-          const invalidCount = personaIds.filter(id => 
+
+          const invalidCount = personaIds.filter(id =>
             ![...customPersonaIds, ...predefinedPersonaIds].includes(id)
           ).length;
-          
+
           if (invalidCount > 0) {
             console.warn(`[submit-form] Invalid persona IDs ignored: ${invalidCount}`);
             debugInfo.invalid_persona_count = invalidCount;
@@ -728,7 +752,7 @@ Deno.serve(async (req) => {
           // DB has partial unique indexes:
           // - unique_customer_custom_persona(customer_id, persona_id) WHERE persona_id IS NOT NULL
           // - unique_customer_predefined_persona(customer_id, predefined_persona_id) WHERE predefined_persona_id IS NOT NULL
-          
+
           // Get all existing assignments for this customer
           const { data: existingAssignments } = await supabase
             .from('customer_personas')
@@ -816,7 +840,7 @@ Deno.serve(async (req) => {
     // If this fails, submission still returns 200. Error is recorded for debugging.
     let segmentsJoined: string[] = [];
     let segmentsLeft: string[] = [];
-    
+
     try {
       const segmentResponse = await fetch(
         `${supabaseUrl}/functions/v1/evaluate-customer-segments`,
@@ -853,9 +877,9 @@ Deno.serve(async (req) => {
 
     // ─── Step 10: Update submission metadata with debug info ─────────────────
     // Record audience processing results for audit trail (no PII in debug)
-    const hasAudienceActivity = personasAssigned > 0 || personaErrors.length > 0 || 
+    const hasAudienceActivity = personasAssigned > 0 || personaErrors.length > 0 ||
                                 segmentsJoined.length > 0 || Object.keys(debugInfo).length > 0;
-    
+
     if (hasAudienceActivity) {
       try {
         await supabase
@@ -899,7 +923,7 @@ Deno.serve(async (req) => {
 
   } catch (error) {
     console.error('[submit-form] Unexpected error:', (error as Error).message);
-    
+
     // Try to record failed submission if we have enough context
     if (tenantId && formId && ipHash) {
       try {

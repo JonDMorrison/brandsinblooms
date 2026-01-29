@@ -9,12 +9,12 @@ const corsHeaders = {
 
 /**
  * Process FormSubmitted trigger events and execute matching automations.
- * 
+ *
  * Supported actions:
  * 1. send_email - Send email immediately
  * 2. notify_staff - Send notification to staff immediately
  * 3. delay - Wait before next action (persisted in scheduled_at)
- * 
+ *
  * Rules:
  * - Automations check consent before sending (via canSendEmail)
  * - Automations never mutate customer consent
@@ -102,22 +102,52 @@ const handler = async (req: Request): Promise<Response> => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-    // 1. Fetch unprocessed form_submitted events (respecting retry limits)
-    const { data: events, error: eventsError } = await supabase
-      .from("automation_trigger_events")
-      .select("*")
-      .eq("event_type", "form_submitted")
-      .is("processed_at", null)
-      .lt("retry_count", MAX_RETRIES) // Don't process events that have exceeded retries
-      .order("created_at", { ascending: true })
-      .limit(100);
+    // ─── ATOMIC CLAIM PATTERN ─────────────────────────────────────────────
+    // Use claim_trigger_events RPC for atomic claiming via FOR UPDATE SKIP LOCKED
+    // This prevents double-processing when multiple workers run simultaneously
+    let events: any[] = [];
 
-    if (eventsError) {
-      console.error("❌ Failed to fetch trigger events:", eventsError);
-      throw eventsError;
+    const { data: claimedEvents, error: claimError } = await supabase
+      .rpc("claim_trigger_events", {
+        p_event_type: "form_submitted",
+        p_limit: 100
+      });
+
+    if (claimError) {
+      // Fallback: If RPC doesn't exist yet, use standard query
+      // (This handles deployments before migration is applied)
+      console.warn("⚠️ claim_trigger_events RPC failed, using fallback:", claimError.message);
+
+      const { data: fallbackEvents, error: fallbackError } = await supabase
+        .from("automation_trigger_events")
+        .select("*")
+        .eq("event_type", "form_submitted")
+        .is("processed_at", null)
+        .is("claimed_at", null) // Don't process claimed events
+        .lt("retry_count", MAX_RETRIES)
+        .order("created_at", { ascending: true })
+        .limit(100);
+
+      if (fallbackError) {
+        console.error("❌ Failed to fetch trigger events:", fallbackError);
+        throw fallbackError;
+      }
+      events = fallbackEvents || [];
+
+      // Mark as claimed to prevent other workers from picking them up
+      if (events.length > 0) {
+        const eventIds = events.map(e => e.id);
+        await supabase
+          .from("automation_trigger_events")
+          .update({ claimed_at: new Date().toISOString() })
+          .in("id", eventIds)
+          .is("claimed_at", null); // Only claim if not already claimed (race-safe)
+      }
+    } else {
+      events = claimedEvents || [];
     }
 
-    if (!events || events.length === 0) {
+    if (events.length === 0) {
       console.log("📭 No pending form_submitted events");
       return new Response(
         JSON.stringify({ success: true, processed: 0, runs_created: 0 }),
@@ -125,7 +155,7 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    console.log(`📬 Found ${events.length} pending form_submitted events`);
+    console.log(`📬 Claimed ${events.length} form_submitted events for processing`);
 
     let processed = 0;
     let runsCreated = 0;
@@ -143,7 +173,7 @@ const handler = async (req: Request): Promise<Response> => {
         if (!formId || !submissionId) {
           console.warn(`⚠️ Event ${event.id} missing form_id or submission_id, skipping`);
           await markEventProcessed(supabase, event.id, "missing_required_fields");
-          
+
           // Log the failure
           await logExecution(supabase, {
             tenant_id: tenantId,
@@ -154,7 +184,7 @@ const handler = async (req: Request): Promise<Response> => {
             error_details: { form_id: formId, submission_id: submissionId },
             trigger_event_id: event.id,
           });
-          
+
           processed++;
           failed++;
           continue;
@@ -170,10 +200,10 @@ const handler = async (req: Request): Promise<Response> => {
 
         if (automationError) {
           console.error(`❌ Failed to fetch automations for tenant ${tenantId}:`, automationError);
-          
+
           // Increment retry count instead of marking processed
           await incrementEventRetry(supabase, event.id, automationError.message);
-          
+
           // Log the failure
           await logExecution(supabase, {
             tenant_id: tenantId,
@@ -184,7 +214,7 @@ const handler = async (req: Request): Promise<Response> => {
             error_details: { error: automationError.message },
             trigger_event_id: event.id,
           });
-          
+
           processed++;
           failed++;
           continue;
@@ -194,18 +224,18 @@ const handler = async (req: Request): Promise<Response> => {
         const matchingAutomations = (automations || []).filter((auto: Automation) => {
           const conditions = auto.trigger_conditions;
           if (!conditions) return true; // No conditions = matches all forms
-          
+
           // Check form_id match
           if (conditions.form_id && conditions.form_id !== formId) return false;
           if (conditions.form_ids && !conditions.form_ids.includes(formId)) return false;
-          
+
           return true;
         });
 
         if (matchingAutomations.length === 0) {
           console.log(`📭 No matching automations for form ${formId}`);
           await markEventProcessed(supabase, event.id, "no_matching_automations");
-          
+
           // Log as completed (no error, just no automations)
           await logExecution(supabase, {
             tenant_id: tenantId,
@@ -216,7 +246,7 @@ const handler = async (req: Request): Promise<Response> => {
             metadata: { reason: "no_matching_automations", form_id: formId },
             trigger_event_id: event.id,
           });
-          
+
           processed++;
           continue;
         }
@@ -247,14 +277,14 @@ const handler = async (req: Request): Promise<Response> => {
                 .select("id, email, first_name, last_name, email_opt_in, sms_opt_in")
                 .eq("id", customerId)
                 .single();
-              
+
               customer = customerData;
               customerEmail = customerData?.email;
             }
 
             if (!customer || !customerEmail) {
               console.warn(`⚠️ No customer/email for automation ${automation.id}, skipping`);
-              
+
               await logExecution(supabase, {
                 tenant_id: tenantId,
                 automation_id: automation.id,
@@ -264,7 +294,7 @@ const handler = async (req: Request): Promise<Response> => {
                 failure_reason: "no_customer_email",
                 trigger_event_id: event.id,
               });
-              
+
               continue;
             }
 
@@ -286,7 +316,7 @@ const handler = async (req: Request): Promise<Response> => {
 
             if (runError) {
               console.error(`❌ Failed to create automation run:`, runError);
-              
+
               await logExecution(supabase, {
                 tenant_id: tenantId,
                 automation_id: automation.id,
@@ -297,7 +327,7 @@ const handler = async (req: Request): Promise<Response> => {
                 error_details: { error: runError.message },
                 trigger_event_id: event.id,
               });
-              
+
               continue;
             }
 
@@ -320,10 +350,10 @@ const handler = async (req: Request): Promise<Response> => {
                 const delayMinutes = (node.data?.delay_minutes || 0) +
                   (node.data?.delay_hours || 0) * 60 +
                   (node.data?.delay_days || 0) * 24 * 60;
-                
+
                 cumulativeDelayMs += delayMinutes * 60 * 1000;
                 console.log(`⏰ Step ${i}: Adding ${delayMinutes} minute delay`);
-                
+
                 // Log delay step
                 await logExecution(supabase, {
                   tenant_id: tenantId,
@@ -337,7 +367,7 @@ const handler = async (req: Request): Promise<Response> => {
                   node_id: node.id,
                   metadata: { delay_minutes: delayMinutes },
                 });
-                
+
                 continue; // Delay nodes don't create outbox entries themselves
               }
 
@@ -353,7 +383,7 @@ const handler = async (req: Request): Promise<Response> => {
 
                 if (!consentCheck.allowed) {
                   console.log(`⏭️ Skipping email for customer ${customerId}: ${consentCheck.reason}`);
-                  
+
                   // Log the skip in both tables for complete visibility
                   await Promise.all([
                     supabase.from("automation_email_executions").insert({
@@ -379,7 +409,7 @@ const handler = async (req: Request): Promise<Response> => {
                       recipient: customerEmail,
                     }),
                   ]);
-                  
+
                   stepsSkipped++;
                   continue;
                 }
@@ -408,7 +438,7 @@ const handler = async (req: Request): Promise<Response> => {
 
                 if (outboxError) {
                   console.error(`❌ Failed to queue email step ${i}:`, outboxError);
-                  
+
                   await logExecution(supabase, {
                     tenant_id: tenantId,
                     automation_id: automation.id,
@@ -423,13 +453,13 @@ const handler = async (req: Request): Promise<Response> => {
                     node_id: node.id,
                     recipient: customerEmail,
                   });
-                  
+
                   stepsFailed++;
                 } else {
                   actionsQueued++;
                   stepsQueued++;
                   console.log(`📧 Queued email step ${i} for ${scheduledAt}`);
-                  
+
                   await logExecution(supabase, {
                     tenant_id: tenantId,
                     automation_id: automation.id,
@@ -449,7 +479,7 @@ const handler = async (req: Request): Promise<Response> => {
               if (nodeType === "notify_staff" || nodeType === "notification") {
                 // Staff notifications don't require customer consent
                 const notificationEmails = node.data?.notification_emails || [];
-                
+
                 for (const staffEmail of notificationEmails) {
                   const { error: outboxError } = await supabase.from("crm_outbox").insert({
                     tenant_id: tenantId,
@@ -474,7 +504,7 @@ const handler = async (req: Request): Promise<Response> => {
 
                   if (outboxError) {
                     console.error(`❌ Failed to queue staff notification:`, outboxError);
-                    
+
                     await logExecution(supabase, {
                       tenant_id: tenantId,
                       automation_id: automation.id,
@@ -489,13 +519,13 @@ const handler = async (req: Request): Promise<Response> => {
                       node_id: node.id,
                       recipient: staffEmail,
                     });
-                    
+
                     stepsFailed++;
                   } else {
                     actionsQueued++;
                     stepsQueued++;
                     console.log(`📨 Queued staff notification to ${staffEmail}`);
-                    
+
                     await logExecution(supabase, {
                       tenant_id: tenantId,
                       automation_id: automation.id,
@@ -515,22 +545,22 @@ const handler = async (req: Request): Promise<Response> => {
             }
 
             // Determine final run status
-            const finalStatus = stepsFailed > 0 && stepsQueued === 0 ? "failed" : 
+            const finalStatus = stepsFailed > 0 && stepsQueued === 0 ? "failed" :
                                stepsQueued > 0 ? "running" : "completed";
 
             // Update run with queued step count and status
             await supabase
               .from("automation_runs")
-              .update({ 
+              .update({
                 status: finalStatus,
-                metadata: { 
-                  actions_queued: stepsQueued, 
+                metadata: {
+                  actions_queued: stepsQueued,
                   actions_skipped: stepsSkipped,
                   actions_failed: stepsFailed,
                 },
                 updated_at: new Date().toISOString(),
-                ...(finalStatus === "completed" || finalStatus === "failed" 
-                  ? { completed_at: new Date().toISOString() } 
+                ...(finalStatus === "completed" || finalStatus === "failed"
+                  ? { completed_at: new Date().toISOString() }
                   : {}),
               })
               .eq("id", run.id);
@@ -554,7 +584,7 @@ const handler = async (req: Request): Promise<Response> => {
 
           } catch (automationError) {
             console.error(`❌ Error processing automation ${automation.id}:`, automationError);
-            
+
             await logExecution(supabase, {
               tenant_id: tenantId,
               automation_id: automation.id,
@@ -562,8 +592,8 @@ const handler = async (req: Request): Promise<Response> => {
               customer_id: customerId || undefined,
               status: "failed",
               failure_reason: "automation_execution_error",
-              error_details: { 
-                error: automationError instanceof Error ? automationError.message : String(automationError) 
+              error_details: {
+                error: automationError instanceof Error ? automationError.message : String(automationError)
               },
               trigger_event_id: event.id,
             });
@@ -576,21 +606,21 @@ const handler = async (req: Request): Promise<Response> => {
 
       } catch (eventError) {
         console.error(`❌ Error processing event ${event.id}:`, eventError);
-        
+
         // Increment retry count instead of immediately marking as failed
         const currentRetryCount = event.retry_count || 0;
-        
+
         if (currentRetryCount + 1 >= MAX_RETRIES) {
           // Max retries reached, mark as processed with error
           await markEventProcessed(supabase, event.id, `max_retries_exceeded: ${eventError}`);
-          
+
           await logExecution(supabase, {
             tenant_id: event.tenant_id,
             automation_id: "00000000-0000-0000-0000-000000000000",
             submission_id: event.submission_id || event.id,
             status: "failed",
             failure_reason: "max_retries_exceeded",
-            error_details: { 
+            error_details: {
               retry_count: currentRetryCount + 1,
               last_error: eventError instanceof Error ? eventError.message : String(eventError),
             },
@@ -599,12 +629,12 @@ const handler = async (req: Request): Promise<Response> => {
         } else {
           // Increment retry and schedule next attempt
           await incrementEventRetry(
-            supabase, 
-            event.id, 
+            supabase,
+            event.id,
             eventError instanceof Error ? eventError.message : String(eventError)
           );
         }
-        
+
         processed++;
         failed++;
       }
@@ -695,7 +725,7 @@ async function incrementEventRetry(
       error_message: errorMessage,
     })
     .eq("id", eventId);
-  
+
   // Use raw SQL to increment retry_count atomically
   await supabase.rpc("increment_trigger_event_retry", { event_id: eventId }).catch(() => {
     // Fallback: just update with a simple increment if RPC doesn't exist
@@ -707,10 +737,10 @@ function buildStaffNotificationContent(
   payload: FormSubmittedPayload | null,
   customer: { first_name?: string; last_name?: string; email?: string } | null
 ): string {
-  const customerName = customer 
-    ? `${customer.first_name || ""} ${customer.last_name || ""}`.trim() || customer.email 
+  const customerName = customer
+    ? `${customer.first_name || ""} ${customer.last_name || ""}`.trim() || customer.email
     : "Unknown";
-  
+
   return `
 New form submission received:
 
