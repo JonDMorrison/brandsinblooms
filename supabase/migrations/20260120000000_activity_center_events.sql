@@ -108,7 +108,7 @@ CREATE OR REPLACE FUNCTION public.get_activity_feed(
 )
 RETURNS TABLE(
   id TEXT,
-  timestamp TIMESTAMPTZ,
+  "timestamp" TIMESTAMPTZ,
   customer_id UUID,
   actor_type TEXT,
   actor_id UUID,

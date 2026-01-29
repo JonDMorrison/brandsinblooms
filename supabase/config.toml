@@ -1,5 +1,8 @@
 project_id = "udldmkqwnxhdeztyqcau"
 
+[db]
+major_version = 15
+
 # Note: connect-meta function was removed (deprecated)
 
 [functions.process-automation-outbox]
