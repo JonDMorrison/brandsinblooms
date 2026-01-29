@@ -136,6 +136,11 @@ const AppSidebar: React.FC = () => {
       icon: BarChart3,
     },
     {
+      title: "Activity Center",
+      url: "/activity",
+      icon: Activity,
+    },
+    {
       title: "Calendar",
       url: "/calendar",
       icon: Calendar,
@@ -231,36 +236,64 @@ const AppSidebar: React.FC = () => {
             <SidebarMenu>
               {sidebarItems.map((item) =>
                 item.items ? (
-                  <Collapsible key={item.title} defaultOpen={item.items.some(subItem => isActive(subItem.url))}>
-                    <SidebarMenuItem>
+                  isCollapsed ? (
+                    <SidebarMenuItem key={item.title}>
+                      <SidebarMenuButton asChild className="w-full" tooltip={item.title}>
+                        <NavLink
+                          to={item.url}
+                          className={({ isActive }) =>
+                            isActive ? "bg-accent text-accent-foreground" : ""
+                          }
+                        >
+                          <item.icon className="h-4 w-4" />
+                          {!isCollapsed && <span>{item.title}</span>}
+                        </NavLink>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ) : (
+                    <Collapsible
+                      key={item.title}
+                      defaultOpen={item.items.some((subItem) => isActive(subItem.url))}
+                    >
+                      <SidebarMenuItem>
                         <CollapsibleTrigger asChild>
-                          <SidebarMenuButton className="group w-full">
+                          <SidebarMenuButton className="group w-full" tooltip={item.title}>
                             <item.icon className="h-4 w-4" />
                             {!isCollapsed && <span>{item.title}</span>}
-                            {!isCollapsed && <ChevronDown className="ml-auto h-4 w-4 shrink-0 transition-transform duration-200 group-data-[state=open]:rotate-180" />}
+                            {!isCollapsed && (
+                              <ChevronDown className="ml-auto h-4 w-4 shrink-0 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                            )}
                           </SidebarMenuButton>
                         </CollapsibleTrigger>
-                      {!isCollapsed && (
-                        <CollapsibleContent>
-                          <SidebarMenuSub>
-                            {item.items.map((subItem) => (
-                              <SidebarMenuSubItem key={subItem.title}>
-                                <SidebarMenuSubButton asChild>
-                                  <NavLink to={subItem.url} className={({ isActive }) => isActive ? "bg-accent text-accent-foreground" : ""}>
-                                    <subItem.icon className="h-4 w-4" />
-                                    <span>{subItem.title}</span>
-                                  </NavLink>
-                                </SidebarMenuSubButton>
-                              </SidebarMenuSubItem>
-                            ))}
-                          </SidebarMenuSub>
-                        </CollapsibleContent>
-                      )}
-                    </SidebarMenuItem>
-                  </Collapsible>
+                        {!isCollapsed && (
+                          <CollapsibleContent>
+                            <SidebarMenuSub>
+                              {item.items.map((subItem) => (
+                                <SidebarMenuSubItem key={subItem.title}>
+                                  <SidebarMenuSubButton asChild>
+                                    <NavLink
+                                      to={subItem.url}
+                                      className={({ isActive }) =>
+                                        isActive
+                                          ? "bg-accent text-accent-foreground"
+                                          : ""
+                                      }
+                                    >
+                                      <subItem.icon className="h-4 w-4" />
+                                      <span>{subItem.title}</span>
+                                    </NavLink>
+                                  </SidebarMenuSubButton>
+                                </SidebarMenuSubItem>
+                              ))}
+                            </SidebarMenuSub>
+                          </CollapsibleContent>
+                        )}
+                      </SidebarMenuItem>
+                    </Collapsible>
+                  )
                 ) : (
                   <SidebarMenuItem key={item.title}>
-                     <SidebarMenuButton asChild className="w-full">
+                     <SidebarMenuButton asChild className="w-full" tooltip={item.title}>
                         <NavLink 
                           to={item.url} 
                           className={({ isActive }) => isActive ? "bg-accent text-accent-foreground" : ""}

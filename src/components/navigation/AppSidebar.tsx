@@ -8,6 +8,7 @@ import { useIsSuperAdmin } from '@/hooks/useIsSuperAdmin';
 import { 
   Home, 
   BarChart3, 
+  Activity,
   Calendar,
   Users, 
   Settings, 
@@ -84,6 +85,11 @@ export function AppSidebar() {
           title: "Analytics",
           url: "/analytics",
           icon: BarChart3,
+        },
+        {
+          title: "Activity Center",
+          url: "/activity",
+          icon: Activity,
         },
         {
           title: "Calendar",
@@ -261,6 +267,7 @@ export function AppSidebar() {
                         <SidebarMenuButton 
                           asChild 
                           isActive={isActive}
+                          tooltip={item.title}
                           className="group"
                           data-testid={`sidebar-link-${item.title.toLowerCase().replace(/\s+/g, '-')}`}
                         >
