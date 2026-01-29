@@ -37,8 +37,9 @@ interface FormSubmissionsTabProps {
   formName?: string;
 }
 
-type SubmissionResult = 'accepted' | 'rejected_invalid' | 'rejected_rate_limited' | 'rejected_spam';
+import { SubmissionResult, RejectionType } from '@/types/formBuilder';
 
+// Canonical result display config
 const resultConfig: Record<SubmissionResult, { 
   label: string; 
   shortLabel: string;
@@ -53,28 +54,42 @@ const resultConfig: Record<SubmissionResult, {
     icon: <CheckCircle className="h-3.5 w-3.5" />,
     color: 'text-green-600'
   },
-  rejected_invalid: { 
-    label: 'Invalid Data', 
-    shortLabel: 'Invalid',
+  rejected: { 
+    label: 'Rejected', 
+    shortLabel: 'Rejected',
     variant: 'destructive', 
+    icon: <XCircle className="h-3.5 w-3.5" />,
+    color: 'text-destructive'
+  },
+};
+
+// Rejection type display config (for breakdown)
+const rejectionTypeConfig: Record<RejectionType, { 
+  label: string; 
+  icon: React.ReactNode;
+  color: string;
+}> = {
+  invalid: { 
+    label: 'Invalid Data',
     icon: <AlertCircle className="h-3.5 w-3.5" />,
     color: 'text-destructive'
   },
-  rejected_rate_limited: { 
-    label: 'Rate Limited', 
-    shortLabel: 'Rate Limit',
-    variant: 'secondary', 
+  rate_limited: { 
+    label: 'Rate Limited',
     icon: <Clock className="h-3.5 w-3.5" />,
     color: 'text-yellow-600'
   },
-  rejected_spam: { 
-    label: 'Spam Detected', 
-    shortLabel: 'Spam',
-    variant: 'destructive', 
+  spam: { 
+    label: 'Spam Detected',
     icon: <Bot className="h-3.5 w-3.5" />,
     color: 'text-destructive'
   },
 };
+
+// Helper to get rejection type from metadata
+function getRejectionType(metadata: FormSubmissionMetadata | undefined): RejectionType | undefined {
+  return metadata?.rejection_type;
+}
 
 export function FormSubmissionsTab({ formId, formName = 'Form' }: FormSubmissionsTabProps) {
   const [searchQuery, setSearchQuery] = useState('');
@@ -173,10 +188,12 @@ export function FormSubmissionsTab({ formId, formName = 'Form' }: FormSubmission
       ? (last7Days > 0 ? 100 : 0) 
       : Math.round(((last7Days - previous7Days) / previous7Days) * 100);
 
+    // Count by rejection_type in metadata for rejected submissions
+    const rejectedSubmissions = submissions.filter(s => s.result === 'rejected');
     const rejectionBreakdown = {
-      invalid: submissions.filter(s => s.result === 'rejected_invalid').length,
-      rateLimit: submissions.filter(s => s.result === 'rejected_rate_limited').length,
-      spam: submissions.filter(s => s.result === 'rejected_spam').length,
+      invalid: rejectedSubmissions.filter(s => s.metadata?.rejection_type === 'invalid').length,
+      rateLimit: rejectedSubmissions.filter(s => s.metadata?.rejection_type === 'rate_limited').length,
+      spam: rejectedSubmissions.filter(s => s.metadata?.rejection_type === 'spam').length,
     };
     
     return {
@@ -383,9 +400,10 @@ interface SubmissionRowProps {
 }
 
 function SubmissionRow({ submission, onViewDetails }: SubmissionRowProps) {
-  const resultInfo = resultConfig[submission.result] || resultConfig.rejected_invalid;
-  const metadata = submission.metadata || {};
-  const isRejected = submission.result !== 'accepted';
+  const resultInfo = resultConfig[submission.result] || resultConfig.rejected;
+  const metadata = submission.metadata || {} as FormSubmissionMetadata;
+  const isRejected = submission.result === 'rejected';
+  const rejectionType = getRejectionType(metadata);
   
   const email = submission.data?.email || submission.data?.Email || '—';
 
@@ -465,9 +483,9 @@ function SubmissionRow({ submission, onViewDetails }: SubmissionRowProps) {
   );
 }
 
-function ConsentBadges({ metadata }: { metadata: FormSubmissionMetadata }) {
-  const hasEmailConsent = metadata.email_consent === true;
-  const hasSmsConsent = metadata.sms_consent === true;
+function ConsentBadges({ metadata }: { metadata: Partial<FormSubmissionMetadata> }) {
+  const hasEmailConsent = metadata?.email_consent === true;
+  const hasSmsConsent = metadata?.sms_consent === true;
   const noConsent = !hasEmailConsent && !hasSmsConsent;
 
   if (noConsent) {

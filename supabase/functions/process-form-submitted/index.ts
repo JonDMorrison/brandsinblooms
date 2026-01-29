@@ -102,22 +102,52 @@ const handler = async (req: Request): Promise<Response> => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-    // 1. Fetch unprocessed form_submitted events (respecting retry limits)
-    const { data: events, error: eventsError } = await supabase
-      .from("automation_trigger_events")
-      .select("*")
-      .eq("event_type", "form_submitted")
-      .is("processed_at", null)
-      .lt("retry_count", MAX_RETRIES) // Don't process events that have exceeded retries
-      .order("created_at", { ascending: true })
-      .limit(100);
+    // ─── ATOMIC CLAIM PATTERN ─────────────────────────────────────────────
+    // Use claim_trigger_events RPC for atomic claiming via FOR UPDATE SKIP LOCKED
+    // This prevents double-processing when multiple workers run simultaneously
+    let events: any[] = [];
+    
+    const { data: claimedEvents, error: claimError } = await supabase
+      .rpc("claim_trigger_events", {
+        p_event_type: "form_submitted",
+        p_limit: 100
+      });
 
-    if (eventsError) {
-      console.error("❌ Failed to fetch trigger events:", eventsError);
-      throw eventsError;
+    if (claimError) {
+      // Fallback: If RPC doesn't exist yet, use standard query
+      // (This handles deployments before migration is applied)
+      console.warn("⚠️ claim_trigger_events RPC failed, using fallback:", claimError.message);
+      
+      const { data: fallbackEvents, error: fallbackError } = await supabase
+        .from("automation_trigger_events")
+        .select("*")
+        .eq("event_type", "form_submitted")
+        .is("processed_at", null)
+        .is("claimed_at", null) // Don't process claimed events
+        .lt("retry_count", MAX_RETRIES)
+        .order("created_at", { ascending: true })
+        .limit(100);
+
+      if (fallbackError) {
+        console.error("❌ Failed to fetch trigger events:", fallbackError);
+        throw fallbackError;
+      }
+      events = fallbackEvents || [];
+      
+      // Mark as claimed to prevent other workers from picking them up
+      if (events.length > 0) {
+        const eventIds = events.map(e => e.id);
+        await supabase
+          .from("automation_trigger_events")
+          .update({ claimed_at: new Date().toISOString() })
+          .in("id", eventIds)
+          .is("claimed_at", null); // Only claim if not already claimed (race-safe)
+      }
+    } else {
+      events = claimedEvents || [];
     }
 
-    if (!events || events.length === 0) {
+    if (events.length === 0) {
       console.log("📭 No pending form_submitted events");
       return new Response(
         JSON.stringify({ success: true, processed: 0, runs_created: 0 }),
@@ -125,7 +155,7 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    console.log(`📬 Found ${events.length} pending form_submitted events`);
+    console.log(`📬 Claimed ${events.length} form_submitted events for processing`);
 
     let processed = 0;
     let runsCreated = 0;

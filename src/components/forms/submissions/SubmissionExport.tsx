@@ -9,7 +9,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Download, FileSpreadsheet, FileText, Loader2 } from 'lucide-react';
-import { FormSubmission } from '@/types/formBuilder';
+import { FormSubmission, FormSubmissionMetadata } from '@/types/formBuilder';
 import { useToast } from '@/hooks/use-toast';
 
 interface SubmissionExportProps {
@@ -48,7 +48,7 @@ export function SubmissionExport({ submissions, formName }: SubmissionExportProp
 
       // Build data rows
       const rows = submissions.map(sub => {
-        const metadata = sub.metadata || {};
+        const metadata = (sub.metadata || {}) as Partial<FormSubmissionMetadata>;
         const data = sub.data || {};
         
         return [
@@ -56,11 +56,11 @@ export function SubmissionExport({ submissions, formName }: SubmissionExportProp
           sub.result,
           sub.reason || '',
           ...Array.from(allDataKeys).map(key => String(data[key] ?? '')),
-          metadata.email_consent ? 'Yes' : 'No',
-          metadata.sms_consent ? 'Yes' : 'No',
-          metadata.page_url || '',
-          metadata.utm_source || '',
-          metadata.utm_campaign || '',
+          metadata?.email_consent ? 'Yes' : 'No',
+          metadata?.sms_consent ? 'Yes' : 'No',
+          metadata?.page_url || '',
+          metadata?.utm_source || '',
+          metadata?.utm_campaign || '',
           sub.customer_id || '',
         ];
       });
