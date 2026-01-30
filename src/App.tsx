@@ -48,6 +48,7 @@ import CRMAutomations from "@/pages/crm/CRMAutomations";
 import AnalyticsPage from "@/pages/AnalyticsPage";
 import ContentLibraryPage from "@/pages/ContentLibraryPage";
 import SettingsPage from "@/pages/SettingsPage";
+import PublicFormPage from "@/pages/PublicFormPage";
 import AccountSetupPage from "@/pages/AccountSetupPage";
 import DomainsPage from "@/pages/DomainsPage";
 import CalendarPage from "@/pages/CalendarPage";
@@ -188,6 +189,10 @@ function App() {
             <Route path="/features" element={<FeaturesPage />} />
             <Route path="/home1" element={<Home1Page />} />
             <Route path="/email-preferences" element={<EmailPreferences />} />
+            
+            {/* Public form page - no auth required */}
+            <Route path="/f/:embedKey" element={<PublicFormPage />} />
+            
             <Route path="/" element={<SmartRootRoute />} />
 
             {/* Protected routes with sidebar */}
