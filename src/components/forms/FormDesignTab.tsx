@@ -260,12 +260,12 @@ export function FormDesignTab({ settings, onSettingsChange }: FormDesignTabProps
 
       {/* Form Header & Behavior */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Form Header */}
+        {/* Headline & Subheadline */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <AlignLeft className="h-5 w-5" />
-              Form Header
+              Headline & Subheadline
             </CardTitle>
             <CardDescription>Optional headline, title and description</CardDescription>
           </CardHeader>
