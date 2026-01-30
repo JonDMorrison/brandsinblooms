@@ -13,6 +13,12 @@ import {
   Palette
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 interface PreviewPanelProps {
   fields: FormField[];
@@ -35,6 +41,12 @@ export function PreviewPanel({
   const [showBranding, setShowBranding] = useState(true);
   const [previewKey, setPreviewKey] = useState(0);
 
+  // Track changed field/setting IDs for highlight animation
+  const [changedIds, setChangedIds] = useState<Set<string>>(new Set());
+  const prevFieldsRef = useRef<string>('');
+  const prevSettingsRef = useRef<string>('');
+  const prevComplianceRef = useRef<string>('');
+
   // Debounce config changes to avoid jitter
   const [debouncedFields, setDebouncedFields] = useState(fields);
   const [debouncedSettings, setDebouncedSettings] = useState(settings);
@@ -47,6 +59,44 @@ export function PreviewPanel({
       clearTimeout(debounceRef.current);
     }
     debounceRef.current = setTimeout(() => {
+      // Detect changed fields for highlight
+      const currentFieldsJson = JSON.stringify(fields);
+      const currentSettingsJson = JSON.stringify(settings);
+      const currentComplianceJson = JSON.stringify(compliance);
+      
+      const newChangedIds = new Set<string>();
+      
+      // Check for field changes
+      if (prevFieldsRef.current && prevFieldsRef.current !== currentFieldsJson) {
+        const prevFields: FormField[] = JSON.parse(prevFieldsRef.current);
+        fields.forEach((field) => {
+          const prevField = prevFields.find((f) => f.id === field.id);
+          if (!prevField || JSON.stringify(prevField) !== JSON.stringify(field)) {
+            newChangedIds.add(field.id);
+          }
+        });
+      }
+      
+      // Check for settings changes
+      if (prevSettingsRef.current && prevSettingsRef.current !== currentSettingsJson) {
+        newChangedIds.add('__settings');
+      }
+      
+      // Check for compliance changes
+      if (prevComplianceRef.current && prevComplianceRef.current !== currentComplianceJson) {
+        newChangedIds.add('__compliance');
+      }
+      
+      prevFieldsRef.current = currentFieldsJson;
+      prevSettingsRef.current = currentSettingsJson;
+      prevComplianceRef.current = currentComplianceJson;
+      
+      if (newChangedIds.size > 0) {
+        setChangedIds(newChangedIds);
+        // Clear highlights after animation
+        setTimeout(() => setChangedIds(new Set()), 800);
+      }
+      
       setDebouncedFields(fields);
       setDebouncedSettings(settings);
       setDebouncedCompliance(compliance);
@@ -90,114 +140,164 @@ export function PreviewPanel({
   const previewWidth = deviceWidth === 'desktop' ? '480px' : '360px';
 
   return (
-    <div className={cn('flex flex-col h-full', className)}>
-      {/* Preview Controls */}
-      <div className="flex items-center justify-between gap-2 pb-3 border-b mb-4">
-        <div className="flex items-center gap-2">
-          <Eye className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm font-medium">Preview</span>
-        </div>
+    <TooltipProvider>
+      <div className={cn('flex flex-col h-full', className)}>
+        {/* Preview Controls */}
+        <div className="flex items-center justify-between gap-2 pb-3 border-b mb-4">
+          <div className="flex items-center gap-2">
+            <Eye className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm font-medium">Preview</span>
+          </div>
 
-        <div className="flex items-center gap-2">
-          {/* Device Width Toggle */}
-          <ToggleGroup
-            type="single"
-            value={deviceWidth}
-            onValueChange={(v) => v && setDeviceWidth(v as DeviceWidth)}
-            size="sm"
-          >
-            <ToggleGroupItem value="desktop" aria-label="Desktop preview">
-              <Monitor className="h-4 w-4" />
-            </ToggleGroupItem>
-            <ToggleGroupItem value="mobile" aria-label="Mobile preview">
-              <Smartphone className="h-4 w-4" />
-            </ToggleGroupItem>
-          </ToggleGroup>
+          <div className="flex items-center gap-2">
+            {/* Device Width Toggle */}
+            <ToggleGroup
+              type="single"
+              value={deviceWidth}
+              onValueChange={(v) => v && setDeviceWidth(v as DeviceWidth)}
+              size="sm"
+            >
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <ToggleGroupItem value="desktop" aria-label="Desktop preview">
+                    <Monitor className="h-4 w-4" />
+                  </ToggleGroupItem>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  <p>Desktop width (480px)</p>
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <ToggleGroupItem value="mobile" aria-label="Mobile preview">
+                    <Smartphone className="h-4 w-4" />
+                  </ToggleGroupItem>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  <p>Mobile width (360px)</p>
+                </TooltipContent>
+              </Tooltip>
+            </ToggleGroup>
 
-          {/* Background Toggle */}
-          <ToggleGroup
-            type="single"
-            value={background}
-            onValueChange={(v) => v && setBackground(v as BackgroundColor)}
-            size="sm"
-          >
-            <ToggleGroupItem value="white" aria-label="White background">
-              <div className="w-4 h-4 rounded border border-border bg-white" />
-            </ToggleGroupItem>
-            <ToggleGroupItem value="gray" aria-label="Gray background">
-              <div className="w-4 h-4 rounded border border-border bg-muted" />
-            </ToggleGroupItem>
-          </ToggleGroup>
+            {/* Background Toggle */}
+            <ToggleGroup
+              type="single"
+              value={background}
+              onValueChange={(v) => v && setBackground(v as BackgroundColor)}
+              size="sm"
+            >
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <ToggleGroupItem value="white" aria-label="White background">
+                    <div className="w-4 h-4 rounded border border-border bg-white" />
+                  </ToggleGroupItem>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  <p>White background</p>
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <ToggleGroupItem value="gray" aria-label="Gray background">
+                    <div className="w-4 h-4 rounded border border-border bg-muted" />
+                  </ToggleGroupItem>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  <p>Light gray background</p>
+                </TooltipContent>
+              </Tooltip>
+            </ToggleGroup>
 
-          {/* Reset Button */}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleReset}
-            className="h-8 w-8 p-0"
-            title="Reset preview"
-          >
-            <RefreshCw className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
-
-      {/* Warnings Banner */}
-      {warnings.length > 0 && (
-        <div className="mb-4 p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-sm flex items-start gap-2">
-          <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" />
-          <div>
-            <span className="font-medium">Preview warnings:</span>
-            <ul className="mt-1 list-disc list-inside">
-              {warnings.map((w, i) => (
-                <li key={i}>{w}</li>
-              ))}
-            </ul>
+            {/* Reset Button */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleReset}
+                  className="h-8 w-8 p-0"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                <p>Reset preview to initial state</p>
+              </TooltipContent>
+            </Tooltip>
           </div>
         </div>
-      )}
 
-      {/* Preview Container */}
-      <div
-        className={cn(
-          'flex-1 overflow-auto rounded-lg border transition-colors',
-          background === 'white' ? 'bg-white' : 'bg-muted/50'
-        )}
-      >
-        <div
-          className="mx-auto p-6 transition-all duration-200"
-          style={{ maxWidth: previewWidth }}
-        >
-          {debouncedFields.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              <EyeOff className="h-12 w-12 mx-auto mb-4 opacity-30" />
-              <p className="text-sm">Add fields to see a preview</p>
+        {/* Preview Mode Banner */}
+        <div className="mb-3 px-3 py-2 rounded-md bg-primary/10 border border-primary/20 text-primary text-xs font-medium flex items-center gap-2">
+          <Eye className="h-3.5 w-3.5" />
+          Preview Mode — This is how your form will appear to visitors
+        </div>
+
+        {/* Warnings Banner */}
+        {warnings.length > 0 && (
+          <div className="mb-4 p-3 rounded-lg bg-muted border border-border text-muted-foreground text-sm flex items-start gap-2">
+            <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+            <div>
+              <span className="font-medium">Preview warnings:</span>
+              <ul className="mt-1 list-disc list-inside">
+                {warnings.map((w, i) => (
+                  <li key={i}>{w}</li>
+                ))}
+              </ul>
             </div>
-          ) : (
-            <FormPreviewRenderer
-              key={previewKey}
-              fields={debouncedFields}
-              settings={resolvedSettings}
-              compliance={resolvedCompliance}
-              mode="preview"
-            />
+          </div>
+        )}
+
+        {/* Preview Container */}
+        <div
+          className={cn(
+            'flex-1 overflow-auto rounded-lg border transition-colors',
+            background === 'white' ? 'bg-white' : 'bg-muted/50'
           )}
+        >
+          <div
+            className="mx-auto p-6 transition-all duration-200"
+            style={{ maxWidth: previewWidth }}
+          >
+            {debouncedFields.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                <EyeOff className="h-12 w-12 mx-auto mb-4 opacity-30" />
+                <p className="text-sm">Add fields to see a preview</p>
+              </div>
+            ) : (
+              <FormPreviewRenderer
+                key={previewKey}
+                fields={debouncedFields}
+                settings={resolvedSettings}
+                compliance={resolvedCompliance}
+                mode="preview"
+                changedIds={changedIds}
+              />
+            )}
+          </div>
+        </div>
+
+        {/* Branding Toggle */}
+        <div className="pt-3 mt-3 border-t">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowBranding(!showBranding)}
+                className="text-xs text-muted-foreground w-full justify-start gap-2"
+              >
+                <Palette className="h-3 w-3" />
+                {showBranding ? 'Hide' : 'Show'} branding (preview only)
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="top">
+              <p>Toggle "Powered by BloomSuite" footer visibility</p>
+            </TooltipContent>
+          </Tooltip>
         </div>
       </div>
-
-      {/* Branding Toggle */}
-      <div className="pt-3 mt-3 border-t">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setShowBranding(!showBranding)}
-          className="text-xs text-muted-foreground w-full justify-start gap-2"
-        >
-          <Palette className="h-3 w-3" />
-          {showBranding ? 'Hide' : 'Show'} branding (preview only)
-        </Button>
-      </div>
-    </div>
+    </TooltipProvider>
   );
 }
 
