@@ -454,3 +454,9 @@ verify_jwt = false
 
 [functions.process-form-submitted]
 verify_jwt = false
+
+[functions.serve-embed-assets]
+verify_jwt = false
+
+[functions.serve-embed-js]
+verify_jwt = false
