@@ -79,7 +79,17 @@ export function PreviewPanel({
       
       // Check for settings changes
       if (prevSettingsRef.current && prevSettingsRef.current !== currentSettingsJson) {
-        newChangedIds.add('__settings');
+        const prevSettings = JSON.parse(prevSettingsRef.current);
+        const extSettings = settings as any;
+        const prevExtSettings = prevSettings as any;
+        
+        // Check if headline/subheadline specifically changed
+        if (extSettings?.form_headline !== prevExtSettings?.form_headline ||
+            extSettings?.form_subheadline !== prevExtSettings?.form_subheadline) {
+          newChangedIds.add('__headline');
+        } else {
+          newChangedIds.add('__settings');
+        }
       }
       
       // Check for compliance changes

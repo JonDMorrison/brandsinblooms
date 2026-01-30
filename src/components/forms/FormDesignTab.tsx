@@ -35,6 +35,8 @@ interface ExtendedSettings extends Omit<FormSettings, 'theme'> {
   theme: ExtendedTheme;
   form_title?: string;
   form_description?: string;
+  form_headline?: string;
+  form_subheadline?: string;
   form_width?: 'narrow' | 'medium' | 'wide' | 'full';
   field_spacing?: string;
   label_position?: 'above' | 'inline' | 'floating';
@@ -265,9 +267,37 @@ export function FormDesignTab({ settings, onSettingsChange }: FormDesignTabProps
               <AlignLeft className="h-5 w-5" />
               Form Header
             </CardTitle>
-            <CardDescription>Optional title and description</CardDescription>
+            <CardDescription>Optional headline, title and description</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            <div>
+              <Label htmlFor="form_headline">Headline (H2)</Label>
+              <Input
+                id="form_headline"
+                value={extendedSettings.form_headline || ''}
+                onChange={(e) => updateSettings({ form_headline: e.target.value })}
+                placeholder="e.g., Stay in the Loop"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Main message shown above the form
+              </p>
+            </div>
+
+            <div>
+              <Label htmlFor="form_subheadline">Subheadline (H4)</Label>
+              <Input
+                id="form_subheadline"
+                value={extendedSettings.form_subheadline || ''}
+                onChange={(e) => updateSettings({ form_subheadline: e.target.value })}
+                placeholder="e.g., Get weekly tips and exclusive offers"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Optional supporting line to add context or reassurance
+              </p>
+            </div>
+
+            <Separator />
+
             <div>
               <Label htmlFor="form_title">Form Title</Label>
               <Input
@@ -277,7 +307,7 @@ export function FormDesignTab({ settings, onSettingsChange }: FormDesignTabProps
                 placeholder="e.g., Join Our Newsletter"
               />
               <p className="text-xs text-muted-foreground mt-1">
-                Displayed above the form fields
+                Displayed above the form fields (smaller than headline)
               </p>
             </div>
 
