@@ -264,8 +264,8 @@ export default function FormEditorPage() {
         </div>
 
         {/* Right Column: Preview Panel */}
-        {showPreview && showPreviewForTab && !isMobile && (
-          <div className="hidden lg:block w-[40%] min-w-[380px] max-w-[500px] border-l bg-muted/30 p-4 overflow-hidden">
+        {showPreview && showPreviewForTab && (
+          <div className="hidden lg:flex lg:flex-col w-[40%] min-w-[380px] max-w-[500px] border-l bg-muted/30 p-4 overflow-hidden">
             <PreviewPanel
               fields={fields}
               settings={settings}
