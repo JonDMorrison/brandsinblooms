@@ -248,15 +248,15 @@ export function BloomSuiteForm() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Tabs defaultValue="js" className="w-full">
+              <Tabs defaultValue="iframe" className="w-full">
                 <TabsList className="grid w-full grid-cols-3">
-                  <TabsTrigger value="js" className="flex items-center gap-2">
-                    <Zap className="h-4 w-4" />
-                    JavaScript
-                  </TabsTrigger>
                   <TabsTrigger value="iframe" className="flex items-center gap-2">
                     <FileCode className="h-4 w-4" />
                     iFrame
+                  </TabsTrigger>
+                  <TabsTrigger value="js" className="flex items-center gap-2">
+                    <Zap className="h-4 w-4" />
+                    JavaScript
                   </TabsTrigger>
                   <TabsTrigger value="react" className="flex items-center gap-2">
                     <Code className="h-4 w-4" />
@@ -264,12 +264,33 @@ export function BloomSuiteForm() {
                   </TabsTrigger>
                 </TabsList>
 
+                <TabsContent value="iframe" className="mt-4">
+                  <div className="space-y-3">
+                    <div className="flex items-start gap-2 p-3 bg-primary/10 border border-primary/20 rounded-lg">
+                      <Check className="h-4 w-4 text-primary mt-0.5" />
+                      <div className="text-sm text-foreground">
+                        <strong>Recommended:</strong> Works on any website without technical configuration. No CSP issues.
+                      </div>
+                    </div>
+                    <pre className="p-4 bg-muted rounded-lg overflow-x-auto text-sm">
+                      <code>{iframeCode}</code>
+                    </pre>
+                    <Button 
+                      variant="outline" 
+                      onClick={() => copyToClipboard(iframeCode, 'iframe')}
+                    >
+                      {copiedItem === 'iframe' ? <Check className="h-4 w-4 mr-2" /> : <Copy className="h-4 w-4 mr-2" />}
+                      Copy Code
+                    </Button>
+                  </div>
+                </TabsContent>
+
                 <TabsContent value="js" className="mt-4">
                   <div className="space-y-3">
-                    <div className="flex items-start gap-2 p-3 bg-green-50 border border-green-200 rounded-lg">
-                      <Check className="h-4 w-4 text-green-600 mt-0.5" />
-                      <div className="text-sm text-green-800">
-                        <strong>Recommended:</strong> Lightweight, responsive, and automatically styled.
+                    <div className="flex items-start gap-2 p-3 bg-muted border border-border rounded-lg">
+                      <Zap className="h-4 w-4 text-muted-foreground mt-0.5" />
+                      <div className="text-sm text-muted-foreground">
+                        <strong>Advanced:</strong> Inline rendering, better performance. Requires CSP configuration on some websites.
                       </div>
                     </div>
                     <pre className="p-4 bg-muted rounded-lg overflow-x-auto text-sm">
@@ -285,23 +306,14 @@ export function BloomSuiteForm() {
                   </div>
                 </TabsContent>
 
-                <TabsContent value="iframe" className="mt-4">
-                  <div className="space-y-3">
-                    <pre className="p-4 bg-muted rounded-lg overflow-x-auto text-sm">
-                      <code>{iframeCode}</code>
-                    </pre>
-                    <Button 
-                      variant="outline" 
-                      onClick={() => copyToClipboard(iframeCode, 'iframe')}
-                    >
-                      {copiedItem === 'iframe' ? <Check className="h-4 w-4 mr-2" /> : <Copy className="h-4 w-4 mr-2" />}
-                      Copy Code
-                    </Button>
-                  </div>
-                </TabsContent>
-
                 <TabsContent value="react" className="mt-4">
                   <div className="space-y-3">
+                    <div className="flex items-start gap-2 p-3 bg-muted border border-border rounded-lg">
+                      <Code className="h-4 w-4 text-muted-foreground mt-0.5" />
+                      <div className="text-sm text-muted-foreground">
+                        <strong>Developers:</strong> For React/Next.js applications.
+                      </div>
+                    </div>
                     <pre className="p-4 bg-muted rounded-lg overflow-x-auto text-sm">
                       <code>{reactCode}</code>
                     </pre>
