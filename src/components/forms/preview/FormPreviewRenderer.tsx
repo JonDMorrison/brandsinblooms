@@ -16,6 +16,8 @@ interface FormPreviewRendererProps {
 interface ExtendedSettings extends FormSettings {
   form_title?: string;
   form_description?: string;
+  form_headline?: string;
+  form_subheadline?: string;
   form_width?: 'narrow' | 'medium' | 'wide' | 'full';
   label_position?: 'above' | 'inline' | 'floating';
   columns?: number;
@@ -175,6 +177,45 @@ export function FormPreviewRenderer({
       style={{ ...cssVars, maxWidth: containerWidth, margin: '0 auto' }}
     >
       <form onSubmit={handleSubmit} className="bs-form-wrapper" noValidate>
+        {/* Headline (H2) & Subheadline (H4) - Main message above the form */}
+        {(extSettings.form_headline || extSettings.form_subheadline) && (
+          <div 
+            className={cn(
+              "bs-form-headline-section text-center transition-all duration-300",
+              changedIds.has('__headline') && "ring-2 ring-primary/50 ring-offset-2 rounded-md"
+            )} 
+            style={{ marginBottom: 'var(--bs-form-spacing)' }}
+          >
+            {extSettings.form_headline && (
+              <h2
+                className="bs-form-headline"
+                style={{
+                  fontSize: '1.5rem',
+                  fontWeight: 700,
+                  marginBottom: extSettings.form_subheadline ? '0.5rem' : '0',
+                  color: 'var(--bs-form-text)',
+                  lineHeight: 1.3,
+                }}
+              >
+                {extSettings.form_headline}
+              </h2>
+            )}
+            {extSettings.form_subheadline && (
+              <h4
+                className="bs-form-subheadline"
+                style={{ 
+                  fontSize: '1rem',
+                  fontWeight: 400,
+                  color: '#6b7280',
+                  lineHeight: 1.4,
+                }}
+              >
+                {extSettings.form_subheadline}
+              </h4>
+            )}
+          </div>
+        )}
+
         {/* Form Title & Description */}
         {(extSettings.form_title || extSettings.form_description) && (
           <div 
@@ -185,17 +226,17 @@ export function FormPreviewRenderer({
             style={{ marginBottom: 'var(--bs-form-spacing)' }}
           >
             {extSettings.form_title && (
-              <h2
+              <h3
                 className="bs-form-title"
                 style={{
-                  fontSize: '1.25rem',
+                  fontSize: '1.125rem',
                   fontWeight: 600,
                   marginBottom: '0.5rem',
                   color: 'var(--bs-form-text)',
                 }}
               >
                 {extSettings.form_title}
-              </h2>
+              </h3>
             )}
             {extSettings.form_description && (
               <p
