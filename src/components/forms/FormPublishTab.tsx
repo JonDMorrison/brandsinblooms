@@ -39,10 +39,13 @@ export function FormPublishTab({ form, hasChanges, onSave, isSaving }: FormPubli
   const [copiedItem, setCopiedItem] = useState<string | null>(null);
 
   const isPublished = form.status === 'published';
-  const formUrl = `${window.location.origin}/f/${form.embed_key}`;
+  // Use published domain for embed URLs (not preview domain)
+  const publishedDomain = 'https://brandsinblooms.lovable.app';
+  const formUrl = `${publishedDomain}/f/${form.embed_key}`;
+  const previewUrl = `${window.location.origin}/f/${form.embed_key}`;
   const embedKey = form.embed_key;
   
-  // Multiple embed options
+  // Multiple embed options - use published domain for stable embedding
   const iframeCode = `<iframe 
   src="${formUrl}" 
   width="100%" 
@@ -269,7 +272,7 @@ export function BloomSuiteForm() {
                     <div className="flex items-start gap-2 p-3 bg-primary/10 border border-primary/20 rounded-lg">
                       <Check className="h-4 w-4 text-primary mt-0.5" />
                       <div className="text-sm text-foreground">
-                        <strong>Recommended:</strong> Works on any website without technical configuration. No CSP issues.
+                        <strong>Recommended:</strong> Simple to add - just paste the code. Works on most websites.
                       </div>
                     </div>
                     <pre className="p-4 bg-muted rounded-lg overflow-x-auto text-sm">
@@ -282,6 +285,9 @@ export function BloomSuiteForm() {
                       {copiedItem === 'iframe' ? <Check className="h-4 w-4 mr-2" /> : <Copy className="h-4 w-4 mr-2" />}
                       Copy Code
                     </Button>
+                    <p className="text-xs text-muted-foreground">
+                      If blocked, your website may need to add <code className="bg-muted px-1 rounded">brandsinblooms.lovable.app</code> to its CSP frame-src.
+                    </p>
                   </div>
                 </TabsContent>
 
