@@ -51,9 +51,12 @@ export function FormPublishTab({ form, hasChanges, onSave, isSaving }: FormPubli
   style="border: none; max-width: 500px;"
 ></iframe>`;
 
+  // Supabase Edge Function URL for embed script
+  const embedScriptUrl = 'https://udldmkqwnxhdeztyqcau.supabase.co/functions/v1/serve-embed-js';
+  
   const jsEmbedCode = `<!-- BloomSuite Form Embed -->
 <div data-bloomsuite-form="${embedKey}"></div>
-<script src="${window.location.origin}/forms/embed.js" async></script>`;
+<script src="${embedScriptUrl}" async></script>`;
 
   const reactCode = `// React Component
 import { useEffect } from 'react';
@@ -61,7 +64,7 @@ import { useEffect } from 'react';
 export function BloomSuiteForm() {
   useEffect(() => {
     const script = document.createElement('script');
-    script.src = '${window.location.origin}/forms/embed.js';
+    script.src = '${embedScriptUrl}';
     script.async = true;
     document.body.appendChild(script);
     return () => { document.body.removeChild(script); };
