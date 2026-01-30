@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { FormField, FormSettings, FormCompliance, FormTheme } from '@/types/formBuilder';
-import { Check } from 'lucide-react';
+import { Check, Shield } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface FormPreviewRendererProps {
   fields: FormField[];
@@ -8,6 +9,7 @@ interface FormPreviewRendererProps {
   compliance: FormCompliance;
   mode?: 'preview' | 'embed';
   onSubmit?: (data: Record<string, any>) => void;
+  changedIds?: Set<string>;
 }
 
 // Extended settings interface matching FormDesignTab
@@ -46,6 +48,7 @@ export function FormPreviewRenderer({
   compliance,
   mode = 'preview',
   onSubmit,
+  changedIds = new Set(),
 }: FormPreviewRendererProps) {
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -134,6 +137,12 @@ export function FormPreviewRenderer({
   const hasPhoneField = fields.some((f) => f.type === 'phone');
   const showEmailConsent = hasEmailField && compliance.email_consent_text;
   const showSmsConsent = hasPhoneField && compliance.sms_consent_text;
+  const hasAnyConsent = showEmailConsent || showSmsConsent;
+
+  // Check if any fields are required
+  const hasRequiredFields = fields.some((f) => f.required) || 
+    compliance.email_consent_required || 
+    compliance.sms_consent_required;
 
   if (isSubmitted) {
     return (
@@ -168,7 +177,13 @@ export function FormPreviewRenderer({
       <form onSubmit={handleSubmit} className="bs-form-wrapper" noValidate>
         {/* Form Title & Description */}
         {(extSettings.form_title || extSettings.form_description) && (
-          <div className="bs-form-header" style={{ marginBottom: 'var(--bs-form-spacing)' }}>
+          <div 
+            className={cn(
+              "bs-form-header transition-all duration-300",
+              changedIds.has('__settings') && "ring-2 ring-primary/50 ring-offset-2 rounded-md"
+            )} 
+            style={{ marginBottom: 'var(--bs-form-spacing)' }}
+          >
             {extSettings.form_title && (
               <h2
                 className="bs-form-title"
@@ -193,6 +208,13 @@ export function FormPreviewRenderer({
           </div>
         )}
 
+        {/* Preview Helper Text - Required Fields Indicator */}
+        {mode === 'preview' && hasRequiredFields && (
+          <p className="text-xs text-muted-foreground mb-4" style={{ fontStyle: 'italic' }}>
+            Fields marked with <span className="text-destructive">*</span> are required
+          </p>
+        )}
+
         {/* Form Fields */}
         <div
           className="bs-form-fields"
@@ -213,42 +235,61 @@ export function FormPreviewRenderer({
                 error={errors[field.id]}
                 theme={theme}
                 labelPosition={extSettings.label_position}
+                isHighlighted={changedIds.has(field.id)}
               />
             ))}
         </div>
 
-        {/* Consent Checkboxes */}
-        {(showEmailConsent || showSmsConsent) && (
-          <div className="bs-form-consents" style={{ marginTop: 'var(--bs-form-spacing)' }}>
-            {showEmailConsent && (
-              <ConsentCheckbox
-                id="__email_consent"
-                text={compliance.email_consent_text}
-                required={compliance.email_consent_required}
-                checked={!!formData['__email_consent']}
-                onChange={(checked) => handleInputChange('__email_consent', checked)}
-                error={errors['__email_consent']}
-                theme={theme}
-              />
+        {/* Marketing Permissions Section */}
+        {hasAnyConsent && (
+          <div 
+            className={cn(
+              "bs-form-consents-section mt-5 p-4 rounded-lg transition-all duration-300",
+              changedIds.has('__compliance') && "ring-2 ring-primary/50 ring-offset-2"
             )}
-            {showSmsConsent && (
-              <ConsentCheckbox
-                id="__sms_consent"
-                text={compliance.sms_consent_text}
-                required={compliance.sms_consent_required}
-                checked={!!formData['__sms_consent']}
-                onChange={(checked) => handleInputChange('__sms_consent', checked)}
-                error={errors['__sms_consent']}
-                theme={theme}
-              />
-            )}
+            style={{ 
+              backgroundColor: '#f8fafc',
+              border: '1px solid #e2e8f0',
+            }}
+          >
+            <div className="flex items-center gap-2 mb-3">
+              <Shield className="h-4 w-4 text-muted-foreground" />
+              <h3 className="text-sm font-medium text-foreground">Marketing Permissions</h3>
+            </div>
+            <div className="space-y-2">
+              {showEmailConsent && (
+                <ConsentCheckbox
+                  id="__email_consent"
+                  text={compliance.email_consent_text}
+                  required={compliance.email_consent_required}
+                  checked={!!formData['__email_consent']}
+                  onChange={(checked) => handleInputChange('__email_consent', checked)}
+                  error={errors['__email_consent']}
+                  theme={theme}
+                />
+              )}
+              {showSmsConsent && (
+                <ConsentCheckbox
+                  id="__sms_consent"
+                  text={compliance.sms_consent_text}
+                  required={compliance.sms_consent_required}
+                  checked={!!formData['__sms_consent']}
+                  onChange={(checked) => handleInputChange('__sms_consent', checked)}
+                  error={errors['__sms_consent']}
+                  theme={theme}
+                />
+              )}
+            </div>
           </div>
         )}
 
         {/* Submit Button */}
         <button
           type="submit"
-          className={getButtonClasses(theme.button_style)}
+          className={cn(
+            getButtonClasses(theme.button_style),
+            changedIds.has('__settings') && "ring-2 ring-primary/50 ring-offset-2"
+          )}
           style={{
             marginTop: 'var(--bs-form-spacing)',
             backgroundColor:
@@ -261,6 +302,13 @@ export function FormPreviewRenderer({
         >
           {settings.submit_button_text || 'Submit'}
         </button>
+
+        {/* Preview Helper Text - Privacy Notice */}
+        {mode === 'preview' && (
+          <p className="text-xs text-muted-foreground text-center mt-4" style={{ fontStyle: 'italic' }}>
+            We respect your privacy. Unsubscribe anytime.
+          </p>
+        )}
 
         {/* Branding */}
         {settings.show_branding && (
@@ -291,9 +339,10 @@ interface FieldRendererProps {
   error?: string;
   theme: ExtendedTheme;
   labelPosition?: 'above' | 'inline' | 'floating';
+  isHighlighted?: boolean;
 }
 
-function FieldRenderer({ field, value, onChange, error, theme, labelPosition = 'above' }: FieldRendererProps) {
+function FieldRenderer({ field, value, onChange, error, theme, labelPosition = 'above', isHighlighted }: FieldRendererProps) {
   const inputClasses = getInputClasses(theme.input_style, !!error);
 
   const label = (
@@ -400,7 +449,12 @@ function FieldRenderer({ field, value, onChange, error, theme, labelPosition = '
 
   if (field.type === 'checkbox') {
     return (
-      <div className="bs-form-field">
+      <div 
+        className={cn(
+          "bs-form-field transition-all duration-300",
+          isHighlighted && "ring-2 ring-primary/50 ring-offset-2 rounded-md p-2 -m-2"
+        )}
+      >
         {renderInput()}
         {error && <p className="bs-form-error-msg" style={{ color: '#dc2626', fontSize: '13px', marginTop: '6px' }}>{error}</p>}
       </div>
@@ -408,7 +462,12 @@ function FieldRenderer({ field, value, onChange, error, theme, labelPosition = '
   }
 
   return (
-    <div className="bs-form-field">
+    <div 
+      className={cn(
+        "bs-form-field transition-all duration-300",
+        isHighlighted && "ring-2 ring-primary/50 ring-offset-2 rounded-md p-2 -m-2"
+      )}
+    >
       {label}
       {renderInput()}
       {error && <p className="bs-form-error-msg" style={{ color: '#dc2626', fontSize: '13px', marginTop: '6px' }}>{error}</p>}
@@ -432,11 +491,8 @@ function ConsentCheckbox({ id, text, required, checked, onChange, error, theme }
     <div
       className="bs-form-consent"
       style={{
-        background: '#f9fafb',
-        padding: '12px',
-        borderRadius: 'var(--bs-form-radius)',
-        border: error ? '1px solid #dc2626' : '1px solid #e5e7eb',
-        marginBottom: '12px',
+        padding: '8px 0',
+        borderBottom: '1px solid #e5e7eb',
       }}
     >
       <div className="bs-form-checkbox-wrap" style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
@@ -448,18 +504,26 @@ function ConsentCheckbox({ id, text, required, checked, onChange, error, theme }
           className="bs-form-checkbox"
           style={{
             flexShrink: 0,
-            width: '18px',
-            height: '18px',
+            width: '16px',
+            height: '16px',
             marginTop: '2px',
             accentColor: 'var(--bs-form-primary)',
           }}
         />
-        <label htmlFor={id} className="bs-form-checkbox-text" style={{ fontSize: '13px', color: '#6b7280' }}>
+        <label 
+          htmlFor={id} 
+          className="bs-form-checkbox-text" 
+          style={{ 
+            fontSize: '12px', 
+            color: '#6b7280',
+            lineHeight: 1.4,
+          }}
+        >
           {text}
           {required && <span style={{ color: '#dc2626', marginLeft: '2px' }}>*</span>}
         </label>
       </div>
-      {error && <p className="bs-form-error-msg" style={{ color: '#dc2626', fontSize: '12px', marginTop: '6px' }}>{error}</p>}
+      {error && <p className="bs-form-error-msg" style={{ color: '#dc2626', fontSize: '11px', marginTop: '4px', marginLeft: '26px' }}>{error}</p>}
     </div>
   );
 }
@@ -498,9 +562,7 @@ function getInputStyles(theme: ExtendedTheme): React.CSSProperties {
 
 function getButtonClasses(style?: string): string {
   const base = 'bs-form-submit';
-  if (style === 'outline') return `${base} bs-form-submit-outline`;
-  if (style === 'rounded') return `${base} bs-form-submit-rounded`;
-  return base;
+  return `${base} w-full py-3 px-4 font-medium text-sm border-2 transition-all duration-200 hover:opacity-90`;
 }
 
 export default FormPreviewRenderer;
