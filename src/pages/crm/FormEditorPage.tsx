@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useForm } from '@/hooks/useForms';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, Save, Loader2 } from 'lucide-react';
+import { ArrowLeft, Save, Loader2, Eye, EyeOff, PanelRightClose, PanelRight } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -16,7 +16,10 @@ import { FormComplianceTab } from '@/components/forms/FormComplianceTab';
 import { FormPublishTab } from '@/components/forms/FormPublishTab';
 import { FormSubmissionsTab } from '@/components/forms/FormSubmissionsTab';
 import { FormTestMatrix } from '@/components/forms/FormTestMatrix';
+import { PreviewPanel } from '@/components/forms/preview';
 import { Skeleton } from '@/components/ui/skeleton';
+import { cn } from '@/lib/utils';
+import { useMediaQuery } from '@/hooks/use-media-query';
 
 export default function FormEditorPage() {
   const { formId } = useParams<{ formId: string }>();
@@ -31,6 +34,17 @@ export default function FormEditorPage() {
   const [audience, setAudience] = useState({ assign_personas: [] as string[], assign_tags: [] as string[] });
   const [isSaving, setIsSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
+  const [showPreview, setShowPreview] = useState(true);
+  const [activeTab, setActiveTab] = useState('build');
+
+  const isMobile = useMediaQuery('(max-width: 1024px)');
+
+  // Hide preview by default on mobile
+  useEffect(() => {
+    if (isMobile) {
+      setShowPreview(false);
+    }
+  }, [isMobile]);
 
   // Initialize state from loaded form
   useEffect(() => {
@@ -77,6 +91,9 @@ export default function FormEditorPage() {
 
   const markChanged = () => setHasChanges(true);
 
+  // Determine if preview should be shown for current tab
+  const showPreviewForTab = ['build', 'design', 'compliance'].includes(activeTab);
+
   if (isLoading) {
     return (
       <div className="p-6 space-y-6">
@@ -106,9 +123,9 @@ export default function FormEditorPage() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="h-full flex flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between p-4 border-b bg-background shrink-0">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" onClick={() => navigate('/crm/forms')}>
             <ArrowLeft className="h-5 w-5" />
@@ -123,96 +140,180 @@ export default function FormEditorPage() {
             placeholder="Form name"
           />
         </div>
-        <Button onClick={handleSave} disabled={isSaving || !hasChanges}>
-          {isSaving ? (
-            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-          ) : (
-            <Save className="h-4 w-4 mr-2" />
+        <div className="flex items-center gap-2">
+          {/* Preview Toggle (visible on desktop) */}
+          {showPreviewForTab && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowPreview(!showPreview)}
+              className="hidden lg:flex items-center gap-2"
+            >
+              {showPreview ? (
+                <>
+                  <PanelRightClose className="h-4 w-4" />
+                  <span className="hidden xl:inline">Hide Preview</span>
+                </>
+              ) : (
+                <>
+                  <PanelRight className="h-4 w-4" />
+                  <span className="hidden xl:inline">Show Preview</span>
+                </>
+              )}
+            </Button>
           )}
-          Save
-        </Button>
+          <Button onClick={handleSave} disabled={isSaving || !hasChanges}>
+            {isSaving ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Save className="h-4 w-4 mr-2" />
+            )}
+            Save
+          </Button>
+        </div>
       </div>
 
-      {/* Tabs */}
-      <Tabs defaultValue="build" className="w-full">
-        <TabsList className="grid w-full grid-cols-6 max-w-3xl">
-          <TabsTrigger value="build">Build</TabsTrigger>
-          <TabsTrigger value="design">Design</TabsTrigger>
-          <TabsTrigger value="audience">Audience</TabsTrigger>
-          <TabsTrigger value="compliance">Compliance</TabsTrigger>
-          <TabsTrigger value="publish">Publish</TabsTrigger>
-          <TabsTrigger value="submissions">Submissions</TabsTrigger>
-        </TabsList>
+      {/* Main Content Area */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Left Column: Editor */}
+        <div
+          className={cn(
+            'flex-1 overflow-auto p-6 transition-all duration-200',
+            showPreview && showPreviewForTab && !isMobile ? 'lg:w-[60%] lg:max-w-[800px]' : 'w-full'
+          )}
+        >
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="grid w-full grid-cols-6 max-w-3xl">
+              <TabsTrigger value="build">Build</TabsTrigger>
+              <TabsTrigger value="design">Design</TabsTrigger>
+              <TabsTrigger value="audience">Audience</TabsTrigger>
+              <TabsTrigger value="compliance">Compliance</TabsTrigger>
+              <TabsTrigger value="publish">Publish</TabsTrigger>
+              <TabsTrigger value="submissions">Submissions</TabsTrigger>
+            </TabsList>
 
-        <TabsContent value="build" className="mt-6">
-          <FormBuildTab
-            fields={fields}
-            onFieldsChange={(newFields) => {
-              setFields(newFields);
-              markChanged();
-            }}
-            onApplyTemplate={(templateData) => {
-              if (templateData.name) setName(templateData.name);
-              if (templateData.fields_json) setFields(templateData.fields_json);
-              if (templateData.settings_json) setSettings(templateData.settings_json);
-              if (templateData.compliance_json) setCompliance(templateData.compliance_json);
-              markChanged();
-            }}
-          />
-        </TabsContent>
+            <TabsContent value="build" className="mt-6">
+              <FormBuildTab
+                fields={fields}
+                onFieldsChange={(newFields) => {
+                  setFields(newFields);
+                  markChanged();
+                }}
+                onApplyTemplate={(templateData) => {
+                  if (templateData.name) setName(templateData.name);
+                  if (templateData.fields_json) setFields(templateData.fields_json);
+                  if (templateData.settings_json) setSettings(templateData.settings_json);
+                  if (templateData.compliance_json) setCompliance(templateData.compliance_json);
+                  markChanged();
+                }}
+              />
+            </TabsContent>
 
-        <TabsContent value="design" className="mt-6">
-          {settings && (
-            <FormDesignTab
+            <TabsContent value="design" className="mt-6">
+              {settings && (
+                <FormDesignTab
+                  settings={settings}
+                  onSettingsChange={(newSettings) => {
+                    setSettings(newSettings);
+                    markChanged();
+                  }}
+                />
+              )}
+            </TabsContent>
+
+            <TabsContent value="audience" className="mt-6">
+              <FormAudienceTab
+                audience={audience}
+                onAudienceChange={(newAudience) => {
+                  setAudience(newAudience);
+                  markChanged();
+                }}
+              />
+            </TabsContent>
+
+            <TabsContent value="compliance" className="mt-6">
+              {compliance && (
+                <FormComplianceTab
+                  compliance={compliance}
+                  onComplianceChange={(newCompliance) => {
+                    setCompliance(newCompliance);
+                    markChanged();
+                  }}
+                  hasPhoneField={fields.some(f => f.type === 'phone')}
+                  hasEmailField={fields.some(f => f.type === 'email')}
+                />
+              )}
+            </TabsContent>
+
+            <TabsContent value="publish" className="mt-6">
+              <FormPublishTab
+                form={form}
+                hasChanges={hasChanges}
+                onSave={handleSave}
+                isSaving={isSaving}
+              />
+            </TabsContent>
+
+            <TabsContent value="submissions" className="mt-6">
+              <div className="space-y-6">
+                <FormSubmissionsTab formId={form.id} formName={form.name} />
+                <FormTestMatrix form={form} />
+              </div>
+            </TabsContent>
+          </Tabs>
+        </div>
+
+        {/* Right Column: Preview Panel */}
+        {showPreview && showPreviewForTab && !isMobile && (
+          <div className="hidden lg:block w-[40%] min-w-[380px] max-w-[500px] border-l bg-muted/30 p-4 overflow-hidden">
+            <PreviewPanel
+              fields={fields}
               settings={settings}
-              onSettingsChange={(newSettings) => {
-                setSettings(newSettings);
-                markChanged();
-              }}
-            />
-          )}
-        </TabsContent>
-
-        <TabsContent value="audience" className="mt-6">
-          <FormAudienceTab
-            audience={audience}
-            onAudienceChange={(newAudience) => {
-              setAudience(newAudience);
-              markChanged();
-            }}
-          />
-        </TabsContent>
-
-        <TabsContent value="compliance" className="mt-6">
-          {compliance && (
-            <FormComplianceTab
               compliance={compliance}
-              onComplianceChange={(newCompliance) => {
-                setCompliance(newCompliance);
-                markChanged();
-              }}
-              hasPhoneField={fields.some(f => f.type === 'phone')}
-              hasEmailField={fields.some(f => f.type === 'email')}
+              className="h-full"
             />
-          )}
-        </TabsContent>
-
-        <TabsContent value="publish" className="mt-6">
-          <FormPublishTab
-            form={form}
-            hasChanges={hasChanges}
-            onSave={handleSave}
-            isSaving={isSaving}
-          />
-        </TabsContent>
-
-        <TabsContent value="submissions" className="mt-6">
-          <div className="space-y-6">
-            <FormSubmissionsTab formId={form.id} formName={form.name} />
-            <FormTestMatrix form={form} />
           </div>
-        </TabsContent>
-      </Tabs>
+        )}
+      </div>
+
+      {/* Mobile Preview Button (floating) */}
+      {showPreviewForTab && isMobile && (
+        <Button
+          onClick={() => setShowPreview(!showPreview)}
+          className="fixed bottom-6 right-6 rounded-full shadow-lg z-50"
+          size="lg"
+        >
+          {showPreview ? (
+            <EyeOff className="h-5 w-5 mr-2" />
+          ) : (
+            <Eye className="h-5 w-5 mr-2" />
+          )}
+          Preview
+        </Button>
+      )}
+
+      {/* Mobile Preview Modal */}
+      {showPreview && showPreviewForTab && isMobile && (
+        <div className="fixed inset-0 z-40 bg-background/95 backdrop-blur-sm overflow-auto">
+          <div className="p-4 h-full flex flex-col">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold">Form Preview</h3>
+              <Button variant="ghost" size="sm" onClick={() => setShowPreview(false)}>
+                <EyeOff className="h-4 w-4 mr-2" />
+                Close
+              </Button>
+            </div>
+            <div className="flex-1 overflow-auto">
+              <PreviewPanel
+                fields={fields}
+                settings={settings}
+                compliance={compliance}
+                className="h-full"
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
