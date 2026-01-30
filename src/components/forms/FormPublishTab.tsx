@@ -39,10 +39,9 @@ export function FormPublishTab({ form, hasChanges, onSave, isSaving }: FormPubli
   const [copiedItem, setCopiedItem] = useState<string | null>(null);
 
   const isPublished = form.status === 'published';
-  // Use published domain for embed URLs (not preview domain)
+  // Use published domain for embed URLs (not preview domain which requires Lovable auth)
   const publishedDomain = 'https://brandsinblooms.lovable.app';
   const formUrl = `${publishedDomain}/f/${form.embed_key}`;
-  const previewUrl = `${window.location.origin}/f/${form.embed_key}`;
   const embedKey = form.embed_key;
   
   // Multiple embed options - use published domain for stable embedding
@@ -377,12 +376,14 @@ export function BloomSuiteForm() {
               <div>
                 <h4 className="font-medium mb-2">Content Security Policy (CSP)</h4>
                 <p className="text-sm text-muted-foreground mb-2">
-                  If your site uses CSP, add these directives:
+                  If your site uses CSP and you're using the JavaScript embed, add these directives:
                 </p>
                 <pre className="p-3 bg-muted rounded-lg text-xs overflow-x-auto">
-                  <code>script-src 'self' {window.location.origin};</code>
+                  <code>script-src 'self' https://udldmkqwnxhdeztyqcau.supabase.co;</code>
                   {'\n'}
-                  <code>connect-src 'self' {window.location.origin};</code>
+                  <code>connect-src 'self' https://udldmkqwnxhdeztyqcau.supabase.co;</code>
+                  {'\n'}
+                  <code>frame-src 'self' brandsinblooms.lovable.app;</code>
                 </pre>
               </div>
             </CardContent>
