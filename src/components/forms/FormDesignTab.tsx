@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { FormSettings, FormTheme } from '@/types/formBuilder';
 import { NativeSelect } from '@/components/ui/NativeSelect';
+import { useBrandColors } from '@/hooks/useBrandColors';
 import { 
   Palette, 
   Type, 
@@ -45,6 +46,7 @@ interface ExtendedSettings extends Omit<FormSettings, 'theme'> {
 
 export function FormDesignTab({ settings, onSettingsChange }: FormDesignTabProps) {
   const extendedSettings = settings as ExtendedSettings;
+  const { data: brandColors } = useBrandColors();
 
   const updateTheme = (updates: Partial<ExtendedTheme>) => {
     onSettingsChange({
@@ -60,6 +62,12 @@ export function FormDesignTab({ settings, onSettingsChange }: FormDesignTabProps
     } as FormSettings);
   };
 
+  // Use brand colors as defaults, falling back to hardcoded values
+  const defaultPrimary = brandColors?.primary || '#22C55E';
+  const defaultSecondary = brandColors?.secondary || '#1E40AF';
+  const defaultText = brandColors?.text || '#1F2937';
+  const defaultBackground = brandColors?.background || '#FFFFFF';
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -70,30 +78,32 @@ export function FormDesignTab({ settings, onSettingsChange }: FormDesignTabProps
               <Palette className="h-5 w-5" />
               Colors
             </CardTitle>
-            <CardDescription>Brand colors for your form</CardDescription>
+            <CardDescription>
+              Defaults from your <a href="/settings/account" className="text-primary underline hover:no-underline">brand settings</a>
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <ColorPicker
               label="Primary Color"
-              value={extendedSettings.theme.primary_color || '#22C55E'}
+              value={extendedSettings.theme.primary_color || defaultPrimary}
               onChange={(color) => updateTheme({ primary_color: color })}
               helperText="Used for buttons and accents"
             />
             <ColorPicker
               label="Secondary Color"
-              value={extendedSettings.theme.secondary_color || '#1E40AF'}
+              value={extendedSettings.theme.secondary_color || defaultSecondary}
               onChange={(color) => updateTheme({ secondary_color: color })}
               helperText="Used for secondary elements"
             />
             <ColorPicker
               label="Text Color"
-              value={extendedSettings.theme.text_color || '#1F2937'}
+              value={extendedSettings.theme.text_color || defaultText}
               onChange={(color) => updateTheme({ text_color: color })}
               helperText="Labels and body text"
             />
             <ColorPicker
               label="Background Color"
-              value={extendedSettings.theme.background_color || '#FFFFFF'}
+              value={extendedSettings.theme.background_color || defaultBackground}
               onChange={(color) => updateTheme({ background_color: color })}
               helperText="Form background"
             />

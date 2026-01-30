@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Form, FormField, FormSettings, FormCompliance, DEFAULT_FORM_SETTINGS, DEFAULT_FORM_COMPLIANCE } from '@/types/formBuilder';
 import { Json } from '@/integrations/supabase/types';
+import { fetchBrandColors } from '@/hooks/useBrandColors';
 
 interface CreateFormData {
   name: string;
@@ -70,6 +71,20 @@ export function useForms() {
 
       if (!userData?.tenant_id) throw new Error('No tenant found');
 
+      // Fetch brand colors to use as defaults for new forms
+      const brandColors = await fetchBrandColors(user.user.id);
+
+      // Merge brand colors into default settings theme
+      const settingsWithBrandColors: FormSettings = {
+        ...DEFAULT_FORM_SETTINGS,
+        ...formData.settings_json,
+        theme: {
+          ...DEFAULT_FORM_SETTINGS.theme,
+          primary_color: brandColors.primary,
+          ...formData.settings_json?.theme,
+        },
+      };
+
       const { data, error } = await supabase
         .from('forms')
         .insert({
@@ -77,7 +92,7 @@ export function useForms() {
           name: formData.name,
           status: 'draft',
           fields_json: (formData.fields_json || []) as unknown as Json,
-          settings_json: (formData.settings_json || DEFAULT_FORM_SETTINGS) as unknown as Json,
+          settings_json: settingsWithBrandColors as unknown as Json,
           compliance_json: (formData.compliance_json || DEFAULT_FORM_COMPLIANCE) as unknown as Json,
         })
         .select()
