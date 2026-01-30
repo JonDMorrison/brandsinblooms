@@ -31,7 +31,7 @@ export default function PublicFormPage() {
     const fetchForm = async () => {
       try {
         const response = await fetch(
-          `https://udldmkqwnxhdeztyqcau.supabase.co/functions/v1/get-form-config?key=${embedKey}`
+          `https://udldmkqwnxhdeztyqcau.supabase.co/functions/v1/get-form-config?embed_key=${embedKey}`
         );
         
         if (!response.ok) {
