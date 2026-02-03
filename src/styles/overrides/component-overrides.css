@@ -9,3 +9,17 @@ button[role="switch"] {
 [data-state="unchecked"] {
   pointer-events: auto !important;
 }
+
+/* SCHEDULE SELECTOR / POPOVER FIXES */
+/* Ensure Radix popover content is always clickable */
+[data-radix-popper-content-wrapper] {
+  pointer-events: auto !important;
+}
+
+/* Ensure popover triggers are always clickable */
+button[aria-haspopup="dialog"],
+button[aria-haspopup="menu"] {
+  pointer-events: auto !important;
+  position: relative;
+  z-index: 10;
+}
