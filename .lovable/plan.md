@@ -1,162 +1,194 @@
 
+# Add Segments to SMS Campaign Builder
 
-# Fix: "Schedule" Button and Modal Improvements
+## Problem Summary
 
-## Summary
+Christine from Down To Earth cannot find segments (like "Perks members") in the SMS builder, and "All SMS Subscribers" only shows a few members.
 
-The current "Send Now" dropdown button will be renamed to **"Schedule"** and the dropdown content will be improved with clearer instructions and a properly clickable calendar.
+**Root Causes Identified:**
 
----
-
-## Changes
-
-### 1. Rename Button from "Send Now" to "Schedule"
-
-Since there's already a primary "Send" button in the action bar, the dropdown button will be renamed to **"Schedule"** to clearly indicate its purpose.
-
-**Current button label logic:**
-- "Send Now" → Will become **"Schedule"**  
-- "Scheduled: Mar 5, 10:00 AM" → Stays the same (shows scheduled time)
-
-### 2. Add Instructional Text
-
-The dropdown will include a brief explanation at the top to help users understand what they can do:
-
-> **"Choose when to send your campaign"**  
-> Send immediately or pick a date and time to deliver your message at the perfect moment.
-
-### 3. Ensure Calendar is Fully Clickable
-
-The Calendar component will be updated to ensure:
-- Explicit `pointer-events-auto` class is applied
-- The calendar wrapper has proper styling for interactivity
-- Date selection triggers the scheduling flow correctly
+1. **SMS wizard queries wrong table**: It queries `custom_segments` (empty) instead of `crm_segments` (where segments are actually stored)
+2. **System segments not included**: Predefined segments like "Loyalty Members" and "High-Value Customers" are visible on the CRM Segments page but not available in the SMS wizard
+3. **No "Perks Members" segment**: The system has "Loyalty Members" but it's tag-based, not linked to the `is_perks_member` field in `customer_loyalty_metrics`
+4. **Low SMS opt-in**: Only 1 of 622 customers has both a phone number AND sms_opt_in enabled
 
 ---
 
-## Visual Preview (Before → After)
+## Solution Overview
 
-| Element | Before | After |
-|---------|--------|-------|
-| Button Label | "Send Now" | "Schedule" |
-| Button Icon | Send icon | Calendar icon |
-| Dropdown Header | "When to send" | "Choose when to send your campaign" + explanation |
-| Calendar | Plain calendar | Calendar with clear visual feedback |
+### Part 1: Fix Segment Loading in SMS Wizard
 
----
-
-## File Changes
-
-### File: `src/components/crm/ScheduleSelector.tsx`
-
-1. **Update `getButtonLabel()` function** to return "Schedule" instead of "Send Now" for the default state
-
-2. **Change the trigger button icon** to always use a Calendar icon (instead of Send icon)
-
-3. **Add instructional header** at the top of the dropdown content with:
-   - Clear heading: "Choose when to send your campaign"
-   - Helper text explaining the two options
-
-4. **Simplify the dropdown structure** by removing the "Send immediately" button (since that's handled by the main Send button) and focusing solely on scheduling
-
-5. **Update Calendar wrapper** with explicit interactivity classes:
-   - Add `pointer-events-auto` 
-   - Add cursor styling for better UX
-
----
-
-## Updated Dropdown Content Structure
+Update the SMS Campaign Wizard to load segments from the correct sources:
 
 ```text
-┌─────────────────────────────────────────┐
-│  📅 Schedule Campaign                   │
-│                                         │
-│  Pick a date and time to send your      │
-│  campaign automatically.                │
-│                                         │
-│  ┌─────────────────────────────────┐    │
-│  │     < February 2026 >           │    │
-│  │  Su Mo Tu We Th Fr Sa           │    │
-│  │                    1            │    │
-│  │   2  3  4 [5] 6  7  8           │    │
-│  │   9 10 11 12 13 14 15           │    │
-│  │  ...                            │    │
-│  └─────────────────────────────────┘    │
-│                                         │
-│  📅 Feb 5          ⏰ [10:00]           │
-│                                         │
-│  [Pacific (PT)          ▼]              │
-│  Times shown in Pacific (PT).           │
-│                                         │
-│  [      Schedule Campaign      ]        │
-└─────────────────────────────────────────┘
+CURRENT:  custom_segments table only (empty)
+FIXED:    crm_segments table + predefined system segments with live counts
+```
+
+### Part 2: Add "Perks Members" as a System Segment
+
+Create a new predefined segment based on `is_perks_member = true` from the `customer_loyalty_metrics` table.
+
+---
+
+## Implementation Details
+
+### File 1: `src/components/sms/SMSCampaignWizard.tsx`
+
+**Change: Update `loadSegments()` function**
+
+Currently queries `custom_segments` table (wrong). Will update to:
+1. Query `crm_segments` table (correct table for custom segments)
+2. Include predefined system segments with live customer counts
+3. Use `useSegmentCounts` hook for system segment counts
+4. Show both system and custom segments in the audience selector
+
+**Before:**
+```typescript
+const { data, error } = await supabase
+  .from('custom_segments')  // Wrong table!
+  .select('*')
+  .eq('tenant_id', tenant?.id)
+  .eq('is_active', true)
+```
+
+**After:**
+```typescript
+// 1. Load custom segments from crm_segments
+const { data, error } = await supabase
+  .from('crm_segments')  // Correct table
+  .select('*')
+  .eq('tenant_id', tenant?.id);
+
+// 2. Add predefined segments with counts
+const allSegments = [
+  ...SYSTEM_SEGMENTS.map(s => ({
+    id: s.id,
+    name: s.name,
+    description: s.description,
+    customer_count: counts[s.id] || 0,
+    type: 'predefined' as const
+  })),
+  ...customSegments
+];
+```
+
+### File 2: `src/config/segmentDefinitions.ts`
+
+**Change: Add Perks Members segment**
+
+Add a new system segment for Perks program members:
+
+```typescript
+{
+  id: 'perks-members',
+  name: 'Perks Members',
+  description: 'Customers enrolled in your Perks loyalty program',
+  icon: 'crown',
+  is_system: true,
+  conditions: {
+    rules: [
+      { field: 'is_perks_member', operator: '=', value: true }
+    ],
+    logic: 'AND'
+  },
+}
+```
+
+### File 3: `src/hooks/useSegmentCounts.ts`
+
+**Change: Add Perks Members count calculation**
+
+Update the hook to count customers who have `is_perks_member = true` in `customer_loyalty_metrics`:
+
+```typescript
+// Add to interface
+interface SegmentCounts {
+  'loyalty-members': number;
+  'high-value': number;
+  'new-customers': number;
+  'lapsed-customers': number;
+  'seasonal-shoppers': number;
+  'frequent-buyers': number;
+  'perks-members': number;  // NEW
+}
+
+// Add count calculation
+const { data: perksMembers } = await supabase
+  .from('customer_loyalty_metrics')
+  .select('customer_id')
+  .eq('is_perks_member', true)
+  .in('customer_id', customers.map(c => c.id));
+
+'perks-members': perksMembers?.length || 0
+```
+
+### File 4: `src/hooks/useAllSegments.ts`
+
+**Change: Add Perks Members to predefined segments list**
+
+```typescript
+{
+  id: 'perks-members',
+  name: 'Perks Members',
+  description: 'Customers enrolled in your Perks loyalty program',
+  customer_count: 0,
+}
 ```
 
 ---
 
-## Technical Details
+## Updated SMS Wizard Audience Section
 
-### Key Code Changes in `ScheduleSelector.tsx`
+After implementation, the "Target Audience" section will show:
 
-**1. Update button label (line 122-131):**
-```tsx
-const getButtonLabel = () => {
-  if (schedule.type === 'scheduled' && schedule.date) {
-    const displayDate = toZonedTime(schedule.date, schedule.timezone || userTimezone);
-    return `Scheduled: ${format(displayDate, 'MMM d, h:mm a')}`;
-  }
-  return 'Schedule';
-};
-```
+```text
+[ ] All SMS Subscribers (X customers)
 
-**2. Update trigger button icon to always use Calendar:**
-```tsx
-<CalendarIcon className="h-4 w-4" />
-```
+System Segments
+[ ] Perks Members (X customers)     ← NEW
+[ ] Loyalty Members (X customers)
+[ ] High-Value Customers (X customers)
+[ ] New Customers (X customers)
+[ ] Lapsed Customers (X customers)
+[ ] Frequent Buyers (X customers)
 
-**3. Add instructional header to dropdown content:**
-```tsx
-<div className="space-y-1 mb-4">
-  <h3 className="font-semibold text-sm flex items-center gap-2">
-    <CalendarIcon className="h-4 w-4" />
-    Schedule Campaign
-  </h3>
-  <p className="text-xs text-muted-foreground">
-    Pick a date and time to send your campaign automatically.
-  </p>
-</div>
-```
-
-**4. Remove "Send immediately" button** (the main Send button handles this)
-
-**5. Ensure Calendar has pointer-events:**
-```tsx
-<div className="rounded-md border border-border p-2 pointer-events-auto">
-  <Calendar
-    mode="single"
-    selected={selectedDate}
-    onSelect={handleDateSelect}
-    disabled={isDateInPast}
-    initialFocus
-    className="pointer-events-auto"
-  />
-</div>
+Custom Segments
+[ ] Plant killer (0 customers)
 ```
 
 ---
 
-## Testing Checklist
+## Segment Targeting Logic for SMS
 
-After implementation, verify:
+When a segment is selected, customers are filtered by:
 
-1. ✅ Button shows "Schedule" label with calendar icon
-2. ✅ When a date is scheduled, button shows "Scheduled: Mar 5, 10:00 AM"
-3. ✅ Clicking the button opens the dropdown
-4. ✅ Calendar days are clickable and highlight on selection
-5. ✅ Selecting a date updates the displayed date below the calendar
-6. ✅ Time picker works correctly
-7. ✅ Timezone selector functions properly
-8. ✅ "Schedule Campaign" button saves the schedule
-9. ✅ Primary "Send" button still works for immediate sending
-10. ✅ Works correctly in both normal and sticky mode
+1. **System segments**: Evaluate conditions against customer data (e.g., `is_perks_member = true` for Perks Members)
+2. **Custom segments**: Query `customer_segments` table for membership
+3. **Always apply**: `sms_opt_in = true` AND `phone IS NOT NULL`
 
+---
+
+## Files to Modify
+
+| File | Changes |
+|------|---------|
+| `src/components/sms/SMSCampaignWizard.tsx` | Fix segment loading, add system segments |
+| `src/config/segmentDefinitions.ts` | Add Perks Members definition |
+| `src/hooks/useSegmentCounts.ts` | Add Perks Members count calculation |
+| `src/hooks/useAllSegments.ts` | Add Perks Members to predefined list |
+| `src/pages/crm/CRMSegmentsPage.tsx` | Add Perks Members to display list |
+
+---
+
+## Note on Low SMS Subscriber Count
+
+The "All SMS Subscribers" showing only a few members is a **data issue**, not a code bug:
+- 622 total customers
+- Only 1 has `phone` populated
+- Only 1 has `sms_opt_in = true`
+
+To increase SMS subscribers:
+1. Customers need to have phone numbers imported/added
+2. Customers need to explicitly opt-in to SMS (toggle sms_opt_in to true)
+3. Consider adding an SMS opt-in prompt during checkout or in customer profiles
