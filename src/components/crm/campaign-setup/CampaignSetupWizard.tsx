@@ -96,11 +96,6 @@ export const CampaignSetupWizard = ({
                 Configure your campaign settings in the main editor. This wizard will help you set up audience targeting.
               </p>
             </div>
-            <div className="bg-accent/20 border border-accent/40 rounded-lg p-6 max-w-3xl mx-auto">
-              <p className="text-sm leading-relaxed">
-                <strong>Tip:</strong> Make sure to fill in your campaign name and subject line in the main editor before proceeding to audience targeting.
-              </p>
-            </div>
           </div>
         );
 
