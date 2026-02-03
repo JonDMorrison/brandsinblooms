@@ -13264,6 +13264,10 @@ export type Database = {
         Args: { p_tenant_id: string }
         Returns: Json
       }
+      bulk_sms_opt_in: {
+        Args: { p_batch_size?: number; p_tenant_id: string }
+        Returns: number
+      }
       bundle_approved_counts: { Args: { j: Json }; Returns: Json }
       bundle_channels: { Args: { j: Json }; Returns: string[] }
       bundle_first_media_url: { Args: { j: Json }; Returns: string }
