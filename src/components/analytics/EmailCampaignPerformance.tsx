@@ -1,25 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Mail, Send, Eye, MousePointerClick, TrendingUp, ArrowRight, RefreshCw } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Mail, Send, Eye, MousePointerClick, TrendingUp, ArrowRight, RefreshCw, ChevronDown, ChevronRight, AlertTriangle, Ban } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
 import { Skeleton } from '@/components/ui/skeleton';
-
-interface CampaignPerformanceData {
-  id: string;
-  name: string;
-  sent_at: string;
-  total_sent: number;
-  total_opens: number;
-  total_clicks: number;
-  open_rate: number;
-  click_rate: number;
-}
+import { useCampaignDeliveryMetrics } from '@/hooks/analytics/useCampaignDeliveryMetrics';
+import { CampaignDeliveryBreakdown } from './CampaignDeliveryBreakdown';
 
 interface EmailCampaignPerformanceProps {
   dateRange: number;
@@ -27,80 +17,32 @@ interface EmailCampaignPerformanceProps {
 
 export const EmailCampaignPerformance: React.FC<EmailCampaignPerformanceProps> = ({ dateRange }) => {
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const [campaigns, setCampaigns] = useState<CampaignPerformanceData[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [summary, setSummary] = useState({
-    totalCampaigns: 0,
-    totalDelivered: 0,
-    avgOpenRate: 0,
-    avgClickRate: 0,
-  });
+  const { campaigns, loading, summary, recomputeAll, recomputeCampaign, refresh } = useCampaignDeliveryMetrics(dateRange);
+  const [expandedCampaigns, setExpandedCampaigns] = useState<Set<string>>(new Set());
+  const [recomputingAll, setRecomputingAll] = useState(false);
+  const [recomputingCampaign, setRecomputingCampaign] = useState<string | null>(null);
 
-  useEffect(() => {
-    const loadData = async () => {
-      if (!user?.id) return;
+  const toggleExpanded = (campaignId: string) => {
+    const newExpanded = new Set(expandedCampaigns);
+    if (newExpanded.has(campaignId)) {
+      newExpanded.delete(campaignId);
+    } else {
+      newExpanded.add(campaignId);
+    }
+    setExpandedCampaigns(newExpanded);
+  };
 
-      try {
-        setLoading(true);
-        
-        const { data: userData } = await supabase
-          .from('users')
-          .select('tenant_id')
-          .eq('id', user.id)
-          .single();
+  const handleRecomputeAll = async () => {
+    setRecomputingAll(true);
+    await recomputeAll();
+    setRecomputingAll(false);
+  };
 
-        if (!userData?.tenant_id) return;
-
-        const startDate = new Date();
-        startDate.setDate(startDate.getDate() - dateRange);
-
-        const { data, error } = await supabase
-          .from('crm_campaigns')
-          .select('id, name, sent_at, total_sent, total_opens, total_clicks, open_rate, click_rate')
-          .eq('tenant_id', userData.tenant_id)
-          .eq('status', 'sent')
-          .gte('sent_at', startDate.toISOString())
-          .order('sent_at', { ascending: false })
-          .limit(5);
-
-        if (error) throw error;
-
-        const campaignsData = (data || []).map(c => ({
-          id: c.id,
-          name: c.name,
-          sent_at: c.sent_at || '',
-          total_sent: c.total_sent || 0,
-          total_opens: c.total_opens || 0,
-          total_clicks: c.total_clicks || 0,
-          open_rate: c.open_rate || 0,
-          click_rate: c.click_rate || 0,
-        }));
-
-        setCampaigns(campaignsData);
-
-        // Calculate summary
-        if (campaignsData.length > 0) {
-          const totalDelivered = campaignsData.reduce((sum, c) => sum + c.total_sent, 0);
-          const weightedOpenRate = campaignsData.reduce((sum, c) => sum + c.open_rate * c.total_sent, 0);
-          const weightedClickRate = campaignsData.reduce((sum, c) => sum + c.click_rate * c.total_sent, 0);
-
-          setSummary({
-            totalCampaigns: campaignsData.length,
-            totalDelivered,
-            avgOpenRate: totalDelivered > 0 ? weightedOpenRate / totalDelivered : 0,
-            avgClickRate: totalDelivered > 0 ? weightedClickRate / totalDelivered : 0,
-          });
-        }
-      } catch (error) {
-        console.error('Error loading email campaign performance:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadData();
-  }, [user?.id, dateRange]);
+  const handleRecomputeCampaign = async (campaignId: string) => {
+    setRecomputingCampaign(campaignId);
+    await recomputeCampaign(campaignId);
+    setRecomputingCampaign(null);
+  };
 
   const getRateBadge = (rate: number, type: 'open' | 'click') => {
     const threshold = type === 'open' ? 20 : 3;
@@ -111,6 +53,8 @@ export const EmailCampaignPerformance: React.FC<EmailCampaignPerformanceProps> =
       </Badge>
     );
   };
+
+  const staleCampaignsCount = campaigns.filter(c => c.isStale).length;
 
   if (loading) {
     return (
@@ -141,24 +85,47 @@ export const EmailCampaignPerformance: React.FC<EmailCampaignPerformanceProps> =
             <Mail className="h-5 w-5 text-primary" />
             Email Campaign Performance
           </CardTitle>
-          <Button variant="outline" size="sm" onClick={() => navigate('/crm/campaigns')}>
-            View All
-            <ArrowRight className="h-4 w-4 ml-2" />
-          </Button>
+          <div className="flex items-center gap-2">
+            {staleCampaignsCount > 0 && (
+              <Badge variant="outline" className="text-yellow-600 border-yellow-600 gap-1">
+                <AlertTriangle className="h-3 w-3" />
+                {staleCampaignsCount} stale
+              </Badge>
+            )}
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleRecomputeAll}
+              disabled={recomputingAll}
+              className="gap-1"
+            >
+              <RefreshCw className={`h-4 w-4 ${recomputingAll ? 'animate-spin' : ''}`} />
+              Recompute All
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => navigate('/crm/campaigns')}>
+              View All
+              <ArrowRight className="h-4 w-4 ml-2" />
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Summary Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           <div className="text-center p-4 bg-muted/50 rounded-lg">
             <Send className="h-5 w-5 text-muted-foreground mx-auto mb-2" />
             <p className="text-2xl font-bold">{summary.totalCampaigns}</p>
             <p className="text-xs text-muted-foreground">Campaigns Sent</p>
           </div>
           <div className="text-center p-4 bg-muted/50 rounded-lg">
-            <TrendingUp className="h-5 w-5 text-muted-foreground mx-auto mb-2" />
+            <TrendingUp className="h-5 w-5 text-green-600 mx-auto mb-2" />
             <p className="text-2xl font-bold">{summary.totalDelivered.toLocaleString()}</p>
             <p className="text-xs text-muted-foreground">Emails Delivered</p>
+          </div>
+          <div className="text-center p-4 bg-muted/50 rounded-lg">
+            <Ban className="h-5 w-5 text-muted-foreground mx-auto mb-2" />
+            <p className="text-2xl font-bold">{summary.totalSkipped.toLocaleString()}</p>
+            <p className="text-xs text-muted-foreground">Skipped</p>
           </div>
           <div className="text-center p-4 bg-muted/50 rounded-lg">
             <Eye className="h-5 w-5 text-muted-foreground mx-auto mb-2" />
@@ -174,34 +141,87 @@ export const EmailCampaignPerformance: React.FC<EmailCampaignPerformanceProps> =
 
         {/* Recent Campaigns Table */}
         {campaigns.length > 0 ? (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Campaign</TableHead>
-                <TableHead>Sent Date</TableHead>
-                <TableHead className="text-right">Delivered</TableHead>
-                <TableHead className="text-right">Open Rate</TableHead>
-                <TableHead className="text-right">Click Rate</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {campaigns.map((campaign) => (
-                <TableRow 
-                  key={campaign.id}
-                  className="cursor-pointer hover:bg-muted/50"
-                  onClick={() => navigate(`/crm/campaigns/${campaign.id}`)}
-                >
-                  <TableCell className="font-medium">{campaign.name}</TableCell>
-                  <TableCell>
-                    {campaign.sent_at ? format(new Date(campaign.sent_at), 'MMM d, yyyy') : '-'}
-                  </TableCell>
-                  <TableCell className="text-right">{campaign.total_sent.toLocaleString()}</TableCell>
-                  <TableCell className="text-right">{getRateBadge(campaign.open_rate, 'open')}</TableCell>
-                  <TableCell className="text-right">{getRateBadge(campaign.click_rate, 'click')}</TableCell>
+          <div className="space-y-2">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-8"></TableHead>
+                  <TableHead>Campaign</TableHead>
+                  <TableHead>Sent Date</TableHead>
+                  <TableHead className="text-right">Delivered</TableHead>
+                  <TableHead className="text-right">Skipped</TableHead>
+                  <TableHead className="text-right">Open Rate</TableHead>
+                  <TableHead className="text-right">Click Rate</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {campaigns.map((campaign) => (
+                  <React.Fragment key={campaign.campaignId}>
+                    <TableRow className="cursor-pointer hover:bg-muted/50">
+                      <TableCell className="p-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleExpanded(campaign.campaignId);
+                          }}
+                        >
+                          {expandedCampaigns.has(campaign.campaignId) ? (
+                            <ChevronDown className="h-4 w-4" />
+                          ) : (
+                            <ChevronRight className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </TableCell>
+                      <TableCell 
+                        className="font-medium"
+                        onClick={() => navigate(`/crm/campaigns/${campaign.campaignId}`)}
+                      >
+                        <div className="flex items-center gap-2">
+                          {campaign.campaignName}
+                          {campaign.isStale && (
+                            <AlertTriangle className="h-3 w-3 text-yellow-600" />
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell onClick={() => navigate(`/crm/campaigns/${campaign.campaignId}`)}>
+                        {campaign.sentAt ? format(new Date(campaign.sentAt), 'MMM d, yyyy') : '-'}
+                      </TableCell>
+                      <TableCell className="text-right" onClick={() => navigate(`/crm/campaigns/${campaign.campaignId}`)}>
+                        {campaign.computedDelivered.toLocaleString()}
+                      </TableCell>
+                      <TableCell className="text-right" onClick={() => navigate(`/crm/campaigns/${campaign.campaignId}`)}>
+                        {campaign.skipsTotal > 0 ? (
+                          <Badge variant="outline" className="font-mono">
+                            {campaign.skipsTotal.toLocaleString()}
+                          </Badge>
+                        ) : '-'}
+                      </TableCell>
+                      <TableCell className="text-right" onClick={() => navigate(`/crm/campaigns/${campaign.campaignId}`)}>
+                        {getRateBadge(campaign.openRate, 'open')}
+                      </TableCell>
+                      <TableCell className="text-right" onClick={() => navigate(`/crm/campaigns/${campaign.campaignId}`)}>
+                        {getRateBadge(campaign.clickRate, 'click')}
+                      </TableCell>
+                    </TableRow>
+                    {expandedCampaigns.has(campaign.campaignId) && (
+                      <TableRow>
+                        <TableCell colSpan={7} className="p-0">
+                          <CampaignDeliveryBreakdown
+                            campaign={campaign}
+                            onRecompute={handleRecomputeCampaign}
+                            recomputing={recomputingCampaign === campaign.campaignId}
+                          />
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </React.Fragment>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         ) : (
           <div className="text-center py-8 text-muted-foreground">
             <Mail className="h-12 w-12 mx-auto mb-4 opacity-50" />
