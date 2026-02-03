@@ -22,6 +22,13 @@ interface ScheduleSelectorProps {
   onScheduleChange: (schedule: ScheduleOption) => void;
   disabled?: boolean;
   compact?: boolean;
+  /**
+   * When true, selecting an option inside the dropdown will immediately invoke `onCommit`.
+   * This is used for sticky/mobile layouts where the primary Send/Schedule button may not be visible.
+   */
+  commitOnSelect?: boolean;
+  /** Trigger the parent send/schedule flow (typically opens confirmation). */
+  onCommit?: () => void;
 }
 
 const TIMEZONES = [
@@ -41,7 +48,9 @@ export const ScheduleSelector: React.FC<ScheduleSelectorProps> = ({
   schedule,
   onScheduleChange,
   disabled = false,
-  compact = false
+  compact = false,
+  commitOnSelect = false,
+  onCommit,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   
@@ -76,9 +85,14 @@ export const ScheduleSelector: React.FC<ScheduleSelectorProps> = ({
     return fromZonedTime(dateWithTime, selectedTimezone);
   };
 
+  const commitIfNeeded = () => {
+    if (commitOnSelect && onCommit) onCommit();
+  };
+
   const handleSendNow = () => {
     onScheduleChange({ type: 'now' });
     setIsOpen(false);
+    commitIfNeeded();
   };
 
   const handleSchedule = () => {
@@ -89,6 +103,7 @@ export const ScheduleSelector: React.FC<ScheduleSelectorProps> = ({
       timezone: selectedTimezone
     });
     setIsOpen(false);
+    commitIfNeeded();
   };
 
   const handleDateSelect = (date: Date | undefined) => {

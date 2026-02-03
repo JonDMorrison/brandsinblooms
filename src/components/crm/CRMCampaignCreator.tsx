@@ -4268,6 +4268,29 @@ const { counts: segmentCounts } = useSegmentCounts();
         });
         return;
       }
+
+      // If the user chose a scheduled send, persist the schedule and exit.
+      // (Do NOT invoke the send edge function for scheduled campaigns.)
+      if (schedule.type === 'scheduled' && schedule.date) {
+        console.log('🗓️ Scheduling campaign (no immediate send):', {
+          campaignId: campaign.id,
+          scheduledAt: schedule.date.toISOString(),
+          timezone: schedule.timezone,
+        });
+
+        const success = await updateCampaignSchedule(
+          campaign.id,
+          schedule.date.toISOString(),
+          schedule.timezone,
+        );
+
+        if (success) {
+          setCampaignStatus('scheduled');
+          setScheduledAt(schedule.date.toISOString());
+        }
+
+        return;
+      }
       
       // Step 2: Send via edge function
       console.log('🚀 Invoking send-email-campaign for campaign:', campaign.id);
