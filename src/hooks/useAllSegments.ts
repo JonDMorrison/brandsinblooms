@@ -4,40 +4,46 @@ import { useCRMSegments } from './useCRMSegments';
 // Predefined segments that match those in CRMSegmentsPage
 const predefinedSegments = [
   {
+    id: 'perks-members',
+    name: 'Perks Members',
+    description: 'Customers enrolled in your Perks loyalty program',
+    customer_count: 0,
+  },
+  {
     id: 'loyalty-members',
     name: 'Loyalty Members',
     description: 'Customers enrolled in your loyalty program with active engagement',
-    customer_count: 0, // TODO: Calculate actual count
+    customer_count: 0,
   },
   {
     id: 'high-value',
     name: 'High-Value Customers',
     description: 'Top spending customers who drive significant revenue',
-    customer_count: 0, // TODO: Calculate actual count
+    customer_count: 0,
   },
   {
     id: 'new-customers',
     name: 'New Customers',
     description: 'Recent customers who made their first purchase within 30 days',
-    customer_count: 0, // TODO: Calculate actual count
+    customer_count: 0,
   },
   {
     id: 'lapsed-customers',
     name: 'Lapsed Customers',
     description: 'Previously active customers who haven\'t purchased in 90+ days',
-    customer_count: 0, // TODO: Calculate actual count
+    customer_count: 0,
   },
   {
     id: 'seasonal-shoppers',
     name: 'Seasonal Shoppers',
     description: 'Customers who typically purchase during specific seasons or holidays',
-    customer_count: 0, // TODO: Calculate actual count
+    customer_count: 0,
   },
   {
     id: 'frequent-buyers',
     name: 'Frequent Buyers',
     description: 'Customers with 3+ purchases in the last 6 months',
-    customer_count: 0, // TODO: Calculate actual count
+    customer_count: 0,
   },
 ];
 

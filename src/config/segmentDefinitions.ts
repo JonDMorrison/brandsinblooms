@@ -6,7 +6,7 @@
 export interface SegmentCondition {
   field: string;
   operator: string;
-  value: string | number | string[];
+  value: string | number | boolean | string[];
 }
 
 export interface SegmentDefinition {
@@ -29,6 +29,19 @@ export interface SegmentDefinition {
 }
 
 export const SYSTEM_SEGMENTS: SegmentDefinition[] = [
+  {
+    id: 'perks-members',
+    name: 'Perks Members',
+    description: 'Customers enrolled in your Perks loyalty program',
+    icon: 'crown',
+    is_system: true,
+    conditions: {
+      rules: [
+        { field: 'is_perks_member', operator: '=', value: true }
+      ],
+      logic: 'AND'
+    },
+  },
   {
     id: 'loyalty-members',
     name: 'Loyalty Members',

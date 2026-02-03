@@ -8,11 +8,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { NativeSelect } from '@/components/ui/NativeSelect';
-import { Calendar, Users, MessageSquare, Send, CheckCircle, User, Target, Eye, AlertCircle, CreditCard } from 'lucide-react';
+import { Calendar, Users, MessageSquare, Send, CheckCircle, User, Target, Eye, AlertCircle, CreditCard, Crown } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTenant } from '@/hooks/useTenant';
 import { useAllPersonas } from '@/hooks/useAllPersonas';
+import { useSegmentCounts } from '@/hooks/useSegmentCounts';
+import { SYSTEM_SEGMENTS } from '@/config/segmentDefinitions';
 import { toast } from 'sonner';
 import { SMSComposer } from './SMSComposer';
 import { RecipientsPreview } from './RecipientsPreview';
@@ -58,6 +60,7 @@ export const SMSCampaignWizard: React.FC = () => {
   const { user } = useAuth();
   const { tenant } = useTenant();
   const { personas, loading: personasLoading } = useAllPersonas();
+  const { counts: segmentCounts, loading: segmentCountsLoading } = useSegmentCounts();
 
   const [currentStep, setCurrentStep] = useState(1);
   const [campaignName, setCampaignName] = useState('');
@@ -83,7 +86,7 @@ export const SMSCampaignWizard: React.FC = () => {
     loadSegments();
     loadCustomers();
     fetchAvailablePhoneNumbers();
-  }, [tenant]);
+  }, [tenant, segmentCounts]);
 
   // Recalculate target customers when selections change
   useEffect(() => {
@@ -93,24 +96,36 @@ export const SMSCampaignWizard: React.FC = () => {
   const loadSegments = async () => {
     try {
       setLoadingSegments(true);
-      const { data, error } = await supabase
-        .from('custom_segments')
+      
+      // Load custom segments from crm_segments (correct table)
+      const { data: customSegmentsData, error } = await supabase
+        .from('crm_segments')
         .select('*')
         .eq('tenant_id', tenant?.id)
-        .eq('is_active', true)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
       
-      const formattedSegments: CRMSegment[] = (data || []).map(segment => ({
+      // Format custom segments
+      const customSegments: CRMSegment[] = (customSegmentsData || []).map(segment => ({
         id: segment.id,
         name: segment.name,
-        description: segment.name,
+        description: segment.description || segment.name,
         customer_count: segment.customer_count || 0,
         type: 'custom' as const
       }));
 
-      setSegments(formattedSegments);
+      // Add system segments with counts from useSegmentCounts
+      const systemSegments: CRMSegment[] = SYSTEM_SEGMENTS.map(s => ({
+        id: s.id,
+        name: s.name,
+        description: s.description,
+        customer_count: segmentCounts[s.id as keyof typeof segmentCounts] || 0,
+        type: 'predefined' as const
+      }));
+
+      // Combine: system segments first, then custom
+      setSegments([...systemSegments, ...customSegments]);
     } catch (error) {
       console.error('Error loading segments:', error);
       toast.error('Failed to load segments');
@@ -428,12 +443,44 @@ export const SMSCampaignWizard: React.FC = () => {
 
               {!selectAllSubscribers && (
                 <>
-                  {/* Segments */}
-                  {segments.length > 0 && (
+                  {/* System Segments */}
+                  {segments.filter(s => s.type === 'predefined').length > 0 && (
                     <div className="space-y-3">
-                      <h4 className="font-medium">Customer Segments</h4>
+                      <h4 className="font-medium flex items-center gap-2">
+                        <Crown className="h-4 w-4 text-primary" />
+                        System Segments
+                      </h4>
+                      <div className="space-y-2 max-h-48 overflow-y-auto">
+                        {segments.filter(s => s.type === 'predefined').map((segment) => (
+                          <div key={segment.id} className="flex items-center space-x-3 p-3 border rounded-lg bg-muted/30">
+                            <Checkbox
+                              id={`segment-${segment.id}`}
+                              checked={selectedSegments.includes(segment.id)}
+                              onCheckedChange={() => handleSegmentToggle(segment.id)}
+                            />
+                            <div className="flex-1">
+                              <Label htmlFor={`segment-${segment.id}`} className="font-medium">
+                                {segment.name}
+                              </Label>
+                              <p className="text-sm text-muted-foreground">
+                                {segment.customer_count} customers
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Custom Segments */}
+                  {segments.filter(s => s.type === 'custom').length > 0 && (
+                    <div className="space-y-3">
+                      <h4 className="font-medium flex items-center gap-2">
+                        <Target className="h-4 w-4" />
+                        Custom Segments
+                      </h4>
                       <div className="space-y-2 max-h-40 overflow-y-auto">
-                        {segments.map((segment) => (
+                        {segments.filter(s => s.type === 'custom').map((segment) => (
                           <div key={segment.id} className="flex items-center space-x-3 p-3 border rounded-lg">
                             <Checkbox
                               id={`segment-${segment.id}`}
