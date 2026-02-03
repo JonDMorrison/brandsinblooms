@@ -1,13 +1,13 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/NativeSelect';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { Clock, Calendar as CalendarIcon, Send, ChevronDown } from 'lucide-react';
 import { format, startOfDay } from 'date-fns';
 import { fromZonedTime, toZonedTime } from 'date-fns-tz';
 import { cn } from '@/lib/utils';
+import { CustomDropdown } from '@/components/ui/custom-dropdown';
 
 export interface ScheduleOption {
   type: 'now' | 'scheduled';
@@ -44,11 +44,6 @@ export const ScheduleSelector: React.FC<ScheduleSelectorProps> = ({
   compact = false
 }) => {
   const [isOpen, setIsOpen] = useState(false);
-  
-  // Debug logging
-  useEffect(() => {
-    console.log('ScheduleSelector: isOpen =', isOpen);
-  }, [isOpen]);
   
   // Detect user's timezone for default
   const userTimezone = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone, []);
@@ -123,15 +118,25 @@ export const ScheduleSelector: React.FC<ScheduleSelectorProps> = ({
   const timezoneName = TIMEZONES.find(tz => tz.value === selectedTimezone)?.label || selectedTimezone;
 
   return (
-    <Popover open={isOpen} onOpenChange={setIsOpen}>
-      <PopoverTrigger asChild>
+    <CustomDropdown
+      open={isOpen}
+      onOpenChange={setIsOpen}
+      align="end"
+      contentClassName="z-[1000010] w-80 p-4"
+    
+      trigger={(triggerProps) => (
         <Button
+          ref={triggerProps.ref as unknown as React.Ref<HTMLButtonElement>}
           variant="outline"
           size="sm"
           disabled={disabled}
+          onClick={triggerProps.onClick}
+          onKeyDown={triggerProps.onKeyDown}
+          aria-expanded={triggerProps['aria-expanded']}
+          aria-haspopup={triggerProps['aria-haspopup']}
           className={cn(
-            "flex items-center gap-2",
-            schedule.type === 'scheduled' && "border-primary text-primary"
+            'flex items-center gap-2',
+            schedule.type === 'scheduled' && 'border-primary text-primary'
           )}
         >
           {schedule.type === 'now' ? (
@@ -139,86 +144,77 @@ export const ScheduleSelector: React.FC<ScheduleSelectorProps> = ({
           ) : (
             <CalendarIcon className="h-4 w-4" />
           )}
-          <span className="hidden sm:inline">{getButtonLabel()}</span>
+          <span className={cn(compact ? 'hidden' : 'hidden sm:inline')}>{getButtonLabel()}</span>
           <ChevronDown className="h-3 w-3" />
         </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-80 p-4" align="end">
-        <div className="space-y-4">
+      )}
+    >
+      <div className="space-y-4">
+        <div className="space-y-2">
+          <Label className="text-sm font-medium">When to send</Label>
+
+          <Button
+            variant={schedule.type === 'now' ? 'default' : 'outline'}
+            size="sm"
+            className="w-full justify-start"
+            onClick={handleSendNow}
+          >
+            <Send className="h-4 w-4 mr-2" />
+            Send immediately
+          </Button>
+        </div>
+
+        <div className="border-t pt-4 space-y-3">
+          <Label className="text-sm font-medium flex items-center gap-2">
+            <Clock className="h-4 w-4" />
+            Schedule for later
+          </Label>
+
           <div className="space-y-2">
-            <Label className="text-sm font-medium">When to send</Label>
-            
-            {/* Send Now Option */}
-            <Button
-              variant={schedule.type === 'now' ? 'default' : 'outline'}
-              size="sm"
-              className="w-full justify-start"
-              onClick={handleSendNow}
-            >
-              <Send className="h-4 w-4 mr-2" />
-              Send immediately
-            </Button>
-          </div>
-
-          <div className="border-t pt-4 space-y-3">
-            <Label className="text-sm font-medium flex items-center gap-2">
-              <Clock className="h-4 w-4" />
-              Schedule for later
-            </Label>
-            
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <Popover modal={false}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-full justify-start text-left font-normal"
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {format(selectedDate, 'MMM d')}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" side="bottom">
-                    <Calendar
-                      mode="single"
-                      selected={selectedDate}
-                      onSelect={handleDateSelect}
-                      disabled={isDateInPast}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-
-              <div>
-                <input
-                  type="time"
-                  value={selectedTime}
-                  onChange={(e) => setSelectedTime(e.target.value)}
-                  className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                />
-              </div>
+            <div className="rounded-md border border-border p-2">
+              <Calendar
+                mode="single"
+                selected={selectedDate}
+                onSelect={handleDateSelect}
+                disabled={isDateInPast}
+                initialFocus
+              />
             </div>
 
-            <NativeSelect
-              value={selectedTimezone}
-              onChange={(e) => setSelectedTimezone(e.target.value)}
-              options={TIMEZONES}
-              className="text-sm"
-            />
+            <div className="grid grid-cols-2 gap-2">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <CalendarIcon className="h-4 w-4" />
+                <span>{format(selectedDate, 'MMM d')}</span>
+              </div>
 
-            <Button
-              size="sm"
-              className="w-full"
-              onClick={handleSchedule}
-            >
-              <CalendarIcon className="h-4 w-4 mr-2" />
-              Schedule Campaign
-            </Button>
+              <input
+                type="time"
+                value={selectedTime}
+                onChange={(e) => setSelectedTime(e.target.value)}
+                className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                aria-label="Scheduled send time"
+              />
+            </div>
           </div>
+
+          <NativeSelect
+            value={selectedTimezone}
+            onChange={(e) => setSelectedTimezone(e.target.value)}
+            options={TIMEZONES}
+            className="text-sm"
+            aria-label="Timezone"
+          />
+
+          <p className="text-xs text-muted-foreground">
+            Times shown in {timezoneName}.
+          </p>
+
+          <Button size="sm" className="w-full" onClick={handleSchedule}>
+            <CalendarIcon className="h-4 w-4 mr-2" />
+            Schedule Campaign
+          </Button>
         </div>
-      </PopoverContent>
-    </Popover>
+      </div>
+    </CustomDropdown>
   );
 };
