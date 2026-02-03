@@ -134,7 +134,7 @@ export const ScheduleSelector: React.FC<ScheduleSelectorProps> = ({
       open={isOpen}
       onOpenChange={setIsOpen}
       align="end"
-      contentClassName="z-[1000010] w-80 p-4"
+      contentClassName="z-[1000010] w-96 p-5"
     
       trigger={(triggerProps) => (
         <Button
