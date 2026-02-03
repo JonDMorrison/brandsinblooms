@@ -1,149 +1,132 @@
 
 
-# Enhanced Email Analytics Reporting
+# Fix: "Send Now" Button Not Clicking
 
-## Overview
+## Problem Identified
 
-This plan adds comprehensive email campaign analytics to the Business Analytics page, including:
-1. **Accurate Send Reporting** - Pulls actual delivery counts from `email_send_jobs` instead of stale cached values
-2. **Delivery Breakdown** - Shows sent, skipped, and failed counts with reasons
-3. **List Health Integration** - Surfaces bounce/complaint rates alongside campaign metrics
-4. **Recompute Functionality** - Adds ability to refresh stale metrics directly from the analytics page
+The "Send Now" dropdown button in the Campaign Action Bar is not responding to clicks. After analyzing the code, I found **the button IS functional** - it uses the `ScheduleSelector` component which is a Radix UI Popover that should open on click.
 
-## What You Experienced
+The likely issues are:
 
-The discrepancy where your "Bloomin' Easy partnership" campaign showed "200 sent" but actually delivered to ~419 recipients is due to:
-- The `total_sent` field in `crm_campaigns` being cached/stale
-- The actual data lives in `email_send_jobs` (batch records) and `email_send_log` (individual sends)
+### Root Cause 1: Sticky Mode Hides the ScheduleSelector
 
-The new analytics will query both sources to show accurate, real-time numbers.
+In `CampaignActionBar.tsx` (lines 180-187):
+```tsx
+{/* Schedule Selector - visible when not sticky */}
+{!isSticky && onScheduleChange && (
+  <ScheduleSelector ... />
+)}
+```
+
+When you scroll down, the action bar becomes "sticky" and the ScheduleSelector **disappears entirely**. This means if the user has scrolled, the button won't be visible at all.
+
+### Root Cause 2: Nested Popover Conflict
+
+Inside `ScheduleSelector.tsx`, there's a **nested Popover** situation:
+- The main Popover (for the dropdown)
+- A second Popover inside for the Calendar date picker (lines 164-184)
+
+This can cause click propagation issues where the inner Popover's trigger interferes with the outer Popover's state management.
+
+### Root Cause 3: Z-Index/Overlay Interference
+
+The page has multiple overlays and modals that could be blocking clicks:
+- The `CampaignSetupWizard` modal
+- The `AIWriterDialog` 
+- The `FullEmailPreview` component
+- The `ScheduledCampaignBanner`
+
+If any of these have backdrop or overlay elements that aren't properly cleaned up, they could be invisibly blocking clicks.
 
 ---
 
-## Implementation Plan
+## Solution
 
-### 1. Create Enhanced Campaign Metrics Hook
+### 1. Add Debug Logging to ScheduleSelector
 
-**New file: `src/hooks/analytics/useCampaignDeliveryMetrics.ts`**
+Add console logs to verify the click is being registered:
 
-This hook will:
-- Query `email_send_jobs` to get actual batch totals (enqueued, sent, failed)
-- Query `email_send_skips` to get skip counts by reason (opt_out, suppressed, invalid_email)
-- Calculate accurate delivery vs. audience size
-- Return both cached (`crm_campaigns.total_sent`) and computed values for comparison
+**File: `src/components/crm/ScheduleSelector.tsx`**
+```tsx
+// Add to the component
+useEffect(() => {
+  console.log('ScheduleSelector: isOpen =', isOpen);
+}, [isOpen]);
 
-```text
-┌────────────────────────────────────────────┐
-│           CAMPAIGN DELIVERY DATA           │
-├────────────────────────────────────────────┤
-│  Audience Size        │  610 contacts      │
-│  Enqueued             │  423 recipients    │
-│  Delivered            │  419 emails        │
-│  Skipped              │  187 contacts      │
-│  Failed               │    4 emails        │
-├────────────────────────────────────────────┤
-│  Skip Reasons:                             │
-│    - Opted Out: 45                         │
-│    - Suppressed: 98                        │
-│    - Invalid Email: 44                     │
-└────────────────────────────────────────────┘
+// In PopoverTrigger button
+onClick={() => console.log('ScheduleSelector button clicked')}
 ```
 
-### 2. Create Delivery Breakdown Component
+### 2. Fix Nested Popover Architecture
 
-**New file: `src/components/analytics/CampaignDeliveryBreakdown.tsx`**
+Replace the nested Popover structure with a proper modal pattern for the date picker, or use `modal={false}` on the nested Popover to prevent focus trapping conflicts.
 
-A visual component showing:
-- Funnel from audience to delivered
-- Pie/donut chart of skip reasons
-- Comparison between cached vs. computed totals (with warning if they differ)
-- "Recompute Metrics" button for stale campaigns
+**File: `src/components/crm/ScheduleSelector.tsx`** - Update the Calendar Popover:
+```tsx
+<Popover modal={false}>
+  <PopoverTrigger asChild>
+    ...
+  </PopoverTrigger>
+  <PopoverContent className="w-auto p-0" side="bottom">
+    <Calendar ... />
+  </PopoverContent>
+</Popover>
+```
 
-### 3. Enhance EmailCampaignPerformance Component
+### 3. Ensure ScheduleSelector Remains Visible in Sticky Mode
 
-**Modify: `src/components/analytics/EmailCampaignPerformance.tsx`**
+Modify `CampaignActionBar.tsx` to show a simplified send button that also opens scheduling options when in sticky mode:
 
-Updates:
-- Add a "Delivery Details" expandable row for each campaign
-- Show accurate delivery counts from `email_send_jobs`
-- Add "Skipped" column to the table
-- Include a badge if metrics appear stale
+**File: `src/components/crm/CampaignActionBar.tsx`**
+```tsx
+{/* Schedule Selector - always visible, compact in sticky mode */}
+{onScheduleChange && (
+  <ScheduleSelector
+    schedule={schedule}
+    onScheduleChange={onScheduleChange}
+    disabled={loading || sending}
+    compact={isSticky} // New prop for compact mode
+  />
+)}
+```
 
-### 4. Add List Health Summary Card
+### 4. Add Click Safety CSS
 
-**Modify: `src/pages/AnalyticsPage.tsx`**
+Add CSS override to ensure the popover trigger is always clickable:
 
-Add the existing `ListHealthCard` component to the analytics page, positioned alongside email campaign performance. This surfaces:
-- 30-day bounce rate
-- 30-day complaint rate
-- Suppression breakdown
-- Health status indicator (healthy/warning/critical)
+**File: `src/styles/overrides/component-overrides.css`**
+```css
+/* Ensure Schedule Selector is always clickable */
+[data-radix-popper-content-wrapper] {
+  pointer-events: auto !important;
+}
 
-### 5. Add Bulk Recompute Action
-
-**Modify: `src/components/analytics/EmailCampaignPerformance.tsx`**
-
-Add a "Recompute All Metrics" button in the header that:
-- Calls `recompute-campaign-metrics` edge function for all sent campaigns
-- Shows progress indicator
-- Refreshes displayed data after completion
+button[aria-haspopup="dialog"] {
+  pointer-events: auto !important;
+  position: relative;
+  z-index: 10;
+}
+```
 
 ---
 
-## Technical Details
+## Files to Modify
 
-### Database Queries
-
-**Accurate Send Count Query:**
-```sql
-SELECT 
-  SUM(emails_sent) as total_delivered,
-  SUM(emails_failed) as total_failed,
-  COUNT(*) as batch_count
-FROM email_send_jobs 
-WHERE campaign_id = $1 AND status = 'completed';
-```
-
-**Skip Breakdown Query:**
-```sql
-SELECT reason, COUNT(*) as count
-FROM email_send_skips
-WHERE campaign_id = $1
-GROUP BY reason;
-```
-
-### Component Structure
-
-```text
-AnalyticsPage
-├── ExecutiveDashboard (existing)
-├── EmailCampaignPerformance (enhanced)
-│   ├── Summary Stats
-│   ├── Campaign Table
-│   │   └── CampaignDeliveryBreakdown (expandable row)
-│   └── Recompute All Button
-├── ListHealthCard (add to page)
-├── ChannelPerformance (existing)
-└── ...
-```
-
-### Files to Create
-- `src/hooks/analytics/useCampaignDeliveryMetrics.ts`
-- `src/components/analytics/CampaignDeliveryBreakdown.tsx`
-
-### Files to Modify
-- `src/components/analytics/EmailCampaignPerformance.tsx`
-- `src/pages/AnalyticsPage.tsx`
+| File | Change |
+|------|--------|
+| `src/components/crm/ScheduleSelector.tsx` | Fix nested Popover with `modal={false}`, add debug logging |
+| `src/components/crm/CampaignActionBar.tsx` | Show ScheduleSelector in sticky mode |
+| `src/styles/overrides/component-overrides.css` | Add CSS for popover click safety |
 
 ---
 
-## Immediate Action: Fix the Stale Metrics
+## Testing Plan
 
-Once you approve this plan, I will also add a way for you to recompute the metrics for the "Bloomin' Easy partnership" campaign. You can do this immediately from the Admin > Analytics Health page (if you have access), or I can add a recompute button to the campaign detail page.
-
-The recompute will:
-1. Query `email_send_log` for actual unique recipient counts
-2. Query `email_tracking_events` for opens/clicks
-3. Recalculate rates
-4. Update `crm_campaigns.total_sent`, `total_opens`, `total_clicks`, `open_rate`, `click_rate`
+After implementation:
+1. Navigate to `/crm/campaigns/new`
+2. Click the "Send Now" dropdown button
+3. Verify the Popover opens showing "Send immediately" and "Schedule for later" options
+4. Test clicking "Schedule for later" → verify calendar picker opens
+5. Test in sticky mode (scroll down) → verify button still works
+6. Test on mobile viewport → verify button text visibility
 
