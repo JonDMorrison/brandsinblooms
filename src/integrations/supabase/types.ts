@@ -13521,6 +13521,14 @@ export type Database = {
           deleted_count: number
         }[]
       }
+      delete_nameless_customers: {
+        Args: { p_limit?: number; p_tenant_id: string }
+        Returns: number
+      }
+      delete_phone_duplicates: {
+        Args: { p_limit?: number; p_tenant_id: string }
+        Returns: number
+      }
       determine_lifecycle_stage: {
         Args: { p_customer_id: string }
         Returns: string
