@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/NativeSelect';
@@ -21,6 +21,7 @@ interface ScheduleSelectorProps {
   schedule: ScheduleOption;
   onScheduleChange: (schedule: ScheduleOption) => void;
   disabled?: boolean;
+  compact?: boolean;
 }
 
 const TIMEZONES = [
@@ -39,9 +40,15 @@ const TIMEZONES = [
 export const ScheduleSelector: React.FC<ScheduleSelectorProps> = ({
   schedule,
   onScheduleChange,
-  disabled = false
+  disabled = false,
+  compact = false
 }) => {
   const [isOpen, setIsOpen] = useState(false);
+  
+  // Debug logging
+  useEffect(() => {
+    console.log('ScheduleSelector: isOpen =', isOpen);
+  }, [isOpen]);
   
   // Detect user's timezone for default
   const userTimezone = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone, []);
@@ -161,7 +168,7 @@ export const ScheduleSelector: React.FC<ScheduleSelectorProps> = ({
             
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <Popover>
+                <Popover modal={false}>
                   <PopoverTrigger asChild>
                     <Button
                       variant="outline"
@@ -172,7 +179,7 @@ export const ScheduleSelector: React.FC<ScheduleSelectorProps> = ({
                       {format(selectedDate, 'MMM d')}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
+                  <PopoverContent className="w-auto p-0" side="bottom">
                     <Calendar
                       mode="single"
                       selected={selectedDate}

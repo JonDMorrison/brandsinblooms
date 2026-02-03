@@ -177,12 +177,13 @@ export const CampaignActionBar: React.FC<CampaignActionBarProps> = ({
               </div>
               )}
 
-              {/* Schedule Selector - visible when not sticky */}
-              {!isSticky && onScheduleChange && (
+              {/* Schedule Selector - always visible, compact in sticky mode */}
+              {onScheduleChange && (
                 <ScheduleSelector
                   schedule={schedule}
                   onScheduleChange={onScheduleChange}
                   disabled={loading || sending}
+                  compact={isSticky}
                 />
               )}
 
