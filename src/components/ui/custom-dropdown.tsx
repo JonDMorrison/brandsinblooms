@@ -8,6 +8,7 @@ import React, {
 import { createPortal } from "react-dom";
 
 import { cn } from "@/lib/utils";
+import { Z } from "@/lib/zLayer";
 
 type Align = "start" | "center" | "end";
 
@@ -167,7 +168,7 @@ export function CustomDropdown({
               data-app-portal
               role="menu"
               className={cn(
-                "z-[100] fixed min-w-[12rem]",
+                "fixed min-w-[12rem]",
                 "rounded-xl border bg-background shadow-lg",
                 "p-1",
                 "origin-top-left transition-all duration-150 ease-out",
@@ -177,6 +178,7 @@ export function CustomDropdown({
               style={{
                 top: pos.top,
                 left: pos.left,
+                zIndex: Z.dropdown,
                 ...contentStyle,
               }}
             >

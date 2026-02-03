@@ -184,6 +184,8 @@ export const CampaignActionBar: React.FC<CampaignActionBarProps> = ({
                   onScheduleChange={onScheduleChange}
                   disabled={loading || sending}
                   compact={isSticky}
+                  commitOnSelect={isSticky}
+                  onCommit={onSend}
                 />
               )}
 
