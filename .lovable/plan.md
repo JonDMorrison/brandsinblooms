@@ -1,132 +1,162 @@
 
 
-# Fix: "Send Now" Button Not Clicking
+# Fix: "Schedule" Button and Modal Improvements
 
-## Problem Identified
+## Summary
 
-The "Send Now" dropdown button in the Campaign Action Bar is not responding to clicks. After analyzing the code, I found **the button IS functional** - it uses the `ScheduleSelector` component which is a Radix UI Popover that should open on click.
-
-The likely issues are:
-
-### Root Cause 1: Sticky Mode Hides the ScheduleSelector
-
-In `CampaignActionBar.tsx` (lines 180-187):
-```tsx
-{/* Schedule Selector - visible when not sticky */}
-{!isSticky && onScheduleChange && (
-  <ScheduleSelector ... />
-)}
-```
-
-When you scroll down, the action bar becomes "sticky" and the ScheduleSelector **disappears entirely**. This means if the user has scrolled, the button won't be visible at all.
-
-### Root Cause 2: Nested Popover Conflict
-
-Inside `ScheduleSelector.tsx`, there's a **nested Popover** situation:
-- The main Popover (for the dropdown)
-- A second Popover inside for the Calendar date picker (lines 164-184)
-
-This can cause click propagation issues where the inner Popover's trigger interferes with the outer Popover's state management.
-
-### Root Cause 3: Z-Index/Overlay Interference
-
-The page has multiple overlays and modals that could be blocking clicks:
-- The `CampaignSetupWizard` modal
-- The `AIWriterDialog` 
-- The `FullEmailPreview` component
-- The `ScheduledCampaignBanner`
-
-If any of these have backdrop or overlay elements that aren't properly cleaned up, they could be invisibly blocking clicks.
+The current "Send Now" dropdown button will be renamed to **"Schedule"** and the dropdown content will be improved with clearer instructions and a properly clickable calendar.
 
 ---
 
-## Solution
+## Changes
 
-### 1. Add Debug Logging to ScheduleSelector
+### 1. Rename Button from "Send Now" to "Schedule"
 
-Add console logs to verify the click is being registered:
+Since there's already a primary "Send" button in the action bar, the dropdown button will be renamed to **"Schedule"** to clearly indicate its purpose.
 
-**File: `src/components/crm/ScheduleSelector.tsx`**
-```tsx
-// Add to the component
-useEffect(() => {
-  console.log('ScheduleSelector: isOpen =', isOpen);
-}, [isOpen]);
+**Current button label logic:**
+- "Send Now" → Will become **"Schedule"**  
+- "Scheduled: Mar 5, 10:00 AM" → Stays the same (shows scheduled time)
 
-// In PopoverTrigger button
-onClick={() => console.log('ScheduleSelector button clicked')}
+### 2. Add Instructional Text
+
+The dropdown will include a brief explanation at the top to help users understand what they can do:
+
+> **"Choose when to send your campaign"**  
+> Send immediately or pick a date and time to deliver your message at the perfect moment.
+
+### 3. Ensure Calendar is Fully Clickable
+
+The Calendar component will be updated to ensure:
+- Explicit `pointer-events-auto` class is applied
+- The calendar wrapper has proper styling for interactivity
+- Date selection triggers the scheduling flow correctly
+
+---
+
+## Visual Preview (Before → After)
+
+| Element | Before | After |
+|---------|--------|-------|
+| Button Label | "Send Now" | "Schedule" |
+| Button Icon | Send icon | Calendar icon |
+| Dropdown Header | "When to send" | "Choose when to send your campaign" + explanation |
+| Calendar | Plain calendar | Calendar with clear visual feedback |
+
+---
+
+## File Changes
+
+### File: `src/components/crm/ScheduleSelector.tsx`
+
+1. **Update `getButtonLabel()` function** to return "Schedule" instead of "Send Now" for the default state
+
+2. **Change the trigger button icon** to always use a Calendar icon (instead of Send icon)
+
+3. **Add instructional header** at the top of the dropdown content with:
+   - Clear heading: "Choose when to send your campaign"
+   - Helper text explaining the two options
+
+4. **Simplify the dropdown structure** by removing the "Send immediately" button (since that's handled by the main Send button) and focusing solely on scheduling
+
+5. **Update Calendar wrapper** with explicit interactivity classes:
+   - Add `pointer-events-auto` 
+   - Add cursor styling for better UX
+
+---
+
+## Updated Dropdown Content Structure
+
+```text
+┌─────────────────────────────────────────┐
+│  📅 Schedule Campaign                   │
+│                                         │
+│  Pick a date and time to send your      │
+│  campaign automatically.                │
+│                                         │
+│  ┌─────────────────────────────────┐    │
+│  │     < February 2026 >           │    │
+│  │  Su Mo Tu We Th Fr Sa           │    │
+│  │                    1            │    │
+│  │   2  3  4 [5] 6  7  8           │    │
+│  │   9 10 11 12 13 14 15           │    │
+│  │  ...                            │    │
+│  └─────────────────────────────────┘    │
+│                                         │
+│  📅 Feb 5          ⏰ [10:00]           │
+│                                         │
+│  [Pacific (PT)          ▼]              │
+│  Times shown in Pacific (PT).           │
+│                                         │
+│  [      Schedule Campaign      ]        │
+└─────────────────────────────────────────┘
 ```
 
-### 2. Fix Nested Popover Architecture
+---
 
-Replace the nested Popover structure with a proper modal pattern for the date picker, or use `modal={false}` on the nested Popover to prevent focus trapping conflicts.
+## Technical Details
 
-**File: `src/components/crm/ScheduleSelector.tsx`** - Update the Calendar Popover:
+### Key Code Changes in `ScheduleSelector.tsx`
+
+**1. Update button label (line 122-131):**
 ```tsx
-<Popover modal={false}>
-  <PopoverTrigger asChild>
-    ...
-  </PopoverTrigger>
-  <PopoverContent className="w-auto p-0" side="bottom">
-    <Calendar ... />
-  </PopoverContent>
-</Popover>
+const getButtonLabel = () => {
+  if (schedule.type === 'scheduled' && schedule.date) {
+    const displayDate = toZonedTime(schedule.date, schedule.timezone || userTimezone);
+    return `Scheduled: ${format(displayDate, 'MMM d, h:mm a')}`;
+  }
+  return 'Schedule';
+};
 ```
 
-### 3. Ensure ScheduleSelector Remains Visible in Sticky Mode
-
-Modify `CampaignActionBar.tsx` to show a simplified send button that also opens scheduling options when in sticky mode:
-
-**File: `src/components/crm/CampaignActionBar.tsx`**
+**2. Update trigger button icon to always use Calendar:**
 ```tsx
-{/* Schedule Selector - always visible, compact in sticky mode */}
-{onScheduleChange && (
-  <ScheduleSelector
-    schedule={schedule}
-    onScheduleChange={onScheduleChange}
-    disabled={loading || sending}
-    compact={isSticky} // New prop for compact mode
+<CalendarIcon className="h-4 w-4" />
+```
+
+**3. Add instructional header to dropdown content:**
+```tsx
+<div className="space-y-1 mb-4">
+  <h3 className="font-semibold text-sm flex items-center gap-2">
+    <CalendarIcon className="h-4 w-4" />
+    Schedule Campaign
+  </h3>
+  <p className="text-xs text-muted-foreground">
+    Pick a date and time to send your campaign automatically.
+  </p>
+</div>
+```
+
+**4. Remove "Send immediately" button** (the main Send button handles this)
+
+**5. Ensure Calendar has pointer-events:**
+```tsx
+<div className="rounded-md border border-border p-2 pointer-events-auto">
+  <Calendar
+    mode="single"
+    selected={selectedDate}
+    onSelect={handleDateSelect}
+    disabled={isDateInPast}
+    initialFocus
+    className="pointer-events-auto"
   />
-)}
-```
-
-### 4. Add Click Safety CSS
-
-Add CSS override to ensure the popover trigger is always clickable:
-
-**File: `src/styles/overrides/component-overrides.css`**
-```css
-/* Ensure Schedule Selector is always clickable */
-[data-radix-popper-content-wrapper] {
-  pointer-events: auto !important;
-}
-
-button[aria-haspopup="dialog"] {
-  pointer-events: auto !important;
-  position: relative;
-  z-index: 10;
-}
+</div>
 ```
 
 ---
 
-## Files to Modify
+## Testing Checklist
 
-| File | Change |
-|------|--------|
-| `src/components/crm/ScheduleSelector.tsx` | Fix nested Popover with `modal={false}`, add debug logging |
-| `src/components/crm/CampaignActionBar.tsx` | Show ScheduleSelector in sticky mode |
-| `src/styles/overrides/component-overrides.css` | Add CSS for popover click safety |
+After implementation, verify:
 
----
-
-## Testing Plan
-
-After implementation:
-1. Navigate to `/crm/campaigns/new`
-2. Click the "Send Now" dropdown button
-3. Verify the Popover opens showing "Send immediately" and "Schedule for later" options
-4. Test clicking "Schedule for later" → verify calendar picker opens
-5. Test in sticky mode (scroll down) → verify button still works
-6. Test on mobile viewport → verify button text visibility
+1. ✅ Button shows "Schedule" label with calendar icon
+2. ✅ When a date is scheduled, button shows "Scheduled: Mar 5, 10:00 AM"
+3. ✅ Clicking the button opens the dropdown
+4. ✅ Calendar days are clickable and highlight on selection
+5. ✅ Selecting a date updates the displayed date below the calendar
+6. ✅ Time picker works correctly
+7. ✅ Timezone selector functions properly
+8. ✅ "Schedule Campaign" button saves the schedule
+9. ✅ Primary "Send" button still works for immediate sending
+10. ✅ Works correctly in both normal and sticky mode
 
