@@ -120,10 +120,7 @@ export const ScheduleSelector: React.FC<ScheduleSelectorProps> = ({
   };
 
   const getButtonLabel = () => {
-    if (schedule.type === 'now') {
-      return 'Send Now';
-    }
-    if (schedule.date) {
+    if (schedule.type === 'scheduled' && schedule.date) {
       const displayDate = toZonedTime(schedule.date, schedule.timezone || userTimezone);
       return `Scheduled: ${format(displayDate, 'MMM d, h:mm a')}`;
     }
@@ -154,62 +151,50 @@ export const ScheduleSelector: React.FC<ScheduleSelectorProps> = ({
             schedule.type === 'scheduled' && 'border-primary text-primary'
           )}
         >
-          {schedule.type === 'now' ? (
-            <Send className="h-4 w-4" />
-          ) : (
-            <CalendarIcon className="h-4 w-4" />
-          )}
+          <CalendarIcon className="h-4 w-4" />
           <span className={cn(compact ? 'hidden' : 'hidden sm:inline')}>{getButtonLabel()}</span>
           <ChevronDown className="h-3 w-3" />
         </Button>
       )}
     >
       <div className="space-y-4">
-        <div className="space-y-2">
-          <Label className="text-sm font-medium">When to send</Label>
-
-          <Button
-            variant={schedule.type === 'now' ? 'default' : 'outline'}
-            size="sm"
-            className="w-full justify-start"
-            onClick={handleSendNow}
-          >
-            <Send className="h-4 w-4 mr-2" />
-            Send immediately
-          </Button>
+        {/* Instructional header */}
+        <div className="space-y-1">
+          <h3 className="font-semibold text-sm flex items-center gap-2">
+            <CalendarIcon className="h-4 w-4" />
+            Schedule Campaign
+          </h3>
+          <p className="text-xs text-muted-foreground">
+            Pick a date and time to send your campaign automatically.
+          </p>
         </div>
 
-        <div className="border-t pt-4 space-y-3">
-          <Label className="text-sm font-medium flex items-center gap-2">
-            <Clock className="h-4 w-4" />
-            Schedule for later
-          </Label>
+        {/* Calendar */}
+        <div className="space-y-3">
+          <div className="rounded-md border border-border p-2 pointer-events-auto">
+            <Calendar
+              mode="single"
+              selected={selectedDate}
+              onSelect={handleDateSelect}
+              disabled={isDateInPast}
+              initialFocus
+              className="pointer-events-auto"
+            />
+          </div>
 
-          <div className="space-y-2">
-            <div className="rounded-md border border-border p-2">
-              <Calendar
-                mode="single"
-                selected={selectedDate}
-                onSelect={handleDateSelect}
-                disabled={isDateInPast}
-                initialFocus
-              />
+          <div className="grid grid-cols-2 gap-2">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <CalendarIcon className="h-4 w-4" />
+              <span>{format(selectedDate, 'MMM d')}</span>
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <CalendarIcon className="h-4 w-4" />
-                <span>{format(selectedDate, 'MMM d')}</span>
-              </div>
-
-              <input
-                type="time"
-                value={selectedTime}
-                onChange={(e) => setSelectedTime(e.target.value)}
-                className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                aria-label="Scheduled send time"
-              />
-            </div>
+            <input
+              type="time"
+              value={selectedTime}
+              onChange={(e) => setSelectedTime(e.target.value)}
+              className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              aria-label="Scheduled send time"
+            />
           </div>
 
           <NativeSelect
