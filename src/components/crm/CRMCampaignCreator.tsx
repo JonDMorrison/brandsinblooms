@@ -98,6 +98,20 @@ async function generateImagesForBlocks(
     if (blocksNeedingImages.length === 0) {
       console.log('📸 No blocks need images, skipping image generation');
       console.log('📸 Block types:', blocks.map((b, i) => `${i}: ${b.type} (img: "${b.imageUrl || 'none'}")`).join(', '));
+      
+      // CRITICAL FIX: Clear isGeneratingImage for all blocks that already have images
+      // This prevents the infinite "Generating..." UI state when templates come with pre-loaded images
+      setBlocks(prev => prev.map(b => {
+        const hasImage = b.type === 'header' || b.type === 'newsletter-header'
+          ? !!(b.backgroundImageUrl && b.backgroundImageUrl !== 'loading')
+          : !!(b.imageUrl && b.imageUrl !== 'loading');
+        
+        if (hasImage && b.isGeneratingImage) {
+          console.log(`🔄 Clearing stale isGeneratingImage flag for block ${b.id} (already has image)`);
+          return { ...b, isGeneratingImage: false, isLoadingImage: false };
+        }
+        return b;
+      }));
       return;
     }
     
@@ -525,6 +539,9 @@ const normalizeBlocks = (blocks: ContentBlock[]): ContentBlock[] => {
       
       console.log(`🔄 Normalizing text block ${block.id}, hasGeneratedContent: ${!!block.hasGeneratedContent}, userEdited: ${!!block.userEdited}`);
       
+      // CRITICAL FIX: Clear isGeneratingImage if block already has a valid image
+      const hasValidImage = !!(block.imageUrl && block.imageUrl !== 'loading' && block.imageUrl !== '');
+      
       return {
         ...block,
         type: 'image-text' as const, // Convert to image-text for weekly themes
@@ -533,7 +550,7 @@ const normalizeBlocks = (blocks: ContentBlock[]): ContentBlock[] => {
         body: finalBody || block.body,
         imageUrl: block.imageUrl || '',
         shouldFetchImage: !block.imageUrl, // Only fetch if no image
-        isGeneratingImage: block.isGeneratingImage || false, // Preserve existing state
+        isGeneratingImage: hasValidImage ? false : (block.isGeneratingImage || false), // Clear if image exists
         isWeeklyTheme: true,
         hasGeneratedContent: block.hasGeneratedContent || !!(headline || body)
       };
@@ -4425,7 +4442,18 @@ const { counts: segmentCounts } = useSegmentCounts();
   }
 
   // Check if any blocks are still generating images
-  const hasGeneratingImages = blocks.some(b => b.isGeneratingImage);
+  // ROBUST CHECK: Only consider generating if isGeneratingImage=true AND doesn't already have a valid image
+  const hasGeneratingImages = blocks.some(b => {
+    if (!b.isGeneratingImage) return false;
+    
+    // Check if block already has a valid image (shouldn't be considered "generating")
+    const isHeaderType = b.type === 'header' || b.type === 'newsletter-header';
+    const hasValidImage = isHeaderType
+      ? !!(b.backgroundImageUrl && b.backgroundImageUrl !== 'loading')
+      : !!(b.imageUrl && b.imageUrl !== 'loading');
+    
+    return !hasValidImage; // Only count as generating if no valid image yet
+  });
 
   return (
     <>
