@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Download, Settings } from "lucide-react";
@@ -9,6 +8,7 @@ import { ChannelPerformance } from "@/components/analytics/ChannelPerformance";
 import { DataSourceManager } from "@/components/analytics/DataSourceManager";
 import { ActionableInsights } from "@/components/analytics/ActionableInsights";
 import { EmailCampaignPerformance } from "@/components/analytics/EmailCampaignPerformance";
+import { ListHealthCard } from "@/components/analytics/ListHealthCard";
 import { useGASettings } from "@/hooks/useGASettings";
 import { supabase } from "@/integrations/supabase/client";
 import { useState } from "react";
@@ -103,8 +103,15 @@ const AnalyticsPage = () => {
         dateRange={selectedPeriod}
       />
 
-      {/* Email Campaign Performance */}
-      <EmailCampaignPerformance dateRange={selectedPeriod} />
+      {/* Email Campaign Performance + List Health */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2">
+          <EmailCampaignPerformance dateRange={selectedPeriod} />
+        </div>
+        <div>
+          <ListHealthCard />
+        </div>
+      </div>
 
       {/* Channel Performance Breakdown */}
       <ChannelPerformance
