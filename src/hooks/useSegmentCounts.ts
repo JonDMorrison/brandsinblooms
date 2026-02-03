@@ -4,6 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useTenant } from '@/hooks/useTenant';
 
 interface SegmentCounts {
+  'perks-members': number;
   'loyalty-members': number;
   'high-value': number;
   'new-customers': number;
@@ -14,6 +15,7 @@ interface SegmentCounts {
 
 export const useSegmentCounts = () => {
   const [counts, setCounts] = useState<SegmentCounts>({
+    'perks-members': 0,
     'loyalty-members': 0,
     'high-value': 0,
     'new-customers': 0,
@@ -49,6 +51,7 @@ export const useSegmentCounts = () => {
         if (!customers) {
           console.log('❌ No customers found, setting all counts to 0');
           setCounts({
+            'perks-members': 0,
             'loyalty-members': 0,
             'high-value': 0,
             'new-customers': 0,
@@ -91,6 +94,15 @@ export const useSegmentCounts = () => {
           Array.isArray(customer.order_history) && 
           customer.order_history.length >= 3
         );
+
+        // Get perks members from customer_loyalty_metrics
+        const { data: perksMetrics } = await supabase
+          .from('customer_loyalty_metrics')
+          .select('customer_id')
+          .eq('is_perks_member', true)
+          .in('customer_id', customers.map(c => c.id));
+        
+        const perksMembers = perksMetrics || [];
 
         console.log('🔍 Automatic qualifications:', {
           newCustomers: newCustomers.length,
@@ -147,6 +159,11 @@ export const useSegmentCounts = () => {
 
         // Calculate segment counts (combining automatic + manual assignments)
         const segmentCounts: SegmentCounts = {
+          'perks-members': new Set([
+            ...perksMembers.map(m => m.customer_id),
+            ...(manualAssignments['Perks Members'] || [])
+          ]).size,
+          
           'loyalty-members': new Set([
             ...loyaltyCustomers.map(c => c.id),
             ...(manualAssignments['Loyalty Members'] || [])

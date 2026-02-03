@@ -20,6 +20,12 @@ import { useNavigate } from 'react-router-dom';
 // Predefined segments data (without hardcoded counts)
 const predefinedSegments = [
   {
+    id: 'perks-members',
+    name: 'Perks Members',
+    description: 'Customers enrolled in your Perks loyalty program',
+    icon: 'crown' as const,
+  },
+  {
     id: 'loyalty-members',
     name: 'Loyalty Members',
     description: 'Customers enrolled in your loyalty program with active engagement',
