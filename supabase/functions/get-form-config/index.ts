@@ -249,6 +249,8 @@ const SETTINGS_ALLOWLIST = {
   show_branding: true,             // Whether to show "Powered by BloomSuite"
   form_title: true,                // Optional title above form
   form_description: true,          // Optional description above form
+  form_headline: true,             // Headline displayed above form
+  form_subheadline: true,          // Subheadline displayed below headline
   
   // ─── Navigation ──────────────────────────────────────────────────────────
   success_redirect_url: true,      // URL to redirect after success
