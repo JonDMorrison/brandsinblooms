@@ -157,63 +157,82 @@ export const ScheduleSelector: React.FC<ScheduleSelectorProps> = ({
         </Button>
       )}
     >
-      <div className="space-y-4">
+      <div className="space-y-5">
         {/* Instructional header */}
-        <div className="space-y-1">
-          <h3 className="font-semibold text-sm flex items-center gap-2">
-            <CalendarIcon className="h-4 w-4" />
+        <div className="space-y-1.5">
+          <h3 className="font-semibold text-base flex items-center gap-2">
+            <CalendarIcon className="h-4 w-4 text-primary" />
             Schedule Campaign
           </h3>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-sm text-muted-foreground">
             Pick a date and time to send your campaign automatically.
           </p>
         </div>
 
         {/* Calendar */}
-        <div className="space-y-3">
-          <div className="rounded-md border border-border p-2 pointer-events-auto">
-            <Calendar
-              mode="single"
-              selected={selectedDate}
-              onSelect={handleDateSelect}
-              disabled={isDateInPast}
-              initialFocus
-              className="pointer-events-auto"
-            />
-          </div>
+        <div className="rounded-lg border border-border bg-muted/30 p-3 pointer-events-auto">
+          <Calendar
+            mode="single"
+            selected={selectedDate}
+            onSelect={handleDateSelect}
+            disabled={isDateInPast}
+            initialFocus
+            className="pointer-events-auto"
+          />
+        </div>
 
-          <div className="grid grid-cols-2 gap-2">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <CalendarIcon className="h-4 w-4" />
-              <span>{format(selectedDate, 'MMM d')}</span>
+        {/* Date & Time Row */}
+        <div className="rounded-lg border border-border bg-background p-4 space-y-4">
+          <div className="flex items-center justify-between gap-4">
+            {/* Selected Date */}
+            <div className="flex items-center gap-3 flex-1">
+              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                <CalendarIcon className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground font-medium">Date</p>
+                <p className="text-sm font-semibold">{format(selectedDate, 'EEEE, MMM d')}</p>
+              </div>
             </div>
 
-            <input
-              type="time"
-              value={selectedTime}
-              onChange={(e) => setSelectedTime(e.target.value)}
-              className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              aria-label="Scheduled send time"
-            />
+            {/* Time Picker */}
+            <div className="flex items-center gap-3 flex-1">
+              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                <Clock className="h-5 w-5 text-primary" />
+              </div>
+              <div className="flex-1">
+                <p className="text-xs text-muted-foreground font-medium">Time</p>
+                <input
+                  type="time"
+                  value={selectedTime}
+                  onChange={(e) => setSelectedTime(e.target.value)}
+                  className="h-7 w-full bg-transparent text-sm font-semibold focus:outline-none"
+                  aria-label="Scheduled send time"
+                />
+              </div>
+            </div>
           </div>
 
-          <NativeSelect
-            value={selectedTimezone}
-            onChange={(e) => setSelectedTimezone(e.target.value)}
-            options={TIMEZONES}
-            className="text-sm"
-            aria-label="Timezone"
-          />
-
-          <p className="text-xs text-muted-foreground">
-            Times shown in {timezoneName}.
-          </p>
-
-          <Button size="sm" className="w-full" onClick={handleSchedule}>
-            <CalendarIcon className="h-4 w-4 mr-2" />
-            Schedule Campaign
-          </Button>
+          {/* Timezone */}
+          <div className="pt-3 border-t border-border">
+            <NativeSelect
+              value={selectedTimezone}
+              onChange={(e) => setSelectedTimezone(e.target.value)}
+              options={TIMEZONES}
+              className="text-sm"
+              aria-label="Timezone"
+            />
+            <p className="text-xs text-muted-foreground mt-2">
+              All times shown in {timezoneName}.
+            </p>
+          </div>
         </div>
+
+        {/* Submit Button */}
+        <Button size="default" className="w-full" onClick={handleSchedule}>
+          <CalendarIcon className="h-4 w-4 mr-2" />
+          Schedule Campaign
+        </Button>
       </div>
     </CustomDropdown>
   );
