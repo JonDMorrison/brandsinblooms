@@ -1,55 +1,149 @@
 
-# Form Embed Deployment System
 
-## Summary
-Form embed assets are now served directly via Edge Functions, enabling automatic deployment when the AI updates the code. No manual upload steps required.
+# Enhanced Email Analytics Reporting
 
-## Current Architecture
+## Overview
 
-| Component | URL | Description |
-|-----------|-----|-------------|
-| **JavaScript** | `https://udldmkqwnxhdeztyqcau.supabase.co/functions/v1/serve-embed-js` | Main embed script |
-| **CSS** | `https://udldmkqwnxhdeztyqcau.supabase.co/functions/v1/serve-embed-assets?file=embed.css` | Stylesheet |
+This plan adds comprehensive email campaign analytics to the Business Analytics page, including:
+1. **Accurate Send Reporting** - Pulls actual delivery counts from `email_send_jobs` instead of stale cached values
+2. **Delivery Breakdown** - Shows sent, skipped, and failed counts with reasons
+3. **List Health Integration** - Surfaces bounce/complaint rates alongside campaign metrics
+4. **Recompute Functionality** - Adds ability to refresh stale metrics directly from the analytics page
 
-## How It Works
+## What You Experienced
 
-1. **Edge Function Serving**: Embed files are embedded directly in edge function code
-2. **Auto-Deploy**: When the AI updates the edge function, changes deploy automatically
-3. **No Manual Steps**: No need to upload files to Storage or run scripts
+The discrepancy where your "Bloomin' Easy partnership" campaign showed "200 sent" but actually delivered to ~419 recipients is due to:
+- The `total_sent` field in `crm_campaigns` being cached/stale
+- The actual data lives in `email_send_jobs` (batch records) and `email_send_log` (individual sends)
 
-## Customer Embed Snippet
+The new analytics will query both sources to show accurate, real-time numbers.
 
-```html
-<div data-bloomsuite-form="YOUR_EMBED_KEY"></div>
-<script src="https://udldmkqwnxhdeztyqcau.supabase.co/functions/v1/serve-embed-js" defer></script>
+---
+
+## Implementation Plan
+
+### 1. Create Enhanced Campaign Metrics Hook
+
+**New file: `src/hooks/analytics/useCampaignDeliveryMetrics.ts`**
+
+This hook will:
+- Query `email_send_jobs` to get actual batch totals (enqueued, sent, failed)
+- Query `email_send_skips` to get skip counts by reason (opt_out, suppressed, invalid_email)
+- Calculate accurate delivery vs. audience size
+- Return both cached (`crm_campaigns.total_sent`) and computed values for comparison
+
+```text
+┌────────────────────────────────────────────┐
+│           CAMPAIGN DELIVERY DATA           │
+├────────────────────────────────────────────┤
+│  Audience Size        │  610 contacts      │
+│  Enqueued             │  423 recipients    │
+│  Delivered            │  419 emails        │
+│  Skipped              │  187 contacts      │
+│  Failed               │    4 emails        │
+├────────────────────────────────────────────┤
+│  Skip Reasons:                             │
+│    - Opted Out: 45                         │
+│    - Suppressed: 98                        │
+│    - Invalid Email: 44                     │
+└────────────────────────────────────────────┘
 ```
 
-## Update Workflow
+### 2. Create Delivery Breakdown Component
 
-When making changes to embed files:
+**New file: `src/components/analytics/CampaignDeliveryBreakdown.tsx`**
 
-1. **Source Files** (for reference): `public/forms/embed.v1.js`, `public/forms/embed.css`
-2. **Edge Functions** (deployed): 
-   - `supabase/functions/serve-embed-js/index.ts`
-   - `supabase/functions/serve-embed-assets/index.ts`
-3. AI updates the edge function → changes auto-deploy
+A visual component showing:
+- Funnel from audience to delivered
+- Pie/donut chart of skip reasons
+- Comparison between cached vs. computed totals (with warning if they differ)
+- "Recompute Metrics" button for stale campaigns
 
-## Fallback Options
+### 3. Enhance EmailCampaignPerformance Component
 
-### Option A: Supabase Storage (Legacy)
-Still available via `scripts/deploy-embed-assets.ts` if needed.
+**Modify: `src/components/analytics/EmailCampaignPerformance.tsx`**
 
-### Option B: Public Folder
-Files in `public/forms/` work for local dev and Lovable preview.
+Updates:
+- Add a "Delivery Details" expandable row for each campaign
+- Show accurate delivery counts from `email_send_jobs`
+- Add "Skipped" column to the table
+- Include a badge if metrics appear stale
 
-## Version History
+### 4. Add List Health Summary Card
 
-| Version | Date | Notes |
-|---------|------|-------|
-| 1.5.0 | Current | Edge function serving, modal/slide-in support |
+**Modify: `src/pages/AnalyticsPage.tsx`**
 
-## Technical Notes
+Add the existing `ListHealthCard` component to the analytics page, positioned alongside email campaign performance. This surfaces:
+- 30-day bounce rate
+- 30-day complaint rate
+- Suppression breakdown
+- Health status indicator (healthy/warning/critical)
 
-- Edge functions have `verify_jwt = false` for public access
-- Cache headers: 1 hour + stale-while-revalidate
-- CSS auto-detects companion function URL
+### 5. Add Bulk Recompute Action
+
+**Modify: `src/components/analytics/EmailCampaignPerformance.tsx`**
+
+Add a "Recompute All Metrics" button in the header that:
+- Calls `recompute-campaign-metrics` edge function for all sent campaigns
+- Shows progress indicator
+- Refreshes displayed data after completion
+
+---
+
+## Technical Details
+
+### Database Queries
+
+**Accurate Send Count Query:**
+```sql
+SELECT 
+  SUM(emails_sent) as total_delivered,
+  SUM(emails_failed) as total_failed,
+  COUNT(*) as batch_count
+FROM email_send_jobs 
+WHERE campaign_id = $1 AND status = 'completed';
+```
+
+**Skip Breakdown Query:**
+```sql
+SELECT reason, COUNT(*) as count
+FROM email_send_skips
+WHERE campaign_id = $1
+GROUP BY reason;
+```
+
+### Component Structure
+
+```text
+AnalyticsPage
+├── ExecutiveDashboard (existing)
+├── EmailCampaignPerformance (enhanced)
+│   ├── Summary Stats
+│   ├── Campaign Table
+│   │   └── CampaignDeliveryBreakdown (expandable row)
+│   └── Recompute All Button
+├── ListHealthCard (add to page)
+├── ChannelPerformance (existing)
+└── ...
+```
+
+### Files to Create
+- `src/hooks/analytics/useCampaignDeliveryMetrics.ts`
+- `src/components/analytics/CampaignDeliveryBreakdown.tsx`
+
+### Files to Modify
+- `src/components/analytics/EmailCampaignPerformance.tsx`
+- `src/pages/AnalyticsPage.tsx`
+
+---
+
+## Immediate Action: Fix the Stale Metrics
+
+Once you approve this plan, I will also add a way for you to recompute the metrics for the "Bloomin' Easy partnership" campaign. You can do this immediately from the Admin > Analytics Health page (if you have access), or I can add a recompute button to the campaign detail page.
+
+The recompute will:
+1. Query `email_send_log` for actual unique recipient counts
+2. Query `email_tracking_events` for opens/clicks
+3. Recalculate rates
+4. Update `crm_campaigns.total_sent`, `total_opens`, `total_clicks`, `open_rate`, `click_rate`
+
