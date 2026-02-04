@@ -14176,6 +14176,10 @@ export type Database = {
         }
         Returns: string
       }
+      unsuppress_incorrectly_flagged_customers: {
+        Args: { batch_limit?: number }
+        Returns: number
+      }
       update_cross_channel_metrics: {
         Args: { p_channel: string; p_customer_id: string; p_event_type: string }
         Returns: undefined
