@@ -35,8 +35,11 @@ const handler = async (req: Request): Promise<Response> => {
     const token = btoa(customerId);
     const confirmUrl = `${Deno.env.get("SUPABASE_URL")?.replace('.supabase.co', '')}/confirm-subscription?token=${token}`;
 
+    // For confirmation emails, reply-to should be configured per tenant if needed
+    // For now, use a no-reply pattern since these are automated transactional emails
     const emailResponse = await resend.emails.send({
       from: `${brandName || 'Our Team'} <onboarding@resend.dev>`,
+      reply_to: 'noreply@bloomsuite.app', // Automated confirmation - no reply expected
       to: [email],
       subject: `Confirm your subscription to ${brandName || 'our newsletter'}`,
       html: `
