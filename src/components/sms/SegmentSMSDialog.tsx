@@ -148,12 +148,12 @@ export const SegmentSMSDialog: React.FC<SegmentSMSDialogProps> = ({
         .from('crm_sms_campaigns')
         .insert({
           tenant_id: tenantId,
+          user_id: user.id,
           name: `SMS to ${segmentName}`,
           message: message,
-          media_url: mediaUrl || null,
+          image_url: mediaUrl || null,
           status: 'sending',
-          segment_type: isSystemSegment ? segmentId : 'custom',
-          created_by: user.id,
+          segment_id: isSystemSegment ? null : segmentId,
         })
         .select()
         .single();
