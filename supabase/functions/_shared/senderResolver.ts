@@ -54,7 +54,7 @@ export async function resolveSender(
   if (preferredDomainId) {
     const { data: domain, error: domainError } = await supabase
       .from('email_domains')
-      .select('id, domain, status, default_from_email, default_from_name')
+      .select('id, domain, status, default_from_email, default_from_name, default_reply_to')
       .eq('id', preferredDomainId)
       .in('status', validStatuses)
       .single();
@@ -65,6 +65,7 @@ export async function resolveSender(
         fromEmail: domain.default_from_email || `mail@${domain.domain}`,
         fromName: domain.default_from_name || 'Your Business',
         deliveryMethod: 'custom_domain',
+        replyTo: domain.default_reply_to || undefined,
         domainId: domain.id,
         domain: domain.domain
       };
@@ -75,7 +76,7 @@ export async function resolveSender(
   // Step 2: Check for any usable custom domain for the tenant (active or warming_up)
   const { data: usableDomains, error: usableError } = await supabase
     .from('email_domains')
-    .select('id, domain, status, default_from_email, default_from_name')
+    .select('id, domain, status, default_from_email, default_from_name, default_reply_to')
     .eq('tenant_id', tenantId)
     .in('status', validStatuses)
     .order('created_at', { ascending: false })
@@ -88,6 +89,7 @@ export async function resolveSender(
       fromEmail: domain.default_from_email || `mail@${domain.domain}`,
       fromName: domain.default_from_name || 'Your Business',
       deliveryMethod: 'custom_domain',
+      replyTo: domain.default_reply_to || undefined,
       domainId: domain.id,
       domain: domain.domain
     };

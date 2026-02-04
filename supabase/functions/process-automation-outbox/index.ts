@@ -569,6 +569,7 @@ async function sendEmail(
         html_content: rendered.renderedHtml,
         from_name: companyName,
         from_email: senderConfig.fromEmail,
+        reply_to: senderConfig.replyTo,
         tags: [
           { name: "automation_id", value: message.automation_id || "none" },
           { name: "tenant_id", value: message.tenant_id },
