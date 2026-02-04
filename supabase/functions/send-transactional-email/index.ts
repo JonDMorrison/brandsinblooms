@@ -20,7 +20,9 @@ serve(async (req) => {
   
   try {
     const body = await req.json();
-    const { to, subject, html_content, from_name, from_email, reply_to, tags } = body;
+    const { to, subject, html_content, from_name, from_email, reply_to: explicit_reply_to, tags } = body;
+    // Reply-to: prefer explicit value, fallback to sender email
+    const reply_to = explicit_reply_to || from_email;
 
     // Validate required fields
     if (!to || !html_content) {

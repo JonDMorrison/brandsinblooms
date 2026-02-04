@@ -38,8 +38,11 @@ export const DomainSenderSettings: React.FC<DomainSenderSettingsProps> = ({
   useEffect(() => {
     if (domain) {
       setFromName(domain.default_from_name || '');
-      setFromEmail(domain.default_from_email || '');
-      setReplyToEmail((domain as any).default_reply_to || '');
+      const senderEmail = domain.default_from_email || '';
+      setFromEmail(senderEmail);
+      // Default reply-to to sender email if not explicitly set
+      const replyTo = (domain as any).default_reply_to;
+      setReplyToEmail(replyTo || senderEmail);
     }
   }, [domain]);
 
