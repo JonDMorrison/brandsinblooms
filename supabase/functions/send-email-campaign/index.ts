@@ -305,28 +305,43 @@ serve(async (req) => {
     }
 
     // Filter out suppressed customers unless explicitly included
+    // AND log skipped recipients for transparency
     const totalBeforeSuppression = customers.length;
     let suppressedCount = 0;
     let suppressedByListCount = 0;
+    const skippedRecipients: { customer_id: string; email: string; reason: string }[] = [];
     
     if (!includeSuppressed) {
       // First filter by the suppressed flag
-      const activeCustomers = customers.filter(c => !c.suppressed);
-      suppressedCount = customers.length - activeCustomers.length;
+      const activeCustomers: typeof customers = [];
+      for (const c of customers) {
+        if (c.suppressed) {
+          skippedRecipients.push({ customer_id: c.id, email: c.email, reason: 'suppressed' });
+          suppressedCount++;
+        } else {
+          activeCustomers.push(c);
+        }
+      }
       
       // Then check suppression_list table for additional exclusions
       const customerIds = activeCustomers.map(c => c.id);
       if (customerIds.length > 0) {
         const { data: suppressedInList } = await supabase
           .from('suppression_list')
-          .select('customer_id')
+          .select('customer_id, email')
           .eq('tenant_id', campaign.tenant_id)
           .in('customer_id', customerIds);
         
         if (suppressedInList && suppressedInList.length > 0) {
           const suppressedSet = new Set(suppressedInList.map(s => s.customer_id));
-          customers = activeCustomers.filter(c => !suppressedSet.has(c.id));
-          suppressedByListCount = suppressedInList.length;
+          customers = activeCustomers.filter(c => {
+            if (suppressedSet.has(c.id)) {
+              skippedRecipients.push({ customer_id: c.id, email: c.email, reason: 'suppression_list' });
+              suppressedByListCount++;
+              return false;
+            }
+            return true;
+          });
           console.log(`📧 Excluded ${suppressedByListCount} contacts from suppression_list (bounced/complained/unsubscribed)`);
         } else {
           customers = activeCustomers;
@@ -338,6 +353,30 @@ serve(async (req) => {
       const totalSuppressed = suppressedCount + suppressedByListCount;
       if (totalSuppressed > 0) {
         console.log(`📧 Excluded ${totalSuppressed} suppressed contacts total (${totalBeforeSuppression} → ${customers.length} active)`);
+        
+        // Log skipped recipients to email_send_skips table for transparency
+        if (skippedRecipients.length > 0) {
+          const skipInserts = skippedRecipients.map(skip => ({
+            tenant_id: campaign.tenant_id,
+            campaign_id: campaignId,
+            customer_id: skip.customer_id,
+            email: skip.email,
+            reason: skip.reason,
+          }));
+          
+          // Batch insert in chunks of 500
+          for (let i = 0; i < skipInserts.length; i += 500) {
+            const batch = skipInserts.slice(i, i + 500);
+            const { error: skipError } = await supabase
+              .from('email_send_skips')
+              .insert(batch);
+            
+            if (skipError) {
+              console.warn(`⚠️ Failed to log skipped recipients batch ${i}-${i + batch.length}:`, skipError.message);
+            }
+          }
+          console.log(`📧 Logged ${skippedRecipients.length} skipped recipients to email_send_skips`);
+        }
       }
     } else {
       console.log(`⚠️ Including ${customers.filter(c => c.suppressed).length} suppressed contacts (override enabled)`);
