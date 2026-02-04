@@ -60,13 +60,16 @@ const FAQPage = () => {
     },
     questions: [{
       question: "How much does BloomSuite cost?",
-      answer: "BloomSuite is $2,999 per year. That replaces $4,200–$6,900 in separate subscriptions for Mailchimp, Buffer, Squarespace, SMS tools, CRMs, and analytics."
+      answer: "BloomSuite offers four plans starting at $199/month: Seed ($199) for CRM and messaging, Sprout ($349) adds a website, Bloom ($699) includes higher volumes for growing centers, and Thrive ($1,199) offers unlimited emails for multi-location retailers. All plans include the full platform — no hidden fees."
     }, {
       question: "Will my price go up later?",
-      answer: "No. Your $2,999/year rate is locked in as long as you're an active customer."
+      answer: "Founding customers who join during the Launch Program lock in introductory pricing for life, as long as their subscription remains active. Future customers will pay standard rates."
     }, {
       question: "Are there any extra fees?",
-      answer: "Everything is included. The only usage-based costs are SMS carrier fees (usually pennies per message), and you'll see estimates before sending."
+      answer: "Each plan includes generous email and SMS volumes. If you exceed your limits, overage rates are transparent: $0.002/email and $0.03/SMS. You'll see usage in your dashboard and get alerts at 80% and 100%."
+    }, {
+      question: "Can I switch plans as my garden centre grows?",
+      answer: "Absolutely! You can upgrade or downgrade at any time. Upgrades take effect immediately with access to higher limits. Downgrades apply at your next billing cycle."
     }]
   }, {
     id: "ecommerce",
