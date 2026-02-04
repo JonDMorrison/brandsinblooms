@@ -195,9 +195,9 @@ const FAQPage = () => {
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mt-12">
             {faqCategories.map(category => {
             const IconComponent = category.icon;
-            return <Button key={category.id} variant="outline" onClick={() => scrollToCategory(category.id)} className="flex flex-col items-center gap-2 h-auto py-4 px-3 bg-white/95 hover:bg-white border-2 border-white/50 hover:border-primary/40 transition-all group shadow-lg hover:shadow-xl">
-                  <IconComponent className="h-6 w-6 text-primary group-hover:scale-110 transition-transform" />
-                  <span className="text-sm font-medium text-center leading-tight text-gray-800">{category.title}</span>
+            return <Button key={category.id} variant="outline" onClick={() => scrollToCategory(category.id)} className="flex flex-col items-center justify-center gap-2 h-auto min-h-[100px] py-4 px-2 bg-white/95 hover:bg-white border-2 border-white/50 hover:border-primary/40 transition-all group shadow-lg hover:shadow-xl overflow-hidden">
+                  <IconComponent className="h-6 w-6 text-primary group-hover:scale-110 transition-transform flex-shrink-0" />
+                  <span className="text-xs font-medium text-center leading-tight text-gray-800 break-words w-full px-1">{category.title}</span>
                 </Button>;
           })}
           </div>
