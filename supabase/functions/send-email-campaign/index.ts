@@ -356,6 +356,8 @@ serve(async (req) => {
     }
 
     let recipientCount = customers.length;
+    const originalRecipientCount = recipientCount;
+    const isPartialSend = false; // Warmup truncation is currently disabled
     console.log(`📧 Found ${recipientCount} customers`);
 
     // Auto-select the tenant's active domain if none specified on campaign
@@ -664,8 +666,7 @@ serve(async (req) => {
         const { error: updateError } = await supabase
           .from('email_domains')
           .update({ 
-            daily_sent_count: (quotaCheck.limits?.daily_used || 0) + sent,
-            daily_used: (quotaCheck.limits?.daily_used || 0) + sent
+            daily_sent_count: (quotaCheck.limits?.daily_used || 0) + sent
           })
           .eq('id', activeDomainId);
         if (updateError) console.error('Failed to update domain daily count:', updateError);
