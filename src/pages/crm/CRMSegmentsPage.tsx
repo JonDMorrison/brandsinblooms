@@ -14,6 +14,7 @@ import { CustomSegmentModal } from '@/components/crm/segments/CustomSegmentModal
 import { SegmentOverviewCard } from '@/components/crm/segments/SegmentOverviewCard';
 import { SegmentCustomersModal } from '@/components/crm/segments/SegmentCustomersModal';
 import { EnhancedSegmentImportDialog } from '@/components/crm/segments/EnhancedSegmentImportDialog';
+import { SegmentSMSDialog } from '@/components/sms/SegmentSMSDialog';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useNavigate } from 'react-router-dom';
 
@@ -72,6 +73,7 @@ export const CRMSegmentsPage: React.FC = () => {
   const [showImportModal, setShowImportModal] = useState(false);
   const [highlightedSegment, setHighlightedSegment] = useState<string | null>(null);
   const [selectedSegment, setSelectedSegment] = useState<{ id: string; name: string } | null>(null);
+  const [smsSegment, setSmsSegment] = useState<{ id: string; name: string; count: number; isSystem: boolean } | null>(null);
   const [activeTab, setActiveTab] = useState<'visible' | 'hidden'>('visible');
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -108,8 +110,11 @@ export const CRMSegmentsPage: React.FC = () => {
   };
 
   const handleCreateCampaign = (segmentId: string) => {
-    console.log('Create campaign for segment:', segmentId);
     navigate(`/crm/campaigns/new?segment=${segmentId}`);
+  };
+
+  const handleSendSMS = (segmentId: string, segmentName: string, count: number, isSystem: boolean) => {
+    setSmsSegment({ id: segmentId, name: segmentName, count, isSystem });
   };
 
   const handleViewSegmentDetails = (segmentId: string) => {
@@ -302,6 +307,7 @@ export const CRMSegmentsPage: React.FC = () => {
                           onCreateCampaign={() => handleCreateCampaign(segment.id)}
                           onViewDetails={() => handleViewSegmentDetails(segment.id)}
                           onHide={() => hideSegment(segment.id)}
+                          onSendSMS={() => handleSendSMS(segment.id, segment.name, counts[segment.id as keyof typeof counts] || 0, true)}
                         />
                       </div>
                     ))}
@@ -337,6 +343,7 @@ export const CRMSegmentsPage: React.FC = () => {
                           onCreateCampaign={() => handleCreateCampaign(segment.id)}
                           onViewDetails={() => handleViewSegmentDetails(segment.id)}
                           onShow={() => showSegment(segment.id)}
+                          onSendSMS={() => handleSendSMS(segment.id, segment.name, counts[segment.id as keyof typeof counts] || 0, true)}
                         />
                       </div>
                     ))}
@@ -425,6 +432,18 @@ export const CRMSegmentsPage: React.FC = () => {
           segmentId={selectedSegment.id}
           segmentName={selectedSegment.name}
           onAssignmentChange={refreshCounts}
+        />
+      )}
+
+      {/* SMS Dialog for System Segments */}
+      {smsSegment && (
+        <SegmentSMSDialog
+          open={!!smsSegment}
+          onOpenChange={(open) => !open && setSmsSegment(null)}
+          segmentId={smsSegment.id}
+          segmentName={smsSegment.name}
+          customerCount={smsSegment.count}
+          isSystemSegment={smsSegment.isSystem}
         />
       )}
     </div>
