@@ -254,7 +254,10 @@ export const SegmentDetailsModal: React.FC<SegmentDetailsModalProps> = ({
           <div className="flex items-center gap-4 p-4 bg-muted/50 rounded-lg">
             <div className="flex items-center gap-2">
               <Users className="h-5 w-5 text-primary" />
-              <span className="font-semibold">{segmentTotalCount} Customers</span>
+              <span className="font-semibold">
+                {/* Use the higher of segmentTotalCount (from live query) or segment.customer_count (from parent) */}
+                {Math.max(segmentTotalCount, segment.customer_count || 0)} Customers
+              </span>
             </div>
             {segment.auto_update && (
               <Badge variant="outline">Auto-update</Badge>

@@ -42,26 +42,32 @@ export const useCRMSegments = () => {
       
       console.log('📋 Found segments:', segmentsData);
 
-      // Then get customer counts for each segment
+      // Get customer counts for each segment using efficient count queries
       const segmentsWithCount = await Promise.all(
         (segmentsData || []).map(async (segment) => {
-          console.log(`🔢 Counting customers for segment: ${segment.name} (${segment.id})`);
-          
-          const { count, error: countError } = await supabase
-            .from('customer_segments')
-            .select('*', { count: 'exact', head: true })
-            .eq('segment_id', segment.id);
+          try {
+            // Use the RPC or a simple count query
+            const { count, error: countError } = await supabase
+              .from('customer_segments')
+              .select('*', { count: 'exact', head: true })
+              .eq('segment_id', segment.id);
 
-          if (countError) {
-            console.error('❌ Error counting customers for segment:', segment.id, countError);
+            if (countError) {
+              console.error('❌ Error counting customers for segment:', segment.id, countError);
+              // Return the DB stored count as fallback
+              return { ...segment };
+            }
+
+            console.log(`✅ Customer count for ${segment.name}:`, count);
+
+            return {
+              ...segment,
+              customer_count: count ?? segment.customer_count ?? 0
+            };
+          } catch (err) {
+            console.error('❌ Exception counting customers for segment:', segment.id, err);
+            return { ...segment };
           }
-
-          console.log(`✅ Customer count for ${segment.name}:`, count);
-
-          return {
-            ...segment,
-            customer_count: count || 0
-          };
         })
       );
       
