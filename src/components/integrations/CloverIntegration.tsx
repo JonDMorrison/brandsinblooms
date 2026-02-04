@@ -391,7 +391,7 @@ export const CloverIntegration = () => {
               </div>
               {tokenExpiry && (
                 <div>
-                  <p className="text-muted-foreground">Token Expiry</p>
+                  <p className="text-muted-foreground">Connection Valid Until</p>
                   <p className={`font-medium ${tokenExpiry.color}`}>
                     <Clock className="h-3 w-3 inline mr-1" />
                     {tokenExpiry.text}
