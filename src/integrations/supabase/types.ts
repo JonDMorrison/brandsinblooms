@@ -6659,6 +6659,7 @@ export type Database = {
           daily_sent_count: number | null
           default_from_email: string | null
           default_from_name: string | null
+          default_reply_to: string | null
           dns_records: Json | null
           domain: string
           entri_connection_id: string | null
@@ -6699,6 +6700,7 @@ export type Database = {
           daily_sent_count?: number | null
           default_from_email?: string | null
           default_from_name?: string | null
+          default_reply_to?: string | null
           dns_records?: Json | null
           domain: string
           entri_connection_id?: string | null
@@ -6739,6 +6741,7 @@ export type Database = {
           daily_sent_count?: number | null
           default_from_email?: string | null
           default_from_name?: string | null
+          default_reply_to?: string | null
           dns_records?: Json | null
           domain?: string
           entri_connection_id?: string | null

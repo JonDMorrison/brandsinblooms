@@ -29,6 +29,7 @@ export const DomainSenderSettings: React.FC<DomainSenderSettingsProps> = ({
   const { updateDomainSender, domains } = useEmailDomainManagement();
   const [fromName, setFromName] = useState('');
   const [fromEmail, setFromEmail] = useState('');
+  const [replyToEmail, setReplyToEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -38,6 +39,7 @@ export const DomainSenderSettings: React.FC<DomainSenderSettingsProps> = ({
     if (domain) {
       setFromName(domain.default_from_name || '');
       setFromEmail(domain.default_from_email || '');
+      setReplyToEmail((domain as any).default_reply_to || '');
     }
   }, [domain]);
 
@@ -61,14 +63,20 @@ export const DomainSenderSettings: React.FC<DomainSenderSettingsProps> = ({
       return;
     }
 
+    // Validate reply-to email if provided
+    if (replyToEmail.trim() && !emailRegex.test(replyToEmail)) {
+      setError('Please enter a valid reply-to email address');
+      return;
+    }
+
     // Validate email belongs to domain
     if (domain && !fromEmail.toLowerCase().endsWith(`@${domain.domain}`)) {
-      setError(`Email must end with @${domain.domain}`);
+      setError(`Sender email must end with @${domain.domain}`);
       return;
     }
 
     setLoading(true);
-    const result = await updateDomainSender(domainId, fromName, fromEmail);
+    const result = await updateDomainSender(domainId, fromName, fromEmail, replyToEmail.trim() || null);
     setLoading(false);
 
     if (result.success) {
@@ -113,6 +121,19 @@ export const DomainSenderSettings: React.FC<DomainSenderSettingsProps> = ({
             />
             <p className="text-xs text-muted-foreground">
               Must be an address on your verified domain
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="replyToEmail">Reply-To Email (Optional)</Label>
+            <Input
+              id="replyToEmail"
+              placeholder="replies@example.com"
+              value={replyToEmail}
+              onChange={(e) => setReplyToEmail(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">
+              Where customer replies will be sent. Can be any email address.
             </p>
           </div>
 

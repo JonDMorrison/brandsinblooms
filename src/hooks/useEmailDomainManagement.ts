@@ -116,7 +116,8 @@ export const useEmailDomainManagement = () => {
   const updateDomainSender = async (
     domainId: string, 
     fromName: string, 
-    fromEmail: string
+    fromEmail: string,
+    replyToEmail?: string | null
   ): Promise<{ success: boolean }> => {
     try {
       // Validate email belongs to the domain
@@ -126,13 +127,20 @@ export const useEmailDomainManagement = () => {
         return { success: false };
       }
 
+      const updateData: any = {
+        default_from_name: fromName,
+        default_from_email: fromEmail,
+        updated_at: new Date().toISOString()
+      };
+
+      // Only include reply_to if explicitly provided (allows clearing it with null)
+      if (replyToEmail !== undefined) {
+        updateData.default_reply_to = replyToEmail;
+      }
+
       const { error } = await supabase
         .from('email_domains')
-        .update({
-          default_from_name: fromName,
-          default_from_email: fromEmail,
-          updated_at: new Date().toISOString()
-        })
+        .update(updateData)
         .eq('id', domainId);
 
       if (error) throw error;
