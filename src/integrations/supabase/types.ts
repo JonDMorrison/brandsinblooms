@@ -13771,9 +13771,27 @@ export type Database = {
       }
       get_global_in_progress_count: { Args: never; Returns: number }
       get_jwt_tenant_id: { Args: never; Returns: string }
+      get_my_overdue_campaigns: {
+        Args: never
+        Returns: {
+          campaigns: Json
+          oldest_scheduled_at: string
+          overdue_count: number
+        }[]
+      }
       get_next_message_sequence: {
         Args: { p_session_id: string }
         Returns: number
+      }
+      get_overdue_campaigns: {
+        Args: { p_tenant_id?: string }
+        Returns: {
+          campaign_ids: string[]
+          oldest_scheduled_at: string
+          overdue_count: number
+          tenant_id: string
+          tenant_name: string
+        }[]
       }
       get_remaining_budget: { Args: { p_tenant_id: string }; Returns: Json }
       get_sms_warmup_info: {
