@@ -175,8 +175,8 @@ const handler = async (req: Request): Promise<Response> => {
       console.log("📧 Resolved sender config:", senderConfig);
     }
 
-    // Determine reply-to email and sender name
-    const replyToEmail = companyProfile?.custom_sender_email || user.email;
+    // Determine reply-to email (prefer sender settings, then custom email, then user email)
+    const replyToEmail = senderConfig?.replyTo || companyProfile?.custom_sender_email || user.email;
     const senderName = companyProfile?.company_name || 'BloomSuite';
     
     // Use sender resolver config if available, otherwise fallback to default

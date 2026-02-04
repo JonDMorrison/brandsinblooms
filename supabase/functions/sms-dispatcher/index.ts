@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.10';
 import { Resend } from "https://esm.sh/resend@2";
 import { generateServerFooterHtml, hasProperFooter, type CompanyProfileData } from "../_shared/footerGenerator.ts";
+import { resolveSender, buildFromAddress } from "../_shared/senderResolver.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -285,14 +286,17 @@ async function sendEmail(supabase: any, message: OutboxMessage): Promise<boolean
       `;
     }
 
-    // Determine sender
-    const senderEmail = companyProfile?.custom_sender_email || 'noreply@bloomsuite.app';
-    const fromAddress = `${companyName} <${senderEmail}>`;
+    // Resolve sender using unified sender resolver
+    const senderConfig = await resolveSender(supabase, message.tenant_id, {});
+    const fromAddress = buildFromAddress(senderConfig);
+    // Reply-to: use sender settings with fallback to sender email
+    const replyTo = senderConfig.replyTo || senderConfig.fromEmail;
 
     // Send email via Resend
     const emailResponse = await resend.emails.send({
       from: fromAddress,
       to: [message.recipient],
+      reply_to: replyTo,
       subject: message.subject || 'Notification from your garden center',
       html: emailContent,
       headers: {
