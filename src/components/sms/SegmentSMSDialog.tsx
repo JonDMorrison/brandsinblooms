@@ -143,17 +143,29 @@ export const SegmentSMSDialog: React.FC<SegmentSMSDialogProps> = ({
 
     setIsSending(true);
     try {
-      // 1. Create SMS campaign record
+      // Format current date/time for campaign name
+      const now = new Date();
+      const dateTimeStr = now.toLocaleString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+      });
+
+      // 1. Create SMS campaign record (marked as segment_send so it's hidden from main dashboard)
       const { data: campaign, error: campaignError } = await supabase
         .from('crm_sms_campaigns')
         .insert({
           tenant_id: tenantId,
           user_id: user.id,
-          name: `SMS to ${segmentName}`,
+          name: `SMS to ${segmentName} - ${dateTimeStr}`,
           message: message,
           image_url: mediaUrl || null,
           status: 'sending',
           segment_id: isSystemSegment ? null : segmentId,
+          source: 'segment_send', // Mark as segment send to exclude from dashboard
         })
         .select()
         .single();
