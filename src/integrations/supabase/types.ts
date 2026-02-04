@@ -2568,6 +2568,7 @@ export type Database = {
         Row: {
           actual_sender_email: string | null
           auto_send_enabled: boolean | null
+          claim_token: string | null
           click_rate: number | null
           content: string | null
           created_at: string | null
@@ -2613,6 +2614,7 @@ export type Database = {
         Insert: {
           actual_sender_email?: string | null
           auto_send_enabled?: boolean | null
+          claim_token?: string | null
           click_rate?: number | null
           content?: string | null
           created_at?: string | null
@@ -2658,6 +2660,7 @@ export type Database = {
         Update: {
           actual_sender_email?: string | null
           auto_send_enabled?: boolean | null
+          claim_token?: string | null
           click_rate?: number | null
           content?: string | null
           created_at?: string | null
@@ -13429,6 +13432,7 @@ export type Database = {
         Returns: {
           actual_sender_email: string | null
           auto_send_enabled: boolean | null
+          claim_token: string | null
           click_rate: number | null
           content: string | null
           created_at: string | null
@@ -13518,6 +13522,16 @@ export type Database = {
       cleanup_expired_oauth_states: { Args: never; Returns: undefined }
       cleanup_old_oauth_codes: { Args: never; Returns: undefined }
       cleanup_stale_sync_jobs: { Args: never; Returns: number }
+      complete_campaign_send: {
+        Args: {
+          p_campaign_id: string
+          p_claim_token: string
+          p_error_message?: string
+          p_metrics?: Json
+          p_success: boolean
+        }
+        Returns: boolean
+      }
       complete_pos_sync_job: {
         Args: {
           p_cursor?: string
@@ -14221,6 +14235,10 @@ export type Database = {
           p_window_start: string
         }
         Returns: number
+      }
+      verify_campaign_claim: {
+        Args: { p_campaign_id: string; p_claim_token: string }
+        Returns: boolean
       }
     }
     Enums: {
