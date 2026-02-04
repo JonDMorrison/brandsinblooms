@@ -708,7 +708,8 @@ async function enqueueMessage(
           from_email: senderConfig.fromEmail,
           from_name: senderConfig.fromName,
           delivery_method: senderConfig.deliveryMethod,
-          domain_id: senderConfig.domainId || null
+          domain_id: senderConfig.domainId || null,
+          reply_to: senderConfig.replyTo || senderConfig.fromEmail  // Include reply-to with sender fallback
         } : null
       },
       scheduled_at: scheduledAt.toISOString(),
