@@ -170,16 +170,14 @@ export const ScheduleSelector: React.FC<ScheduleSelectorProps> = ({
         </div>
 
         {/* Calendar */}
-        <div className="rounded-lg border border-border bg-muted/30 p-3 pointer-events-auto">
-          <Calendar
-            mode="single"
-            selected={selectedDate}
-            onSelect={handleDateSelect}
-            disabled={isDateInPast}
-            initialFocus
-            className="pointer-events-auto"
-          />
-        </div>
+        <Calendar
+          mode="single"
+          selected={selectedDate}
+          onSelect={handleDateSelect}
+          disabled={isDateInPast}
+          initialFocus
+          className="pointer-events-auto w-full"
+        />
 
         {/* Date & Time Row */}
         <div className="rounded-lg border border-border bg-background p-4 space-y-4">
