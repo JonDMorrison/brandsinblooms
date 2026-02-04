@@ -3531,6 +3531,7 @@ export type Database = {
           segment_id: string | null
           sending_identity_id: string | null
           sent_at: string | null
+          source: string | null
           status: string
           targeting_logic: string | null
           targeting_persona_ids: string[] | null
@@ -3562,6 +3563,7 @@ export type Database = {
           segment_id?: string | null
           sending_identity_id?: string | null
           sent_at?: string | null
+          source?: string | null
           status?: string
           targeting_logic?: string | null
           targeting_persona_ids?: string[] | null
@@ -3593,6 +3595,7 @@ export type Database = {
           segment_id?: string | null
           sending_identity_id?: string | null
           sent_at?: string | null
+          source?: string | null
           status?: string
           targeting_logic?: string | null
           targeting_persona_ids?: string[] | null
