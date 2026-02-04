@@ -506,8 +506,10 @@ async function sendEmail(
         fromName: templateData.sender_config.from_name,
         deliveryMethod: templateData.sender_config.delivery_method,
         domainId: templateData.sender_config.domain_id,
+        // Extract reply-to with fallback to sender email
+        replyTo: templateData.sender_config.reply_to || templateData.sender_config.from_email,
       } as SenderConfig;
-      console.log(`📧 [SendEmail] Using pre-resolved sender: ${senderConfig.deliveryMethod} (${senderConfig.fromEmail})`);
+      console.log(`📧 [SendEmail] Using pre-resolved sender: ${senderConfig.deliveryMethod} (${senderConfig.fromEmail}), reply-to: ${senderConfig.replyTo}`);
     } else {
       senderConfig = await resolveSender(supabase, message.tenant_id, {});
       console.log(`📧 [SendEmail] Dynamically resolved sender: ${senderConfig.deliveryMethod} (${senderConfig.fromEmail})`);
