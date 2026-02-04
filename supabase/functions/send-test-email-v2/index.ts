@@ -137,7 +137,8 @@ const handler = async (req: Request): Promise<Response> => {
     // Resolve sender
     const senderConfig = await resolveSender(supabaseClient, tenantId, { userId: user.id });
     const fromAddress = senderConfig ? buildFromAddress(senderConfig) : `${companyProfile?.company_name || 'BloomSuite'} <hello@notify.bloomsuite.app>`;
-    const replyTo = companyProfile?.custom_sender_email || user.email;
+    // Prioritize domain reply_to, fallback to company sender or user email
+    const replyTo = senderConfig?.replyTo || companyProfile?.custom_sender_email || user.email;
 
     // Send via Resend
     const emailResponse = await resend.emails.send({
