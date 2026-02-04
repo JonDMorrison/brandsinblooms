@@ -20,6 +20,7 @@ interface ClaimedCampaign {
   scheduled_at: string;
   segment_id?: string;
   send_attempts?: number;
+  claim_token?: string;
   [key: string]: any;
 }
 
@@ -150,6 +151,27 @@ const handler = async (req: Request): Promise<Response> => {
           continue;
         }
 
+        // Verify claim is still valid before sending
+        if (campaign.claim_token) {
+          const { data: claimValid } = await supabase.rpc('verify_campaign_claim', {
+            p_campaign_id: campaign.id,
+            p_claim_token: campaign.claim_token
+          });
+          
+          if (!claimValid) {
+            console.warn(`⚠️ [${runId}] Campaign ${campaign.id} claim invalid - skipping to prevent double-send`);
+            results.push({
+              id: campaign.id,
+              name: campaign.name,
+              status: 'skipped',
+              durationMs: Date.now() - campaignStartTime,
+              error: 'Claim token invalid',
+              sendAttempts
+            });
+            continue;
+          }
+        }
+
         // Call the email sending service
         console.log(`🚀 [${runId}] Invoking send-email-campaign for ${campaign.id}...`);
         
@@ -171,15 +193,13 @@ const handler = async (req: Request): Promise<Response> => {
         const sentCount = sendResult?.metrics?.sent || 0;
         const failedCount = sendResult?.metrics?.failed || 0;
 
-        // Success: Update campaign status to sent
-        await supabase
-          .from('crm_campaigns')
-          .update({ 
-            status: 'sent',
-            sent_at: new Date().toISOString(),
-            failure_reason: null,
-            send_error: null,
-            metrics: {
+        // Success: Use RPC to complete with claim token verification
+        if (campaign.claim_token) {
+          const { data: completed } = await supabase.rpc('complete_campaign_send', {
+            p_campaign_id: campaign.id,
+            p_claim_token: campaign.claim_token,
+            p_success: true,
+            p_metrics: {
               sent: sentCount,
               failed: failedCount,
               delivered: 0,
@@ -189,8 +209,34 @@ const handler = async (req: Request): Promise<Response> => {
               unsubscribed: 0,
               revenue: 0
             }
-          })
-          .eq('id', campaign.id);
+          });
+          
+          if (!completed) {
+            console.warn(`⚠️ [${runId}] Campaign ${campaign.id} completion failed - claim token mismatch`);
+          }
+        } else {
+          // Fallback for campaigns without claim token
+          await supabase
+            .from('crm_campaigns')
+            .update({ 
+              status: 'sent',
+              sent_at: new Date().toISOString(),
+              failure_reason: null,
+              send_error: null,
+              claim_token: null,
+              metrics: {
+                sent: sentCount,
+                failed: failedCount,
+                delivered: 0,
+                opened: 0,
+                clicked: 0,
+                bounced: 0,
+                unsubscribed: 0,
+                revenue: 0
+              }
+            })
+            .eq('id', campaign.id);
+        }
 
         const campaignDuration = Date.now() - campaignStartTime;
         console.log(`✅ [${runId}] Campaign ${campaign.id} sent successfully`);
@@ -219,21 +265,31 @@ const handler = async (req: Request): Promise<Response> => {
         console.error(`   Error: ${errorMessage}`);
         console.error(`   Duration: ${campaignDuration}ms, Attempts: ${sendAttempts}`);
         
-        // Failure: Update campaign status to failed with detailed error
-        await supabase
-          .from('crm_campaigns')
-          .update({ 
-            status: 'failed',
-            failure_reason: errorMessage,
-            send_error: errorMessage,
-            metadata: {
-              ...campaign.metadata,
-              last_error: errorMessage,
-              failed_at: new Date().toISOString(),
-              run_id: runId
-            }
-          })
-          .eq('id', campaign.id);
+        // Failure: Use RPC if claim token exists, otherwise direct update
+        if (campaign.claim_token) {
+          await supabase.rpc('complete_campaign_send', {
+            p_campaign_id: campaign.id,
+            p_claim_token: campaign.claim_token,
+            p_success: false,
+            p_error_message: errorMessage
+          });
+        } else {
+          await supabase
+            .from('crm_campaigns')
+            .update({ 
+              status: 'failed',
+              failure_reason: errorMessage,
+              send_error: errorMessage,
+              claim_token: null,
+              metadata: {
+                ...campaign.metadata,
+                last_error: errorMessage,
+                failed_at: new Date().toISOString(),
+                run_id: runId
+              }
+            })
+            .eq('id', campaign.id);
+        }
 
         campaignsFailed++;
         results.push({
