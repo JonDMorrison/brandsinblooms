@@ -66,7 +66,7 @@ const FAQPage = () => {
       answer: "Founding customers who join during the Launch Program lock in introductory pricing for life, as long as their subscription remains active. Future customers will pay standard rates."
     }, {
       question: "Are there any extra fees?",
-      answer: "Each plan includes generous email and SMS volumes. If you exceed your limits, overage rates are transparent: $0.002/email and $0.03/SMS. You'll see usage in your dashboard and get alerts at 80% and 100%."
+      answer: "Each plan includes generous email and SMS volumes. If you exceed your limits, overage rates are transparent: $0.002/email and $0.05/SMS. You'll see usage in your dashboard and get alerts at 80% and 100%."
     }, {
       question: "Can I switch plans as my garden centre grows?",
       answer: "Absolutely! You can upgrade or downgrade at any time. Upgrades take effect immediately with access to higher limits. Downgrades apply at your next billing cycle."

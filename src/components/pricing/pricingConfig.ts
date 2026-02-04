@@ -32,7 +32,7 @@ export const pricingTiers: PricingTier[] = [
     },
     overages: {
       emails: "$0.002/email",
-      sms: "$0.03/SMS",
+      sms: "$0.05/SMS",
     },
     bestFor: "Garden centres with an existing website who want BloomSuite CRM, messaging, automations, and insights.",
     icon: Leaf,
@@ -49,7 +49,7 @@ export const pricingTiers: PricingTier[] = [
     },
     overages: {
       emails: "$0.002/email",
-      sms: "$0.03/SMS",
+      sms: "$0.05/SMS",
     },
     bestFor: "Small to medium garden centres with 5,000 to 10,000 contacts.",
     icon: Sprout,
@@ -66,7 +66,7 @@ export const pricingTiers: PricingTier[] = [
     },
     overages: {
       emails: "$0.002/email",
-      sms: "$0.03/SMS",
+      sms: "$0.05/SMS",
     },
     bestFor: "Medium to large garden centres with 10,000 to 25,000 contacts or heavy SMS usage.",
     recommended: true,
