@@ -59,7 +59,8 @@ function buildEmailPayloadOptimized(
   senderEmail: string,
   usesVerifiedDomain: boolean,
   activeDomainId: string | null,
-  sharedFooterTemplate: string
+  sharedFooterTemplate: string,
+  replyToEmail?: string
 ): any {
   const companyName = companyProfile?.company_name || 'Your Garden Center';
   
@@ -123,7 +124,10 @@ function buildEmailPayloadOptimized(
     ]
   };
 
-  if (usesVerifiedDomain && senderEmail !== 'noreply@bloomsuite.app') {
+  // Set reply-to: prefer custom reply-to, otherwise use sender email for verified domains
+  if (replyToEmail) {
+    emailPayload.reply_to = replyToEmail;
+  } else if (usesVerifiedDomain && senderEmail !== 'noreply@bloomsuite.app') {
     emailPayload.reply_to = senderEmail;
   }
 
@@ -433,6 +437,21 @@ serve(async (req) => {
       activeDomainId = quotaCheck.domain?.id || null;
     }
 
+    // Fetch reply-to email from domain settings
+    let replyToEmail: string | undefined;
+    if (activeDomainId) {
+      const { data: domainData } = await supabase
+        .from('email_domains')
+        .select('default_reply_to')
+        .eq('id', activeDomainId)
+        .single();
+      
+      if (domainData?.default_reply_to) {
+        replyToEmail = domainData.default_reply_to;
+        console.log(`📧 Using custom reply-to: ${replyToEmail}`);
+      }
+    }
+
     const fromAddress = `${senderDisplayName} <${senderEmail}>`;
 
     // Build profile data for footer
@@ -523,7 +542,7 @@ serve(async (req) => {
         let payload = buildEmailPayloadOptimized(
           customer, campaign, companyProfile, profileData,
           fromAddress, senderEmail, usesVerifiedDomain, activeDomainId,
-          sharedFooterTemplate
+          sharedFooterTemplate, replyToEmail
         );
         
         // Rewrite links in the email HTML with tracking URLs
