@@ -7,6 +7,7 @@ import { ArrowLeft, Copy, Users, Calendar, Send, Mail, Eye, MousePointerClick, U
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import { ForceSendButton } from "@/components/crm/campaigns/ForceSendButton";
 
 interface EmailCampaignDetail {
   id: string;
@@ -19,6 +20,7 @@ interface EmailCampaignDetail {
   sent_at: string | null;
   segment_id: string | null;
   metrics: any;
+  failure_reason?: string | null;
   crm_segments?: {
     name: string;
     customer_count: number;
@@ -152,19 +154,26 @@ export default function CRMCampaignDetail() {
         </div>
         <div className="flex items-center space-x-2">
           {getStatusBadge(campaign.status)}
-        {campaign.status === 'sent' && (
-          <Button 
-            variant="default" 
-            size="sm" 
-            asChild
-            className="ml-4"
-          >
-            <Link to={`/crm/campaigns/${campaign.id}/analytics`}>
-              <TrendingUp className="h-4 w-4 mr-2" />
-              View Analytics
-            </Link>
-          </Button>
-        )}
+          {campaign.status === 'sent' && (
+            <Button 
+              variant="default" 
+              size="sm" 
+              asChild
+              className="ml-4"
+            >
+              <Link to={`/crm/campaigns/${campaign.id}/analytics`}>
+                <TrendingUp className="h-4 w-4 mr-2" />
+                View Analytics
+              </Link>
+            </Button>
+          )}
+          <ForceSendButton
+            campaignId={campaign.id}
+            campaignName={campaign.name}
+            status={campaign.status}
+            failureReason={campaign.failure_reason}
+            onSuccess={fetchCampaign}
+          />
           <Button variant="outline" asChild>
             <Link to={`/crm/campaigns/new?duplicate=${campaign.id}`}>
               <Copy className="h-4 w-4 mr-2" />
