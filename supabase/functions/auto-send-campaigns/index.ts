@@ -45,9 +45,26 @@ const handler = async (req: Request): Promise<Response> => {
   console.log(`📅 [${runId}] Timestamp: ${new Date().toISOString()}`);
 
   try {
+    // Check for stuck campaigns before claiming (for logging purposes)
+    const { data: stuckCampaigns } = await supabase
+      .from('crm_campaigns')
+      .select('id, name, sending_started_at, send_attempts')
+      .eq('status', 'sending')
+      .lt('sending_started_at', new Date(Date.now() - 15 * 60 * 1000).toISOString());
+    
+    if (stuckCampaigns && stuckCampaigns.length > 0) {
+      console.log(`⚠️ [${runId}] Found ${stuckCampaigns.length} stuck campaigns (sending > 15 min)`);
+      stuckCampaigns.forEach(c => {
+        console.log(`   - "${c.name}" (${c.id}) - attempts: ${c.send_attempts || 0}, started: ${c.sending_started_at}`);
+      });
+      console.log(`🔄 [${runId}] Recovery will be handled atomically by claim_scheduled_campaigns RPC`);
+    }
+
     // Step 1: Atomically claim scheduled campaigns using the RPC
-    // This uses FOR UPDATE SKIP LOCKED to prevent double-claiming
-    console.log(`📋 [${runId}] Claiming scheduled campaigns with atomic RPC...`);
+    // The RPC also handles recovery of stuck campaigns:
+    // - Campaigns stuck for >15 min with <3 attempts → reset to 'scheduled'
+    // - Campaigns stuck for >15 min with >=3 attempts → marked as 'failed'
+    console.log(`📋 [${runId}] Claiming scheduled campaigns with atomic RPC (includes stuck recovery)...`);
     
     const { data: claimedCampaigns, error: claimError } = await supabase
       .rpc('claim_scheduled_campaigns', { batch_size: 10 });
