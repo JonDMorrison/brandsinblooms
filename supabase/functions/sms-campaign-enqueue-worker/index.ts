@@ -345,31 +345,21 @@ Deno.serve(async (req) => {
         const mergeTagData = createMergeTagDataFromCustomer(customer, companyInfo);
         const renderedContent = renderMergeTags(messageTemplate, mergeTagData);
         const formattedPhone = formatPhoneForTwilio(customer.phone);
-        const segmentInfo = countSmsSegments(renderedContent);
-        const billableUnits = isMms ? mmsUnitCost : segmentInfo.segments;
 
         if (customer.is_vip) pageHasVip = true;
 
+        // Build media_urls array if there's an image
+        const mediaUrls = campaign.image_url ? [campaign.image_url] : (campaign.media_urls || null);
+
         messageRows.push({
-          tenant_id: campaign.tenant_id,
           campaign_id: campaign.id,
           customer_id: customer.id,
           phone: formattedPhone,
           content: renderedContent,
           status: 'queued',
           from_phone: fromPhone,
-          media_url: campaign.image_url || null,
-          segment_count: segmentInfo.segments,
-          encoding: segmentInfo.encoding,
-          is_mms: isMms,
-          billable_units: billableUnits,
-          attempts: 0,
-          metadata: {
-            campaign_name: campaign.name,
-            segment_id: campaign.segment_id,
-            queued_at: new Date().toISOString(),
-            is_vip: customer.is_vip
-          }
+          media_urls: mediaUrls,
+          attempts: 0
         });
       }
 
