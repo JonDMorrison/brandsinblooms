@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Target, Users, MessageSquare } from 'lucide-react';
+import { Target, Users } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { SegmentDetailsModal } from './SegmentDetailsModal';
 import { SegmentSMSDialog } from '@/components/sms/SegmentSMSDialog';
@@ -80,17 +80,6 @@ export const SegmentCard: React.FC<SegmentCardProps> = ({ segment, onSegmentUpda
               }}
             >
               View Details
-            </Button>
-            <Button 
-              variant="outline"
-              size="sm" 
-              className="flex-1"
-              onClick={() => {
-                setShowSMSDialog(true);
-              }}
-            >
-              <MessageSquare className="h-3 w-3 mr-1" />
-              Send SMS
             </Button>
             <Button 
               size="sm" 
