@@ -19,10 +19,10 @@ function Calendar({
       className={cn("p-3 pointer-events-auto", className)}
       classNames={{
         months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
-        month: "space-y-4",
-        month_caption: "flex items-center justify-between w-full px-1 pb-2",
-        caption_label: "text-sm font-semibold text-foreground",
-        nav: "flex items-center gap-1",
+        month: "space-y-4 flex flex-col",
+        month_caption: "flex items-center justify-between w-full px-1 pb-2 order-first",
+        caption_label: "text-sm font-semibold text-foreground order-first",
+        nav: "flex items-center gap-1 ml-auto",
         button_previous: cn(
           "h-6 w-6 inline-flex items-center justify-center rounded border border-input bg-background hover:bg-accent hover:text-accent-foreground transition-colors"
         ),
