@@ -1,194 +1,202 @@
 
-# Add Segments to SMS Campaign Builder
+# Plan: Send SMS to Specific Segments Feature
 
-## Problem Summary
+## Overview
+Add functionality to send SMS messages directly to customer segments from multiple entry points in the application, with proper activity logging for tracking.
 
-Christine from Down To Earth cannot find segments (like "Perks members") in the SMS builder, and "All SMS Subscribers" only shows a few members.
+## User Journey
 
-**Root Causes Identified:**
+### Entry Points
+Users will be able to send SMS to a segment from:
+1. **/sms Dashboard** - New "Send to Segment" card/action
+2. **Segment Details Modal** - "Send SMS" button in the dialog footer
+3. **Custom Segment Cards** - "Send SMS" action button alongside existing buttons
+4. **System Segment Cards** - "Send SMS" action on overview cards
 
-1. **SMS wizard queries wrong table**: It queries `custom_segments` (empty) instead of `crm_segments` (where segments are actually stored)
-2. **System segments not included**: Predefined segments like "Loyalty Members" and "High-Value Customers" are visible on the CRM Segments page but not available in the SMS wizard
-3. **No "Perks Members" segment**: The system has "Loyalty Members" but it's tag-based, not linked to the `is_perks_member` field in `customer_loyalty_metrics`
-4. **Low SMS opt-in**: Only 1 of 622 customers has both a phone number AND sms_opt_in enabled
-
----
-
-## Solution Overview
-
-### Part 1: Fix Segment Loading in SMS Wizard
-
-Update the SMS Campaign Wizard to load segments from the correct sources:
-
-```text
-CURRENT:  custom_segments table only (empty)
-FIXED:    crm_segments table + predefined system segments with live counts
-```
-
-### Part 2: Add "Perks Members" as a System Segment
-
-Create a new predefined segment based on `is_perks_member = true` from the `customer_loyalty_metrics` table.
+### Flow
+1. User clicks "Send SMS" on any segment
+2. Opens a dedicated dialog showing:
+   - Segment name and customer count
+   - Message composer with character counter
+   - Optional image upload for MMS
+   - Phone preview of the message
+   - Send button with confirmation
+3. On send, system creates a campaign, triggers sending, and logs the activity
+4. User sees success/error feedback
 
 ---
 
-## Implementation Details
+## Components to Create/Modify
 
-### File 1: `src/components/sms/SMSCampaignWizard.tsx`
+### 1. New Component: `SegmentSMSDialog`
+Location: `src/components/sms/SegmentSMSDialog.tsx`
 
-**Change: Update `loadSegments()` function**
+A modal dialog for composing and sending SMS to a selected segment:
+- **Inputs**: Segment ID, name, customer count
+- **Features**:
+  - Message textarea with 160 character indicator
+  - Optional MMS image upload
+  - Live character count and segment indicator
+  - Recipient count display
+  - Send confirmation
+- **Actions**: Creates campaign, invokes `send-sms-campaign`, logs activity
 
-Currently queries `custom_segments` table (wrong). Will update to:
-1. Query `crm_segments` table (correct table for custom segments)
-2. Include predefined system segments with live customer counts
-3. Use `useSegmentCounts` hook for system segment counts
-4. Show both system and custom segments in the audience selector
+### 2. Modify: SMS Dashboard
+File: `src/pages/sms/SMSDashboard.tsx`
 
-**Before:**
-```typescript
-const { data, error } = await supabase
-  .from('custom_segments')  // Wrong table!
-  .select('*')
-  .eq('tenant_id', tenant?.id)
-  .eq('is_active', true)
-```
+Add a new card or button: "Send to Segment"
+- Opens a segment selector first, then the SMS dialog
+- Provides quick access from the main SMS hub
 
-**After:**
-```typescript
-// 1. Load custom segments from crm_segments
-const { data, error } = await supabase
-  .from('crm_segments')  // Correct table
-  .select('*')
-  .eq('tenant_id', tenant?.id);
+### 3. Modify: Segment Details Modal  
+File: `src/components/crm/segments/SegmentDetailsModal.tsx`
 
-// 2. Add predefined segments with counts
-const allSegments = [
-  ...SYSTEM_SEGMENTS.map(s => ({
-    id: s.id,
-    name: s.name,
-    description: s.description,
-    customer_count: counts[s.id] || 0,
-    type: 'predefined' as const
-  })),
-  ...customSegments
-];
-```
+Add "Send SMS" button in the footer alongside "Close"
+- Triggers the SegmentSMSDialog with current segment data
 
-### File 2: `src/config/segmentDefinitions.ts`
+### 4. Modify: Segment Card (Custom Segments)
+File: `src/components/crm/segments/SegmentCard.tsx`
 
-**Change: Add Perks Members segment**
+Add "Send SMS" button in the action buttons section:
+- Sits alongside "View Details" and "Create Campaign"
+- Opens SegmentSMSDialog directly
 
-Add a new system segment for Perks program members:
+### 5. Modify: Segment Overview Card (System Segments)
+File: `src/components/crm/segments/SegmentOverviewCard.tsx`
 
-```typescript
+Add "Send SMS" action:
+- New prop: `onSendSMS?: () => void`
+- New button in the action area
+
+### 6. Modify: CRM Segments Page
+File: `src/pages/crm/CRMSegmentsPage.tsx`
+
+Add state management for SMS dialog:
+- Track which segment is selected for SMS sending
+- Handle the dialog open/close
+
+---
+
+## Activity Logging
+
+### Activity Event Structure
+When SMS is sent to a segment, log to `crm_activity_events`:
+
+```javascript
 {
-  id: 'perks-members',
-  name: 'Perks Members',
-  description: 'Customers enrolled in your Perks loyalty program',
-  icon: 'crown',
-  is_system: true,
-  conditions: {
-    rules: [
-      { field: 'is_perks_member', operator: '=', value: true }
-    ],
-    logic: 'AND'
+  tenant_id: string,
+  customer_id: null, // Bulk send, no single customer
+  actor_type: 'user',
+  actor_id: user.id,
+  source: 'ui',
+  activity_type: 'sms_segment_send',
+  status: 'success' | 'failed',
+  title: 'SMS sent to segment',
+  description: {
+    parts: [
+      { type: 'text', text: 'Sent SMS to ' },
+      { type: 'mention', label: 'Segment Name' },
+      { type: 'text', text: ' targeting X recipients' }
+    ]
   },
+  metadata: {
+    segment_id: string,
+    segment_name: string,
+    recipient_count: number,
+    message_preview: string (first 50 chars),
+    campaign_id: string,
+    has_media: boolean
+  },
+  related_entities: {
+    segment_id: string,
+    campaign_id: string
+  },
+  links: [
+    { type: 'segment', href: '/crm/segments?highlight=ID', label: 'View Segment' },
+    { type: 'campaign', href: '/sms/CAMPAIGN_ID', label: 'View Campaign' }
+  ]
 }
 ```
 
-### File 3: `src/hooks/useSegmentCounts.ts`
-
-**Change: Add Perks Members count calculation**
-
-Update the hook to count customers who have `is_perks_member = true` in `customer_loyalty_metrics`:
-
-```typescript
-// Add to interface
-interface SegmentCounts {
-  'loyalty-members': number;
-  'high-value': number;
-  'new-customers': number;
-  'lapsed-customers': number;
-  'seasonal-shoppers': number;
-  'frequent-buyers': number;
-  'perks-members': number;  // NEW
-}
-
-// Add count calculation
-const { data: perksMembers } = await supabase
-  .from('customer_loyalty_metrics')
-  .select('customer_id')
-  .eq('is_perks_member', true)
-  .in('customer_id', customers.map(c => c.id));
-
-'perks-members': perksMembers?.length || 0
-```
-
-### File 4: `src/hooks/useAllSegments.ts`
-
-**Change: Add Perks Members to predefined segments list**
-
-```typescript
-{
-  id: 'perks-members',
-  name: 'Perks Members',
-  description: 'Customers enrolled in your Perks loyalty program',
-  customer_count: 0,
-}
-```
+### Where to Log
+- In the `SegmentSMSDialog` after successful campaign creation and send initiation
+- Use the existing `logActivity` function from `src/lib/activityLogger.ts`
 
 ---
 
-## Updated SMS Wizard Audience Section
+## Technical Details
 
-After implementation, the "Target Audience" section will show:
+### SegmentSMSDialog Component Structure
 
 ```text
-[ ] All SMS Subscribers (X customers)
-
-System Segments
-[ ] Perks Members (X customers)     ← NEW
-[ ] Loyalty Members (X customers)
-[ ] High-Value Customers (X customers)
-[ ] New Customers (X customers)
-[ ] Lapsed Customers (X customers)
-[ ] Frequent Buyers (X customers)
-
-Custom Segments
-[ ] Plant killer (0 customers)
++----------------------------------+
+|  Send SMS to [Segment Name]      |
++----------------------------------+
+|  [X] 234 SMS-enabled customers   |
++----------------------------------+
+|  Message:                        |
+|  +----------------------------+  |
+|  | Your message here...      |  |
+|  |                           |  |
+|  +----------------------------+  |
+|  142/160 characters (1 segment)  |
++----------------------------------+
+|  Image (Optional):               |
+|  [Upload Image] or drag & drop   |
++----------------------------------+
+|  [Cancel]        [Send SMS]      |
++----------------------------------+
 ```
 
+### Data Flow
+
+```text
+User clicks "Send SMS"
+        |
+        v
+SegmentSMSDialog opens
+        |
+        v
+User composes message
+        |
+        v
+User clicks "Send"
+        |
+        v
+Create crm_sms_campaigns record
+        |
+        v
+Link to segment via campaign_segments
+        |
+        v
+Invoke send-sms-campaign edge function
+        |
+        v
+Log activity to crm_activity_events
+        |
+        v
+Show success/error toast
+        |
+        v
+Close dialog
+```
+
+### Edge Cases to Handle
+1. **No SMS-enabled customers**: Show warning before send
+2. **Empty message**: Disable send button
+3. **Message too long**: Show segment count indicator
+4. **Send failure**: Log failure event, show error
+5. **Already sending**: Prevent duplicate sends
+
 ---
 
-## Segment Targeting Logic for SMS
+## Files Summary
 
-When a segment is selected, customers are filtered by:
-
-1. **System segments**: Evaluate conditions against customer data (e.g., `is_perks_member = true` for Perks Members)
-2. **Custom segments**: Query `customer_segments` table for membership
-3. **Always apply**: `sms_opt_in = true` AND `phone IS NOT NULL`
-
----
-
-## Files to Modify
-
-| File | Changes |
-|------|---------|
-| `src/components/sms/SMSCampaignWizard.tsx` | Fix segment loading, add system segments |
-| `src/config/segmentDefinitions.ts` | Add Perks Members definition |
-| `src/hooks/useSegmentCounts.ts` | Add Perks Members count calculation |
-| `src/hooks/useAllSegments.ts` | Add Perks Members to predefined list |
-| `src/pages/crm/CRMSegmentsPage.tsx` | Add Perks Members to display list |
-
----
-
-## Note on Low SMS Subscriber Count
-
-The "All SMS Subscribers" showing only a few members is a **data issue**, not a code bug:
-- 622 total customers
-- Only 1 has `phone` populated
-- Only 1 has `sms_opt_in = true`
-
-To increase SMS subscribers:
-1. Customers need to have phone numbers imported/added
-2. Customers need to explicitly opt-in to SMS (toggle sms_opt_in to true)
-3. Consider adding an SMS opt-in prompt during checkout or in customer profiles
+| File | Action | Description |
+|------|--------|-------------|
+| `src/components/sms/SegmentSMSDialog.tsx` | Create | New dialog for segment SMS |
+| `src/pages/sms/SMSDashboard.tsx` | Modify | Add "Send to Segment" entry point |
+| `src/components/crm/segments/SegmentDetailsModal.tsx` | Modify | Add "Send SMS" button |
+| `src/components/crm/segments/SegmentCard.tsx` | Modify | Add "Send SMS" action |
+| `src/components/crm/segments/SegmentOverviewCard.tsx` | Modify | Add `onSendSMS` prop and button |
+| `src/pages/crm/CRMSegmentsPage.tsx` | Modify | Add SMS dialog state management |
