@@ -2572,6 +2572,7 @@ export type Database = {
           content: string | null
           created_at: string | null
           delivery_method: string | null
+          failure_reason: string | null
           from_email_domain_id: string | null
           id: string
           metadata: Json | null
@@ -2586,6 +2587,7 @@ export type Database = {
           rollup_refreshed_at: string | null
           scheduled_at: string | null
           segment_id: string | null
+          send_attempts: number | null
           send_blocked_reason: string | null
           send_error: string | null
           send_reasoning: string | null
@@ -2593,6 +2595,7 @@ export type Database = {
           sender_display_name: string | null
           sender_email: string | null
           sender_name: string | null
+          sending_started_at: string | null
           sent_at: string | null
           source_campaign_id: string | null
           source_content_task_id: string | null
@@ -2614,6 +2617,7 @@ export type Database = {
           content?: string | null
           created_at?: string | null
           delivery_method?: string | null
+          failure_reason?: string | null
           from_email_domain_id?: string | null
           id?: string
           metadata?: Json | null
@@ -2628,6 +2632,7 @@ export type Database = {
           rollup_refreshed_at?: string | null
           scheduled_at?: string | null
           segment_id?: string | null
+          send_attempts?: number | null
           send_blocked_reason?: string | null
           send_error?: string | null
           send_reasoning?: string | null
@@ -2635,6 +2640,7 @@ export type Database = {
           sender_display_name?: string | null
           sender_email?: string | null
           sender_name?: string | null
+          sending_started_at?: string | null
           sent_at?: string | null
           source_campaign_id?: string | null
           source_content_task_id?: string | null
@@ -2656,6 +2662,7 @@ export type Database = {
           content?: string | null
           created_at?: string | null
           delivery_method?: string | null
+          failure_reason?: string | null
           from_email_domain_id?: string | null
           id?: string
           metadata?: Json | null
@@ -2670,6 +2677,7 @@ export type Database = {
           rollup_refreshed_at?: string | null
           scheduled_at?: string | null
           segment_id?: string | null
+          send_attempts?: number | null
           send_blocked_reason?: string | null
           send_error?: string | null
           send_reasoning?: string | null
@@ -2677,6 +2685,7 @@ export type Database = {
           sender_display_name?: string | null
           sender_email?: string | null
           sender_name?: string | null
+          sending_started_at?: string | null
           sent_at?: string | null
           source_campaign_id?: string | null
           source_content_task_id?: string | null
@@ -13424,6 +13433,7 @@ export type Database = {
           content: string | null
           created_at: string | null
           delivery_method: string | null
+          failure_reason: string | null
           from_email_domain_id: string | null
           id: string
           metadata: Json | null
@@ -13438,6 +13448,7 @@ export type Database = {
           rollup_refreshed_at: string | null
           scheduled_at: string | null
           segment_id: string | null
+          send_attempts: number | null
           send_blocked_reason: string | null
           send_error: string | null
           send_reasoning: string | null
@@ -13445,6 +13456,7 @@ export type Database = {
           sender_display_name: string | null
           sender_email: string | null
           sender_name: string | null
+          sending_started_at: string | null
           sent_at: string | null
           source_campaign_id: string | null
           source_content_task_id: string | null
