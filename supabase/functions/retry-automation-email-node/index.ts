@@ -186,7 +186,7 @@ const handler = async (req: Request): Promise<Response> => {
           automationNodeId,
         });
 
-        // Send via transactional email
+        // Send via transactional email with reply-to from sender settings
         const { data: sendData, error: sendError } = await supabase.functions.invoke("send-transactional-email", {
           body: {
             to: execution.email,
@@ -194,6 +194,7 @@ const handler = async (req: Request): Promise<Response> => {
             html_content: rendered.renderedHtml,
             from_name: companyProfile?.company_name || "Your Business",
             from_email: senderConfig.fromEmail,
+            reply_to: senderConfig.replyTo || senderConfig.fromEmail,
             tags: [
               { name: "automation_id", value: automationId },
               { name: "tenant_id", value: automation.tenant_id },
