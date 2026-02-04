@@ -36,7 +36,8 @@ function buildEmailPayload(
   senderEmail: string,
   usesVerifiedDomain: boolean,
   activeDomainId: string | null,
-  sharedFooterTemplate: string
+  sharedFooterTemplate: string,
+  replyToEmail?: string
 ): any {
   const companyName = companyProfile?.company_name || 'Your Garden Center';
   
@@ -95,7 +96,10 @@ function buildEmailPayload(
     ]
   };
 
-  if (usesVerifiedDomain && senderEmail !== 'noreply@bloomsuite.app') {
+  // Reply-to: prefer explicit replyToEmail, fallback to senderEmail for verified domains
+  if (replyToEmail) {
+    emailPayload.reply_to = replyToEmail;
+  } else if (usesVerifiedDomain && senderEmail !== 'noreply@bloomsuite.app') {
     emailPayload.reply_to = senderEmail;
   }
 
@@ -237,10 +241,10 @@ serve(async (req) => {
       .eq('user_id', campaign.user_id)
       .single();
 
-    // Get active domain
+    // Get active domain (include default_reply_to for reply-to header)
     const { data: activeDomains } = await supabase
       .from('email_domains')
-      .select('id, domain, status, daily_limit, daily_sent_count')
+      .select('id, domain, status, daily_limit, daily_sent_count, default_reply_to, default_from_email')
       .eq('tenant_id', campaign.tenant_id)
       .eq('status', 'active')
       .order('created_at', { ascending: false })
@@ -334,10 +338,12 @@ serve(async (req) => {
     const emailPayloads: any[] = [];
     for (const customer of missedCustomers) {
       try {
+        // Reply-to: prefer domain setting, fallback to sender email
+        const replyToEmail = activeDomain?.default_reply_to || senderEmail;
         let payload = buildEmailPayload(
           customer, campaign, companyProfile, profileData,
           fromAddress, senderEmail, usesVerifiedDomain, activeDomainId,
-          sharedFooterTemplate
+          sharedFooterTemplate, replyToEmail
         );
 
         // Rewrite links for tracking

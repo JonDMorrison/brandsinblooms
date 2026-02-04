@@ -61,11 +61,13 @@ export async function resolveSender(
 
     if (!domainError && domain) {
       console.log(`[SenderResolver] Using preferred custom domain: ${domain.domain} (status: ${domain.status})`);
+      const fromEmail = domain.default_from_email || `mail@${domain.domain}`;
       return {
-        fromEmail: domain.default_from_email || `mail@${domain.domain}`,
+        fromEmail,
         fromName: domain.default_from_name || 'Your Business',
         deliveryMethod: 'custom_domain',
-        replyTo: domain.default_reply_to || undefined,
+        // Reply-to: prefer explicit setting, fallback to sender email
+        replyTo: domain.default_reply_to || fromEmail,
         domainId: domain.id,
         domain: domain.domain
       };
@@ -85,11 +87,13 @@ export async function resolveSender(
   if (!usableError && usableDomains && usableDomains.length > 0) {
     const domain = usableDomains[0];
     console.log(`[SenderResolver] Using custom domain: ${domain.domain} (status: ${domain.status})`);
+    const fromEmail = domain.default_from_email || `mail@${domain.domain}`;
     return {
-      fromEmail: domain.default_from_email || `mail@${domain.domain}`,
+      fromEmail,
       fromName: domain.default_from_name || 'Your Business',
       deliveryMethod: 'custom_domain',
-      replyTo: domain.default_reply_to || undefined,
+      // Reply-to: prefer explicit setting, fallback to sender email
+      replyTo: domain.default_reply_to || fromEmail,
       domainId: domain.id,
       domain: domain.domain
     };
