@@ -1,11 +1,11 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Target, Users } from 'lucide-react';
+import { Target, Users, MessageSquare } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { SegmentDetailsModal } from './SegmentDetailsModal';
+import { SegmentSMSDialog } from '@/components/sms/SegmentSMSDialog';
 
 interface Segment {
   id: string;
@@ -24,8 +24,8 @@ interface SegmentCardProps {
 
 export const SegmentCard: React.FC<SegmentCardProps> = ({ segment, onSegmentUpdate }) => {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [showSMSDialog, setShowSMSDialog] = useState(false);
   const navigate = useNavigate();
-
   const getFilterCount = () => {
     return segment.conditions?.filters?.length || 0;
   };
@@ -76,13 +76,21 @@ export const SegmentCard: React.FC<SegmentCardProps> = ({ segment, onSegmentUpda
               size="sm" 
               className="flex-1"
               onClick={() => {
-                console.log('🔍 View Details clicked for segment:', segment.name, segment.id);
-                console.log('🔍 Current showDetailsModal state:', showDetailsModal);
                 setShowDetailsModal(true);
-                console.log('🔍 Setting showDetailsModal to true');
               }}
             >
               View Details
+            </Button>
+            <Button 
+              variant="outline"
+              size="sm" 
+              className="flex-1"
+              onClick={() => {
+                setShowSMSDialog(true);
+              }}
+            >
+              <MessageSquare className="h-3 w-3 mr-1" />
+              Send SMS
             </Button>
             <Button 
               size="sm" 
@@ -90,14 +98,7 @@ export const SegmentCard: React.FC<SegmentCardProps> = ({ segment, onSegmentUpda
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                console.log('🎯 Create Campaign clicked for segment:', segment.id, segment.name);
-                try {
-                  // Navigate to campaign creation with pre-selected segment
-                  navigate(`/crm/campaigns/new?segmentId=${segment.id}`);
-                  console.log('✅ Navigation completed to:', `/crm/campaigns/new?segmentId=${segment.id}`);
-                } catch (error) {
-                  console.error('❌ Navigation error:', error);
-                }
+                navigate(`/crm/campaigns/new?segmentId=${segment.id}`);
               }}
             >
               Create Campaign
@@ -108,12 +109,18 @@ export const SegmentCard: React.FC<SegmentCardProps> = ({ segment, onSegmentUpda
 
       <SegmentDetailsModal
         open={showDetailsModal}
-        onOpenChange={(open) => {
-          console.log('🔍 Modal onOpenChange called with:', open);
-          setShowDetailsModal(open);
-        }}
+        onOpenChange={setShowDetailsModal}
         segment={segment}
         onSegmentUpdate={onSegmentUpdate}
+      />
+
+      <SegmentSMSDialog
+        open={showSMSDialog}
+        onOpenChange={setShowSMSDialog}
+        segmentId={segment.id}
+        segmentName={segment.name}
+        customerCount={segment.customer_count}
+        isSystemSegment={false}
       />
     </>
   );

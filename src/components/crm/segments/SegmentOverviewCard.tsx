@@ -3,7 +3,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Users, Mail, ShoppingBag, Gift, TrendingUp, Crown, EyeOff, Eye } from 'lucide-react';
+import { Users, Mail, ShoppingBag, Gift, TrendingUp, Crown, EyeOff, Eye, MessageSquare } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 interface SegmentOverviewCardProps {
@@ -18,6 +18,7 @@ interface SegmentOverviewCardProps {
   onViewDetails?: () => void;
   onHide?: () => void;
   onShow?: () => void;
+  onSendSMS?: () => void;
 }
 
 const iconMap = {
@@ -41,11 +42,11 @@ export const SegmentOverviewCard: React.FC<SegmentOverviewCardProps> = ({
   onViewDetails,
   onHide,
   onShow,
+  onSendSMS,
 }) => {
   const IconComponent = iconMap[icon];
   const loading = isLoadingCount || estimatedCount === undefined;
   const isMobile = useIsMobile();
-
   return (
     <Card className="h-full mobile-hover-lift mobile-card relative">
       {/* Hide/Show button - top right corner */}
@@ -127,6 +128,15 @@ export const SegmentOverviewCard: React.FC<SegmentOverviewCardProps> = ({
               className={`${isMobile ? 'w-full min-h-[44px]' : 'flex-1 min-w-0'}`}
             >
               View Details
+            </Button>
+            <Button 
+              variant="outline"
+              size={isMobile ? "default" : "sm"} 
+              onClick={onSendSMS}
+              className={`${isMobile ? 'w-full min-h-[44px]' : 'flex-1 min-w-0'}`}
+            >
+              <MessageSquare className="h-4 w-4 mr-1" />
+              Send SMS
             </Button>
             <Button 
               size={isMobile ? "default" : "sm"} 
