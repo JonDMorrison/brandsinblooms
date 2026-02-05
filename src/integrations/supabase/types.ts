@@ -6791,11 +6791,102 @@ export type Database = {
         }
         Relationships: []
       }
+      email_messages: {
+        Row: {
+          attempts: number
+          campaign_id: string
+          claim_token: string | null
+          claimed_at: string | null
+          claimed_by: string | null
+          created_at: string
+          customer_id: string
+          dead_lettered_at: string | null
+          domain_id: string | null
+          email: string
+          error_message: string | null
+          id: string
+          last_attempt_at: string | null
+          payload: Json
+          resend_id: string | null
+          sent_at: string | null
+          status: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          campaign_id: string
+          claim_token?: string | null
+          claimed_at?: string | null
+          claimed_by?: string | null
+          created_at?: string
+          customer_id: string
+          dead_lettered_at?: string | null
+          domain_id?: string | null
+          email: string
+          error_message?: string | null
+          id?: string
+          last_attempt_at?: string | null
+          payload: Json
+          resend_id?: string | null
+          sent_at?: string | null
+          status?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          campaign_id?: string
+          claim_token?: string | null
+          claimed_at?: string | null
+          claimed_by?: string | null
+          created_at?: string
+          customer_id?: string
+          dead_lettered_at?: string | null
+          domain_id?: string | null
+          email?: string
+          error_message?: string | null
+          id?: string
+          last_attempt_at?: string | null
+          payload?: Json
+          resend_id?: string | null
+          sent_at?: string | null
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_messages_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "crm_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_messages_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "crm_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_messages_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customer_360_enriched"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_send_jobs: {
         Row: {
           attempts: number
           batch_index: number
           campaign_id: string
+          claim_token: string | null
+          claimed_at: string | null
+          claimed_by: string | null
           created_at: string
           domain_id: string | null
           emails_failed: number | null
@@ -6803,6 +6894,7 @@ export type Database = {
           error_message: string | null
           id: string
           recipient_emails: Json
+          recipient_message_ids: string[]
           status: string
           tenant_id: string
           updated_at: string
@@ -6811,6 +6903,9 @@ export type Database = {
           attempts?: number
           batch_index?: number
           campaign_id: string
+          claim_token?: string | null
+          claimed_at?: string | null
+          claimed_by?: string | null
           created_at?: string
           domain_id?: string | null
           emails_failed?: number | null
@@ -6818,6 +6913,7 @@ export type Database = {
           error_message?: string | null
           id?: string
           recipient_emails?: Json
+          recipient_message_ids?: string[]
           status?: string
           tenant_id: string
           updated_at?: string
@@ -6826,6 +6922,9 @@ export type Database = {
           attempts?: number
           batch_index?: number
           campaign_id?: string
+          claim_token?: string | null
+          claimed_at?: string | null
+          claimed_by?: string | null
           created_at?: string
           domain_id?: string | null
           emails_failed?: number | null
@@ -6833,6 +6932,7 @@ export type Database = {
           error_message?: string | null
           id?: string
           recipient_emails?: Json
+          recipient_message_ids?: string[]
           status?: string
           tenant_id?: string
           updated_at?: string
@@ -13349,6 +13449,39 @@ export type Database = {
           success: boolean
         }[]
       }
+      claim_email_send_jobs: {
+        Args: {
+          batch_size?: number
+          p_claim_token?: string
+          stale_after_minutes?: number
+          worker_id?: string
+        }
+        Returns: {
+          attempts: number
+          batch_index: number
+          campaign_id: string
+          claim_token: string | null
+          claimed_at: string | null
+          claimed_by: string | null
+          created_at: string
+          domain_id: string | null
+          emails_failed: number | null
+          emails_sent: number | null
+          error_message: string | null
+          id: string
+          recipient_emails: Json
+          recipient_message_ids: string[]
+          status: string
+          tenant_id: string
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "email_send_jobs"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       claim_next_pos_sync_job: {
         Args: { p_provider?: Database["public"]["Enums"]["pos_provider"] }
         Returns: {
@@ -13522,6 +13655,13 @@ export type Database = {
       cleanup_expired_oauth_states: { Args: never; Returns: undefined }
       cleanup_old_oauth_codes: { Args: never; Returns: undefined }
       cleanup_stale_sync_jobs: { Args: never; Returns: number }
+      clear_campaign_schedule: {
+        Args: { p_campaign_id: string }
+        Returns: {
+          error_message: string
+          success: boolean
+        }[]
+      }
       complete_campaign_send: {
         Args: {
           p_campaign_id: string
@@ -13582,6 +13722,14 @@ export type Database = {
           p_triggered_by?: string
         }
         Returns: Json
+      }
+      ensure_campaign_sending: {
+        Args: { p_campaign_id: string }
+        Returns: {
+          current_status: string
+          error_message: string
+          success: boolean
+        }[]
       }
       ensure_org_usage_initialized: {
         Args: { p_tenant_id: string }
@@ -13665,6 +13813,19 @@ export type Database = {
           subscription_status: string
           tokens_balance: number
           user_id: string
+        }[]
+      }
+      get_campaign_delivery_status: {
+        Args: { p_campaign_id: string }
+        Returns: {
+          id: string
+          scheduled_at: string
+          send_blocked_reason: string
+          send_error: string
+          send_started_at: string
+          sent_at: string
+          status: string
+          updated_at: string
         }[]
       }
       get_campaign_derived_metrics: {
@@ -13772,6 +13933,23 @@ export type Database = {
           email: string
           suggested_keep_user_id: string
           suggestion_reason: string
+        }[]
+      }
+      get_email_campaign_progress: {
+        Args: { p_campaign_id: string }
+        Returns: {
+          campaign_id: string
+          failed: number
+          is_stuck: boolean
+          last_attempt_at: string
+          last_message_updated_at: string
+          last_sent_at: string
+          queued: number
+          sending: number
+          sent: number
+          skipped: number
+          stuck_reason: string
+          total: number
         }[]
       }
       get_email_consent_stats: {
@@ -14047,6 +14225,17 @@ export type Database = {
       }
       restore_user_data: { Args: { target_user_id: string }; Returns: boolean }
       server_finalize_onboarding: { Args: { p_user_id: string }; Returns: Json }
+      set_campaign_schedule: {
+        Args: {
+          p_campaign_id: string
+          p_scheduled_at: string
+          p_timezone?: string
+        }
+        Returns: {
+          error_message: string
+          success: boolean
+        }[]
+      }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
       soft_delete_user_data: {
