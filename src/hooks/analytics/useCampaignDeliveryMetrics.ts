@@ -111,26 +111,35 @@ export const useCampaignDeliveryMetrics = (dateRange: number = 30): UseCampaignD
       const campaignIds = campaignsData.map(c => c.id);
 
       // Authoritative message counts (source-of-truth ledger)
-      const { data: messageCountsData, error: messageCountsError } = await supabase.rpc(
-        'get_campaign_email_message_counts',
-        { p_campaign_ids: campaignIds }
-      );
-
-      if (messageCountsError) {
-        console.warn('Failed to load email message counts (falling back to job aggregates):', messageCountsError.message);
+      // Note: This RPC may not exist in all environments - silently skip if unavailable
+      let messageCountsData: any[] | null = null;
+      try {
+        const { data, error: messageCountsError } = await supabase.rpc(
+          'get_campaign_email_message_counts' as any,
+          { p_campaign_ids: campaignIds }
+        );
+        if (messageCountsError) {
+          console.warn('Failed to load email message counts (falling back to job aggregates):', messageCountsError.message);
+        } else {
+          messageCountsData = data as any[];
+        }
+      } catch (err) {
+        console.warn('get_campaign_email_message_counts RPC not available, using fallback');
       }
 
       const messageCounts: Record<string, { total: number; queued: number; sending: number; sent: number; failed: number; skipped: number }> = {};
-      (messageCountsData || []).forEach((row: any) => {
-        messageCounts[row.campaign_id] = {
-          total: row.total || 0,
-          queued: row.queued || 0,
-          sending: row.sending || 0,
-          sent: row.sent || 0,
-          failed: row.failed || 0,
-          skipped: row.skipped || 0,
-        };
-      });
+      if (messageCountsData && Array.isArray(messageCountsData)) {
+        messageCountsData.forEach((row: any) => {
+          messageCounts[row.campaign_id] = {
+            total: row.total || 0,
+            queued: row.queued || 0,
+            sending: row.sending || 0,
+            sent: row.sent || 0,
+            failed: row.failed || 0,
+            skipped: row.skipped || 0,
+          };
+        });
+      }
 
       // Fetch send job aggregates for all campaigns
       const { data: jobsData } = await supabase

@@ -147,6 +147,7 @@ serve(async (req) => {
             linkedin_url: profileData.linkedin_url,
             brand_primary_color: profileData.brand_primary_color,
             brand_secondary_color: profileData.brand_secondary_color,
+            feature_flags: profileData.feature_flags as CompanyProfileShape['feature_flags'],
           };
         }
       }

@@ -72,6 +72,14 @@ export interface CompanyProfileShape {
   linkedin_url?: string | null;
   brand_primary_color?: string | null;
   brand_secondary_color?: string | null;
+  feature_flags?: {
+    company_logo_url?: string;
+    footer_colors?: {
+      background?: string;
+      text?: string;
+      link?: string;
+    };
+  } | null;
 }
 
 export interface RenderDiagnostics {
@@ -348,12 +356,15 @@ function appendFooter(
   const unsubscribeLink = `https://udldmkqwnxhdeztyqcau.supabase.co/functions/v1/handle-unsubscribe?email=${encodeURIComponent(customer.email)}&tenant_id=${tenantId}&token=${unsubscribeToken}`;
   const preferencesLink = unsubscribeLink.replace('handle-unsubscribe', 'manage-preferences');
   
-  // Build profile data for footer generator
+  // Build profile data for footer generator (include feature_flags for logo)
   const profileData: CompanyProfileData = {
     company_name: companyProfile?.company_name || 'Your Company',
-    location_info: companyProfile?.location_info || '',
     company_phone: companyProfile?.company_phone || '',
     company_email: companyProfile?.company_email || '',
+    street_address: companyProfile?.street_address || '',
+    city: companyProfile?.city || '',
+    state_province: companyProfile?.state_province || '',
+    postal_code: companyProfile?.postal_code || '',
     facebook_url: companyProfile?.facebook_url || '',
     instagram_url: companyProfile?.instagram_url || '',
     tiktok_url: companyProfile?.tiktok_url || '',
@@ -361,8 +372,7 @@ function appendFooter(
     youtube_url: companyProfile?.youtube_url || '',
     linkedin_url: companyProfile?.linkedin_url || '',
     brand_primary_color: companyProfile?.brand_primary_color || '#283024',
-    brand_secondary_color: companyProfile?.brand_secondary_color || '#ffffff',
-    custom_footer_text: '',
+    feature_flags: companyProfile?.feature_flags || undefined,
   };
   
   // Generate footer with placeholders then replace

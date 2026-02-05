@@ -192,10 +192,10 @@ export const ScheduledCampaignBanner: React.FC<
         },
       );
       if (error) throw error;
-      toast.success("Triggered a retry. Progress should update shortly.");
+      toast({ title: "Triggered a retry. Progress should update shortly." });
     } catch (e: any) {
       console.warn("Failed to trigger process-email-send-queue", { error: e });
-      toast.error("Couldn't trigger a retry. Please try again.");
+      toast({ title: "Couldn't trigger a retry. Please try again.", variant: "destructive" });
     } finally {
       setIsRetryingWorker(false);
     }
