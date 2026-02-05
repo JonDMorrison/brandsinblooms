@@ -150,14 +150,52 @@ serve(async (req) => {
     const alreadySentCustomerIds = new Set<string>((existingMessages || []).map((m: any) => m.customer_id));
     console.log(`📧 Found ${alreadySentCustomerIds.size} customers already queued/sent in email_messages`);
 
-    // Get ALL eligible customers for this tenant
-    const { data: allCustomers, error: customersError } = await supabase
-      .from('crm_customers')
-      .select('id, first_name, last_name, email, suppressed')
-      .eq('tenant_id', campaign.tenant_id)
-      .eq('opt_out', false)
-      .eq('suppressed', false)
-      .not('email', 'is', null);
+    // Also check email_tracking_events for recipients who received the email (fallback for older campaigns)
+    const { data: trackingEvents } = await supabase
+      .from('email_tracking_events')
+      .select('customer_email')
+      .eq('campaign_id', campaignId);
+
+    const alreadySentEmails = new Set<string>(
+      (trackingEvents || [])
+        .map((e: any) => e.customer_email?.toLowerCase())
+        .filter(Boolean)
+    );
+    console.log(`📧 Found ${alreadySentEmails.size} unique emails in tracking events`);
+
+    // Get eligible customers - if campaign has a segment, filter by it
+    let allCustomers: any[] = [];
+    let customersError: any = null;
+
+    if (campaign.segment_id) {
+      // Get customers from the segment
+      console.log(`📧 Fetching customers from segment: ${campaign.segment_id}`);
+      const { data, error } = await supabase
+        .from('crm_customers')
+        .select('id, first_name, last_name, email, suppressed, customer_segments!inner(segment_id)')
+        .eq('tenant_id', campaign.tenant_id)
+        .eq('opt_out', false)
+        .eq('suppressed', false)
+        .eq('email_opt_in', true)
+        .eq('customer_segments.segment_id', campaign.segment_id)
+        .not('email', 'is', null);
+      allCustomers = data || [];
+      customersError = error;
+    } else {
+      // Get ALL eligible customers for this tenant (no segment filter)
+      const { data, error } = await supabase
+        .from('crm_customers')
+        .select('id, first_name, last_name, email, suppressed')
+        .eq('tenant_id', campaign.tenant_id)
+        .eq('opt_out', false)
+        .eq('suppressed', false)
+        .eq('email_opt_in', true)
+        .not('email', 'is', null);
+      allCustomers = data || [];
+      customersError = error;
+    }
+
+    console.log(`📧 Found ${allCustomers.length} eligible customers`);
 
     if (customersError) {
       return new Response(
@@ -166,9 +204,11 @@ serve(async (req) => {
       );
     }
 
-    // Filter to only missed customers
+    // Filter to only missed customers (not in email_messages AND not in tracking events)
     let missedCustomers = (allCustomers || []).filter(c =>
-      c.email?.trim() && !alreadySentCustomerIds.has(c.id)
+      c.email?.trim() && 
+      !alreadySentCustomerIds.has(c.id) &&
+      !alreadySentEmails.has(c.email?.toLowerCase())
     );
 
     console.log(`📧 Found ${missedCustomers.length} missed recipients`);
