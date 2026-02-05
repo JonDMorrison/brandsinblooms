@@ -1,16 +1,16 @@
-import React, { useState, useMemo } from 'react';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { NativeSelect } from '@/components/ui/NativeSelect';
-import { Calendar } from '@/components/ui/calendar';
-import { Clock, Calendar as CalendarIcon, Send, ChevronDown } from 'lucide-react';
-import { format, startOfDay } from 'date-fns';
-import { fromZonedTime, toZonedTime } from 'date-fns-tz';
-import { cn } from '@/lib/utils';
-import { CustomDropdown } from '@/components/ui/custom-dropdown';
+import React, { useState, useMemo } from "react";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { NativeSelect } from "@/components/ui/NativeSelect";
+import { Calendar } from "@/components/ui/calendar";
+import { Clock, Calendar as CalendarIcon, ChevronDown, X } from "lucide-react";
+import { addMinutes, format, startOfDay } from "date-fns";
+import { fromZonedTime, toZonedTime } from "date-fns-tz";
+import { cn } from "@/lib/utils";
+import { CustomDropdown } from "@/components/ui/custom-dropdown";
 
 export interface ScheduleOption {
-  type: 'now' | 'scheduled';
+  type: "now" | "scheduled";
   /** The scheduled date/time in UTC */
   date?: Date;
   /** The timezone used for display/scheduling */
@@ -22,6 +22,8 @@ interface ScheduleSelectorProps {
   onScheduleChange: (schedule: ScheduleOption) => void;
   disabled?: boolean;
   compact?: boolean;
+  /** When true, shows a button that clears the schedule and returns to Send Now. */
+  allowClearSchedule?: boolean;
   /**
    * When true, selecting an option inside the dropdown will immediately invoke `onCommit`.
    * This is used for sticky/mobile layouts where the primary Send/Schedule button may not be visible.
@@ -32,14 +34,16 @@ interface ScheduleSelectorProps {
 }
 
 const TIMEZONES = [
-  { value: 'America/New_York', label: 'Eastern (ET)' },
-  { value: 'America/Chicago', label: 'Central (CT)' },
-  { value: 'America/Denver', label: 'Mountain (MT)' },
-  { value: 'America/Los_Angeles', label: 'Pacific (PT)' },
-  { value: 'America/Vancouver', label: 'Vancouver (PT)' },
-  { value: 'UTC', label: 'UTC' },
-  { value: 'Europe/London', label: 'London (GMT)' },
+  { value: "America/New_York", label: "Eastern (ET)" },
+  { value: "America/Chicago", label: "Central (CT)" },
+  { value: "America/Denver", label: "Mountain (MT)" },
+  { value: "America/Los_Angeles", label: "Pacific (PT)" },
+  { value: "America/Vancouver", label: "Vancouver (PT)" },
+  { value: "UTC", label: "UTC" },
+  { value: "Europe/London", label: "London (GMT)" },
 ];
+
+const QUICK_SCHEDULE_MINUTES = [2, 5, 10, 15, 20, 30, 45, 60] as const;
 
 /**
  * ScheduleSelector - Compact dropdown for "Send Now" vs "Schedule"
@@ -49,19 +53,25 @@ export const ScheduleSelector: React.FC<ScheduleSelectorProps> = ({
   onScheduleChange,
   disabled = false,
   compact = false,
+  allowClearSchedule = true,
   commitOnSelect = false,
   onCommit,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
-  
+
   // Detect user's timezone for default
-  const userTimezone = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone, []);
-  
-  const [selectedTimezone, setSelectedTimezone] = useState(schedule.timezone || userTimezone);
-  
+  const userTimezone = useMemo(
+    () => Intl.DateTimeFormat().resolvedOptions().timeZone,
+    [],
+  );
+
+  const [selectedTimezone, setSelectedTimezone] = useState(
+    schedule.timezone || userTimezone,
+  );
+
   // Initialize selectedDate from schedule, converting from UTC if needed
   const [selectedDate, setSelectedDate] = useState<Date>(() => {
-    if (schedule.date && schedule.type === 'scheduled') {
+    if (schedule.date && schedule.type === "scheduled") {
       return toZonedTime(schedule.date, schedule.timezone || userTimezone);
     }
     const tomorrow = new Date();
@@ -69,17 +79,26 @@ export const ScheduleSelector: React.FC<ScheduleSelectorProps> = ({
     tomorrow.setHours(10, 0, 0, 0);
     return tomorrow;
   });
-  
+
   const [selectedTime, setSelectedTime] = useState(() => {
-    if (schedule.date && schedule.type === 'scheduled') {
-      const localDate = toZonedTime(schedule.date, schedule.timezone || userTimezone);
-      return `${localDate.getHours().toString().padStart(2, '0')}:${localDate.getMinutes().toString().padStart(2, '0')}`;
+    if (schedule.date && schedule.type === "scheduled") {
+      const localDate = toZonedTime(
+        schedule.date,
+        schedule.timezone || userTimezone,
+      );
+      return `${localDate.getHours().toString().padStart(2, "0")}:${localDate.getMinutes().toString().padStart(2, "0")}`;
     }
-    return '10:00';
+    return "10:00";
   });
 
+  const formatTime = (date: Date) => {
+    const hours = date.getHours().toString().padStart(2, "0");
+    const minutes = date.getMinutes().toString().padStart(2, "0");
+    return `${hours}:${minutes}`;
+  };
+
   const convertToUtc = (localDate: Date, timeStr: string): Date => {
-    const [hours, minutes] = timeStr.split(':').map(Number);
+    const [hours, minutes] = timeStr.split(":").map(Number);
     const dateWithTime = new Date(localDate);
     dateWithTime.setHours(hours, minutes, 0, 0);
     return fromZonedTime(dateWithTime, selectedTimezone);
@@ -90,7 +109,7 @@ export const ScheduleSelector: React.FC<ScheduleSelectorProps> = ({
   };
 
   const handleSendNow = () => {
-    onScheduleChange({ type: 'now' });
+    onScheduleChange({ type: "now" });
     setIsOpen(false);
     commitIfNeeded();
   };
@@ -98,9 +117,30 @@ export const ScheduleSelector: React.FC<ScheduleSelectorProps> = ({
   const handleSchedule = () => {
     const utcDate = convertToUtc(selectedDate, selectedTime);
     onScheduleChange({
-      type: 'scheduled',
+      type: "scheduled",
       date: utcDate,
-      timezone: selectedTimezone
+      timezone: selectedTimezone,
+    });
+    setIsOpen(false);
+    commitIfNeeded();
+  };
+
+  const handleQuickSchedule = (minutesFromNow: number) => {
+    const zonedNow = toZonedTime(new Date(), selectedTimezone);
+    const targetZoned = addMinutes(zonedNow, minutesFromNow);
+
+    const timeStr = formatTime(targetZoned);
+    const normalizedDate = new Date(targetZoned);
+    normalizedDate.setHours(12, 0, 0, 0);
+
+    setSelectedDate(normalizedDate);
+    setSelectedTime(timeStr);
+
+    const utcDate = fromZonedTime(targetZoned, selectedTimezone);
+    onScheduleChange({
+      type: "scheduled",
+      date: utcDate,
+      timezone: selectedTimezone,
     });
     setIsOpen(false);
     commitIfNeeded();
@@ -120,14 +160,19 @@ export const ScheduleSelector: React.FC<ScheduleSelectorProps> = ({
   };
 
   const getButtonLabel = () => {
-    if (schedule.type === 'scheduled' && schedule.date) {
-      const displayDate = toZonedTime(schedule.date, schedule.timezone || userTimezone);
-      return `Scheduled: ${format(displayDate, 'MMM d, h:mm a')}`;
+    if (schedule.type === "scheduled" && schedule.date) {
+      const displayDate = toZonedTime(
+        schedule.date,
+        schedule.timezone || userTimezone,
+      );
+      return `Scheduled: ${format(displayDate, "MMM d, h:mm a")}`;
     }
-    return 'Schedule';
+    return "Schedule";
   };
 
-  const timezoneName = TIMEZONES.find(tz => tz.value === selectedTimezone)?.label || selectedTimezone;
+  const timezoneName =
+    TIMEZONES.find((tz) => tz.value === selectedTimezone)?.label ||
+    selectedTimezone;
 
   return (
     <CustomDropdown
@@ -135,7 +180,6 @@ export const ScheduleSelector: React.FC<ScheduleSelectorProps> = ({
       onOpenChange={setIsOpen}
       align="end"
       contentClassName="z-[1000010] w-96 p-5"
-    
       trigger={(triggerProps) => (
         <Button
           ref={triggerProps.ref as unknown as React.Ref<HTMLButtonElement>}
@@ -144,15 +188,17 @@ export const ScheduleSelector: React.FC<ScheduleSelectorProps> = ({
           disabled={disabled}
           onClick={triggerProps.onClick}
           onKeyDown={triggerProps.onKeyDown}
-          aria-expanded={triggerProps['aria-expanded']}
-          aria-haspopup={triggerProps['aria-haspopup']}
+          aria-expanded={triggerProps["aria-expanded"]}
+          aria-haspopup={triggerProps["aria-haspopup"]}
           className={cn(
-            'flex items-center gap-2',
-            schedule.type === 'scheduled' && 'border-primary text-primary'
+            "flex items-center gap-2",
+            schedule.type === "scheduled" && "border-primary text-primary",
           )}
         >
           <CalendarIcon className="h-4 w-4" />
-          <span className={cn(compact ? 'hidden' : 'hidden sm:inline')}>{getButtonLabel()}</span>
+          <span className={cn(compact ? "hidden" : "hidden sm:inline")}>
+            {getButtonLabel()}
+          </span>
           <ChevronDown className="h-3 w-3" />
         </Button>
       )}
@@ -170,15 +216,36 @@ export const ScheduleSelector: React.FC<ScheduleSelectorProps> = ({
         </div>
 
         {/* Calendar */}
-        <div className="rounded-lg border border-border bg-muted/30 p-3 pointer-events-auto">
-          <Calendar
-            mode="single"
-            selected={selectedDate}
-            onSelect={handleDateSelect}
-            disabled={isDateInPast}
-            initialFocus
-            className="pointer-events-auto"
-          />
+        <Calendar
+          mode="single"
+          selected={selectedDate}
+          onSelect={handleDateSelect}
+          disabled={isDateInPast}
+          captionLayout="label"
+          hideNavigation={false}
+          initialFocus
+          className="pointer-events-auto"
+        />
+
+        {/* Quick Schedule */}
+        <div className="rounded-lg border border-border bg-background p-4 space-y-3">
+          <Label className="text-sm font-medium">Schedule in</Label>
+          <div className="flex flex-wrap gap-2">
+            {QUICK_SCHEDULE_MINUTES.map((minutes) => (
+              <Button
+                key={minutes}
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={disabled}
+                onClick={() => handleQuickSchedule(minutes)}
+                className="h-8 px-3"
+              >
+                +{minutes}m
+              </Button>
+            ))}
+          </div>
+          <p className="text-xs text-muted-foreground">Uses {timezoneName}.</p>
         </div>
 
         {/* Date & Time Row */}
@@ -190,8 +257,12 @@ export const ScheduleSelector: React.FC<ScheduleSelectorProps> = ({
                 <CalendarIcon className="h-5 w-5 text-primary" />
               </div>
               <div>
-                <p className="text-xs text-muted-foreground font-medium">Date</p>
-                <p className="text-sm font-semibold">{format(selectedDate, 'EEEE, MMM d')}</p>
+                <p className="text-xs text-muted-foreground font-medium">
+                  Date
+                </p>
+                <p className="text-sm font-semibold">
+                  {format(selectedDate, "EEEE, MMM d")}
+                </p>
               </div>
             </div>
 
@@ -201,7 +272,9 @@ export const ScheduleSelector: React.FC<ScheduleSelectorProps> = ({
                 <Clock className="h-5 w-5 text-primary" />
               </div>
               <div className="flex-1">
-                <p className="text-xs text-muted-foreground font-medium">Time</p>
+                <p className="text-xs text-muted-foreground font-medium">
+                  Time
+                </p>
                 <input
                   type="time"
                   value={selectedTime}
@@ -229,10 +302,26 @@ export const ScheduleSelector: React.FC<ScheduleSelectorProps> = ({
         </div>
 
         {/* Submit Button */}
-        <Button size="default" className="w-full" onClick={handleSchedule}>
-          <CalendarIcon className="h-4 w-4 mr-2" />
-          Schedule Campaign
-        </Button>
+        <div className="space-y-2">
+          {allowClearSchedule && schedule.type === "scheduled" && (
+            <Button
+              type="button"
+              variant="outline"
+              size="default"
+              className="w-full text-destructive"
+              onClick={handleSendNow}
+              disabled={disabled}
+            >
+              <X className="h-4 w-4 mr-2" />
+              Remove Schedule
+            </Button>
+          )}
+
+          <Button size="default" className="w-full" onClick={handleSchedule}>
+            <CalendarIcon className="h-4 w-4 mr-2" />
+            Schedule Campaign
+          </Button>
+        </div>
       </div>
     </CustomDropdown>
   );

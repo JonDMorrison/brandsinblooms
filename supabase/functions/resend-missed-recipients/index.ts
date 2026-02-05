@@ -39,7 +39,7 @@ function buildEmailPayload(
   sharedFooterTemplate: string
 ): any {
   const companyName = companyProfile?.company_name || 'Your Garden Center';
-  
+
   const unsubscribeToken = btoa(`${customer.email}:${campaign.tenant_id}`);
   const unsubscribeLink = `https://udldmkqwnxhdeztyqcau.supabase.co/functions/v1/handle-unsubscribe?email=${encodeURIComponent(customer.email)}&tenant_id=${campaign.tenant_id}&token=${unsubscribeToken}`;
   const preferencesLink = unsubscribeLink.replace('handle-unsubscribe', 'manage-preferences');
@@ -53,7 +53,7 @@ function buildEmailPayload(
     address: companyProfile?.location_info,
     website_url: companyProfile?.custom_sender_email?.split('@')[1]
   });
-  
+
   mergeTagData.system = {
     unsubscribe_url: unsubscribeLink,
     preferences_url: preferencesLink,
@@ -63,12 +63,12 @@ function buildEmailPayload(
 
   let emailContent = convertLegacyTags(campaign.content || '');
   let emailSubject = convertLegacyTags(campaign.subject_line || 'Newsletter');
-  
+
   emailContent = renderMergeTags(emailContent, mergeTagData);
   emailSubject = renderMergeTags(emailSubject, mergeTagData);
 
   emailContent = stripExistingFooter(emailContent);
-  
+
   if (emailContent.includes('</body>')) {
     emailContent = emailContent.replace('</body>', `${customerFooter}</body>`);
   } else if (emailContent.includes('</html>')) {
@@ -137,27 +137,14 @@ serve(async (req) => {
       );
     }
 
-    // Get all customers already sent to (from email_send_jobs)
-    const { data: existingJobs } = await supabase
-      .from('email_send_jobs')
-      .select('recipient_emails')
+    // Get all customers already materialized for this campaign (source-of-truth)
+    const { data: existingMessages } = await supabase
+      .from('email_messages')
+      .select('customer_id')
       .eq('campaign_id', campaignId);
 
-    const alreadySentCustomerIds = new Set<string>();
-    if (existingJobs) {
-      for (const job of existingJobs) {
-        const recipients = job.recipient_emails as any[];
-        if (Array.isArray(recipients)) {
-          for (const r of recipients) {
-            if (r.customerId) {
-              alreadySentCustomerIds.add(r.customerId);
-            }
-          }
-        }
-      }
-    }
-    
-    console.log(`📧 Found ${alreadySentCustomerIds.size} customers already in jobs`);
+    const alreadySentCustomerIds = new Set<string>((existingMessages || []).map((m: any) => m.customer_id));
+    console.log(`📧 Found ${alreadySentCustomerIds.size} customers already queued/sent in email_messages`);
 
     // Get ALL eligible customers for this tenant
     const { data: allCustomers, error: customersError } = await supabase
@@ -176,7 +163,7 @@ serve(async (req) => {
     }
 
     // Filter to only missed customers
-    let missedCustomers = (allCustomers || []).filter(c => 
+    let missedCustomers = (allCustomers || []).filter(c =>
       c.email?.trim() && !alreadySentCustomerIds.has(c.id)
     );
 
@@ -184,11 +171,11 @@ serve(async (req) => {
 
     if (missedCustomers.length === 0) {
       return new Response(
-        JSON.stringify({ 
-          success: true, 
+        JSON.stringify({
+          success: true,
           message: 'No missed recipients found',
           alreadySent: alreadySentCustomerIds.size,
-          missed: 0 
+          missed: 0
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -203,8 +190,8 @@ serve(async (req) => {
     // If dry run, just return the counts
     if (dryRun) {
       return new Response(
-        JSON.stringify({ 
-          success: true, 
+        JSON.stringify({
+          success: true,
           dryRun: true,
           message: `Found ${missedCustomers.length} missed recipients. Set dryRun=false to actually send.`,
           alreadySent: alreadySentCustomerIds.size,
@@ -256,10 +243,10 @@ serve(async (req) => {
         console.log(`⚠️ Truncating to ${remainingCapacity} due to warmup limits`);
         missedCustomers = missedCustomers.slice(0, remainingCapacity);
       }
-      
+
       if (missedCustomers.length === 0) {
         return new Response(
-          JSON.stringify({ 
+          JSON.stringify({
             error: 'Daily sending limit reached',
             daily_limit: activeDomain.daily_limit,
             daily_sent: activeDomain.daily_sent_count
@@ -361,23 +348,72 @@ serve(async (req) => {
 
     console.log(`📧 Built ${emailPayloads.length} email payloads`);
 
-    // Create batch jobs
+    // Persist recipients to email_messages (dedupe via unique (campaign_id, customer_id))
+    const messageRows = emailPayloads.map((r) => ({
+      tenant_id: campaign.tenant_id,
+      campaign_id: campaignId,
+      customer_id: r.customerId,
+      domain_id: activeDomainId,
+      email: r.email,
+      payload: r.payload,
+      status: 'queued',
+    }));
+
+    const UPSERT_CHUNK = 500;
+    for (let i = 0; i < messageRows.length; i += UPSERT_CHUNK) {
+      const chunk = messageRows.slice(i, i + UPSERT_CHUNK);
+      const { error: upsertErr } = await supabase
+        .from('email_messages')
+        .upsert(chunk, { onConflict: 'campaign_id,customer_id', ignoreDuplicates: true });
+      if (upsertErr) {
+        console.error('❌ Failed to persist email_messages:', upsertErr);
+        return new Response(
+          JSON.stringify({ error: 'Failed to persist recipients' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
+    // Load message IDs for job creation
+    const customerIds = emailPayloads.map((r) => r.customerId);
+    const idMap = new Map<string, string>();
+    const IN_CHUNK = 800;
+    for (let i = 0; i < customerIds.length; i += IN_CHUNK) {
+      const idsChunk = customerIds.slice(i, i + IN_CHUNK);
+      const { data: rows, error: fetchErr } = await supabase
+        .from('email_messages')
+        .select('id, customer_id')
+        .eq('campaign_id', campaignId)
+        .in('customer_id', idsChunk);
+      if (fetchErr) {
+        console.error('❌ Failed to fetch email_message IDs:', fetchErr);
+        return new Response(
+          JSON.stringify({ error: 'Failed to queue emails' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      (rows || []).forEach((r: any) => idMap.set(r.customer_id, r.id));
+    }
+
+    // Create batch jobs referencing message IDs
     const jobInserts: any[] = [];
     for (let i = 0; i < emailPayloads.length; i += BATCH_SIZE_PER_JOB) {
       const batch = emailPayloads.slice(i, i + BATCH_SIZE_PER_JOB);
+      const batchMessageIds = batch.map((r) => idMap.get(r.customerId)).filter(Boolean);
       jobInserts.push({
         campaign_id: campaignId,
         tenant_id: campaign.tenant_id,
         domain_id: activeDomainId,
         status: 'pending',
-        recipient_emails: batch,
+        recipient_message_ids: batchMessageIds,
+        recipient_emails: batch.map((r) => ({ email: r.email, customerId: r.customerId })),
         batch_index: 1000 + Math.floor(i / BATCH_SIZE_PER_JOB) // High batch index to indicate resend
       });
     }
 
     const { error: insertError } = await supabase
       .from('email_send_jobs')
-      .insert(jobInserts);
+      .upsert(jobInserts, { onConflict: 'campaign_id,batch_index', ignoreDuplicates: true });
 
     if (insertError) {
       console.error('❌ Failed to create batch jobs:', insertError);
@@ -387,11 +423,11 @@ serve(async (req) => {
       );
     }
 
-    console.log(`✅ Created ${jobInserts.length} batch jobs for ${emailPayloads.length} recipients`);
+    console.log(`✅ Ensured ${jobInserts.length} batch jobs for ${emailPayloads.length} recipients`);
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
+      JSON.stringify({
+        success: true,
         message: `Queued ${emailPayloads.length} missed recipients for sending`,
         queued: emailPayloads.length,
         batchJobs: jobInserts.length,

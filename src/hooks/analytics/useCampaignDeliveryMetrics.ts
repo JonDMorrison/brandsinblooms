@@ -7,18 +7,18 @@ export interface DeliveryMetrics {
   campaignId: string;
   campaignName: string;
   sentAt: string | null;
-  
+
   // Cached values from crm_campaigns
   cachedTotalSent: number;
   cachedOpenRate: number;
   cachedClickRate: number;
-  
+
   // Computed values from email_send_jobs
   computedDelivered: number;
   computedFailed: number;
   computedEnqueued: number;
   batchCount: number;
-  
+
   // Skip breakdown from email_send_skips
   skipsTotal: number;
   skipsByReason: {
@@ -27,13 +27,13 @@ export interface DeliveryMetrics {
     invalid_email: number;
     other: number;
   };
-  
+
   // Engagement (from tracking events or cached)
   totalOpens: number;
   totalClicks: number;
   openRate: number;
   clickRate: number;
-  
+
   // Flags
   isStale: boolean; // computed != cached
   metricsDiscrepancy: number; // percentage difference
@@ -95,7 +95,7 @@ export const useCampaignDeliveryMetrics = (dateRange: number = 30): UseCampaignD
         .from('crm_campaigns')
         .select('id, name, sent_at, total_sent, total_opens, total_clicks, open_rate, click_rate')
         .eq('tenant_id', userData.tenant_id)
-        .eq('status', 'sent')
+        .in('status', ['sent', 'sent_with_errors'])
         .gte('sent_at', startDate.toISOString())
         .order('sent_at', { ascending: false })
         .limit(10);
@@ -110,10 +110,32 @@ export const useCampaignDeliveryMetrics = (dateRange: number = 30): UseCampaignD
 
       const campaignIds = campaignsData.map(c => c.id);
 
+      // Authoritative message counts (source-of-truth ledger)
+      const { data: messageCountsData, error: messageCountsError } = await supabase.rpc(
+        'get_campaign_email_message_counts',
+        { p_campaign_ids: campaignIds }
+      );
+
+      if (messageCountsError) {
+        console.warn('Failed to load email message counts (falling back to job aggregates):', messageCountsError.message);
+      }
+
+      const messageCounts: Record<string, { total: number; queued: number; sending: number; sent: number; failed: number; skipped: number }> = {};
+      (messageCountsData || []).forEach((row: any) => {
+        messageCounts[row.campaign_id] = {
+          total: row.total || 0,
+          queued: row.queued || 0,
+          sending: row.sending || 0,
+          sent: row.sent || 0,
+          failed: row.failed || 0,
+          skipped: row.skipped || 0,
+        };
+      });
+
       // Fetch send job aggregates for all campaigns
       const { data: jobsData } = await supabase
         .from('email_send_jobs')
-        .select('campaign_id, recipient_emails, emails_sent, emails_failed')
+        .select('campaign_id, id')
         .in('campaign_id', campaignIds)
         .eq('status', 'completed');
 
@@ -129,11 +151,6 @@ export const useCampaignDeliveryMetrics = (dateRange: number = 30): UseCampaignD
         if (!jobsAgg[job.campaign_id]) {
           jobsAgg[job.campaign_id] = { enqueued: 0, sent: 0, failed: 0, batches: 0 };
         }
-        // Calculate enqueued from recipient_emails array length
-        const recipientEmails = Array.isArray(job.recipient_emails) ? job.recipient_emails : [];
-        jobsAgg[job.campaign_id].enqueued += recipientEmails.length;
-        jobsAgg[job.campaign_id].sent += job.emails_sent || 0;
-        jobsAgg[job.campaign_id].failed += job.emails_failed || 0;
         jobsAgg[job.campaign_id].batches += 1;
       });
 
@@ -154,11 +171,15 @@ export const useCampaignDeliveryMetrics = (dateRange: number = 30): UseCampaignD
       // Build metrics for each campaign
       const metrics: DeliveryMetrics[] = campaignsData.map(c => {
         const jobs = jobsAgg[c.id] || { enqueued: 0, sent: 0, failed: 0, batches: 0 };
+        const counts = messageCounts[c.id];
+
+        const computedEnqueued = counts ? counts.total : jobs.enqueued;
+        const computedSent = counts ? counts.sent : jobs.sent;
+        const computedFailed = counts ? counts.failed : jobs.failed;
         const skips = skipsAgg[c.id] || { opt_out: 0, suppressed: 0, invalid_email: 0, other: 0, total: 0 };
-        
+
         const cachedSent = c.total_sent || 0;
-        const computedSent = jobs.sent;
-        const discrepancy = cachedSent > 0 
+        const discrepancy = cachedSent > 0
           ? Math.abs(((computedSent - cachedSent) / cachedSent) * 100)
           : computedSent > 0 ? 100 : 0;
 
@@ -169,9 +190,9 @@ export const useCampaignDeliveryMetrics = (dateRange: number = 30): UseCampaignD
           cachedTotalSent: cachedSent,
           cachedOpenRate: c.open_rate || 0,
           cachedClickRate: c.click_rate || 0,
-          computedDelivered: jobs.sent,
-          computedFailed: jobs.failed,
-          computedEnqueued: jobs.enqueued,
+          computedDelivered: computedSent,
+          computedFailed: computedFailed,
+          computedEnqueued: computedEnqueued,
           batchCount: jobs.batches,
           skipsTotal: skips.total,
           skipsByReason: {
@@ -219,7 +240,7 @@ export const useCampaignDeliveryMetrics = (dateRange: number = 30): UseCampaignD
 
     try {
       toast.info('Recalculating all campaign metrics...');
-      
+
       const { error } = await supabase.functions.invoke('recompute-campaign-metrics', {
         body: { tenant_id: tenantId }
       });

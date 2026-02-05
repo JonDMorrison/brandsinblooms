@@ -3,7 +3,19 @@ import { useParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Copy, Users, Calendar, Send, Mail, Eye, MousePointerClick, UserMinus, TrendingUp, AlertTriangle } from "lucide-react";
+import {
+  ArrowLeft,
+  Copy,
+  Users,
+  Calendar,
+  Send,
+  Mail,
+  Eye,
+  MousePointerClick,
+  UserMinus,
+  TrendingUp,
+  AlertTriangle,
+} from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -41,20 +53,24 @@ export default function CRMCampaignDetail() {
     try {
       const { data, error } = await supabase
         .from("crm_campaigns")
-        .select(`
+        .select(
+          `
           *,
           crm_segments (
             name,
             customer_count
           )
-        `)
+        `,
+        )
         .eq("id", id)
         .single();
 
       if (error) throw error;
       setCampaign(data);
     } catch (error) {
-      console.error("Error fetching email campaign:", error);
+      if (import.meta.env.DEV) {
+        console.error("Error fetching email campaign:", error);
+      }
       toast({
         title: "Error",
         description: "Failed to load email campaign",
@@ -66,7 +82,10 @@ export default function CRMCampaignDetail() {
   };
 
   const getStatusBadge = (status: string) => {
-    const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
+    const variants: Record<
+      string,
+      "default" | "secondary" | "destructive" | "outline"
+    > = {
       draft: "outline",
       scheduled: "secondary",
       sent: "default",
@@ -121,7 +140,8 @@ export default function CRMCampaignDetail() {
             <Mail className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
             <h3 className="text-lg font-semibold mb-2">Campaign Not Found</h3>
             <p className="text-muted-foreground mb-4">
-              The email campaign you're looking for doesn't exist or you don't have permission to view it.
+              The email campaign you're looking for doesn't exist or you don't
+              have permission to view it.
             </p>
             <Button asChild>
               <Link to="/crm/campaigns">
@@ -146,25 +166,24 @@ export default function CRMCampaignDetail() {
             </Link>
           </Button>
           <div>
-            <h1 className="text-3xl font-bold text-foreground">{campaign.name}</h1>
-            <p className="text-muted-foreground mt-1">Email Campaign Analytics</p>
+            <h1 className="text-3xl font-bold text-foreground">
+              {campaign.name}
+            </h1>
+            <p className="text-muted-foreground mt-1">
+              Email Campaign Analytics
+            </p>
           </div>
         </div>
         <div className="flex items-center space-x-2">
           {getStatusBadge(campaign.status)}
-        {campaign.status === 'sent' && (
-          <Button 
-            variant="default" 
-            size="sm" 
-            asChild
-            className="ml-4"
-          >
-            <Link to={`/crm/campaigns/${campaign.id}/analytics`}>
-              <TrendingUp className="h-4 w-4 mr-2" />
-              View Analytics
-            </Link>
-          </Button>
-        )}
+          {campaign.status === "sent" && (
+            <Button variant="default" size="sm" asChild className="ml-4">
+              <Link to={`/crm/campaigns/${campaign.id}/analytics`}>
+                <TrendingUp className="h-4 w-4 mr-2" />
+                View Analytics
+              </Link>
+            </Button>
+          )}
           <Button variant="outline" asChild>
             <Link to={`/crm/campaigns/new?duplicate=${campaign.id}`}>
               <Copy className="h-4 w-4 mr-2" />
@@ -190,7 +209,9 @@ export default function CRMCampaignDetail() {
                   <div className="text-3xl font-bold text-primary">
                     {campaign.metrics.sent || 0}
                   </div>
-                  <div className="text-sm text-muted-foreground">Total Recipients</div>
+                  <div className="text-sm text-muted-foreground">
+                    Total Recipients
+                  </div>
                 </div>
                 <div className="text-center p-4 bg-muted/50 rounded-lg">
                   <div className="text-3xl font-bold text-green-600">
@@ -220,7 +241,7 @@ export default function CRMCampaignDetail() {
                   </div>
                 </div>
               </div>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="text-center p-4 bg-muted/50 rounded-lg">
                   <div className="text-2xl font-bold text-red-600">
@@ -232,13 +253,22 @@ export default function CRMCampaignDetail() {
                   <div className="text-2xl font-bold text-orange-600">
                     {campaign.metrics.unsubscribes || 0}
                   </div>
-                  <div className="text-sm text-muted-foreground">Unsubscribes</div>
+                  <div className="text-sm text-muted-foreground">
+                    Unsubscribes
+                  </div>
                 </div>
                 <div className="text-center p-4 bg-muted/50 rounded-lg">
                   <div className="text-2xl font-bold text-cyan-600">
-                    {Math.round(((campaign.metrics.clicks || 0) / (campaign.metrics.opens || 1)) * 100)}%
+                    {Math.round(
+                      ((campaign.metrics.clicks || 0) /
+                        (campaign.metrics.opens || 1)) *
+                        100,
+                    )}
+                    %
                   </div>
-                  <div className="text-sm text-muted-foreground">Click-to-Open Rate</div>
+                  <div className="text-sm text-muted-foreground">
+                    Click-to-Open Rate
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -255,20 +285,34 @@ export default function CRMCampaignDetail() {
               {campaign.status === "draft" ? (
                 <div className="text-muted-foreground">
                   <Send className="h-12 w-12 mx-auto mb-4" />
-                  <p className="text-lg font-medium mb-2">Analytics will be available after sending</p>
-                  <p>Send your campaign to see open rates, clicks, and engagement metrics</p>
+                  <p className="text-lg font-medium mb-2">
+                    Analytics will be available after sending
+                  </p>
+                  <p>
+                    Send your campaign to see open rates, clicks, and engagement
+                    metrics
+                  </p>
                 </div>
               ) : campaign.status === "scheduled" ? (
                 <div className="text-muted-foreground">
                   <Calendar className="h-12 w-12 mx-auto mb-4" />
-                  <p className="text-lg font-medium mb-2">Campaign is scheduled</p>
-                  <p>Performance data will appear here once the campaign is sent</p>
+                  <p className="text-lg font-medium mb-2">
+                    Campaign is scheduled
+                  </p>
+                  <p>
+                    Performance data will appear here once the campaign is sent
+                  </p>
                 </div>
               ) : (
                 <div className="text-muted-foreground">
                   <AlertTriangle className="h-12 w-12 mx-auto mb-4" />
-                  <p className="text-lg font-medium mb-2">Waiting on delivery results...</p>
-                  <p>Performance metrics are being collected and will appear shortly</p>
+                  <p className="text-lg font-medium mb-2">
+                    Waiting on delivery results...
+                  </p>
+                  <p>
+                    Performance metrics are being collected and will appear
+                    shortly
+                  </p>
                 </div>
               )}
             </CardContent>
@@ -286,37 +330,64 @@ export default function CRMCampaignDetail() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <label className="text-sm font-medium text-muted-foreground">Subject Line</label>
+                <label className="text-sm font-medium text-muted-foreground">
+                  Subject Line
+                </label>
                 <div className="mt-1 p-3 bg-muted rounded-lg">
                   <p className="font-medium">{campaign.subject_line}</p>
                 </div>
               </div>
 
               <div>
-                <label className="text-sm font-medium text-muted-foreground">Email Content</label>
+                <label className="text-sm font-medium text-muted-foreground">
+                  Email Content
+                </label>
                 <div className="mt-1 p-4 bg-muted rounded-lg max-h-48 overflow-y-auto">
-                  <div 
+                  <div
                     className="prose prose-sm max-w-none"
-                    dangerouslySetInnerHTML={{ __html: campaign.content || "No content available" }}
+                    dangerouslySetInnerHTML={{
+                      __html: campaign.content || "No content available",
+                    }}
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 gap-4 text-sm">
                 <div>
-                  <label className="font-medium text-muted-foreground">Created</label>
-                  <p>{format(new Date(campaign.created_at), "MMM d, yyyy 'at' h:mm a")}</p>
+                  <label className="font-medium text-muted-foreground">
+                    Created
+                  </label>
+                  <p>
+                    {format(
+                      new Date(campaign.created_at),
+                      "MMM d, yyyy 'at' h:mm a",
+                    )}
+                  </p>
                 </div>
                 {campaign.scheduled_at && (
                   <div>
-                    <label className="font-medium text-muted-foreground">Scheduled</label>
-                    <p>{format(new Date(campaign.scheduled_at), "MMM d, yyyy 'at' h:mm a")}</p>
+                    <label className="font-medium text-muted-foreground">
+                      Scheduled
+                    </label>
+                    <p>
+                      {format(
+                        new Date(campaign.scheduled_at),
+                        "MMM d, yyyy 'at' h:mm a",
+                      )}
+                    </p>
                   </div>
                 )}
                 {campaign.sent_at && (
                   <div>
-                    <label className="font-medium text-muted-foreground">Sent</label>
-                    <p>{format(new Date(campaign.sent_at), "MMM d, yyyy 'at' h:mm a")}</p>
+                    <label className="font-medium text-muted-foreground">
+                      Sent
+                    </label>
+                    <p>
+                      {format(
+                        new Date(campaign.sent_at),
+                        "MMM d, yyyy 'at' h:mm a",
+                      )}
+                    </p>
                   </div>
                 )}
               </div>
@@ -333,8 +404,12 @@ export default function CRMCampaignDetail() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <label className="text-sm font-medium text-muted-foreground">Target Segment</label>
-                <p className="mt-1 text-lg">{campaign.crm_segments?.name || "All customers"}</p>
+                <label className="text-sm font-medium text-muted-foreground">
+                  Target Segment
+                </label>
+                <p className="mt-1 text-lg">
+                  {campaign.crm_segments?.name || "All customers"}
+                </p>
                 {campaign.crm_segments?.customer_count && (
                   <p className="text-sm text-muted-foreground">
                     {campaign.crm_segments.customer_count} customers in segment
@@ -344,28 +419,36 @@ export default function CRMCampaignDetail() {
 
               {campaign.metrics && (
                 <div className="space-y-3">
-                  <label className="text-sm font-medium text-muted-foreground">Engagement Summary</label>
+                  <label className="text-sm font-medium text-muted-foreground">
+                    Engagement Summary
+                  </label>
                   <div className="space-y-2">
                     <div className="flex justify-between items-center">
                       <span className="flex items-center text-sm">
                         <Eye className="h-4 w-4 mr-2 text-blue-600" />
                         Open Rate
                       </span>
-                      <span className="font-medium">{getOpenRate(campaign.metrics)}</span>
+                      <span className="font-medium">
+                        {getOpenRate(campaign.metrics)}
+                      </span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="flex items-center text-sm">
                         <MousePointerClick className="h-4 w-4 mr-2 text-purple-600" />
                         Click Rate
                       </span>
-                      <span className="font-medium">{getClickRate(campaign.metrics)}</span>
+                      <span className="font-medium">
+                        {getClickRate(campaign.metrics)}
+                      </span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="flex items-center text-sm">
                         <UserMinus className="h-4 w-4 mr-2 text-orange-600" />
                         Unsubscribes
                       </span>
-                      <span className="font-medium">{campaign.metrics.unsubscribes || 0}</span>
+                      <span className="font-medium">
+                        {campaign.metrics.unsubscribes || 0}
+                      </span>
                     </div>
                   </div>
                 </div>

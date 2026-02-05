@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Calendar, Clock, Send, Lock, AlertTriangle, X } from 'lucide-react';
-import { format } from 'date-fns';
-import { toZonedTime } from 'date-fns-tz';
+import React, { useEffect, useMemo, useState } from "react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Calendar, Clock, Send, Lock, AlertTriangle, X } from "lucide-react";
+import { format } from "date-fns";
+import { toZonedTime } from "date-fns-tz";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -14,10 +16,11 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import { ScheduleSelector, ScheduleOption } from './ScheduleSelector';
+} from "@/components/ui/alert-dialog";
+import { ScheduleSelector, ScheduleOption } from "./ScheduleSelector";
 
 interface ScheduledCampaignBannerProps {
+  campaignId?: string | null;
   status: string;
   scheduledAt: string | null;
   timezone?: string;
@@ -27,29 +30,179 @@ interface ScheduledCampaignBannerProps {
   isProcessing?: boolean;
 }
 
-export const ScheduledCampaignBanner: React.FC<ScheduledCampaignBannerProps> = ({
+export const ScheduledCampaignBanner: React.FC<
+  ScheduledCampaignBannerProps
+> = ({
+  campaignId,
   status,
   scheduledAt,
   timezone,
   onEditSchedule,
   onSendNow,
   onUnschedule,
-  isProcessing = false
+  isProcessing = false,
 }) => {
+  const { toast } = useToast();
   const [showUnscheduleDialog, setShowUnscheduleDialog] = useState(false);
   const [showSendNowDialog, setShowSendNowDialog] = useState(false);
 
-  // Don't show banner for non-scheduled campaigns
-  if (status !== 'scheduled' && status !== 'sending') {
-    return null;
-  }
+  const [progress, setProgress] = useState<null | {
+    campaign_id: string;
+    total: number;
+    queued: number;
+    sending: number;
+    sent: number;
+    failed: number;
+    skipped: number;
+    last_message_updated_at: string | null;
+    last_attempt_at: string | null;
+    last_sent_at: string | null;
+    is_stuck: boolean;
+    stuck_reason: string | null;
+  }>(null);
+  const [progressError, setProgressError] = useState<string | null>(null);
+  const [isRetryingWorker, setIsRetryingWorker] = useState(false);
 
-  const userTimezone = timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const PROGRESS_POLL_INTERVAL_MS = 15000;
+
+  const toUserFriendlyProgressMessage = (rawMessage?: string | null) => {
+    const m = (rawMessage || "").toLowerCase();
+    if (!m) return "Delivery progress is temporarily unavailable.";
+    if (
+      m.includes("schema cache") ||
+      m.includes("could not find the function")
+    ) {
+      return "Delivery progress is temporarily unavailable.";
+    }
+    if (
+      m.includes("permission") ||
+      m.includes("rls") ||
+      m.includes("forbidden")
+    ) {
+      return "Delivery progress is temporarily unavailable.";
+    }
+    if (m.includes("timeout") || m.includes("network") || m.includes("fetch")) {
+      return "Delivery progress is temporarily unavailable.";
+    }
+    return "Delivery progress is temporarily unavailable.";
+  };
+
+  const isSameProgress = (a: typeof progress, b: typeof progress) => {
+    if (!a || !b) return false;
+    return (
+      a.campaign_id === b.campaign_id &&
+      a.total === b.total &&
+      a.queued === b.queued &&
+      a.sending === b.sending &&
+      a.sent === b.sent &&
+      a.failed === b.failed &&
+      a.skipped === b.skipped &&
+      a.last_message_updated_at === b.last_message_updated_at &&
+      a.last_attempt_at === b.last_attempt_at &&
+      a.last_sent_at === b.last_sent_at &&
+      a.is_stuck === b.is_stuck &&
+      a.stuck_reason === b.stuck_reason
+    );
+  };
+
+  const isRelevant = status === "scheduled" || status === "sending";
+
+  const userTimezone =
+    timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
   const isPastDue = scheduledAt && new Date(scheduledAt) < new Date();
-  const isSending = status === 'sending';
+  const isSending = status === "sending";
+
+  const processedCount = useMemo(() => {
+    if (!progress) return null;
+    return (
+      (progress.sent || 0) + (progress.failed || 0) + (progress.skipped || 0)
+    );
+  }, [progress]);
+
+  const percentComplete = useMemo(() => {
+    if (!progress || !progress.total) return null;
+    const done = processedCount ?? 0;
+    return Math.min(
+      100,
+      Math.max(0, Math.round((done / progress.total) * 100)),
+    );
+  }, [progress, processedCount]);
+
+  useEffect(() => {
+    if (!isSending || !campaignId) return;
+
+    let cancelled = false;
+    let intervalId: number | undefined;
+
+    const fetchProgress = async () => {
+      try {
+        const { data, error } = await supabase.rpc(
+          "get_email_campaign_progress" as any,
+          { p_campaign_id: campaignId },
+        );
+
+        if (cancelled) return;
+        if (error) {
+          console.warn("Failed to load campaign delivery progress", {
+            campaignId,
+            error,
+          });
+          setProgressError((prev) => {
+            const next = toUserFriendlyProgressMessage(error.message);
+            return prev === next ? prev : next;
+          });
+          return;
+        }
+
+        const row = Array.isArray(data) ? data[0] : data;
+        if (row) {
+          setProgressError(null);
+          setProgress((prev) => (isSameProgress(prev, row) ? prev : row));
+        }
+      } catch (e: any) {
+        if (cancelled) return;
+        console.warn("Failed to load campaign delivery progress", {
+          campaignId,
+          error: e,
+        });
+        setProgressError((prev) => {
+          const next = toUserFriendlyProgressMessage(e?.message);
+          return prev === next ? prev : next;
+        });
+      }
+    };
+
+    fetchProgress();
+    intervalId = window.setInterval(fetchProgress, PROGRESS_POLL_INTERVAL_MS);
+
+    return () => {
+      cancelled = true;
+      if (intervalId) window.clearInterval(intervalId);
+    };
+  }, [isSending, campaignId]);
+
+  const handleRetryWorker = async () => {
+    if (isRetryingWorker) return;
+    setIsRetryingWorker(true);
+    try {
+      const { error } = await supabase.functions.invoke(
+        "process-email-send-queue",
+        {
+          body: {},
+        },
+      );
+      if (error) throw error;
+      toast.success("Triggered a retry. Progress should update shortly.");
+    } catch (e: any) {
+      console.warn("Failed to trigger process-email-send-queue", { error: e });
+      toast.error("Couldn't trigger a retry. Please try again.");
+    } finally {
+      setIsRetryingWorker(false);
+    }
+  };
 
   const formatScheduledTime = () => {
-    if (!scheduledAt) return 'Unknown time';
+    if (!scheduledAt) return "Unknown time";
     try {
       const localDate = toZonedTime(new Date(scheduledAt), userTimezone);
       return format(localDate, "MMMM d, yyyy 'at' h:mm a");
@@ -58,14 +211,17 @@ export const ScheduledCampaignBanner: React.FC<ScheduledCampaignBannerProps> = (
     }
   };
 
+  // Return null only after hooks run (avoids hook order mismatch when status changes)
+  if (!isRelevant) return null;
+
   const getTimezoneName = () => {
     const timezoneLabels: Record<string, string> = {
-      'America/New_York': 'ET',
-      'America/Chicago': 'CT',
-      'America/Denver': 'MT',
-      'America/Los_Angeles': 'PT',
-      'UTC': 'UTC',
-      'Europe/London': 'GMT'
+      "America/New_York": "ET",
+      "America/Chicago": "CT",
+      "America/Denver": "MT",
+      "America/Los_Angeles": "PT",
+      UTC: "UTC",
+      "Europe/London": "GMT",
     };
     return timezoneLabels[userTimezone] || userTimezone;
   };
@@ -82,21 +238,82 @@ export const ScheduledCampaignBanner: React.FC<ScheduledCampaignBannerProps> = (
 
   // Create current schedule for the selector
   const currentSchedule: ScheduleOption = {
-    type: 'scheduled',
+    type: "scheduled",
     date: scheduledAt ? new Date(scheduledAt) : undefined,
-    timezone: userTimezone
+    timezone: userTimezone,
   };
 
   if (isSending) {
+    const isStuck = !!progress?.is_stuck;
     return (
-      <Alert className="bg-blue-50 border-blue-200 mb-6">
-        <Clock className="h-4 w-4 text-blue-600 animate-pulse" />
-        <AlertTitle className="text-blue-800 flex items-center gap-2">
+      <Alert
+        className={`mb-6 ${isStuck ? "bg-amber-50 border-amber-200" : "bg-blue-50 border-blue-200"}`}
+      >
+        <Clock
+          className={`h-4 w-4 animate-pulse ${isStuck ? "text-amber-600" : "text-blue-600"}`}
+        />
+        <AlertTitle
+          className={`${isStuck ? "text-amber-800" : "text-blue-800"} flex items-center gap-2`}
+        >
           Campaign Sending
-          <Badge variant="default" className="bg-blue-600">In Progress</Badge>
+          <Badge
+            variant="default"
+            className={isStuck ? "bg-amber-600" : "bg-blue-600"}
+          >
+            {isStuck ? "Needs Attention" : "In Progress"}
+          </Badge>
         </AlertTitle>
-        <AlertDescription className="text-blue-700">
-          This campaign is currently being sent. Please wait for the process to complete.
+        <AlertDescription
+          className={`${isStuck ? "text-amber-700" : "text-blue-700"} mt-2`}
+        >
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+              {progress && progress.total > 0 ? (
+                <>
+                  <p className="font-medium">
+                    Sent {progress.sent} of {progress.total}
+                    {percentComplete !== null
+                      ? ` (${percentComplete}% processed)`
+                      : ""}
+                  </p>
+                  <p className="text-sm mt-1">
+                    Sent: {progress.sent} • Failed: {progress.failed} • Queued:{" "}
+                    {progress.queued} • Sending: {progress.sending}
+                  </p>
+                  {isStuck && (
+                    <p className="text-sm mt-1">
+                      {progress.stuck_reason || "Sending appears to be stuck."}{" "}
+                      The worker runs every minute; you can also retry now.
+                    </p>
+                  )}
+                </>
+              ) : (
+                <p>
+                  This campaign is currently being sent. Please wait for the
+                  process to complete.
+                </p>
+              )}
+
+              {progressError && (
+                <p className="text-sm mt-2 text-muted-foreground">
+                  {progressError} Retrying automatically.
+                </p>
+              )}
+            </div>
+
+            {isStuck && (
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleRetryWorker}
+                  disabled={isRetryingWorker}
+                >
+                  Retry Now
+                </Button>
+              </div>
+            )}
+          </div>
         </AlertDescription>
       </Alert>
     );
@@ -104,23 +321,34 @@ export const ScheduledCampaignBanner: React.FC<ScheduledCampaignBannerProps> = (
 
   return (
     <>
-      <Alert className={`mb-6 ${isPastDue ? 'bg-amber-50 border-amber-200' : 'bg-primary/5 border-primary/20'}`}>
-        <Calendar className={`h-4 w-4 ${isPastDue ? 'text-amber-600' : 'text-primary'}`} />
-        <AlertTitle className={`${isPastDue ? 'text-amber-800' : 'text-primary'} flex items-center gap-2`}>
+      <Alert
+        className={`mb-6 ${isPastDue ? "bg-amber-50 border-amber-200" : "bg-primary/5 border-primary/20"}`}
+      >
+        <Calendar
+          className={`h-4 w-4 ${isPastDue ? "text-amber-600" : "text-primary"}`}
+        />
+        <AlertTitle
+          className={`${isPastDue ? "text-amber-800" : "text-primary"} flex items-center gap-2`}
+        >
           {isPastDue ? (
             <>
               <AlertTriangle className="h-4 w-4" />
               Past Due - Will Send Soon
             </>
           ) : (
-            'Scheduled to Send'
+            "Scheduled to Send"
           )}
-          <Badge variant={isPastDue ? 'outline' : 'default'} className={isPastDue ? 'border-amber-600 text-amber-700' : ''}>
+          <Badge
+            variant={isPastDue ? "outline" : "default"}
+            className={isPastDue ? "border-amber-600 text-amber-700" : ""}
+          >
             <Lock className="h-3 w-3 mr-1" />
             Locked
           </Badge>
         </AlertTitle>
-        <AlertDescription className={`${isPastDue ? 'text-amber-700' : 'text-muted-foreground'} mt-2`}>
+        <AlertDescription
+          className={`${isPastDue ? "text-amber-700" : "text-muted-foreground"} mt-2`}
+        >
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <p className="font-medium">
@@ -167,13 +395,16 @@ export const ScheduledCampaignBanner: React.FC<ScheduledCampaignBannerProps> = (
       </Alert>
 
       {/* Unschedule Confirmation Dialog */}
-      <AlertDialog open={showUnscheduleDialog} onOpenChange={setShowUnscheduleDialog}>
+      <AlertDialog
+        open={showUnscheduleDialog}
+        onOpenChange={setShowUnscheduleDialog}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Unschedule Campaign?</AlertDialogTitle>
             <AlertDialogDescription>
-              This campaign will not send automatically. It will be returned to draft status
-              and you can edit the content or reschedule it later.
+              This campaign will not send automatically. It will be returned to
+              draft status and you can edit the content or reschedule it later.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -197,7 +428,10 @@ export const ScheduledCampaignBanner: React.FC<ScheduledCampaignBannerProps> = (
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleSendNowConfirm} className="bg-primary">
+            <AlertDialogAction
+              onClick={handleSendNowConfirm}
+              className="bg-primary"
+            >
               <Send className="h-4 w-4 mr-1" />
               Send Now
             </AlertDialogAction>
