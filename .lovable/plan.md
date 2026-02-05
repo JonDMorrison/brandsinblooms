@@ -1,67 +1,64 @@
 
-# Fix: Scheduled Campaign Not Sending
+# Fix Email Footer Missing Logo and Social Icons
 
-## Problem Summary
-Christine's newsletter "Farmers Market this Saturday!" scheduled for 7:30 AM EST (12:30 UTC) has not been sent. Investigation revealed a **database constraint violation** preventing the campaign sending pipeline from processing any scheduled campaigns.
+## Problem Identified
+Test emails from **Down to Earth** (Christine's account) are missing the formatted footer with logo and social icons that appear in emails from **Brands in Blooms**.
 
-## Root Cause
-The `crm_campaigns` table has a CHECK constraint that only allows these status values:
-- `draft`
-- `scheduled`  
-- `sent`
+### Root Causes Found
 
-However, the campaign sending pipeline attempts to use:
-- `sending` (when claiming a campaign for processing)
-- `failed` (when an error occurs)
+**1. Missing Profile Data (Primary Issue)**
+The "Down to Earth Garden Center" company profile has:
+- ❌ No Facebook URL
+- ❌ No Instagram URL  
+- ❌ No TikTok URL
+- ❌ No Pinterest URL
+- ❌ No YouTube URL
+- ❌ No LinkedIn URL
+- ❌ No company logo uploaded
 
-When the `auto-send-campaigns` cron job runs, it calls the `claim_scheduled_campaigns` database function which tries to set `status = 'sending'`. This violates the constraint and causes the entire operation to fail silently.
+In contrast, "Brands in Blooms" has:
+- ✅ Facebook, Instagram, LinkedIn, YouTube URLs configured
+- ✅ Company logo uploaded and stored
+
+**2. Code Gap (Secondary Issue)**
+The email footer generator code doesn't pass the `feature_flags` field (which contains the company logo URL) from the company profile to the footer HTML builder.
+
+---
 
 ## Solution
 
-### Step 1: Update Database Constraint
-Modify the CHECK constraint to allow all necessary status values:
+### Step 1: Fix the Code Gap
+Update the email renderer to include `feature_flags` in the company profile data passed to the footer generator.
 
-```sql
--- Drop the existing constraint
-ALTER TABLE crm_campaigns 
-DROP CONSTRAINT crm_campaigns_status_check;
+**Files to modify:**
+- `supabase/functions/_shared/emailRenderer.ts`
+  - Add `feature_flags` to `CompanyProfileShape` interface
+  - Pass `feature_flags` to the footer generator in `appendFooter()` function
 
--- Add updated constraint with all valid statuses
-ALTER TABLE crm_campaigns 
-ADD CONSTRAINT crm_campaigns_status_check 
-CHECK (status IN ('draft', 'scheduled', 'sending', 'sent', 'failed'));
+### Step 2: User Action Required (Christine's Account)
+Christine needs to configure her company profile in BloomSuite with:
+1. **Upload a company logo** (Settings → Branding)
+2. **Add social media URLs** (Settings → Account → Social Links)
+
+Without this data, the footer cannot display a logo or social icons - the system is working correctly, it just has nothing to show.
+
+---
+
+## Technical Changes
+
+```text
+supabase/functions/_shared/emailRenderer.ts
+├── CompanyProfileShape interface
+│   └── Add: feature_flags?: { company_logo_url?: string; footer_colors?: {...} }
+│
+└── appendFooter() function
+    └── Pass feature_flags to profileData for footer generator
 ```
 
-### Step 2: Verify and Manually Trigger
-After the constraint is updated:
-1. Manually invoke the `auto-send-campaigns` edge function to process the pending campaign
-2. Verify the campaign status changes to `sent`
-3. Confirm Christine receives the email
+---
 
-## Technical Details
-
-| Item | Value |
-|------|-------|
-| Campaign ID | `0745c22f-6396-47e5-b66f-904d334a4aeb` |
-| Campaign Name | Farmers Market this Saturday! |
-| Tenant | Down to Earth Garden Center |
-| Scheduled At | 2026-02-04 12:30:00 UTC |
-| Current Status | `scheduled` (stuck) |
-| Error | CHECK constraint violation on status column |
-
-## Files That Reference Campaign Status
-
-The following edge functions use the `sending` or `failed` status values and will work correctly after the constraint is updated:
-- `auto-send-campaigns/index.ts` - Sets status to `sending` during claim, `sent` or `failed` after processing
-- `claim_scheduled_campaigns` RPC - Sets status to `sending` atomically
-
-## Expected Outcome
-After implementing this fix:
-1. The stuck campaign will be sent immediately (or on next cron cycle)
-2. All future scheduled campaigns will process correctly
-3. Failed campaigns will be properly marked with `failed` status for debugging
-
-## Impact Assessment
-- **Risk**: Low - only adds valid status values to an existing constraint
-- **Downtime**: None - ALTER TABLE operations on CHECK constraints are fast
-- **Rollback**: Can revert constraint if needed (though not recommended)
+## Verification
+After the code fix:
+1. Deploy the updated edge function
+2. Have Christine upload a logo and add at least one social URL
+3. Send a test email - footer should now show the logo and social icons
