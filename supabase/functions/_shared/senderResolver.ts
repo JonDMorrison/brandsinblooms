@@ -54,17 +54,20 @@ export async function resolveSender(
   if (preferredDomainId) {
     const { data: domain, error: domainError } = await supabase
       .from('email_domains')
-      .select('id, domain, status, default_from_email, default_from_name')
+      .select('id, domain, status, default_from_email, default_from_name, default_reply_to')
       .eq('id', preferredDomainId)
       .in('status', validStatuses)
       .single();
 
     if (!domainError && domain) {
       console.log(`[SenderResolver] Using preferred custom domain: ${domain.domain} (status: ${domain.status})`);
+      const fromEmail = domain.default_from_email || `mail@${domain.domain}`;
       return {
-        fromEmail: domain.default_from_email || `mail@${domain.domain}`,
+        fromEmail,
         fromName: domain.default_from_name || 'Your Business',
         deliveryMethod: 'custom_domain',
+        // Reply-to: prefer explicit setting, fallback to sender email
+        replyTo: domain.default_reply_to || fromEmail,
         domainId: domain.id,
         domain: domain.domain
       };
@@ -75,7 +78,7 @@ export async function resolveSender(
   // Step 2: Check for any usable custom domain for the tenant (active or warming_up)
   const { data: usableDomains, error: usableError } = await supabase
     .from('email_domains')
-    .select('id, domain, status, default_from_email, default_from_name')
+    .select('id, domain, status, default_from_email, default_from_name, default_reply_to')
     .eq('tenant_id', tenantId)
     .in('status', validStatuses)
     .order('created_at', { ascending: false })
@@ -84,10 +87,13 @@ export async function resolveSender(
   if (!usableError && usableDomains && usableDomains.length > 0) {
     const domain = usableDomains[0];
     console.log(`[SenderResolver] Using custom domain: ${domain.domain} (status: ${domain.status})`);
+    const fromEmail = domain.default_from_email || `mail@${domain.domain}`;
     return {
-      fromEmail: domain.default_from_email || `mail@${domain.domain}`,
+      fromEmail,
       fromName: domain.default_from_name || 'Your Business',
       deliveryMethod: 'custom_domain',
+      // Reply-to: prefer explicit setting, fallback to sender email
+      replyTo: domain.default_reply_to || fromEmail,
       domainId: domain.id,
       domain: domain.domain
     };

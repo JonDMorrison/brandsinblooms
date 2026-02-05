@@ -2568,10 +2568,12 @@ export type Database = {
         Row: {
           actual_sender_email: string | null
           auto_send_enabled: boolean | null
+          claim_token: string | null
           click_rate: number | null
           content: string | null
           created_at: string | null
           delivery_method: string | null
+          failure_reason: string | null
           from_email_domain_id: string | null
           id: string
           metadata: Json | null
@@ -2586,6 +2588,7 @@ export type Database = {
           rollup_refreshed_at: string | null
           scheduled_at: string | null
           segment_id: string | null
+          send_attempts: number | null
           send_blocked_reason: string | null
           send_error: string | null
           send_reasoning: string | null
@@ -2593,6 +2596,7 @@ export type Database = {
           sender_display_name: string | null
           sender_email: string | null
           sender_name: string | null
+          sending_started_at: string | null
           sent_at: string | null
           source_campaign_id: string | null
           source_content_task_id: string | null
@@ -2610,10 +2614,12 @@ export type Database = {
         Insert: {
           actual_sender_email?: string | null
           auto_send_enabled?: boolean | null
+          claim_token?: string | null
           click_rate?: number | null
           content?: string | null
           created_at?: string | null
           delivery_method?: string | null
+          failure_reason?: string | null
           from_email_domain_id?: string | null
           id?: string
           metadata?: Json | null
@@ -2628,6 +2634,7 @@ export type Database = {
           rollup_refreshed_at?: string | null
           scheduled_at?: string | null
           segment_id?: string | null
+          send_attempts?: number | null
           send_blocked_reason?: string | null
           send_error?: string | null
           send_reasoning?: string | null
@@ -2635,6 +2642,7 @@ export type Database = {
           sender_display_name?: string | null
           sender_email?: string | null
           sender_name?: string | null
+          sending_started_at?: string | null
           sent_at?: string | null
           source_campaign_id?: string | null
           source_content_task_id?: string | null
@@ -2652,10 +2660,12 @@ export type Database = {
         Update: {
           actual_sender_email?: string | null
           auto_send_enabled?: boolean | null
+          claim_token?: string | null
           click_rate?: number | null
           content?: string | null
           created_at?: string | null
           delivery_method?: string | null
+          failure_reason?: string | null
           from_email_domain_id?: string | null
           id?: string
           metadata?: Json | null
@@ -2670,6 +2680,7 @@ export type Database = {
           rollup_refreshed_at?: string | null
           scheduled_at?: string | null
           segment_id?: string | null
+          send_attempts?: number | null
           send_blocked_reason?: string | null
           send_error?: string | null
           send_reasoning?: string | null
@@ -2677,6 +2688,7 @@ export type Database = {
           sender_display_name?: string | null
           sender_email?: string | null
           sender_name?: string | null
+          sending_started_at?: string | null
           sent_at?: string | null
           source_campaign_id?: string | null
           source_content_task_id?: string | null
@@ -3531,6 +3543,7 @@ export type Database = {
           segment_id: string | null
           sending_identity_id: string | null
           sent_at: string | null
+          source: string | null
           status: string
           targeting_logic: string | null
           targeting_persona_ids: string[] | null
@@ -3562,6 +3575,7 @@ export type Database = {
           segment_id?: string | null
           sending_identity_id?: string | null
           sent_at?: string | null
+          source?: string | null
           status?: string
           targeting_logic?: string | null
           targeting_persona_ids?: string[] | null
@@ -3593,6 +3607,7 @@ export type Database = {
           segment_id?: string | null
           sending_identity_id?: string | null
           sent_at?: string | null
+          source?: string | null
           status?: string
           targeting_logic?: string | null
           targeting_persona_ids?: string[] | null
@@ -6659,6 +6674,7 @@ export type Database = {
           daily_sent_count: number | null
           default_from_email: string | null
           default_from_name: string | null
+          default_reply_to: string | null
           dns_records: Json | null
           domain: string
           entri_connection_id: string | null
@@ -6699,6 +6715,7 @@ export type Database = {
           daily_sent_count?: number | null
           default_from_email?: string | null
           default_from_name?: string | null
+          default_reply_to?: string | null
           dns_records?: Json | null
           domain: string
           entri_connection_id?: string | null
@@ -6739,6 +6756,7 @@ export type Database = {
           daily_sent_count?: number | null
           default_from_email?: string | null
           default_from_name?: string | null
+          default_reply_to?: string | null
           dns_records?: Json | null
           domain?: string
           entri_connection_id?: string | null
@@ -13414,10 +13432,12 @@ export type Database = {
         Returns: {
           actual_sender_email: string | null
           auto_send_enabled: boolean | null
+          claim_token: string | null
           click_rate: number | null
           content: string | null
           created_at: string | null
           delivery_method: string | null
+          failure_reason: string | null
           from_email_domain_id: string | null
           id: string
           metadata: Json | null
@@ -13432,6 +13452,7 @@ export type Database = {
           rollup_refreshed_at: string | null
           scheduled_at: string | null
           segment_id: string | null
+          send_attempts: number | null
           send_blocked_reason: string | null
           send_error: string | null
           send_reasoning: string | null
@@ -13439,6 +13460,7 @@ export type Database = {
           sender_display_name: string | null
           sender_email: string | null
           sender_name: string | null
+          sending_started_at: string | null
           sent_at: string | null
           source_campaign_id: string | null
           source_content_task_id: string | null
@@ -13500,6 +13522,16 @@ export type Database = {
       cleanup_expired_oauth_states: { Args: never; Returns: undefined }
       cleanup_old_oauth_codes: { Args: never; Returns: undefined }
       cleanup_stale_sync_jobs: { Args: never; Returns: number }
+      complete_campaign_send: {
+        Args: {
+          p_campaign_id: string
+          p_claim_token: string
+          p_error_message?: string
+          p_metrics?: Json
+          p_success: boolean
+        }
+        Returns: boolean
+      }
       complete_pos_sync_job: {
         Args: {
           p_cursor?: string
@@ -13753,9 +13785,27 @@ export type Database = {
       }
       get_global_in_progress_count: { Args: never; Returns: number }
       get_jwt_tenant_id: { Args: never; Returns: string }
+      get_my_overdue_campaigns: {
+        Args: never
+        Returns: {
+          campaigns: Json
+          oldest_scheduled_at: string
+          overdue_count: number
+        }[]
+      }
       get_next_message_sequence: {
         Args: { p_session_id: string }
         Returns: number
+      }
+      get_overdue_campaigns: {
+        Args: { p_tenant_id?: string }
+        Returns: {
+          campaign_ids: string[]
+          oldest_scheduled_at: string
+          overdue_count: number
+          tenant_id: string
+          tenant_name: string
+        }[]
       }
       get_remaining_budget: { Args: { p_tenant_id: string }; Returns: Json }
       get_sms_warmup_info: {
@@ -14126,6 +14176,10 @@ export type Database = {
         }
         Returns: string
       }
+      unsuppress_incorrectly_flagged_customers: {
+        Args: { batch_limit?: number }
+        Returns: number
+      }
       update_cross_channel_metrics: {
         Args: { p_channel: string; p_customer_id: string; p_event_type: string }
         Returns: undefined
@@ -14185,6 +14239,10 @@ export type Database = {
           p_window_start: string
         }
         Returns: number
+      }
+      verify_campaign_claim: {
+        Args: { p_campaign_id: string; p_claim_token: string }
+        Returns: boolean
       }
     }
     Enums: {

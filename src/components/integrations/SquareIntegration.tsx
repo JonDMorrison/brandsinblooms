@@ -354,7 +354,7 @@ export const SquareIntegration = () => {
               </div>
               {tokenExpiry && (
                 <div>
-                  <p className="text-muted-foreground">Token Expiry</p>
+                  <p className="text-muted-foreground">Connection Valid Until</p>
                   <p className={`font-medium ${tokenExpiry.color}`}>
                     <Clock className="h-3 w-3 inline mr-1" />
                     {tokenExpiry.text}
@@ -401,7 +401,7 @@ export const SquareIntegration = () => {
                   </div>
                   {connection.webhooks_last_checked_at && (
                     <div>
-                      <p className="text-muted-foreground">Last Verified</p>
+                      <p className="text-muted-foreground">Last Health Check</p>
                       <p className="font-medium">
                         {formatDistanceToNow(new Date(connection.webhooks_last_checked_at), { addSuffix: true })}
                       </p>

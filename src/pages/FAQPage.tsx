@@ -60,13 +60,16 @@ const FAQPage = () => {
     },
     questions: [{
       question: "How much does BloomSuite cost?",
-      answer: "BloomSuite is $2,999 per year. That replaces $4,200–$6,900 in separate subscriptions for Mailchimp, Buffer, Squarespace, SMS tools, CRMs, and analytics."
+      answer: "BloomSuite offers four plans starting at $199/month: Seed ($199) for CRM and messaging, Sprout ($349) adds a website, Bloom ($699) includes higher volumes for growing centers, and Thrive ($1,199) offers unlimited emails for multi-location retailers. All plans include the full platform — no hidden fees."
     }, {
       question: "Will my price go up later?",
-      answer: "No. Your $2,999/year rate is locked in as long as you're an active customer."
+      answer: "Founding customers who join during the Launch Program lock in introductory pricing for life, as long as their subscription remains active. Future customers will pay standard rates."
     }, {
       question: "Are there any extra fees?",
-      answer: "Everything is included. The only usage-based costs are SMS carrier fees (usually pennies per message), and you'll see estimates before sending."
+      answer: "Each plan includes generous email and SMS volumes. If you exceed your limits, overage rates are transparent: $0.002/email and $0.05/SMS. You'll see usage in your dashboard and get alerts at 80% and 100%."
+    }, {
+      question: "Can I switch plans as my garden centre grows?",
+      answer: "Absolutely! You can upgrade or downgrade at any time. Upgrades take effect immediately with access to higher limits. Downgrades apply at your next billing cycle."
     }]
   }, {
     id: "ecommerce",
@@ -192,9 +195,9 @@ const FAQPage = () => {
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mt-12">
             {faqCategories.map(category => {
             const IconComponent = category.icon;
-            return <Button key={category.id} variant="outline" onClick={() => scrollToCategory(category.id)} className="flex flex-col items-center gap-2 h-auto py-4 px-3 bg-white/95 hover:bg-white border-2 border-white/50 hover:border-primary/40 transition-all group shadow-lg hover:shadow-xl">
-                  <IconComponent className="h-6 w-6 text-primary group-hover:scale-110 transition-transform" />
-                  <span className="text-sm font-medium text-center leading-tight text-gray-800">{category.title}</span>
+            return <Button key={category.id} variant="outline" onClick={() => scrollToCategory(category.id)} className="flex flex-col items-center justify-center gap-2 h-auto min-h-[100px] py-4 px-2 bg-white/95 hover:bg-white border-2 border-white/50 hover:border-primary/40 transition-all group shadow-lg hover:shadow-xl overflow-hidden">
+                  <IconComponent className="h-6 w-6 text-primary group-hover:scale-110 transition-transform flex-shrink-0" />
+                  <span className="text-xs font-medium text-center leading-tight text-gray-800 break-words w-full px-1">{category.title}</span>
                 </Button>;
           })}
           </div>

@@ -189,35 +189,134 @@ Deno.serve(async (req) => {
     let cursorCustomerId = campaign.enqueue_cursor_customer_id || null;
 
     // Step 6: Process pages of customers
+    // Get segment filter info from campaign metrics
+    const segmentFilter = (campaign.metrics as any)?.segment_filter || null;
+    const isSystemSegment = segmentFilter?.type === 'system';
+    const systemSegmentType = segmentFilter?.system_segment_type;
+    const customSegmentId = campaign.segment_id || segmentFilter?.segment_id;
+
+    console.log(`[sms-enqueue-worker] Segment filter:`, { isSystemSegment, systemSegmentType, customSegmentId });
+
     for (let page = 0; page < MAX_ENQUEUE_PAGES_PER_RUN && stats.hasMoreCustomers; page++) {
       console.log(`[sms-enqueue-worker] Processing page ${page + 1}, cursor=${cursorCustomerId || 'start'}`);
 
-      // Build customer query with cursor paging
-      let customerQuery = supabase
-        .from('crm_customers')
-        .select('id, first_name, last_name, phone, email, custom_fields, lifetime_value, total_spent, tags, is_vip')
-        .eq('tenant_id', campaign.tenant_id)
-        .eq('sms_opt_in', true)
-        .eq('opt_out', false)
-        .eq('suppressed', false)
-        .not('phone', 'is', null)
-        .not('phone', 'eq', '');
+      let customers: any[] = [];
+      let customersError: any = null;
 
-      // Apply VIP ordering if priority mode is set
-      if (campaign.priority_mode === 'vip_first') {
-        customerQuery = customerQuery.order('is_vip', { ascending: false }).order('id', { ascending: true });
+      if (isSystemSegment) {
+        // Build system segment query
+        let query = supabase
+          .from('crm_customers')
+          .select('id, first_name, last_name, phone, email, custom_fields, lifetime_value, total_spent, tags, is_vip')
+          .eq('tenant_id', campaign.tenant_id)
+          .eq('sms_opt_in', true)
+          .eq('opt_out', false)
+          .eq('suppressed', false)
+          .not('phone', 'is', null)
+          .not('phone', 'eq', '');
+
+        // Apply system segment-specific filters
+        switch (systemSegmentType) {
+          case 'high-value':
+            query = query.gte('total_spent', 500);
+            break;
+          case 'new-customers':
+            const thirtyDaysAgo = new Date();
+            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+            query = query.gte('created_at', thirtyDaysAgo.toISOString());
+            break;
+          case 'frequent-buyers':
+            query = query.gte('order_count', 3);
+            break;
+          case 'perks-members':
+            // Special handling for perks members - need to get IDs first
+            const { data: perksCustomerIds } = await supabase
+              .from('customer_loyalty_metrics')
+              .select('customer_id')
+              .eq('is_perks_member', true);
+            
+            if (perksCustomerIds && perksCustomerIds.length > 0) {
+              const ids = perksCustomerIds.map(p => p.customer_id);
+              query = query.in('id', ids);
+            } else {
+              customers = [];
+              break;
+            }
+            break;
+          // Default: all SMS-enabled customers
+        }
+
+        // Apply ordering and cursor
+        if (campaign.priority_mode === 'vip_first') {
+          query = query.order('is_vip', { ascending: false }).order('id', { ascending: true });
+        } else {
+          query = query.order('id', { ascending: true });
+        }
+
+        if (cursorCustomerId) {
+          query = query.gt('id', cursorCustomerId);
+        }
+
+        query = query.limit(ENQUEUE_PAGE_SIZE);
+        const result = await query;
+        customers = result.data || [];
+        customersError = result.error;
+
+      } else if (customSegmentId) {
+        // Custom segment - get customer IDs from customer_segments join
+        const { data: segmentCustomers, error: segError } = await supabase
+          .from('customer_segments')
+          .select(`
+            customer_id,
+            crm_customers!inner(id, first_name, last_name, phone, email, custom_fields, lifetime_value, total_spent, tags, is_vip)
+          `)
+          .eq('segment_id', customSegmentId)
+          .eq('crm_customers.tenant_id', campaign.tenant_id)
+          .eq('crm_customers.sms_opt_in', true)
+          .eq('crm_customers.opt_out', false)
+          .eq('crm_customers.suppressed', false)
+          .not('crm_customers.phone', 'is', null)
+          .not('crm_customers.phone', 'eq', '')
+          .order('customer_id', { ascending: true })
+          .gt('customer_id', cursorCustomerId || '00000000-0000-0000-0000-000000000000')
+          .limit(ENQUEUE_PAGE_SIZE);
+
+        if (segError) {
+          customersError = segError;
+        } else {
+          // Flatten the nested structure
+          customers = (segmentCustomers || []).map(sc => ({
+            ...(sc.crm_customers as any),
+            id: sc.customer_id
+          }));
+        }
       } else {
-        customerQuery = customerQuery.order('id', { ascending: true });
+        // Fallback: all SMS-enabled customers (legacy behavior)
+        let query = supabase
+          .from('crm_customers')
+          .select('id, first_name, last_name, phone, email, custom_fields, lifetime_value, total_spent, tags, is_vip')
+          .eq('tenant_id', campaign.tenant_id)
+          .eq('sms_opt_in', true)
+          .eq('opt_out', false)
+          .eq('suppressed', false)
+          .not('phone', 'is', null)
+          .not('phone', 'eq', '');
+
+        if (campaign.priority_mode === 'vip_first') {
+          query = query.order('is_vip', { ascending: false }).order('id', { ascending: true });
+        } else {
+          query = query.order('id', { ascending: true });
+        }
+
+        if (cursorCustomerId) {
+          query = query.gt('id', cursorCustomerId);
+        }
+
+        query = query.limit(ENQUEUE_PAGE_SIZE);
+        const result = await query;
+        customers = result.data || [];
+        customersError = result.error;
       }
-
-      // Apply cursor if we have one
-      if (cursorCustomerId) {
-        customerQuery = customerQuery.gt('id', cursorCustomerId);
-      }
-
-      customerQuery = customerQuery.limit(ENQUEUE_PAGE_SIZE);
-
-      const { data: customers, error: customersError } = await customerQuery;
 
       if (customersError) {
         console.error('[sms-enqueue-worker] Error fetching customers:', customersError);
@@ -246,31 +345,21 @@ Deno.serve(async (req) => {
         const mergeTagData = createMergeTagDataFromCustomer(customer, companyInfo);
         const renderedContent = renderMergeTags(messageTemplate, mergeTagData);
         const formattedPhone = formatPhoneForTwilio(customer.phone);
-        const segmentInfo = countSmsSegments(renderedContent);
-        const billableUnits = isMms ? mmsUnitCost : segmentInfo.segments;
 
         if (customer.is_vip) pageHasVip = true;
 
+        // Build media_urls array if there's an image
+        const mediaUrls = campaign.image_url ? [campaign.image_url] : (campaign.media_urls || null);
+
         messageRows.push({
-          tenant_id: campaign.tenant_id,
           campaign_id: campaign.id,
           customer_id: customer.id,
           phone: formattedPhone,
           content: renderedContent,
           status: 'queued',
           from_phone: fromPhone,
-          media_url: campaign.image_url || null,
-          segment_count: segmentInfo.segments,
-          encoding: segmentInfo.encoding,
-          is_mms: isMms,
-          billable_units: billableUnits,
-          attempts: 0,
-          metadata: {
-            campaign_name: campaign.name,
-            segment_id: campaign.segment_id,
-            queued_at: new Date().toISOString(),
-            is_vip: customer.is_vip
-          }
+          media_urls: mediaUrls,
+          attempts: 0
         });
       }
 

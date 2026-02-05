@@ -29,20 +29,76 @@ serve(async (req: Request): Promise<Response> => {
 
     const results: { campaign_id: string; metrics: any; success: boolean; error?: string }[] = [];
 
+    // Helper to compute metrics from email_tracking_events
+    const computeMetricsFromEvents = async (campaignId: string) => {
+      const { data: events, error: eventsError } = await supabase
+        .from('email_tracking_events')
+        .select('event_type')
+        .eq('campaign_id', campaignId);
+
+      if (eventsError) {
+        throw eventsError;
+      }
+
+      const counts = {
+        sent: 0,
+        delivered: 0,
+        bounced: 0,
+        opened: 0,
+        clicked: 0,
+        complained: 0,
+        unsubscribed: 0
+      };
+
+      for (const event of events || []) {
+        if (event.event_type in counts) {
+          counts[event.event_type as keyof typeof counts]++;
+        }
+      }
+
+      // Update campaign with new metrics
+      const { error: updateError } = await supabase
+        .from('crm_campaigns')
+        .update({
+          total_sent: counts.sent,
+          total_opens: counts.opened,
+          total_clicks: counts.clicked,
+          open_rate: counts.delivered > 0 ? (counts.opened / counts.delivered) * 100 : 0,
+          click_rate: counts.delivered > 0 ? (counts.clicked / counts.delivered) * 100 : 0,
+          metrics: counts,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', campaignId);
+
+      if (updateError) {
+        throw updateError;
+      }
+
+      return counts;
+    };
+
     if (campaign_id) {
       // Single campaign recompute
       console.log(`📊 Recomputing metrics for campaign: ${campaign_id}`);
       
-      const { data, error } = await supabase.rpc('recompute_campaign_metrics', {
-        p_campaign_id: campaign_id
-      });
+      try {
+        // First try RPC, fallback to direct computation
+        const { data, error } = await supabase.rpc('recompute_campaign_metrics', {
+          p_campaign_id: campaign_id
+        });
 
-      if (error) {
-        console.error(`❌ Error recomputing metrics for ${campaign_id}:`, error);
-        results.push({ campaign_id, metrics: null, success: false, error: error.message });
-      } else {
-        console.log(`✅ Recomputed metrics for ${campaign_id}`);
-        results.push({ campaign_id, metrics: data, success: true });
+        if (error) {
+          console.log(`⚠️ RPC failed, using direct computation: ${error.message}`);
+          const metrics = await computeMetricsFromEvents(campaign_id);
+          console.log(`✅ Recomputed metrics for ${campaign_id}:`, metrics);
+          results.push({ campaign_id, metrics, success: true });
+        } else {
+          console.log(`✅ Recomputed metrics for ${campaign_id}`);
+          results.push({ campaign_id, metrics: data, success: true });
+        }
+      } catch (err: any) {
+        console.error(`❌ Error recomputing metrics for ${campaign_id}:`, err);
+        results.push({ campaign_id, metrics: null, success: false, error: err.message });
       }
     } else if (tenant_id) {
       // Recompute all sent campaigns for a tenant

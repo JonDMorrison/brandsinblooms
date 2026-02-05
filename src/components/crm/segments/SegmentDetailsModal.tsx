@@ -3,12 +3,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Users, Target, Search, Plus, X, Loader2, Upload } from 'lucide-react';
+import { Users, Target, Search, Plus, X, Loader2, Upload, MessageSquare } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { EnhancedSegmentImportDialog } from './EnhancedSegmentImportDialog';
 import { usePaginatedCustomers } from '@/hooks/usePaginatedCustomers';
 import { LazyCustomerList } from '@/components/shared/LazyCustomerList';
+import { SegmentSMSDialog } from '@/components/sms/SegmentSMSDialog';
 
 interface Customer {
   id: string;
@@ -46,6 +47,7 @@ export const SegmentDetailsModal: React.FC<SegmentDetailsModalProps> = ({
   const [availableSearchTerm, setAvailableSearchTerm] = useState('');
   const [loadingCustomerId, setLoadingCustomerId] = useState<string | null>(null);
   const [showBulkImport, setShowBulkImport] = useState(false);
+  const [showSMSDialog, setShowSMSDialog] = useState(false);
   const [tenantId, setTenantId] = useState<string>('');
   const [userId, setUserId] = useState<string>('');
   const { toast } = useToast();
@@ -252,7 +254,10 @@ export const SegmentDetailsModal: React.FC<SegmentDetailsModalProps> = ({
           <div className="flex items-center gap-4 p-4 bg-muted/50 rounded-lg">
             <div className="flex items-center gap-2">
               <Users className="h-5 w-5 text-primary" />
-              <span className="font-semibold">{segmentTotalCount} Customers</span>
+              <span className="font-semibold">
+                {/* Use the higher of segmentTotalCount (from live query) or segment.customer_count (from parent) */}
+                {Math.max(segmentTotalCount, segment.customer_count || 0)} Customers
+              </span>
             </div>
             {segment.auto_update && (
               <Badge variant="outline">Auto-update</Badge>
@@ -429,11 +434,18 @@ export const SegmentDetailsModal: React.FC<SegmentDetailsModalProps> = ({
           </div>
           
           {/* Close Button */}
-          <div className="flex justify-end pt-4 border-t mt-4">
+          <div className="flex justify-between pt-4 border-t mt-4">
+            <Button
+              variant="outline"
+              onClick={() => setShowSMSDialog(true)}
+              className="gap-2"
+            >
+              <MessageSquare className="h-4 w-4" />
+              Send SMS
+            </Button>
             <Button 
               variant="outline" 
               onClick={() => {
-                console.log('Close button clicked');
                 onOpenChange(false);
               }}
               className="px-6"
@@ -458,6 +470,16 @@ export const SegmentDetailsModal: React.FC<SegmentDetailsModalProps> = ({
             onSegmentUpdate();
           }
         }}
+    />
+
+    {/* SMS Dialog */}
+    <SegmentSMSDialog
+      open={showSMSDialog}
+      onOpenChange={setShowSMSDialog}
+      segmentId={segment?.id || ''}
+      segmentName={segment?.name || ''}
+      customerCount={segmentTotalCount}
+      isSystemSegment={!isCustomSegment}
     />
   </>
   );

@@ -19,7 +19,19 @@ interface ClaimedCampaign {
   tenant_id: string;
   scheduled_at: string;
   segment_id?: string;
+  send_attempts?: number;
+  claim_token?: string;
   [key: string]: any;
+}
+
+interface CampaignResult {
+  id: string;
+  name: string;
+  status: 'sent' | 'failed' | 'skipped';
+  durationMs: number;
+  error?: string;
+  recipientCount?: number;
+  sendAttempts?: number;
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -28,9 +40,27 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   const startTime = Date.now();
-  console.log('🚀 [auto-send-campaigns] Starting scheduled campaign processing...');
+  const runId = crypto.randomUUID().slice(0, 8);
+
+  console.log(`🚀 [auto-send-campaigns][${runId}] Starting scheduled campaign processing...`);
+  console.log(`📅 [${runId}] Timestamp: ${new Date().toISOString()}`);
 
   try {
+    // Check for stuck campaigns before claiming (for logging purposes)
+    const { data: stuckCampaigns } = await supabase
+      .from('crm_campaigns')
+      .select('id, name, sending_started_at, send_attempts')
+      .eq('status', 'sending')
+      .lt('sending_started_at', new Date(Date.now() - 15 * 60 * 1000).toISOString());
+
+    if (stuckCampaigns && stuckCampaigns.length > 0) {
+      console.log(`⚠️ [${runId}] Found ${stuckCampaigns.length} stuck campaigns (sending > 15 min)`);
+      stuckCampaigns.forEach(c => {
+        console.log(`   - "${c.name}" (${c.id}) - attempts: ${c.send_attempts || 0}, started: ${c.sending_started_at}`);
+      });
+      console.log(`🔄 [${runId}] Recovery will be handled atomically by claim_scheduled_campaigns RPC`);
+    }
+
     // Step 1: Atomically claim scheduled campaigns using the RPC
     // This uses FOR UPDATE SKIP LOCKED to prevent double-claiming
     console.log('📋 Claiming scheduled campaigns with atomic RPC...');
@@ -39,7 +69,7 @@ const handler = async (req: Request): Promise<Response> => {
       .rpc('claim_scheduled_campaigns', { batch_size: 10 });
 
     if (claimError) {
-      console.error('❌ Failed to claim campaigns:', claimError);
+      console.error(`❌ [${runId}] Failed to claim campaigns:`, claimError);
       throw new Error(`Failed to claim campaigns: ${claimError.message}`);
     }
 
@@ -48,7 +78,10 @@ const handler = async (req: Request): Promise<Response> => {
     console.log(`📧 Claimed ${campaigns.length} campaigns for sending`);
 
     if (campaigns.length > 0) {
-      console.log('📋 Claimed campaign IDs:', campaigns.map(c => c.id).join(', '));
+      console.log(`📋 [${runId}] Claimed campaign details:`);
+      campaigns.forEach((c, i) => {
+        console.log(`   ${i + 1}. "${c.name}" (${c.id}) - scheduled: ${c.scheduled_at}, attempts: ${c.send_attempts || 1}`);
+      });
     }
 
     if (campaigns.length === 0) {
@@ -60,7 +93,9 @@ const handler = async (req: Request): Promise<Response> => {
         message: 'No campaigns ready for auto-send',
         campaignsSent: 0,
         campaignsFailed: 0,
-        durationMs: duration
+        campaignsClaimed: 0,
+        durationMs: duration,
+        processedAt: new Date().toISOString()
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -68,7 +103,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     let campaignsSent = 0;
     let campaignsFailed = 0;
-    const results: Array<{id: string, name: string, status: string, durationMs: number, error?: string}> = [];
+    const results: CampaignResult[] = [];
 
     // Process each claimed campaign
     for (const campaign of campaigns) {
@@ -77,6 +112,7 @@ const handler = async (req: Request): Promise<Response> => {
       try {
         console.log(`📨 Processing campaign: "${campaign.name}" (${campaign.id})`);
 
+      try {
         // Check if user has auto-send enabled
         const { data: userProfile } = await supabase
           .from('company_profiles')
@@ -94,8 +130,9 @@ const handler = async (req: Request): Promise<Response> => {
             .from('crm_campaigns')
             .update({
               status: 'scheduled',
+              sending_started_at: null,
               send_started_at: null,
-              send_error: 'Auto-send disabled for user'
+              failure_reason: 'Auto-send disabled for user'
             })
             .eq('id', campaign.id);
 
@@ -104,9 +141,31 @@ const handler = async (req: Request): Promise<Response> => {
             name: campaign.name,
             status: 'skipped',
             durationMs: Date.now() - campaignStartTime,
-            error: 'Auto-send disabled'
+            error: 'Auto-send disabled',
+            sendAttempts
           });
           continue;
+        }
+
+        // Verify claim is still valid before sending
+        if (campaign.claim_token) {
+          const { data: claimValid } = await supabase.rpc('verify_campaign_claim', {
+            p_campaign_id: campaign.id,
+            p_claim_token: campaign.claim_token
+          });
+
+          if (!claimValid) {
+            console.warn(`⚠️ [${runId}] Campaign ${campaign.id} claim invalid - skipping to prevent double-send`);
+            results.push({
+              id: campaign.id,
+              name: campaign.name,
+              status: 'skipped',
+              durationMs: Date.now() - campaignStartTime,
+              error: 'Claim token invalid',
+              sendAttempts
+            });
+            continue;
+          }
         }
 
         // Call the email sending service
@@ -173,16 +232,27 @@ const handler = async (req: Request): Promise<Response> => {
           name: campaign.name,
           status: 'failed',
           durationMs: campaignDuration,
-          error: errorMessage
+          error: errorMessage,
+          sendAttempts
         });
       }
     }
 
     const totalDuration = Date.now() - startTime;
-    console.log(`🎉 Auto-send processing completed in ${totalDuration}ms. Sent: ${campaignsSent}, Failed: ${campaignsFailed}`);
+
+    console.log(`🎉 [${runId}] Auto-send processing completed`);
+    console.log(`   Duration: ${totalDuration}ms`);
+    console.log(`   Claimed: ${campaigns.length}, Sent: ${campaignsSent}, Failed: ${campaignsFailed}`);
+
+    // Log summary of results
+    results.forEach(r => {
+      const icon = r.status === 'sent' ? '✅' : r.status === 'failed' ? '❌' : '⏭️';
+      console.log(`   ${icon} ${r.name}: ${r.status} (${r.durationMs}ms)${r.error ? ` - ${r.error}` : ''}`);
+    });
 
     return new Response(JSON.stringify({
       success: true,
+      runId,
       campaignsSent,
       campaignsFailed,
       campaignsClaimed: campaigns.length,
@@ -200,7 +270,9 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(JSON.stringify({
       error: error.message,
       success: false,
-      durationMs: duration
+      runId,
+      durationMs: duration,
+      processedAt: new Date().toISOString()
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

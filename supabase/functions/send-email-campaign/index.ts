@@ -99,7 +99,8 @@ function buildEmailPayloadOptimized(
   senderEmail: string,
   usesVerifiedDomain: boolean,
   activeDomainId: string | null,
-  sharedFooterTemplate: string
+  sharedFooterTemplate: string,
+  replyToEmail?: string
 ): any {
   const companyName = companyProfile?.company_name || 'Your Garden Center';
 
@@ -163,7 +164,10 @@ function buildEmailPayloadOptimized(
     ]
   };
 
-  if (usesVerifiedDomain && senderEmail !== 'noreply@bloomsuite.app') {
+  // Set reply-to: prefer custom reply-to, otherwise use sender email for verified domains
+  if (replyToEmail) {
+    emailPayload.reply_to = replyToEmail;
+  } else if (usesVerifiedDomain && senderEmail !== 'noreply@bloomsuite.app') {
     emailPayload.reply_to = senderEmail;
   }
 
@@ -505,6 +509,7 @@ serve(async (req: Request) => {
     customers = (customers || []).filter((c: any) => c?.email?.trim());
 
     // Filter out suppressed customers unless explicitly included
+    // AND log skipped recipients for transparency
     const totalBeforeSuppression = customers.length;
     let suppressedCount = 0;
     let suppressedByListCount = 0;
@@ -519,7 +524,7 @@ serve(async (req: Request) => {
       if (customerIds.length > 0) {
         const { data: suppressedInList } = await supabase
           .from('suppression_list')
-          .select('customer_id')
+          .select('customer_id, email')
           .eq('tenant_id', campaign.tenant_id)
           .in('customer_id', customerIds);
 
@@ -538,6 +543,30 @@ serve(async (req: Request) => {
       const totalSuppressed = suppressedCount + suppressedByListCount;
       if (totalSuppressed > 0) {
         console.log(`📧 Excluded ${totalSuppressed} suppressed contacts total (${totalBeforeSuppression} → ${customers.length} active)`);
+
+        // Log skipped recipients to email_send_skips table for transparency
+        if (skippedRecipients.length > 0) {
+          const skipInserts = skippedRecipients.map(skip => ({
+            tenant_id: campaign.tenant_id,
+            campaign_id: campaignId,
+            customer_id: skip.customer_id,
+            email: skip.email,
+            reason: skip.reason,
+          }));
+
+          // Batch insert in chunks of 500
+          for (let i = 0; i < skipInserts.length; i += 500) {
+            const batch = skipInserts.slice(i, i + 500);
+            const { error: skipError } = await supabase
+              .from('email_send_skips')
+              .insert(batch);
+
+            if (skipError) {
+              console.warn(`⚠️ Failed to log skipped recipients batch ${i}-${i + batch.length}:`, skipError.message);
+            }
+          }
+          console.log(`📧 Logged ${skippedRecipients.length} skipped recipients to email_send_skips`);
+        }
       }
     } else {
       console.log(`⚠️ Including ${customers.filter(c => c.suppressed).length} suppressed contacts (override enabled)`);
@@ -556,6 +585,8 @@ serve(async (req: Request) => {
     }
 
     let recipientCount = customers.length;
+    const originalRecipientCount = recipientCount;
+    const isPartialSend = false; // Warmup truncation is currently disabled
     console.log(`📧 Found ${recipientCount} customers`);
 
     // NOTE: Warmup/quota enforcement is handled by the worker; we still record these values for UI messaging.
@@ -639,6 +670,21 @@ serve(async (req: Request) => {
       deliveryMethod = 'custom_domain';
       usesVerifiedDomain = true;
       activeDomainId = quotaCheck.domain?.id || null;
+    }
+
+    // Fetch reply-to email from domain settings
+    let replyToEmail: string | undefined;
+    if (activeDomainId) {
+      const { data: domainData } = await supabase
+        .from('email_domains')
+        .select('default_reply_to')
+        .eq('id', activeDomainId)
+        .single();
+
+      if (domainData?.default_reply_to) {
+        replyToEmail = domainData.default_reply_to;
+        console.log(`📧 Using custom reply-to: ${replyToEmail}`);
+      }
     }
 
     const fromAddress = `${senderDisplayName} <${senderEmail}>`;
@@ -731,7 +777,7 @@ serve(async (req: Request) => {
         let payload = buildEmailPayloadOptimized(
           customer, campaign, companyProfile, profileData,
           fromAddress, senderEmail, usesVerifiedDomain, activeDomainId,
-          sharedFooterTemplate
+          sharedFooterTemplate, replyToEmail
         );
 
         // Rewrite links in the email HTML with tracking URLs

@@ -74,20 +74,18 @@ export const useSMSStats = () => {
       const smsUsage = subscription?.sms_usage || 0;
       const creditsRemaining = Math.max(0, smsQuota - smsUsage);
 
-      // Fetch campaigns for user or tenant
-      let campaignQuery = supabase
+      // Fetch campaigns for user or tenant (exclude segment_send campaigns from dashboard)
+      const baseFilters = tenantId 
+        ? { tenant_id: tenantId } 
+        : { user_id: user.id };
+
+      const { data: campaigns = [] } = await supabase
         .from('crm_sms_campaigns')
         .select('*')
+        .match(baseFilters)
+        .or('source.is.null,source.neq.segment_send')
         .order('created_at', { ascending: false })
         .limit(10);
-
-      if (tenantId) {
-        campaignQuery = campaignQuery.eq('tenant_id', tenantId);
-      } else {
-        campaignQuery = campaignQuery.eq('user_id', user.id);
-      }
-
-      const { data: campaigns = [] } = await campaignQuery;
 
       // Fetch recent messages
       const campaignIds = campaigns.map(c => c.id);

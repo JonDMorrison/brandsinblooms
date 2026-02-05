@@ -19,6 +19,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import { ForceSendButton } from "@/components/crm/campaigns/ForceSendButton";
 
 interface EmailCampaignDetail {
   id: string;
@@ -31,6 +32,7 @@ interface EmailCampaignDetail {
   sent_at: string | null;
   segment_id: string | null;
   metrics: any;
+  failure_reason?: string | null;
   crm_segments?: {
     name: string;
     customer_count: number;

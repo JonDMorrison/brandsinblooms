@@ -38,6 +38,46 @@ interface CampaignMetrics {
   revenue: number;
 }
 
+function toNumber(value: unknown, fallback = 0): number {
+  const n = typeof value === 'string' ? Number(value) : (value as number);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+/**
+ * Normalizes campaign.metrics which exists in two shapes:
+ * - legacy flat: { sent, delivered, opened, clicked, bounced, unsubscribed, revenue }
+ * - derived (current): { totals: { sent, delivered, opens, clicks, bounces, unsubscribes }, rates: {...} }
+ */
+function normalizeCampaignMetrics(campaign: any): CampaignMetrics {
+  const m = campaign?.metrics;
+
+  // Prefer the derived metrics shape
+  const totals = m && typeof m === 'object' ? (m as any).totals : null;
+  if (totals && typeof totals === 'object') {
+    return {
+      sent: toNumber(totals.sent ?? campaign?.total_sent, 0),
+      delivered: toNumber(totals.delivered, 0),
+      opened: toNumber(totals.opens ?? totals.opened ?? campaign?.total_opens, 0),
+      clicked: toNumber(totals.clicks ?? totals.clicked ?? campaign?.total_clicks, 0),
+      bounced: toNumber(totals.bounces ?? totals.bounced, 0),
+      unsubscribed: toNumber(totals.unsubscribes ?? totals.unsubscribed, 0),
+      revenue: toNumber((totals as any).revenue ?? (m as any)?.revenue, 0),
+    };
+  }
+
+  // Fallback to legacy flat shape + campaign columns
+  const flat = m && typeof m === 'object' ? (m as any) : {};
+  return {
+    sent: toNumber(flat.sent ?? campaign?.total_sent, 0),
+    delivered: toNumber(flat.delivered, 0),
+    opened: toNumber(flat.opened ?? flat.opens ?? campaign?.total_opens, 0),
+    clicked: toNumber(flat.clicked ?? flat.clicks ?? campaign?.total_clicks, 0),
+    bounced: toNumber(flat.bounced ?? flat.bounces, 0),
+    unsubscribed: toNumber(flat.unsubscribed ?? flat.unsubscribes, 0),
+    revenue: toNumber(flat.revenue, 0),
+  };
+}
+
 interface Campaign {
   id: string;
   name: string;
@@ -140,16 +180,7 @@ const CRMCampaignReport: React.FC = () => {
     );
   }
 
-  const rawMetrics = (campaign.metrics as Record<string, number> | null) || {};
-  const metrics = {
-    sent: rawMetrics.sent ?? 0,
-    delivered: rawMetrics.delivered ?? 0,
-    opened: rawMetrics.opened ?? 0,
-    clicked: rawMetrics.clicked ?? 0,
-    bounced: rawMetrics.bounced ?? 0,
-    unsubscribed: rawMetrics.unsubscribed ?? 0,
-    revenue: rawMetrics.revenue ?? 0,
-  };
+  const metrics = normalizeCampaignMetrics(campaign);
 
   const openRate = calculateRate(metrics.opened, metrics.delivered);
   const clickRate = calculateRate(metrics.clicked, metrics.opened);

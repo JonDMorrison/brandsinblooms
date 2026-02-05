@@ -7,6 +7,7 @@ import { CRMStatsCards } from '@/components/crm/CRMStatsCards';
 import { CRMSegmentsSummary } from '@/components/crm/segments/CRMSegmentsSummary';
 import { CRMRecentActivity } from '@/components/crm/CRMRecentActivity';
 import { WarmupAssistantWidget } from '@/components/crm/WarmupAssistantWidget';
+import { OverdueCampaignsBanner } from '@/components/crm/OverdueCampaignsBanner';
 
 export const CRMDashboardPage: React.FC = () => {
   const { stats, loading, refetch } = useCRMRealStats();
@@ -44,6 +45,9 @@ export const CRMDashboardPage: React.FC = () => {
 
   return (
     <div className="space-y-8 animate-fade-in">
+      {/* Overdue Campaigns Warning */}
+      <OverdueCampaignsBanner className="mb-2" />
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

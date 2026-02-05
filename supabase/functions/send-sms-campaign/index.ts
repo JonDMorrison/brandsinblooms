@@ -47,7 +47,7 @@ async function handler(req: Request): Promise<Response> {
   }
 
   try {
-    const { campaignId } = await req.json();
+    const { campaignId, segmentId, systemSegmentType } = await req.json();
 
     if (!campaignId) {
       return new Response(
@@ -62,6 +62,7 @@ async function handler(req: Request): Promise<Response> {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     console.log(`[send-sms-campaign] Starting scalable enqueue for campaign: ${campaignId}`);
+    console.log(`[send-sms-campaign] segmentId: ${segmentId}, systemSegmentType: ${systemSegmentType}`);
 
     // Step A: Load campaign and check status
     const { data: campaign, error: campaignError } = await supabase
@@ -107,7 +108,12 @@ async function handler(req: Request): Promise<Response> {
       }
     }
 
-    if (!campaign.segment_id) {
+    // Determine effective segment - from campaign record or request params
+    const effectiveSegmentId = campaign.segment_id || segmentId;
+    const isSystemSegment = !!systemSegmentType;
+
+    // For custom segments, we need a segment_id
+    if (!effectiveSegmentId && !isSystemSegment) {
       return new Response(
         JSON.stringify({ error: 'Campaign has no segment selected' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -149,16 +155,80 @@ async function handler(req: Request): Promise<Response> {
       );
     }
 
-    // Step C: Estimate recipient count for validation
-    const { count: eligibleCount, error: countError } = await supabase
-      .from('crm_customers')
-      .select('id', { count: 'exact', head: true })
-      .eq('tenant_id', campaign.tenant_id)
-      .eq('sms_opt_in', true)
-      .eq('opt_out', false)
-      .eq('suppressed', false)
-      .not('phone', 'is', null)
-      .not('phone', 'eq', '');
+    // Step C: Estimate recipient count for validation based on segment type
+    let eligibleCount = 0;
+    let countError = null;
+
+    if (isSystemSegment) {
+      // Handle system segment filtering
+      let query = supabase
+        .from('crm_customers')
+        .select('id', { count: 'exact', head: true })
+        .eq('tenant_id', campaign.tenant_id)
+        .eq('sms_opt_in', true)
+        .eq('opt_out', false)
+        .eq('suppressed', false)
+        .not('phone', 'is', null)
+        .not('phone', 'eq', '');
+
+      switch (systemSegmentType) {
+        case 'perks-members':
+          // For perks members, query customer_loyalty_metrics
+          const { count: perksCount, error: perksError } = await supabase
+            .from('crm_customers')
+            .select('id, customer_loyalty_metrics!inner(is_perks_member)', { count: 'exact', head: true })
+            .eq('tenant_id', campaign.tenant_id)
+            .eq('sms_opt_in', true)
+            .eq('opt_out', false)
+            .eq('suppressed', false)
+            .not('phone', 'is', null)
+            .not('phone', 'eq', '')
+            .eq('customer_loyalty_metrics.is_perks_member', true);
+          eligibleCount = perksCount || 0;
+          countError = perksError;
+          break;
+        case 'high-value':
+          query = query.gte('total_spent', 500);
+          const hvResult = await query;
+          eligibleCount = hvResult.count || 0;
+          countError = hvResult.error;
+          break;
+        case 'new-customers':
+          const thirtyDaysAgo = new Date();
+          thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+          query = query.gte('created_at', thirtyDaysAgo.toISOString());
+          const ncResult = await query;
+          eligibleCount = ncResult.count || 0;
+          countError = ncResult.error;
+          break;
+        case 'frequent-buyers':
+          query = query.gte('order_count', 3);
+          const fbResult = await query;
+          eligibleCount = fbResult.count || 0;
+          countError = fbResult.error;
+          break;
+        default:
+          // Default: all SMS-enabled customers
+          const defaultResult = await query;
+          eligibleCount = defaultResult.count || 0;
+          countError = defaultResult.error;
+      }
+    } else {
+      // Custom segment - join with customer_segments
+      const { count, error } = await supabase
+        .from('customer_segments')
+        .select('customer_id, crm_customers!inner(id)', { count: 'exact', head: true })
+        .eq('segment_id', effectiveSegmentId)
+        .eq('crm_customers.tenant_id', campaign.tenant_id)
+        .eq('crm_customers.sms_opt_in', true)
+        .eq('crm_customers.opt_out', false)
+        .eq('crm_customers.suppressed', false)
+        .not('crm_customers.phone', 'is', null)
+        .not('crm_customers.phone', 'eq', '');
+      
+      eligibleCount = count || 0;
+      countError = error;
+    }
 
     if (countError) {
       console.error('[send-sms-campaign] Error counting customers:', countError);
@@ -191,6 +261,16 @@ async function handler(req: Request): Promise<Response> {
     console.log(`[send-sms-campaign] Sending to ${estimatedRecipients} recipients (warmup limits disabled)`);
 
     // Step E: Set campaign to enqueue and trigger enqueue worker
+    // Store segment info in metrics for the enqueue worker
+    const segmentMetrics = {
+      ...(campaign.metrics || {}),
+      segment_filter: {
+        type: isSystemSegment ? 'system' : 'custom',
+        system_segment_type: isSystemSegment ? systemSegmentType : null,
+        segment_id: effectiveSegmentId
+      }
+    };
+
     const { error: updateError } = await supabase
       .from('crm_sms_campaigns')
       .update({
@@ -203,6 +283,8 @@ async function handler(req: Request): Promise<Response> {
         sending_identity_id: warmupInfo.sendingIdentityId,
         enqueued: false,
         status: 'queued',
+        segment_id: effectiveSegmentId, // Set segment_id for custom segments
+        metrics: segmentMetrics,
         updated_at: new Date().toISOString()
       })
       .eq('id', campaignId);
