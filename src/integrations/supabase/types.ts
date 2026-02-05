@@ -14101,6 +14101,7 @@ export type Database = {
         Args: { keep_user_id: string; merge_user_id: string }
         Returns: boolean
       }
+      optin_perks_members: { Args: never; Returns: number }
       recalculate_content_intent_metrics: {
         Args: { p_customer_id: string }
         Returns: undefined
