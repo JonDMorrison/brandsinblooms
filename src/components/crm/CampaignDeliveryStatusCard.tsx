@@ -8,11 +8,24 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { toZonedTime } from "date-fns-tz";
 import { AlertTriangle, CheckCircle2, Clock, Info, Mail } from "lucide-react";
 import { parseEdgeFunctionError } from "@/utils/campaignSendingErrors";
+import { toast } from "sonner";
+import { retryFailedEmailMessages } from "@/lib/email/emailRetryService";
 
 type CampaignRow = {
   id: string;
@@ -110,6 +123,8 @@ export function CampaignDeliveryStatusCard(props: {
   const [campaign, setCampaign] = useState<CampaignRow | null>(null);
   const [progress, setProgress] = useState<ProgressRow | null>(null);
   const [progressUnavailable, setProgressUnavailable] = useState(false);
+  const [showRetryDialog, setShowRetryDialog] = useState(false);
+  const [isRetryingFailed, setIsRetryingFailed] = useState(false);
 
   useEffect(() => {
     if (!campaignId) return;
@@ -258,6 +273,9 @@ export function CampaignDeliveryStatusCard(props: {
 
   const status = (campaign?.status || "draft").toLowerCase();
 
+  const failedCount = progress?.failed || 0;
+  const canRetryFailed = failedCount > 0 && !progressUnavailable;
+
   const hasAnyScheduleHistory =
     !!campaign?.scheduled_at ||
     !!campaign?.send_started_at ||
@@ -342,6 +360,52 @@ export function CampaignDeliveryStatusCard(props: {
     };
   }, [errorTextRaw]);
 
+  const handleRetryFailed = async () => {
+    if (!campaignId) return;
+
+    setShowRetryDialog(false);
+    setIsRetryingFailed(true);
+
+    try {
+      const result = await retryFailedEmailMessages(campaignId);
+
+      if (result.countReset > 0) {
+        toast.success(`Retrying ${result.countReset} failed email(s)`, {
+          description:
+            result.jobsCreated > 0
+              ? `Queued ${result.jobsCreated} retry batch job(s).`
+              : undefined,
+        });
+
+        // Hide the Delivery issue immediately once retry has started.
+        const nowIso = new Date().toISOString();
+        setCampaign((prev) =>
+          prev
+            ? {
+                ...prev,
+                status: "sending",
+                send_error: null,
+                send_blocked_reason: null,
+                send_started_at: prev.send_started_at || nowIso,
+                sent_at: null,
+                updated_at: nowIso,
+              }
+            : prev,
+        );
+      } else {
+        toast.info("No failed emails to retry", {
+          description: "There are no failed recipients for this campaign right now.",
+        });
+      }
+    } catch (e: any) {
+      toast.error("Failed to retry emails", {
+        description: e?.message || "Unknown error",
+      });
+    } finally {
+      setIsRetryingFailed(false);
+    }
+  };
+
   if (!campaignId) return null;
   if (!hasAnyDeliverySignals && status === "draft") return null;
   if (status === "scheduled") return null;
@@ -363,10 +427,44 @@ export function CampaignDeliveryStatusCard(props: {
               {userError?.action && (
                 <p className="text-sm text-red-700">{userError.action}</p>
               )}
+
+              {canRetryFailed && (
+                <div className="pt-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={isRetryingFailed}
+                    onClick={() => setShowRetryDialog(true)}
+                    className="border-red-200 text-red-900 hover:bg-red-100"
+                  >
+                    Retry Failed Messages ({failedCount})
+                  </Button>
+                </div>
+              )}
             </div>
           </AlertDescription>
         </Alert>
       )}
+
+      <AlertDialog open={showRetryDialog} onOpenChange={setShowRetryDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Retry Failed Messages</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will re-queue {failedCount} failed email(s) to be sent again.
+              <br />
+              <br />
+              If sending fails again, this campaign may return to “Needs Review”.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isRetryingFailed}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleRetryFailed} disabled={isRetryingFailed}>
+              {isRetryingFailed ? "Retrying…" : "Retry Messages"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {hasAnyScheduleHistory && (
         <Card className="border-slate-200/70 bg-gradient-to-br from-white to-slate-50">

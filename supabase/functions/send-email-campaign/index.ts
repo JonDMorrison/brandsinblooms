@@ -1,6 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { Resend } from "https://esm.sh/resend@2";
+// Avoid esm.sh in production deploys: it has been intermittently returning 500s during bundling.
+// Deno v2 supports npm: specifiers, which are generally more reliable.
+import { createClient } from "npm:@supabase/supabase-js@2.7.1";
+import { Resend } from "npm:resend@2.1.0";
 import { renderMergeTags, convertLegacyTags, createMergeTagDataFromCustomer, type MergeTagData } from "../_shared/mergeTagEngine.ts";
 import { generateServerFooterHtml, type CompanyProfileData } from "../_shared/footerGenerator.ts";
 import { extractLinks, getUniqueUrls, rewriteLinksSync, hasPII } from "../_shared/linkRewriter.ts";
@@ -378,26 +380,35 @@ serve(async (req: Request) => {
     let allowedCustomerIds: string[] | null = null;
 
     if (segmentIds.length > 0) {
-      const { data: segmentCustomers, error: segErr } = await supabase
-        .from('customer_segments')
-        .select('customer_id')
-        .in('segment_id', segmentIds);
+      // IMPORTANT: PostgREST commonly caps responses at 1000 rows unless paginated.
+      const PAGE_SIZE = 1000;
+      const segmentCustomerIds = new Set<string>();
+      for (let from = 0; ; from += PAGE_SIZE) {
+        const to = from + PAGE_SIZE - 1;
+        const { data: segmentCustomers, error: segErr } = await supabase
+          .from('customer_segments')
+          .select('customer_id')
+          .in('segment_id', segmentIds)
+          .range(from, to);
 
-      if (segErr) {
-        console.error('Error fetching customer_segments:', segErr);
-        return new Response(
-          JSON.stringify({ error: 'Failed to fetch segment audience' }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+        if (segErr) {
+          console.error('Error fetching customer_segments:', segErr);
+          return new Response(
+            JSON.stringify({ error: 'Failed to fetch segment audience' }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        (segmentCustomers || []).forEach((r: any) => {
+          if (typeof r?.customer_id === 'string' && isUuidLike(r.customer_id)) {
+            segmentCustomerIds.add(r.customer_id);
+          }
+        });
+
+        if (!segmentCustomers || segmentCustomers.length < PAGE_SIZE) break;
       }
 
-      const ids = Array.from(
-        new Set<string>(
-          (segmentCustomers || [])
-            .map((r: any) => (typeof r?.customer_id === 'string' ? r.customer_id : null))
-            .filter((x: string | null): x is string => !!x)
-        )
-      );
+      const ids = Array.from(segmentCustomerIds);
       console.log(`📧 Segment audience resolved: ${ids.length} customers`);
       allowedCustomerIds = ids;
     }
@@ -407,50 +418,86 @@ serve(async (req: Request) => {
       const personaCustomerIds = new Set<string>();
 
       if (personaUuidIds.length > 0) {
-        const { data: cpRows, error: cpErr } = await supabase
-          .from('customer_personas')
-          .select('customer_id')
-          .in('persona_id', personaUuidIds);
+        const PAGE_SIZE = 1000;
 
-        if (cpErr) {
-          console.error('Error fetching customer_personas by persona_id:', cpErr);
-          return new Response(
-            JSON.stringify({ error: 'Failed to fetch persona audience' }),
-            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
+        // Many-to-many via customer_personas
+        for (let from = 0; ; from += PAGE_SIZE) {
+          const to = from + PAGE_SIZE - 1;
+          const { data: cpRows, error: cpErr } = await supabase
+            .from('customer_personas')
+            .select('customer_id')
+            .in('persona_id', personaUuidIds)
+            .range(from, to);
+
+          if (cpErr) {
+            console.error('Error fetching customer_personas by persona_id:', cpErr);
+            return new Response(
+              JSON.stringify({ error: 'Failed to fetch persona audience' }),
+              { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+
+          (cpRows || []).forEach((r: any) => {
+            if (typeof r?.customer_id === 'string' && isUuidLike(r.customer_id)) {
+              personaCustomerIds.add(r.customer_id);
+            }
+          });
+
+          if (!cpRows || cpRows.length < PAGE_SIZE) break;
         }
-        (cpRows || []).forEach((r: any) => r?.customer_id && personaCustomerIds.add(r.customer_id));
 
-        const { data: directPersonaCustomers, error: directErr } = await supabase
-          .from('crm_customers')
-          .select('id')
-          .eq('tenant_id', campaign.tenant_id)
-          .in('persona_id', personaUuidIds);
+        // Legacy: crm_customers.persona_id
+        for (let from = 0; ; from += PAGE_SIZE) {
+          const to = from + PAGE_SIZE - 1;
+          const { data: directPersonaCustomers, error: directErr } = await supabase
+            .from('crm_customers')
+            .select('id')
+            .eq('tenant_id', campaign.tenant_id)
+            .in('persona_id', personaUuidIds)
+            .range(from, to);
 
-        if (directErr) {
-          console.error('Error fetching crm_customers by persona_id:', directErr);
-          return new Response(
-            JSON.stringify({ error: 'Failed to fetch persona audience' }),
-            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
+          if (directErr) {
+            console.error('Error fetching crm_customers by persona_id:', directErr);
+            return new Response(
+              JSON.stringify({ error: 'Failed to fetch persona audience' }),
+              { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+
+          (directPersonaCustomers || []).forEach((r: any) => {
+            if (typeof r?.id === 'string' && isUuidLike(r.id)) personaCustomerIds.add(r.id);
+          });
+
+          if (!directPersonaCustomers || directPersonaCustomers.length < PAGE_SIZE) break;
         }
-        (directPersonaCustomers || []).forEach((r: any) => r?.id && personaCustomerIds.add(r.id));
       }
 
       if (personaPredefinedIds.length > 0) {
-        const { data: cpRows, error: cpErr } = await supabase
-          .from('customer_personas')
-          .select('customer_id')
-          .in('predefined_persona_id', personaPredefinedIds);
+        const PAGE_SIZE = 1000;
+        for (let from = 0; ; from += PAGE_SIZE) {
+          const to = from + PAGE_SIZE - 1;
+          const { data: cpRows, error: cpErr } = await supabase
+            .from('customer_personas')
+            .select('customer_id')
+            .in('predefined_persona_id', personaPredefinedIds)
+            .range(from, to);
 
-        if (cpErr) {
-          console.error('Error fetching customer_personas by predefined_persona_id:', cpErr);
-          return new Response(
-            JSON.stringify({ error: 'Failed to fetch persona audience' }),
-            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
+          if (cpErr) {
+            console.error('Error fetching customer_personas by predefined_persona_id:', cpErr);
+            return new Response(
+              JSON.stringify({ error: 'Failed to fetch persona audience' }),
+              { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+
+          (cpRows || []).forEach((r: any) => {
+            if (typeof r?.customer_id === 'string' && isUuidLike(r.customer_id)) {
+              personaCustomerIds.add(r.customer_id);
+            }
+          });
+
+          if (!cpRows || cpRows.length < PAGE_SIZE) break;
         }
-        (cpRows || []).forEach((r: any) => r?.customer_id && personaCustomerIds.add(r.customer_id));
       }
 
       const ids = Array.from(personaCustomerIds);
@@ -465,11 +512,16 @@ serve(async (req: Request) => {
       }
     }
 
-    let customersQuery = supabase
-      .from('crm_customers')
-      .select('id, first_name, last_name, email, suppressed')
-      .eq('tenant_id', campaign.tenant_id)
-      .not('email', 'is', null);
+    // IMPORTANT: Supabase query builders are stateful/mutating; reusing the same builder across
+    // `.in(...)` chunk loops can accidentally accumulate multiple `id=in.(...)` filters, producing
+    // an enormous URL (and fetch failures) like `...&id=in.(...chunk1...)&id=in.(...chunk2...)`.
+    // Always create a fresh builder per request.
+    const buildCustomersQuery = () =>
+      supabase
+        .from('crm_customers')
+        .select('id, first_name, last_name, email, suppressed')
+        .eq('tenant_id', campaign.tenant_id)
+        .not('email', 'is', null);
 
     if (allowedCustomerIds) {
       console.log(`📧 Final audience after targeting: ${allowedCustomerIds.length} customers`);
@@ -477,12 +529,14 @@ serve(async (req: Request) => {
         // No audience after applying targeting
         customers = [];
       } else {
-        // Chunk large IN lists to avoid request limits
-        const IN_CHUNK = 1000;
+        // Chunk large IN lists to avoid PostgREST URL-length limits.
+        // 1000 UUIDs in an `in.(...)` filter can exceed URL size and returns 400 Bad Request.
+        const IN_CHUNK = 100;
+        const filteredIds = allowedCustomerIds.filter((id) => typeof id === 'string' && isUuidLike(id));
         const fetched: any[] = [];
-        for (let i = 0; i < allowedCustomerIds.length; i += IN_CHUNK) {
-          const chunk = allowedCustomerIds.slice(i, i + IN_CHUNK);
-          const { data, error } = await customersQuery.in('id', chunk);
+        for (let i = 0; i < filteredIds.length; i += IN_CHUNK) {
+          const chunk = filteredIds.slice(i, i + IN_CHUNK);
+          const { data, error } = await buildCustomersQuery().in('id', chunk);
           if (error) {
             console.error('Error fetching targeted crm_customers:', error);
             return new Response(
@@ -495,15 +549,23 @@ serve(async (req: Request) => {
         customers = fetched;
       }
     } else {
-      const { data, error } = await customersQuery;
-      if (error) {
-        console.error('Error fetching all crm_customers:', error);
-        return new Response(
-          JSON.stringify({ error: 'Failed to fetch customers' }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+      // Fetch all customers with pagination to avoid default row caps.
+      const PAGE_SIZE = 1000;
+      const fetched: any[] = [];
+      for (let from = 0; ; from += PAGE_SIZE) {
+        const to = from + PAGE_SIZE - 1;
+        const { data, error } = await buildCustomersQuery().range(from, to);
+        if (error) {
+          console.error('Error fetching all crm_customers:', error);
+          return new Response(
+            JSON.stringify({ error: 'Failed to fetch customers' }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        fetched.push(...(data || []));
+        if (!data || data.length < PAGE_SIZE) break;
       }
-      customers = data || [];
+      customers = fetched;
     }
 
     customers = (customers || []).filter((c: any) => c?.email?.trim());
@@ -513,26 +575,60 @@ serve(async (req: Request) => {
     const totalBeforeSuppression = customers.length;
     let suppressedCount = 0;
     let suppressedByListCount = 0;
+    const skippedRecipients: Array<{ customer_id: string; email: string; reason: string }> = [];
 
     if (!includeSuppressed) {
       // First filter by the suppressed flag
+      const suppressedFlagRows = customers.filter(c => c?.suppressed && c?.email);
       const activeCustomers = customers.filter(c => !c.suppressed);
       suppressedCount = customers.length - activeCustomers.length;
+
+      suppressedFlagRows.forEach((c: any) => {
+        if (typeof c?.id === 'string' && typeof c?.email === 'string') {
+          skippedRecipients.push({ customer_id: c.id, email: c.email, reason: 'suppressed flag' });
+        }
+      });
 
       // Then check suppression_list table for additional exclusions
       const customerIds = activeCustomers.map(c => c.id);
       if (customerIds.length > 0) {
-        const { data: suppressedInList } = await supabase
-          .from('suppression_list')
-          .select('customer_id, email')
-          .eq('tenant_id', campaign.tenant_id)
-          .in('customer_id', customerIds);
+        const emailByCustomerId = new Map<string, string>();
+        activeCustomers.forEach((c: any) => {
+          if (typeof c?.id === 'string' && typeof c?.email === 'string') {
+            emailByCustomerId.set(c.id, c.email);
+          }
+        });
 
-        if (suppressedInList && suppressedInList.length > 0) {
-          const suppressedSet = new Set(suppressedInList.map((s: any) => s.customer_id));
+        const suppressedSet = new Set<string>();
+        const IN_CHUNK = 200;
+        const filteredCustomerIds = customerIds.filter((id: any) => typeof id === 'string' && isUuidLike(id));
+        for (let i = 0; i < filteredCustomerIds.length; i += IN_CHUNK) {
+          const chunk = filteredCustomerIds.slice(i, i + IN_CHUNK);
+          const { data: suppressedInList, error: supErr } = await supabase
+            .from('suppression_list')
+            .select('customer_id')
+            .eq('tenant_id', campaign.tenant_id)
+            .in('customer_id', chunk);
+          if (supErr) {
+            console.warn('⚠️ Failed to fetch suppression_list chunk (continuing):', supErr.message);
+            continue;
+          }
+          (suppressedInList || []).forEach((s: any) => {
+            if (typeof s?.customer_id === 'string') suppressedSet.add(s.customer_id);
+          });
+        }
+
+        if (suppressedSet.size > 0) {
           customers = activeCustomers.filter(c => !suppressedSet.has(c.id));
-          suppressedByListCount = suppressedInList.length;
+          suppressedByListCount = suppressedSet.size;
           console.log(`📧 Excluded ${suppressedByListCount} contacts from suppression_list (bounced/complained/unsubscribed)`);
+
+          suppressedSet.forEach((cid) => {
+            const email = emailByCustomerId.get(cid);
+            if (email) {
+              skippedRecipients.push({ customer_id: cid, email, reason: 'suppression_list' });
+            }
+          });
         } else {
           customers = activeCustomers;
         }
@@ -588,10 +684,6 @@ serve(async (req: Request) => {
     const originalRecipientCount = recipientCount;
     const isPartialSend = false; // Warmup truncation is currently disabled
     console.log(`📧 Found ${recipientCount} customers`);
-
-    // NOTE: Warmup/quota enforcement is handled by the worker; we still record these values for UI messaging.
-    const originalRecipientCount = recipientCount;
-    const isPartialSend = false;
 
     // Auto-select the tenant's active domain if none specified on campaign
     let domainIdToUse = campaign.from_email_domain_id;
@@ -712,42 +804,27 @@ serve(async (req: Request) => {
       feature_flags: companyProfile?.feature_flags,
     };
 
-    // Build email payloads
-    console.log(`📧 Building ${recipientCount} email payloads...`);
-    const emailPayloads: any[] = [];
-    const subscriptionUpserts: any[] = [];
-    let piiWarnings: string[] = [];
-    let linksRewritten = 0;
+    // Persist recipients + batch jobs only.
+    // IMPORTANT: For large audiences, rendering per-recipient HTML and rewriting links here will exceed Edge CPU.
+    // The queue worker sends using per-message claim; we keep message.payload minimal.
+    console.log(`📧 Queuing ${recipientCount} recipients in batches of ${BATCH_SIZE_PER_JOB}...`);
+    const piiWarningSet = new Set<string>();
+    let queuedRecipientCount = 0;
 
-    // Pre-generate the footer ONCE since it's the same for all recipients
-    // This is a critical performance optimization to avoid timeout on large campaigns
-    const sampleUnsubscribeToken = btoa(`sample@example.com:${campaign.tenant_id}`);
-    const sampleUnsubscribeLink = `https://udldmkqwnxhdeztyqcau.supabase.co/functions/v1/handle-unsubscribe?email=PLACEHOLDER&tenant_id=${campaign.tenant_id}&token=PLACEHOLDER`;
-    const sharedFooterTemplate = generateServerFooterHtml(
-      profileData,
-      '{{UNSUBSCRIBE_URL}}',
-      '{{PREFERENCES_URL}}'
-    );
-    console.log(`📧 Pre-generated footer template (length: ${sharedFooterTemplate.length})`);
-
-    // ========== LINK TRACKING SETUP ==========
-    // Extract unique URLs from campaign content and create tracked_links entries
+    // ========== LINK TRACKING SETUP (campaign-level only) ==========
+    // Extract unique URLs once and upsert tracked_links (no per-recipient rewriting here).
     const campaignContent = campaign.content || '';
     const extractedLinks = extractLinks(campaignContent);
     const uniqueUrls = getUniqueUrls(extractedLinks);
-    const urlToLinkIdMap = new Map<string, string>();
 
     console.log(`🔗 Found ${uniqueUrls.length} unique URLs to track`);
-
-    // Check for PII in URLs and log warnings
     for (const url of uniqueUrls) {
       if (hasPII(url)) {
-        piiWarnings.push(url);
+        piiWarningSet.add(url);
         console.warn(`⚠️ PII detected in URL, will skip tracking: ${url.substring(0, 80)}...`);
       }
     }
 
-    // Create tracked_links entries for each unique URL (excluding PII URLs)
     const urlsToTrack = uniqueUrls.filter(url => !hasPII(url));
     if (urlsToTrack.length > 0) {
       const trackedLinkInserts = urlsToTrack.map(url => ({
@@ -756,74 +833,147 @@ serve(async (req: Request) => {
         url,
       }));
 
-      // Upsert tracked links
       const { data: insertedLinks, error: linksError } = await supabase
         .from('tracked_links')
         .upsert(trackedLinkInserts, { onConflict: 'tenant_id,campaign_id,url', ignoreDuplicates: false })
-        .select('id, url');
+        .select('id');
 
       if (linksError) {
         console.warn('⚠️ Error creating tracked links (non-fatal):', linksError);
-      } else if (insertedLinks) {
-        for (const link of insertedLinks) {
-          urlToLinkIdMap.set(link.url, link.id);
-        }
-        console.log(`🔗 Created/updated ${insertedLinks.length} tracked links`);
+      } else {
+        console.log(`🔗 Created/updated ${insertedLinks?.length || 0} tracked links`);
       }
     }
 
-    for (const customer of customers) {
-      try {
-        let payload = buildEmailPayloadOptimized(
-          customer, campaign, companyProfile, profileData,
-          fromAddress, senderEmail, usesVerifiedDomain, activeDomainId,
-          sharedFooterTemplate, replyToEmail
-        );
+    // Process recipients in batches and persist as we go to keep memory bounded.
+    const totalBatches = Math.ceil(recipientCount / BATCH_SIZE_PER_JOB);
+    for (let batchStart = 0; batchStart < customers.length; batchStart += BATCH_SIZE_PER_JOB) {
+      const batchIndex = Math.floor(batchStart / BATCH_SIZE_PER_JOB);
+      const batchCustomers = customers.slice(batchStart, batchStart + BATCH_SIZE_PER_JOB);
 
-        // Rewrite links in the email HTML with tracking URLs
-        if (urlToLinkIdMap.size > 0 && payload.html) {
-          const rewriteResult = rewriteLinksSync(
-            payload.html,
-            urlToLinkIdMap,
-            campaignId,
-            customer.id,
-            campaign.tenant_id,
-            customer.email
-          );
-          payload.html = rewriteResult.html;
-          linksRewritten += rewriteResult.linksRewritten;
+      const batchMessageUpserts: any[] = [];
+      const batchRecipientEmails: Array<{ email: string; customerId: string }> = [];
 
-          // Collect any additional PII warnings from this customer's email
-          if (rewriteResult.piiWarnings.length > 0) {
-            piiWarnings = [...new Set([...piiWarnings, ...rewriteResult.piiWarnings])];
-          }
-        }
+      for (const customer of batchCustomers) {
+        if (!customer?.id || !customer?.email) continue;
 
-        emailPayloads.push({ email: customer.email, customerId: customer.id, payload });
-
-        subscriptionUpserts.push({
-          email: customer.email,
+        batchMessageUpserts.push({
           tenant_id: campaign.tenant_id,
-          user_id: campaign.user_id,
+          campaign_id: campaignId,
           customer_id: customer.id,
-          opt_out: false,
-          source: 'campaign'
+          domain_id: activeDomainId,
+          email: customer.email,
+          // Keep payload minimal; worker will build/send.
+          payload: {},
+          status: 'queued',
+          resend_id: null,
+          claimed_at: null,
+          claimed_by: null,
+          claim_token: null,
+          dead_lettered_at: null,
+          error_message: null,
         });
-      } catch (error: any) {
-        console.error(`Error building payload for ${customer.id}:`, error.message);
+
+        batchRecipientEmails.push({ email: customer.email, customerId: customer.id });
       }
-    }
 
-    console.log(`🔗 Rewrote ${linksRewritten} links across all emails`);
+      if (batchMessageUpserts.length === 0) continue;
 
-    // Batch upsert subscriptions
-    if (subscriptionUpserts.length > 0) {
-      try {
-        await supabase
-          .from('crm_subscriptions')
-          .upsert(subscriptionUpserts, { onConflict: 'email,tenant_id' });
-      } catch (e) {
-        console.error('Failed to upsert subscriptions:', e);
+      // Persist email_messages in smaller DB chunks to avoid statement timeouts when payload HTML is large.
+      // Use ignoreDuplicates to avoid expensive UPDATE paths; we'll fetch IDs afterwards.
+      let dbChunkSize = 200;
+      for (let offset = 0; offset < batchMessageUpserts.length; ) {
+        const chunk = batchMessageUpserts.slice(offset, offset + dbChunkSize);
+        try {
+          const resp = await supabase
+            .from('email_messages')
+            .upsert(chunk, { onConflict: 'campaign_id,customer_id', ignoreDuplicates: true });
+
+          if (resp.error) {
+            // If we hit statement timeout, retry with a smaller chunk.
+            const code = (resp.error as any)?.code;
+            const msg = (resp.error as any)?.message;
+            if ((code === '57014' || String(msg || '').includes('statement timeout')) && dbChunkSize > 25) {
+              dbChunkSize = Math.max(25, Math.floor(dbChunkSize / 2));
+              console.warn(`⚠️ email_messages write timed out; reducing chunk size to ${dbChunkSize} and retrying (batch ${batchIndex})`);
+              continue;
+            }
+
+            console.error('❌ Failed to persist email_messages batch chunk:', {
+              status: resp.status,
+              statusText: resp.statusText,
+              err: serializeSupabaseError(resp.error),
+              batchIndex,
+              chunkSize: chunk.length,
+              sample: {
+                tenant_id: chunk[0]?.tenant_id,
+                campaign_id: chunk[0]?.campaign_id,
+                customer_id: chunk[0]?.customer_id,
+                domain_id: chunk[0]?.domain_id,
+                email: chunk[0]?.email,
+                payloadKeys: chunk[0]?.payload ? Object.keys(chunk[0].payload) : null,
+              },
+            });
+            return new Response(
+              JSON.stringify({
+                error: 'Failed to persist recipients',
+                status: resp.status,
+                statusText: resp.statusText,
+                details: serializeSupabaseError(resp.error),
+              }),
+              { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+
+          offset += chunk.length;
+        } catch (e: any) {
+          const msg = String(e?.message || e);
+          if ((msg.includes('statement timeout') || msg.includes('57014')) && dbChunkSize > 25) {
+            dbChunkSize = Math.max(25, Math.floor(dbChunkSize / 2));
+            console.warn(`⚠️ email_messages write exception timed out; reducing chunk size to ${dbChunkSize} and retrying (batch ${batchIndex})`);
+            continue;
+          }
+          console.error('❌ Exception while persisting email_messages chunk:', {
+            err: serializeSupabaseError(e),
+            batchIndex,
+            chunkSize: chunk.length,
+          });
+          return new Response(
+            JSON.stringify({ error: 'Failed to persist recipients (exception)', details: serializeSupabaseError(e) }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+      }
+
+      if (batchRecipientEmails.length > 0) {
+        const { error: jobErr } = await supabase
+          .from('email_send_jobs')
+          .upsert(
+            {
+              campaign_id: campaignId,
+              tenant_id: campaign.tenant_id,
+              domain_id: activeDomainId,
+              status: 'pending',
+              // recipient_message_ids intentionally left empty; worker will resolve IDs from recipient_emails.
+              recipient_message_ids: [],
+              recipient_emails: batchRecipientEmails,
+              batch_index: batchIndex,
+            },
+            { onConflict: 'campaign_id,batch_index', ignoreDuplicates: true }
+          );
+
+        if (jobErr) {
+          console.error('❌ Failed to create batch job:', { batchIndex, err: serializeSupabaseError(jobErr) });
+          return new Response(
+            JSON.stringify({ error: 'Failed to queue campaign' }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+      }
+
+      queuedRecipientCount += batchRecipientEmails.length;
+      if ((batchIndex + 1) % 10 === 0 || batchIndex + 1 === totalBatches) {
+        console.log(`📧 Queued batch ${batchIndex + 1}/${totalBatches} (queued so far: ${queuedRecipientCount})`);
       }
     }
 
@@ -838,165 +988,12 @@ serve(async (req: Request) => {
       })
       .eq('id', campaignId);
 
-    // ========== PERSIST RECIPIENTS (SOURCE OF TRUTH) ==========
-    // Store one immutable row per (campaign, customer) so retries/resumes can never duplicate.
-    const invalidRecipients = emailPayloads.filter((r) => !r?.customerId || !r?.email || !r?.payload);
-    if (invalidRecipients.length > 0) {
-      console.error('❌ Invalid recipient rows detected before persisting email_messages', {
-        invalidCount: invalidRecipients.length,
-        sample: {
-          customerId: invalidRecipients[0]?.customerId,
-          email: invalidRecipients[0]?.email,
-          hasPayload: !!invalidRecipients[0]?.payload,
-        },
-      });
-      return new Response(
-        JSON.stringify({ error: 'Invalid recipients (missing customerId/email/payload)' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
     if (!campaign?.tenant_id) {
-      console.error('❌ Campaign tenant_id missing, cannot persist recipients', { campaignId });
+      console.error('❌ Campaign tenant_id missing, cannot queue recipients', { campaignId });
       return new Response(
         JSON.stringify({ error: 'Campaign missing tenant_id' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
-    }
-
-    const messageUpserts = emailPayloads.map((r) => ({
-      tenant_id: campaign.tenant_id,
-      campaign_id: campaignId,
-      customer_id: r.customerId,
-      domain_id: activeDomainId,
-      email: r.email,
-      payload: r.payload,
-      status: 'queued',
-      // Reset transient send state on rebuild so retries can proceed.
-      resend_id: null,
-      claimed_at: null,
-      claimed_by: null,
-      claim_token: null,
-      dead_lettered_at: null,
-      error_message: null,
-    }));
-
-    const UPSERT_CHUNK = 500;
-    for (let i = 0; i < messageUpserts.length; i += UPSERT_CHUNK) {
-      const chunk = messageUpserts.slice(i, i + UPSERT_CHUNK);
-      try {
-        const resp = await supabase
-          .from('email_messages')
-          .upsert(chunk, { onConflict: 'campaign_id,customer_id' });
-
-        if (resp.error) {
-          console.error('❌ Failed to persist email_messages:', {
-            status: resp.status,
-            statusText: resp.statusText,
-            err: serializeSupabaseError(resp.error),
-            chunkSize: chunk.length,
-            sample: {
-              tenant_id: chunk[0]?.tenant_id,
-              campaign_id: chunk[0]?.campaign_id,
-              customer_id: chunk[0]?.customer_id,
-              domain_id: chunk[0]?.domain_id,
-              email: chunk[0]?.email,
-              payloadKeys: chunk[0]?.payload ? Object.keys(chunk[0].payload) : null,
-            },
-          });
-          return new Response(
-            JSON.stringify({
-              error: 'Failed to persist recipients',
-              status: resp.status,
-              statusText: resp.statusText,
-              details: serializeSupabaseError(resp.error),
-            }),
-            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
-      } catch (e: any) {
-        console.error('❌ Exception while persisting email_messages:', {
-          err: serializeSupabaseError(e),
-          chunkSize: chunk.length,
-          sample: {
-            tenant_id: chunk[0]?.tenant_id,
-            campaign_id: chunk[0]?.campaign_id,
-            customer_id: chunk[0]?.customer_id,
-            domain_id: chunk[0]?.domain_id,
-            email: chunk[0]?.email,
-            payloadKeys: chunk[0]?.payload ? Object.keys(chunk[0].payload) : null,
-          },
-        });
-        return new Response(
-          JSON.stringify({ error: 'Failed to persist recipients (exception)', details: serializeSupabaseError(e) }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-    }
-
-    // Load message IDs to build stable batch jobs
-    const customerIds = emailPayloads.map((r) => r.customerId);
-    const idMap = new Map<string, string>();
-    const IN_CHUNK = 800;
-    for (let i = 0; i < customerIds.length; i += IN_CHUNK) {
-      const idsChunk = customerIds.slice(i, i + IN_CHUNK);
-      const { data: rows, error: fetchErr } = await supabase
-        .from('email_messages')
-        .select('id, customer_id')
-        .eq('campaign_id', campaignId)
-        .in('customer_id', idsChunk);
-      if (fetchErr) {
-        console.error('❌ Failed to fetch email_message IDs:', fetchErr);
-        return new Response(
-          JSON.stringify({ error: 'Failed to queue recipients' }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      (rows || []).forEach((r: any) => idMap.set(r.customer_id, r.id));
-    }
-
-    const messageIdsInOrder: string[] = [];
-    for (const r of emailPayloads) {
-      const mid = idMap.get(r.customerId);
-      if (mid) messageIdsInOrder.push(mid);
-    }
-
-    // ========== CREATE BATCH JOBS (RESUMABLE WORK UNITS) ==========
-    const totalBatches = Math.ceil(messageIdsInOrder.length / BATCH_SIZE_PER_JOB);
-    console.log(`📧 Campaign has ${messageIdsInOrder.length} recipients, ensuring ${totalBatches} batch jobs`);
-
-    const jobUpserts: any[] = [];
-    for (let i = 0; i < messageIdsInOrder.length; i += BATCH_SIZE_PER_JOB) {
-      const batchIds = messageIdsInOrder.slice(i, i + BATCH_SIZE_PER_JOB);
-      const batchRecipients = emailPayloads.slice(i, i + BATCH_SIZE_PER_JOB).map((x) => ({
-        email: x.email,
-        customerId: x.customerId,
-      }));
-      jobUpserts.push({
-        campaign_id: campaignId,
-        tenant_id: campaign.tenant_id,
-        domain_id: activeDomainId,
-        status: 'pending',
-        recipient_message_ids: batchIds,
-        // Keep legacy field for analytics/UI (but worker uses message IDs + email_messages)
-        recipient_emails: batchRecipients,
-        batch_index: Math.floor(i / BATCH_SIZE_PER_JOB),
-      });
-    }
-
-    const JOB_CHUNK = 200;
-    for (let i = 0; i < jobUpserts.length; i += JOB_CHUNK) {
-      const chunk = jobUpserts.slice(i, i + JOB_CHUNK);
-      const { error: jobErr } = await supabase
-        .from('email_send_jobs')
-        .upsert(chunk, { onConflict: 'campaign_id,batch_index', ignoreDuplicates: true });
-      if (jobErr) {
-        console.error('❌ Failed to create batch jobs:', jobErr);
-        return new Response(
-          JSON.stringify({ error: 'Failed to queue campaign' }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
     }
 
     // Mark campaign as sending (worker will complete it and set sent_at)
@@ -1009,10 +1006,10 @@ serve(async (req: Request) => {
         send_blocked_reason: null,
         metrics: {
           ...(campaign.metrics || {}),
-          queued: messageIdsInOrder.length,
+          queued: queuedRecipientCount,
           skipped_suppressed: suppressedCount + suppressedByListCount,
-          links_tracked: urlToLinkIdMap.size,
-          pii_warnings: piiWarnings.length,
+          links_tracked: urlsToTrack.length,
+          pii_warnings: piiWarningSet.size,
         },
       })
       .eq('id', campaignId);
@@ -1025,7 +1022,7 @@ serve(async (req: Request) => {
         mode: 'queued',
         partial_send: isPartialSend,
         campaign_id: campaignId,
-        total_recipients: emailPayloads.length,
+        total_recipients: queuedRecipientCount,
         original_recipients: isPartialSend ? originalRecipientCount : undefined,
         truncated_count: isPartialSend ? originalRecipientCount - recipientCount : undefined,
         total_batches: totalBatches,
@@ -1035,8 +1032,8 @@ serve(async (req: Request) => {
           warmup_stage: quotaCheck.domain?.warmup_stage
         } : undefined,
         message: isPartialSend
-          ? `Campaign queued for ${emailPayloads.length} of ${originalRecipientCount} recipients (limited by warmup)`
-          : `Campaign queued for sending to ${emailPayloads.length} recipients`
+          ? `Campaign queued for ${queuedRecipientCount} of ${originalRecipientCount} recipients (limited by warmup)`
+          : `Campaign queued for sending to ${queuedRecipientCount} recipients`
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
