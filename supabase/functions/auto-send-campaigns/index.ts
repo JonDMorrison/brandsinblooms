@@ -41,7 +41,7 @@ const handler = async (req: Request): Promise<Response> => {
 
   const startTime = Date.now();
   const runId = crypto.randomUUID().slice(0, 8);
-  
+
   console.log(`🚀 [auto-send-campaigns][${runId}] Starting scheduled campaign processing...`);
   console.log(`📅 [${runId}] Timestamp: ${new Date().toISOString()}`);
 
@@ -52,7 +52,7 @@ const handler = async (req: Request): Promise<Response> => {
       .select('id, name, sending_started_at, send_attempts')
       .eq('status', 'sending')
       .lt('sending_started_at', new Date(Date.now() - 15 * 60 * 1000).toISOString());
-    
+
     if (stuckCampaigns && stuckCampaigns.length > 0) {
       console.log(`⚠️ [${runId}] Found ${stuckCampaigns.length} stuck campaigns (sending > 15 min)`);
       stuckCampaigns.forEach(c => {
@@ -62,11 +62,9 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Step 1: Atomically claim scheduled campaigns using the RPC
-    // The RPC also handles recovery of stuck campaigns:
-    // - Campaigns stuck for >15 min with <3 attempts → reset to 'scheduled'
-    // - Campaigns stuck for >15 min with >=3 attempts → marked as 'failed'
-    console.log(`📋 [${runId}] Claiming scheduled campaigns with atomic RPC (includes stuck recovery)...`);
-    
+    // This uses FOR UPDATE SKIP LOCKED to prevent double-claiming
+    console.log('📋 Claiming scheduled campaigns with atomic RPC...');
+
     const { data: claimedCampaigns, error: claimError } = await supabase
       .rpc('claim_scheduled_campaigns', { batch_size: 10 });
 
@@ -76,9 +74,9 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const campaigns = (claimedCampaigns || []) as ClaimedCampaign[];
-    
-    console.log(`📧 [${runId}] Claimed ${campaigns.length} campaigns for sending`);
-    
+
+    console.log(`📧 Claimed ${campaigns.length} campaigns for sending`);
+
     if (campaigns.length > 0) {
       console.log(`📋 [${runId}] Claimed campaign details:`);
       campaigns.forEach((c, i) => {
@@ -88,11 +86,10 @@ const handler = async (req: Request): Promise<Response> => {
 
     if (campaigns.length === 0) {
       const duration = Date.now() - startTime;
-      console.log(`✅ [${runId}] No campaigns ready for auto-send. Completed in ${duration}ms`);
-      
-      return new Response(JSON.stringify({ 
-        success: true, 
-        runId,
+      console.log(`✅ No campaigns ready for auto-send. Completed in ${duration}ms`);
+
+      return new Response(JSON.stringify({
+        success: true,
         message: 'No campaigns ready for auto-send',
         campaignsSent: 0,
         campaignsFailed: 0,
@@ -111,10 +108,9 @@ const handler = async (req: Request): Promise<Response> => {
     // Process each claimed campaign
     for (const campaign of campaigns) {
       const campaignStartTime = Date.now();
-      const sendAttempts = campaign.send_attempts || 1;
-      
-      console.log(`📨 [${runId}] Processing campaign: "${campaign.name}" (${campaign.id})`);
-      console.log(`   Attempt #${sendAttempts}, Tenant: ${campaign.tenant_id}`);
+
+      try {
+        console.log(`📨 Processing campaign: "${campaign.name}" (${campaign.id})`);
 
       try {
         // Check if user has auto-send enabled
@@ -125,21 +121,21 @@ const handler = async (req: Request): Promise<Response> => {
           .single();
 
         const autoSendEnabled = userProfile?.feature_flags?.auto_send_campaigns !== false;
-        
+
         if (!autoSendEnabled) {
-          console.log(`⏭️ [${runId}] Skipping campaign ${campaign.id} - auto-send disabled for user`);
-          
+          console.log(`⏭️ Skipping campaign ${campaign.id} - auto-send disabled for user`);
+
           // Reset to scheduled so it can be sent manually
           await supabase
             .from('crm_campaigns')
-            .update({ 
+            .update({
               status: 'scheduled',
               sending_started_at: null,
               send_started_at: null,
               failure_reason: 'Auto-send disabled for user'
             })
             .eq('id', campaign.id);
-          
+
           results.push({
             id: campaign.id,
             name: campaign.name,
@@ -157,7 +153,7 @@ const handler = async (req: Request): Promise<Response> => {
             p_campaign_id: campaign.id,
             p_claim_token: campaign.claim_token
           });
-          
+
           if (!claimValid) {
             console.warn(`⚠️ [${runId}] Campaign ${campaign.id} claim invalid - skipping to prevent double-send`);
             results.push({
@@ -173,8 +169,8 @@ const handler = async (req: Request): Promise<Response> => {
         }
 
         // Call the email sending service
-        console.log(`🚀 [${runId}] Invoking send-email-campaign for ${campaign.id}...`);
-        
+        console.log(`🚀 Invoking send-email-campaign for ${campaign.id}...`);
+
         const { data: sendResult, error: sendError } = await supabase.functions.invoke('send-email-campaign', {
           body: {
             campaignId: campaign.id,
@@ -190,106 +186,45 @@ const handler = async (req: Request): Promise<Response> => {
           throw new Error(sendResult.error);
         }
 
-        const sentCount = sendResult?.metrics?.sent || 0;
-        const failedCount = sendResult?.metrics?.failed || 0;
+        const queuedCount = sendResult?.total_recipients || sendResult?.metrics?.queued || 0;
 
-        // Success: Use RPC to complete with claim token verification
-        if (campaign.claim_token) {
-          const { data: completed } = await supabase.rpc('complete_campaign_send', {
-            p_campaign_id: campaign.id,
-            p_claim_token: campaign.claim_token,
-            p_success: true,
-            p_metrics: {
-              sent: sentCount,
-              failed: failedCount,
-              delivered: 0,
-              opened: 0,
-              clicked: 0,
-              bounced: 0,
-              unsubscribed: 0,
-              revenue: 0
-            }
-          });
-          
-          if (!completed) {
-            console.warn(`⚠️ [${runId}] Campaign ${campaign.id} completion failed - claim token mismatch`);
-          }
-        } else {
-          // Fallback for campaigns without claim token
-          await supabase
-            .from('crm_campaigns')
-            .update({ 
-              status: 'sent',
-              sent_at: new Date().toISOString(),
-              failure_reason: null,
-              send_error: null,
-              claim_token: null,
-              metrics: {
-                sent: sentCount,
-                failed: failedCount,
-                delivered: 0,
-                opened: 0,
-                clicked: 0,
-                bounced: 0,
-                unsubscribed: 0,
-                revenue: 0
-              }
-            })
-            .eq('id', campaign.id);
-        }
-
+        // IMPORTANT: send-email-campaign queues recipients and persists them.
+        // Completion is handled by the queue worker based on the email_messages ledger.
         const campaignDuration = Date.now() - campaignStartTime;
-        console.log(`✅ [${runId}] Campaign ${campaign.id} sent successfully`);
-        console.log(`   Recipients: ${sentCount}, Failed: ${failedCount}, Duration: ${campaignDuration}ms`);
-        
+        console.log(`✅ Campaign ${campaign.id} queued successfully (${queuedCount} recipients) in ${campaignDuration}ms`);
+
         campaignsSent++;
         results.push({
           id: campaign.id,
           name: campaign.name,
-          status: 'sent',
-          durationMs: campaignDuration,
-          recipientCount: sentCount,
-          sendAttempts
+          status: 'queued',
+          durationMs: campaignDuration
         });
 
         // Send success notification (async, don't wait)
-        sendSuccessNotification(campaign, sentCount, runId).catch(e => 
-          console.warn(`[${runId}] Failed to send success notification:`, e)
+        sendSuccessNotification(campaign, queuedCount).catch(e =>
+          console.warn('Failed to send success notification:', e)
         );
 
       } catch (campaignError: any) {
         const campaignDuration = Date.now() - campaignStartTime;
         const errorMessage = campaignError.message || 'Unknown error';
-        
-        console.error(`❌ [${runId}] Error sending campaign ${campaign.id}`);
-        console.error(`   Error: ${errorMessage}`);
-        console.error(`   Duration: ${campaignDuration}ms, Attempts: ${sendAttempts}`);
-        
-        // Failure: Use RPC if claim token exists, otherwise direct update
-        if (campaign.claim_token) {
-          await supabase.rpc('complete_campaign_send', {
-            p_campaign_id: campaign.id,
-            p_claim_token: campaign.claim_token,
-            p_success: false,
-            p_error_message: errorMessage
-          });
-        } else {
-          await supabase
-            .from('crm_campaigns')
-            .update({ 
-              status: 'failed',
-              failure_reason: errorMessage,
-              send_error: errorMessage,
-              claim_token: null,
-              metadata: {
-                ...campaign.metadata,
-                last_error: errorMessage,
-                failed_at: new Date().toISOString(),
-                run_id: runId
-              }
-            })
-            .eq('id', campaign.id);
-        }
+
+        console.error(`❌ Error sending campaign ${campaign.id} after ${campaignDuration}ms:`, errorMessage);
+
+        // Failure: Update campaign status to failed with error
+        await supabase
+          .from('crm_campaigns')
+          .update({
+            status: 'failed',
+            send_error: errorMessage,
+            metadata: {
+              ...campaign.metadata,
+              last_error: errorMessage,
+              failed_at: new Date().toISOString()
+            }
+          })
+          .eq('id', campaign.id);
 
         campaignsFailed++;
         results.push({
@@ -304,18 +239,18 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const totalDuration = Date.now() - startTime;
-    
+
     console.log(`🎉 [${runId}] Auto-send processing completed`);
     console.log(`   Duration: ${totalDuration}ms`);
     console.log(`   Claimed: ${campaigns.length}, Sent: ${campaignsSent}, Failed: ${campaignsFailed}`);
-    
+
     // Log summary of results
     results.forEach(r => {
       const icon = r.status === 'sent' ? '✅' : r.status === 'failed' ? '❌' : '⏭️';
       console.log(`   ${icon} ${r.name}: ${r.status} (${r.durationMs}ms)${r.error ? ` - ${r.error}` : ''}`);
     });
 
-    return new Response(JSON.stringify({ 
+    return new Response(JSON.stringify({
       success: true,
       runId,
       campaignsSent,
@@ -330,9 +265,9 @@ const handler = async (req: Request): Promise<Response> => {
 
   } catch (error: any) {
     const duration = Date.now() - startTime;
-    console.error(`❌ [${runId}] Critical error in auto-send-campaigns after ${duration}ms:`, error);
-    
-    return new Response(JSON.stringify({ 
+    console.error(`❌ Error in auto-send-campaigns function after ${duration}ms:`, error);
+
+    return new Response(JSON.stringify({
       error: error.message,
       success: false,
       runId,
@@ -345,9 +280,12 @@ const handler = async (req: Request): Promise<Response> => {
   }
 };
 
-async function sendSuccessNotification(campaign: any, audienceSize: number, runId: string) {
-  console.log(`📬 [${runId}] Sending success notification for campaign "${campaign.name}"`);
-  console.log(`   Audience size: ${audienceSize}`);
+async function sendSuccessNotification(campaign: any, audienceSize: number) {
+  console.log(`🎉 Sending success notification for campaign ${campaign.id}`);
+
+  // Here you would integrate with your notification system
+  // For now, we'll just log it
+  console.log(`✅ Notification: Campaign "${campaign.name}" sent successfully to ${audienceSize} recipients`);
 }
 
 serve(handler);

@@ -1,13 +1,13 @@
-import React, { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import React, { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+} from "@/components/ui/dropdown-menu";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,31 +17,31 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+} from "@/components/ui/alert-dialog";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
-import { 
-  MoreHorizontal, 
-  Calendar, 
-  Send, 
-  X, 
+} from "@/components/ui/dialog";
+import {
+  MoreHorizontal,
+  Calendar,
+  Send,
+  X,
   Clock,
   AlertTriangle,
   Eye,
-  Copy
-} from 'lucide-react';
-import { format } from 'date-fns';
-import { toZonedTime } from 'date-fns-tz';
-import { ScheduleSelector, ScheduleOption } from './ScheduleSelector';
-import { 
-  updateCampaignSchedule, 
-  unscheduleCampaign, 
-  sendScheduledCampaignNow 
-} from '@/utils/crmCampaignService';
+  Copy,
+} from "lucide-react";
+import { format } from "date-fns";
+import { toZonedTime } from "date-fns-tz";
+import { ScheduleSelector, ScheduleOption } from "./ScheduleSelector";
+import {
+  updateCampaignSchedule,
+  unscheduleCampaign,
+  sendScheduledCampaignNow,
+} from "@/utils/crmCampaignService";
 
 interface ScheduledCampaignActionsProps {
   campaign: {
@@ -56,33 +56,32 @@ interface ScheduledCampaignActionsProps {
   onDuplicate: () => void;
 }
 
-export const ScheduledCampaignActions: React.FC<ScheduledCampaignActionsProps> = ({
-  campaign,
-  onActionComplete,
-  onView,
-  onDuplicate
-}) => {
+export const ScheduledCampaignActions: React.FC<
+  ScheduledCampaignActionsProps
+> = ({ campaign, onActionComplete, onView, onDuplicate }) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [showUnscheduleDialog, setShowUnscheduleDialog] = useState(false);
   const [showSendNowDialog, setShowSendNowDialog] = useState(false);
   const [showScheduleDialog, setShowScheduleDialog] = useState(false);
 
-  const isScheduled = campaign.status === 'scheduled';
-  const isSending = campaign.status === 'sending';
-  const isSent = campaign.status === 'sent';
+  const isScheduled = campaign.status === "scheduled";
+  const isSending = campaign.status === "sending";
+  const isSent = campaign.status === "sent";
   const canModify = !isSending && !isSent;
 
-  const timezone = campaign.metadata?.scheduled_timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const timezone =
+    campaign.metadata?.scheduled_timezone ||
+    Intl.DateTimeFormat().resolvedOptions().timeZone;
 
   const handleEditSchedule = async (newSchedule: ScheduleOption) => {
-    if (newSchedule.type !== 'scheduled' || !newSchedule.date) return;
+    if (newSchedule.type !== "scheduled" || !newSchedule.date) return;
 
     setIsProcessing(true);
     try {
       await updateCampaignSchedule(
-        campaign.id, 
+        campaign.id,
         newSchedule.date.toISOString(),
-        newSchedule.timezone
+        newSchedule.timezone,
       );
       setShowScheduleDialog(false);
       onActionComplete();
@@ -114,9 +113,9 @@ export const ScheduledCampaignActions: React.FC<ScheduledCampaignActionsProps> =
   };
 
   const currentSchedule: ScheduleOption = {
-    type: 'scheduled',
+    type: "scheduled",
     date: campaign.scheduled_at ? new Date(campaign.scheduled_at) : undefined,
-    timezone
+    timezone,
   };
 
   return (
@@ -136,7 +135,7 @@ export const ScheduledCampaignActions: React.FC<ScheduledCampaignActionsProps> =
             <Copy className="h-4 w-4 mr-2" />
             Duplicate
           </DropdownMenuItem>
-          
+
           {isScheduled && (
             <>
               <DropdownMenuSeparator />
@@ -148,7 +147,7 @@ export const ScheduledCampaignActions: React.FC<ScheduledCampaignActionsProps> =
                 <Send className="h-4 w-4 mr-2" />
                 Send Now
               </DropdownMenuItem>
-              <DropdownMenuItem 
+              <DropdownMenuItem
                 onClick={() => setShowUnscheduleDialog(true)}
                 className="text-destructive focus:text-destructive"
               >
@@ -184,24 +183,34 @@ export const ScheduledCampaignActions: React.FC<ScheduledCampaignActionsProps> =
               schedule={currentSchedule}
               onScheduleChange={handleEditSchedule}
               disabled={isProcessing}
+              allowClearSchedule={false}
             />
           </div>
         </DialogContent>
       </Dialog>
 
       {/* Unschedule Confirmation */}
-      <AlertDialog open={showUnscheduleDialog} onOpenChange={setShowUnscheduleDialog}>
+      <AlertDialog
+        open={showUnscheduleDialog}
+        onOpenChange={setShowUnscheduleDialog}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Unschedule Campaign?</AlertDialogTitle>
             <AlertDialogDescription>
-              "{campaign.name}" will not send automatically. It will be returned to draft status.
+              "{campaign.name}" will not send automatically. It will be returned
+              to draft status.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isProcessing}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleUnschedule} disabled={isProcessing}>
-              {isProcessing ? 'Processing...' : 'Unschedule'}
+            <AlertDialogCancel disabled={isProcessing}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleUnschedule}
+              disabled={isProcessing}
+            >
+              {isProcessing ? "Processing..." : "Unschedule"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -217,14 +226,16 @@ export const ScheduledCampaignActions: React.FC<ScheduledCampaignActionsProps> =
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isProcessing}>Cancel</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={handleSendNow} 
+            <AlertDialogCancel disabled={isProcessing}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleSendNow}
               disabled={isProcessing}
               className="bg-primary"
             >
               <Send className="h-4 w-4 mr-1" />
-              {isProcessing ? 'Sending...' : 'Send Now'}
+              {isProcessing ? "Sending..." : "Send Now"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -241,11 +252,12 @@ export const ScheduledTimeBadge: React.FC<{
   status: string;
   timezone?: string;
 }> = ({ scheduledAt, status, timezone }) => {
-  if (status !== 'scheduled' || !scheduledAt) {
+  if (status !== "scheduled" || !scheduledAt) {
     return null;
   }
 
-  const userTimezone = timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const userTimezone =
+    timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
   const isPastDue = new Date(scheduledAt) < new Date();
 
   const formatTime = () => {
@@ -253,19 +265,19 @@ export const ScheduledTimeBadge: React.FC<{
       const localDate = toZonedTime(new Date(scheduledAt), userTimezone);
       return format(localDate, "MMM d 'at' h:mm a");
     } catch {
-      return 'Unknown';
+      return "Unknown";
     }
   };
 
   const getTimezoneName = () => {
     const labels: Record<string, string> = {
-      'America/New_York': 'ET',
-      'America/Chicago': 'CT',
-      'America/Denver': 'MT',
-      'America/Los_Angeles': 'PT',
-      'UTC': 'UTC'
+      "America/New_York": "ET",
+      "America/Chicago": "CT",
+      "America/Denver": "MT",
+      "America/Los_Angeles": "PT",
+      UTC: "UTC",
     };
-    return labels[userTimezone] || '';
+    return labels[userTimezone] || "";
   };
 
   return (
@@ -275,7 +287,7 @@ export const ScheduledTimeBadge: React.FC<{
       ) : (
         <Clock className="h-3 w-3 text-muted-foreground" />
       )}
-      <span className={isPastDue ? 'text-amber-600' : 'text-muted-foreground'}>
+      <span className={isPastDue ? "text-amber-600" : "text-muted-foreground"}>
         {formatTime()} {getTimezoneName()}
       </span>
     </div>

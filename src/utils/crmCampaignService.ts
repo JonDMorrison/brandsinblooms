@@ -105,7 +105,7 @@ export const saveCampaignAsDraft = async (campaignData: CampaignData) => {
         .eq('user_id', user.id) // Security: ensure user owns campaign
         .select()
         .single();
-      
+
       campaign = data;
       campaignError = error;
     } else {
@@ -116,7 +116,7 @@ export const saveCampaignAsDraft = async (campaignData: CampaignData) => {
         .insert(campaignPayload)
         .select()
         .single();
-      
+
       campaign = data;
       campaignError = error;
     }
@@ -150,7 +150,7 @@ export const saveCampaignAsDraft = async (campaignData: CampaignData) => {
           .delete()
           .eq('campaign_id', campaign.id);
       }
-      
+
       // CRITICAL FIX: Use canonical normalizeBlockForSave for consistent field mapping
       // This prevents content erasure by ensuring all block fields are properly mapped
       const blocks = campaignData.content_blocks.map((block, index) => {
@@ -202,10 +202,10 @@ export const saveCampaignAsDraft = async (campaignData: CampaignData) => {
           // Gallery fields
           galleryImages: block.galleryImages || block.content?.galleryImages || [],
         };
-        
+
         // Use canonical normalizer for consistent field mapping
         const normalizedBlock = normalizeBlockForSave(contentBlock, block.order_index ?? index);
-        
+
         return {
           campaign_id: campaign.id,
           ...normalizedBlock
@@ -229,7 +229,7 @@ export const saveCampaignAsDraft = async (campaignData: CampaignData) => {
         .from('campaign_segments')
         .delete()
         .eq('campaign_id', campaign.id);
-      
+
       // Also clear single segment_id
       await supabase
         .from('crm_campaigns')
@@ -317,18 +317,18 @@ export const sendCampaign = async (campaignData: CampaignData) => {
     // For immediate sends, use atomic claim then send
     if (campaignData.schedule.type === 'immediate') {
       console.log('🚀 Claiming campaign for immediate send:', campaign.id);
-      
+
       // Step 1: Atomically claim the campaign (prevents double-sends)
       const claimResult = await claimCampaignForSend(campaign.id);
-      
+
       if (!claimResult.success) {
         const errorMsg = claimResult.errorMessage || 'Failed to claim campaign';
         console.error('❌ Claim failed:', errorMsg);
         throw new Error(errorMsg);
       }
-      
+
       console.log('✅ Campaign claimed, previous status:', claimResult.previousStatus);
-      
+
       // Step 2: Send via edge function
       console.log('📧 Invoking send-email-campaign...');
       const { data: sendResult, error: sendError } = await supabase.functions.invoke('send-email-campaign', {
@@ -340,9 +340,9 @@ export const sendCampaign = async (campaignData: CampaignData) => {
         // Mark as failed since we already claimed it
         await supabase
           .from('crm_campaigns')
-          .update({ 
-            status: 'failed', 
-            send_error: sendError.message 
+          .update({
+            status: 'failed',
+            send_error: sendError.message
           })
           .eq('id', campaign.id);
         throw new Error(sendError.message || 'Failed to send campaign via email service');
@@ -352,9 +352,9 @@ export const sendCampaign = async (campaignData: CampaignData) => {
         console.error('Send result error:', sendResult.error);
         await supabase
           .from('crm_campaigns')
-          .update({ 
-            status: 'failed', 
-            send_error: sendResult.error 
+          .update({
+            status: 'failed',
+            send_error: sendResult.error
           })
           .eq('id', campaign.id);
         throw new Error(sendResult.error);
@@ -424,7 +424,7 @@ const trackCampaignAnalytics = async (campaignId: string, action: string, metada
 };
 
 export const regenerateCampaignContent = async (
-  campaignId: string, 
+  campaignId: string,
   originalContent: string,
   options: {
     tone?: 'professional' | 'friendly' | 'urgent' | 'casual';
@@ -462,32 +462,227 @@ export const regenerateCampaignContent = async (
  * Update a campaign's scheduled time
  */
 export const updateCampaignSchedule = async (
-  campaignId: string, 
+  campaignId: string,
   scheduledAt: string,
-  timezone?: string
+  timezone?: string,
+  options?: { silent?: boolean; onFailureMessage?: (message: string) => void }
 ): Promise<boolean> => {
   try {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('User not authenticated');
 
-    const { error } = await supabase
-      .from('crm_campaigns')
-      .update({
-        scheduled_at: scheduledAt,
-        status: 'scheduled',
-        updated_at: new Date().toISOString(),
-        metadata: timezone ? { scheduled_timezone: timezone } : undefined
-      })
-      .eq('id', campaignId)
-      .eq('user_id', user.id);
+    const mapScheduleFailureToUserMessage = (reason?: string | null) => {
+      const r = String(reason || '').toLowerCase();
+      if (!r) return "We couldn't save your schedule. Please try again.";
+      if (r.includes('not authenticated')) return 'Please sign in again to schedule this campaign.';
+      if (r.includes('not allowed')) return "You don't have access to schedule this campaign.";
+      if (r.includes('campaign not found')) return 'Campaign not found. Please refresh and try again.';
+      if (r.includes('locked')) return 'This campaign is locked (already sending or sent).';
+      return "We couldn't save your schedule. Please try again.";
+    };
 
-    if (error) throw error;
+    const isTerminalRpcFailure = (reason?: string | null) => {
+      const r = String(reason || '').toLowerCase();
+      return r.includes('not authenticated') || r.includes('locked');
+    };
 
-    toast.success('Schedule updated successfully');
+    // Preferred path: server-side SECURITY DEFINER RPC.
+    // This avoids client-side RLS drift causing silent 0-row updates.
+    try {
+      const { data, error } = await supabase.rpc(
+        'set_campaign_schedule' as any,
+        {
+          p_campaign_id: campaignId,
+          p_scheduled_at: scheduledAt,
+          p_timezone: timezone ?? null,
+        } as any,
+      );
+
+      if (!error) {
+        const row = Array.isArray(data) ? data[0] : data;
+        if (row?.success === true) {
+          if (!options?.silent) toast.success('Schedule updated successfully');
+          return true;
+        }
+
+        const userMessage = mapScheduleFailureToUserMessage(row?.error_message);
+        console.warn('set_campaign_schedule returned failure', {
+          campaignId,
+          error_message: row?.error_message,
+          row,
+        });
+
+        // Allow callers to present a friendly message even when we suppress service toasts.
+        options?.onFailureMessage?.(userMessage);
+
+        // If the RPC failure is terminal (auth/locked), stop here.
+        // Otherwise, fall back to direct table update to preserve compatibility with older RLS policies.
+        if (isTerminalRpcFailure(row?.error_message)) {
+          if (!options?.silent) toast.error(userMessage);
+          return false;
+        }
+      }
+
+      // If RPC doesn't exist/visible yet, fall back.
+      const msg = String((error as any)?.message || '');
+      const looksLikeMissingRpc =
+        msg.toLowerCase().includes('could not find the function') ||
+        msg.toLowerCase().includes('schema cache');
+
+      if (!looksLikeMissingRpc) {
+        console.warn('set_campaign_schedule RPC error (will fall back)', {
+          campaignId,
+          error,
+        });
+      }
+    } catch (e) {
+      console.warn('set_campaign_schedule RPC threw (will fall back)', {
+        campaignId,
+        error: e,
+      });
+    }
+
+    // Best-effort status check. In some environments, SELECT can be blocked by RLS
+    // even when UPDATE is permitted (e.g. owner-only UPDATE fallback). We should
+    // not fail early in that case.
+    try {
+      const { data: campaign, error: fetchError } = await supabase
+        .from('crm_campaigns')
+        .select('status')
+        .eq('id', campaignId)
+        .maybeSingle();
+
+      if (fetchError) throw fetchError;
+
+      if (campaign?.status === 'sending') {
+        if (!options?.silent) {
+          toast.error('Cannot reschedule a campaign that is currently sending');
+        }
+        return false;
+      }
+
+      if (campaign?.status === 'sent') {
+        if (!options?.silent) {
+          toast.error('Cannot reschedule a campaign that has already been sent');
+        }
+        return false;
+      }
+    } catch (e) {
+      console.warn('updateCampaignSchedule: status preflight skipped (possible RLS SELECT denial)', {
+        campaignId,
+        error: e,
+      });
+    }
+
+    const baseUpdate = {
+      scheduled_at: scheduledAt,
+      status: 'scheduled',
+      // Reset any previous send attempt state so the scheduler can try again
+      send_started_at: null,
+      send_error: null,
+      updated_at: new Date().toISOString(),
+      metadata: timezone ? { scheduled_timezone: timezone } : undefined,
+    };
+
+    // Absolute-minimum update payload that should work even if newer columns
+    // (like metadata/send_error) haven't been deployed yet.
+    const minimalUpdate = {
+      scheduled_at: scheduledAt,
+      status: 'scheduled',
+      updated_at: new Date().toISOString(),
+    };
+
+    // Some production environments may include legacy claim columns used by old scheduler logic.
+    // Other environments won't have them; if we include unknown columns PostgREST will error.
+    const extendedUpdate = {
+      ...baseUpdate,
+      claim_token: null,
+      sending_started_at: null,
+      send_attempts: 0,
+      failure_reason: null,
+    } as any;
+
+    const attemptUpdate = async (payload: Record<string, any>) => {
+      return await supabase
+        .from('crm_campaigns')
+        .update(payload)
+        .eq('id', campaignId)
+        // Also guard at the DB update level to prevent rescheduling while sending/sent
+        // even if we couldn't read status due to RLS.
+        .neq('status', 'sending')
+        .neq('status', 'sent')
+        .select('id')
+        .maybeSingle();
+    };
+
+    const attempts: Array<{ label: string; payload: Record<string, any> }> = [
+      { label: 'extended', payload: extendedUpdate },
+      { label: 'base', payload: baseUpdate },
+      { label: 'minimal', payload: minimalUpdate },
+    ];
+
+    let lastError: any = null;
+    for (const attempt of attempts) {
+      const { data, error } = await attemptUpdate(attempt.payload);
+      if (!error) {
+        if (data?.id) {
+          lastError = null;
+          break;
+        }
+
+        // No error but no updated row usually means RLS prevented the update.
+        console.warn('Schedule update returned no row (possible RLS denial)', {
+          campaignId,
+          attempt: attempt.label,
+        });
+        return false;
+      }
+
+      lastError = error;
+      const msg = String((error as any)?.message || '');
+      const looksLikeMissingColumn =
+        msg.toLowerCase().includes('does not exist') &&
+        msg.toLowerCase().includes('column');
+
+      if (looksLikeMissingColumn) {
+        console.warn('Schedule update: missing column; retrying with fallback payload', {
+          campaignId,
+          attempt: attempt.label,
+          message: msg,
+        });
+        continue;
+      }
+
+      throw error;
+    }
+
+    if (lastError) throw lastError;
+
+    if (!options?.silent) toast.success('Schedule updated successfully');
     return true;
   } catch (error: any) {
     console.error('Error updating campaign schedule:', error);
-    toast.error(`Failed to update schedule: ${error.message}`);
+    if (!options?.silent) {
+      // Avoid surfacing internal PostgREST/schema-cache/RLS messages to end users.
+      const msg = String(error?.message || '').toLowerCase();
+      if (msg.includes('jwt') || msg.includes('auth') || msg.includes('permission')) {
+        toast.error('Please sign in again to update the schedule.');
+      } else {
+        toast.error("We couldn't save your schedule. Please try again.");
+      }
+    }
+
+    // Also inform silent callers with a user-friendly message.
+    if (options?.onFailureMessage) {
+      const msg = String(error?.message || '').toLowerCase();
+      if (msg.includes('jwt') || msg.includes('auth')) {
+        options.onFailureMessage('Please sign in again to schedule this campaign.');
+      } else if (msg.includes('sending') || msg.includes('sent') || msg.includes('locked')) {
+        options.onFailureMessage('This campaign is locked (already sending or sent).');
+      } else {
+        options.onFailureMessage("We couldn't save your schedule. Please try again.");
+      }
+    }
     return false;
   }
 };
@@ -495,50 +690,203 @@ export const updateCampaignSchedule = async (
 /**
  * Unschedule a campaign - revert to draft status
  */
-export const unscheduleCampaign = async (campaignId: string): Promise<boolean> => {
+export const unscheduleCampaign = async (
+  campaignId: string,
+  options?: { silent?: boolean; onFailureMessage?: (message: string) => void }
+): Promise<boolean> => {
   try {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('User not authenticated');
 
-    // First check current status
-    const { data: campaign, error: fetchError } = await supabase
-      .from('crm_campaigns')
-      .select('status')
-      .eq('id', campaignId)
-      .eq('user_id', user.id)
-      .single();
+    const mapUnscheduleFailureToUserMessage = (reason?: string | null) => {
+      const r = String(reason || '').toLowerCase();
+      if (!r) return "We couldn't remove the schedule. Please try again.";
+      if (r.includes('not authenticated')) return 'Please sign in again to update this campaign.';
+      if (r.includes('not allowed')) return "You don't have access to update this campaign.";
+      if (r.includes('campaign not found')) return 'Campaign not found. Please refresh and try again.';
+      if (r.includes('locked')) return 'This campaign is locked (already sending or sent).';
+      return "We couldn't remove the schedule. Please try again.";
+    };
 
-    if (fetchError) throw fetchError;
+    const isTerminalRpcFailure = (reason?: string | null) => {
+      const r = String(reason || '').toLowerCase();
+      return r.includes('not authenticated') || r.includes('locked');
+    };
 
-    if (campaign.status === 'sending') {
-      toast.error('Cannot unschedule a campaign that is currently sending');
-      return false;
+    // Preferred path: server-side SECURITY DEFINER RPC.
+    try {
+      const { data, error } = await supabase.rpc(
+        'clear_campaign_schedule' as any,
+        { p_campaign_id: campaignId } as any,
+      );
+
+      if (!error) {
+        const row = Array.isArray(data) ? data[0] : data;
+        if (row?.success === true) {
+          if (!options?.silent) toast.success('Campaign unscheduled - returned to draft');
+          return true;
+        }
+
+        const userMessage = mapUnscheduleFailureToUserMessage(row?.error_message);
+        console.warn('clear_campaign_schedule returned failure', {
+          campaignId,
+          error_message: row?.error_message,
+          row,
+        });
+
+        options?.onFailureMessage?.(userMessage);
+
+        if (isTerminalRpcFailure(row?.error_message)) {
+          if (!options?.silent) toast.error(userMessage);
+          return false;
+        }
+      }
+
+      const msg = String((error as any)?.message || '');
+      const looksLikeMissingRpc =
+        msg.toLowerCase().includes('could not find the function') ||
+        msg.toLowerCase().includes('schema cache');
+      if (!looksLikeMissingRpc) {
+        console.warn('clear_campaign_schedule RPC error (will fall back)', {
+          campaignId,
+          error,
+        });
+      }
+    } catch (e) {
+      console.warn('clear_campaign_schedule RPC threw (will fall back)', {
+        campaignId,
+        error: e,
+      });
     }
 
-    if (campaign.status === 'sent') {
-      toast.error('Cannot unschedule a campaign that has already been sent');
-      return false;
+    // Best-effort status check. Don't fail early if SELECT is blocked by RLS.
+    try {
+      const { data: campaign, error: fetchError } = await supabase
+        .from('crm_campaigns')
+        .select('status')
+        .eq('id', campaignId)
+        .maybeSingle();
+
+      if (fetchError) throw fetchError;
+
+      if (campaign?.status === 'sending') {
+        if (!options?.silent) {
+          toast.error('Cannot unschedule a campaign that is currently sending');
+        }
+        return false;
+      }
+
+      if (campaign?.status === 'sent') {
+        if (!options?.silent) {
+          toast.error('Cannot unschedule a campaign that has already been sent');
+        }
+        return false;
+      }
+    } catch (e) {
+      console.warn('unscheduleCampaign: status preflight skipped (possible RLS SELECT denial)', {
+        campaignId,
+        error: e,
+      });
     }
 
-    const { error } = await supabase
-      .from('crm_campaigns')
-      .update({
-        scheduled_at: null,
-        status: 'draft',
-        send_started_at: null,
-        send_error: null,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', campaignId)
-      .eq('user_id', user.id);
+    const baseUpdate = {
+      scheduled_at: null,
+      status: 'draft',
+      send_started_at: null,
+      send_error: null,
+      updated_at: new Date().toISOString(),
+    };
 
-    if (error) throw error;
+    const minimalUpdate = {
+      scheduled_at: null,
+      status: 'draft',
+      updated_at: new Date().toISOString(),
+    };
 
-    toast.success('Campaign unscheduled - returned to draft');
+    const extendedUpdate = {
+      ...baseUpdate,
+      claim_token: null,
+      sending_started_at: null,
+      send_attempts: 0,
+      failure_reason: null,
+    } as any;
+
+    const attemptUpdate = async (payload: Record<string, any>) => {
+      return await supabase
+        .from('crm_campaigns')
+        .update(payload)
+        .eq('id', campaignId)
+        .neq('status', 'sending')
+        .neq('status', 'sent')
+        .select('id')
+        .maybeSingle();
+    };
+
+    const attempts: Array<{ label: string; payload: Record<string, any> }> = [
+      { label: 'extended', payload: extendedUpdate },
+      { label: 'base', payload: baseUpdate },
+      { label: 'minimal', payload: minimalUpdate },
+    ];
+
+    let lastError: any = null;
+    for (const attempt of attempts) {
+      const { data, error } = await attemptUpdate(attempt.payload);
+      if (!error) {
+        if (data?.id) {
+          lastError = null;
+          break;
+        }
+
+        console.warn('Unschedule returned no row (possible RLS denial)', {
+          campaignId,
+          attempt: attempt.label,
+        });
+        return false;
+      }
+
+      lastError = error;
+      const msg = String((error as any)?.message || '');
+      const looksLikeMissingColumn =
+        msg.toLowerCase().includes('does not exist') &&
+        msg.toLowerCase().includes('column');
+
+      if (looksLikeMissingColumn) {
+        console.warn('Unschedule: missing column; retrying with fallback payload', {
+          campaignId,
+          attempt: attempt.label,
+          message: msg,
+        });
+        continue;
+      }
+
+      throw error;
+    }
+
+    if (lastError) throw lastError;
+
+    if (!options?.silent) toast.success('Campaign unscheduled - returned to draft');
     return true;
   } catch (error: any) {
     console.error('Error unscheduling campaign:', error);
-    toast.error(`Failed to unschedule: ${error.message}`);
+    if (!options?.silent) {
+      const msg = String(error?.message || '').toLowerCase();
+      if (msg.includes('jwt') || msg.includes('auth') || msg.includes('permission')) {
+        toast.error('Please sign in again to update this campaign.');
+      } else {
+        toast.error("We couldn't remove the schedule. Please try again.");
+      }
+    }
+
+    if (options?.onFailureMessage) {
+      const msg = String(error?.message || '').toLowerCase();
+      if (msg.includes('jwt') || msg.includes('auth')) {
+        options.onFailureMessage('Please sign in again to update this campaign.');
+      } else if (msg.includes('sending') || msg.includes('sent') || msg.includes('locked')) {
+        options.onFailureMessage('This campaign is locked (already sending or sent).');
+      } else {
+        options.onFailureMessage("We couldn't remove the schedule. Please try again.");
+      }
+    }
     return false;
   }
 };
@@ -582,9 +930,9 @@ export const sendScheduledCampaignNow = async (campaignId: string): Promise<{
       console.error('Edge function send error:', sendError);
       await supabase
         .from('crm_campaigns')
-        .update({ 
-          status: 'failed', 
-          send_error: sendError.message 
+        .update({
+          status: 'failed',
+          send_error: sendError.message
         })
         .eq('id', campaignId);
       toast.error(`Send failed: ${sendError.message}`);
@@ -595,9 +943,9 @@ export const sendScheduledCampaignNow = async (campaignId: string): Promise<{
       console.error('Send result error:', sendResult.error);
       await supabase
         .from('crm_campaigns')
-        .update({ 
-          status: 'failed', 
-          send_error: sendResult.error 
+        .update({
+          status: 'failed',
+          send_error: sendResult.error
         })
         .eq('id', campaignId);
       toast.error(`Send failed: ${sendResult.error}`);
@@ -607,7 +955,7 @@ export const sendScheduledCampaignNow = async (campaignId: string): Promise<{
     const sentCount = sendResult?.metrics?.sent || 0;
     console.log('✅ Campaign sent successfully:', sendResult);
     toast.success(`Campaign sent to ${sentCount} customers!`);
-    
+
     return { success: true };
   } catch (error: any) {
     console.error('Error sending campaign now:', error);
