@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { Button } from '@/components/ui/button';
+import React, { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -11,22 +11,23 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
-import { supabase } from '@/integrations/supabase/client';
-import { useParams, useNavigate } from 'react-router-dom';
-import { 
-  Mail, 
-  Eye, 
-  MousePointer, 
-  TrendingUp, 
-  Users, 
+} from "@/components/ui/dialog";
+import { supabase } from "@/integrations/supabase/client";
+import { useParams, useNavigate } from "react-router-dom";
+import {
+  Mail,
+  Eye,
+  MousePointer,
+  TrendingUp,
+  Users,
   DollarSign,
   AlertTriangle,
   Loader2,
-  Trash2
-} from 'lucide-react';
-import { BouncedEmailsList } from '@/components/crm/BouncedEmailsList';
-import { useCampaignBounces } from '@/hooks/useCampaignBounces';
+  Trash2,
+} from "lucide-react";
+import { BouncedEmailsList } from "@/components/crm/BouncedEmailsList";
+import { useCampaignBounces } from "@/hooks/useCampaignBounces";
+import { toast } from "sonner";
 
 interface CampaignMetrics {
   sent: number;
@@ -39,7 +40,7 @@ interface CampaignMetrics {
 }
 
 function toNumber(value: unknown, fallback = 0): number {
-  const n = typeof value === 'string' ? Number(value) : (value as number);
+  const n = typeof value === "string" ? Number(value) : (value as number);
   return Number.isFinite(n) ? n : fallback;
 }
 
@@ -52,13 +53,19 @@ function normalizeCampaignMetrics(campaign: any): CampaignMetrics {
   const m = campaign?.metrics;
 
   // Prefer the derived metrics shape
-  const totals = m && typeof m === 'object' ? (m as any).totals : null;
-  if (totals && typeof totals === 'object') {
+  const totals = m && typeof m === "object" ? (m as any).totals : null;
+  if (totals && typeof totals === "object") {
     return {
       sent: toNumber(totals.sent ?? campaign?.total_sent, 0),
       delivered: toNumber(totals.delivered, 0),
-      opened: toNumber(totals.opens ?? totals.opened ?? campaign?.total_opens, 0),
-      clicked: toNumber(totals.clicks ?? totals.clicked ?? campaign?.total_clicks, 0),
+      opened: toNumber(
+        totals.opens ?? totals.opened ?? campaign?.total_opens,
+        0,
+      ),
+      clicked: toNumber(
+        totals.clicks ?? totals.clicked ?? campaign?.total_clicks,
+        0,
+      ),
       bounced: toNumber(totals.bounces ?? totals.bounced, 0),
       unsubscribed: toNumber(totals.unsubscribes ?? totals.unsubscribed, 0),
       revenue: toNumber((totals as any).revenue ?? (m as any)?.revenue, 0),
@@ -66,7 +73,7 @@ function normalizeCampaignMetrics(campaign: any): CampaignMetrics {
   }
 
   // Fallback to legacy flat shape + campaign columns
-  const flat = m && typeof m === 'object' ? (m as any) : {};
+  const flat = m && typeof m === "object" ? (m as any) : {};
   return {
     sent: toNumber(flat.sent ?? campaign?.total_sent, 0),
     delivered: toNumber(flat.delivered, 0),
@@ -94,41 +101,49 @@ const CRMCampaignReport: React.FC = () => {
   const { campaignId } = useParams<{ campaignId: string }>();
   const navigate = useNavigate();
   const [showCleanupDialog, setShowCleanupDialog] = useState(false);
-  
-  const { unsuppressedCount, suppressAll, isSuppressing } = useCampaignBounces(campaignId || '');
 
-  const { data: campaign, isLoading: campaignLoading } = useQuery({
-    queryKey: ['campaign-report', campaignId],
+  const { unsuppressedCount, suppressAll, isSuppressing } = useCampaignBounces(
+    campaignId || "",
+  );
+
+  const {
+    data: campaign,
+    isLoading: campaignLoading,
+    refetch: refetchCampaign,
+  } = useQuery({
+    queryKey: ["campaign-report", campaignId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('crm_campaigns')
-        .select('*')
-        .eq('id', campaignId)
+        .from("crm_campaigns")
+        .select("*")
+        .eq("id", campaignId)
         .single();
       if (error) throw error;
       return data;
     },
     enabled: !!campaignId,
     staleTime: 0, // Always refetch on mount
-    refetchOnMount: 'always',
+    refetchOnMount: "always",
   });
 
   const { data: segments = [] } = useQuery({
-    queryKey: ['campaign-report-segments', campaignId],
+    queryKey: ["campaign-report-segments", campaignId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('campaign_segments')
-        .select(`
+        .from("campaign_segments")
+        .select(
+          `
           *,
           crm_segments(*)
-        `)
-        .eq('campaign_id', campaignId);
+        `,
+        )
+        .eq("campaign_id", campaignId);
       if (error) throw error;
       return data || [];
     },
     enabled: !!campaignId,
     staleTime: 0,
-    refetchOnMount: 'always',
+    refetchOnMount: "always",
   });
 
   const loading = campaignLoading;
@@ -139,13 +154,13 @@ const CRMCampaignReport: React.FC = () => {
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
+    return new Date(dateString).toLocaleDateString("en-US", {
+      weekday: "long",
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     });
   };
 
@@ -156,7 +171,9 @@ const CRMCampaignReport: React.FC = () => {
           <div className="flex items-center justify-center py-12">
             <div className="text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-              <p className="text-muted-foreground">Loading campaign report...</p>
+              <p className="text-muted-foreground">
+                Loading campaign report...
+              </p>
             </div>
           </div>
         </div>
@@ -172,7 +189,8 @@ const CRMCampaignReport: React.FC = () => {
             <Mail className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
             <h3 className="text-lg font-medium mb-2">Campaign not found</h3>
             <p className="text-muted-foreground">
-              The campaign you're looking for doesn't exist or you don't have access to it.
+              The campaign you're looking for doesn't exist or you don't have
+              access to it.
             </p>
           </div>
         </div>
@@ -200,7 +218,9 @@ const CRMCampaignReport: React.FC = () => {
             <p className="text-muted-foreground">{campaign.name}</p>
           </div>
           <div className="flex items-center gap-2">
-            <Badge variant={campaign.status === 'sent' ? 'secondary' : 'default'}>
+            <Badge
+              variant={campaign.status === "sent" ? "secondary" : "default"}
+            >
               {campaign.status}
             </Badge>
             {campaign.auto_send_enabled && (
@@ -219,20 +239,26 @@ const CRMCampaignReport: React.FC = () => {
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="text-sm font-medium text-muted-foreground">Subject Line</label>
+                <label className="text-sm font-medium text-muted-foreground">
+                  Subject Line
+                </label>
                 <p className="font-medium">{campaign.subject_line}</p>
               </div>
               <div>
-                <label className="text-sm font-medium text-muted-foreground">Sent Date</label>
+                <label className="text-sm font-medium text-muted-foreground">
+                  Sent Date
+                </label>
                 <p className="font-medium">
-                  {campaign.sent_at ? formatDate(campaign.sent_at) : 'Not sent'}
+                  {campaign.sent_at ? formatDate(campaign.sent_at) : "Not sent"}
                 </p>
               </div>
             </div>
-            
+
             {campaign.send_reasoning && (
               <div>
-                <label className="text-sm font-medium text-muted-foreground">Smart Timing Reasoning</label>
+                <label className="text-sm font-medium text-muted-foreground">
+                  Smart Timing Reasoning
+                </label>
                 <p className="text-sm">{campaign.send_reasoning}</p>
               </div>
             )}
@@ -245,8 +271,12 @@ const CRMCampaignReport: React.FC = () => {
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Total Sent</p>
-                  <p className="text-2xl font-bold">{metrics.sent.toLocaleString()}</p>
+                  <p className="text-sm font-medium text-muted-foreground">
+                    Total Sent
+                  </p>
+                  <p className="text-2xl font-bold">
+                    {metrics.sent.toLocaleString()}
+                  </p>
                 </div>
                 <Mail className="h-8 w-8 text-primary" />
               </div>
@@ -257,7 +287,9 @@ const CRMCampaignReport: React.FC = () => {
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Open Rate</p>
+                  <p className="text-sm font-medium text-muted-foreground">
+                    Open Rate
+                  </p>
                   <p className="text-2xl font-bold">{openRate.toFixed(1)}%</p>
                   <Progress value={openRate} className="mt-2 h-2" />
                 </div>
@@ -270,7 +302,9 @@ const CRMCampaignReport: React.FC = () => {
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Click Rate</p>
+                  <p className="text-sm font-medium text-muted-foreground">
+                    Click Rate
+                  </p>
                   <p className="text-2xl font-bold">{clickRate.toFixed(1)}%</p>
                   <Progress value={clickRate} className="mt-2 h-2" />
                 </div>
@@ -283,8 +317,12 @@ const CRMCampaignReport: React.FC = () => {
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Revenue</p>
-                  <p className="text-2xl font-bold">${metrics.revenue.toFixed(2)}</p>
+                  <p className="text-sm font-medium text-muted-foreground">
+                    Revenue
+                  </p>
+                  <p className="text-2xl font-bold">
+                    ${metrics.revenue.toFixed(2)}
+                  </p>
                 </div>
                 <DollarSign className="h-8 w-8 text-yellow-500" />
               </div>
@@ -304,10 +342,12 @@ const CRMCampaignReport: React.FC = () => {
                 <span className="font-medium">{deliveryRate.toFixed(1)}%</span>
               </div>
               <Progress value={deliveryRate} className="h-2" />
-              
+
               <div className="flex justify-between items-center">
                 <span className="text-sm">Bounce Rate</span>
-                <span className="font-medium text-destructive">{bounceRate.toFixed(1)}%</span>
+                <span className="font-medium text-destructive">
+                  {bounceRate.toFixed(1)}%
+                </span>
               </div>
               <Progress value={bounceRate} className="h-2" />
 
@@ -321,9 +361,9 @@ const CRMCampaignReport: React.FC = () => {
                   <div className="flex items-center gap-2">
                     <span>{metrics.bounced.toLocaleString()}</span>
                     {metrics.bounced > 0 && unsuppressedCount > 0 && (
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         className="h-6 px-2 text-xs text-destructive hover:text-destructive"
                         onClick={() => setShowCleanupDialog(true)}
                       >
@@ -356,11 +396,13 @@ const CRMCampaignReport: React.FC = () => {
                       <div className="flex items-center gap-2">
                         <Users className="h-4 w-4 text-muted-foreground" />
                         <span className="font-medium">
-                          {segmentLink.crm_segments?.name || 'Unknown Segment'}
+                          {segmentLink.crm_segments?.name || "Unknown Segment"}
                         </span>
                       </div>
                       <span className="text-sm text-muted-foreground">
-                        {segmentLink.crm_segments?.customer_count?.toLocaleString() || 0} customers
+                        {segmentLink.crm_segments?.customer_count?.toLocaleString() ||
+                          0}{" "}
+                        customers
                       </span>
                     </div>
                   ))}
@@ -376,7 +418,7 @@ const CRMCampaignReport: React.FC = () => {
         </div>
 
         {/* Performance Insights */}
-        {campaign.status === 'sent' && (
+        {campaign.status === "sent" && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -389,24 +431,36 @@ const CRMCampaignReport: React.FC = () => {
                 {openRate > 25 ? (
                   <div className="flex items-center gap-2 text-green-600">
                     <TrendingUp className="h-4 w-4" />
-                    <span className="text-sm">Great open rate! Your subject line resonated well with your audience.</span>
+                    <span className="text-sm">
+                      Great open rate! Your subject line resonated well with
+                      your audience.
+                    </span>
                   </div>
                 ) : (
                   <div className="flex items-center gap-2 text-yellow-600">
                     <AlertTriangle className="h-4 w-4" />
-                    <span className="text-sm">Consider A/B testing different subject lines to improve open rates.</span>
+                    <span className="text-sm">
+                      Consider A/B testing different subject lines to improve
+                      open rates.
+                    </span>
                   </div>
                 )}
-                
+
                 {clickRate > 5 ? (
                   <div className="flex items-center gap-2 text-green-600">
                     <MousePointer className="h-4 w-4" />
-                    <span className="text-sm">Excellent click-through rate! Your content is engaging your audience.</span>
+                    <span className="text-sm">
+                      Excellent click-through rate! Your content is engaging
+                      your audience.
+                    </span>
                   </div>
                 ) : (
                   <div className="flex items-center gap-2 text-yellow-600">
                     <AlertTriangle className="h-4 w-4" />
-                    <span className="text-sm">Try adding clearer call-to-action buttons to increase engagement.</span>
+                    <span className="text-sm">
+                      Try adding clearer call-to-action buttons to increase
+                      engagement.
+                    </span>
                   </div>
                 )}
 
@@ -414,19 +468,22 @@ const CRMCampaignReport: React.FC = () => {
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 bg-destructive/10 rounded-lg border border-destructive/20">
                     <div className="flex items-center gap-2 text-destructive">
                       <AlertTriangle className="h-4 w-4 shrink-0" />
-                      <span className="text-sm">High bounce rate detected ({bounceRate.toFixed(1)}%). Consider cleaning your email list.</span>
+                      <span className="text-sm">
+                        High bounce rate detected ({bounceRate.toFixed(1)}%).
+                        Consider cleaning your email list.
+                      </span>
                     </div>
                     <div className="flex gap-2 shrink-0">
-                      <Button 
-                        variant="outline" 
+                      <Button
+                        variant="outline"
                         size="sm"
-                        onClick={() => navigate('/settings/email/suppression')}
+                        onClick={() => navigate("/settings/email/suppression")}
                       >
                         View Suppression List
                       </Button>
                       {unsuppressedCount > 0 && (
-                        <Button 
-                          variant="destructive" 
+                        <Button
+                          variant="destructive"
                           size="sm"
                           onClick={() => setShowCleanupDialog(true)}
                         >
@@ -451,18 +508,22 @@ const CRMCampaignReport: React.FC = () => {
               Clean Bounced Emails
             </DialogTitle>
             <DialogDescription>
-              Review bounced emails from this campaign. Suppressing them will prevent future sends to these addresses.
+              Review bounced emails from this campaign. Suppressing them will
+              prevent future sends to these addresses.
             </DialogDescription>
           </DialogHeader>
-          
+
           {campaignId && <BouncedEmailsList campaignId={campaignId} />}
-          
+
           <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => setShowCleanupDialog(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setShowCleanupDialog(false)}
+            >
               Cancel
             </Button>
-            <Button 
-              variant="destructive" 
+            <Button
+              variant="destructive"
               onClick={() => {
                 suppressAll();
                 setShowCleanupDialog(false);
@@ -475,7 +536,7 @@ const CRMCampaignReport: React.FC = () => {
                   Suppressing...
                 </>
               ) : (
-                `Suppress ${unsuppressedCount} Email${unsuppressedCount !== 1 ? 's' : ''}`
+                `Suppress ${unsuppressedCount} Email${unsuppressedCount !== 1 ? "s" : ""}`
               )}
             </Button>
           </DialogFooter>

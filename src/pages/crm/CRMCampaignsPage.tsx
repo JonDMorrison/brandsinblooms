@@ -1,12 +1,12 @@
-import React, { useEffect, useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Mail, Plus, Calendar, BarChart3, Eye, Trash2 } from 'lucide-react';
-import { NavLink } from '@/components/ui/link';
-import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
-import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
-import { useToast } from '@/hooks/use-toast';
+import React, { useEffect, useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Mail, Plus, Calendar, BarChart3, Eye, Trash2 } from "lucide-react";
+import { NavLink } from "@/components/ui/link";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
+import { useToast } from "@/hooks/use-toast";
 
 export const CRMCampaignsPage: React.FC = () => {
   const [campaigns, setCampaigns] = useState<any[]>([]);
@@ -19,19 +19,36 @@ export const CRMCampaignsPage: React.FC = () => {
 
   const fetchCRMCampaigns = async () => {
     if (!user) return;
-    
+
     setLoading(true);
     try {
+      const { data: userData, error: userError } = await supabase
+        .from("users")
+        .select("tenant_id")
+        .eq("id", user.id)
+        .single();
+
+      if (userError) throw userError;
+      if (!userData?.tenant_id) {
+        setCampaigns([]);
+        return;
+      }
+
       const { data, error } = await supabase
-        .from('crm_campaigns')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
+        .from("crm_campaigns")
+        .select("*")
+        .eq("tenant_id", userData.tenant_id)
+        .order("created_at", { ascending: false });
 
       if (error) throw error;
       setCampaigns(data || []);
     } catch (error) {
-      console.error('Error fetching CRM campaigns:', error);
+      console.error("Error fetching CRM campaigns:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load campaigns",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
@@ -44,17 +61,17 @@ export const CRMCampaignsPage: React.FC = () => {
 
   const handleDeleteConfirm = async () => {
     if (!campaignToDelete) return;
-    
+
     setIsDeleting(true);
     try {
       const { error } = await supabase
-        .from('crm_campaigns')
+        .from("crm_campaigns")
         .delete()
-        .eq('id', campaignToDelete.id);
+        .eq("id", campaignToDelete.id);
 
       if (error) throw error;
 
-      setCampaigns(campaigns.filter(c => c.id !== campaignToDelete.id));
+      setCampaigns(campaigns.filter((c) => c.id !== campaignToDelete.id));
       toast({
         title: "Campaign deleted",
         description: `${campaignToDelete.name} has been deleted successfully.`,
@@ -62,10 +79,11 @@ export const CRMCampaignsPage: React.FC = () => {
       setDeleteDialogOpen(false);
       setCampaignToDelete(null);
     } catch (error) {
-      console.error('Error deleting campaign:', error);
+      console.error("Error deleting campaign:", error);
       toast({
         title: "Error deleting campaign",
-        description: "There was an error deleting the campaign. Please try again.",
+        description:
+          "There was an error deleting the campaign. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -79,9 +97,15 @@ export const CRMCampaignsPage: React.FC = () => {
     }
   }, [user]);
 
-  const activeCampaigns = campaigns.filter(c => c.status === 'active' || c.status === 'sent').length;
-  const scheduledCampaigns = campaigns.filter(c => c.status === 'scheduled').length;
-  const draftCampaigns = campaigns.filter(c => c.status === 'draft' || !c.status).length;
+  const activeCampaigns = campaigns.filter(
+    (c) => c.status === "active" || c.status === "sent",
+  ).length;
+  const scheduledCampaigns = campaigns.filter(
+    (c) => c.status === "scheduled",
+  ).length;
+  const draftCampaigns = campaigns.filter(
+    (c) => c.status === "draft" || !c.status,
+  ).length;
 
   return (
     <div className="p-6 space-y-6">
@@ -94,21 +118,21 @@ export const CRMCampaignsPage: React.FC = () => {
           </NavLink>
         </Button>
       </div>
-      
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Campaigns</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Active Campaigns
+            </CardTitle>
             <Mail className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{activeCampaigns}</div>
-            <p className="text-xs text-muted-foreground">
-              Running campaigns
-            </p>
+            <p className="text-xs text-muted-foreground">Running campaigns</p>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Scheduled</CardTitle>
@@ -116,22 +140,20 @@ export const CRMCampaignsPage: React.FC = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{scheduledCampaigns}</div>
-            <p className="text-xs text-muted-foreground">
-              Campaigns scheduled
-            </p>
+            <p className="text-xs text-muted-foreground">Campaigns scheduled</p>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Draft Campaigns</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Draft Campaigns
+            </CardTitle>
             <BarChart3 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{draftCampaigns}</div>
-            <p className="text-xs text-muted-foreground">
-              In progress
-            </p>
+            <p className="text-xs text-muted-foreground">In progress</p>
           </CardContent>
         </Card>
       </div>
@@ -155,29 +177,44 @@ export const CRMCampaignsPage: React.FC = () => {
               <CardContent>
                 <div className="space-y-4">
                   {campaigns.map((campaign) => (
-                    <div key={campaign.id} className="flex items-center justify-between p-4 border rounded-lg">
+                    <div
+                      key={campaign.id}
+                      className="flex items-center justify-between p-4 border rounded-lg"
+                    >
                       <div>
-                        <NavLink to={`/crm/campaigns/${campaign.id}`} className="block group">
-                          <h3 className="font-semibold group-hover:text-primary transition-colors cursor-pointer">{campaign.name}</h3>
-                          <p className="text-sm text-muted-foreground group-hover:text-foreground transition-colors">{campaign.subject_line}</p>
+                        <NavLink
+                          to={`/crm/campaigns/${campaign.id}`}
+                          className="block group"
+                        >
+                          <h3 className="font-semibold group-hover:text-primary transition-colors cursor-pointer">
+                            {campaign.name}
+                          </h3>
+                          <p className="text-sm text-muted-foreground group-hover:text-foreground transition-colors">
+                            {campaign.subject_line}
+                          </p>
                         </NavLink>
                         <p className="text-xs text-muted-foreground">
-                          Created: {new Date(campaign.created_at).toLocaleDateString()}
+                          Created:{" "}
+                          {new Date(campaign.created_at).toLocaleDateString()}
                         </p>
-                        <span className={`inline-block text-xs px-2 py-1 rounded mt-1 ${
-                          campaign.status === 'draft' 
-                            ? 'bg-yellow-100 text-yellow-800' 
-                            : campaign.status === 'sent' 
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-blue-100 text-blue-800'
-                        }`}>
+                        <span
+                          className={`inline-block text-xs px-2 py-1 rounded mt-1 ${
+                            campaign.status === "draft"
+                              ? "bg-yellow-100 text-yellow-800"
+                              : campaign.status === "sent"
+                                ? "bg-green-100 text-green-800"
+                                : "bg-blue-100 text-blue-800"
+                          }`}
+                        >
                           {campaign.status}
                         </span>
                       </div>
                       <div className="flex items-center gap-2">
-                        {campaign.status === 'sent' && (
+                        {campaign.status === "sent" && (
                           <Button variant="outline" size="sm" asChild>
-                            <NavLink to={`/crm/campaigns/${campaign.id}/analytics`}>
+                            <NavLink
+                              to={`/crm/campaigns/${campaign.id}/analytics`}
+                            >
                               <BarChart3 className="h-4 w-4 mr-1" />
                               Performance
                             </NavLink>
@@ -189,9 +226,9 @@ export const CRMCampaignsPage: React.FC = () => {
                             Edit
                           </NavLink>
                         </Button>
-                        {campaign.status === 'draft' && (
-                          <Button 
-                            variant="outline" 
+                        {campaign.status === "draft" && (
+                          <Button
+                            variant="outline"
                             size="sm"
                             onClick={() => handleDeleteClick(campaign)}
                             className="text-destructive hover:text-destructive"
@@ -206,7 +243,7 @@ export const CRMCampaignsPage: React.FC = () => {
               </CardContent>
             </Card>
           )}
-          
+
           {campaigns.length === 0 && (
             <Card>
               <CardHeader>
@@ -218,7 +255,9 @@ export const CRMCampaignsPage: React.FC = () => {
               <CardContent>
                 <div className="space-y-4">
                   <p className="text-muted-foreground">
-                    Create, manage, and track your email marketing campaigns. Build engaging newsletters, promotional emails, and automated sequences.
+                    Create, manage, and track your email marketing campaigns.
+                    Build engaging newsletters, promotional emails, and
+                    automated sequences.
                   </p>
                   <Button asChild variant="outline">
                     <NavLink to="/crm/campaigns/new">

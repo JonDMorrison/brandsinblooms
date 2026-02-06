@@ -3554,14 +3554,16 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           }
 
           console.log("🔄 Loading existing campaign by UUID:", campaignSlug);
-          processedExistingCampaignRef.current = campaignSlug;
           setLoadingExistingCampaign(true);
           try {
             await loadExistingCampaign(campaignSlug);
             setExistingCampaignId(campaignSlug);
+            processedExistingCampaignRef.current = campaignSlug;
             console.log("✅ Successfully loaded existing campaign");
           } catch (error) {
             console.error("❌ Error loading campaign by UUID:", error);
+            // Allow retry on next effect run (e.g. once auth is ready)
+            processedExistingCampaignRef.current = null;
             toast({
               title: "Error",
               description: "Failed to load campaign data",
@@ -3646,6 +3648,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
     searchParams.get("source"),
     finalContentTaskId,
     campaignSlug,
+    user?.id,
   ]);
 
   // Additional useEffect to monitor blocks changes

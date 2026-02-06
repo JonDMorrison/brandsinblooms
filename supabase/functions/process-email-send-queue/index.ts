@@ -312,6 +312,13 @@ serve(async (req) => {
   const workerId = Deno.env.get('WORKER_ID') || `email-queue-worker-${crypto.randomUUID()}`;
   const claimToken = crypto.randomUUID();
 
+  console.log(
+    `⚙️ Resend settings: batch_size=${resendBatchSize} (env RESEND_BATCH_SIZE), rps=${resendRps} (env RESEND_RATE_LIMIT_RPS), min_interval_ms=${resendLimiter.minIntervalMs}`
+  );
+  console.log(
+    `⚙️ Worker settings: send_concurrency=${sendConcurrency} (env EMAIL_SEND_CONCURRENCY), batch_delay_ms=${batchDelayMs} (env EMAIL_BATCH_DELAY_MS), stale_minutes=${messageStaleMinutes}`
+  );
+
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -467,7 +474,7 @@ serve(async (req) => {
 
         const sendable = (messages || []).filter((m: any) => {
           if (m.dead_lettered_at) return false;
-          if (m.status === 'queued') {
+          if (m.status === 'queued' || m.status === 'paused') {
             // ok
           } else if (m.status === 'sending') {
             if (!m.claimed_at) return false;
@@ -501,7 +508,7 @@ serve(async (req) => {
           if (m.status === 'sending') {
             claimQuery = claimQuery.eq('status', 'sending').lt('claimed_at', staleThresholdIso);
           } else {
-            claimQuery = claimQuery.eq('status', 'queued');
+            claimQuery = claimQuery.eq('status', m.status === 'paused' ? 'paused' : 'queued');
           }
 
           const { data: claimed, error: claimMsgErr } = await claimQuery
@@ -558,6 +565,7 @@ serve(async (req) => {
 
         // Preload campaign + company profile + tracked links once per campaign to build payloads when needed.
         const campaignId: string = String(job.campaign_id || claimedForSend[0]?.campaign_id || messages?.[0]?.campaign_id || '');
+
         let campaign: any = null;
         let companyProfile: any = null;
         let profileData: CompanyProfileData | null = null;
@@ -808,45 +816,39 @@ serve(async (req) => {
             }
           }
 
-          for (const r of results) {
-            if (r.resendId) {
-              emailsSent++;
-              await supabase
-                .from('email_messages')
-                .update({
-                  status: 'sent',
-                  resend_id: r.resendId,
-                  sent_at: nowIso,
-                  error_message: null,
-                  updated_at: nowIso,
-                  claim_token: null,
-                  claimed_at: null,
-                  claimed_by: null,
-                })
-                .eq('id', r.msgId)
-                .eq('claim_token', claimToken);
-            } else {
-              emailsFailed++;
-              const errMsg = truncateError(r.error || 'Send failed');
-              lastError = errMsg;
+          // Apply results in bulk to avoid 1 PostgREST update per message (very slow at scale).
+          const rpcResults = results.map((r) => {
+            const errMsg = r.resendId ? null : truncateError(r.error || 'Send failed');
+            const isRateLimited = !r.resendId && (r.status === 429 || isRateLimitErrorMessage(errMsg || ''));
+            return {
+              msg_id: r.msgId,
+              resend_id: r.resendId || null,
+              error_message: errMsg,
+              attempts: r.attempts || 1,
+              is_rate_limited: isRateLimited,
+            };
+          });
 
-              const isRateLimited = r.status === 429 || isRateLimitErrorMessage(errMsg);
-              const terminal = !isRateLimited && (r.attempts || 1) >= MAX_ATTEMPTS;
-              await supabase
-                .from('email_messages')
-                .update({
-                  status: terminal ? 'failed' : 'queued',
-                  attempts: isRateLimited ? Math.max(0, (r.attempts || 1) - 1) : (r.attempts || 1),
-                  error_message: errMsg,
-                  updated_at: nowIso,
-                  claim_token: null,
-                  claimed_at: null,
-                  claimed_by: null,
-                })
-                .eq('id', r.msgId)
-                .eq('claim_token', claimToken)
-                .is('resend_id', null);
-            }
+          const { data: applied, error: applyErr } = await supabase.rpc('apply_email_send_results', {
+            p_claim_token: claimToken,
+            p_results: rpcResults,
+            p_max_attempts: MAX_ATTEMPTS,
+          });
+
+          if (applyErr) {
+            console.warn('⚠️ Failed to apply send results in bulk:', applyErr.message);
+            // Fallback: keep going, but counts will be best-effort.
+          }
+
+          const appliedRow = Array.isArray(applied) ? applied[0] : applied;
+          const appliedSent = Number(appliedRow?.updated_sent || 0);
+          const appliedFailed = Number(appliedRow?.updated_failed || 0);
+          const appliedQueued = Number(appliedRow?.updated_queued || 0);
+          emailsSent += appliedSent;
+          emailsFailed += appliedFailed + appliedQueued;
+          if (appliedFailed + appliedQueued > 0) {
+            const last = results.find((r) => !r.resendId && r.error)?.error;
+            lastError = truncateError(last || lastError || 'Send failed');
           }
 
           if (i + resendBatchSize < claimedForSend.length) {
@@ -855,30 +857,53 @@ serve(async (req) => {
         }
 
         // If any messages remain queued/sending, keep job pending for retry; otherwise complete.
-        const { data: remainingRows } = await supabase
+        // IMPORTANT: never treat a query error as "no remaining" (that can incorrectly complete jobs).
+        const { data: remainingRows, error: remainingErr } = await supabase
           .from('email_messages')
           .select('id')
           .in('id', messageIds)
-          .in('status', ['queued', 'sending'])
+          .in('status', ['queued', 'paused', 'sending'])
           .limit(1);
 
-        const hasRemaining = (remainingRows || []).length > 0;
+        let hasRemaining = true;
+        if (remainingErr) {
+          console.warn(`⚠️ Remaining-message check failed for job ${job.id}:`, remainingErr.message);
+          lastError = truncateError(lastError || `Remaining check failed: ${remainingErr.message}`);
+          hasRemaining = true;
+        } else {
+          hasRemaining = (remainingRows || []).length > 0;
+        }
 
         // Durable job stats (derived from the source-of-truth ledger)
-        const { data: sentCountRows } = await supabase
+        // Fall back to the existing job counters if the query fails (avoid clobbering with zeros).
+        let durableSent = Number(job?.emails_sent || 0);
+        let durableFailed = Number(job?.emails_failed || 0);
+
+        const { data: sentCountRows, error: sentCountErr } = await supabase
           .from('email_messages')
           .select('id')
           .in('id', messageIds)
           .eq('status', 'sent');
 
-        const { data: failedCountRows } = await supabase
+        if (sentCountErr) {
+          console.warn(`⚠️ Durable sent-count query failed for job ${job.id}:`, sentCountErr.message);
+          lastError = truncateError(lastError || `Sent count failed: ${sentCountErr.message}`);
+        } else {
+          durableSent = (sentCountRows || []).length;
+        }
+
+        const { data: failedCountRows, error: failedCountErr } = await supabase
           .from('email_messages')
           .select('id')
           .in('id', messageIds)
           .eq('status', 'failed');
 
-        const durableSent = (sentCountRows || []).length;
-        const durableFailed = (failedCountRows || []).length;
+        if (failedCountErr) {
+          console.warn(`⚠️ Durable failed-count query failed for job ${job.id}:`, failedCountErr.message);
+          lastError = truncateError(lastError || `Failed count failed: ${failedCountErr.message}`);
+        } else {
+          durableFailed = (failedCountRows || []).length;
+        }
 
         await supabase
           .from('email_send_jobs')

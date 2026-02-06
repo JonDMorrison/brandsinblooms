@@ -26,6 +26,7 @@ import { AlertTriangle, CheckCircle2, Clock, Info, Mail } from "lucide-react";
 import { parseEdgeFunctionError } from "@/utils/campaignSendingErrors";
 import { toast } from "sonner";
 import { retryFailedEmailMessages } from "@/lib/email/emailRetryService";
+import { markEmailCampaignCompletedWithFailures } from "@/lib/email/emailCompletionService";
 
 type CampaignRow = {
   id: string;
@@ -125,6 +126,8 @@ export function CampaignDeliveryStatusCard(props: {
   const [progressUnavailable, setProgressUnavailable] = useState(false);
   const [showRetryDialog, setShowRetryDialog] = useState(false);
   const [isRetryingFailed, setIsRetryingFailed] = useState(false);
+  const [showMarkCompletedDialog, setShowMarkCompletedDialog] = useState(false);
+  const [isMarkingCompleted, setIsMarkingCompleted] = useState(false);
 
   useEffect(() => {
     if (!campaignId) return;
@@ -275,6 +278,11 @@ export function CampaignDeliveryStatusCard(props: {
 
   const failedCount = progress?.failed || 0;
   const canRetryFailed = failedCount > 0 && !progressUnavailable;
+  const canMarkCompleted =
+    failedCount > 0 &&
+    !progressUnavailable &&
+    (progress?.queued || 0) === 0 &&
+    (progress?.sending || 0) === 0;
 
   const hasAnyScheduleHistory =
     !!campaign?.scheduled_at ||
@@ -327,7 +335,12 @@ export function CampaignDeliveryStatusCard(props: {
   }, [status]);
 
   const errorTextRaw =
-    campaign?.send_error || campaign?.send_blocked_reason || null;
+    campaign?.send_error ||
+    (campaign?.status === "paused" &&
+    campaign?.send_blocked_reason === "paused_by_user"
+      ? null
+      : campaign?.send_blocked_reason) ||
+    null;
 
   const userError = useMemo(() => {
     if (!errorTextRaw) return null;
@@ -407,6 +420,48 @@ export function CampaignDeliveryStatusCard(props: {
     }
   };
 
+  const handleMarkCompleted = async () => {
+    if (!campaignId) return;
+
+    setShowMarkCompletedDialog(false);
+    setIsMarkingCompleted(true);
+
+    try {
+      const result = await markEmailCampaignCompletedWithFailures(campaignId);
+
+      if (!result.success) {
+        toast.error("Couldn’t mark completed", {
+          description: result.errorMessage || "Unknown error",
+        });
+        return;
+      }
+
+      const nowIso = new Date().toISOString();
+      setCampaign((prev) =>
+        prev
+          ? {
+              ...prev,
+              status: "sent",
+              send_error: null,
+              send_blocked_reason: null,
+              sent_at: prev.sent_at || nowIso,
+              updated_at: nowIso,
+            }
+          : prev,
+      );
+
+      toast.success("Marked campaign as completed", {
+        description: `Kept ${failedCount} failed recipient(s) as failed.`,
+      });
+    } catch (e: any) {
+      toast.error("Failed to mark completed", {
+        description: e?.message || "Unknown error",
+      });
+    } finally {
+      setIsMarkingCompleted(false);
+    }
+  };
+
   if (!campaignId) return null;
   if (!hasAnyDeliverySignals && status === "draft") return null;
   if (status === "scheduled") return null;
@@ -431,15 +486,29 @@ export function CampaignDeliveryStatusCard(props: {
 
               {canRetryFailed && (
                 <div className="pt-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={isRetryingFailed}
-                    onClick={() => setShowRetryDialog(true)}
-                    className="border-red-200 text-red-900 hover:bg-red-100"
-                  >
-                    Retry Failed Messages ({failedCount})
-                  </Button>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={isRetryingFailed}
+                      onClick={() => setShowRetryDialog(true)}
+                      className="border-red-200 text-red-900 hover:bg-red-100"
+                    >
+                      Retry Failed Messages ({failedCount})
+                    </Button>
+
+                    {canMarkCompleted && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={isMarkingCompleted}
+                        onClick={() => setShowMarkCompletedDialog(true)}
+                        className="border-red-200 text-red-900 hover:bg-red-100"
+                      >
+                        Mark Completed
+                      </Button>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
@@ -468,6 +537,36 @@ export function CampaignDeliveryStatusCard(props: {
               disabled={isRetryingFailed}
             >
               {isRetryingFailed ? "Retrying…" : "Retry Messages"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={showMarkCompletedDialog}
+        onOpenChange={setShowMarkCompletedDialog}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Mark Campaign as Completed?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will mark the campaign as completed while keeping the{" "}
+              {failedCount} failed recipient(s) as failed.
+              <br />
+              <br />
+              Your activity metrics (sent/total/last activity) will remain
+              as-is.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isMarkingCompleted}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleMarkCompleted}
+              disabled={isMarkingCompleted}
+            >
+              {isMarkingCompleted ? "Marking…" : "Mark Completed"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

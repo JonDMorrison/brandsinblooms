@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -6,8 +6,10 @@ import { Calendar, Clock, Send, Lock, AlertTriangle, X } from "lucide-react";
 import { format } from "date-fns";
 import { toZonedTime } from "date-fns-tz";
 import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
 import { useToast } from "@/hooks/use-toast";
 import { retryFailedEmailMessages } from "@/lib/email/emailRetryService";
+import { markEmailCampaignCompletedWithFailures } from "@/lib/email/emailCompletionService";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -65,11 +67,26 @@ export const ScheduledCampaignBanner: React.FC<
   const [isRetryingWorker, setIsRetryingWorker] = useState(false);
   const [showRetryFailedDialog, setShowRetryFailedDialog] = useState(false);
   const [isRetryingFailed, setIsRetryingFailed] = useState(false);
+  const [showMarkCompletedDialog, setShowMarkCompletedDialog] = useState(false);
+  const [isMarkingCompleted, setIsMarkingCompleted] = useState(false);
   const [suppressAttentionUntil, setSuppressAttentionUntil] = useState<
     number | null
   >(null);
 
   const PROGRESS_POLL_INTERVAL_MS = 15000;
+
+  type RpcFunctionName = keyof Database["public"]["Functions"];
+
+  const hasErrorMessage = (e: unknown): e is { message: string } => {
+    if (typeof e !== "object" || e === null) return false;
+    if (!("message" in e)) return false;
+    return typeof (e as Record<string, unknown>).message === "string";
+  };
+
+  const getErrorMessage = (e: unknown) => {
+    if (hasErrorMessage(e)) return e.message;
+    return "Please try again.";
+  };
 
   const toUserFriendlyProgressMessage = (rawMessage?: string | null) => {
     const m = (rawMessage || "").toLowerCase();
@@ -93,30 +110,35 @@ export const ScheduledCampaignBanner: React.FC<
     return "Delivery progress is temporarily unavailable.";
   };
 
-  const isSameProgress = (a: typeof progress, b: typeof progress) => {
-    if (!a || !b) return false;
-    return (
-      a.campaign_id === b.campaign_id &&
-      a.total === b.total &&
-      a.queued === b.queued &&
-      a.sending === b.sending &&
-      a.sent === b.sent &&
-      a.failed === b.failed &&
-      a.skipped === b.skipped &&
-      a.last_message_updated_at === b.last_message_updated_at &&
-      a.last_attempt_at === b.last_attempt_at &&
-      a.last_sent_at === b.last_sent_at &&
-      a.is_stuck === b.is_stuck &&
-      a.stuck_reason === b.stuck_reason
-    );
-  };
+  const isSameProgress = useCallback(
+    (a: typeof progress, b: typeof progress) => {
+      if (!a || !b) return false;
+      return (
+        a.campaign_id === b.campaign_id &&
+        a.total === b.total &&
+        a.queued === b.queued &&
+        a.sending === b.sending &&
+        a.sent === b.sent &&
+        a.failed === b.failed &&
+        a.skipped === b.skipped &&
+        a.last_message_updated_at === b.last_message_updated_at &&
+        a.last_attempt_at === b.last_attempt_at &&
+        a.last_sent_at === b.last_sent_at &&
+        a.is_stuck === b.is_stuck &&
+        a.stuck_reason === b.stuck_reason
+      );
+    },
+    [],
+  );
 
-  const isRelevant = status === "scheduled" || status === "sending";
+  const effectiveStatus = status;
+  const isRelevantEffective =
+    effectiveStatus === "scheduled" || effectiveStatus === "sending";
 
   const userTimezone =
     timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
   const isPastDue = scheduledAt && new Date(scheduledAt) < new Date();
-  const isSending = status === "sending";
+  const isSending = effectiveStatus === "sending";
 
   const processedCount = useMemo(() => {
     if (!progress) return null;
@@ -138,12 +160,11 @@ export const ScheduledCampaignBanner: React.FC<
     if (!isSending || !campaignId) return;
 
     let cancelled = false;
-    let intervalId: number | undefined;
 
     const fetchProgress = async () => {
       try {
         const { data, error } = await supabase.rpc(
-          "get_email_campaign_progress" as any,
+          "get_email_campaign_progress" as RpcFunctionName,
           { p_campaign_id: campaignId },
         );
 
@@ -165,27 +186,32 @@ export const ScheduledCampaignBanner: React.FC<
           setProgressError(null);
           setProgress((prev) => (isSameProgress(prev, row) ? prev : row));
         }
-      } catch (e: any) {
+      } catch (e: unknown) {
         if (cancelled) return;
         console.warn("Failed to load campaign delivery progress", {
           campaignId,
           error: e,
         });
         setProgressError((prev) => {
-          const next = toUserFriendlyProgressMessage(e?.message);
+          const next = toUserFriendlyProgressMessage(
+            hasErrorMessage(e) ? e.message : undefined,
+          );
           return prev === next ? prev : next;
         });
       }
     };
 
     fetchProgress();
-    intervalId = window.setInterval(fetchProgress, PROGRESS_POLL_INTERVAL_MS);
+    const intervalId = window.setInterval(
+      fetchProgress,
+      PROGRESS_POLL_INTERVAL_MS,
+    );
 
     return () => {
       cancelled = true;
-      if (intervalId) window.clearInterval(intervalId);
+      window.clearInterval(intervalId);
     };
-  }, [isSending, campaignId]);
+  }, [isSending, campaignId, isSameProgress]);
 
   const handleRetryWorker = async () => {
     if (isRetryingWorker) return;
@@ -199,7 +225,7 @@ export const ScheduledCampaignBanner: React.FC<
       );
       if (error) throw error;
       toast({ title: "Triggered a retry. Progress should update shortly." });
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.warn("Failed to trigger process-email-send-queue", { error: e });
       toast({
         title: "Couldn't trigger a retry. Please try again.",
@@ -211,6 +237,40 @@ export const ScheduledCampaignBanner: React.FC<
   };
 
   const failedCount = progress?.failed || 0;
+  const canMarkCompleted =
+    failedCount > 0 &&
+    (progress?.queued || 0) === 0 &&
+    (progress?.sending || 0) === 0;
+
+  const handleMarkCompleted = async () => {
+    if (!campaignId || isMarkingCompleted) return;
+    setShowMarkCompletedDialog(false);
+    setIsMarkingCompleted(true);
+    try {
+      const result = await markEmailCampaignCompletedWithFailures(campaignId);
+      if (!result.success) {
+        toast({
+          title: "Couldn't mark completed",
+          description: result.errorMessage || "Please try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Marked campaign as completed",
+        description: `Kept ${failedCount} failed recipient(s) as failed.`,
+      });
+    } catch (e: unknown) {
+      console.warn("Failed to mark campaign completed", { error: e });
+      toast({
+        title: "Couldn't mark completed. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsMarkingCompleted(false);
+    }
+  };
   const handleRetryFailed = async () => {
     if (!campaignId || isRetryingFailed) return;
     setShowRetryFailedDialog(false);
@@ -258,10 +318,10 @@ export const ScheduledCampaignBanner: React.FC<
           description: "There are no failed recipients right now.",
         });
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
       toast({
         title: "Failed to retry emails",
-        description: e?.message || "Unknown error",
+        description: getErrorMessage(e),
         variant: "destructive",
       });
     } finally {
@@ -280,7 +340,7 @@ export const ScheduledCampaignBanner: React.FC<
   };
 
   // Return null only after hooks run (avoids hook order mismatch when status changes)
-  if (!isRelevant) return null;
+  if (!isRelevantEffective) return null;
 
   const getTimezoneName = () => {
     const timezoneLabels: Record<string, string> = {
@@ -391,6 +451,17 @@ export const ScheduledCampaignBanner: React.FC<
                 </Button>
               )}
 
+              {canMarkCompleted && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowMarkCompletedDialog(true)}
+                  disabled={isMarkingCompleted}
+                >
+                  Mark Completed
+                </Button>
+              )}
+
               {isStuck && (
                 <Button
                   variant="outline"
@@ -426,6 +497,35 @@ export const ScheduledCampaignBanner: React.FC<
                 disabled={isRetryingFailed}
               >
                 {isRetryingFailed ? "Retrying…" : "Retry Messages"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        <AlertDialog
+          open={showMarkCompletedDialog}
+          onOpenChange={setShowMarkCompletedDialog}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Mark Campaign as Completed?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will mark the campaign as completed while keeping the{" "}
+                {failedCount} failed recipient(s) as failed.
+                <br />
+                <br />
+                Your activity metrics will remain as-is.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isMarkingCompleted}>
+                Cancel
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleMarkCompleted}
+                disabled={isMarkingCompleted}
+              >
+                {isMarkingCompleted ? "Marking…" : "Mark Completed"}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
