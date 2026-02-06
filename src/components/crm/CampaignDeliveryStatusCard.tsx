@@ -394,7 +394,8 @@ export function CampaignDeliveryStatusCard(props: {
         );
       } else {
         toast.info("No failed emails to retry", {
-          description: "There are no failed recipients for this campaign right now.",
+          description:
+            "There are no failed recipients for this campaign right now.",
         });
       }
     } catch (e: any) {
@@ -454,12 +455,18 @@ export function CampaignDeliveryStatusCard(props: {
               This will re-queue {failedCount} failed email(s) to be sent again.
               <br />
               <br />
-              If sending fails again, this campaign may return to “Needs Review”.
+              If sending fails again, this campaign may return to “Needs
+              Review”.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isRetryingFailed}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleRetryFailed} disabled={isRetryingFailed}>
+            <AlertDialogCancel disabled={isRetryingFailed}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleRetryFailed}
+              disabled={isRetryingFailed}
+            >
               {isRetryingFailed ? "Retrying…" : "Retry Messages"}
             </AlertDialogAction>
           </AlertDialogFooter>

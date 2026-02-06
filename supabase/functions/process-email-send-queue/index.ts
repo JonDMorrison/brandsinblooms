@@ -15,6 +15,42 @@ const MAX_ATTEMPTS = 3;
 const DEFAULT_BATCH_DELAY_MS = 500;
 const DEFAULT_MESSAGE_STALE_MINUTES = 15;
 
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isRateLimitErrorMessage(message: string | null | undefined): boolean {
+  const m = String(message || '').toLowerCase();
+  return m.includes('too many requests') || m.includes('rate limit') || m.includes('429');
+}
+
+function createFixedWindowRateLimiter(requestsPerSecond: number) {
+  // Enforces a minimum spacing between requests across concurrent async tasks.
+  // Not perfectly fair, but good enough to avoid hammering provider rate limits.
+  const rps = Math.max(0.1, Number.isFinite(requestsPerSecond) ? requestsPerSecond : 2);
+  const minIntervalMs = Math.ceil(1000 / rps);
+  let nextAt = Date.now();
+  let chain: Promise<void> = Promise.resolve();
+
+  return {
+    async acquire() {
+      const start = chain;
+      let release: (() => void) | null = null;
+      chain = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      await start;
+
+      const now = Date.now();
+      const waitMs = Math.max(0, nextAt - now);
+      nextAt = Math.max(nextAt, now) + minIntervalMs;
+      if (waitMs > 0) await sleep(waitMs);
+      release?.();
+    },
+    minIntervalMs,
+  };
+}
+
 function isUuidLike(value: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
 }
@@ -138,27 +174,124 @@ async function resendSendEmail(
   apiKey: string,
   payload: any,
   idempotencyKey: string,
-): Promise<{ id?: string; error?: string }> {
+  limiter?: { acquire: () => Promise<void> },
+): Promise<{ id?: string; error?: string; status?: number }> {
   try {
-    const res = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-        'Idempotency-Key': idempotencyKey,
-      },
-      body: JSON.stringify(payload),
-    });
+    const maxRateLimitRetries = 3;
+    let lastError: string | undefined;
+    let lastStatus: number | undefined;
 
-    const json = await res.json().catch(() => null);
-    if (!res.ok) {
-      const msg = json?.message || json?.error || res.statusText || 'Resend API error';
-      return { error: truncateError(String(msg)) };
+    for (let attempt = 0; attempt < maxRateLimitRetries; attempt++) {
+      if (limiter) await limiter.acquire();
+
+      const res = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+          'Idempotency-Key': idempotencyKey,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      lastStatus = res.status;
+
+      const json = await res.json().catch(() => null);
+      if (!res.ok) {
+        const msg = json?.message || json?.error || res.statusText || 'Resend API error';
+        lastError = truncateError(String(msg));
+
+        // Rate limit: backoff and retry (do not consume message attempts aggressively)
+        if (res.status === 429 || isRateLimitErrorMessage(lastError)) {
+          const retryAfterHeader = res.headers.get('retry-after');
+          const retryAfterSeconds = retryAfterHeader ? Number.parseInt(retryAfterHeader, 10) : NaN;
+          const backoffMs = Number.isFinite(retryAfterSeconds)
+            ? Math.max(250, retryAfterSeconds * 1000)
+            : 750 * (attempt + 1);
+          await sleep(backoffMs);
+          continue;
+        }
+
+        return { error: lastError, status: lastStatus };
+      }
+
+      const id = json?.id || json?.data?.id;
+      if (!id) return { error: 'Resend returned no message id', status: lastStatus };
+      return { id, status: lastStatus };
     }
 
-    const id = json?.id || json?.data?.id;
-    if (!id) return { error: 'Resend returned no message id' };
-    return { id };
+    return { error: lastError || 'Rate limited', status: lastStatus };
+  } catch (e: any) {
+    return { error: truncateError(e?.message || 'Network error calling Resend') };
+  }
+}
+
+async function sha256Base64Url(input: string): Promise<string> {
+  const bytes = new TextEncoder().encode(input);
+  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  const arr = Array.from(new Uint8Array(digest));
+  const b64 = btoa(String.fromCharCode(...arr));
+  // base64url
+  return b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+}
+
+async function resendSendBatch(
+  apiKey: string,
+  payloads: any[],
+  batchIdempotencyKeySeed: string,
+  limiter?: { acquire: () => Promise<void> },
+): Promise<{ ids?: Array<{ id: string }>; error?: string; status?: number }> {
+  try {
+    const maxRateLimitRetries = 3;
+    let lastError: string | undefined;
+    let lastStatus: number | undefined;
+
+    // Idempotency key is per API request (batch), not per email.
+    const idem = await sha256Base64Url(batchIdempotencyKeySeed);
+    const idempotencyKey = `batch_${idem}`.slice(0, 256);
+
+    for (let attempt = 0; attempt < maxRateLimitRetries; attempt++) {
+      if (limiter) await limiter.acquire();
+
+      const res = await fetch('https://api.resend.com/emails/batch', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+          'Idempotency-Key': idempotencyKey,
+        },
+        body: JSON.stringify(payloads),
+      });
+
+      lastStatus = res.status;
+      const json = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        const msg = json?.message || json?.error || res.statusText || 'Resend API error';
+        lastError = truncateError(String(msg));
+
+        if (res.status === 429 || isRateLimitErrorMessage(lastError)) {
+          const retryAfterHeader = res.headers.get('retry-after');
+          const retryAfterSeconds = retryAfterHeader ? Number.parseInt(retryAfterHeader, 10) : NaN;
+          const backoffMs = Number.isFinite(retryAfterSeconds)
+            ? Math.max(250, retryAfterSeconds * 1000)
+            : 750 * (attempt + 1);
+          await sleep(backoffMs);
+          continue;
+        }
+
+        return { error: lastError, status: lastStatus };
+      }
+
+      const data = json?.data;
+      if (!Array.isArray(data)) {
+        return { error: 'Resend batch response missing data array', status: lastStatus };
+      }
+
+      return { ids: data as Array<{ id: string }>, status: lastStatus };
+    }
+
+    return { error: lastError || 'Rate limited', status: lastStatus };
   } catch (e: any) {
     return { error: truncateError(e?.message || 'Network error calling Resend') };
   }
@@ -173,6 +306,9 @@ serve(async (req) => {
   const batchDelayMs = parseInt(Deno.env.get('EMAIL_BATCH_DELAY_MS') || String(DEFAULT_BATCH_DELAY_MS), 10);
   const sendConcurrency = parseInt(Deno.env.get('EMAIL_SEND_CONCURRENCY') || String(SEND_CONCURRENCY), 10);
   const messageStaleMinutes = parseInt(Deno.env.get('EMAIL_MESSAGE_STALE_MINUTES') || String(DEFAULT_MESSAGE_STALE_MINUTES), 10);
+  const resendRps = parseFloat(Deno.env.get('RESEND_RATE_LIMIT_RPS') || '2');
+  const resendLimiter = createFixedWindowRateLimiter(resendRps);
+  const resendBatchSize = Math.max(1, Math.min(100, parseInt(Deno.env.get('RESEND_BATCH_SIZE') || '50', 10) || 50));
   const workerId = Deno.env.get('WORKER_ID') || `email-queue-worker-${crypto.randomUUID()}`;
   const claimToken = crypto.randomUUID();
 
@@ -581,51 +717,96 @@ serve(async (req) => {
           }
         }
 
-        // Send claimed messages with per-message idempotency.
-        for (let i = 0; i < claimedForSend.length; i += sendConcurrency) {
-          const chunk = claimedForSend.slice(i, i + sendConcurrency);
-          console.log(`📧 Sending ${chunk.length} emails (concurrency ${sendConcurrency})...`);
+        // Send claimed messages using Resend batch endpoint (up to 100 emails per request).
+        // This avoids per-request rate limits (e.g. 2 req/sec) while still sending high volume.
+        for (let i = 0; i < claimedForSend.length; i += resendBatchSize) {
+          const batchMsgs = claimedForSend.slice(i, i + resendBatchSize);
+          console.log(`📧 Sending ${batchMsgs.length} emails (batch request, size ${resendBatchSize})...`);
 
-          const results = await Promise.all(
-            chunk.map(async (msg: any) => {
-              let payload = msg.payload;
-              const missing = !payload || typeof payload !== 'object' || !payload?.html || !payload?.subject || !payload?.to;
+          // Build payloads (can be CPU-heavy; but we only do it for this batch)
+          const payloads: any[] = [];
+          const msgIds: string[] = [];
+          const attemptsByMsgId = new Map<string, number>();
+          const missingPayloadErrors: Array<{ msgId: string; attempts: number; error: string }> = [];
 
-              if (missing && campaign && companyProfile && profileData && sharedFooterTemplate) {
-                const fromAddress = `${senderDisplayName} <${senderEmail}>`;
-                const customer = customersById.get(msg.customer_id) || { id: msg.customer_id, email: msg.email };
-                payload = buildEmailPayloadOptimized(
-                  customer,
-                  campaign,
-                  companyProfile,
-                  profileData,
-                  fromAddress,
-                  senderEmail,
-                  usesVerifiedDomain,
-                  activeDomainId,
-                  sharedFooterTemplate,
-                  replyToEmail,
+          for (const msg of batchMsgs) {
+            let payload = msg.payload;
+            const missing = !payload || typeof payload !== 'object' || !payload?.html || !payload?.subject || !payload?.to;
+
+            if (missing && campaign && companyProfile && profileData && sharedFooterTemplate) {
+              const fromAddress = `${senderDisplayName} <${senderEmail}>`;
+              const customer = customersById.get(msg.customer_id) || { id: msg.customer_id, email: msg.email };
+              payload = buildEmailPayloadOptimized(
+                customer,
+                campaign,
+                companyProfile,
+                profileData,
+                fromAddress,
+                senderEmail,
+                usesVerifiedDomain,
+                activeDomainId,
+                sharedFooterTemplate,
+                replyToEmail,
+              );
+
+              if (urlToLinkIdMap && urlToLinkIdMap.size > 0 && payload?.html) {
+                const rewriteResult = rewriteLinksSync(
+                  payload.html,
+                  urlToLinkIdMap,
+                  campaign.id,
+                  customer.id,
+                  campaign.tenant_id,
+                  customer.email,
                 );
-
-                if (urlToLinkIdMap && urlToLinkIdMap.size > 0 && payload?.html) {
-                  const rewriteResult = rewriteLinksSync(
-                    payload.html,
-                    urlToLinkIdMap,
-                    campaign.id,
-                    customer.id,
-                    campaign.tenant_id,
-                    customer.email,
-                  );
-                  payload.html = rewriteResult.html;
-                }
-              } else if (missing) {
-                return { msgId: msg.id, attempts: msg.attempts || 1, resendId: undefined, error: 'Missing email payload and unable to build it' };
+                payload.html = rewriteResult.html;
               }
+            }
 
-              const r = await resendSendEmail(resendApiKey, payload, msg.id);
-              return { msgId: msg.id, attempts: msg.attempts || 1, resendId: r.id, error: r.error };
-            })
-          );
+            if (!payload || typeof payload !== 'object' || !payload?.html || !payload?.subject || !payload?.to) {
+              missingPayloadErrors.push({ msgId: msg.id, attempts: msg.attempts || 1, error: 'Missing email payload and unable to build it' });
+              continue;
+            }
+
+            payloads.push(payload);
+            msgIds.push(msg.id);
+            attemptsByMsgId.set(msg.id, msg.attempts || 1);
+          }
+
+          // If everything in the batch is missing payload, just treat as failures.
+          const results: Array<{ msgId: string; attempts: number; resendId?: string; error?: string; status?: number }> = [];
+          for (const m of missingPayloadErrors) {
+            results.push({ msgId: m.msgId, attempts: m.attempts, error: m.error });
+          }
+
+          if (payloads.length > 0) {
+            const idemSeed = `${job.id}:${campaignId}:${msgIds.join(',')}`;
+            const batchResp = await resendSendBatch(resendApiKey, payloads, idemSeed, resendLimiter);
+
+            if (batchResp.ids && batchResp.ids.length === payloads.length) {
+              for (let k = 0; k < batchResp.ids.length; k++) {
+                const msgId = msgIds[k];
+                const resendId = batchResp.ids[k]?.id;
+                results.push({
+                  msgId,
+                  attempts: attemptsByMsgId.get(msgId) || 1,
+                  resendId,
+                  error: resendId ? undefined : 'Resend batch returned missing id',
+                  status: batchResp.status,
+                });
+              }
+            } else {
+              const err = batchResp.error || 'Resend batch failed';
+              // Batch failure applies to all payloads in this request.
+              for (const msgId of msgIds) {
+                results.push({
+                  msgId,
+                  attempts: attemptsByMsgId.get(msgId) || 1,
+                  error: err,
+                  status: batchResp.status,
+                });
+              }
+            }
+          }
 
           for (const r of results) {
             if (r.resendId) {
@@ -649,11 +830,13 @@ serve(async (req) => {
               const errMsg = truncateError(r.error || 'Send failed');
               lastError = errMsg;
 
-              const terminal = (r.attempts || 1) >= MAX_ATTEMPTS;
+              const isRateLimited = r.status === 429 || isRateLimitErrorMessage(errMsg);
+              const terminal = !isRateLimited && (r.attempts || 1) >= MAX_ATTEMPTS;
               await supabase
                 .from('email_messages')
                 .update({
                   status: terminal ? 'failed' : 'queued',
+                  attempts: isRateLimited ? Math.max(0, (r.attempts || 1) - 1) : (r.attempts || 1),
                   error_message: errMsg,
                   updated_at: nowIso,
                   claim_token: null,
@@ -666,8 +849,8 @@ serve(async (req) => {
             }
           }
 
-          if (i + sendConcurrency < claimedForSend.length) {
-            await new Promise(resolve => setTimeout(resolve, batchDelayMs));
+          if (i + resendBatchSize < claimedForSend.length) {
+            await sleep(batchDelayMs);
           }
         }
 

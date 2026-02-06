@@ -7,6 +7,7 @@ import { format } from "date-fns";
 import { toZonedTime } from "date-fns-tz";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { retryFailedEmailMessages } from "@/lib/email/emailRetryService";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -62,6 +63,11 @@ export const ScheduledCampaignBanner: React.FC<
   }>(null);
   const [progressError, setProgressError] = useState<string | null>(null);
   const [isRetryingWorker, setIsRetryingWorker] = useState(false);
+  const [showRetryFailedDialog, setShowRetryFailedDialog] = useState(false);
+  const [isRetryingFailed, setIsRetryingFailed] = useState(false);
+  const [suppressAttentionUntil, setSuppressAttentionUntil] = useState<
+    number | null
+  >(null);
 
   const PROGRESS_POLL_INTERVAL_MS = 15000;
 
@@ -195,9 +201,71 @@ export const ScheduledCampaignBanner: React.FC<
       toast({ title: "Triggered a retry. Progress should update shortly." });
     } catch (e: any) {
       console.warn("Failed to trigger process-email-send-queue", { error: e });
-      toast({ title: "Couldn't trigger a retry. Please try again.", variant: "destructive" });
+      toast({
+        title: "Couldn't trigger a retry. Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setIsRetryingWorker(false);
+    }
+  };
+
+  const failedCount = progress?.failed || 0;
+  const handleRetryFailed = async () => {
+    if (!campaignId || isRetryingFailed) return;
+    setShowRetryFailedDialog(false);
+    setIsRetryingFailed(true);
+
+    try {
+      const result = await retryFailedEmailMessages(campaignId);
+
+      if (result.countReset > 0) {
+        toast({
+          title: `Retrying ${result.countReset} failed email(s)`,
+          description:
+            result.jobsCreated > 0
+              ? `Queued ${result.jobsCreated} retry batch job(s).`
+              : undefined,
+        });
+
+        // Optimistically clear failed/stuck so the banner doesn't keep showing "Needs Attention".
+        const now = Date.now();
+        setSuppressAttentionUntil(now + 2 * 60 * 1000);
+        setProgress((prev) =>
+          prev
+            ? {
+                ...prev,
+                failed: 0,
+                queued: (prev.queued || 0) + result.countReset,
+                is_stuck: false,
+                stuck_reason: null,
+                last_message_updated_at: new Date().toISOString(),
+              }
+            : prev,
+        );
+
+        // Kick the worker once so the retry starts immediately.
+        try {
+          await supabase.functions.invoke("process-email-send-queue", {
+            body: {},
+          });
+        } catch {
+          // Non-fatal; scheduler will pick it up.
+        }
+      } else {
+        toast({
+          title: "No failed emails to retry",
+          description: "There are no failed recipients right now.",
+        });
+      }
+    } catch (e: any) {
+      toast({
+        title: "Failed to retry emails",
+        description: e?.message || "Unknown error",
+        variant: "destructive",
+      });
+    } finally {
+      setIsRetryingFailed(false);
     }
   };
 
@@ -244,27 +312,31 @@ export const ScheduledCampaignBanner: React.FC<
   };
 
   if (isSending) {
-    const isStuck = !!progress?.is_stuck;
+    const stuckRaw = !!progress?.is_stuck;
+    const isStuck =
+      stuckRaw &&
+      !(suppressAttentionUntil && Date.now() < suppressAttentionUntil);
+    const needsAttention = isStuck || failedCount > 0;
     return (
       <Alert
-        className={`mb-6 ${isStuck ? "bg-amber-50 border-amber-200" : "bg-blue-50 border-blue-200"}`}
+        className={`mb-6 ${needsAttention ? "bg-amber-50 border-amber-200" : "bg-blue-50 border-blue-200"}`}
       >
         <Clock
-          className={`h-4 w-4 animate-pulse ${isStuck ? "text-amber-600" : "text-blue-600"}`}
+          className={`h-4 w-4 animate-pulse ${needsAttention ? "text-amber-600" : "text-blue-600"}`}
         />
         <AlertTitle
-          className={`${isStuck ? "text-amber-800" : "text-blue-800"} flex items-center gap-2`}
+          className={`${needsAttention ? "text-amber-800" : "text-blue-800"} flex items-center gap-2`}
         >
           Campaign Sending
           <Badge
             variant="default"
-            className={isStuck ? "bg-amber-600" : "bg-blue-600"}
+            className={needsAttention ? "bg-amber-600" : "bg-blue-600"}
           >
-            {isStuck ? "Needs Attention" : "In Progress"}
+            {needsAttention ? "Needs Attention" : "In Progress"}
           </Badge>
         </AlertTitle>
         <AlertDescription
-          className={`${isStuck ? "text-amber-700" : "text-blue-700"} mt-2`}
+          className={`${needsAttention ? "text-amber-700" : "text-blue-700"} mt-2`}
         >
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
@@ -280,6 +352,12 @@ export const ScheduledCampaignBanner: React.FC<
                     Sent: {progress.sent} • Failed: {progress.failed} • Queued:{" "}
                     {progress.queued} • Sending: {progress.sending}
                   </p>
+                  {failedCount > 0 && (
+                    <p className="text-sm mt-1">
+                      {failedCount} recipient(s) failed. You can retry failed
+                      messages.
+                    </p>
+                  )}
                   {isStuck && (
                     <p className="text-sm mt-1">
                       {progress.stuck_reason || "Sending appears to be stuck."}{" "}
@@ -301,8 +379,19 @@ export const ScheduledCampaignBanner: React.FC<
               )}
             </div>
 
-            {isStuck && (
-              <div className="flex items-center gap-2 flex-shrink-0">
+            <div className="flex items-center gap-2 flex-shrink-0">
+              {failedCount > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowRetryFailedDialog(true)}
+                  disabled={isRetryingFailed}
+                >
+                  Retry Failed ({failedCount})
+                </Button>
+              )}
+
+              {isStuck && (
                 <Button
                   variant="outline"
                   size="sm"
@@ -311,10 +400,36 @@ export const ScheduledCampaignBanner: React.FC<
                 >
                   Retry Now
                 </Button>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </AlertDescription>
+
+        <AlertDialog
+          open={showRetryFailedDialog}
+          onOpenChange={setShowRetryFailedDialog}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Retry Failed Messages</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will re-queue {failedCount} failed email(s) to be sent
+                again.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isRetryingFailed}>
+                Cancel
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleRetryFailed}
+                disabled={isRetryingFailed}
+              >
+                {isRetryingFailed ? "Retrying…" : "Retry Messages"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </Alert>
     );
   }
