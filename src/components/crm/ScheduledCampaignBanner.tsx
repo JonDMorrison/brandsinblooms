@@ -183,8 +183,9 @@ export const ScheduledCampaignBanner: React.FC<
 
         const row = Array.isArray(data) ? data[0] : data;
         if (row) {
+          const typed = row as NonNullable<typeof progress>;
           setProgressError(null);
-          setProgress((prev) => (isSameProgress(prev, row) ? prev : row));
+          setProgress((prev) => (isSameProgress(prev, typed) ? prev : typed));
         }
       } catch (e: unknown) {
         if (cancelled) return;

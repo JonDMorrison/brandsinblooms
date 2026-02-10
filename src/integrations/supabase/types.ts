@@ -13378,6 +13378,18 @@ export type Database = {
         Args: { p_next_scheduled_at?: string; p_run_id: string }
         Returns: boolean
       }
+      apply_email_send_results: {
+        Args: {
+          p_claim_token: string
+          p_max_attempts?: number
+          p_results: Json
+        }
+        Returns: {
+          updated_failed: number
+          updated_queued: number
+          updated_sent: number
+        }[]
+      }
       backfill_customer_purchase_data_from_pos: {
         Args: { p_tenant_id: string }
         Returns: Json
@@ -14092,6 +14104,14 @@ export type Database = {
         }
         Returns: undefined
       }
+      mark_email_campaign_completed_with_failures: {
+        Args: { p_campaign_id: string }
+        Returns: {
+          error_message: string
+          new_status: string
+          success: boolean
+        }[]
+      }
       mark_expired_incentives: { Args: never; Returns: number }
       mark_onboarding_completed: {
         Args: { p_company?: string }
@@ -14102,6 +14122,13 @@ export type Database = {
         Returns: boolean
       }
       optin_perks_members: { Args: never; Returns: number }
+      pause_email_campaign_sending: {
+        Args: { p_campaign_id: string }
+        Returns: {
+          jobs_paused: number
+          messages_paused: number
+        }[]
+      }
       recalculate_content_intent_metrics: {
         Args: { p_customer_id: string }
         Returns: undefined
@@ -14225,6 +14252,28 @@ export type Database = {
         Returns: boolean
       }
       restore_user_data: { Args: { target_user_id: string }; Returns: boolean }
+      resume_email_campaign_sending: {
+        Args: { p_campaign_id: string }
+        Returns: {
+          jobs_resumed: number
+          messages_resumed: number
+        }[]
+      }
+      retry_failed_email_messages:
+        | {
+            Args: { p_campaign_id: string }
+            Returns: {
+              count_reset: number
+              jobs_created: number
+            }[]
+          }
+        | {
+            Args: { p_batch_size?: number; p_campaign_id: string }
+            Returns: {
+              count_reset: number
+              jobs_created: number
+            }[]
+          }
       server_finalize_onboarding: { Args: { p_user_id: string }; Returns: Json }
       set_campaign_schedule: {
         Args: {
