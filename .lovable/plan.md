@@ -1,64 +1,58 @@
 
-# Fix Email Footer Missing Logo and Social Icons
 
-## Problem Identified
-Test emails from **Down to Earth** (Christine's account) are missing the formatted footer with logo and social icons that appear in emails from **Brands in Blooms**.
+# Fix Build Errors + Un-suppress Christine + Square Webhook Notes
 
-### Root Causes Found
+## 1. Fix `process-email-send-queue` import error
 
-**1. Missing Profile Data (Primary Issue)**
-The "Down to Earth Garden Center" company profile has:
-- ❌ No Facebook URL
-- ❌ No Instagram URL  
-- ❌ No TikTok URL
-- ❌ No Pinterest URL
-- ❌ No YouTube URL
-- ❌ No LinkedIn URL
-- ❌ No company logo uploaded
+**File:** `supabase/functions/process-email-send-queue/index.ts` (line 2)
 
-In contrast, "Brands in Blooms" has:
-- ✅ Facebook, Instagram, LinkedIn, YouTube URLs configured
-- ✅ Company logo uploaded and stored
+Change the import from the npm specifier to the esm.sh pattern used by all other edge functions:
 
-**2. Code Gap (Secondary Issue)**
-The email footer generator code doesn't pass the `feature_flags` field (which contains the company logo URL) from the company profile to the footer HTML builder.
+```
+// FROM:
+import { createClient } from "npm:@supabase/supabase-js@2.7.1";
 
----
-
-## Solution
-
-### Step 1: Fix the Code Gap
-Update the email renderer to include `feature_flags` in the company profile data passed to the footer generator.
-
-**Files to modify:**
-- `supabase/functions/_shared/emailRenderer.ts`
-  - Add `feature_flags` to `CompanyProfileShape` interface
-  - Pass `feature_flags` to the footer generator in `appendFooter()` function
-
-### Step 2: User Action Required (Christine's Account)
-Christine needs to configure her company profile in BloomSuite with:
-1. **Upload a company logo** (Settings → Branding)
-2. **Add social media URLs** (Settings → Account → Social Links)
-
-Without this data, the footer cannot display a logo or social icons - the system is working correctly, it just has nothing to show.
-
----
-
-## Technical Changes
-
-```text
-supabase/functions/_shared/emailRenderer.ts
-├── CompanyProfileShape interface
-│   └── Add: feature_flags?: { company_logo_url?: string; footer_colors?: {...} }
-│
-└── appendFooter() function
-    └── Pass feature_flags to profileData for footer generator
+// TO:
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.10";
 ```
 
+## 2. Fix `ScheduledCampaignBanner.tsx` type error
+
+**File:** `src/components/crm/ScheduledCampaignBanner.tsx` (line 187)
+
+The RPC function name is cast with `as RpcFunctionName`, so TypeScript cannot infer the return type and falls back to a broad union. The fix is to explicitly type-cast `row` before passing it to `setProgress`:
+
+```typescript
+const row = Array.isArray(data) ? data[0] : data;
+if (row) {
+  const typed = row as NonNullable<typeof progress>;
+  setProgressError(null);
+  setProgress((prev) => (isSameProgress(prev, typed) ? prev : typed));
+}
+```
+
+## 3. Un-suppress Christine's customer record
+
+Run a database migration to set `suppressed = false` for Christine's CRM record (`id: 4f3d15d7-be9b-4ed9-9fe5-cb8d0c6dffd6`). This ensures she can receive both email and SMS from automations.
+
+## 4. Square Webhook 403 -- User Action Required
+
+The Square webhook subscription is failing with a 403 because the Square app is missing the **"Webhooks (Read/Write)"** OAuth scope. This cannot be fixed in code -- Christine (or an admin) needs to:
+
+1. Go to the **Square Developer Dashboard**
+2. Enable the **Webhooks Read/Write** permission on the BloomSuite app
+3. Have Christine **re-authorize** the Square connection in BloomSuite (disconnect and reconnect)
+
+After reconnecting, the OAuth callback will automatically attempt to subscribe to webhooks. I will surface a note about this but cannot fix it programmatically.
+
 ---
 
-## Verification
-After the code fix:
-1. Deploy the updated edge function
-2. Have Christine upload a logo and add at least one social URL
-3. Send a test email - footer should now show the logo and social icons
+### Technical Details
+
+| Item | File | Change |
+|------|------|--------|
+| Edge function import | `supabase/functions/process-email-send-queue/index.ts:2` | Switch to `esm.sh` import |
+| Type error | `src/components/crm/ScheduledCampaignBanner.tsx:184-188` | Cast `row` to explicit progress type |
+| Suppression | Database migration | `UPDATE crm_customers SET suppressed = false WHERE id = '4f3d15d7-...'` |
+| Square webhooks | Manual step | Enable OAuth scope in Square Developer Dashboard |
+
