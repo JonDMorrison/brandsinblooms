@@ -563,8 +563,9 @@ async function getEligibleCustomers(supabase: any, automation: any) {
       break;
 
     case 'first_purchase':
-    case 'order.completed':
-      // Customers with recent first/order purchase
+    case 'order.created':
+    case 'payment.completed':
+      // Customers with recent purchase activity
       const purchaseWindow = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
       query = query.gte('last_purchase_date', purchaseWindow.split('T')[0]);
       break;

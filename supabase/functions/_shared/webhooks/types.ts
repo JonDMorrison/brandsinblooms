@@ -84,7 +84,8 @@ export type POSProvider = 'square' | 'clover' | 'lightspeed' | 'shopify';
  * Standard webhook events that trigger automations
  */
 export const AUTOMATION_TRIGGER_EVENTS = [
-  'order.completed',
+  'order.created',
+  'payment.completed',
   'first_purchase',
   'review_request',
   'loyalty_join',
