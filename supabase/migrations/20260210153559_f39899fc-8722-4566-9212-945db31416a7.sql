@@ -1,0 +1,1 @@
+UPDATE public.subscriptions SET end_date = (now() + interval '365 days')::date WHERE id = '03c2e363-ee11-43a6-ab03-276a9db9555b';
