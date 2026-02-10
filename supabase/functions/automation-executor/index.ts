@@ -1070,6 +1070,26 @@ async function processPendingTriggerEvents(supabase: any): Promise<{ eventsProce
           .in('status', ['active', 'paused'])
           .maybeSingle();
 
+        // Also check for recently completed runs (within 24h) to prevent re-triggering
+        if (!existingRun) {
+          const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+          const { data: recentlyCompleted } = await supabase
+            .from('automation_runs')
+            .select('id')
+            .eq('automation_id', automation.id)
+            .eq('customer_id', customer.id)
+            .eq('status', 'completed')
+            .gte('completed_at', oneDayAgo)
+            .limit(1)
+            .maybeSingle();
+
+          if (recentlyCompleted) {
+            console.log(`⏭️ Customer ${customer.email} - automation already completed within 24h (cooldown)`);
+            await markEventProcessed(supabase, event.id, 'Automation completed within 24h cooldown');
+            continue;
+          }
+        }
+
         // Always compute a safe next run sequence number (even if no active run)
         const { data: maxSeqData } = await supabase
           .from('automation_runs')
