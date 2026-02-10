@@ -563,7 +563,6 @@ async function getEligibleCustomers(supabase: any, automation: any) {
       break;
 
     case 'first_purchase':
-    case 'order.created':
     case 'payment.completed':
       // Customers with recent purchase activity
       const purchaseWindow = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();

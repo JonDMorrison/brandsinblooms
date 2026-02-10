@@ -26,15 +26,9 @@ export const TRIGGERS: Trigger[] = [
     icon: UsersRound
   },
   {
-    id: 'order.created',
-    label: 'Order Created',
-    description: 'New order created in POS',
-    icon: ShoppingCart
-  },
-  {
     id: 'payment.completed',
-    label: 'Payment Completed',
-    description: 'Real money movement completed',
+    label: 'Any Purchase Made',
+    description: 'Fires on payment.created or payment.updated (COMPLETED)',
     icon: CreditCard
   },
   {

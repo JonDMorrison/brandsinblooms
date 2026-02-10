@@ -31,14 +31,9 @@ export const CORE_EVENTS: CoreEvent[] = [
     description: 'Triggers when a customer enrolls in the loyalty program'
   },
   {
-    id: 'order.created',
-    label: 'Order Created',
-    description: 'Triggers when a new order is created in the POS system'
-  },
-  {
     id: 'payment.completed',
-    label: 'Payment Completed',
-    description: 'Triggers when a real payment/money movement is completed'
+    label: 'Any Purchase Made',
+    description: 'Triggers when a payment is completed (payment.created or payment.updated with COMPLETED status)'
   },
   {
     id: 'email.opened',
