@@ -47,14 +47,19 @@ export const CRMAutomationGuidePage: React.FC = () => {
   const mapTriggerType = (id?: string) => {
     if (!id) return 'manual';
     
-    // Map specific event triggers to appropriate database values
+    // Pass through known event trigger IDs directly
+    const passthroughTypes = new Set([
+      'payment.completed', 'first_purchase', 'loyalty_join', 'abandoned_cart',
+      'review_request', 'refund.created', 'order.ready_for_pickup', 'order.shipped',
+      'repeat_purchase_90d', 'birthday', 'contact.created', 'contact.updated',
+      'segment.added', 'persona.assigned', 'loyalty_members.segment_added',
+    ]);
+    if (passthroughTypes.has(id)) return id;
+
+    // Legacy mappings
     const triggerMapping: Record<string, string> = {
-      'loyalty_join': 'welcome',
-      'first_purchase': 'welcome', 
       'customer_birthday': 'seasonal',
       'big_spender': 'purchase_delay',
-      'abandoned_cart': 'purchase_delay',
-      'review_request': 'purchase_delay',
       'event_rsvp': 'seasonal',
       'newsletter_opt_in': 'segment_joined'
     };
