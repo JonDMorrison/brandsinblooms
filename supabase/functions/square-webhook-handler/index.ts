@@ -167,25 +167,91 @@ async function processOrderCreated(supabase: any, tenantId: string, userId: stri
     }, { onConflict: 'external_id,pos_connection_id' });
   }
 
+  // Extract any available contact info from order payload
+  const orderEmail = order.fulfillments?.[0]?.shipment_details?.recipient?.email_address
+    || order.fulfillments?.[0]?.pickup_details?.recipient?.email_address
+    || order.tenders?.[0]?.customer_id ? null : null; // tenders don't carry email
+  const orderPhone = order.fulfillments?.[0]?.shipment_details?.recipient?.phone_number
+    || order.fulfillments?.[0]?.pickup_details?.recipient?.phone_number;
+
   let customer = null, isFirstPurchase = false;
+  let matchedBy: string | null = null;
+
+  // Strategy 1: Match by square_customer_id
   if (squareCustomerId) {
     const { data: existing } = await supabase.from('crm_customers').select('*').eq('tenant_id', tenantId).eq('square_customer_id', squareCustomerId).single();
     if (existing) {
       customer = existing;
+      matchedBy = 'square_customer_id';
       isFirstPurchase = !existing.first_purchase_date;
+    }
+  }
+
+  // Strategy 2: Match by email from fulfillment details
+  if (!customer && orderEmail) {
+    const { data: existing } = await supabase.from('crm_customers').select('*').eq('tenant_id', tenantId).eq('email', orderEmail).single();
+    if (existing) {
+      customer = existing;
+      matchedBy = 'email';
+      isFirstPurchase = !existing.first_purchase_date;
+    }
+  }
+
+  // Strategy 3: Match by phone from fulfillment details
+  if (!customer && orderPhone) {
+    const { data: existing } = await supabase.from('crm_customers').select('*').eq('tenant_id', tenantId).eq('phone', orderPhone).single();
+    if (existing) {
+      customer = existing;
+      matchedBy = 'phone';
+      isFirstPurchase = !existing.first_purchase_date;
+    }
+  }
+
+  // Strategy 4: If customer_id exists but not in CRM, fetch from Square API and auto-create
+  if (!customer && squareCustomerId && connection?.encrypted_access_token) {
+    try {
+      const { decryptToken } = await import('../_shared/crypto/tokens.ts');
+      const accessToken = await decryptToken(connection.encrypted_access_token);
+      const env = connection.environment || 'production';
+      const baseUrl = env === 'sandbox' ? 'https://connect.squareupsandbox.com' : 'https://connect.squareup.com';
+      const custResp = await fetch(`${baseUrl}/v2/customers/${squareCustomerId}`, {
+        headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' }
+      });
+      if (custResp.ok) {
+        const custData = (await custResp.json()).customer;
+        const email = custData.email_address;
+        if (email) {
+          const { data: upserted } = await supabase.from('crm_customers').upsert({
+            tenant_id: tenantId, user_id: userId, email,
+            phone: custData.phone_number, first_name: custData.given_name, last_name: custData.family_name,
+            pos_source: 'square', square_customer_id: squareCustomerId,
+            first_purchase_date: new Date().toISOString().split('T')[0],
+            last_purchase_date: new Date().toISOString().split('T')[0],
+            total_spent: amount, lifetime_value: amount,
+          }, { onConflict: 'tenant_id,email' }).select().single();
+          if (upserted) {
+            customer = upserted;
+            matchedBy = 'square_api_lookup';
+            isFirstPurchase = true;
+            console.log(`[WEBHOOK] Auto-created customer from Square API: ${email}`);
+          }
+        }
+      }
+    } catch (e) {
+      console.warn(`[WEBHOOK] Square customer API lookup failed for ${squareCustomerId}:`, e);
     }
   }
 
   if (customer) {
     const triggers = ['order.created'];
     if (isFirstPurchase) triggers.push('first_purchase');
-    console.log(`[WEBHOOK] order.created triggers for customer ${customer.id}: ${triggers.join(', ')}`);
+    console.log(`[WEBHOOK] order.created triggers for customer ${customer.id} (matched_by=${matchedBy}): ${triggers.join(', ')}`);
     await fireAutomationTriggers(supabase, tenantId, customer.id, triggers, { order_amount: amount, order_id: orderId, merchant_id: merchantId, products: productNames });
   } else {
-    console.log(`[WEBHOOK] order.created - no customer match for square_customer_id: ${squareCustomerId}`);
+    console.log(`[WEBHOOK] order.created - no customer match. square_id: ${squareCustomerId}, email: ${orderEmail}, phone: ${orderPhone}`);
   }
 
-  return { success: true, isFirstPurchase, customerId: customer?.id, orderId };
+  return { success: true, isFirstPurchase, customerId: customer?.id, orderId, matchedBy };
 }
 
 async function processPaymentCompleted(supabase: any, tenantId: string, userId: string, payment: any, merchantId: string, connection: any) {
