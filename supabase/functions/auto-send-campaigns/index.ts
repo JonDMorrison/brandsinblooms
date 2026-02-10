@@ -27,7 +27,7 @@ interface ClaimedCampaign {
 interface CampaignResult {
   id: string;
   name: string;
-  status: 'sent' | 'failed' | 'skipped';
+  status: 'sent' | 'failed' | 'skipped' | 'queued';
   durationMs: number;
   error?: string;
   recipientCount?: number;
@@ -111,8 +111,8 @@ const handler = async (req: Request): Promise<Response> => {
 
       try {
         console.log(`📨 Processing campaign: "${campaign.name}" (${campaign.id})`);
+        const sendAttempts = campaign.send_attempts || 1;
 
-      try {
         // Check if user has auto-send enabled
         const { data: userProfile } = await supabase
           .from('company_profiles')
