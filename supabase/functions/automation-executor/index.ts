@@ -187,8 +187,14 @@ const handler = async (req: Request): Promise<Response> => {
 
     // 2. Process each automation (for time-based triggers like loyalty_join, birthday, etc.)
     for (const automation of activeAutomations || []) {
-      // Skip segment.added and persona.assigned triggers - they're handled by the event queue
-      if (['segment.added', 'segment_added', 'persona.assigned', 'persona_assigned'].includes(automation.trigger_type)) {
+      // Skip event-driven triggers - they're handled by webhooks or the event queue, NOT cron
+      const eventDrivenTriggers = [
+        'segment.added', 'segment_added',
+        'persona.assigned', 'persona_assigned',
+        'payment.completed', 'first_purchase',
+        'contact.created',
+      ];
+      if (eventDrivenTriggers.includes(automation.trigger_type)) {
         continue;
       }
 
@@ -310,16 +316,35 @@ async function processAutomation(supabase: any, automation: any) {
 
     for (const customer of eligibleCustomers) {
       try {
-        // Check if this customer already has an active automation run
+        // Check if this customer already has an active OR recently completed automation run
         const { data: existingRun } = await supabase
           .from('automation_runs')
-          .select('id, status, run_sequence, next_step_scheduled_at')
+          .select('id, status, run_sequence, next_step_scheduled_at, completed_at')
           .eq('automation_id', automation.id)
           .eq('customer_id', customer.id)
           .in('status', ['active', 'paused'])
           .order('run_sequence', { ascending: false })
           .limit(1)
           .maybeSingle();
+
+        // Also check for recently completed runs (within 24h) to prevent cron re-triggering
+        if (!existingRun) {
+          const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+          const { data: recentlyCompleted } = await supabase
+            .from('automation_runs')
+            .select('id')
+            .eq('automation_id', automation.id)
+            .eq('customer_id', customer.id)
+            .eq('status', 'completed')
+            .gte('completed_at', oneDayAgo)
+            .limit(1)
+            .maybeSingle();
+
+          if (recentlyCompleted) {
+            console.log(`⏭️ Skipping customer ${customer.email} - automation already completed within 24h (cooldown)`);
+            continue;
+          }
+        }
 
         // Always compute a safe next run sequence number (even if no active run)
         // to avoid unique violations when re-triggering after a completed run.
