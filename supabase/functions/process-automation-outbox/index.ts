@@ -668,6 +668,31 @@ async function sendSMS(
   message: OutboxMessage
 ): Promise<{ success: boolean; error?: string; shouldSkip?: boolean; external_id?: string; canRetry?: boolean }> {
   try {
+    // ── SMS Idempotency Check ──
+    // Prevent duplicate SMS to the same customer for the same automation node
+    if (message.automation_id) {
+      const automationNodeId = await getAutomationNodeId(supabase, message);
+      if (automationNodeId) {
+        // Check crm_message_logs for an already-sent SMS for this automation+node+customer
+        const { data: existingSms } = await supabase
+          .from('crm_message_logs')
+          .select('id')
+          .eq('tenant_id', message.tenant_id)
+          .eq('message_type', 'sms')
+          .eq('status', 'sent')
+          .eq('recipient', message.recipient)
+          .filter('metadata->>automation_id', 'eq', message.automation_id)
+          .filter('metadata->>customer_id', 'eq', message.customer_id)
+          .limit(1)
+          .maybeSingle();
+
+        if (existingSms) {
+          console.log(`⏭️ [SendSMS] Already sent SMS to ${message.recipient} for automation ${message.automation_id} node ${automationNodeId} — skipping duplicate`);
+          return { success: false, error: 'already_sent', shouldSkip: true, canRetry: false };
+        }
+      }
+    }
+
     const { data, error } = await supabase.functions.invoke("send-sms", {
       body: {
         to: message.recipient,
