@@ -1,58 +1,74 @@
 
 
-# Fix Build Errors + Un-suppress Christine + Square Webhook Notes
+## Refactor: Payment-Based Triggers Instead of Order-Based
 
-## 1. Fix `process-email-send-queue` import error
+### What Changes
 
-**File:** `supabase/functions/process-email-send-queue/index.ts` (line 2)
+Replace `order.created` with `payment.created` and `payment.updated` as the triggers for "Any Purchase Made" automations, and ensure "First Purchase" also resolves from these payment events.
 
-Change the import from the npm specifier to the esm.sh pattern used by all other edge functions:
+### Logic
 
+- **`payment.created`**: Square fires this when a payment is initiated (status = APPROVED). We process it, match the customer, and fire the `payment.completed` trigger (which represents "Any Purchase Made" in the UI). Also resolve `first_purchase` if applicable.
+- **`payment.updated`**: Square fires this when a payment transitions (e.g., APPROVED to COMPLETED). We process it **only if status = COMPLETED** to avoid double-triggering. An idempotency check ensures the same payment ID doesn't fire triggers twice.
+- **`invoice.payment_made`**: Also handled -- the invoice payload includes `primary_recipient` with `customer_id`, email, and phone for matching.
+
+### Detailed Changes
+
+**1. `supabase/functions/square-webhook-handler/index.ts`**
+
+- **Remove** `processOrderCreated` function entirely (lines 150-255)
+- **Remove** the `case 'order.created'` from the switch (line 637-638)
+- **Rename** `processPaymentCompleted` to `processPaymentEvent` and update it to:
+  - Accept the raw `data.object` which contains `{ payment: {...} }`
+  - Extract payment status and only fire triggers when status is `COMPLETED` (for `payment.updated`) or always for `payment.created` with COMPLETED status
+  - Add idempotency: before firing triggers, check if this `payment.id` was already processed by looking up `pos_orders` with that external_id and a flag
+  - Keep the existing 4-strategy customer matching (square_customer_id, email, phone, Square API lookup)
+- **Add** `processInvoicePaymentMade` function to handle `invoice.payment_made` events using `primary_recipient` data
+- **Update switch statement**:
+  - `case 'payment.created':` and `case 'payment.updated':` both call `processPaymentEvent`
+  - `case 'invoice.payment_made':` calls `processInvoicePaymentMade`
+- **Trigger names fired**: `payment.completed` (the "Any Purchase Made" trigger) and conditionally `first_purchase`
+
+**2. `supabase/functions/_shared/webhooks/types.ts`**
+
+- Remove `order.created` from `AUTOMATION_TRIGGER_EVENTS`
+- Ensure `payment.completed` and `first_purchase` remain
+
+**3. `src/config/automationEvents.ts`**
+
+- Remove the `order.created` entry
+- Keep `payment.completed` renamed to label "Any Purchase Made"
+
+**4. `src/lib/triggerCatalog.ts`**
+
+- Remove the `order.created` trigger entry
+- Update `payment.completed` label to "Any Purchase Made" with description "Fires on payment.created or payment.updated (COMPLETED)"
+
+**5. `supabase/functions/automation-executor/index.ts`**
+
+- Remove any references to `order.created` trigger type
+
+### Idempotency Strategy
+
+When `payment.created` arrives with status APPROVED, we record the payment in `pos_orders`. When `payment.updated` arrives with status COMPLETED for the same payment ID, we check if triggers were already fired for that payment (via a `webhook_triggers_fired` flag in `pos_orders.raw_data` or by checking `automation_events`). This prevents double-triggering when both events arrive for the same payment.
+
+### Payment Event Flow
+
+```text
+Square sends payment.created (status=APPROVED)
+  --> Record in pos_orders
+  --> Do NOT fire triggers yet (not completed)
+
+Square sends payment.updated (status=COMPLETED)  
+  --> Update pos_orders
+  --> Match customer (4 strategies)
+  --> Fire "payment.completed" + maybe "first_purchase"
+  --> Mark as triggers_fired
+
+Square sends invoice.payment_made (status=PAID)
+  --> Match customer via primary_recipient
+  --> Fire "payment.completed" + maybe "first_purchase"
 ```
-// FROM:
-import { createClient } from "npm:@supabase/supabase-js@2.7.1";
 
-// TO:
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.10";
-```
-
-## 2. Fix `ScheduledCampaignBanner.tsx` type error
-
-**File:** `src/components/crm/ScheduledCampaignBanner.tsx` (line 187)
-
-The RPC function name is cast with `as RpcFunctionName`, so TypeScript cannot infer the return type and falls back to a broad union. The fix is to explicitly type-cast `row` before passing it to `setProgress`:
-
-```typescript
-const row = Array.isArray(data) ? data[0] : data;
-if (row) {
-  const typed = row as NonNullable<typeof progress>;
-  setProgressError(null);
-  setProgress((prev) => (isSameProgress(prev, typed) ? prev : typed));
-}
-```
-
-## 3. Un-suppress Christine's customer record
-
-Run a database migration to set `suppressed = false` for Christine's CRM record (`id: 4f3d15d7-be9b-4ed9-9fe5-cb8d0c6dffd6`). This ensures she can receive both email and SMS from automations.
-
-## 4. Square Webhook 403 -- User Action Required
-
-The Square webhook subscription is failing with a 403 because the Square app is missing the **"Webhooks (Read/Write)"** OAuth scope. This cannot be fixed in code -- Christine (or an admin) needs to:
-
-1. Go to the **Square Developer Dashboard**
-2. Enable the **Webhooks Read/Write** permission on the BloomSuite app
-3. Have Christine **re-authorize** the Square connection in BloomSuite (disconnect and reconnect)
-
-After reconnecting, the OAuth callback will automatically attempt to subscribe to webhooks. I will surface a note about this but cannot fix it programmatically.
-
----
-
-### Technical Details
-
-| Item | File | Change |
-|------|------|--------|
-| Edge function import | `supabase/functions/process-email-send-queue/index.ts:2` | Switch to `esm.sh` import |
-| Type error | `src/components/crm/ScheduledCampaignBanner.tsx:184-188` | Cast `row` to explicit progress type |
-| Suppression | Database migration | `UPDATE crm_customers SET suppressed = false WHERE id = '4f3d15d7-...'` |
-| Square webhooks | Manual step | Enable OAuth scope in Square Developer Dashboard |
+Only COMPLETED/PAID status fires the automation triggers, avoiding premature triggers on authorized-but-not-captured payments.
 
