@@ -7,6 +7,7 @@ import {
   Star, 
   CalendarCheck, 
   MailOpen,
+  CreditCard,
   LucideIcon
 } from 'lucide-react';
 
@@ -23,6 +24,18 @@ export const TRIGGERS: Trigger[] = [
     label: 'Customer joins Loyalty Program',
     description: 'Contact created with tag = loyalty',
     icon: UsersRound
+  },
+  {
+    id: 'order.created',
+    label: 'Order Created',
+    description: 'New order created in POS',
+    icon: ShoppingCart
+  },
+  {
+    id: 'payment.completed',
+    label: 'Payment Completed',
+    description: 'Real money movement completed',
+    icon: CreditCard
   },
   {
     id: 'first_purchase',

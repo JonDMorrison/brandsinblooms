@@ -147,6 +147,47 @@ async function fireAutomationTriggers(supabase: any, tenantId: string, customerI
   }
 }
 
+async function processOrderCreated(supabase: any, tenantId: string, userId: string, orderObj: any, merchantId: string, connection: any) {
+  const order = orderObj.order || orderObj;
+  const orderId = order.id;
+  const amount = (order.total_money?.amount || 0) / 100;
+  const squareCustomerId = order.customer_id;
+  const productNames = (order.line_items || []).map((li: any) => li.name || li.variation_name).filter(Boolean);
+
+  const { data: posConn } = await supabase.from('square_connections').select('id').eq('merchant_id', merchantId).single();
+  if (posConn) {
+    await supabase.from('pos_orders').upsert({
+      tenant_id: tenantId, pos_connection_id: posConn.id, external_id: orderId,
+      order_number: order.reference_id || orderId, total_amount: amount,
+      currency: order.total_money?.currency || 'USD', customer_external_id: squareCustomerId,
+      external_customer_id: squareCustomerId,
+      order_date: order.created_at || new Date().toISOString(), status: order.state || 'OPEN',
+      items: order.line_items?.map((li: any) => ({ name: li.name || li.variation_name, quantity: li.quantity, catalog_object_id: li.catalog_object_id })) || [],
+      raw_data: { order }
+    }, { onConflict: 'external_id,pos_connection_id' });
+  }
+
+  let customer = null, isFirstPurchase = false;
+  if (squareCustomerId) {
+    const { data: existing } = await supabase.from('crm_customers').select('*').eq('tenant_id', tenantId).eq('square_customer_id', squareCustomerId).single();
+    if (existing) {
+      customer = existing;
+      isFirstPurchase = !existing.first_purchase_date;
+    }
+  }
+
+  if (customer) {
+    const triggers = ['order.created'];
+    if (isFirstPurchase) triggers.push('first_purchase');
+    console.log(`[WEBHOOK] order.created triggers for customer ${customer.id}: ${triggers.join(', ')}`);
+    await fireAutomationTriggers(supabase, tenantId, customer.id, triggers, { order_amount: amount, order_id: orderId, merchant_id: merchantId, products: productNames });
+  } else {
+    console.log(`[WEBHOOK] order.created - no customer match for square_customer_id: ${squareCustomerId}`);
+  }
+
+  return { success: true, isFirstPurchase, customerId: customer?.id, orderId };
+}
+
 async function processPaymentCompleted(supabase: any, tenantId: string, userId: string, payment: any, merchantId: string, connection: any) {
   const paymentData = payment.payment || payment;
   const amount = (paymentData.amount_money?.amount || 0) / 100;
@@ -227,7 +268,7 @@ async function processPaymentCompleted(supabase: any, tenantId: string, userId: 
   }
 
   if (customer) {
-    const triggers = ['order.completed', 'review_request'];
+    const triggers = ['payment.completed', 'review_request'];
     if (isFirstPurchase) triggers.push('first_purchase');
     console.log(`[WEBHOOK] Firing triggers for customer ${customer.id} (matched_by=${matchedBy}): ${triggers.join(', ')}`);
     await fireAutomationTriggers(supabase, tenantId, customer.id, triggers, { order_amount: amount, order_id: paymentData.id, merchant_id: merchantId, products: productNames });
@@ -527,10 +568,13 @@ const handler = async (req: Request): Promise<Response> => {
     let result: any = { success: true, message: `Event ${payload.type} not handled` };
     
     switch (payload.type) {
+      case 'order.created':
+        result = await processOrderCreated(supabase, connection.tenant_id, connection.user_id, payload.data.object, payload.merchant_id, connection);
+        break;
       case 'payment.completed': 
         result = await processPaymentCompleted(supabase, connection.tenant_id, connection.user_id, payload.data.object, payload.merchant_id, connection); 
         break;
-      case 'customer.created': 
+      case 'customer.created':
         result = await processCustomerCreated(supabase, connection.tenant_id, connection.user_id, payload.data.object, connection); 
         break;
       case 'customer.updated': 
