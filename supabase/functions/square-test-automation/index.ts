@@ -177,6 +177,30 @@ Deno.serve(async (req) => {
         continue;
       }
 
+      // 24h cooldown check
+      const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const { data: recentRun } = await supabaseAdmin
+        .from('automation_runs')
+        .select('id')
+        .eq('automation_id', automation.id)
+        .eq('customer_id', customer.id)
+        .eq('status', 'completed')
+        .gte('completed_at', oneDayAgo)
+        .limit(1)
+        .maybeSingle();
+
+      if (recentRun) {
+        console.log(`⏭️ [TEST] Skipping ${automation.name} - completed within 24h cooldown`);
+        results.push({
+          automation_id: automation.id,
+          automation_name: automation.name,
+          skipped: true,
+          reason: 'completed_within_24h_cooldown',
+          existing_run_id: recentRun.id
+        });
+        continue;
+      }
+
       // Parse workflow steps
       const steps = Array.isArray(automation.workflow_steps) 
         ? automation.workflow_steps 

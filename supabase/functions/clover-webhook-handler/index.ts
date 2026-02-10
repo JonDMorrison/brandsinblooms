@@ -205,18 +205,81 @@ async function fireAutomationTriggers(
   for (const automation of automations) {
     if (!checkPersonaTargeting(customer, automation.persona_targeting)) continue;
     
-    const { data: existingLogs } = await supabase
-      .from('crm_automation_logs')
+    // ── Idempotency: check for active or recently completed runs (24h cooldown) ──
+    const { data: activeRun } = await supabase
+      .from('automation_runs')
       .select('id')
       .eq('automation_id', automation.id)
       .eq('customer_id', customerId)
-      .eq('status', 'queued')
-      .limit(1);
-      
-    if (existingLogs?.length) continue;
+      .in('status', ['active', 'paused'])
+      .limit(1)
+      .maybeSingle();
+
+    if (activeRun) {
+      console.log(`[CLOVER-WEBHOOK] Skipping automation ${automation.name} for customer ${customerId} — active run exists`);
+      continue;
+    }
+
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const { data: recentRun } = await supabase
+      .from('automation_runs')
+      .select('id')
+      .eq('automation_id', automation.id)
+      .eq('customer_id', customerId)
+      .eq('status', 'completed')
+      .gte('completed_at', oneDayAgo)
+      .limit(1)
+      .maybeSingle();
+
+    if (recentRun) {
+      console.log(`[CLOVER-WEBHOOK] Skipping automation ${automation.name} for customer ${customerId} — completed within 24h cooldown`);
+      continue;
+    }
     
     const workflowSteps: WorkflowStep[] = automation.workflow_steps || [];
     if (!workflowSteps.length) continue;
+
+    // Get next run sequence
+    const { data: maxSeqData } = await supabase
+      .from('automation_runs')
+      .select('run_sequence')
+      .eq('automation_id', automation.id)
+      .eq('customer_id', customerId)
+      .order('run_sequence', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const nextRunSequence = (maxSeqData?.run_sequence || 0) + 1;
+
+    // Create automation run to prevent duplicate triggering
+    const { data: runData, error: runError } = await supabase
+      .from('automation_runs')
+      .insert({
+        automation_id: automation.id,
+        customer_id: customerId,
+        tenant_id: tenantId,
+        status: 'active',
+        current_step_index: 0,
+        total_steps: workflowSteps.length,
+        run_sequence: nextRunSequence,
+        trigger_data: {
+          trigger_type: automation.trigger_type,
+          triggered_at: new Date().toISOString(),
+          customer_email: customer.email,
+          source: 'clover_webhook',
+        },
+        metadata: {
+          automation_name: automation.name,
+          overlap_behavior: automation.overlap_behavior || 'ignore',
+        },
+      })
+      .select('id')
+      .single();
+
+    if (runError) {
+      console.error(`[CLOVER-WEBHOOK] Failed to create automation run for ${automation.name}:`, runError);
+      continue;
+    }
+    const runId = runData.id;
     
     const baseTime = new Date();
     let enqueued = 0, skipped = 0;
@@ -235,6 +298,7 @@ async function fireAutomationTriggers(
       await supabase.from('crm_outbox').insert({
         tenant_id: tenantId,
         automation_id: automation.id,
+        automation_run_id: runId,
         automation_node_id: step.id || step.node_id || `step-${i}`,
         customer_id: customerId,
         message_type: messageType,
@@ -275,10 +339,11 @@ async function fireAutomationTriggers(
         steps_scheduled: enqueued,
         steps_skipped: skipped,
         pos_source: 'clover',
+        automation_run_id: runId,
       }
     });
     
-    console.log(`[CLOVER-WEBHOOK] Automation ${automation.name}: ${enqueued} steps enqueued, ${skipped} skipped`);
+    console.log(`[CLOVER-WEBHOOK] Automation ${automation.name}: ${enqueued} steps enqueued, ${skipped} skipped (run: ${runId})`);
   }
 }
 
