@@ -122,19 +122,19 @@ Deno.serve(async (req) => {
 
     console.log(`✅ [TEST] Updated last_purchase_date to ${currentDate}`);
 
-    // Get active automations for order.completed trigger
+    // Get active automations for payment.completed trigger
     const { data: automations } = await supabaseAdmin
       .from('crm_automations')
       .select('*')
       .eq('tenant_id', effectiveTenantId)
       .eq('is_active', true)
-      .eq('trigger_type', 'order.completed');
+      .eq('trigger_type', 'payment.completed');
 
     if (!automations?.length) {
       return new Response(
         JSON.stringify({ 
           success: true, 
-          message: 'No active automations for order.completed',
+          message: 'No active automations for payment.completed',
           customer_id: customer.id,
           customer_email: customer.email,
           last_purchase_date: currentDate
@@ -143,7 +143,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log(`📋 [TEST] Found ${automations.length} active order.completed automations`);
+    console.log(`📋 [TEST] Found ${automations.length} active payment.completed automations`);
 
     const results = [];
     const eventData = {
@@ -302,7 +302,7 @@ Deno.serve(async (req) => {
         customer_id: customer.id,
         event_type: 'triggered',
         metadata: {
-          trigger_type: 'order.completed',
+          trigger_type: 'payment.completed',
           event_data: eventData,
           test_mode: true,
           triggered_by: user.email

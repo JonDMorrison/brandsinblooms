@@ -39,13 +39,13 @@ export const triggerCatalog: TriggerMeta[] = [
     audienceType: 'event'
   },
   {
-    id: 'order.completed',
+    id: 'payment.completed',
     label: '🛍️ Any Purchase Completed',
     icon: '🛍️',
     defaultDelayMin: 30,
     channels: ['sms', 'email'],
     goalHint: 'Purchase Follow-up',
-    description: 'Triggered immediately when any Square purchase is completed',
+    description: 'Fires on payment.created or payment.updated (COMPLETED) or invoice.payment_made (PAID)',
     audienceType: 'event'
   },
   {

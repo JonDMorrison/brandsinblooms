@@ -404,7 +404,7 @@ async function processPaymentCompleted(
 
   // Fire automation triggers
   if (customer) {
-    const triggers = ['order.completed', 'review_request'];
+    const triggers = ['payment.completed', 'review_request'];
     if (isFirstPurchase) triggers.push('first_purchase');
     
     console.log(`[CLOVER-WEBHOOK] Firing triggers: ${triggers.join(', ')}`);

@@ -254,6 +254,18 @@ export const CRMAutomationBuilder = () => {
       "persona.assigned",
       "persona_assigned",
       "loyalty_members.segment_added",
+      "payment.completed",
+      "first_purchase",
+      "loyalty_join",
+      "abandoned_cart",
+      "review_request",
+      "refund.created",
+      "order.ready_for_pickup",
+      "order.shipped",
+      "repeat_purchase_90d",
+      "birthday",
+      "contact.created",
+      "contact.updated",
     ]);
 
     if (passthroughTriggerTypes.has(triggerType)) return triggerType;
