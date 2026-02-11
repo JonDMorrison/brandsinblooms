@@ -337,11 +337,6 @@ serve(async (req) => {
   const workerId = Deno.env.get('WORKER_ID') || `email-queue-worker-${crypto.randomUUID()}`;
   const claimToken = crypto.randomUUID();
 
-  const defaultTenantDailyLimit = Math.max(
-    1,
-    parseInt(Deno.env.get('DEFAULT_TENANT_EMAIL_DAILY_LIMIT') || '100000', 10) || 100000
-  );
-
   console.log(
     `⚙️ Resend settings: batch_size=${resendBatchSize} (fixed), min_interval_ms=${RESEND_MIN_INTERVAL_MS} (fixed, global)`
   );
@@ -366,22 +361,56 @@ serve(async (req) => {
     }
 
     // Atomically claim jobs (prevents concurrent workers from processing the same job)
-    const { data: jobs, error: claimError } = await supabase.rpc('claim_email_send_jobs', {
-      batch_size: MAX_JOBS_PER_INVOCATION,
-      worker_id: workerId,
-      p_claim_token: claimToken,
-      stale_after_minutes: 10,
-    });
+    const claimOnce = async (batchSize: number) =>
+      await supabase.rpc('claim_email_send_job_ids', {
+        batch_size: batchSize,
+        worker_id: workerId,
+        p_claim_token: claimToken,
+        stale_after_minutes: 10,
+      });
 
-    if (claimError) {
-      console.error('❌ Error claiming jobs:', claimError);
-      return new Response(
-        JSON.stringify({ error: 'Failed to claim jobs' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    let claimedJobIds: string[] = [];
+    {
+      const { data, error } = await claimOnce(MAX_JOBS_PER_INVOCATION);
+
+      if (error) {
+        const msg = String((error as any)?.message || error);
+        console.error('❌ Error claiming jobs:', {
+          message: msg,
+          details: (error as any)?.details,
+          hint: (error as any)?.hint,
+          code: (error as any)?.code,
+        });
+
+        const looksLikeTimeout = msg.toLowerCase().includes('timeout');
+        if (looksLikeTimeout && MAX_JOBS_PER_INVOCATION > 1) {
+          console.log('🔁 Retrying job claim with smaller batch_size=1 due to timeout');
+          const retry = await claimOnce(1);
+          if (retry.error) {
+            console.error('❌ Error claiming jobs (retry):', {
+              message: String((retry.error as any)?.message || retry.error),
+              details: (retry.error as any)?.details,
+              hint: (retry.error as any)?.hint,
+              code: (retry.error as any)?.code,
+            });
+            return new Response(
+              JSON.stringify({ error: 'Failed to claim jobs' }),
+              { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+          claimedJobIds = (retry.data || []).map((r: any) => String(r?.id)).filter(Boolean);
+        } else {
+          return new Response(
+            JSON.stringify({ error: 'Failed to claim jobs' }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+      } else {
+        claimedJobIds = (data || []).map((r: any) => String(r?.id)).filter(Boolean);
+      }
     }
 
-    if (!jobs || jobs.length === 0) {
+    if (claimedJobIds.length === 0) {
       // Before returning, check for stuck campaigns (status='sending' but all jobs completed)
       const { data: stuckCampaigns } = await supabase
         .from('crm_campaigns')
@@ -430,6 +459,50 @@ serve(async (req) => {
         JSON.stringify({ processed: 0, finalized, message: 'No pending jobs' }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    const { data: jobs, error: jobsFetchError } = await supabase
+      .from('email_send_jobs')
+      .select('id, campaign_id, tenant_id, domain_id, status, batch_index, recipient_message_ids')
+      .in('id', claimedJobIds);
+
+    if (jobsFetchError) {
+      console.error('❌ Error fetching claimed jobs:', {
+        message: jobsFetchError.message,
+        details: (jobsFetchError as any)?.details,
+        hint: (jobsFetchError as any)?.hint,
+        code: (jobsFetchError as any)?.code,
+      });
+      return new Response(
+        JSON.stringify({ error: 'Failed to fetch claimed jobs' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const jobsNeedingEmails = (jobs || []).filter((j: any) =>
+      !Array.isArray(j?.recipient_message_ids) || j.recipient_message_ids.length === 0
+    );
+
+    if (jobsNeedingEmails.length > 0) {
+      const idsNeedingEmails = jobsNeedingEmails.map((j: any) => j.id);
+      const { data: jobEmailRows, error: jobEmailErr } = await supabase
+        .from('email_send_jobs')
+        .select('id, recipient_emails')
+        .in('id', idsNeedingEmails);
+
+      if (jobEmailErr) {
+        console.warn('⚠️ Failed to fetch recipient_emails for some jobs:', {
+          message: jobEmailErr.message,
+          code: (jobEmailErr as any)?.code,
+        });
+      } else {
+        const byId = new Map<string, any>();
+        (jobEmailRows || []).forEach((r: any) => byId.set(String(r?.id), r));
+        (jobs || []).forEach((j: any) => {
+          const extra = byId.get(String(j?.id));
+          if (extra && !j.recipient_emails) j.recipient_emails = extra.recipient_emails;
+        });
+      }
     }
 
     console.log(`📧 Processing ${jobs.length} claimed email send jobs (batch delay: ${batchDelayMs}ms)...`);
@@ -595,40 +668,6 @@ serve(async (req) => {
             continue;
           }
           if (!claimed) continue;
-
-          // Hard daily quota reservation (DB-enforced). If no capacity remains, release and stop.
-          const { data: quotaOk, error: quotaErr } = await supabase.rpc('reserve_email_daily_capacity', {
-            p_tenant_id: claimed.tenant_id,
-            p_domain_id: claimed.domain_id || null,
-            p_tokens: 1,
-            p_default_tenant_limit: defaultTenantDailyLimit,
-          });
-
-          if (quotaErr) {
-            console.warn('⚠️ Daily quota reservation failed (allowing send):', quotaErr.message);
-            claimedForSend.push(claimed);
-            continue;
-          }
-
-          if (quotaOk !== true) {
-            console.log(`⏸️ Daily quota exhausted; deferring remaining messages for job ${job.id}`);
-            lastError = 'Daily sending limit reached';
-            // Release the message back to queued so it can be resumed tomorrow.
-            await supabase
-              .from('email_messages')
-              .update({
-                status: 'queued',
-                error_message: 'Daily sending limit reached',
-                claim_token: null,
-                claimed_at: null,
-                claimed_by: null,
-                updated_at: nowIso,
-              })
-              .eq('id', claimed.id)
-              .eq('claim_token', claimToken)
-              .is('resend_id', null);
-            break;
-          }
 
           claimedForSend.push(claimed);
         }

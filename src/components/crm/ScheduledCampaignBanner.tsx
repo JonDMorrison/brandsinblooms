@@ -8,7 +8,10 @@ import { toZonedTime } from "date-fns-tz";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import { useToast } from "@/hooks/use-toast";
-import { ensureQueuedEmailMessagesHaveJobs, retryFailedEmailMessages } from "@/lib/email/emailRetryService";
+import {
+  ensureQueuedEmailMessagesHaveJobs,
+  retryFailedEmailMessages,
+} from "@/lib/email/emailRetryService";
 import { markEmailCampaignCompletedWithFailures } from "@/lib/email/emailCompletionService";
 import {
   AlertDialog,
