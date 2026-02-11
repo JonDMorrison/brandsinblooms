@@ -2,7 +2,8 @@ import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Users, Mail, ShoppingBag, Gift, TrendingUp, Crown, Plus, Loader2 } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Users, Mail, ShoppingBag, Gift, TrendingUp, Crown, Plus, Loader2, AlertTriangle, ArrowUpCircle } from 'lucide-react';
 import { ResolvedSegment } from '@/utils/segmentResolution';
 
 const iconMap = {
@@ -18,7 +19,9 @@ interface SystemSegmentCardProps {
   segment: ResolvedSegment;
   icon: keyof typeof iconMap;
   isActivating?: boolean;
+  hasDuplicate?: boolean;
   onAdd?: () => void;
+  onUpgrade?: () => void;
   onViewDetails?: () => void;
   onCreateCampaign?: () => void;
 }
@@ -27,12 +30,15 @@ export const SystemSegmentCard: React.FC<SystemSegmentCardProps> = ({
   segment,
   icon,
   isActivating,
+  hasDuplicate,
   onAdd,
+  onUpgrade,
   onViewDetails,
   onCreateCampaign,
 }) => {
   const IconComponent = iconMap[icon] || Users;
   const isPending = segment.state === 'system_pending';
+  const isUserCreated = segment.state === 'user'; // Name matches system def but not flagged as system
 
   return (
     <Card
@@ -65,10 +71,43 @@ export const SystemSegmentCard: React.FC<SystemSegmentCardProps> = ({
               >
                 {segment.name}
               </h3>
-              {!isPending && (
-                <Badge variant="secondary" className="text-[10px] px-1.5 py-0 shrink-0">
-                  System
-                </Badge>
+              {!isPending && !isUserCreated && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span>
+                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0 shrink-0 cursor-help">
+                        System
+                      </Badge>
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs">
+                    <p className="text-sm">System segments are predefined and their names cannot be changed.</p>
+                  </TooltipContent>
+                </Tooltip>
+              )}
+              {isUserCreated && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span>
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 shrink-0 cursor-help border-amber-500/30 text-amber-600">
+                        User
+                      </Badge>
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs">
+                    <p className="text-sm">This segment was created manually. Upgrade it to a system segment to enable name protection.</p>
+                  </TooltipContent>
+                </Tooltip>
+              )}
+              {hasDuplicate && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0 cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs">
+                    <p className="text-sm">Multiple segments share this name. Consider consolidating them.</p>
+                  </TooltipContent>
+                </Tooltip>
               )}
             </div>
             <p
@@ -99,7 +138,7 @@ export const SystemSegmentCard: React.FC<SystemSegmentCardProps> = ({
               {isActivating ? 'Activating...' : 'Add Segment'}
             </Button>
             <p className="text-[10px] text-muted-foreground text-center mt-1.5">
-              Available — click to add
+              Predefined — click to activate
             </p>
           </div>
         ) : (
@@ -110,23 +149,45 @@ export const SystemSegmentCard: React.FC<SystemSegmentCardProps> = ({
                 {segment.customer_count} customers
               </span>
             </div>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                className="flex-1 text-xs"
-                onClick={onViewDetails}
-              >
-                View Details
-              </Button>
-              <Button
-                size="sm"
-                className="flex-1 text-xs"
-                onClick={onCreateCampaign}
-              >
-                Create Campaign
-              </Button>
-            </div>
+            {isUserCreated && onUpgrade ? (
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1 text-xs"
+                  onClick={onUpgrade}
+                >
+                  <ArrowUpCircle className="h-3.5 w-3.5 mr-1" />
+                  Upgrade to System
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1 text-xs"
+                  onClick={onViewDetails}
+                >
+                  View Details
+                </Button>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1 text-xs"
+                  onClick={onViewDetails}
+                >
+                  View Details
+                </Button>
+                <Button
+                  size="sm"
+                  className="flex-1 text-xs"
+                  onClick={onCreateCampaign}
+                >
+                  Create Campaign
+                </Button>
+              </div>
+            )}
           </>
         )}
       </CardContent>

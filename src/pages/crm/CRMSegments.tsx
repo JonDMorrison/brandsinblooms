@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -572,6 +573,25 @@ const CRMSegments = () => {
     setShowSegmentForm(true);
   };
 
+  const upgradeToSystemSegment = useCallback(async (segment: ResolvedSegment) => {
+    if (!user || !segment.id) return;
+    try {
+      const { error } = await supabase
+        .from('crm_segments')
+        .update({ is_system_segment: true })
+        .eq('id', segment.id);
+
+      if (error) throw error;
+
+      toast({ title: 'Upgraded', description: `"${segment.name}" is now a protected system segment.` });
+      loadSegments();
+      setRefreshKey((k) => k + 1);
+    } catch (err) {
+      console.error('upgradeToSystemSegment error:', err);
+      toast({ title: 'Error', description: 'Failed to upgrade segment', variant: 'destructive' });
+    }
+  }, [user, toast]);
+
   const activateSystemSegment = useCallback(async (segment: ResolvedSegment, definition: SegmentDefinition) => {
     if (!user) return;
     setActivatingId(definition.id);
@@ -585,13 +605,25 @@ const CRMSegments = () => {
       // Idempotency check
       const { data: existing } = await supabase
         .from('crm_segments')
-        .select('id')
+        .select('id, is_system_segment')
         .eq('tenant_id', validation.tenantId)
         .ilike('name', definition.name)
         .maybeSingle();
 
       if (existing) {
-        toast({ title: 'Already Active', description: `"${definition.name}" is already in your segments.` });
+        if (!existing.is_system_segment) {
+          // User-created segment with same name — upgrade it
+          const { error: upErr } = await supabase
+            .from('crm_segments')
+            .update({ is_system_segment: true })
+            .eq('id', existing.id);
+          if (upErr) throw upErr;
+          toast({ title: 'Upgraded to System', description: `"${definition.name}" already existed and has been promoted to a system segment.` });
+          loadSegments();
+          setRefreshKey((k) => k + 1);
+        } else {
+          toast({ title: 'Already Active', description: `"${definition.name}" is already in your segments.` });
+        }
         return;
       }
 
@@ -606,14 +638,20 @@ const CRMSegments = () => {
         auto_update: true,
       });
 
-      if (error) throw error;
+      if (error) {
+        if (error.code === '23505') {
+          toast({ title: 'Already Exists', description: `A segment named "${definition.name}" already exists.` });
+          return;
+        }
+        throw error;
+      }
 
       toast({ title: 'Segment Activated', description: `"${definition.name}" has been added to your segments.` });
       loadSegments();
       setRefreshKey((k) => k + 1);
     } catch (err) {
       console.error('activateSystemSegment error:', err);
-      toast({ title: 'Error', description: 'Failed to activate segment', variant: 'destructive' });
+      toast({ title: 'Activation Failed', description: `Could not activate "${definition.name}". Please try again.`, variant: 'destructive' });
     } finally {
       setActivatingId(null);
     }
@@ -838,6 +876,7 @@ const CRMSegments = () => {
               navigate(`/crm/campaigns/new?segment=${seg.id}&locked=true`);
             }
           }}
+          onUpgrade={(seg) => upgradeToSystemSegment(seg)}
         />
 
         {/* Custom Segments Table */}
@@ -903,17 +942,26 @@ const CRMSegments = () => {
                        </TableCell>
                        <TableCell>
                         {segment.is_system_segment ? (
-                            <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
-                              <Shield className="h-3 w-3 mr-1" />
-                              System
-                            </Badge>
-                          ) : (segment as any).persona_id ? (
-                            <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
-                              🎯 Persona-based
-                            </Badge>
-                          ) : (
-                            <Badge variant="secondary">Custom</Badge>
-                          )}
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span>
+                                  <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 cursor-help">
+                                    <Shield className="h-3 w-3 mr-1" />
+                                    System
+                                  </Badge>
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent className="max-w-xs">
+                                <p className="text-sm">System segments are predefined and their names cannot be changed.</p>
+                              </TooltipContent>
+                            </Tooltip>
+                           ) : (segment as any).persona_id ? (
+                             <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
+                               🎯 Persona-based
+                             </Badge>
+                           ) : (
+                             <Badge variant="secondary">Custom</Badge>
+                           )}
                        </TableCell>
                        <TableCell>
                          <Badge variant={segment.auto_update ? "default" : "secondary"}>
@@ -1031,7 +1079,7 @@ const CRMSegments = () => {
           title={deleteTarget?.is_system_segment ? "Delete System Segment?" : "Delete Segment?"}
           description={
             deleteTarget?.is_system_segment
-              ? `"${deleteTarget.name}" is a system segment. Removing it will require re-activation. Are you sure?`
+              ? `"${deleteTarget.name}" is a system segment. Removing it will require re-activation. You can re-activate it anytime from the System Segments area. Are you sure?`
               : `Are you sure you want to delete "${deleteTarget?.name}"? This action cannot be undone.`
           }
           confirmText="Delete"
