@@ -9,14 +9,18 @@ interface SystemSegmentsGridProps {
   onAdd: (segment: ResolvedSegment, definition: typeof SYSTEM_SEGMENTS[number]) => void;
   onViewDetails: (segment: ResolvedSegment) => void;
   onCreateCampaign: (segment: ResolvedSegment) => void;
+  refreshKey?: number;
+  activatingId?: string | null;
 }
 
 export const SystemSegmentsGrid: React.FC<SystemSegmentsGridProps> = ({
   onAdd,
   onViewDetails,
   onCreateCampaign,
+  refreshKey,
+  activatingId,
 }) => {
-  const { resolved, loading } = useSegmentResolution();
+  const { resolved, loading } = useSegmentResolution(refreshKey);
 
   // Map each system definition to its resolved segment, sorted active-first
   const systemCards = SYSTEM_SEGMENTS.map((def) => {
@@ -55,6 +59,7 @@ export const SystemSegmentsGrid: React.FC<SystemSegmentsGridProps> = ({
             key={definition.id}
             segment={seg!}
             icon={definition.icon}
+            isActivating={activatingId === definition.id}
             onAdd={() => onAdd(seg!, definition)}
             onViewDetails={() => onViewDetails(seg!)}
             onCreateCampaign={() => onCreateCampaign(seg!)}

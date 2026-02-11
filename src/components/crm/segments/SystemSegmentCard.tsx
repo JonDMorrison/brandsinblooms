@@ -2,7 +2,7 @@ import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Users, Mail, ShoppingBag, Gift, TrendingUp, Crown, Plus } from 'lucide-react';
+import { Users, Mail, ShoppingBag, Gift, TrendingUp, Crown, Plus, Loader2 } from 'lucide-react';
 import { ResolvedSegment } from '@/utils/segmentResolution';
 
 const iconMap = {
@@ -17,6 +17,7 @@ const iconMap = {
 interface SystemSegmentCardProps {
   segment: ResolvedSegment;
   icon: keyof typeof iconMap;
+  isActivating?: boolean;
   onAdd?: () => void;
   onViewDetails?: () => void;
   onCreateCampaign?: () => void;
@@ -25,6 +26,7 @@ interface SystemSegmentCardProps {
 export const SystemSegmentCard: React.FC<SystemSegmentCardProps> = ({
   segment,
   icon,
+  isActivating,
   onAdd,
   onViewDetails,
   onCreateCampaign,
@@ -87,9 +89,14 @@ export const SystemSegmentCard: React.FC<SystemSegmentCardProps> = ({
               variant="outline"
               className="w-full"
               onClick={onAdd}
+              disabled={isActivating}
             >
-              <Plus className="h-3.5 w-3.5 mr-1.5" />
-              Add Segment
+              {isActivating ? (
+                <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+              ) : (
+                <Plus className="h-3.5 w-3.5 mr-1.5" />
+              )}
+              {isActivating ? 'Activating...' : 'Add Segment'}
             </Button>
             <p className="text-[10px] text-muted-foreground text-center mt-1.5">
               Available — click to add

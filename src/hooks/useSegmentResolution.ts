@@ -20,7 +20,7 @@ interface UseSegmentResolutionReturn {
   refresh: () => void;
 }
 
-export const useSegmentResolution = (): UseSegmentResolutionReturn => {
+export const useSegmentResolution = (refreshKey?: number): UseSegmentResolutionReturn => {
   const [dbSegments, setDbSegments] = useState<DbSegment[]>([]);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
@@ -59,7 +59,7 @@ export const useSegmentResolution = (): UseSegmentResolutionReturn => {
 
   useEffect(() => {
     fetchSegments();
-  }, [fetchSegments]);
+  }, [fetchSegments, refreshKey]);
 
   const result = useMemo(
     () => resolveSegments(dbSegments, SYSTEM_SEGMENTS),
