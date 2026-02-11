@@ -516,10 +516,10 @@ serve(async (req: Request) => {
     // `.in(...)` chunk loops can accidentally accumulate multiple `id=in.(...)` filters, producing
     // an enormous URL (and fetch failures) like `...&id=in.(...chunk1...)&id=in.(...chunk2...)`.
     // Always create a fresh builder per request.
-    const buildCustomersQuery = () =>
+      const buildCustomersQuery = () =>
       supabase
         .from('crm_customers')
-        .select('id, first_name, last_name, email, suppressed')
+        .select('id, first_name, last_name, email, suppressed, suppressed_reason')
         .eq('tenant_id', campaign.tenant_id)
         .not('email', 'is', null);
 
@@ -577,11 +577,26 @@ serve(async (req: Request) => {
     let suppressedByListCount = 0;
     const skippedRecipients: Array<{ customer_id: string; email: string; reason: string }> = [];
 
+    const isEngagementBasedSuppression = (reason?: string | null): boolean => {
+      if (!reason) return false;
+      const lower = reason.toLowerCase();
+      return (
+        lower.includes('no email opens') ||
+        lower.includes('inactivity') ||
+        lower.includes('engagement') ||
+        lower.includes('180 days')
+      );
+    };
+
     if (!includeSuppressed) {
-      // First filter by the suppressed flag
-      const suppressedFlagRows = customers.filter(c => c?.suppressed && c?.email);
-      const activeCustomers = customers.filter(c => !c.suppressed);
-      suppressedCount = customers.length - activeCustomers.length;
+      // First filter by the suppressed flag (but bypass engagement-based suppression)
+      const suppressedFlagRows = customers.filter(
+        (c: any) => c?.suppressed && c?.email && !isEngagementBasedSuppression(c?.suppressed_reason)
+      );
+      const activeCustomers = customers.filter(
+        (c: any) => !c?.suppressed || isEngagementBasedSuppression(c?.suppressed_reason)
+      );
+      suppressedCount = suppressedFlagRows.length;
 
       suppressedFlagRows.forEach((c: any) => {
         if (typeof c?.id === 'string' && typeof c?.email === 'string') {
