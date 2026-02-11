@@ -130,15 +130,6 @@ export const SegmentOverviewCard: React.FC<SegmentOverviewCardProps> = ({
               View Details
             </Button>
             <Button 
-              variant="outline"
-              size={isMobile ? "default" : "sm"} 
-              onClick={onSendSMS}
-              className={`${isMobile ? 'w-full min-h-[44px]' : 'flex-1 min-w-0'}`}
-            >
-              <MessageSquare className="h-4 w-4 mr-1" />
-              Send SMS
-            </Button>
-            <Button 
               size={isMobile ? "default" : "sm"} 
               onClick={onCreateCampaign}
               className={`${isMobile ? 'w-full min-h-[44px]' : 'flex-1 min-w-0'}`}
