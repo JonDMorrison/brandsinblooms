@@ -56,6 +56,8 @@ export const SegmentDetailsModal: React.FC<SegmentDetailsModalProps> = ({
 
   const isCustomSegment = segment?.id ? segment.id.length > 10 : false;
 
+  const shouldLoadCustomers = isCustomSegment || isSystemSegment;
+
   // Lazy loaded customers in segment
   const {
     customers: segmentCustomers,
@@ -67,10 +69,10 @@ export const SegmentDetailsModal: React.FC<SegmentDetailsModalProps> = ({
     refetch: refetchSegmentCustomers,
     isSearching: isSearchingSegment,
   } = usePaginatedCustomers({
-    segmentId: isCustomSegment ? segment?.id : undefined,
+    segmentId: shouldLoadCustomers ? segment?.id : undefined,
     searchTerm: assignedSearchTerm,
     pageSize: 25,
-    enabled: open && !!segment && isCustomSegment,
+    enabled: open && !!segment && shouldLoadCustomers,
   });
 
   // Lazy loaded available customers (not in segment)
@@ -278,12 +280,57 @@ export const SegmentDetailsModal: React.FC<SegmentDetailsModalProps> = ({
           )}
 
           {isSystemSegment && (
-            <div className="mb-4 p-3 bg-primary/5 border border-primary/20 rounded-lg flex items-start gap-2">
-              <Shield className="h-4 w-4 text-primary mt-0.5 shrink-0" />
-              <p className="text-sm text-foreground">
-                This is a system segment. Membership is managed automatically based on segment rules.
-              </p>
-            </div>
+            <>
+              <div className="mb-2 p-3 bg-primary/5 border border-primary/20 rounded-lg flex items-start gap-2">
+                <Shield className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                <p className="text-sm text-foreground">
+                  This is a system segment. Membership is managed automatically based on segment rules.
+                </p>
+              </div>
+
+              {/* Read-only searchable customer list for system segments */}
+              <div className="flex-1 min-h-0 flex flex-col">
+                <h3 className="font-semibold mb-2 flex items-center gap-2">
+                  <Users className="h-4 w-4" />
+                  Segment Members
+                </h3>
+                <div className="relative mb-3">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search by name, email, or phone..."
+                    value={assignedSearchTerm}
+                    onChange={(e) => setAssignedSearchTerm(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
+                <LazyCustomerList
+                  customers={segmentCustomers}
+                  isLoading={segmentLoading}
+                  isFetchingNextPage={segmentFetchingMore}
+                  hasNextPage={hasMoreSegmentCustomers}
+                  onLoadMore={() => loadMoreSegmentCustomers()}
+                  totalCount={segmentTotalCount}
+                  emptyMessage="No customers in this segment yet."
+                  searchTerm={assignedSearchTerm}
+                  isSearching={isSearchingSegment}
+                  renderCustomer={(customer) => (
+                    <div className="flex items-center justify-between p-3 hover:bg-muted/50 rounded-lg mb-1">
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium truncate text-sm">{customer.email}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {customer.first_name || customer.last_name
+                            ? `${customer.first_name || ''} ${customer.last_name || ''}`.trim()
+                            : 'No name'}
+                          {customer.total_spent !== undefined && customer.total_spent > 0 && (
+                            <span className="ml-2">• ${customer.total_spent.toFixed(2)}</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                />
+              </div>
+            </>
           )}
 
           {!isSystemSegment && (
