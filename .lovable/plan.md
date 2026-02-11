@@ -1,77 +1,77 @@
 
-
-# Milestone 4 -- System Segment Activation Flow
+# Milestone 5 -- Permissions, Editing, and Campaign Integration
 
 ## Goal
-Replace the current "open form dialog" behavior of the + button with a direct, one-click creation that inserts the system segment into the database with `is_system_segment = true`, then refreshes the grid so the card flips from pending to active.
+Enforce strict permission rules for system segments (no rename, confirmation-gated deletion) and wire the "Create Campaign" button to navigate to the campaign creator with the segment pre-selected and locked.
 
 ## Current State
-- The + button on a pending system segment currently opens the segment creation dialog pre-filled with name/conditions. The user must then click "Create Segment" to save.
-- The `saveSegment` function inserts into `crm_segments` but does not set `is_system_segment = true` for new rows.
-- The `SystemSegmentsGrid` gets its data from `useSegmentResolution`, which is independent of the `loadSegments` call in `CRMSegments.tsx`.
+- **Name locking**: Already partially implemented -- the edit dialog shows a read-only name field when `is_system_segment` is true (line 664-677 of CRMSegments.tsx). The `saveSegment` function also skips name updates for system segments (line 408-410).
+- **Deletion**: The table hides the trash icon for system segments (line 931), but the `deleteSegment` function only shows a toast and returns early -- there is no confirmation dialog for non-system segments either.
+- **Campaign integration**: The "Create Campaign" button on `SystemSegmentCard` currently shows a "coming soon" toast (line 831-836). The campaign creator (`CRMCampaignCreator.tsx`) already supports loading a segment from URL via `?segment=<id>` and pre-selecting it, but there is no mechanism to **lock** the segment selection after pre-selection.
+- **SegmentDetailsModal**: Does not have any system-segment-aware restrictions -- it shows full customer management UI regardless.
 
 ## Implementation Steps
 
-### Step 1 -- Create `activateSystemSegment` function in `CRMSegments.tsx`
+### Step 1 -- Wire "Create Campaign" to Navigate with Segment ID
 
-Add a new async function that:
+In `CRMSegments.tsx`, replace the placeholder toast in the `onCreateCampaign` callback of `SystemSegmentsGrid` with a `navigate()` call:
 
-1. Fetches the user's `tenant_id`
-2. Checks for an existing segment with the same name (case-insensitive) and `tenant_id` to enforce idempotency -- if found, shows an info toast and returns early
-3. Inserts a new row with `is_system_segment: true`, the definition's name, description, and conditions
-4. Shows a success toast
-5. Calls `loadSegments()` to refresh the table
-
-```text
-activateSystemSegment(segment: ResolvedSegment, definition: SegmentDefinition)
-  -> check existing by name (ilike match) + tenant_id
-  -> if exists: toast "Already active" and return
-  -> insert { name, description, conditions, is_system_segment: true, tenant_id, user_id }
-  -> toast success
-  -> loadSegments()
-```
-
-### Step 2 -- Update `onAdd` callback in `SystemSegmentsGrid`
-
-Replace the current `onAdd` handler (which opens the form dialog) with a call to `activateSystemSegment`. No dialog is opened -- the segment is created directly on click.
-
-Before (current):
 ```ts
-onAdd={(seg, def) => {
-  setFormData({ ... });
-  setShowSegmentForm(true);
+onCreateCampaign={(seg) => {
+  if (seg.id) {
+    navigate(`/crm/campaigns/new?segment=${seg.id}&locked=true`);
+  }
 }}
 ```
 
-After:
-```ts
-onAdd={(seg, def) => {
-  activateSystemSegment(seg, def);
-}}
-```
+The `locked=true` query param signals the campaign creator to prevent changing the segment.
 
-### Step 3 -- Trigger `SystemSegmentsGrid` refresh after activation
+Also add the same pattern in `SystemSegmentCard` and `SegmentCard` -- both already navigate but `SystemSegmentCard` needs the actual wiring.
 
-The grid uses `useSegmentResolution` which has its own `refresh` function. To ensure the grid updates after activation:
+### Step 2 -- Lock Segment Selection in Campaign Creator
 
-- Lift the resolution hook's `refresh` into `CRMSegments.tsx` by either:
-  - (a) Passing a `refreshKey` prop to `SystemSegmentsGrid` (a counter that increments after each activation), or
-  - (b) Adding a ref-based `refresh` callback exposed from `SystemSegmentsGrid` via `forwardRef`/`useImperativeHandle`
+In `CRMCampaignCreator.tsx`:
 
-Option (a) is simpler: add a `refreshKey: number` state to `CRMSegments.tsx`, increment it in `activateSystemSegment`, and pass it to `SystemSegmentsGrid` which passes it as a dependency to `useSegmentResolution`'s `useEffect`.
+1. Read `locked` from `searchParams`: `const isSegmentLocked = searchParams.get('locked') === 'true'`
+2. Pass `isSegmentLocked` down to the audience selection UI
+3. When locked:
+   - Show a `Shield` icon and "Locked" badge next to the selected segment
+   - Disable the "Change Audience" / segment removal controls
+   - Show a subtle info text: "Segment was pre-selected and cannot be changed for this campaign"
 
-### Step 4 -- Add `refreshKey` support to `useSegmentResolution`
+In `AudienceSelector.tsx`:
+- Add an optional `lockedSegmentIds?: string[]` prop
+- When a segment ID is in `lockedSegmentIds`, hide its remove (X) button and disable toggling it off
+- Optionally show a lock icon on the chip
 
-Add an optional `refreshKey` parameter so external code can trigger a re-fetch:
+### Step 3 -- Add Confirmation Dialog for System Segment Deletion
 
-```ts
-useSegmentResolution(refreshKey?: number)
-  -> include refreshKey in useEffect dependency array
-```
+Even though the trash icon is hidden in the table, system segments can still be opened via the edit dialog. Add a safety net:
 
-### Step 5 -- Add loading state to + button
+In `CRMSegments.tsx`, update `deleteSegment` to:
+1. For system segments: show a `ConfirmationDialog` (already exists in `src/components/ui/confirmation-dialog.tsx`) with a strong warning: "This is a system segment. Removing it will require re-activation. Are you sure?"
+2. For non-system segments: show a simpler confirmation dialog before deleting
 
-While `activateSystemSegment` is running, disable the + button to prevent double-clicks. Use a `activatingId` state (`string | null`) in `CRMSegments.tsx` and pass it through to the grid/card.
+Add state: `const [deleteTarget, setDeleteTarget] = useState<Segment | null>(null)`
+
+The confirmation dialog renders at the bottom of the component and calls the actual delete logic on confirm.
+
+### Step 4 -- Restrict SegmentDetailsModal for System Segments
+
+In `SegmentDetailsModal.tsx`:
+- Accept an optional `isSystemSegment?: boolean` prop (or derive from segment data)
+- When true:
+  - Hide the "Available Customers" column (manual add/remove is not appropriate for rule-based system segments)
+  - Hide the "Import" button
+  - Show an info banner: "This is a system segment. Membership is managed automatically based on segment rules."
+  - Keep the "Send SMS" and "Close" buttons functional
+
+### Step 5 -- Lock Condition Builder for System Segments (Read-Only Mode)
+
+In the edit dialog within `CRMSegments.tsx`:
+- When `editingSegment?.is_system_segment`, render the `ConditionBuilder` in a read-only/disabled state
+- Add a `disabled?: boolean` prop to `ConditionBuilder` that prevents adding, editing, or removing conditions
+- Show the existing conditions as view-only badges/pills
 
 ---
 
@@ -79,12 +79,15 @@ While `activateSystemSegment` is running, disable the + button to prevent double
 
 | File | Change |
 |------|--------|
-| `src/pages/crm/CRMSegments.tsx` | Add `activateSystemSegment` function; replace `onAdd` handler; add `refreshKey` and `activatingId` state |
-| `src/hooks/useSegmentResolution.ts` | Accept optional `refreshKey` in dependency array |
-| `src/components/crm/segments/SystemSegmentsGrid.tsx` | Accept `refreshKey` and `activatingId` props; pass to hook and cards |
-| `src/components/crm/segments/SystemSegmentCard.tsx` | Accept `isActivating` prop to show loading/disabled state on + button |
+| `src/pages/crm/CRMSegments.tsx` | Wire campaign navigation; add confirmation dialog for delete; disable ConditionBuilder for system segments |
+| `src/components/crm/CRMCampaignCreator.tsx` | Read `locked` param; pass `lockedSegmentIds` to AudienceSelector |
+| `src/components/crm/AudienceSelector.tsx` | Add `lockedSegmentIds` prop; prevent removal of locked segments |
+| `src/components/crm/segments/SegmentDetailsModal.tsx` | Add system segment restrictions (hide manual management, show info banner) |
+| `src/components/crm/segments/ConditionBuilder.tsx` | Add `disabled` prop for read-only mode |
+| `src/components/crm/segments/SystemSegmentCard.tsx` | No changes needed (already has correct buttons) |
 
-## Idempotency Guarantee
-- Application-level: check for existing segment by `name` (case-insensitive) + `tenant_id` before insert
-- Database-level: the `guard_system_segments` trigger from Milestone 1 prevents duplicate system names from being modified/deleted but does not block inserts -- the app-level check handles that
-
+## What This Milestone Does NOT Do
+- Does not add role-based permissions (admin vs user) -- that is a separate concern
+- Does not modify database triggers or RLS policies
+- Does not change the segment resolution engine
+- Does not add audit logging for permission-gated actions
