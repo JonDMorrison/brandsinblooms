@@ -9,7 +9,8 @@ import {
   MousePointerClick, 
   AlertTriangle, 
   XCircle,
-  UserMinus 
+  UserMinus,
+  ShieldX
 } from 'lucide-react';
 import { useCampaignDeliverabilityStats } from '@/hooks/useDeliverabilityStats';
 
@@ -101,8 +102,19 @@ export const CampaignDeliverabilityStats: React.FC<CampaignDeliverabilityStatsPr
         </div>
 
         {/* Problem indicators */}
-        {(bounced > 0 || complained > 0 || unsubscribed > 0) && (
+        {(bounced > 0 || complained > 0 || unsubscribed > 0 || stats.skipped > 0) && (
           <div className="flex flex-wrap gap-2 pt-2 border-t">
+            {stats.skipped > 0 && (
+              <Badge variant="outline" className="gap-1 text-amber-700 border-amber-300 bg-amber-50 dark:text-amber-300 dark:border-amber-700 dark:bg-amber-950">
+                <ShieldX className="h-3 w-3" />
+                {stats.skipped} skipped
+                {Object.keys(stats.skippedReasons).length > 0 && (
+                  <span className="ml-1 text-xs opacity-75">
+                    ({Object.entries(stats.skippedReasons).map(([r, c]) => `${c} ${r}`).join(', ')})
+                  </span>
+                )}
+              </Badge>
+            )}
             {bounced > 0 && (
               <Badge variant="destructive" className="gap-1">
                 <XCircle className="h-3 w-3" />

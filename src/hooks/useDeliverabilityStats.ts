@@ -14,6 +14,8 @@ export interface DeliverabilityStats {
   bounced: number;
   complained: number;
   unsubscribed: number;
+  skipped: number;
+  skippedReasons: Record<string, number>;
   deliveryRate: number;
   openRate: number;
   clickRate: number;
@@ -75,22 +77,33 @@ export function useCampaignDeliverabilityStats(campaignId: string | null | undef
         return getEmptyStats();
       }
 
-      // Count events by type for this campaign
-      const { data: events, error } = await supabase
-        .from('email_tracking_events')
-        .select('event_type')
-        .eq('campaign_id', campaignId);
+      // Fetch tracking events and skipped sends in parallel
+      const [eventsRes, skipsRes] = await Promise.all([
+        supabase
+          .from('email_tracking_events')
+          .select('event_type')
+          .eq('campaign_id', campaignId),
+        supabase
+          .from('email_send_skips')
+          .select('reason')
+          .eq('campaign_id', campaignId),
+      ]);
 
-      if (error || !events) {
-        return getEmptyStats();
-      }
+      const events = eventsRes.data || [];
+      const skips = skipsRes.data || [];
 
-      // Aggregate counts
+      // Aggregate event counts
       const counts = events.reduce((acc, event) => {
         const type = event.event_type;
         acc[type] = (acc[type] || 0) + 1;
         return acc;
       }, {} as Record<string, number>);
+
+      // Aggregate skip reasons
+      const skippedReasons: Record<string, number> = {};
+      for (const s of skips) {
+        skippedReasons[s.reason] = (skippedReasons[s.reason] || 0) + 1;
+      }
 
       return calculateRates({
         sent: counts.sent || 0,
@@ -100,6 +113,8 @@ export function useCampaignDeliverabilityStats(campaignId: string | null | undef
         bounced: counts.bounced || 0,
         complained: counts.complained || 0,
         unsubscribed: counts.unsubscribed || 0,
+        skipped: skips.length,
+        skippedReasons,
       });
     },
     enabled: !!campaignId,
@@ -144,6 +159,8 @@ function getEmptyStats(): DeliverabilityStats {
     bounced: 0,
     complained: 0,
     unsubscribed: 0,
+    skipped: 0,
+    skippedReasons: {},
     deliveryRate: 0,
     openRate: 0,
     clickRate: 0,
@@ -159,8 +176,10 @@ function calculateRates(data: {
   bounced: number;
   complained: number;
   unsubscribed: number;
+  skipped?: number;
+  skippedReasons?: Record<string, number>;
 }): DeliverabilityStats {
-  const { sent, delivered, opened, clicked, bounced, complained, unsubscribed } = data;
+  const { sent, delivered, opened, clicked, bounced, complained, unsubscribed, skipped = 0, skippedReasons = {} } = data;
   
   return {
     sent,
@@ -170,6 +189,8 @@ function calculateRates(data: {
     bounced,
     complained,
     unsubscribed,
+    skipped,
+    skippedReasons,
     deliveryRate: sent > 0 ? (delivered / sent) * 100 : 0,
     openRate: delivered > 0 ? (opened / delivered) * 100 : 0,
     clickRate: delivered > 0 ? (clicked / delivered) * 100 : 0,
