@@ -5,7 +5,7 @@
  * sms_compliance_events and compliance_logs tables for comprehensive tracking.
  */
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient } from "npm:@supabase/supabase-js@2.7.1";
 
 export type ComplianceEventType = 
   | 'STOP' 

@@ -3,7 +3,7 @@
  * Provides centralized warmup logic for SMS sending identities
  */
 
-import { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { SupabaseClient } from "npm:@supabase/supabase-js@2.7.1";
 
 export interface SmsWarmupInfo {
   sendingIdentityId: string;
