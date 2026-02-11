@@ -1,109 +1,78 @@
 
 
-# Milestone 2 -- Segment Existence and Ownership Resolution Logic
+# Milestone 3 -- Top Segments UI States (Discovery Layer)
 
 ## Goal
-Create a reliable segment resolution engine that, when loading segments, classifies each one into a clear ownership state: **System Segment**, **User-Created Segment**, or **System Segment Not Yet Created**. This becomes the single source of truth for all segment-related UI and logic.
+Add a visual "System Segments" area to the `/crm/segments` page that uses the resolution engine from Milestone 2. Each system segment shows one of two states: **Active** (exists in DB) or **Available** (not yet created, with a + button). No auto-creation; the UI is read-only until the user clicks +.
 
 ## Current State
-- **`useCRMSegments`** fetches all segments from `crm_segments` but does not distinguish system from user-created.
-- **`CRMSegmentsPage`** has a hardcoded `predefinedSegments` array (7 items) that is never cross-referenced against the database.
-- **`useAllSegments`** naively concatenates the hardcoded list with DB segments, risking duplicates.
-- **`useSegmentCounts`** hardcodes segment IDs and calculates counts independently.
-- **`segmentDefinitions.ts`** defines `SYSTEM_SEGMENTS` with names and conditions but this config is not used for resolution.
-- The `is_system_segment` column was added in Milestone 1 but no code uses it for classification yet.
-
-## Resolution States
-
-Each segment resolves to one of three states:
-
-| State | Meaning |
-|-------|---------|
-| `system` | Exists in DB with `is_system_segment = true` |
-| `user` | Exists in DB with `is_system_segment = false` |
-| `system_pending` | Defined in `SYSTEM_SEGMENTS` config but no matching DB row for this tenant |
+- `CRMSegments.tsx` has no system segments area -- it only renders a table of DB segments and a "Garden Center Templates" section.
+- `CustomerSegmentsSection.tsx` (used on the CRM dashboard) renders hardcoded `predefinedSegments` but does not use the resolution engine and has no concept of "not yet created."
+- The resolution engine (`useSegmentResolution`) is ready and returns `systemSegments` (active), `pendingSystemSegments` (not yet created), and `userSegments`.
 
 ## Implementation Steps
 
-### Step 1 -- Create `useSegmentResolution` Hook
+### Step 1 -- Create `SystemSegmentCard` Component
 
-New file: `src/hooks/useSegmentResolution.ts`
+New file: `src/components/crm/segments/SystemSegmentCard.tsx`
 
-This hook is the core resolution engine. It:
+A card component that renders differently based on segment state:
 
-1. Fetches all `crm_segments` rows for the current tenant (including `is_system_segment`).
-2. Compares against `SYSTEM_SEGMENTS` from `segmentDefinitions.ts` using **case-insensitive, trimmed name matching**.
-3. Classifies each segment into one of the three states.
-4. Detects and flags duplicate system segments (same name, case-insensitive, within one tenant).
-5. Returns a structured result with typed arrays for each state.
+**Active state** (`state === 'system'`):
+- Shows icon, name (plain text, not editable), description
+- Shows customer count
+- "View Details" and "Create Campaign" buttons (same as current `SegmentOverviewCard`)
+- A subtle "System" badge
 
+**Pending state** (`state === 'system_pending'`):
+- Shows icon, name, description in a muted/dashed style
+- No customer count (segment does not exist yet)
+- A prominent **+ Add Segment** button
+- Text like "Available -- click to add"
+
+Props:
 ```text
-Interface:
-
-ResolvedSegment {
-  id: string | null           // DB id (null if pending)
-  definition_id: string       // Config id (e.g. 'perks-members')
-  name: string                // Canonical name
-  description: string
-  state: 'system' | 'user' | 'system_pending'
-  is_system_segment: boolean
-  customer_count: number
-  db_record: DbSegment | null // Full DB row if exists
-  duplicates?: string[]       // IDs of duplicate rows
-}
-
-Return {
-  resolved: ResolvedSegment[]
-  systemSegments: ResolvedSegment[]
-  userSegments: ResolvedSegment[]
-  pendingSystemSegments: ResolvedSegment[]
-  duplicateWarnings: { name: string; count: number; ids: string[] }[]
-  loading: boolean
-  refresh: () => void
-}
+segment: ResolvedSegment
+icon: string (from SYSTEM_SEGMENTS config)
+onAdd: () => void        // called when + is clicked on pending
+onViewDetails: () => void
+onCreateCampaign: () => void
 ```
 
-**Name normalization function** (shared utility):
-```ts
-const normalizeName = (name: string): string =>
-  name.trim().toLowerCase();
-```
+### Step 2 -- Create `SystemSegmentsGrid` Component
 
-**Resolution algorithm**:
-1. Fetch all tenant segments from DB.
-2. For each `SYSTEM_SEGMENTS` definition, find DB rows where `normalizeName(db.name) === normalizeName(definition.name)`.
-3. If found with `is_system_segment = true` -> state `system`.
-4. If found with `is_system_segment = false` -> still state `user` (name collision but not flagged as system).
-5. If not found -> state `system_pending`.
-6. If multiple rows match the same system name -> record as duplicate warning.
-7. All remaining DB rows not matching any system definition -> state `user`.
+New file: `src/components/crm/segments/SystemSegmentsGrid.tsx`
 
-### Step 2 -- Create `resolveSegmentState` Utility
+This component:
+1. Calls `useSegmentResolution()` to get resolved segments
+2. Maps `SYSTEM_SEGMENTS` definitions to their resolved state
+3. Renders a grid of `SystemSegmentCard` components
+4. Shows active segments first, then pending ones
+5. The "onAdd" handler for pending segments opens the existing segment creation dialog, pre-filled with the system segment's name, description, and conditions from `segmentDefinitions.ts` -- but does NOT auto-save
 
-New file: `src/utils/segmentResolution.ts`
+### Step 3 -- Integrate into `CRMSegments.tsx`
 
-Pure function (no hooks) that performs the resolution logic. The hook wraps this for React usage, but the utility can be used in edge functions or non-React contexts.
+Insert the `SystemSegmentsGrid` between the page header and the "Your Segments" table. This becomes the "Top Segments" discovery area.
 
-```ts
-export function resolveSegments(
-  dbSegments: DbSegment[],
-  systemDefinitions: SegmentDefinition[]
-): SegmentResolutionResult
-```
+Changes to `CRMSegments.tsx`:
+- Import and render `<SystemSegmentsGrid />` above the existing segments table
+- Pass callbacks for `onAdd` (pre-fill the create form and open dialog), `onViewDetails`, and `onCreateCampaign`
+- The existing table below continues showing all DB segments (both system and user)
 
-This keeps the logic testable and reusable.
+### Step 4 -- Lock Name Field for System Segments in Edit Dialog
 
-### Step 3 -- Add `is_system_segment` to `useCRMSegments` Return Type
+In the existing segment form dialog within `CRMSegments.tsx`:
+- When `editingSegment?.is_system_segment === true`, render the name as a read-only `<div>` or disabled `<Input>` instead of an editable field
+- Remove any rename affordance for system segments
+- All other fields (description, conditions, auto-update) remain editable
 
-Update the `CRMSegment` interface in `src/hooks/useCRMSegments.ts` to include `is_system_segment?: boolean` so the field is available downstream. The `fetchSegments` query already uses `select('*')`, so the data is present -- it just needs typing.
+### Step 5 -- Hide Edit/Delete Actions for System Segments in Table
 
-### Step 4 -- Update `useAllSegments` to Use Resolution
-
-Replace the naive concatenation in `src/hooks/useAllSegments.ts` with `useSegmentResolution`. Instead of blindly merging hardcoded + DB segments, it returns the resolved list which guarantees no duplicates and clear ownership.
-
-### Step 5 -- Add Duplicate Detection Guard to `createSegment`
-
-In `src/hooks/useCRMSegments.ts`, before inserting a new segment, check if the name (case-insensitive) matches any `SYSTEM_SEGMENT_NAMES`. If it does, reject the creation with a toast: "This name is reserved for a system segment."
+In the segments table (lines 836-854 of `CRMSegments.tsx`):
+- For rows where `segment.is_system_segment === true`:
+  - Hide the delete (trash) button entirely
+  - The edit button opens details but the name field will be locked (Step 4)
+  - Show a "System" badge in the Type column instead of "Custom"
 
 ---
 
@@ -111,14 +80,12 @@ In `src/hooks/useCRMSegments.ts`, before inserting a new segment, check if the n
 
 | File | Change |
 |------|--------|
-| `src/utils/segmentResolution.ts` | **New** -- Pure resolution function |
-| `src/hooks/useSegmentResolution.ts` | **New** -- React hook wrapping resolution |
-| `src/hooks/useCRMSegments.ts` | Add `is_system_segment` to interface; add name guard on create |
-| `src/hooks/useAllSegments.ts` | Refactor to use `useSegmentResolution` |
+| `src/components/crm/segments/SystemSegmentCard.tsx` | **New** -- Card with active/pending states |
+| `src/components/crm/segments/SystemSegmentsGrid.tsx` | **New** -- Grid using resolution engine |
+| `src/pages/crm/CRMSegments.tsx` | Add grid above table; lock name in edit dialog; hide delete for system rows |
 
 ## What This Milestone Does NOT Do
-- No UI changes (no badges, no state indicators)
-- No auto-creation of missing system segments
-- No campaign logic changes
-- No changes to `CRMSegmentsPage` rendering (that is a later milestone)
-
+- Does not auto-create segments on page load
+- Does not modify campaign logic
+- Does not add permissions or roles
+- Does not change the CRM dashboard `CustomerSegmentsSection` (that can be updated separately)
