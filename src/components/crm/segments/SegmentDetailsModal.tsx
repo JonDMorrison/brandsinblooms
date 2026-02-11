@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Users, Target, Search, Plus, X, Loader2, Upload, MessageSquare, Shield, Info } from 'lucide-react';
+import { Users, Target, Search, Plus, X, Loader2, Upload, MessageSquare, Shield, Info, UserPlus } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { EnhancedSegmentImportDialog } from './EnhancedSegmentImportDialog';
@@ -50,6 +50,12 @@ export const SegmentDetailsModal: React.FC<SegmentDetailsModalProps> = ({
   const [loadingCustomerId, setLoadingCustomerId] = useState<string | null>(null);
   const [showBulkImport, setShowBulkImport] = useState(false);
   const [showSMSDialog, setShowSMSDialog] = useState(false);
+  const [showAddNewForm, setShowAddNewForm] = useState(false);
+  const [newContactEmail, setNewContactEmail] = useState('');
+  const [newContactFirstName, setNewContactFirstName] = useState('');
+  const [newContactLastName, setNewContactLastName] = useState('');
+  const [newContactPhone, setNewContactPhone] = useState('');
+  const [addingNewContact, setAddingNewContact] = useState(false);
   const [tenantId, setTenantId] = useState<string>('');
   const [userId, setUserId] = useState<string>('');
   const { toast } = useToast();
@@ -115,8 +121,93 @@ export const SegmentDetailsModal: React.FC<SegmentDetailsModalProps> = ({
     if (!open) {
       setAssignedSearchTerm('');
       setAvailableSearchTerm('');
+      setShowAddNewForm(false);
+      setNewContactEmail('');
+      setNewContactFirstName('');
+      setNewContactLastName('');
+      setNewContactPhone('');
     }
   }, [open]);
+
+  const addNewContactToSegment = async () => {
+    if (!segment || !tenantId || !newContactEmail.trim()) return;
+    
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(newContactEmail.trim())) {
+      toast({ title: "Invalid email", description: "Please enter a valid email address.", variant: "destructive" });
+      return;
+    }
+
+    setAddingNewContact(true);
+    try {
+      // Check if customer already exists in this tenant
+      const { data: existing } = await supabase
+        .from('crm_customers')
+        .select('id')
+        .eq('tenant_id', tenantId)
+        .ilike('email', newContactEmail.trim())
+        .maybeSingle();
+
+      let customerId: string;
+
+      if (existing) {
+        customerId = existing.id;
+      } else {
+        // Create new customer
+        const { data: newCustomer, error: createErr } = await supabase
+          .from('crm_customers')
+          .insert({
+            email: newContactEmail.trim().toLowerCase(),
+            first_name: newContactFirstName.trim() || null,
+            last_name: newContactLastName.trim() || null,
+            phone: newContactPhone.trim() || null,
+            tenant_id: tenantId,
+          })
+          .select('id')
+          .single();
+
+        if (createErr) throw createErr;
+        customerId = newCustomer.id;
+      }
+
+      // Add to segment
+      const { error: segErr } = await supabase
+        .from('customer_segments')
+        .upsert(
+          { customer_id: customerId, segment_id: segment.id },
+          { onConflict: 'customer_id,segment_id', ignoreDuplicates: true }
+        );
+
+      if (segErr) throw segErr;
+
+      toast({
+        title: existing ? "Customer added to segment" : "New customer created & added",
+        description: `${newContactEmail.trim()} has been added to ${segment.name}.`,
+      });
+
+      // Reset form
+      setNewContactEmail('');
+      setNewContactFirstName('');
+      setNewContactLastName('');
+      setNewContactPhone('');
+      setShowAddNewForm(false);
+
+      // Refresh lists
+      refetchSegmentCustomers();
+      refetchAvailableCustomers();
+      if (onSegmentUpdate) onSegmentUpdate();
+
+    } catch (error: any) {
+      console.error('Error adding new contact:', error);
+      toast({
+        title: "Failed to add contact",
+        description: error.message || "An error occurred.",
+        variant: "destructive",
+      });
+    } finally {
+      setAddingNewContact(false);
+    }
+  };
 
   const addCustomerToSegment = async (customerId: string) => {
     if (!segment || loadingCustomerId || !isCustomSegment) return;
@@ -411,15 +502,26 @@ export const SegmentDetailsModal: React.FC<SegmentDetailsModalProps> = ({
                   </h3>
                   <div className="flex items-center gap-2">
                     {isCustomSegment && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => setShowBulkImport(true)}
-                        className="gap-1 h-7 text-xs"
-                      >
-                        <Upload className="h-3 w-3" />
-                        Import
-                      </Button>
+                      <>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setShowAddNewForm(!showAddNewForm)}
+                          className="gap-1 h-7 text-xs"
+                        >
+                          <UserPlus className="h-3 w-3" />
+                          Add New
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setShowBulkImport(true)}
+                          className="gap-1 h-7 text-xs"
+                        >
+                          <Upload className="h-3 w-3" />
+                          Import
+                        </Button>
+                      </>
                     )}
                     {!isCustomSegment && (
                       <Badge variant="secondary" className="text-xs">
@@ -428,6 +530,56 @@ export const SegmentDetailsModal: React.FC<SegmentDetailsModalProps> = ({
                     )}
                   </div>
                 </div>
+
+                {/* Add New Contact Form */}
+                {showAddNewForm && isCustomSegment && (
+                  <div className="mb-3 p-3 border border-border rounded-lg bg-muted/30 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">Add New Contact</span>
+                      <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => setShowAddNewForm(false)}>
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                    <Input
+                      placeholder="Email (required)"
+                      value={newContactEmail}
+                      onChange={(e) => setNewContactEmail(e.target.value)}
+                      className="h-8 text-sm"
+                    />
+                    <div className="grid grid-cols-2 gap-2">
+                      <Input
+                        placeholder="First name"
+                        value={newContactFirstName}
+                        onChange={(e) => setNewContactFirstName(e.target.value)}
+                        className="h-8 text-sm"
+                      />
+                      <Input
+                        placeholder="Last name"
+                        value={newContactLastName}
+                        onChange={(e) => setNewContactLastName(e.target.value)}
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                    <Input
+                      placeholder="Phone (optional)"
+                      value={newContactPhone}
+                      onChange={(e) => setNewContactPhone(e.target.value)}
+                      className="h-8 text-sm"
+                    />
+                    <Button
+                      size="sm"
+                      onClick={addNewContactToSegment}
+                      disabled={addingNewContact || !newContactEmail.trim()}
+                      className="w-full gap-1"
+                    >
+                      {addingNewContact ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
+                      {addingNewContact ? 'Adding...' : 'Create & Add to Segment'}
+                    </Button>
+                    <p className="text-xs text-muted-foreground">
+                      If this email already exists, they'll be added to the segment without creating a duplicate.
+                    </p>
+                  </div>
+                )}
 
                 {/* Search for available */}
                 <div className="relative mb-3">
