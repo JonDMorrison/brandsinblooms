@@ -807,6 +807,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   // Parse URL personas early
   const personaParam = searchParams.get("persona");
   const segmentIdParam = searchParams.get("segment");
+  const isSegmentLocked = searchParams.get("locked") === "true";
 
   let initialPersonas: any[] = [];
   if (personaParam) {
@@ -6073,6 +6074,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
             setSelectedPersonas(personas);
           }}
           onSegmentsChange={setSelectedSegments}
+          lockedSegmentIds={isSegmentLocked && segmentIdParam ? [segmentIdParam] : []}
         />
 
         {/* Email Content Builder - Full Width */}

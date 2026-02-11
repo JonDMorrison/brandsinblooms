@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Users, Target, Search, Plus, X, Loader2, Upload, MessageSquare } from 'lucide-react';
+import { Users, Target, Search, Plus, X, Loader2, Upload, MessageSquare, Shield, Info } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { EnhancedSegmentImportDialog } from './EnhancedSegmentImportDialog';
@@ -35,13 +35,15 @@ interface SegmentDetailsModalProps {
   onOpenChange: (open: boolean) => void;
   segment: Segment | null;
   onSegmentUpdate?: () => void;
+  isSystemSegment?: boolean;
 }
 
 export const SegmentDetailsModal: React.FC<SegmentDetailsModalProps> = ({
   open,
   onOpenChange,
   segment,
-  onSegmentUpdate
+  onSegmentUpdate,
+  isSystemSegment = false
 }) => {
   const [assignedSearchTerm, setAssignedSearchTerm] = useState('');
   const [availableSearchTerm, setAvailableSearchTerm] = useState('');
@@ -267,7 +269,7 @@ export const SegmentDetailsModal: React.FC<SegmentDetailsModalProps> = ({
             </div>
           </div>
 
-          {!isCustomSegment && (
+          {!isCustomSegment && !isSystemSegment && (
             <div className="mb-4 p-3 bg-muted/50 rounded-lg">
               <p className="text-sm text-muted-foreground">
                 This is a predefined segment. Customers are automatically assigned based on their purchase behavior and cannot be manually managed.
@@ -275,7 +277,16 @@ export const SegmentDetailsModal: React.FC<SegmentDetailsModalProps> = ({
             </div>
           )}
 
-          {/* Two Column Layout */}
+          {isSystemSegment && (
+            <div className="mb-4 p-3 bg-primary/5 border border-primary/20 rounded-lg flex items-start gap-2">
+              <Shield className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+              <p className="text-sm text-foreground">
+                This is a system segment. Membership is managed automatically based on segment rules.
+              </p>
+            </div>
+          )}
+
+          {!isSystemSegment && (
           <div className="flex-1 min-h-0">
             <div className="grid grid-cols-2 gap-6">
               {/* Left Column - Assigned Customers */}
@@ -432,6 +443,7 @@ export const SegmentDetailsModal: React.FC<SegmentDetailsModalProps> = ({
               </div>
             </div>
           </div>
+          )}
           
           {/* Close Button */}
           <div className="flex justify-between pt-4 border-t mt-4">

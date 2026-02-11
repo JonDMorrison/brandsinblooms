@@ -43,6 +43,7 @@ interface ConditionBuilderProps {
   onAddCondition: () => void;
   onUpdateCondition: (index: number, updates: Partial<SegmentCondition>) => void;
   onRemoveCondition: (index: number) => void;
+  disabled?: boolean;
 }
 
 const ConditionBuilder: React.FC<ConditionBuilderProps> = ({
@@ -50,7 +51,8 @@ const ConditionBuilder: React.FC<ConditionBuilderProps> = ({
   availableTags,
   onAddCondition,
   onUpdateCondition,
-  onRemoveCondition
+  onRemoveCondition,
+  disabled = false
 }) => {
   const addPOSCondition = () => {
     onUpdateCondition(conditions.length, { 
@@ -81,23 +83,28 @@ const ConditionBuilder: React.FC<ConditionBuilderProps> = ({
   };
 
   return (
-    <div className="space-y-6">
+    <div className={`space-y-6 ${disabled ? 'opacity-60 pointer-events-none' : ''}`}>
       <div className="flex items-center justify-between">
         <Label className="text-base font-semibold">Segment Rules</Label>
-        <div className="flex gap-2">
-          <Button type="button" variant="outline" size="sm" onClick={onAddCondition}>
-            <Plus className="h-3 w-3 mr-1" />
-            Basic Rule
-          </Button>
-          <Button type="button" variant="outline" size="sm" onClick={addPOSCondition}>
-            <ShoppingCart className="h-3 w-3 mr-1" />
-            POS Filter
-          </Button>
-          <Button type="button" variant="outline" size="sm" onClick={addEngagementCondition}>
-            <Mail className="h-3 w-3 mr-1" />
-            Engagement
-          </Button>
-        </div>
+        {!disabled && (
+          <div className="flex gap-2">
+            <Button type="button" variant="outline" size="sm" onClick={onAddCondition}>
+              <Plus className="h-3 w-3 mr-1" />
+              Basic Rule
+            </Button>
+            <Button type="button" variant="outline" size="sm" onClick={addPOSCondition}>
+              <ShoppingCart className="h-3 w-3 mr-1" />
+              POS Filter
+            </Button>
+            <Button type="button" variant="outline" size="sm" onClick={addEngagementCondition}>
+              <Mail className="h-3 w-3 mr-1" />
+              Engagement
+            </Button>
+          </div>
+        )}
+        {disabled && (
+          <Badge variant="secondary" className="text-xs">Read-only</Badge>
+        )}
       </div>
       
       {conditions.length === 0 && (
@@ -272,16 +279,18 @@ const ConditionBuilder: React.FC<ConditionBuilderProps> = ({
               </Card>
             )}
 
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => onRemoveCondition(index)}
-              className="text-destructive hover:text-destructive"
-            >
-              <Trash2 className="h-3 w-3 mr-1" />
-              Remove Rule
-            </Button>
+            {!disabled && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => onRemoveCondition(index)}
+                className="text-destructive hover:text-destructive"
+              >
+                <Trash2 className="h-3 w-3 mr-1" />
+                Remove Rule
+              </Button>
+            )}
           </div>
         ))}
       </div>

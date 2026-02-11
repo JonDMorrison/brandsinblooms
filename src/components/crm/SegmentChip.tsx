@@ -1,7 +1,7 @@
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { X, Users, Sparkles } from "lucide-react";
+import { X, Users, Sparkles, Lock } from "lucide-react";
 
 interface SegmentChipProps {
   segment: {
@@ -14,13 +14,15 @@ interface SegmentChipProps {
   onRemove?: (segmentId: string) => void;
   removable?: boolean;
   size?: "sm" | "md";
+  locked?: boolean;
 }
 
 export const SegmentChip = ({ 
   segment, 
   onRemove, 
   removable = false,
-  size = "md"
+  size = "md",
+  locked = false
 }: SegmentChipProps) => {
   const sizeClasses = {
     sm: "text-xs px-2 py-1",
@@ -35,6 +37,10 @@ export const SegmentChip = ({
       <Users className="h-3 w-3" />
       <span className="font-medium">{segment.name}</span>
       
+      {locked && (
+        <Lock className="h-3 w-3 text-muted-foreground" />
+      )}
+
       {segment.suggested && (
         <Sparkles className="h-3 w-3 text-black" />
       )}
