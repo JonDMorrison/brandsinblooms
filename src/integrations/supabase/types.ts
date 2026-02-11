@@ -3465,6 +3465,7 @@ export type Database = {
           customer_count: number | null
           description: string | null
           id: string
+          is_system_segment: boolean
           name: string
           persona_id: string | null
           tenant_id: string | null
@@ -3478,6 +3479,7 @@ export type Database = {
           customer_count?: number | null
           description?: string | null
           id?: string
+          is_system_segment?: boolean
           name: string
           persona_id?: string | null
           tenant_id?: string | null
@@ -3491,6 +3493,7 @@ export type Database = {
           customer_count?: number | null
           description?: string | null
           id?: string
+          is_system_segment?: boolean
           name?: string
           persona_id?: string | null
           tenant_id?: string | null

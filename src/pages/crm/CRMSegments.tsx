@@ -45,6 +45,7 @@ interface Segment {
   conditions: any; // JSON from database
   customer_count: number;
   auto_update: boolean;
+  is_system_segment?: boolean;
   created_at: string;
 }
 
@@ -387,16 +388,20 @@ const CRMSegments = () => {
       const personaCondition = formData.conditions.find(c => c.field === 'persona_id');
       const personaId = personaCondition ? personaCondition.value as string : null;
 
-      const segmentData = {
-        name: formData.name,
+      const segmentData: any = {
         description: formData.description || null,
-        conditions: formData.conditions as any, // Cast to JSON for database
+        conditions: formData.conditions as any,
         customer_count: customerCount,
         auto_update: formData.auto_update,
         tenant_id: userData.tenant_id,
         user_id: user?.id,
         persona_id: personaId
       };
+
+      // Only include name if not a system segment (system segment names are locked)
+      if (!editingSegment?.is_system_segment) {
+        segmentData.name = formData.name;
+      }
 
       let error;
       if (editingSegment) {
@@ -406,6 +411,7 @@ const CRMSegments = () => {
           .eq('id', editingSegment.id);
         error = updateError;
       } else {
+        segmentData.name = formData.name;
         const { error: insertError } = await supabase
           .from('crm_segments')
           .insert(segmentData);
@@ -439,6 +445,17 @@ const CRMSegments = () => {
   };
 
   const deleteSegment = async (segmentId: string) => {
+    // Check if this is a system segment
+    const segment = segments.find(s => s.id === segmentId);
+    if (segment?.is_system_segment) {
+      toast({
+        title: "Cannot Delete",
+        description: "System segments cannot be deleted",
+        variant: "destructive"
+      });
+      return;
+    }
+
     try {
       const { error } = await supabase
         .from('crm_segments')
