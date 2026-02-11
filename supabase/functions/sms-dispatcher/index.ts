@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.10';
-import { Resend } from "https://esm.sh/resend@2";
+import { createClient } from "npm:@supabase/supabase-js@2.7.1";
+import { Resend } from "npm:resend@2.1.0";
 import { generateServerFooterHtml, hasProperFooter, type CompanyProfileData } from "../_shared/footerGenerator.ts";
 import { resolveSender, buildFromAddress } from "../_shared/senderResolver.ts";
 

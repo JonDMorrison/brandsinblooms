@@ -9,7 +9,7 @@
  * 3. Generic Platform (Priority 3): Last resort - use the generic BloomSuite sender
  */
 
-import { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { SupabaseClient } from "npm:@supabase/supabase-js@2.7.1";
 
 export interface SenderConfig {
   fromEmail: string;
