@@ -277,8 +277,7 @@ export async function canSendEmailBatch(
           results.set(email, { allowed: false, reason: 'suppressed' });
           continue;
         }
-      }
-      }
+        }
       if (customer.email_opt_in === false) {
         results.set(email, { allowed: false, reason: 'unsubscribed' });
         continue;
