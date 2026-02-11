@@ -1,116 +1,124 @@
 
 
-# Milestone 1 -- Define System Segments Concept and Guardrails
+# Milestone 2 -- Segment Existence and Ownership Resolution Logic
 
 ## Goal
-Introduce a database-level `is_system_segment` flag on `crm_segments` and enforce guardrails that prevent users from renaming or deleting system segments. No UI changes.
+Create a reliable segment resolution engine that, when loading segments, classifies each one into a clear ownership state: **System Segment**, **User-Created Segment**, or **System Segment Not Yet Created**. This becomes the single source of truth for all segment-related UI and logic.
 
 ## Current State
-- **Frontend config** (`src/config/segmentDefinitions.ts`) defines system segments with `is_system: true`, but this is purely a frontend concept with no database backing.
-- **Database** (`crm_segments` table) has no `is_system_segment` column. There are duplicate rows (e.g., multiple "Loyalty Members", "Perks Program") with no distinction from user-created segments.
-- **Existing code** freely allows updates and deletes on any segment row.
+- **`useCRMSegments`** fetches all segments from `crm_segments` but does not distinguish system from user-created.
+- **`CRMSegmentsPage`** has a hardcoded `predefinedSegments` array (7 items) that is never cross-referenced against the database.
+- **`useAllSegments`** naively concatenates the hardcoded list with DB segments, risking duplicates.
+- **`useSegmentCounts`** hardcodes segment IDs and calculates counts independently.
+- **`segmentDefinitions.ts`** defines `SYSTEM_SEGMENTS` with names and conditions but this config is not used for resolution.
+- The `is_system_segment` column was added in Milestone 1 but no code uses it for classification yet.
+
+## Resolution States
+
+Each segment resolves to one of three states:
+
+| State | Meaning |
+|-------|---------|
+| `system` | Exists in DB with `is_system_segment = true` |
+| `user` | Exists in DB with `is_system_segment = false` |
+| `system_pending` | Defined in `SYSTEM_SEGMENTS` config but no matching DB row for this tenant |
 
 ## Implementation Steps
 
-### Step 1 -- Add `is_system_segment` Column
-Run a migration to add the column with a default of `false`:
+### Step 1 -- Create `useSegmentResolution` Hook
 
-```sql
-ALTER TABLE crm_segments
-  ADD COLUMN is_system_segment BOOLEAN NOT NULL DEFAULT false;
+New file: `src/hooks/useSegmentResolution.ts`
+
+This hook is the core resolution engine. It:
+
+1. Fetches all `crm_segments` rows for the current tenant (including `is_system_segment`).
+2. Compares against `SYSTEM_SEGMENTS` from `segmentDefinitions.ts` using **case-insensitive, trimmed name matching**.
+3. Classifies each segment into one of the three states.
+4. Detects and flags duplicate system segments (same name, case-insensitive, within one tenant).
+5. Returns a structured result with typed arrays for each state.
+
+```text
+Interface:
+
+ResolvedSegment {
+  id: string | null           // DB id (null if pending)
+  definition_id: string       // Config id (e.g. 'perks-members')
+  name: string                // Canonical name
+  description: string
+  state: 'system' | 'user' | 'system_pending'
+  is_system_segment: boolean
+  customer_count: number
+  db_record: DbSegment | null // Full DB row if exists
+  duplicates?: string[]       // IDs of duplicate rows
+}
+
+Return {
+  resolved: ResolvedSegment[]
+  systemSegments: ResolvedSegment[]
+  userSegments: ResolvedSegment[]
+  pendingSystemSegments: ResolvedSegment[]
+  duplicateWarnings: { name: string; count: number; ids: string[] }[]
+  loading: boolean
+  refresh: () => void
+}
 ```
 
-### Step 2 -- Mark Existing System Segments
-Update existing rows that match known system segment names to set the flag:
-
-```sql
-UPDATE crm_segments
-SET is_system_segment = true
-WHERE name IN (
-  'Perks Program',
-  'Loyalty Members',
-  'High-Value Customers',
-  'New Customers',
-  'Lapsed Customers',
-  'Seasonal Shoppers',
-  'Frequent Buyers'
-);
+**Name normalization function** (shared utility):
+```ts
+const normalizeName = (name: string): string =>
+  name.trim().toLowerCase();
 ```
 
-### Step 3 -- Database Trigger to Prevent Name/Delete Changes
-Create a trigger function that blocks `UPDATE` on `name` and `DELETE` when `is_system_segment = true`:
+**Resolution algorithm**:
+1. Fetch all tenant segments from DB.
+2. For each `SYSTEM_SEGMENTS` definition, find DB rows where `normalizeName(db.name) === normalizeName(definition.name)`.
+3. If found with `is_system_segment = true` -> state `system`.
+4. If found with `is_system_segment = false` -> still state `user` (name collision but not flagged as system).
+5. If not found -> state `system_pending`.
+6. If multiple rows match the same system name -> record as duplicate warning.
+7. All remaining DB rows not matching any system definition -> state `user`.
 
-```sql
-CREATE OR REPLACE FUNCTION prevent_system_segment_modification()
-RETURNS TRIGGER AS $$
-BEGIN
-  IF TG_OP = 'DELETE' THEN
-    IF OLD.is_system_segment = true THEN
-      RAISE EXCEPTION 'System segments cannot be deleted';
-    END IF;
-    RETURN OLD;
-  END IF;
+### Step 2 -- Create `resolveSegmentState` Utility
 
-  IF TG_OP = 'UPDATE' THEN
-    IF OLD.is_system_segment = true THEN
-      IF NEW.name IS DISTINCT FROM OLD.name THEN
-        RAISE EXCEPTION 'System segment names cannot be changed';
-      END IF;
-      IF NEW.is_system_segment IS DISTINCT FROM OLD.is_system_segment THEN
-        RAISE EXCEPTION 'System segment flag cannot be changed';
-      END IF;
-    END IF;
-    RETURN NEW;
-  END IF;
+New file: `src/utils/segmentResolution.ts`
 
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER guard_system_segments
-  BEFORE UPDATE OR DELETE ON crm_segments
-  FOR EACH ROW
-  EXECUTE FUNCTION prevent_system_segment_modification();
-```
-
-This allows updating other fields on system segments (e.g., `customer_count`, `conditions`, `description`) but locks down `name`, `is_system_segment`, and prevents deletion entirely.
-
-### Step 4 -- Update `segmentDefinitions.ts`
-Add the `is_system_segment` field to the `SegmentDefinition` interface (aliasing from the existing `is_system` for clarity) and export a helper to check system status:
+Pure function (no hooks) that performs the resolution logic. The hook wraps this for React usage, but the utility can be used in edge functions or non-React contexts.
 
 ```ts
-export const isSystemSegmentId = (id: string): boolean => {
-  return SYSTEM_SEGMENTS.some(s => s.id === id);
-};
-
-export const SYSTEM_SEGMENT_NAMES = SYSTEM_SEGMENTS.map(s => s.name);
+export function resolveSegments(
+  dbSegments: DbSegment[],
+  systemDefinitions: SegmentDefinition[]
+): SegmentResolutionResult
 ```
 
-### Step 5 -- Add Application-Level Guards
-Update the segment save/delete logic in `CRMSegments.tsx`:
-- In the `update` path: check `is_system_segment` before allowing name changes; if system, skip name field in the update payload.
-- In the `deleteSegment` function: check `is_system_segment` before calling delete; show an error toast if attempted.
-- In the edge function `evaluate-segments/index.ts`: no changes needed (it only updates `customer_count`, which remains allowed).
+This keeps the logic testable and reusable.
 
-### Step 6 -- Update TypeScript Types
-Add `is_system_segment` to the segment type used across the app so TypeScript catches any future misuse:
-- In `src/integrations/supabase/types.ts` (auto-generated, but we note it for the regeneration step).
-- In `src/types/segmentation.ts` -- add `is_system_segment?: boolean` to `EnhancedSegment`.
+### Step 3 -- Add `is_system_segment` to `useCRMSegments` Return Type
+
+Update the `CRMSegment` interface in `src/hooks/useCRMSegments.ts` to include `is_system_segment?: boolean` so the field is available downstream. The `fetchSegments` query already uses `select('*')`, so the data is present -- it just needs typing.
+
+### Step 4 -- Update `useAllSegments` to Use Resolution
+
+Replace the naive concatenation in `src/hooks/useAllSegments.ts` with `useSegmentResolution`. Instead of blindly merging hardcoded + DB segments, it returns the resolved list which guarantees no duplicates and clear ownership.
+
+### Step 5 -- Add Duplicate Detection Guard to `createSegment`
+
+In `src/hooks/useCRMSegments.ts`, before inserting a new segment, check if the name (case-insensitive) matches any `SYSTEM_SEGMENT_NAMES`. If it does, reject the creation with a toast: "This name is reserved for a system segment."
 
 ---
-
-## What This Milestone Does NOT Do
-- No UI changes (badges, disabled fields, etc.) -- that is a later milestone
-- No campaign logic changes
-- No permission/role checks
-- No deduplication of existing duplicate rows (can be handled separately)
 
 ## Files Changed
 
 | File | Change |
 |------|--------|
-| Database (SQL migration) | Add column, seed flags, create trigger |
-| `src/config/segmentDefinitions.ts` | Add helper functions |
-| `src/types/segmentation.ts` | Add `is_system_segment` to types |
-| `src/pages/crm/CRMSegments.tsx` | Add app-level guards on update/delete |
+| `src/utils/segmentResolution.ts` | **New** -- Pure resolution function |
+| `src/hooks/useSegmentResolution.ts` | **New** -- React hook wrapping resolution |
+| `src/hooks/useCRMSegments.ts` | Add `is_system_segment` to interface; add name guard on create |
+| `src/hooks/useAllSegments.ts` | Refactor to use `useSegmentResolution` |
+
+## What This Milestone Does NOT Do
+- No UI changes (no badges, no state indicators)
+- No auto-creation of missing system segments
+- No campaign logic changes
+- No changes to `CRMSegmentsPage` rendering (that is a later milestone)
 
