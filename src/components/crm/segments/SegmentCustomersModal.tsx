@@ -11,7 +11,8 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Search, Mail, Phone, Calendar, Users, X, UserPlus, Loader2 } from 'lucide-react';
+import { Search, Mail, Phone, Calendar, Users, X, UserPlus, Loader2, SlidersHorizontal } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import type { Json } from '@/integrations/supabase/types';
 import { useAuth } from '@/contexts/AuthContext';
@@ -51,6 +52,7 @@ export const SegmentCustomersModal: React.FC<SegmentCustomersModalProps> = ({
   onAssignmentChange
 }) => {
   const [customers, setCustomers] = useState<SegmentCustomer[]>([]);
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [assigningCustomer, setAssigningCustomer] = useState<string | null>(null);
@@ -505,9 +507,23 @@ export const SegmentCustomersModal: React.FC<SegmentCustomersModalProps> = ({
               <Users className="h-5 w-5" />
               <span>Manage Customers in "{segmentName}"</span>
             </div>
-            <Badge variant="secondary">
-              {getFilteredSegmentCustomers().length} assigned
-            </Badge>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  onClose();
+                  navigate('/crm/segments/beta');
+                }}
+                className="gap-1.5"
+              >
+                <SlidersHorizontal className="h-3.5 w-3.5" />
+                Advanced Rules
+              </Button>
+              <Badge variant="secondary">
+                {getFilteredSegmentCustomers().length} assigned
+              </Badge>
+            </div>
           </DialogTitle>
         </DialogHeader>
 
