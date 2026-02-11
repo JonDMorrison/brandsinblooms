@@ -1,74 +1,34 @@
-import { useMemo } from 'react';
-import { useCRMSegments } from './useCRMSegments';
-
-// Predefined segments that match those in CRMSegmentsPage
-const predefinedSegments = [
-  {
-    id: 'perks-members',
-    name: 'Perks Members',
-    description: 'Customers enrolled in your Perks loyalty program',
-    customer_count: 0,
-  },
-  {
-    id: 'loyalty-members',
-    name: 'Loyalty Members',
-    description: 'Customers enrolled in your loyalty program with active engagement',
-    customer_count: 0,
-  },
-  {
-    id: 'high-value',
-    name: 'High-Value Customers',
-    description: 'Top spending customers who drive significant revenue',
-    customer_count: 0,
-  },
-  {
-    id: 'new-customers',
-    name: 'New Customers',
-    description: 'Recent customers who made their first purchase within 30 days',
-    customer_count: 0,
-  },
-  {
-    id: 'lapsed-customers',
-    name: 'Lapsed Customers',
-    description: 'Previously active customers who haven\'t purchased in 90+ days',
-    customer_count: 0,
-  },
-  {
-    id: 'seasonal-shoppers',
-    name: 'Seasonal Shoppers',
-    description: 'Customers who typically purchase during specific seasons or holidays',
-    customer_count: 0,
-  },
-  {
-    id: 'frequent-buyers',
-    name: 'Frequent Buyers',
-    description: 'Customers with 3+ purchases in the last 6 months',
-    customer_count: 0,
-  },
-];
-
-interface Segment {
-  id: string;
-  name: string;
-  description?: string;
-  customer_count: number;
-}
+import { useSegmentResolution } from './useSegmentResolution';
 
 export const useAllSegments = () => {
-  const { segments: customSegments, loading } = useCRMSegments();
+  const {
+    resolved,
+    systemSegments,
+    userSegments,
+    pendingSystemSegments,
+    duplicateWarnings,
+    loading,
+    refresh,
+  } = useSegmentResolution();
 
-  const allSegments = useMemo(() => {
-    const combined: Segment[] = [
-      ...predefinedSegments,
-      ...customSegments
-    ];
-    return combined;
-  }, [customSegments]);
+  // Flatten to the simple shape consumers expect
+  const segments = resolved.map((r) => ({
+    id: r.id ?? r.definition_id,
+    name: r.name,
+    description: r.description,
+    customer_count: r.customer_count,
+    state: r.state,
+    is_system_segment: r.is_system_segment,
+  }));
 
   return {
-    segments: allSegments,
+    segments,
     loading,
-    predefinedSegments,
-    customSegments
+    refresh,
+    resolved,
+    systemSegments,
+    userSegments,
+    pendingSystemSegments,
+    duplicateWarnings,
   };
 };

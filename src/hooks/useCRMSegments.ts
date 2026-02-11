@@ -4,6 +4,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useTenant } from '@/hooks/useTenant';
 import { toast } from 'sonner';
+import { SYSTEM_SEGMENT_NAMES } from '@/config/segmentDefinitions';
+import { normalizeName } from '@/utils/segmentResolution';
 
 interface CRMSegment {
   id: string;
@@ -12,6 +14,7 @@ interface CRMSegment {
   conditions: any;
   customer_count: number;
   auto_update: boolean;
+  is_system_segment?: boolean;
   persona_id?: string;
   created_at: string;
   updated_at: string;
@@ -94,6 +97,16 @@ export const useCRMSegments = () => {
       user_id: user.id,
       filters: segmentData.filters
     });
+
+    // Guard: reject reserved system segment names
+    const normalizedInput = normalizeName(segmentData.name);
+    const isReserved = SYSTEM_SEGMENT_NAMES.some(
+      (sn) => normalizeName(sn) === normalizedInput,
+    );
+    if (isReserved) {
+      toast.error('This name is reserved for a system segment.');
+      throw new Error('Reserved segment name');
+    }
 
     try {
       const { data, error } = await supabase
