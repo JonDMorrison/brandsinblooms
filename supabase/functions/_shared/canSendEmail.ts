@@ -25,6 +25,20 @@ export interface CanSendResult {
 // Basic email validation regex
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+// Engagement-based suppression reasons that should be bypassed
+const ENGAGEMENT_SUPPRESSION_PATTERNS = [
+  'no email opens',
+  'inactivity',
+  'engagement',
+  '180 days',
+];
+
+function isEngagementSuppression(reason?: string | null): boolean {
+  if (!reason) return false;
+  const lower = reason.toLowerCase();
+  return ENGAGEMENT_SUPPRESSION_PATTERNS.some(p => lower.includes(p));
+}
+
 /**
  * Check if an email can be sent to a recipient
  */
@@ -84,7 +98,7 @@ export async function canSendEmail(
   if (customerId) {
     const { data: customer } = await supabase
       .from('crm_customers')
-      .select('opt_out, suppressed, email_opt_in')
+      .select('opt_out, suppressed, suppressed_reason, email_opt_in')
       .eq('id', customerId)
       .single();
 
@@ -94,9 +108,14 @@ export async function canSendEmail(
         return { allowed: false, reason: 'opt_out' };
       }
 
-      // Check suppressed flag
+      // Check suppressed flag — but bypass engagement-based suppression
       if (customer.suppressed === true) {
-        return { allowed: false, reason: 'suppressed' };
+        const isEngagementBased = isEngagementSuppression(customer.suppressed_reason);
+        if (!isEngagementBased) {
+          return { allowed: false, reason: 'suppressed' };
+        }
+        // Engagement-based suppression is bypassed — allow send
+        console.log(`[canSendEmail] Bypassing engagement-based suppression for customer ${customerId}`);
       }
 
       // Check email_opt_in (if explicitly false, skip)
@@ -108,7 +127,7 @@ export async function canSendEmail(
     // No customerId - try to find customer by email and tenant
     const { data: customer } = await supabase
       .from('crm_customers')
-      .select('opt_out, suppressed, email_opt_in')
+      .select('opt_out, suppressed, suppressed_reason, email_opt_in')
       .eq('tenant_id', tenantId)
       .eq('email', normalizedEmail)
       .maybeSingle();
@@ -118,7 +137,11 @@ export async function canSendEmail(
         return { allowed: false, reason: 'opt_out' };
       }
       if (customer.suppressed === true) {
-        return { allowed: false, reason: 'suppressed' };
+        const isEngagementBased = isEngagementSuppression(customer.suppressed_reason);
+        if (!isEngagementBased) {
+          return { allowed: false, reason: 'suppressed' };
+        }
+        console.log(`[canSendEmail] Bypassing engagement-based suppression for ${normalizedEmail}`);
       }
       if (customer.email_opt_in === false) {
         return { allowed: false, reason: 'unsubscribed' };
@@ -173,7 +196,7 @@ export async function canSendEmailBatch(
   if (customerIds.length > 0) {
     const { data: customers } = await supabase
       .from('crm_customers')
-      .select('id, email, opt_out, suppressed, email_opt_in')
+      .select('id, email, opt_out, suppressed, suppressed_reason, email_opt_in')
       .in('id', customerIds);
 
     for (const c of customers || []) {
@@ -193,7 +216,7 @@ export async function canSendEmailBatch(
   if (emailsWithoutCustomerId.length > 0) {
     const { data: customersByEmail } = await supabase
       .from('crm_customers')
-      .select('id, email, opt_out, suppressed, email_opt_in')
+      .select('id, email, opt_out, suppressed, suppressed_reason, email_opt_in')
       .eq('tenant_id', tenantId)
       .in('email', emailsWithoutCustomerId);
 
@@ -249,8 +272,12 @@ export async function canSendEmailBatch(
         continue;
       }
       if (customer.suppressed === true) {
-        results.set(email, { allowed: false, reason: 'suppressed' });
-        continue;
+        const isEngBased = isEngagementSuppression(customer.suppressed_reason);
+        if (!isEngBased) {
+          results.set(email, { allowed: false, reason: 'suppressed' });
+          continue;
+        }
+      }
       }
       if (customer.email_opt_in === false) {
         results.set(email, { allowed: false, reason: 'unsubscribed' });
