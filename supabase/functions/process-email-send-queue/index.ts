@@ -12,7 +12,7 @@ const corsHeaders = {
 const MAX_JOBS_PER_INVOCATION = 10;
 const SEND_CONCURRENCY = 10;
 const MAX_ATTEMPTS = 3;
-const DEFAULT_BATCH_DELAY_MS = 0;
+const DEFAULT_BATCH_DELAY_MS = 500;
 const DEFAULT_MESSAGE_STALE_MINUTES = 15;
 
 const RESEND_BATCH_SIZE = 25;
@@ -336,6 +336,11 @@ serve(async (req) => {
   const resendBatchSize = RESEND_BATCH_SIZE;
   const workerId = Deno.env.get('WORKER_ID') || `email-queue-worker-${crypto.randomUUID()}`;
   const claimToken = crypto.randomUUID();
+
+  // Global request pacing is enforced by the DB-backed limiter at RESEND_MIN_INTERVAL_MS.
+  // If the user-configured batchDelayMs is higher than the global minimum, we add only the
+  // extra delay so we don't accidentally double-throttle.
+  const additionalBatchDelayMs = Math.max(0, batchDelayMs - RESEND_MIN_INTERVAL_MS);
 
   console.log(
     `⚙️ Resend settings: batch_size=${resendBatchSize} (fixed), min_interval_ms=${RESEND_MIN_INTERVAL_MS} (fixed, global)`
@@ -966,6 +971,11 @@ serve(async (req) => {
           }
 
           // Spacing between Resend requests is enforced globally by resendGlobalLimiter.
+          // Add only the extra delay beyond the global minimum.
+          const hasAnotherBatch = i + resendBatchSize < claimedForSend.length;
+          if (hasAnotherBatch && additionalBatchDelayMs > 0) {
+            await sleep(additionalBatchDelayMs);
+          }
         }
 
         // If any messages remain queued/sending, keep job pending for retry; otherwise complete.
@@ -1050,7 +1060,9 @@ serve(async (req) => {
 
       // Rate limiting: add delay between jobs
       if (jobIndex < jobs.length - 1) {
-        await new Promise(resolve => setTimeout(resolve, batchDelayMs));
+        if (additionalBatchDelayMs > 0) {
+          await sleep(additionalBatchDelayMs);
+        }
       }
     }
 
