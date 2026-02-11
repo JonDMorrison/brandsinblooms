@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Target, Plus, Search, RefreshCw, Upload, SlidersHorizontal, Eye, EyeOff } from 'lucide-react';
+import { Target, Plus, Search, RefreshCw, Upload, SlidersHorizontal, Eye, EyeOff, ChevronDown } from 'lucide-react';
 import { useCRMSegments } from '@/hooks/useCRMSegments';
 import { useSegmentCounts } from '@/hooks/useSegmentCounts';
 import { useSystemSegmentVisibility } from '@/hooks/useSystemSegmentVisibility';
@@ -17,6 +17,7 @@ import { EnhancedSegmentImportDialog } from '@/components/crm/segments/EnhancedS
 import { SegmentSMSDialog } from '@/components/sms/SegmentSMSDialog';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useNavigate } from 'react-router-dom';
+import { CustomDropdown, CustomDropdownItem } from '@/components/ui/custom-dropdown';
 
 // Predefined segments data (without hardcoded counts)
 const predefinedSegments = [
@@ -75,6 +76,7 @@ export const CRMSegmentsPage: React.FC = () => {
   const [selectedSegment, setSelectedSegment] = useState<{ id: string; name: string } | null>(null);
   const [smsSegment, setSmsSegment] = useState<{ id: string; name: string; count: number; isSystem: boolean } | null>(null);
   const [activeTab, setActiveTab] = useState<'visible' | 'hidden'>('visible');
+  const [createDropdownOpen, setCreateDropdownOpen] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
@@ -201,15 +203,6 @@ export const CRMSegmentsPage: React.FC = () => {
           </h1>
         </div>
         <div className={`flex ${isMobile ? 'flex-col gap-2' : 'gap-2'}`}>
-          <Button
-            variant="outline"
-            size={isMobile ? "default" : "sm"}
-            onClick={() => navigate('/crm/segments/beta')}
-            className="gap-1"
-          >
-            <SlidersHorizontal className="h-4 w-4" />
-            Advanced View
-          </Button>
           <Button 
             variant="outline" 
             onClick={fetchSegments} 
@@ -229,14 +222,52 @@ export const CRMSegmentsPage: React.FC = () => {
             <Upload className={`${isMobile ? 'mobile-icon-sm' : 'h-4 w-4'} mr-2`} />
             Import CSV
           </Button>
-          <Button 
-            onClick={handleCreateSegment}
-            className={`${isMobile ? 'mobile-btn-primary mobile-touch-feedback w-full' : ''} mobile-focus-ring`}
-            size={isMobile ? "default" : "sm"}
+          <CustomDropdown
+            open={createDropdownOpen}
+            onOpenChange={setCreateDropdownOpen}
+            align="end"
+            trigger={(props) => (
+              <Button 
+                {...props}
+                ref={props.ref as React.RefCallback<HTMLButtonElement>}
+                className={`${isMobile ? 'mobile-btn-primary mobile-touch-feedback w-full' : ''} mobile-focus-ring gap-1`}
+                size={isMobile ? "default" : "sm"}
+              >
+                <Plus className={`${isMobile ? 'mobile-icon-sm' : 'h-4 w-4'}`} />
+                Create Segment
+                <ChevronDown className="h-3 w-3 ml-1" />
+              </Button>
+            )}
           >
-            <Plus className={`${isMobile ? 'mobile-icon-sm' : 'h-4 w-4'} mr-2`} />
-            Create Segment
-          </Button>
+            <CustomDropdownItem
+              onSelect={() => {
+                setCreateDropdownOpen(false);
+                handleCreateSegment();
+              }}
+            >
+              <div className="flex items-center gap-2">
+                <Plus className="h-4 w-4" />
+                <div>
+                  <div className="font-medium">Create Segment</div>
+                  <div className="text-xs text-muted-foreground">Simple segment with filters</div>
+                </div>
+              </div>
+            </CustomDropdownItem>
+            <CustomDropdownItem
+              onSelect={() => {
+                setCreateDropdownOpen(false);
+                navigate('/crm/segments/beta');
+              }}
+            >
+              <div className="flex items-center gap-2">
+                <SlidersHorizontal className="h-4 w-4" />
+                <div>
+                  <div className="font-medium">Advanced Segment</div>
+                  <div className="text-xs text-muted-foreground">Rule-based with analytics</div>
+                </div>
+              </div>
+            </CustomDropdownItem>
+          </CustomDropdown>
         </div>
       </div>
 
