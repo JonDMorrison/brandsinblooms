@@ -42,6 +42,30 @@ Deno.serve(async (req) => {
       });
     }
 
+    if (action === "reset_campaign") {
+      const { campaign_id } = body;
+      if (!campaign_id) throw new Error("campaign_id is required");
+
+      const { data: updated, error: updErr } = await supabaseAdmin
+        .from("crm_campaigns")
+        .update({
+          status: "scheduled",
+          failure_reason: null,
+          send_error: null,
+          send_blocked_reason: null,
+          claim_token: null,
+          sending_started_at: null,
+        })
+        .eq("id", campaign_id)
+        .select("id, status")
+        .single();
+
+      if (updErr) throw updErr;
+      return new Response(JSON.stringify({ success: true, campaign: updated }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     if (action === "finalize_campaign") {
       const { campaign_id } = body;
       if (!campaign_id) throw new Error("campaign_id is required");
