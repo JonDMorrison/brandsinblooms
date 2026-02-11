@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from "npm:@supabase/supabase-js@2.7.1";
+import { createClient } from "jsr:@supabase/supabase-js@2";
 import { generateServerFooterHtml, type CompanyProfileData } from "../_shared/footerGenerator.ts";
 import { renderMergeTags, convertLegacyTags, createMergeTagDataFromCustomer, type MergeTagData } from "../_shared/mergeTagEngine.ts";
 import { extractLinks, getUniqueUrls, rewriteLinksSync, hasPII } from "../_shared/linkRewriter.ts";
@@ -12,8 +12,11 @@ const corsHeaders = {
 const MAX_JOBS_PER_INVOCATION = 10;
 const SEND_CONCURRENCY = 10;
 const MAX_ATTEMPTS = 3;
-const DEFAULT_BATCH_DELAY_MS = 500;
+const DEFAULT_BATCH_DELAY_MS = 0;
 const DEFAULT_MESSAGE_STALE_MINUTES = 15;
+
+const RESEND_BATCH_SIZE = 25;
+const RESEND_MIN_INTERVAL_MS = 500;
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -22,6 +25,30 @@ function sleep(ms: number) {
 function isRateLimitErrorMessage(message: string | null | undefined): boolean {
   const m = String(message || '').toLowerCase();
   return m.includes('too many requests') || m.includes('rate limit') || m.includes('429');
+}
+
+function createDbBackedProviderLimiter(
+  supabase: ReturnType<typeof createClient>,
+  provider: string,
+  minIntervalMs: number,
+): { acquire: () => Promise<void> } {
+  return {
+    async acquire() {
+      const { data, error } = await supabase.rpc('acquire_provider_send_slot', {
+        p_provider: provider,
+        p_min_interval_ms: minIntervalMs,
+      });
+
+      if (error) {
+        console.warn(`⚠️ Provider limiter RPC failed for ${provider}; falling back to local sleep:`, error.message);
+        await sleep(minIntervalMs);
+        return;
+      }
+
+      const waitMs = Math.max(0, Number(data || 0));
+      if (waitMs > 0) await sleep(waitMs);
+    },
+  };
 }
 
 function createFixedWindowRateLimiter(requestsPerSecond: number) {
@@ -306,14 +333,17 @@ serve(async (req) => {
   const batchDelayMs = parseInt(Deno.env.get('EMAIL_BATCH_DELAY_MS') || String(DEFAULT_BATCH_DELAY_MS), 10);
   const sendConcurrency = parseInt(Deno.env.get('EMAIL_SEND_CONCURRENCY') || String(SEND_CONCURRENCY), 10);
   const messageStaleMinutes = parseInt(Deno.env.get('EMAIL_MESSAGE_STALE_MINUTES') || String(DEFAULT_MESSAGE_STALE_MINUTES), 10);
-  const resendRps = parseFloat(Deno.env.get('RESEND_RATE_LIMIT_RPS') || '2');
-  const resendLimiter = createFixedWindowRateLimiter(resendRps);
-  const resendBatchSize = Math.max(1, Math.min(100, parseInt(Deno.env.get('RESEND_BATCH_SIZE') || '50', 10) || 50));
+  const resendBatchSize = RESEND_BATCH_SIZE;
   const workerId = Deno.env.get('WORKER_ID') || `email-queue-worker-${crypto.randomUUID()}`;
   const claimToken = crypto.randomUUID();
 
+  const defaultTenantDailyLimit = Math.max(
+    1,
+    parseInt(Deno.env.get('DEFAULT_TENANT_EMAIL_DAILY_LIMIT') || '100000', 10) || 100000
+  );
+
   console.log(
-    `⚙️ Resend settings: batch_size=${resendBatchSize} (env RESEND_BATCH_SIZE), rps=${resendRps} (env RESEND_RATE_LIMIT_RPS), min_interval_ms=${resendLimiter.minIntervalMs}`
+    `⚙️ Resend settings: batch_size=${resendBatchSize} (fixed), min_interval_ms=${RESEND_MIN_INTERVAL_MS} (fixed, global)`
   );
   console.log(
     `⚙️ Worker settings: send_concurrency=${sendConcurrency} (env EMAIL_SEND_CONCURRENCY), batch_delay_ms=${batchDelayMs} (env EMAIL_BATCH_DELAY_MS), stale_minutes=${messageStaleMinutes}`
@@ -323,6 +353,8 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    const resendGlobalLimiter = createDbBackedProviderLimiter(supabase, 'resend', RESEND_MIN_INTERVAL_MS);
 
     const resendApiKey = Deno.env.get('RESEND_API_KEY');
     if (!resendApiKey) {
@@ -364,7 +396,7 @@ serve(async (req) => {
           .from('email_send_jobs')
           .select('id')
           .eq('campaign_id', sc.id)
-          .in('status', ['pending', 'processing'])
+          .in('status', ['pending', 'in_progress', 'paused'])
           .limit(1);
 
         if (pendingJobs && pendingJobs.length > 0) continue;
@@ -517,7 +549,7 @@ serve(async (req) => {
 
         const sendable = (messages || []).filter((m: any) => {
           if (m.dead_lettered_at) return false;
-          if (m.status === 'queued' || m.status === 'paused') {
+          if (m.status === 'queued') {
             // ok
           } else if (m.status === 'sending') {
             if (!m.claimed_at) return false;
@@ -551,7 +583,7 @@ serve(async (req) => {
           if (m.status === 'sending') {
             claimQuery = claimQuery.eq('status', 'sending').lt('claimed_at', staleThresholdIso);
           } else {
-            claimQuery = claimQuery.eq('status', m.status === 'paused' ? 'paused' : 'queued');
+            claimQuery = claimQuery.eq('status', 'queued');
           }
 
           const { data: claimed, error: claimMsgErr } = await claimQuery
@@ -569,7 +601,7 @@ serve(async (req) => {
             p_tenant_id: claimed.tenant_id,
             p_domain_id: claimed.domain_id || null,
             p_tokens: 1,
-            p_default_tenant_limit: 5000,
+            p_default_tenant_limit: defaultTenantDailyLimit,
           });
 
           if (quotaErr) {
@@ -831,7 +863,7 @@ serve(async (req) => {
 
           if (payloads.length > 0) {
             const idemSeed = `${job.id}:${campaignId}:${msgIds.join(',')}`;
-            const batchResp = await resendSendBatch(resendApiKey, payloads, idemSeed, resendLimiter);
+            const batchResp = await resendSendBatch(resendApiKey, payloads, idemSeed, resendGlobalLimiter);
 
             if (batchResp.ids && batchResp.ids.length === payloads.length) {
               for (let k = 0; k < batchResp.ids.length; k++) {
@@ -894,9 +926,7 @@ serve(async (req) => {
             lastError = truncateError(last || lastError || 'Send failed');
           }
 
-          if (i + resendBatchSize < claimedForSend.length) {
-            await sleep(batchDelayMs);
-          }
+          // Spacing between Resend requests is enforced globally by resendGlobalLimiter.
         }
 
         // If any messages remain queued/sending, keep job pending for retry; otherwise complete.

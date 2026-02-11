@@ -8,7 +8,7 @@ import { toZonedTime } from "date-fns-tz";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import { useToast } from "@/hooks/use-toast";
-import { retryFailedEmailMessages } from "@/lib/email/emailRetryService";
+import { ensureQueuedEmailMessagesHaveJobs, retryFailedEmailMessages } from "@/lib/email/emailRetryService";
 import { markEmailCampaignCompletedWithFailures } from "@/lib/email/emailCompletionService";
 import {
   AlertDialog,
@@ -218,6 +218,20 @@ export const ScheduledCampaignBanner: React.FC<
     if (isRetryingWorker) return;
     setIsRetryingWorker(true);
     try {
+      if (campaignId) {
+        try {
+          const ensured = await ensureQueuedEmailMessagesHaveJobs(campaignId);
+          if (ensured.jobsCreated > 0) {
+            toast({
+              title: "Queued pending work",
+              description: `Created ${ensured.jobsCreated} job(s) for ${ensured.queuedCount} queued email(s).`,
+            });
+          }
+        } catch {
+          // Non-fatal; we can still try invoking the worker.
+        }
+      }
+
       const { error } = await supabase.functions.invoke(
         "process-email-send-queue",
         {

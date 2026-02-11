@@ -1,6 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from "npm:@supabase/supabase-js@2.7.1";
-import { Resend } from "npm:resend@2.1.0";
+import { createClient } from "jsr:@supabase/supabase-js@2";
 import { extractLinks, getUniqueUrls, hasPII } from "../_shared/linkRewriter.ts";
 import { type CompanyProfileData } from "../_shared/footerGenerator.ts";
 import {
@@ -45,8 +44,6 @@ serve(async (req: Request) => {
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
-    const resend = new Resend(resendApiKey);
 
     console.log(`📧 Starting email campaign send for campaign: ${campaignId}`);
 
@@ -699,6 +696,42 @@ serve(async (req: Request) => {
       }
 
       if (batchRecipientEmails.length > 0) {
+        const batchCustomerIds = batchRecipientEmails
+          .map((r) => r.customerId)
+          .filter((id) => typeof id === 'string' && id.length > 0);
+
+        const { data: messageRows, error: messageIdsErr } = await supabase
+          .from('email_messages')
+          .select('id, customer_id')
+          .eq('campaign_id', campaignId)
+          .in('customer_id', batchCustomerIds);
+
+        if (messageIdsErr) {
+          console.error('❌ Failed to fetch recipient message IDs for job:', {
+            batchIndex,
+            err: serializeSupabaseError(messageIdsErr),
+          });
+          return new Response(
+            JSON.stringify({ error: 'Failed to queue campaign (message IDs lookup failed)' }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        const recipientMessageIds = (messageRows || [])
+          .map((r: any) => r?.id)
+          .filter((id: any) => typeof id === 'string' && id.length > 0);
+
+        if (recipientMessageIds.length === 0) {
+          console.error('❌ No recipient message IDs found for job; refusing to create empty job:', {
+            batchIndex,
+            batchSize: batchRecipientEmails.length,
+          });
+          return new Response(
+            JSON.stringify({ error: 'Failed to queue campaign (empty batch message IDs)' }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
         const { error: jobErr } = await supabase
           .from('email_send_jobs')
           .upsert(
@@ -707,7 +740,7 @@ serve(async (req: Request) => {
               tenant_id: campaign.tenant_id,
               domain_id: activeDomainId,
               status: 'pending',
-              recipient_message_ids: [],
+              recipient_message_ids: recipientMessageIds,
               recipient_emails: batchRecipientEmails,
               batch_index: batchIndex,
             },
