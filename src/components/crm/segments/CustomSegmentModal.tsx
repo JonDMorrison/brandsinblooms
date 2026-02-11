@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Search, Plus, X, Users, Target, Settings, Loader2 } from 'lucide-react';
+import { Search, Plus, X, Users, Target, Settings, Loader2, SlidersHorizontal } from 'lucide-react';
 import { CustomSegmentBuilder } from '@/components/crm/CustomSegmentBuilder';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -34,6 +34,7 @@ interface CustomSegmentModalProps {
   } | null;
   mode?: 'create' | 'view';
   onSegmentUpdate?: () => void;
+  onAdvancedCreate?: () => void;
 }
 
 export const CustomSegmentModal: React.FC<CustomSegmentModalProps> = ({
@@ -42,7 +43,8 @@ export const CustomSegmentModal: React.FC<CustomSegmentModalProps> = ({
   onCancel,
   segment,
   mode = 'create',
-  onSegmentUpdate
+  onSegmentUpdate,
+  onAdvancedCreate
 }) => {
   const [segmentData, setSegmentData] = useState<{ name: string; filters: any[] } | null>(null);
   const [estimatedCount, setEstimatedCount] = useState<number | null>(null);
@@ -513,26 +515,40 @@ export const CustomSegmentModal: React.FC<CustomSegmentModalProps> = ({
               </div>
 
               {/* Action Buttons */}
-              <div className="flex justify-end gap-2 mt-6 pt-4 border-t">
-                <Button variant="outline" onClick={onCancel}>
-                  Cancel
-                </Button>
-                <Button 
-                  onClick={handleSave}
-                  disabled={!segmentData?.name?.trim() || isSaving}
-                  className="min-w-[140px]"
-                >
-                  {isSaving ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Creating...
-                    </>
-                  ) : !segmentData?.name?.trim() ? (
-                    'Enter Name'
-                  ) : (
-                    'Create Segment'
-                  )}
-                </Button>
+              <div className="flex items-center justify-between mt-6 pt-4 border-t">
+                {onAdvancedCreate ? (
+                  <Button 
+                    variant="ghost" 
+                    onClick={onAdvancedCreate}
+                    className="gap-2 text-muted-foreground hover:text-foreground"
+                  >
+                    <SlidersHorizontal className="h-4 w-4" />
+                    Advanced Settings
+                  </Button>
+                ) : (
+                  <div />
+                )}
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={onCancel}>
+                    Cancel
+                  </Button>
+                  <Button 
+                    onClick={handleSave}
+                    disabled={!segmentData?.name?.trim() || isSaving}
+                    className="min-w-[140px]"
+                  >
+                    {isSaving ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Creating...
+                      </>
+                    ) : !segmentData?.name?.trim() ? (
+                      'Enter Name'
+                    ) : (
+                      'Create Segment'
+                    )}
+                  </Button>
+                </div>
               </div>
             </>
           )}

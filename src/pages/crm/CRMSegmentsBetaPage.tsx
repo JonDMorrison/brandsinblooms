@@ -4,14 +4,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { 
+import {
   Target, 
   Plus, 
   Search, 
   RefreshCw, 
   ArrowLeft, 
-  FlaskConical,
+  Upload,
   Sparkles
 } from 'lucide-react';
 import { useSegmentCountsBeta } from '@/hooks/useSegmentCountsBeta';
@@ -22,18 +21,44 @@ import { SmartSegmentBuilderBeta } from '@/components/crm/segments/SmartSegmentB
 import { useCRMSegments } from '@/hooks/useCRMSegments';
 import { SegmentCard } from '@/components/crm/segments/SegmentCard';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { CustomSegmentModal } from '@/components/crm/segments/CustomSegmentModal';
+import { EnhancedSegmentImportDialog } from '@/components/crm/segments/EnhancedSegmentImportDialog';
 
 export const CRMSegmentsBetaPage: React.FC = () => {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const [searchTerm, setSearchTerm] = useState('');
   const [showBuilder, setShowBuilder] = useState(false);
+  const [showCustomBuilder, setShowCustomBuilder] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
   
   const { counts, loading: countsLoading, refreshCounts, segments: systemSegments } = useSegmentCountsBeta();
-  const { segments: customSegments, loading: segmentsLoading, fetchSegments } = useCRMSegments();
+  const { segments: customSegments, loading: segmentsLoading, fetchSegments, createSegment } = useCRMSegments();
 
   const handleCreateSegment = () => {
+    setShowCustomBuilder(true);
+  };
+
+  const handleAdvancedCreate = () => {
+    setShowCustomBuilder(false);
     setShowBuilder(true);
+  };
+
+  const handleSaveCustomSegment = async (segmentData: any) => {
+    try {
+      await createSegment(segmentData);
+      setShowCustomBuilder(false);
+      await fetchSegments();
+      refreshCounts();
+    } catch (error) {
+      console.error('Failed to save segment:', error);
+    }
+  };
+
+  const handleImportComplete = async () => {
+    setShowImportModal(false);
+    await fetchSegments();
+    refreshCounts();
   };
 
   const handleSaveSegment = async (segment: any) => {
@@ -92,34 +117,12 @@ export const CRMSegmentsBetaPage: React.FC = () => {
 
   return (
     <div className={`${isMobile ? 'mobile-section' : 'p-6'} mobile-space-normal mobile-container`}>
-      {/* Beta Banner */}
-      <Alert className="mb-6 border-primary/30 bg-primary/5">
-        <FlaskConical className="h-4 w-4 text-primary" />
-        <AlertDescription className="flex items-center justify-between">
-          <span>
-            <strong>Beta Preview:</strong> You're testing the new Segments module with enhanced analytics and engagement metrics.
-          </span>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => navigate('/crm/segments')}
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Stable
-          </Button>
-        </AlertDescription>
-      </Alert>
-
       {/* Header */}
       <div className={`${isMobile ? 'mobile-space-tight' : 'flex justify-between items-center'} mb-6`}>
         <div className="flex items-center gap-3">
           <h1 className={`${isMobile ? 'mobile-text-hero' : 'text-3xl'} font-bold`}>
             Customer Segments
           </h1>
-          <Badge variant="secondary" className="gap-1">
-            <Sparkles className="h-3 w-3" />
-            Beta
-          </Badge>
         </div>
         <div className={`flex ${isMobile ? 'flex-col gap-2 mt-4' : 'gap-2'}`}>
           <Button 
@@ -130,6 +133,14 @@ export const CRMSegmentsBetaPage: React.FC = () => {
           >
             <RefreshCw className={`h-4 w-4 mr-2 ${countsLoading || segmentsLoading ? 'animate-spin' : ''}`} />
             Refresh
+          </Button>
+          <Button 
+            variant="outline"
+            onClick={() => setShowImportModal(true)}
+            size={isMobile ? "default" : "sm"}
+          >
+            <Upload className="h-4 w-4 mr-2" />
+            Import CSV
           </Button>
           <Button 
             onClick={handleCreateSegment}
@@ -163,14 +174,12 @@ export const CRMSegmentsBetaPage: React.FC = () => {
             <CardTitle className="flex items-center gap-2">
               <Sparkles className="h-5 w-5 text-primary" />
               Segment Analytics
-              <Badge variant="outline" className="ml-2">New</Badge>
             </CardTitle>
           </CardHeader>
           <CardContent>
             <SegmentAnalyticsDashboard counts={counts} loading={countsLoading} />
           </CardContent>
         </Card>
-
 
         {/* Custom Segments */}
         <Card>
@@ -214,6 +223,19 @@ export const CRMSegmentsBetaPage: React.FC = () => {
           </CardContent>
         </Card>
       </div>
+
+      <CustomSegmentModal
+        open={showCustomBuilder}
+        onSave={handleSaveCustomSegment}
+        onCancel={() => setShowCustomBuilder(false)}
+        onAdvancedCreate={handleAdvancedCreate}
+      />
+
+      <EnhancedSegmentImportDialog
+        open={showImportModal}
+        onOpenChange={setShowImportModal}
+        onImportComplete={handleImportComplete}
+      />
     </div>
   );
 };
