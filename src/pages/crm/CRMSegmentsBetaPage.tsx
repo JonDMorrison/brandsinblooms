@@ -123,8 +123,21 @@ export const CRMSegmentsBetaPage: React.FC = () => {
           <h1 className={`${isMobile ? 'mobile-text-hero' : 'text-3xl'} font-bold`}>
             Customer Segments
           </h1>
+          <Badge variant="secondary" className="gap-1">
+            <Sparkles className="h-3 w-3" />
+            Advanced
+          </Badge>
         </div>
         <div className={`flex ${isMobile ? 'flex-col gap-2 mt-4' : 'gap-2'}`}>
+          <Button 
+            variant="outline"
+            size={isMobile ? "default" : "sm"}
+            onClick={() => navigate('/crm/segments')}
+            className="gap-1"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Standard View
+          </Button>
           <Button 
             variant="outline" 
             onClick={() => { fetchSegments(); refreshCounts(); }} 
