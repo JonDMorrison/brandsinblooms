@@ -568,7 +568,13 @@ serve(async (req: Request) => {
       customers = fetched;
     }
 
-    customers = (customers || []).filter((c: any) => c?.email?.trim());
+    customers = (customers || []).filter((c: any) => {
+      const email = c?.email?.trim();
+      if (!email) return false;
+      // Filter out placeholder emails from POS syncs (Square, Clover)
+      if (email.toLowerCase().endsWith('@noemail.local')) return false;
+      return true;
+    });
 
     // Filter out suppressed customers unless explicitly included
     // AND log skipped recipients for transparency
