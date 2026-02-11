@@ -17,6 +17,9 @@ import ConditionBuilder from '@/components/crm/segments/ConditionBuilder';
 import { PersonaSegmentTemplates } from '@/components/crm/segments/PersonaSegmentTemplates';
 import { PersonaModal } from '@/components/crm/personas/PersonaModal';
 import { GeoEnrichmentPanel } from '@/components/crm/GeoEnrichmentPanel';
+import { SystemSegmentsGrid } from '@/components/crm/segments/SystemSegmentsGrid';
+import { SYSTEM_SEGMENTS } from '@/config/segmentDefinitions';
+import { ResolvedSegment } from '@/utils/segmentResolution';
 import { 
   Plus, 
   Target, 
@@ -28,7 +31,8 @@ import {
   RefreshCw,
   Settings,
   Eye,
-  Globe
+  Globe,
+  Shield
 } from 'lucide-react';
 
 interface SegmentCondition {
@@ -608,12 +612,20 @@ const CRMSegments = () => {
                   <div className="space-y-4">
                     <div className="space-y-2">
                       <Label htmlFor="name">Segment Name</Label>
-                      <Input
-                        id="name"
-                        value={formData.name}
-                        onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                        placeholder="e.g., High Value Spring Shoppers"
-                      />
+                      {editingSegment?.is_system_segment ? (
+                        <div className="flex items-center gap-2 p-2 bg-muted rounded-md text-sm font-medium text-foreground">
+                          <Shield className="h-3.5 w-3.5 text-muted-foreground" />
+                          {formData.name}
+                          <Badge variant="secondary" className="text-[10px] ml-auto">System</Badge>
+                        </div>
+                      ) : (
+                        <Input
+                          id="name"
+                          value={formData.name}
+                          onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                          placeholder="e.g., High Value Spring Shoppers"
+                        />
+                      )}
                     </div>
                     
                     <div className="space-y-2">
@@ -755,6 +767,36 @@ const CRMSegments = () => {
           </div>
         </div>
 
+        {/* System Segments Discovery Grid */}
+        <SystemSegmentsGrid
+          onAdd={(seg, def) => {
+            setEditingSegment(null);
+            setFormData({
+              name: def.name,
+              description: def.description,
+              auto_update: true,
+              conditions: def.conditions.rules.map((r) => ({
+                field: r.field,
+                operator: r.operator === '=' ? 'equals' : r.operator,
+                value: r.value as any,
+                logic: def.conditions.logic,
+              })),
+            });
+            setShowSegmentForm(true);
+          }}
+          onViewDetails={(seg) => {
+            if (seg.db_record) {
+              openEditSegment(seg.db_record as any);
+            }
+          }}
+          onCreateCampaign={(seg) => {
+            toast({
+              title: 'Create Campaign',
+              description: `Campaign creation for "${seg.name}" coming soon.`,
+            });
+          }}
+        />
+
         {/* Custom Segments Table */}
         <Card>
           <CardHeader>
@@ -817,13 +859,18 @@ const CRMSegments = () => {
                          </div>
                        </TableCell>
                        <TableCell>
-                         {(segment as any).persona_id ? (
-                           <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
-                             🎯 Persona-based
-                           </Badge>
-                         ) : (
-                           <Badge variant="secondary">Custom</Badge>
-                         )}
+                        {segment.is_system_segment ? (
+                            <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
+                              <Shield className="h-3 w-3 mr-1" />
+                              System
+                            </Badge>
+                          ) : (segment as any).persona_id ? (
+                            <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
+                              🎯 Persona-based
+                            </Badge>
+                          ) : (
+                            <Badge variant="secondary">Custom</Badge>
+                          )}
                        </TableCell>
                        <TableCell>
                          <Badge variant={segment.auto_update ? "default" : "secondary"}>
@@ -842,14 +889,16 @@ const CRMSegments = () => {
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => deleteSegment(segment.id)}
-                            className="text-destructive hover:text-destructive"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          {!segment.is_system_segment && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => deleteSegment(segment.id)}
+                              className="text-destructive hover:text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
