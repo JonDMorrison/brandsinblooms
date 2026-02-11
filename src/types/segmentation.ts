@@ -62,6 +62,7 @@ export interface EnhancedSegment {
   conditions: SegmentRules | null;
   customer_count: number;
   is_active: boolean;
+  is_system_segment?: boolean;
   auto_update: boolean;
   persona_id?: string;
   metadata?: Record<string, any>;

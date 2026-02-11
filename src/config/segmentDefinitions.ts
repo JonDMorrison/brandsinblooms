@@ -166,3 +166,11 @@ export const getSegmentNameById = (id: string): string => {
   const segment = getSegmentById(id);
   return segment?.name || id;
 };
+
+// Helper to check if a segment ID is a system segment
+export const isSystemSegmentId = (id: string): boolean => {
+  return SYSTEM_SEGMENTS.some(s => s.id === id);
+};
+
+// List of all system segment names for DB matching
+export const SYSTEM_SEGMENT_NAMES = SYSTEM_SEGMENTS.map(s => s.name);
