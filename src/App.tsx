@@ -377,7 +377,7 @@ function App() {
               element={
                 <ProtectedRoute>
                   <SidebarLayout>
-                    <CRMSegmentsPage />
+                    <CRMSegmentsBetaPage />
                   </SidebarLayout>
                 </ProtectedRoute>
               }
