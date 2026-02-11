@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Target, Plus, Search, RefreshCw, Upload, FlaskConical, Eye, EyeOff } from 'lucide-react';
+import { Target, Plus, Search, RefreshCw, Upload, SlidersHorizontal, Eye, EyeOff } from 'lucide-react';
 import { useCRMSegments } from '@/hooks/useCRMSegments';
 import { useSegmentCounts } from '@/hooks/useSegmentCounts';
 import { useSystemSegmentVisibility } from '@/hooks/useSystemSegmentVisibility';
@@ -199,17 +199,17 @@ export const CRMSegmentsPage: React.FC = () => {
           <h1 className={`${isMobile ? 'mobile-text-hero' : 'text-3xl'} font-bold`}>
             Customer Segments
           </h1>
+        </div>
+        <div className={`flex ${isMobile ? 'flex-col gap-2' : 'gap-2'}`}>
           <Button
             variant="outline"
-            size="sm"
+            size={isMobile ? "default" : "sm"}
             onClick={() => navigate('/crm/segments/beta')}
             className="gap-1"
           >
-            <FlaskConical className="h-3 w-3" />
-            Try Beta
+            <SlidersHorizontal className="h-4 w-4" />
+            Advanced View
           </Button>
-        </div>
-        <div className={`flex ${isMobile ? 'flex-col gap-2' : 'gap-2'}`}>
           <Button 
             variant="outline" 
             onClick={fetchSegments} 
