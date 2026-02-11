@@ -28,6 +28,7 @@ interface CampaignSetupWizardProps {
   selectedSegments: Segment[];
   onPersonasChange: (personas: Persona[]) => void;
   onSegmentsChange: (segments: Segment[]) => void;
+  lockedSegmentIds?: string[];
 }
 
 type WizardStep = 'basics' | 'audience' | 'review';
@@ -38,7 +39,8 @@ export const CampaignSetupWizard = ({
   selectedPersonas,
   selectedSegments,
   onPersonasChange,
-  onSegmentsChange
+  onSegmentsChange,
+  lockedSegmentIds = []
 }: CampaignSetupWizardProps) => {
   const [currentStep, setCurrentStep] = useState<WizardStep>('basics');
 
@@ -110,6 +112,7 @@ export const CampaignSetupWizard = ({
               maxPersonas={10}
               maxSegments={5}
               onClose={() => {}} // Don't close wizard on audience selector close
+              lockedSegmentIds={lockedSegmentIds}
             />
           </div>
         );

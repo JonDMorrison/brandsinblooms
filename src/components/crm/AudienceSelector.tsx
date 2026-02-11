@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { Search, Users, Lightbulb, X, Plus, Check } from "lucide-react";
+import { Search, Users, Lightbulb, X, Plus, Check, Lock } from "lucide-react";
 import { PersonaTag } from "./PersonaTag";
 import { SegmentChip } from "./SegmentChip";
 import { CustomPersonaModal } from "./personas/CustomPersonaModal";
@@ -39,6 +39,7 @@ interface AudienceSelectorProps {
   maxPersonas?: number;
   maxSegments?: number;
   onClose: () => void;
+  lockedSegmentIds?: string[];
 }
 
 export const AudienceSelector = ({
@@ -48,7 +49,8 @@ export const AudienceSelector = ({
   onSegmentsChange,
   maxPersonas = 10,
   maxSegments = 5,
-  onClose
+  onClose,
+  lockedSegmentIds = []
 }: AudienceSelectorProps) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showPersonaModal, setShowPersonaModal] = useState(false);
@@ -146,6 +148,8 @@ export const AudienceSelector = ({
   };
 
   const handleSegmentToggle = (segment: Segment, checked: boolean) => {
+    // Prevent toggling off locked segments
+    if (!checked && lockedSegmentIds.includes(segment.id)) return;
     if (checked) {
       if (selectedSegments.length >= maxSegments) {
         toast.error(`You can select up to ${maxSegments} segments`);
@@ -162,6 +166,7 @@ export const AudienceSelector = ({
   };
 
   const removeSegment = (segmentId: string) => {
+    if (lockedSegmentIds.includes(segmentId)) return;
     onSegmentsChange(selectedSegments.filter(s => s.id !== segmentId));
   };
 
@@ -294,9 +299,10 @@ export const AudienceSelector = ({
                   <SegmentChip
                     key={segment.id}
                     segment={segment}
-                    removable
+                    removable={!lockedSegmentIds.includes(segment.id)}
                     onRemove={removeSegment}
                     size="sm"
+                    locked={lockedSegmentIds.includes(segment.id)}
                   />
                 ))}
               </div>

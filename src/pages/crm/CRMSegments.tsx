@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { SubscriptionGate } from '@/components/SubscriptionGate';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -19,6 +20,7 @@ import { PersonaModal } from '@/components/crm/personas/PersonaModal';
 import { GeoEnrichmentPanel } from '@/components/crm/GeoEnrichmentPanel';
 import { SystemSegmentsGrid } from '@/components/crm/segments/SystemSegmentsGrid';
 import { SYSTEM_SEGMENTS, SegmentDefinition } from '@/config/segmentDefinitions';
+import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 import { ResolvedSegment } from '@/utils/segmentResolution';
 import { validateTenantContext } from '@/utils/tenantValidation';
 import { 
@@ -64,6 +66,7 @@ interface CustomerPreview {
 }
 
 const CRMSegments = () => {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
   const [segments, setSegments] = useState<Segment[]>([]);
@@ -450,23 +453,21 @@ const CRMSegments = () => {
     }
   };
 
-  const deleteSegment = async (segmentId: string) => {
-    // Check if this is a system segment
-    const segment = segments.find(s => s.id === segmentId);
-    if (segment?.is_system_segment) {
-      toast({
-        title: "Cannot Delete",
-        description: "System segments cannot be deleted",
-        variant: "destructive"
-      });
-      return;
-    }
+  const [deleteTarget, setDeleteTarget] = useState<Segment | null>(null);
 
+  const requestDeleteSegment = (segmentId: string) => {
+    const segment = segments.find(s => s.id === segmentId);
+    if (!segment) return;
+    setDeleteTarget(segment);
+  };
+
+  const confirmDeleteSegment = async () => {
+    if (!deleteTarget) return;
     try {
       const { error } = await supabase
         .from('crm_segments')
         .delete()
-        .eq('id', segmentId);
+        .eq('id', deleteTarget.id);
 
       if (error) throw error;
 
@@ -476,6 +477,7 @@ const CRMSegments = () => {
       });
 
       loadSegments();
+      setRefreshKey(k => k + 1);
     } catch (error) {
       console.error('Error deleting segment:', error);
       toast({
@@ -483,6 +485,8 @@ const CRMSegments = () => {
         description: "Failed to delete segment",
         variant: "destructive"
       });
+    } finally {
+      setDeleteTarget(null);
     }
   };
 
@@ -707,6 +711,7 @@ const CRMSegments = () => {
                     onAddCondition={addCondition}
                     onUpdateCondition={updateCondition}
                     onRemoveCondition={removeCondition}
+                    disabled={!!editingSegment?.is_system_segment}
                   />
 
                    {/* Live Segment Preview */}
@@ -829,10 +834,9 @@ const CRMSegments = () => {
             }
           }}
           onCreateCampaign={(seg) => {
-            toast({
-              title: 'Create Campaign',
-              description: `Campaign creation for "${seg.name}" coming soon.`,
-            });
+            if (seg.id) {
+              navigate(`/crm/campaigns/new?segment=${seg.id}&locked=true`);
+            }
           }}
         />
 
@@ -932,7 +936,7 @@ const CRMSegments = () => {
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => deleteSegment(segment.id)}
+                              onClick={() => requestDeleteSegment(segment.id)}
                               className="text-destructive hover:text-destructive"
                             >
                               <Trash2 className="h-4 w-4" />
@@ -1018,6 +1022,20 @@ const CRMSegments = () => {
               description: `Creating segment for ${persona.name} customers...`,
             });
           }}
+        />
+
+        {/* Delete Confirmation Dialog */}
+        <ConfirmationDialog
+          open={!!deleteTarget}
+          onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
+          title={deleteTarget?.is_system_segment ? "Delete System Segment?" : "Delete Segment?"}
+          description={
+            deleteTarget?.is_system_segment
+              ? `"${deleteTarget.name}" is a system segment. Removing it will require re-activation. Are you sure?`
+              : `Are you sure you want to delete "${deleteTarget?.name}"? This action cannot be undone.`
+          }
+          confirmText="Delete"
+          onConfirm={confirmDeleteSegment}
         />
       </div>
     </SubscriptionGate>
