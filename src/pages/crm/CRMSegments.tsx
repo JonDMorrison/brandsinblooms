@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { SubscriptionGate } from '@/components/SubscriptionGate';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -18,8 +18,9 @@ import { PersonaSegmentTemplates } from '@/components/crm/segments/PersonaSegmen
 import { PersonaModal } from '@/components/crm/personas/PersonaModal';
 import { GeoEnrichmentPanel } from '@/components/crm/GeoEnrichmentPanel';
 import { SystemSegmentsGrid } from '@/components/crm/segments/SystemSegmentsGrid';
-import { SYSTEM_SEGMENTS } from '@/config/segmentDefinitions';
+import { SYSTEM_SEGMENTS, SegmentDefinition } from '@/config/segmentDefinitions';
 import { ResolvedSegment } from '@/utils/segmentResolution';
+import { validateTenantContext } from '@/utils/tenantValidation';
 import { 
   Plus, 
   Target, 
@@ -75,7 +76,8 @@ const CRMSegments = () => {
   const [previewLoading, setPreviewLoading] = useState(false);
   const [showPersonaTemplates, setShowPersonaTemplates] = useState(false);
   const [isPersonaModalOpen, setIsPersonaModalOpen] = useState(false);
-  
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [activatingId, setActivatingId] = useState<string | null>(null);
   // Form state
   const [formData, setFormData] = useState({
     name: '',
@@ -566,6 +568,53 @@ const CRMSegments = () => {
     setShowSegmentForm(true);
   };
 
+  const activateSystemSegment = useCallback(async (segment: ResolvedSegment, definition: SegmentDefinition) => {
+    if (!user) return;
+    setActivatingId(definition.id);
+    try {
+      const validation = await validateTenantContext(user.id);
+      if (!validation.isValid || !validation.tenantId) {
+        toast({ title: 'Error', description: validation.error || 'No tenant context', variant: 'destructive' });
+        return;
+      }
+
+      // Idempotency check
+      const { data: existing } = await supabase
+        .from('crm_segments')
+        .select('id')
+        .eq('tenant_id', validation.tenantId)
+        .ilike('name', definition.name)
+        .maybeSingle();
+
+      if (existing) {
+        toast({ title: 'Already Active', description: `"${definition.name}" is already in your segments.` });
+        return;
+      }
+
+      const { error } = await supabase.from('crm_segments').insert({
+        name: definition.name,
+        description: definition.description,
+        conditions: definition.conditions.rules as any,
+        is_system_segment: true,
+        tenant_id: validation.tenantId,
+        user_id: user.id,
+        customer_count: 0,
+        auto_update: true,
+      });
+
+      if (error) throw error;
+
+      toast({ title: 'Segment Activated', description: `"${definition.name}" has been added to your segments.` });
+      loadSegments();
+      setRefreshKey((k) => k + 1);
+    } catch (err) {
+      console.error('activateSystemSegment error:', err);
+      toast({ title: 'Error', description: 'Failed to activate segment', variant: 'destructive' });
+    } finally {
+      setActivatingId(null);
+    }
+  }, [user, toast]);
+
   return (
     <SubscriptionGate 
       requiredPlan="bloom" 
@@ -769,20 +818,10 @@ const CRMSegments = () => {
 
         {/* System Segments Discovery Grid */}
         <SystemSegmentsGrid
+          refreshKey={refreshKey}
+          activatingId={activatingId}
           onAdd={(seg, def) => {
-            setEditingSegment(null);
-            setFormData({
-              name: def.name,
-              description: def.description,
-              auto_update: true,
-              conditions: def.conditions.rules.map((r) => ({
-                field: r.field,
-                operator: r.operator === '=' ? 'equals' : r.operator,
-                value: r.value as any,
-                logic: def.conditions.logic,
-              })),
-            });
-            setShowSegmentForm(true);
+            activateSystemSegment(seg, def);
           }}
           onViewDetails={(seg) => {
             if (seg.db_record) {
