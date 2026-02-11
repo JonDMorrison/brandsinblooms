@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -182,17 +182,22 @@ export const CRMCustomersPage: React.FC = () => {
     navigate(`/crm/customers/${customer.id}`);
   };
 
-  // Reset to page 1 when search changes
-  const handleSearchSubmit = () => {
-    setSearchQuery(searchInput);
-    setCurrentPage(1);
-  };
+  // Debounced search - auto-search as user types
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchInput !== searchQuery) {
+        setSearchQuery(searchInput);
+        setCurrentPage(1);
+      }
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
 
-  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      handleSearchSubmit();
-    }
-  };
+  const handleClearSearch = useCallback(() => {
+    setSearchInput('');
+    setSearchQuery('');
+    setCurrentPage(1);
+  }, []);
 
   // Generate pagination items
   const getPaginationItems = () => {
@@ -265,15 +270,24 @@ export const CRMCustomersPage: React.FC = () => {
         <CardContent>
           <div className="space-y-4">
             <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-2">
-                <Search className="h-4 w-4" />
+              <div className="relative flex-1 max-w-md">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input 
-                  placeholder="Search customers by name or email (press Enter)..." 
-                  className="max-w-sm" 
+                  placeholder="Search by name, email, or phone..." 
+                  className="pl-9 pr-9" 
                   value={searchInput}
                   onChange={(e) => setSearchInput(e.target.value)}
-                  onKeyDown={handleSearchKeyDown}
                 />
+                {searchInput && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 p-0"
+                    onClick={handleClearSearch}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                )}
               </div>
               
               {selectedIds.size > 0 && (

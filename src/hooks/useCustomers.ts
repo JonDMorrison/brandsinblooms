@@ -83,6 +83,7 @@ export const useCustomers = (options: UseCustomersOptions = {}) => {
           `email.ilike.%${sanitized}%`,
           `first_name.ilike.%${sanitized}%`,
           `last_name.ilike.%${sanitized}%`,
+          `phone.ilike.%${sanitized}%`,
         ];
 
         if (tokens.length > 1) {
