@@ -350,9 +350,52 @@ serve(async (req) => {
     }
 
     if (!jobs || jobs.length === 0) {
-      console.log('✅ No pending jobs to process');
+      // Before returning, check for stuck campaigns (status='sending' but all jobs completed)
+      const { data: stuckCampaigns } = await supabase
+        .from('crm_campaigns')
+        .select('id')
+        .eq('status', 'sending')
+        .lt('sending_started_at', new Date(Date.now() - 10 * 60 * 1000).toISOString())
+        .limit(5);
+
+      let finalized = 0;
+      for (const sc of stuckCampaigns || []) {
+        const { data: pendingJobs } = await supabase
+          .from('email_send_jobs')
+          .select('id')
+          .eq('campaign_id', sc.id)
+          .in('status', ['pending', 'processing'])
+          .limit(1);
+
+        if (pendingJobs && pendingJobs.length > 0) continue;
+
+        const { data: allJobs } = await supabase
+          .from('email_send_jobs')
+          .select('emails_sent, emails_failed')
+          .eq('campaign_id', sc.id);
+
+        const totalSent = (allJobs || []).reduce((s: number, j: any) => s + (j.emails_sent || 0), 0);
+        const totalFailed = (allJobs || []).reduce((s: number, j: any) => s + (j.emails_failed || 0), 0);
+
+        await supabase
+          .from('crm_campaigns')
+          .update({
+            status: totalFailed > 0 ? 'sent_with_errors' : 'sent',
+            total_sent: totalSent,
+            sent_at: new Date().toISOString(),
+            sending_started_at: null,
+            claim_token: null,
+            metrics: { sent: totalSent, failed: totalFailed, opens: 0, clicks: 0, unsubscribes: 0 },
+          })
+          .eq('id', sc.id);
+
+        console.log(`🔧 Auto-finalized stuck campaign ${sc.id}: ${totalSent} sent, ${totalFailed} failed`);
+        finalized++;
+      }
+
+      console.log(`✅ No pending jobs to process${finalized > 0 ? ` (finalized ${finalized} stuck campaigns)` : ''}`);
       return new Response(
-        JSON.stringify({ processed: 0, message: 'No pending jobs' }),
+        JSON.stringify({ processed: 0, finalized, message: 'No pending jobs' }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
