@@ -18,6 +18,13 @@ const DEFAULT_MESSAGE_STALE_MINUTES = 15;
 const RESEND_BATCH_SIZE = 25;
 const RESEND_MIN_INTERVAL_MS = 500;
 
+addEventListener('beforeunload', (ev) => {
+  console.log(
+    '[process-email-send-queue] Function shutdown due to:',
+    (ev as any).detail?.reason,
+  );
+});
+
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -324,32 +331,43 @@ async function resendSendBatch(
   }
 }
 
-serve(async (req) => {
+serve((req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const startTime = Date.now();
-  const batchDelayMs = parseInt(Deno.env.get('EMAIL_BATCH_DELAY_MS') || String(DEFAULT_BATCH_DELAY_MS), 10);
-  const sendConcurrency = parseInt(Deno.env.get('EMAIL_SEND_CONCURRENCY') || String(SEND_CONCURRENCY), 10);
-  const messageStaleMinutes = parseInt(Deno.env.get('EMAIL_MESSAGE_STALE_MINUTES') || String(DEFAULT_MESSAGE_STALE_MINUTES), 10);
-  const resendBatchSize = RESEND_BATCH_SIZE;
-  const workerId = Deno.env.get('WORKER_ID') || `email-queue-worker-${crypto.randomUUID()}`;
-  const claimToken = crypto.randomUUID();
+  const runId = crypto.randomUUID().slice(0, 8);
 
-  // Global request pacing is enforced by the DB-backed limiter at RESEND_MIN_INTERVAL_MS.
-  // If the user-configured batchDelayMs is higher than the global minimum, we add only the
-  // extra delay so we don't accidentally double-throttle.
-  const additionalBatchDelayMs = Math.max(0, batchDelayMs - RESEND_MIN_INTERVAL_MS);
+  console.log(`[process-email-send-queue][${runId}] request received: method=${req.method}`);
 
-  console.log(
-    `⚙️ Resend settings: batch_size=${resendBatchSize} (fixed), min_interval_ms=${RESEND_MIN_INTERVAL_MS} (fixed, global)`
-  );
-  console.log(
-    `⚙️ Worker settings: send_concurrency=${sendConcurrency} (env EMAIL_SEND_CONCURRENCY), batch_delay_ms=${batchDelayMs} (env EMAIL_BATCH_DELAY_MS), stale_minutes=${messageStaleMinutes}`
+  // Respond immediately so cron/net.http_post callers don't time out.
+  // Actual queue processing continues in the background via EdgeRuntime.waitUntil.
+  const acceptedResponse = new Response(
+    JSON.stringify({ accepted: true, runId }),
+    { status: 202, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
   );
 
-  try {
+  console.log(`[process-email-send-queue][${runId}] scheduling background run via waitUntil`);
+
+  EdgeRuntime.waitUntil((async () => {
+    console.log(`[process-email-send-queue][${runId}] background run started`);
+    const startTime = Date.now();
+    const batchDelayMs = parseInt(Deno.env.get('EMAIL_BATCH_DELAY_MS') || String(DEFAULT_BATCH_DELAY_MS), 10);
+    const sendConcurrency = parseInt(Deno.env.get('EMAIL_SEND_CONCURRENCY') || String(SEND_CONCURRENCY), 10);
+    const messageStaleMinutes = parseInt(Deno.env.get('EMAIL_MESSAGE_STALE_MINUTES') || String(DEFAULT_MESSAGE_STALE_MINUTES), 10);
+    const resendBatchSize = RESEND_BATCH_SIZE;
+    const workerId = Deno.env.get('WORKER_ID') || `email-queue-worker-${crypto.randomUUID()}`;
+    const claimToken = crypto.randomUUID();
+
+    // Global request pacing is enforced by the DB-backed limiter at RESEND_MIN_INTERVAL_MS.
+    // If the user-configured batchDelayMs is higher than the global minimum, we add only the
+    // extra delay so we don't accidentally double-throttle.
+    const additionalBatchDelayMs = Math.max(0, batchDelayMs - RESEND_MIN_INTERVAL_MS);
+
+    console.log(`[process-email-send-queue][${runId}] ⚙️ Resend settings: batch_size=${resendBatchSize} (fixed), min_interval_ms=${RESEND_MIN_INTERVAL_MS} (fixed, global)`);
+    console.log(`[process-email-send-queue][${runId}] ⚙️ Worker settings: send_concurrency=${sendConcurrency} (env EMAIL_SEND_CONCURRENCY), batch_delay_ms=${batchDelayMs} (env EMAIL_BATCH_DELAY_MS), stale_minutes=${messageStaleMinutes}`);
+
+    try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
@@ -358,21 +376,42 @@ serve(async (req) => {
 
     const resendApiKey = Deno.env.get('RESEND_API_KEY');
     if (!resendApiKey) {
-      console.error('❌ Missing RESEND_API_KEY');
-      return new Response(
-        JSON.stringify({ error: 'Email service not configured' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      console.error(`[process-email-send-queue][${runId}] ❌ Missing RESEND_API_KEY`);
+      return;
     }
 
     // Atomically claim jobs (prevents concurrent workers from processing the same job)
-    const claimOnce = async (batchSize: number) =>
-      await supabase.rpc('claim_email_send_job_ids', {
+    // Prefer the lightweight claim_email_send_job_ids RPC, but fall back to claim_email_send_jobs
+    // if the migration hasn't been applied / schema cache hasn't refreshed yet.
+    const claimOnce = async (batchSize: number) => {
+      const primary = await supabase.rpc('claim_email_send_job_ids', {
         batch_size: batchSize,
         worker_id: workerId,
         p_claim_token: claimToken,
         stale_after_minutes: 10,
       });
+
+      if (!primary.error) return primary;
+
+      const code = String((primary.error as any)?.code || '');
+      const msg = String((primary.error as any)?.message || primary.error);
+      const looksMissing = code === 'PGRST202' || msg.toLowerCase().includes('could not find the function public.claim_email_send_job_ids');
+      if (!looksMissing) return primary;
+
+      console.warn('⚠️ claim_email_send_job_ids missing; falling back to claim_email_send_jobs');
+      const fallback = await supabase.rpc('claim_email_send_jobs', {
+        batch_size: batchSize,
+        worker_id: workerId,
+        p_claim_token: claimToken,
+        stale_after_minutes: 10,
+      });
+
+      if (fallback.error) return fallback as any;
+
+      // Normalize to the same shape as claim_email_send_job_ids
+      const idsOnly = (fallback.data || []).map((r: any) => ({ id: r?.id }));
+      return { data: idsOnly, error: null } as any;
+    };
 
     let claimedJobIds: string[] = [];
     {
@@ -398,17 +437,11 @@ serve(async (req) => {
               hint: (retry.error as any)?.hint,
               code: (retry.error as any)?.code,
             });
-            return new Response(
-              JSON.stringify({ error: 'Failed to claim jobs' }),
-              { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-            );
+            return;
           }
           claimedJobIds = (retry.data || []).map((r: any) => String(r?.id)).filter(Boolean);
         } else {
-          return new Response(
-            JSON.stringify({ error: 'Failed to claim jobs' }),
-            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
+          return;
         }
       } else {
         claimedJobIds = (data || []).map((r: any) => String(r?.id)).filter(Boolean);
@@ -460,10 +493,7 @@ serve(async (req) => {
       }
 
       console.log(`✅ No pending jobs to process${finalized > 0 ? ` (finalized ${finalized} stuck campaigns)` : ''}`);
-      return new Response(
-        JSON.stringify({ processed: 0, finalized, message: 'No pending jobs' }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return;
     }
 
     const { data: jobs, error: jobsFetchError } = await supabase
@@ -478,10 +508,7 @@ serve(async (req) => {
         hint: (jobsFetchError as any)?.hint,
         code: (jobsFetchError as any)?.code,
       });
-      return new Response(
-        JSON.stringify({ error: 'Failed to fetch claimed jobs' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return;
     }
 
     const jobsNeedingEmails = (jobs || []).filter((j: any) =>
@@ -1120,23 +1147,11 @@ serve(async (req) => {
 
     const duration = Date.now() - startTime;
     console.log(`✅ Queue processing complete: ${processedCount} jobs, ${totalEmailsSent} emails sent, ${totalEmailsFailed} failed (${duration}ms)`);
-
-    return new Response(
-      JSON.stringify({
-        processed: processedCount,
-        emails_sent: totalEmailsSent,
-        emails_failed: totalEmailsFailed,
-        failed_campaigns: failedCampaigns.size,
-        duration_ms: duration
-      }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-
   } catch (error: any) {
-    console.error('❌ Critical error in queue processor:', error);
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    console.error(`[process-email-send-queue][${runId}] ❌ Critical error in queue processor:`, error);
+    return;
   }
+  })());
+
+  return acceptedResponse;
 });
