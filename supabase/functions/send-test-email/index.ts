@@ -115,15 +115,15 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Initialize Supabase client
-    const supabaseClient = createClient(
+    // Use service role client to verify user from JWT - more reliable than anon key
+    const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      { global: { headers: { Authorization: authHeader } } }
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
     );
 
-    // Get the authenticated user
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+    // Extract JWT token and get user
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(token);
     if (userError || !user) {
       console.error("❌ Failed to get user:", userError);
       return new Response(
@@ -131,9 +131,9 @@ const handler = async (req: Request): Promise<Response> => {
         { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
-
+    console.log("✅ Authenticated user:", user.id, user.email);
     // Fetch FULL company profile including social URLs for footer regeneration
-    const { data: companyProfile, error: profileError } = await supabaseClient
+    const { data: companyProfile, error: profileError } = await supabaseAdmin
       .from('company_profiles')
       .select(`
         company_name, custom_sender_email, website_url,
@@ -160,7 +160,7 @@ const handler = async (req: Request): Promise<Response> => {
     });
 
     // Get tenant ID for the user
-    const { data: userRecord } = await supabaseClient
+    const { data: userRecord } = await supabaseAdmin
       .from('users')
       .select('tenant_id')
       .eq('id', user.id)
@@ -171,7 +171,7 @@ const handler = async (req: Request): Promise<Response> => {
     // Use unified sender resolver for determining sender
     let senderConfig: SenderConfig | null = null;
     if (tenantId) {
-      senderConfig = await resolveSender(supabaseClient, tenantId, { userId: user.id });
+      senderConfig = await resolveSender(supabaseAdmin, tenantId, { userId: user.id });
       console.log("📧 Resolved sender config:", senderConfig);
     }
 
