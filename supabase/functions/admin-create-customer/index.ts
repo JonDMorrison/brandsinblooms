@@ -112,9 +112,22 @@ Deno.serve(async (req) => {
       });
     }
 
+    if (action === "add_to_segment") {
+      const { customer_id, segment_id } = body;
+      if (!customer_id || !segment_id) throw new Error("customer_id and segment_id are required");
+
+      const { error } = await supabaseAdmin
+        .from("customer_segments")
+        .upsert({ customer_id, segment_id }, { onConflict: "customer_id,segment_id" });
+
+      if (error) throw error;
+      return new Response(JSON.stringify({ success: true, customer_id, segment_id }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     if (action === "create_customer") {
       const { email, first_name, last_name, tenant_id, segment_ids } = body;
-
       const { data: customer, error: custErr } = await supabaseAdmin
         .from("crm_customers")
         .insert({ email, first_name, last_name, tenant_id })
