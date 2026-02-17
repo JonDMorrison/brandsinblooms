@@ -6,6 +6,7 @@ import { HeroSection } from './HeroSection';
 import { ProblemAgitationSection } from './ProblemAgitationSection';
 import { GuideSection } from './GuideSection';
 
+import { VideoShowcaseSection } from './VideoShowcaseSection';
 import { BenefitsSection } from './BenefitsSection';
 import { DifferentiatorsSection } from './DifferentiatorsSection';
 
@@ -32,6 +33,7 @@ export const CompleteLandingPage = () => {
     <div className="w-full min-h-screen theme-core-home bg-offwhite">
       <LandingPageHeader onLogin={handleLogin} />
       <HeroSection onGetStarted={handleGetStarted} />
+      <VideoShowcaseSection />
       <ProblemAgitationSection />
       <GuideSection />
       
