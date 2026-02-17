@@ -10690,6 +10690,24 @@ export type Database = {
           },
         ]
       }
+      provider_rate_limits: {
+        Row: {
+          next_allowed_at: string
+          provider: string
+          updated_at: string
+        }
+        Insert: {
+          next_allowed_at?: string
+          provider: string
+          updated_at?: string
+        }
+        Update: {
+          next_allowed_at?: string
+          provider?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       reported_problem_attachments: {
         Row: {
           created_at: string | null
@@ -13324,6 +13342,10 @@ export type Database = {
       }
     }
     Functions: {
+      acquire_provider_send_slot: {
+        Args: { p_min_interval_ms?: number; p_provider: string }
+        Returns: number
+      }
       admin_delete_user: { Args: { target_user_id: string }; Returns: boolean }
       admin_extend_trial: {
         Args: { p_days: number; p_tenant_id: string }
@@ -13462,6 +13484,17 @@ export type Database = {
           error_message: string
           previous_status: string
           success: boolean
+        }[]
+      }
+      claim_email_send_job_ids: {
+        Args: {
+          batch_size?: number
+          p_claim_token?: string
+          stale_after_minutes?: number
+          worker_id?: string
+        }
+        Returns: {
+          id: string
         }[]
       }
       claim_email_send_jobs: {
@@ -13744,6 +13777,13 @@ export type Database = {
           current_status: string
           error_message: string
           success: boolean
+        }[]
+      }
+      ensure_jobs_for_queued_email_messages: {
+        Args: { p_batch_size?: number; p_campaign_id: string }
+        Returns: {
+          jobs_created: number
+          queued_count: number
         }[]
       }
       ensure_org_usage_initialized: {
