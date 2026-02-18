@@ -129,6 +129,7 @@ const CRMCampaignReport: React.FC = () => {
   const { data: segments = [] } = useQuery({
     queryKey: ["campaign-report-segments", campaignId],
     queryFn: async () => {
+      // First try the campaign_segments join table
       const { data, error } = await supabase
         .from("campaign_segments")
         .select(
@@ -139,7 +140,28 @@ const CRMCampaignReport: React.FC = () => {
         )
         .eq("campaign_id", campaignId);
       if (error) throw error;
-      return data || [];
+      if (data && data.length > 0) return data;
+
+      // Fallback: check direct segment_id on crm_campaigns
+      const { data: campaignData } = await supabase
+        .from("crm_campaigns")
+        .select("segment_id")
+        .eq("id", campaignId!)
+        .maybeSingle();
+
+      if (campaignData?.segment_id) {
+        const { data: segmentData } = await supabase
+          .from("crm_segments")
+          .select("*")
+          .eq("id", campaignData.segment_id)
+          .maybeSingle();
+
+        if (segmentData) {
+          return [{ id: campaignData.segment_id, campaign_id: campaignId, segment_id: campaignData.segment_id, crm_segments: segmentData }];
+        }
+      }
+
+      return [];
     },
     enabled: !!campaignId,
     staleTime: 0,
