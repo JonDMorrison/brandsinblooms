@@ -241,6 +241,23 @@ Deno.serve(async (req) => {
       });
     }
 
+    if (action === "update_campaign_sender") {
+      const { campaign_id, sender_email, domain_id } = body;
+      if (!campaign_id || !sender_email || !domain_id) throw new Error("campaign_id, sender_email, domain_id are required");
+
+      const { data: updated, error: updErr } = await supabaseAdmin
+        .from("crm_campaigns")
+        .update({ sender_email, from_email_domain_id: domain_id })
+        .eq("id", campaign_id)
+        .select("id, sender_email, from_email_domain_id")
+        .single();
+
+      if (updErr) throw updErr;
+      return new Response(JSON.stringify({ success: true, campaign: updated }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     throw new Error(`Unknown action: ${action}`);
   } catch (err) {
     return new Response(JSON.stringify({ error: err.message }), {
