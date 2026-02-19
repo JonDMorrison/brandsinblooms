@@ -50,6 +50,7 @@ Deno.serve(async (req) => {
         .from("crm_campaigns")
         .update({
           status: "scheduled",
+          scheduled_at: new Date().toISOString(),
           failure_reason: null,
           send_error: null,
           send_blocked_reason: null,
@@ -62,6 +63,57 @@ Deno.serve(async (req) => {
 
       if (updErr) throw updErr;
       return new Response(JSON.stringify({ success: true, campaign: updated }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (action === "clear_and_resend_campaign") {
+      const { campaign_id } = body;
+      if (!campaign_id) throw new Error("campaign_id is required");
+
+      // Delete old email_send_jobs
+      const { error: delJobsErr } = await supabaseAdmin
+        .from("email_send_jobs")
+        .delete()
+        .eq("campaign_id", campaign_id);
+      if (delJobsErr) console.warn("Failed to delete old jobs:", delJobsErr);
+
+      // Delete old email_messages
+      const { error: delMsgsErr } = await supabaseAdmin
+        .from("email_messages")
+        .delete()
+        .eq("campaign_id", campaign_id);
+      if (delMsgsErr) console.warn("Failed to delete old messages:", delMsgsErr);
+
+      // Reset campaign to scheduled with immediate pickup
+      const { data: updated, error: updErr } = await supabaseAdmin
+        .from("crm_campaigns")
+        .update({
+          status: "scheduled",
+          scheduled_at: new Date().toISOString(),
+          failure_reason: null,
+          send_error: null,
+          send_blocked_reason: null,
+          claim_token: null,
+          sending_started_at: null,
+          sent_at: null,
+        })
+        .eq("id", campaign_id)
+        .select("id, status")
+        .single();
+
+      if (updErr) throw updErr;
+
+      // Trigger auto-send
+      try {
+        await supabaseAdmin.functions.invoke("auto-send-campaigns", {
+          body: { manualTrigger: true },
+        });
+      } catch (e) {
+        console.warn("auto-send invoke warning:", e);
+      }
+
+      return new Response(JSON.stringify({ success: true, campaign: updated, cleared: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
