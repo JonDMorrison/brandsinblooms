@@ -18,11 +18,141 @@ const handler = async (req: Request): Promise<Response> => {
   );
 
   try {
-    const { domain, domain_id, action, default_from_name, default_from_email } = await req.json();
+    const { domain, domain_id, action, default_from_name, default_from_email, tenant_id } = await req.json();
     
     console.log(`🔧 Admin domain action: ${action} for ${domain || domain_id}`);
 
-    // Find the domain
+    const resendApiKey = Deno.env.get('RESEND_API_KEY');
+
+    // Handle 'register' action separately — domain may not exist yet
+    if (action === 'register') {
+      if (!domain || !tenant_id) {
+        return new Response(JSON.stringify({ error: 'domain and tenant_id required for register' }), {
+          status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      if (!resendApiKey) {
+        return new Response(JSON.stringify({ error: 'RESEND_API_KEY not configured' }), {
+          status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      const resend = new Resend(resendApiKey);
+      const domainName = domain.toLowerCase().trim();
+
+      // Check if already exists in our DB
+      const { data: existing } = await supabase
+        .from('email_domains')
+        .select('*')
+        .eq('domain', domainName)
+        .eq('tenant_id', tenant_id)
+        .maybeSingle();
+
+      if (existing?.resend_domain_id) {
+        // Already registered — just return status
+        const { data: resendData } = await resend.domains.get(existing.resend_domain_id);
+        return new Response(JSON.stringify({
+          success: true,
+          message: 'Domain already registered',
+          domain: existing,
+          resend_status: resendData
+        }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+
+      // Check Resend for existing domain
+      let resendDomainId: string;
+      let resendDomainData: any = null;
+
+      const { data: resendDomains } = await resend.domains.list();
+      const existingResend = resendDomains?.data?.find((d: any) => d.name === domainName);
+
+      if (existingResend) {
+        resendDomainId = existingResend.id;
+        console.log(`✅ Found existing Resend domain: ${resendDomainId}`);
+      } else {
+        console.log(`📧 Creating new domain in Resend: ${domainName}`);
+        const { data: createResult, error: createError } = await resend.domains.create({
+          name: domainName,
+          region: 'us-east-1'
+        });
+        if (createError || !createResult) {
+          return new Response(JSON.stringify({ error: 'Failed to create domain in Resend', details: createError }), {
+            status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+        resendDomainId = createResult.id;
+        console.log(`✅ Created Resend domain: ${resendDomainId}`);
+
+        // Enable tracking
+        try {
+          await resend.domains.update({ id: resendDomainId, openTracking: true, clickTracking: true });
+        } catch (_e) { /* non-fatal */ }
+      }
+
+      // Fetch domain details
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      const { data: domainDetails } = await resend.domains.get(resendDomainId);
+      resendDomainData = domainDetails;
+
+      // Upsert into our DB
+      if (existing) {
+        await supabase.from('email_domains').update({
+          resend_domain_id: resendDomainId,
+          status: 'verifying',
+          updated_at: new Date().toISOString()
+        }).eq('id', existing.id);
+      } else {
+        await supabase.from('email_domains').insert({
+          tenant_id,
+          domain: domainName,
+          env: 'prod',
+          is_sandbox: false,
+          resend_domain_id: resendDomainId,
+          status: 'verifying',
+          default_from_name: default_from_name || null,
+          default_from_email: default_from_email || null
+        });
+      }
+
+      // Fetch the final record
+      const { data: finalDomain } = await supabase
+        .from('email_domains')
+        .select('*')
+        .eq('domain', domainName)
+        .eq('tenant_id', tenant_id)
+        .single();
+
+      // Save DNS records
+      if (resendDomainData?.records && finalDomain) {
+        await supabase.from('email_dns_records').delete().eq('email_domain_id', finalDomain.id);
+        const inserts = resendDomainData.records
+          .filter((r: any) => !r.name?.includes('_dmarc'))
+          .map((r: any) => ({
+            email_domain_id: finalDomain.id,
+            name: r.name || '',
+            type: r.record_type || r.type || 'TXT',
+            value: r.value || r.data || '',
+            priority: r.priority || null,
+            purpose: r.name?.includes('_domainkey') ? 'dkim' : r.type === 'MX' ? 'mx' : r.value?.includes('spf') ? 'spf' : 'verification',
+            required: true,
+            source: 'resend'
+          }));
+        if (inserts.length > 0) {
+          await supabase.from('email_dns_records').insert(inserts);
+        }
+      }
+
+      return new Response(JSON.stringify({
+        success: true,
+        message: `Domain ${domainName} registered in Resend`,
+        domain: finalDomain,
+        resend_status: resendDomainData,
+        dns_records: resendDomainData?.records || []
+      }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    // Find the domain for other actions
     let emailDomain;
     if (domain_id) {
       const { data, error } = await supabase
@@ -50,11 +180,11 @@ const handler = async (req: Request): Promise<Response> => {
     console.log(`📋 Found domain: ${emailDomain.domain} (${emailDomain.id})`);
 
     // Verify with Resend if domain has a Resend ID
-    const resendApiKey = Deno.env.get('RESEND_API_KEY');
+    const resendApiKey2 = Deno.env.get('RESEND_API_KEY');
     let resendStatus = null;
 
-    if (emailDomain.resend_domain_id && resendApiKey) {
-      const resend = new Resend(resendApiKey);
+    if (emailDomain.resend_domain_id && resendApiKey2) {
+      const resend = new Resend(resendApiKey2);
       
       // Trigger Resend verification
       console.log(`📧 Triggering Resend verification for ${emailDomain.resend_domain_id}`);
