@@ -9,8 +9,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import { NewsletterIdea } from '@/types/newsletter';
 import { Button } from '@/components/ui/button';
 
-// Import Swiper styles
+// @ts-ignore - Swiper CSS imports
 import 'swiper/css';
+// @ts-ignore
 import 'swiper/css/navigation';
 
 interface NewsletterEmptyStateProps {
