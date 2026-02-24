@@ -99,7 +99,21 @@ export async function resolveSender(
     };
   }
 
-  // Step 3: Check tenant for fallback platform email
+  // Step 2b: Check if tenant has ANY custom domains (even non-active ones)
+  // If so, refuse to fall back to the shared platform sender to protect deliverability
+  const { data: allDomains } = await supabase
+    .from('email_domains')
+    .select('id, domain, status')
+    .eq('tenant_id', tenantId)
+    .limit(5);
+
+  if (allDomains && allDomains.length > 0) {
+    const domainList = allDomains.map(d => `${d.domain} (${d.status})`).join(', ');
+    console.error(`[SenderResolver] ❌ Tenant ${tenantId} has custom domains [${domainList}] but none are in a sendable status. Refusing to fall back to shared platform sender.`);
+    throw new Error(`Cannot send: tenant has custom domains configured [${domainList}] but none are active. Fix domain status before sending.`);
+  }
+
+  // Step 3: Check tenant for fallback platform email (only for tenants WITHOUT any custom domains)
   const { data: tenant, error: tenantError } = await supabase
     .from('tenants')
     .select('fallback_sender_email, fallback_from_name, name')
@@ -129,7 +143,7 @@ export async function resolveSender(
     }
   }
 
-  // Step 5: Last resort - generic platform sender
+  // Step 5: Last resort - generic platform sender (only for tenants with NO custom domains at all)
   console.log(`[SenderResolver] Using generic platform sender: noreply@bloomsuite.app`);
   return {
     fromEmail: 'noreply@bloomsuite.app',
