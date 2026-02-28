@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Smartphone, Monitor, ExternalLink } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import React, { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Smartphone, Monitor, ExternalLink } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface CampaignPreviewProps {
   campaignData: {
@@ -20,27 +20,35 @@ interface CampaignPreviewProps {
 
 export const CampaignPreview: React.FC<CampaignPreviewProps> = ({
   campaignData,
-  senderConfig
+  senderConfig,
 }) => {
-  const [viewMode, setViewMode] = useState<'desktop' | 'mobile'>('desktop');
+  const [viewMode, setViewMode] = useState<"desktop" | "mobile">("desktop");
 
   // Process content with test merge tags
   const processedContent = React.useMemo(() => {
-    let content = campaignData.content || '<p>No content yet. Start building your email!</p>';
-    
+    let content =
+      campaignData.content ||
+      "<p>No content yet. Start building your email!</p>";
+
     // Replace merge tags with test data
-    content = content.replace(/\{firstName\}/g, 'Test User');
-    content = content.replace(/\{company_name\}/g, senderConfig?.displayName || 'Your Garden Center');
-    content = content.replace(/\{unsubscribe_link\}/g, 'https://bloomsuite.app/unsubscribe/test');
-    content = content.replace(/\{company_website\}/g, 'your-website.com');
-    content = content.replace(/\{company_address\}/g, 'Your Business Address');
-    
+    content = content.replace(/\{firstName\}/g, "Test User");
+    content = content.replace(
+      /\{company_name\}/g,
+      senderConfig?.displayName || "Your Garden Center",
+    );
+    content = content.replace(
+      /\{unsubscribe_link\}/g,
+      "https://bloomsuite.app/unsubscribe/test",
+    );
+    content = content.replace(/\{company_website\}/g, "your-website.com");
+    content = content.replace(/\{company_address\}/g, "Your Business Address");
+
     return content;
   }, [campaignData.content, senderConfig]);
 
-  const senderDisplay = senderConfig?.deliveryMethod === 'custom_domain' 
+  const senderDisplay = senderConfig?.senderEmail
     ? `${senderConfig.displayName} <${senderConfig.senderEmail}>`
-    : `${senderConfig?.displayName || 'Your Garden Center'} <${senderConfig?.senderEmail || 'noreply@bloomsuite.app'}>`;
+    : `${senderConfig?.displayName || "Your Garden Center"}`;
 
   return (
     <Card className="h-full">
@@ -52,20 +60,20 @@ export const CampaignPreview: React.FC<CampaignPreviewProps> = ({
               Test Mode
             </Badge>
           </CardTitle>
-          
+
           <div className="flex items-center gap-1 p-1 bg-muted rounded-lg">
             <Button
-              variant={viewMode === 'desktop' ? 'default' : 'ghost'}
+              variant={viewMode === "desktop" ? "default" : "ghost"}
               size="sm"
-              onClick={() => setViewMode('desktop')}
+              onClick={() => setViewMode("desktop")}
               className="h-8 px-2"
             >
               <Monitor className="h-4 w-4" />
             </Button>
             <Button
-              variant={viewMode === 'mobile' ? 'default' : 'ghost'}
+              variant={viewMode === "mobile" ? "default" : "ghost"}
               size="sm"
-              onClick={() => setViewMode('mobile')}
+              onClick={() => setViewMode("mobile")}
               className="h-8 px-2"
             >
               <Smartphone className="h-4 w-4" />
@@ -88,7 +96,8 @@ export const CampaignPreview: React.FC<CampaignPreviewProps> = ({
           <div>
             <p className="font-medium">Subject:</p>
             <p className="text-muted-foreground">
-              {campaignData.subject_line || 'Your email subject line will appear here'}
+              {campaignData.subject_line ||
+                "Your email subject line will appear here"}
             </p>
           </div>
           <div>
@@ -100,32 +109,39 @@ export const CampaignPreview: React.FC<CampaignPreviewProps> = ({
 
       <CardContent className="p-0">
         <div className="border-t">
-          <div 
+          <div
             className={cn(
               "transition-all duration-300 mx-auto bg-white border-x",
-              viewMode === 'mobile' ? 'max-w-sm' : 'max-w-2xl'
+              viewMode === "mobile" ? "max-w-sm" : "max-w-2xl",
             )}
           >
-            <div 
+            <div
               className="prose prose-sm max-w-none p-6"
               dangerouslySetInnerHTML={{ __html: processedContent }}
               style={{
-                fontSize: viewMode === 'mobile' ? '14px' : '16px',
-                lineHeight: viewMode === 'mobile' ? '1.4' : '1.6'
+                fontSize: viewMode === "mobile" ? "14px" : "16px",
+                lineHeight: viewMode === "mobile" ? "1.4" : "1.6",
               }}
             />
-            
+
             {/* Auto-generated footer preview */}
             <div className="px-6 pb-6">
               <div className="border-t pt-4 mt-8 text-xs text-gray-500 space-y-1">
                 <p>
-                  You're receiving this email from {senderConfig?.displayName || 'Your Garden Center'} because you signed up for updates.
+                  You're receiving this email from{" "}
+                  {senderConfig?.displayName || "Your Garden Center"} because
+                  you signed up for updates.
                 </p>
                 <p>
-                  To unsubscribe, <a href="#" className="text-gray-500 underline">click here</a>.
+                  To unsubscribe,{" "}
+                  <a href="#" className="text-gray-500 underline">
+                    click here
+                  </a>
+                  .
                 </p>
                 <p>
-                  {senderConfig?.displayName || 'Your Garden Center'} | Your Business Address
+                  {senderConfig?.displayName || "Your Garden Center"} | Your
+                  Business Address
                 </p>
               </div>
             </div>

@@ -59,22 +59,22 @@ export const CustomerImportDialog: React.FC<CustomerImportDialogProps> = ({ onIm
   // Helper function to map persona names to UUIDs
   const mapPersonaNameToId = (personaName: string): string | null => {
     if (!personaName || !personas) return null;
-    
+
     const normalizedInput = personaName.toLowerCase().trim();
-    
+
     // Direct name match
-    const directMatch = personas.find(p => 
+    const directMatch = personas.find(p =>
       p.persona_name.toLowerCase() === normalizedInput
     );
     if (directMatch) return directMatch.id;
-    
+
     // Partial matching for common variations
     const partialMatch = personas.find(p => {
       const name = p.persona_name.toLowerCase();
       return name.includes(normalizedInput) || normalizedInput.includes(name);
     });
     if (partialMatch) return partialMatch.id;
-    
+
     // Legacy mapping for old persona system
     const legacyMapping: Record<string, string> = {
       'newbie': 'Plant-Killer Pam',
@@ -86,15 +86,15 @@ export const CustomerImportDialog: React.FC<CustomerImportDialogProps> = ({ onIm
       'advanced': 'DIY Dana',
       'experienced': 'DIY Dana'
     };
-    
+
     const legacyPersonaName = legacyMapping[normalizedInput];
     if (legacyPersonaName) {
-      const legacyMatch = personas.find(p => 
+      const legacyMatch = personas.find(p =>
         p.persona_name.toLowerCase() === legacyPersonaName.toLowerCase()
       );
       return legacyMatch?.id || null;
     }
-    
+
     return null;
   };
 
@@ -141,7 +141,7 @@ export const CustomerImportDialog: React.FC<CustomerImportDialogProps> = ({ onIm
     });
 
     orderedEntries.forEach(([field, variations]) => {
-      const match = normalizedHeaders.find(header => 
+      const match = normalizedHeaders.find(header =>
         (variations as string[]).some(variation => matches(header, variation))
       );
       if (match) {
@@ -294,7 +294,7 @@ export const CustomerImportDialog: React.FC<CustomerImportDialogProps> = ({ onIm
 
     try {
       let customers: ParsedCustomer[];
-      
+
       if (file.name.endsWith('.csv')) {
         const text = await file.text();
         customers = parseCSV(text);
@@ -306,7 +306,7 @@ export const CustomerImportDialog: React.FC<CustomerImportDialogProps> = ({ onIm
 
       setParsedData(customers);
       setShowPreview(true);
-      
+
       toast({
         title: "File parsed successfully",
         description: `Found ${customers.length} valid customers with ${errors.length} errors`,
@@ -361,16 +361,16 @@ export const CustomerImportDialog: React.FC<CustomerImportDialogProps> = ({ onIm
         .in('email', emails);
 
       const existingEmails = new Set(existingCustomers?.map(c => c.email) || []);
-      
+
       let customersToInsert = parsedData.map(customer => {
         // Determine the persona_id to use (from parsed data or default)
         let finalPersonaId = customer.persona_id;
-        
+
         // If no persona_id from parsing and defaultPersona is selected, use it
         if (!finalPersonaId && defaultPersona) {
           finalPersonaId = mapPersonaNameToId(defaultPersona);
         }
-        
+
         return {
           email: customer.email,
           first_name: customer.first_name,
@@ -405,6 +405,24 @@ export const CustomerImportDialog: React.FC<CustomerImportDialogProps> = ({ onIm
 
       const importedCount = customersToInsert.length;
       const skippedCount = parsedData.length - importedCount;
+
+      if (importedCount > 0) {
+        try {
+          await supabase.rpc('record_contact_import_event', {
+            p_tenant_id: userRecord.tenant_id,
+            p_source: 'csv_import',
+            p_contact_count: importedCount,
+            p_metadata: {
+              import_type: 'customer_import_dialog',
+              update_existing: updateExisting,
+              parsed_count: parsedData.length,
+              skipped_count: skippedCount,
+            },
+          });
+        } catch (importEventError) {
+          console.warn('Failed to record import activity event:', importEventError);
+        }
+      }
 
       toast({
         title: "Import completed",
@@ -532,17 +550,17 @@ jane@example.com,Jane,Smith,5559876543,newbie,"plants,seeds",75.25,2024-01-10,fa
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-center space-x-2">
-                  <Checkbox 
-                    id="update-existing" 
+                  <Checkbox
+                    id="update-existing"
                     checked={updateExisting}
                     onCheckedChange={(checked) => setUpdateExisting(checked === true)}
                   />
                   <Label htmlFor="update-existing">Update existing customers</Label>
                 </div>
-                
+
                 <div className="flex items-center space-x-2">
-                  <Checkbox 
-                    id="append-tags" 
+                  <Checkbox
+                    id="append-tags"
                     checked={appendTags}
                     onCheckedChange={(checked) => setAppendTags(checked === true)}
                   />
@@ -646,8 +664,8 @@ jane@example.com,Jane,Smith,5559876543,newbie,"plants,seeds",75.25,2024-01-10,fa
             <Button variant="outline" onClick={resetForm}>
               Cancel
             </Button>
-            <Button 
-              onClick={handleImport} 
+            <Button
+              onClick={handleImport}
               disabled={!parsedData.length || isProcessing}
             >
               {isProcessing ? 'Importing...' : `Import ${parsedData.length} Customers`}

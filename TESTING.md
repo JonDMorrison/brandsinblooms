@@ -4,6 +4,8 @@
 
 This document describes the automated test suite for persona and contact management, specifically testing the flows from contact editing to campaign audience building.
 
+For email governance + deliverability E2E testing using Resend test recipients, see [docs/email-governance-resend-e2e-testing.md](docs/email-governance-resend-e2e-testing.md).
+
 ## Test Structure
 
 ### 1. Unit Tests (`__tests__/`)
@@ -13,9 +15,9 @@ This document describes the automated test suite for persona and contact managem
 - Validates that persona changes reflect instantly without page refresh
 - Ensures error handling for failed persona updates
 
-**contactsStore.test.js** 
+**contactsStore.test.js**
 - Integration test for persona customer counting logic
-- Tests the unified approach (persona_id + legacy persona field)  
+- Tests the unified approach (persona_id + legacy persona field)
 - Validates counts update when personas are added/removed
 
 ### 2. E2E Tests (`e2e/`)
@@ -37,7 +39,7 @@ Since package.json is read-only, add these scripts manually:
   "scripts": {
     "test": "vitest",
     "test:unit": "vitest run",
-    "test:integration": "vitest run --config vitest.integration.config.ts", 
+    "test:integration": "vitest run --config vitest.integration.config.ts",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:all": "npm run test:unit && npm run test:e2e"
@@ -57,7 +59,7 @@ npm ci
 npm run test:unit
 \`\`\`
 
-### Integration Tests  
+### Integration Tests
 \`\`\`bash
 npm run test:integration
 \`\`\`
@@ -157,6 +159,6 @@ The test suite is designed to run in CI environments:
 
 When all tests pass, you should see:
 - ✅ ContactEditModal renders and updates immediately
-- ✅ Persona counts calculated correctly with unified approach  
+- ✅ Persona counts calculated correctly with unified approach
 - ✅ Campaign audience shows accurate counts and "All Contacts" option
 - ✅ E2E flow works end-to-end from contact edit to campaign send

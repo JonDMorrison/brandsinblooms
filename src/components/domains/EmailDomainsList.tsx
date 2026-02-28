@@ -2,11 +2,11 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Globe, 
-  Plus, 
-  Settings, 
-  CheckCircle, 
+import {
+  Globe,
+  Plus,
+  Settings,
+  CheckCircle,
   Clock,
   Mail,
   RefreshCw,
@@ -27,7 +27,7 @@ import { toast } from 'sonner';
 // Readiness Status Types (matches edge function)
 // =========================================================
 
-type ReadinessStatus = 
+type ReadinessStatus =
   | 'CONNECTED_READY'           // DNS verified, domain is working - primary success state
   | 'ACTION_REQUIRED_DNS_MISSING'
   | 'ACTION_REQUIRED_DNS_CONFLICT'
@@ -50,11 +50,11 @@ interface ReadinessDisplay {
 // Readiness Badge Component (strict color system)
 // =========================================================
 
-const ReadinessBadge = ({ 
-  variant, 
-  children 
-}: { 
-  variant: 'green' | 'amber' | 'red' | 'gray'; 
+const ReadinessBadge = ({
+  variant,
+  children
+}: {
+  variant: 'green' | 'amber' | 'red' | 'gray';
   children: React.ReactNode;
 }) => {
   const styles = {
@@ -63,7 +63,7 @@ const ReadinessBadge = ({
     red: 'bg-red-100 text-red-800 border-red-200',
     gray: 'bg-gray-100 text-gray-600 border-gray-200'
   };
-  
+
   return (
     <Badge className={styles[variant]}>
       {children}
@@ -83,7 +83,7 @@ export const EmailDomainsList = () => {
   const [selectedDomain, setSelectedDomain] = useState<string | null>(null);
   const [verifyingDomains, setVerifyingDomains] = useState<Set<string>>(new Set());
   const [repairingDomains, setRepairingDomains] = useState<Set<string>>(new Set());
-  
+
   // Rate limiting: track last check time per domain
   const [lastCheckTimes, setLastCheckTimes] = useState<Record<string, number>>({});
   const RATE_LIMIT_MS = 5 * 60 * 1000; // 5 minutes
@@ -91,23 +91,23 @@ export const EmailDomainsList = () => {
   // =========================================================
   // Compute Readiness Display (single source of truth)
   // =========================================================
-  
+
   const getReadinessDisplay = (domain: EmailDomain): ReadinessDisplay => {
     const resendStatus = domain.resend_status as any;
-    
+
     // Check for readiness object from API (new format)
     if (resendStatus?.readiness?.status) {
       const r = resendStatus.readiness;
       return mapReadinessToDisplay(r.status, r.message, r.subMessage, r.cta, domain);
     }
-    
+
     // Fallback: compute from legacy fields
     return computeReadinessFromLegacy(domain, resendStatus);
   };
-  
+
   const mapReadinessToDisplay = (
-    status: ReadinessStatus, 
-    message: string, 
+    status: ReadinessStatus,
+    message: string,
     subMessage?: string,
     cta?: string | null,
     domain?: EmailDomain
@@ -173,28 +173,24 @@ export const EmailDomainsList = () => {
         };
     }
   };
-  
+
   const computeReadinessFromLegacy = (domain: EmailDomain, resendStatus: any): ReadinessDisplay => {
     // Check DNS verification status FIRST
     const records = resendStatus?.records || [];
     const allDnsVerified = records.length > 0 && records.every((r: any) => r.dns_verified || r.status === 'verified');
     const resendVerified = resendStatus?.status === 'verified' || resendStatus?.dkim_verified;
-    
+
     // Check for paused status (reputation issues) - show connected but with warning
     if (domain.status === 'paused') {
-      const notes = (domain as any).notes || '';
-      const isPausedForReputation = notes.includes('bounce') || notes.includes('complaint') || notes.includes('reputation');
       return {
         status: 'CONNECTED_READY',
         badge: { text: 'Paused', variant: 'amber' },
-        message: isPausedForReputation 
-          ? 'Domain paused due to reputation monitoring.' 
-          : 'Domain is currently paused.',
+        message: 'Domain is currently paused.',
         subMessage: 'Contact support for assistance.',
         showForceCheck: false
       };
     }
-    
+
     // If DNS is verified OR domain is active, show CONNECTED_READY - user should feel DONE
     if (allDnsVerified || resendVerified || domain.status === 'active' || resendStatus?.verification_phase === 'dns_present_waiting_provider') {
       return mapReadinessToDisplay(
@@ -202,7 +198,7 @@ export const EmailDomainsList = () => {
         'Your email domain is connected and ready to use.'
       );
     }
-    
+
     // Check for conflicts (highest priority error after checking active status)
     if (resendStatus?.dns_conflict_detected) {
       return mapReadinessToDisplay(
@@ -212,7 +208,7 @@ export const EmailDomainsList = () => {
         domain.is_entri_managed ? 'Fix DNS Conflict' : undefined
       );
     }
-    
+
     // Domain has no DNS configured and isn't connected via any method
     if (!domain.is_entri_managed && !domain.entri_connection_id && !domain.resend_domain_id) {
       return mapReadinessToDisplay(
@@ -222,7 +218,7 @@ export const EmailDomainsList = () => {
         'Connect DNS'
       );
     }
-    
+
     // DNS not verified - action required
     if (domain.status === 'failed') {
       return mapReadinessToDisplay(
@@ -232,7 +228,7 @@ export const EmailDomainsList = () => {
         'Retry'
       );
     }
-    
+
     // Domain is pending/warming up - still in progress
     if (domain.status === 'pending_dns' || domain.status === 'verifying') {
       return {
@@ -243,7 +239,7 @@ export const EmailDomainsList = () => {
         showForceCheck: true
       };
     }
-    
+
     if (domain.status === 'warming_up') {
       return {
         status: 'CONNECTED_READY',
@@ -253,7 +249,7 @@ export const EmailDomainsList = () => {
         showForceCheck: false
       };
     }
-    
+
     return mapReadinessToDisplay(
       'ACTION_REQUIRED_DNS_MISSING',
       'DNS records not visible yet.',
@@ -265,12 +261,12 @@ export const EmailDomainsList = () => {
   // =========================================================
   // Rate Limiting for Force Check
   // =========================================================
-  
+
   const canForceCheck = (domainId: string): boolean => {
     const lastCheck = lastCheckTimes[domainId] || 0;
     return Date.now() - lastCheck > RATE_LIMIT_MS;
   };
-  
+
   const getTimeUntilNextCheck = (domainId: string): number => {
     const lastCheck = lastCheckTimes[domainId] || 0;
     const remaining = RATE_LIMIT_MS - (Date.now() - lastCheck);
@@ -280,7 +276,7 @@ export const EmailDomainsList = () => {
   // =========================================================
   // Handlers
   // =========================================================
-  
+
   const handleVerifyDomain = async (domainId: string, isRetry = false) => {
     // Rate limit check for non-retry operations
     if (!isRetry && !canForceCheck(domainId)) {
@@ -290,11 +286,11 @@ export const EmailDomainsList = () => {
       toast.info(`Please wait ${minutes > 0 ? `${minutes}m ` : ''}${seconds}s before checking again`);
       return;
     }
-    
+
     try {
       setVerifyingDomains(prev => new Set(prev).add(domainId));
       setLastCheckTimes(prev => ({ ...prev, [domainId]: Date.now() }));
-      
+
       if (isRetry) {
         await retryEmailDomain(domainId);
       } else {
@@ -313,17 +309,17 @@ export const EmailDomainsList = () => {
 
   const handleRepairDomain = async (domain: EmailDomain) => {
     if (!tenant?.id) return;
-    
+
     try {
       setRepairingDomains(prev => new Set(prev).add(domain.id));
-      
+
       const records = await getDomainRecords(domain.id);
-      
+
       if (!records || records.length === 0) {
         toast.error('No DNS records found. Please delete and re-add this domain.');
         return;
       }
-      
+
       const backendRecords = records.map(r => ({
         name: r.name,
         type: r.type,
@@ -331,14 +327,14 @@ export const EmailDomainsList = () => {
         priority: (r as any).priority,
         purpose: r.purpose
       }));
-      
+
       const { records: entriRecords, validation } = sanitizeAndConvertRecords(domain.domain, backendRecords);
-      
+
       if (!validation.valid) {
         toast.error(`Invalid DNS configuration: ${validation.errors.join(', ')}`);
         return;
       }
-      
+
       await openEntriSetup(
         domain.domain,
         tenant.id,
@@ -458,7 +454,7 @@ export const EmailDomainsList = () => {
                       }`}>
                         {getStatusIcon(display)}
                       </div>
-                      
+
                       <div className="flex-1 min-w-0">
                         {/* Domain name + Single Badge */}
                         <div className="flex items-center gap-2 mb-1 flex-wrap">
@@ -470,19 +466,19 @@ export const EmailDomainsList = () => {
                             <Badge variant="secondary" className="text-xs bg-purple-100 text-purple-800">Sandbox</Badge>
                           )}
                         </div>
-                        
+
                         {/* Single Message */}
                         <p className="text-sm text-muted-foreground">
                           {display.message}
                         </p>
-                        
+
                         {/* Sub-message (if any) */}
                         {display.subMessage && (
                           <p className="text-xs text-muted-foreground mt-0.5">
                             {display.subMessage}
                           </p>
                         )}
-                        
+
                         {/* Last checked timestamp */}
                         {lastChecked && (
                           <p className="text-xs text-muted-foreground mt-1">
@@ -491,7 +487,7 @@ export const EmailDomainsList = () => {
                         )}
                       </div>
                     </div>
-                    
+
                     {/* Actions - Single CTA pattern */}
                     <div className="flex items-center gap-2 flex-shrink-0 ml-2">
                       {/* Primary CTA Button (red actions) */}
@@ -506,8 +502,8 @@ export const EmailDomainsList = () => {
                           }}
                           disabled={isRepairing || entriLoading}
                           className={`flex items-center gap-2 ${
-                            display.badge.variant === 'red' 
-                              ? 'border-red-400 text-red-700 hover:bg-red-50' 
+                            display.badge.variant === 'red'
+                              ? 'border-red-400 text-red-700 hover:bg-red-50'
                               : ''
                           }`}
                         >
@@ -519,7 +515,7 @@ export const EmailDomainsList = () => {
                           {isRepairing ? 'Fixing...' : display.ctaLabel}
                         </Button>
                       )}
-                      
+
                       {/* Retry button for failed domains */}
                       {isFailed && (
                         <Button
@@ -537,7 +533,7 @@ export const EmailDomainsList = () => {
                           {isVerifying ? 'Retrying...' : 'Retry'}
                         </Button>
                       )}
-                      
+
                       {/* Check Status button (for awaiting provider) */}
                       {display.showForceCheck && !isFailed && (
                         <Button
@@ -555,7 +551,7 @@ export const EmailDomainsList = () => {
                           {isVerifying ? 'Checking...' : canCheck ? 'Check Status' : 'Checked'}
                         </Button>
                       )}
-                      
+
                       {/* Details button */}
                       <Button
                         variant="ghost"
@@ -575,12 +571,12 @@ export const EmailDomainsList = () => {
         </CardContent>
       </Card>
 
-      <DomainConnectWizard 
-        open={showWizard} 
+      <DomainConnectWizard
+        open={showWizard}
         onClose={() => {
           setShowWizard(false);
           refetch();
-        }} 
+        }}
       />
 
       {selectedDomain && (

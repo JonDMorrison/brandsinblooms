@@ -27,7 +27,7 @@ Deno.serve(async (req) => {
 
     // Check if user is master admin
     const { data: isMasterAdmin } = await supabase.rpc('is_master_admin', { _user_id: user.id });
-    
+
     if (!isMasterAdmin) {
       console.error('Non-admin user attempted admin action:', user.id);
       return corsJsonResponse({ error: 'Access denied. Master admin required.' }, { status: 403 });
@@ -41,7 +41,7 @@ Deno.serve(async (req) => {
       case 'import_customers': {
         // Import customers for a tenant
         const { customers } = data;
-        
+
         const customersToInsert = customers.map((customer: any) => ({
           tenant_id: tenantId,
           user_id: customer.user_id || user.id,
@@ -67,9 +67,9 @@ Deno.serve(async (req) => {
         await supabase.rpc('log_admin_action', {
           p_action_type: 'import_customers',
           p_target_tenant_id: tenantId,
-          p_action_details: { 
+          p_action_details: {
             customer_count: customers.length,
-            imported_count: inserted?.length || 0 
+            imported_count: inserted?.length || 0
           }
         });
 
@@ -83,7 +83,7 @@ Deno.serve(async (req) => {
       case 'update_tenant_config': {
         // Update tenant configuration
         const { config } = data;
-        
+
         const { error: updateError } = await supabase
           .from('tenants')
           .update(config)
@@ -110,7 +110,7 @@ Deno.serve(async (req) => {
       case 'create_campaign': {
         // Create a campaign on behalf of tenant
         const { campaign } = data;
-        
+
         const { data: created, error: createError } = await supabase
           .from('crm_campaigns')
           .insert({
@@ -142,9 +142,9 @@ Deno.serve(async (req) => {
       case 'upload_media': {
         // Upload media files on behalf of tenant
         const { fileName, fileData, bucket } = data;
-        
+
         const filePath = `${tenantId}/${Date.now()}-${fileName}`;
-        
+
         const { data: uploadData, error: uploadError } = await supabase.storage
           .from(bucket || 'media-mms')
           .upload(filePath, fileData);
@@ -170,6 +170,78 @@ Deno.serve(async (req) => {
           success: true,
           url: publicUrl,
           path: filePath
+        });
+      }
+
+      case 'enter_domain_investigation': {
+        const { domainId, reason, details } = data || {};
+
+        if (!domainId) {
+          return corsJsonResponse({ error: 'domainId is required' }, { status: 400 });
+        }
+
+        const { data: result, error: crisisError } = await supabase.rpc('enter_domain_investigation_mode', {
+          p_domain_id: domainId,
+          p_reason: reason || 'manual_investigation',
+          p_details: details || {},
+          p_admin_user_id: user.id,
+        });
+
+        if (crisisError) {
+          console.error('Error entering domain investigation mode:', crisisError);
+          throw crisisError;
+        }
+
+        await supabase.rpc('log_admin_action', {
+          p_action_type: 'enter_domain_investigation',
+          p_target_tenant_id: tenantId,
+          p_action_details: {
+            domain_id: domainId,
+            reason: reason || 'manual_investigation',
+            details: details || {},
+          }
+        });
+
+        return corsJsonResponse({
+          success: true,
+          result: Array.isArray(result) ? result[0] : result,
+        });
+      }
+
+      case 'exit_domain_investigation': {
+        const { domainId, reason, details, resetWarmup } = data || {};
+
+        if (!domainId) {
+          return corsJsonResponse({ error: 'domainId is required' }, { status: 400 });
+        }
+
+        const { data: result, error: crisisError } = await supabase.rpc('exit_domain_investigation_mode', {
+          p_domain_id: domainId,
+          p_reason: reason || 'manual_recovery',
+          p_details: details || {},
+          p_reset_warmup: resetWarmup !== false,
+          p_admin_user_id: user.id,
+        });
+
+        if (crisisError) {
+          console.error('Error exiting domain investigation mode:', crisisError);
+          throw crisisError;
+        }
+
+        await supabase.rpc('log_admin_action', {
+          p_action_type: 'exit_domain_investigation',
+          p_target_tenant_id: tenantId,
+          p_action_details: {
+            domain_id: domainId,
+            reason: reason || 'manual_recovery',
+            details: details || {},
+            reset_warmup: resetWarmup !== false,
+          }
+        });
+
+        return corsJsonResponse({
+          success: true,
+          result: Array.isArray(result) ? result[0] : result,
         });
       }
 

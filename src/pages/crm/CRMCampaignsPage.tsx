@@ -7,6 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { useToast } from "@/hooks/use-toast";
+import { DomainHealthBanner } from "@/components/crm/email/DomainHealthBanner";
 
 export const CRMCampaignsPage: React.FC = () => {
   const [campaigns, setCampaigns] = useState<any[]>([]);
@@ -109,6 +110,7 @@ export const CRMCampaignsPage: React.FC = () => {
 
   return (
     <div className="p-6 space-y-6">
+      <DomainHealthBanner />
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Campaigns</h1>
         <Button asChild>

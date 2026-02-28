@@ -1,0 +1,10 @@
+-- Placeholder migration to reconcile local repo with remote migration history.
+--
+-- The linked Supabase project has migration version 20260228090000 recorded as applied,
+-- but this repo does not contain the corresponding migration file.
+--
+-- This file intentionally contains no SQL because it should NEVER be applied to a
+-- database (remote already has it; new environments should not rely on this placeholder).
+--
+-- Action item: recover the real SQL for 20260228090000 and replace this placeholder
+-- with the actual migration contents as soon as possible.

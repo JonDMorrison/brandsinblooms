@@ -53,7 +53,7 @@ Deno.serve(async (req) => {
     const today = new Date();
     const todayMonth = today.getMonth() + 1; // 1-indexed
     const todayDay = today.getDate();
-    
+
     console.log(`📅 Checking birthdays for: ${todayMonth}/${todayDay}`);
 
     // ==========================================
@@ -76,7 +76,7 @@ Deno.serve(async (req) => {
     const birthdayCustomers = (customers || []).filter(customer => {
       const dob = customer.custom_fields?.date_of_birth;
       if (!dob) return false;
-      
+
       try {
         const birthDate = new Date(dob);
         const birthMonth = birthDate.getMonth() + 1;
@@ -100,7 +100,7 @@ Deno.serve(async (req) => {
     for (const customer of birthdayCustomers) {
       try {
         console.log(`🎉 Processing birthday for: ${customer.email} (tenant: ${customer.tenant_id})`);
-        
+
         // Find automations for this tenant
         const tenantAutomations = activeAutomations.filter(a => a.tenant_id === customer.tenant_id);
 
@@ -112,7 +112,7 @@ Deno.serve(async (req) => {
         // Process each automation
         for (const automation of tenantAutomations) {
           const workflowSteps = automation.workflow_steps || [];
-          
+
           if (workflowSteps.length === 0) {
             console.log(`⚠️ Automation ${automation.id} has no workflow steps, skipping`);
             continue;
@@ -131,13 +131,7 @@ Deno.serve(async (req) => {
             const step = workflowSteps[i];
             const delayMinutes = step.delayMin || 0;
             const messageType = step.channel || step.type || 'email';
-            
-            // Check opt-in consent
-            if (messageType === 'email' && customer.email_opt_in === false) {
-              console.log(`⏭️ Skipping email for ${customer.email} - not opted in`);
-              skippedOptOutCount++;
-              continue;
-            }
+
             if (messageType === 'sms' && customer.sms_opt_in !== true) {
               console.log(`⏭️ Skipping SMS for ${customer.email} - not opted in`);
               skippedOptOutCount++;
@@ -153,7 +147,7 @@ Deno.serve(async (req) => {
             const normalizedContent = convertLegacyTags(rawContent);
             const mergeTagData = createMergeTagDataFromCustomer(customer as unknown as Record<string, unknown>, {});
             const personalizedContent = renderMergeTags(normalizedContent, mergeTagData);
-            
+
             let personalizedSubject = null;
             if (step.subject) {
               const normalizedSubject = convertLegacyTags(step.subject);
@@ -239,9 +233,9 @@ Deno.serve(async (req) => {
 
   } catch (error) {
     console.error('❌ Birthday Automation Checker failed:', error);
-    return new Response(JSON.stringify({ 
-      success: false, 
-      error: error.message 
+    return new Response(JSON.stringify({
+      success: false,
+      error: error.message
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

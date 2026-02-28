@@ -2,11 +2,11 @@ import { supabase } from '@/integrations/supabase/client';
 
 export type EmailConsentStatus = 'unknown' | 'opted_in' | 'opted_out';
 
-export type ConsentEventType = 
-  | 'opt_in' 
-  | 'opt_out' 
-  | 'opt_in_request_sent' 
-  | 'imported_unknown' 
+export type ConsentEventType =
+  | 'opt_in'
+  | 'opt_out'
+  | 'opt_in_request_sent'
+  | 'imported_unknown'
   | 'updated_by_admin';
 
 export interface ConsentEvent {
@@ -109,6 +109,50 @@ export async function updateCustomerConsent(params: {
   userAgent?: string | null;
 }): Promise<{ success: boolean; error?: string }> {
   try {
+    const normalizedEmail = String(params.email || '').toLowerCase().trim();
+
+    // Canonical suppression_list maintenance (single source of truth for blocking)
+    if (normalizedEmail) {
+      if (params.optIn) {
+        const { error: liftError } = await supabase
+          .from('suppression_list')
+          .update({
+            lifted_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          .eq('tenant_id', params.tenantId)
+          .eq('email', normalizedEmail)
+          .eq('channel', 'email')
+          .eq('suppression_type', 'unsubscribed')
+          .is('lifted_at', null);
+
+        if (liftError) {
+          console.warn('Failed to lift unsubscribed suppression:', liftError);
+        }
+      } else {
+        const { error: suppressError } = await supabase
+          .from('suppression_list')
+          .upsert({
+            tenant_id: params.tenantId,
+            customer_id: params.customerId,
+            email: normalizedEmail,
+            suppression_type: 'unsubscribed',
+            channel: 'email',
+            reason: 'admin_opt_out',
+            auto_suppressed: false,
+            suppressed_at: new Date().toISOString(),
+            lifted_at: null,
+          }, {
+            onConflict: 'tenant_id,email,channel,suppression_type',
+            ignoreDuplicates: false,
+          });
+
+        if (suppressError) {
+          console.warn('Failed to upsert unsubscribe suppression:', suppressError);
+        }
+      }
+    }
+
     // Update the customer record
     const { error: updateError } = await supabase
       .from('crm_customers')
@@ -181,7 +225,7 @@ export async function getConsentStats(tenantId: string): Promise<ConsentStats | 
  * Get customers with unknown consent status
  */
 export async function getUnknownConsentCustomers(
-  tenantId: string, 
+  tenantId: string,
   limit = 500
 ): Promise<Array<{ id: string; email: string; first_name: string | null; last_name: string | null }>> {
   try {

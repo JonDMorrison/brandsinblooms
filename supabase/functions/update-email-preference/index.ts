@@ -49,8 +49,8 @@ serve(async (req) => {
     }
 
     // Get IP and user agent from request
-    const ipAddress = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || 
-                      req.headers.get("x-real-ip") || 
+    const ipAddress = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+                      req.headers.get("x-real-ip") ||
                       null;
     const userAgent = req.headers.get("user-agent") || null;
 
@@ -72,6 +72,52 @@ serve(async (req) => {
         JSON.stringify({ success: false, error: "Failed to update preferences" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
+
+    // Canonical suppression_list maintenance
+    const normalizedEmail = String(tokenData.email || '').toLowerCase().trim();
+    if (normalizedEmail) {
+      if (optIn) {
+        // Resubscribe lifts only the explicit unsubscribe suppression.
+        const { error: liftError } = await supabase
+          .from('suppression_list')
+          .update({
+            lifted_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          .eq('tenant_id', tokenData.tenant_id)
+          .eq('email', normalizedEmail)
+          .eq('channel', 'email')
+          .eq('suppression_type', 'unsubscribed')
+          .is('lifted_at', null);
+
+        if (liftError) {
+          console.warn('⚠️ Failed to lift unsubscribed suppression:', liftError);
+        }
+      } else {
+        // Opt-out creates/updates an explicit unsubscribe suppression.
+        const { error: suppressError } = await supabase
+          .from('suppression_list')
+          .upsert({
+            tenant_id: tokenData.tenant_id,
+            customer_id: tokenData.customer_id,
+            email: normalizedEmail,
+            suppression_type: 'unsubscribed',
+            channel: 'email',
+            reason: 'preference_center_opt_out',
+            auto_suppressed: false,
+            suppressed_at: new Date().toISOString(),
+            lifted_at: null,
+            updated_at: new Date().toISOString(),
+          }, {
+            onConflict: 'tenant_id,email,channel,suppression_type',
+            ignoreDuplicates: false,
+          });
+
+        if (suppressError) {
+          console.warn('⚠️ Failed to write unsubscribe suppression:', suppressError);
+        }
+      }
     }
 
     // Record consent event

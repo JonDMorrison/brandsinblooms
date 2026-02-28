@@ -86,6 +86,9 @@ import { Home1Page } from "@/pages/Home1Page";
 import AdminHub from "@/pages/admin/AdminHub";
 import AdminTenants from "@/pages/admin/AdminTenants";
 import AdminManage from "@/pages/AdminManage";
+import AdminGovernanceConfig from "@/pages/admin/AdminGovernanceConfig";
+import TenantEmailManagement from "@/pages/admin/TenantEmailManagement";
+import AdminAuditLogsPage from "@/pages/admin/AdminAuditLogsPage";
 import { AdminReportsPage } from "@/pages/AdminReportsPage";
 import AdminDashboard from "@/pages/admin/AdminDashboard";
 import AdminCostsPage from "@/pages/admin/AdminCostsPage";
@@ -189,10 +192,10 @@ function App() {
             <Route path="/features" element={<FeaturesPage />} />
             <Route path="/home1" element={<Home1Page />} />
             <Route path="/email-preferences" element={<EmailPreferences />} />
-            
+
             {/* Public form page - no auth required */}
             <Route path="/f/:embedKey" element={<PublicFormPage />} />
-            
+
             <Route path="/" element={<SmartRootRoute />} />
 
             {/* Protected routes with sidebar */}
@@ -928,6 +931,26 @@ function App() {
               }
             />
             <Route
+              path="/admin/governance-config"
+              element={
+                <ProtectedRoute>
+                  <SidebarLayout>
+                    <AdminGovernanceConfig />
+                  </SidebarLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/tenants/:tenantId/email"
+              element={
+                <ProtectedRoute>
+                  <SidebarLayout>
+                    <TenantEmailManagement />
+                  </SidebarLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/admin/reports"
               element={
                 <ProtectedRoute>
@@ -942,6 +965,16 @@ function App() {
               element={
                 <ProtectedRoute>
                   <AdminCostsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/audit-logs"
+              element={
+                <ProtectedRoute>
+                  <SidebarLayout>
+                    <AdminAuditLogsPage />
+                  </SidebarLayout>
                 </ProtectedRoute>
               }
             />

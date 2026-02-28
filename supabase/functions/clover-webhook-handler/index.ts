@@ -1,9 +1,9 @@
 /**
  * clover-webhook-handler
- * 
+ *
  * Handles incoming Clover webhook events for real-time automations.
  * Ported from square-webhook-handler with Clover-specific adaptations.
- * 
+ *
  * CONFIGURABLE ELEMENTS (finalize after Clover meeting):
  * - Signature algorithm (currently HMAC-SHA256 stub)
  * - Event type names in CLOVER_EVENT_MAP
@@ -64,18 +64,18 @@ interface WorkflowStep {
 // ============================================
 async function verifyCloverSignature(body: string, signature: string | null): Promise<boolean> {
   const webhookSecret = Deno.env.get('CLOVER_WEBHOOK_SECRET');
-  
+
   if (!webhookSecret) {
     console.log('[CLOVER-WEBHOOK] No CLOVER_WEBHOOK_SECRET configured - skipping verification (dev mode)');
     return true; // Allow in development until secret is provided
   }
-  
+
   if (!signature) {
     console.log('[CLOVER-WEBHOOK] No signature header provided');
     logSignatureFailed('clover', 'No signature header');
     return false;
   }
-  
+
   try {
     // STUB: HMAC-SHA256 verification (common pattern, verify with Clover)
     // TODO: Confirm actual algorithm and header name with Clover
@@ -87,17 +87,17 @@ async function verifyCloverSignature(body: string, signature: string | null): Pr
       false,
       ['sign']
     );
-    
+
     const signatureBuffer = await crypto.subtle.sign('HMAC', key, encoder.encode(body));
     const expectedSignature = btoa(String.fromCharCode(...new Uint8Array(signatureBuffer)));
-    
+
     const isValid = signature === expectedSignature;
-    
+
     if (!isValid) {
       console.log('[CLOVER-WEBHOOK] Signature mismatch');
       logSignatureFailed('clover', 'Signature mismatch');
     }
-    
+
     return isValid;
   } catch (e: any) {
     console.error('[CLOVER-WEBHOOK] Signature verification error:', e.message);
@@ -119,7 +119,7 @@ async function findTenantByMerchantId(supabase: any, merchantId: string) {
 async function updateLastWebhookReceived(supabase: any, connectionId: string) {
   await supabase
     .from('clover_connections')
-    .update({ 
+    .update({
       last_webhook_received_at: new Date().toISOString(),
       webhook_last_error: null,
       webhooks_subscribed: true,
@@ -171,32 +171,32 @@ function personalizeMessage(template: string, customer: any, eventData: Record<s
 // ============================================
 
 async function fireAutomationTriggers(
-  supabase: any, 
-  tenantId: string, 
-  customerId: string, 
-  triggerTypes: string[], 
+  supabase: any,
+  tenantId: string,
+  customerId: string,
+  triggerTypes: string[],
   eventData: Record<string, any>
 ) {
   console.log(`[CLOVER-WEBHOOK] Firing automation triggers: ${triggerTypes.join(', ')} for customer ${customerId}`);
-  
+
   const { data: automations } = await supabase
     .from('crm_automations')
     .select('*')
     .eq('tenant_id', tenantId)
     .eq('is_active', true)
     .in('trigger_type', triggerTypes);
-    
+
   if (!automations?.length) {
     console.log('[CLOVER-WEBHOOK] No matching automations found');
     return;
   }
-  
+
   const { data: customer } = await supabase
     .from('crm_customers')
     .select('*')
     .eq('id', customerId)
     .single();
-    
+
   if (!customer) {
     console.log('[CLOVER-WEBHOOK] Customer not found');
     return;
@@ -204,7 +204,7 @@ async function fireAutomationTriggers(
 
   for (const automation of automations) {
     if (!checkPersonaTargeting(customer, automation.persona_targeting)) continue;
-    
+
     // ── Idempotency: check for active or recently completed runs (24h cooldown) ──
     const { data: activeRun } = await supabase
       .from('automation_runs')
@@ -235,7 +235,7 @@ async function fireAutomationTriggers(
       console.log(`[CLOVER-WEBHOOK] Skipping automation ${automation.name} for customer ${customerId} — completed within 24h cooldown`);
       continue;
     }
-    
+
     const workflowSteps: WorkflowStep[] = automation.workflow_steps || [];
     if (!workflowSteps.length) continue;
 
@@ -280,21 +280,20 @@ async function fireAutomationTriggers(
       continue;
     }
     const runId = runData.id;
-    
+
     const baseTime = new Date();
     let enqueued = 0, skipped = 0;
-    
+
     for (let i = 0; i < workflowSteps.length; i++) {
       const step = workflowSteps[i];
       const scheduledAt = new Date(baseTime.getTime() + step.delayMin * 60 * 1000);
       const messageType = step.type || 'email';
-      
-      if (messageType === 'email' && customer.email_opt_in === false) { skipped++; continue; }
+
       if (messageType === 'sms' && customer.sms_opt_in !== true) { skipped++; continue; }
-      
+
       const recipient = messageType === 'sms' ? customer.phone : customer.email;
       if (!recipient) { skipped++; continue; }
-      
+
       await supabase.from('crm_outbox').insert({
         tenant_id: tenantId,
         automation_id: automation.id,
@@ -316,7 +315,7 @@ async function fireAutomationTriggers(
         scheduled_at: scheduledAt.toISOString(),
         status: 'queued'
       });
-      
+
       await supabase.from('crm_automation_logs').insert({
         automation_id: automation.id,
         customer_id: customerId,
@@ -325,10 +324,10 @@ async function fireAutomationTriggers(
         status: 'queued',
         scheduled_at: scheduledAt.toISOString()
       });
-      
+
       enqueued++;
     }
-    
+
     await supabase.from('automation_events').insert({
       automation_id: automation.id,
       customer_id: customerId,
@@ -342,7 +341,7 @@ async function fireAutomationTriggers(
         automation_run_id: runId,
       }
     });
-    
+
     console.log(`[CLOVER-WEBHOOK] Automation ${automation.name}: ${enqueued} steps enqueued, ${skipped} skipped (run: ${runId})`);
   }
 }
@@ -352,31 +351,31 @@ async function fireAutomationTriggers(
 // ============================================
 
 async function processPaymentCompleted(
-  supabase: any, 
-  tenantId: string, 
-  userId: string, 
-  paymentData: any, 
-  merchantId: string, 
+  supabase: any,
+  tenantId: string,
+  userId: string,
+  paymentData: any,
+  merchantId: string,
   connection: any
 ) {
   console.log('[CLOVER-WEBHOOK] Processing payment completed');
-  
+
   // Extract payment details (Clover format - adjust after meeting)
   const amount = (paymentData.amount || paymentData.total || 0) / 100;
   const orderId = paymentData.order?.id || paymentData.orderId || paymentData.id;
   const cloverCustomerId = paymentData.customer?.id || paymentData.customerId;
-  
+
   // Try to get customer email/phone from Clover
   let customerEmail = paymentData.customer?.emailAddresses?.[0]?.emailAddress;
   let customerPhone = paymentData.customer?.phoneNumbers?.[0]?.phoneNumber;
-  
+
   // Upsert to pos_orders
   const { data: posConn } = await supabase
     .from('clover_connections')
     .select('id')
     .eq('merchant_id', merchantId)
     .single();
-    
+
   if (posConn) {
     await supabase.from('pos_orders').upsert({
       tenant_id: tenantId,
@@ -402,7 +401,7 @@ async function processPaymentCompleted(
   let customer = null;
   let isFirstPurchase = false;
   const currentDate = new Date().toISOString().split('T')[0];
-  
+
   // Try to match by email first
   if (customerEmail) {
     const { data: existing } = await supabase
@@ -411,11 +410,11 @@ async function processPaymentCompleted(
       .eq('tenant_id', tenantId)
       .eq('email', customerEmail)
       .single();
-      
+
     if (existing) {
       customer = existing;
       isFirstPurchase = !existing.first_purchase_date;
-      
+
       const { data: upserted } = await supabase.from('crm_customers').upsert({
         tenant_id: tenantId,
         user_id: userId,
@@ -428,12 +427,12 @@ async function processPaymentCompleted(
         pos_source: 'clover',
         clover_customer_id: cloverCustomerId || existing.clover_customer_id,
       }, { onConflict: 'tenant_id,email' }).select().single();
-      
+
       customer = upserted;
       console.log(`[CLOVER-WEBHOOK] Matched customer by email: ${customerEmail}`);
     }
   }
-  
+
   // Fallback: match by clover_customer_id
   if (!customer && cloverCustomerId) {
     const { data: existingByClover } = await supabase
@@ -442,11 +441,11 @@ async function processPaymentCompleted(
       .eq('tenant_id', tenantId)
       .eq('clover_customer_id', cloverCustomerId)
       .single();
-      
+
     if (existingByClover) {
       customer = existingByClover;
       isFirstPurchase = !existingByClover.first_purchase_date;
-      
+
       await supabase.from('crm_customers').update({
         first_purchase_date: isFirstPurchase ? currentDate : existingByClover.first_purchase_date,
         last_purchase_date: currentDate,
@@ -455,13 +454,13 @@ async function processPaymentCompleted(
         phone: customerPhone || existingByClover.phone,
         updated_at: new Date().toISOString(),
       }).eq('id', existingByClover.id);
-      
+
       const { data: refreshed } = await supabase
         .from('crm_customers')
         .select('*')
         .eq('id', existingByClover.id)
         .single();
-        
+
       customer = refreshed;
       console.log(`[CLOVER-WEBHOOK] Matched customer by clover_customer_id: ${cloverCustomerId}`);
     }
@@ -471,7 +470,7 @@ async function processPaymentCompleted(
   if (customer) {
     const triggers = ['payment.completed', 'review_request'];
     if (isFirstPurchase) triggers.push('first_purchase');
-    
+
     console.log(`[CLOVER-WEBHOOK] Firing triggers: ${triggers.join(', ')}`);
     await fireAutomationTriggers(supabase, tenantId, customer.id, triggers, {
       order_amount: amount,
@@ -482,23 +481,23 @@ async function processPaymentCompleted(
   } else {
     console.log(`[CLOVER-WEBHOOK] No customer match found - email: ${customerEmail}, clover_id: ${cloverCustomerId}`);
   }
-  
+
   return { success: true, isFirstPurchase, customerId: customer?.id };
 }
 
 async function processCustomerCreated(
-  supabase: any, 
-  tenantId: string, 
-  userId: string, 
+  supabase: any,
+  tenantId: string,
+  userId: string,
   customerData: any
 ) {
   console.log('[CLOVER-WEBHOOK] Processing customer created');
-  
+
   const email = customerData.emailAddresses?.[0]?.emailAddress || customerData.email;
   if (!email) return { success: false, reason: 'no_email' };
-  
+
   const phone = customerData.phoneNumbers?.[0]?.phoneNumber || customerData.phone;
-  
+
   await supabase.from('crm_customers').upsert({
     tenant_id: tenantId,
     user_id: userId,
@@ -510,23 +509,23 @@ async function processCustomerCreated(
     clover_customer_id: customerData.id,
     clover_last_synced_at: new Date().toISOString(),
   }, { onConflict: 'tenant_id,email' });
-  
+
   return { success: true };
 }
 
 async function processCustomerUpdated(
-  supabase: any, 
-  tenantId: string, 
-  userId: string, 
+  supabase: any,
+  tenantId: string,
+  userId: string,
   customerData: any
 ) {
   console.log('[CLOVER-WEBHOOK] Processing customer updated');
-  
+
   const email = customerData.emailAddresses?.[0]?.emailAddress || customerData.email;
   if (!email) return { success: false, reason: 'no_email' };
-  
+
   const phone = customerData.phoneNumbers?.[0]?.phoneNumber || customerData.phone;
-  
+
   await supabase.from('crm_customers').update({
     phone,
     first_name: customerData.firstName || customerData.first_name,
@@ -534,22 +533,22 @@ async function processCustomerUpdated(
     clover_last_synced_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   }).eq('tenant_id', tenantId).eq('email', email);
-  
+
   return { success: true };
 }
 
 async function processRefundCreated(
-  supabase: any, 
-  tenantId: string, 
-  userId: string, 
-  refundData: any, 
+  supabase: any,
+  tenantId: string,
+  userId: string,
+  refundData: any,
   merchantId: string
 ) {
   console.log('[CLOVER-WEBHOOK] Processing refund created');
-  
+
   const refundAmount = (refundData.amount || 0) / 100;
   const orderId = refundData.payment?.order?.id || refundData.orderId;
-  
+
   // Update order status
   const { data: order } = await supabase
     .from('pos_orders')
@@ -557,9 +556,9 @@ async function processRefundCreated(
     .eq('external_id', orderId)
     .eq('tenant_id', tenantId)
     .single();
-    
+
   if (!order) return { success: false, error: 'Order not found' };
-  
+
   await supabase.from('pos_orders').update({
     status: 'REFUNDED',
     refund_amount: refundAmount,
@@ -567,7 +566,7 @@ async function processRefundCreated(
     refunded_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   }).eq('id', order.id);
-  
+
   // Update customer lifetime value
   if (order.customer_external_id) {
     const { data: customer } = await supabase
@@ -576,14 +575,14 @@ async function processRefundCreated(
       .eq('tenant_id', tenantId)
       .eq('clover_customer_id', order.customer_external_id)
       .single();
-      
+
     if (customer) {
       await supabase.from('crm_customers').update({
         lifetime_value: Math.max(0, (customer.lifetime_value || 0) - refundAmount),
         total_spent: Math.max(0, (customer.total_spent || 0) - refundAmount),
         updated_at: new Date().toISOString(),
       }).eq('id', customer.id);
-      
+
       await fireAutomationTriggers(supabase, tenantId, customer.id, ['refund.created'], {
         refund_amount: refundAmount,
         refund_reason: refundData.reason,
@@ -593,40 +592,40 @@ async function processRefundCreated(
       });
     }
   }
-  
+
   return { success: true, refundAmount };
 }
 
 async function processInventoryUpdated(
-  supabase: any, 
-  tenantId: string, 
+  supabase: any,
+  tenantId: string,
   inventoryData: any
 ) {
   console.log('[CLOVER-WEBHOOK] Processing inventory updated');
-  
+
   // Clover inventory structure - adjust after meeting
   const itemId = inventoryData.item?.id || inventoryData.itemId;
   const quantity = inventoryData.stockCount || inventoryData.quantity || 0;
-  
+
   if (!itemId) return { success: false, reason: 'no_item_id' };
-  
+
   const { data: product } = await supabase
     .from('products')
     .select('id')
     .eq('tenant_id', tenantId)
     .eq('external_id', itemId)
     .single();
-    
+
   if (product) {
     await supabase.from('products').update({
       inventory_count: quantity,
       track_inventory: true,
       updated_at: new Date().toISOString(),
     }).eq('id', product.id);
-    
+
     return { success: true, productId: product.id, quantity };
   }
-  
+
   return { success: false, reason: 'product_not_found' };
 }
 
@@ -635,45 +634,45 @@ async function processInventoryUpdated(
 // TODO: Implement after confirming Clover loyalty program
 // ============================================
 async function processLoyaltyJoin(
-  supabase: any, 
-  tenantId: string, 
-  userId: string, 
-  loyaltyData: any, 
+  supabase: any,
+  tenantId: string,
+  userId: string,
+  loyaltyData: any,
   merchantId: string
 ) {
   console.log('[CLOVER-WEBHOOK] Processing loyalty join (stub)');
-  
+
   // TODO: Implement after Clover meeting confirms loyalty event structure
   // This is a placeholder matching Square's loyalty.account.created handler
-  
+
   const cloverCustomerId = loyaltyData.customer?.id || loyaltyData.customerId;
   if (!cloverCustomerId) return { success: false, error: 'No customer ID' };
-  
+
   const { data: customer } = await supabase
     .from('crm_customers')
     .select('*')
     .eq('tenant_id', tenantId)
     .eq('clover_customer_id', cloverCustomerId)
     .single();
-    
+
   if (customer) {
-    const updatedTags = customer.tags?.includes('Loyalty Member') 
-      ? customer.tags 
+    const updatedTags = customer.tags?.includes('Loyalty Member')
+      ? customer.tags
       : [...(customer.tags || []), 'Loyalty Member'];
-      
+
     await supabase.from('crm_customers').update({
       tags: updatedTags,
       updated_at: new Date().toISOString(),
     }).eq('id', customer.id);
-    
+
     await fireAutomationTriggers(supabase, tenantId, customer.id, ['loyalty_join'], {
       merchant_id: merchantId,
       pos_source: 'clover',
     });
-    
+
     return { success: true, customerId: customer.id };
   }
-  
+
   return { success: false, reason: 'customer_not_found' };
 }
 
@@ -685,13 +684,13 @@ const handler = async (req: Request): Promise<Response> => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
-  
+
   console.log('📨 Clover webhook received');
-  
+
   try {
     const body = await req.text();
     console.log('📦 Raw body:', body);
-    
+
     // Parse body to check for verification code FIRST
     let payload: any;
     try {
@@ -699,7 +698,7 @@ const handler = async (req: Request): Promise<Response> => {
     } catch {
       payload = {};
     }
-    
+
     // Check for Clover verification request (before signature check)
     if (payload.verificationCode) {
       console.log('');
@@ -709,52 +708,52 @@ const handler = async (req: Request): Promise<Response> => {
       console.log('');
       console.log('👆 Copy this code and enter it in the Clover dashboard');
       console.log('');
-      return new Response(JSON.stringify({ success: true }), { 
-        status: 200, 
-        headers: { 'Content-Type': 'application/json', ...corsHeaders } 
+      return new Response(JSON.stringify({ success: true }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders }
       });
     }
-    
+
     // Get signature from header (adjust header name after Clover meeting)
-    const signature = req.headers.get('x-clover-signature') || 
+    const signature = req.headers.get('x-clover-signature') ||
                       req.headers.get('x-clover-hmac-sha256') ||
                       req.headers.get('authorization');
-    
+
     // SIGNATURE VERIFICATION
     const signatureValid = await verifyCloverSignature(body, signature);
-    
+
     if (!signatureValid) {
       console.error('❌ SIGNATURE_FAILED - Invalid Clover webhook signature');
       return new Response(
-        JSON.stringify({ error: 'Invalid signature' }), 
+        JSON.stringify({ error: 'Invalid signature' }),
         { status: 401, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
       );
     }
 
     const webhookPayload: CloverWebhookPayload = payload as CloverWebhookPayload;
-    
+
     // Normalize payload fields (Clover may use camelCase or snake_case)
     const eventId = payload.eventId || payload.event_id || 'unknown';
     const merchantId = payload.merchantId || payload.merchant_id || '';
     const eventType = payload.type || payload.eventType || 'unknown';
     const eventData = payload.data || payload.object || {};
-    
+
     // Log successful signature verification
     logSignatureOK('clover', eventId, eventType, merchantId);
     console.log('✅ SIGNATURE_OK | event_id:', eventId, '| event_type:', eventType, '| merchant_id:', merchantId);
-    
+
     const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '', 
+      Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
-    
+
     // Find tenant by merchant ID
     const connection = await findTenantByMerchantId(supabase, merchantId);
-    
+
     if (!connection) {
       console.warn('⚠️ Merchant not connected:', merchantId);
       return new Response(
-        JSON.stringify({ error: 'Merchant not connected' }), 
+        JSON.stringify({ error: 'Merchant not connected' }),
         { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
       );
     }
@@ -765,61 +764,61 @@ const handler = async (req: Request): Promise<Response> => {
     // Map Clover event type to internal handler
     const internalType = CLOVER_EVENT_MAP[eventType] || eventType;
     let result: any = { success: true, message: `Event ${eventType} not handled` };
-    
+
     switch (internalType) {
       case 'payment.completed':
         result = await processPaymentCompleted(
-          supabase, connection.tenant_id, connection.user_id, 
+          supabase, connection.tenant_id, connection.user_id,
           eventData, merchantId, connection
         );
         break;
-        
+
       case 'customer.created':
         result = await processCustomerCreated(
           supabase, connection.tenant_id, connection.user_id, eventData
         );
         break;
-        
+
       case 'customer.updated':
         result = await processCustomerUpdated(
           supabase, connection.tenant_id, connection.user_id, eventData
         );
         break;
-        
+
       case 'refund.created':
         result = await processRefundCreated(
-          supabase, connection.tenant_id, connection.user_id, 
+          supabase, connection.tenant_id, connection.user_id,
           eventData, merchantId
         );
         break;
-        
+
       case 'inventory.updated':
         result = await processInventoryCountUpdated(
           supabase, connection.tenant_id, eventData
         );
         break;
-        
+
       case 'loyalty.join':
         result = await processLoyaltyJoin(
-          supabase, connection.tenant_id, connection.user_id, 
+          supabase, connection.tenant_id, connection.user_id,
           eventData, merchantId
         );
         break;
-        
+
       default:
         console.log(`[CLOVER-WEBHOOK] Unhandled event type: ${eventType} (internal: ${internalType})`);
     }
-    
+
     console.log('✅ Result:', JSON.stringify(result));
     return new Response(
-      JSON.stringify({ success: true, result }), 
+      JSON.stringify({ success: true, result }),
       { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
     );
-    
+
   } catch (error: any) {
     console.error('💥 Error:', error.message);
     return new Response(
-      JSON.stringify({ error: error.message }), 
+      JSON.stringify({ error: error.message }),
       { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
     );
   }

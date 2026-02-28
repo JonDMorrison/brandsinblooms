@@ -37,7 +37,7 @@ Deno.serve(async (req) => {
   }
 
   const startTime = Date.now();
-  
+
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -101,8 +101,7 @@ Deno.serve(async (req) => {
         const { data: customers, error: customersError } = await supabase
           .from('crm_customers')
           .select('*')
-          .eq('tenant_id', segment.tenant_id)
-          .eq('suppressed', false);
+          .eq('tenant_id', segment.tenant_id);
 
         if (customersError) {
           console.error(`[evaluate-segments] Error fetching customers:`, customersError);
@@ -116,7 +115,7 @@ Deno.serve(async (req) => {
 
         // Evaluate each customer against segment conditions
         const matchingCustomerIds = new Set<string>();
-        
+
         for (const customer of customers as Customer[]) {
           if (evaluateCustomerAgainstSegment(customer, segment.conditions)) {
             matchingCustomerIds.add(customer.id);
@@ -151,9 +150,9 @@ Deno.serve(async (req) => {
 
           const { error: insertError } = await supabase
             .from('customer_segments')
-            .upsert(entryRecords, { 
+            .upsert(entryRecords, {
               onConflict: 'customer_id,segment_id',
-              ignoreDuplicates: true 
+              ignoreDuplicates: true
             });
 
           if (insertError) {
@@ -242,7 +241,7 @@ function evaluateCustomerAgainstSegment(customer: Customer, conditions: SegmentR
   }
 
   const logic = conditions.logic || 'AND';
-  const results = conditions.conditions.map(condition => 
+  const results = conditions.conditions.map(condition =>
     evaluateCondition(customer, condition)
   );
 
@@ -258,7 +257,7 @@ function evaluateCustomerAgainstSegment(customer: Customer, conditions: SegmentR
  */
 function evaluateCondition(customer: Customer, condition: SegmentCondition): boolean {
   const { field, operator, value } = condition;
-  
+
   // Handle nested fields (e.g., "order_history.total")
   const customerValue = getNestedValue(customer, field);
 
@@ -267,75 +266,75 @@ function evaluateCondition(customer: Customer, condition: SegmentCondition): boo
     case 'eq':
     case '=':
       return customerValue === value;
-    
+
     case 'not_equals':
     case 'neq':
     case '!=':
       return customerValue !== value;
-    
+
     case 'greater_than':
     case 'gt':
     case '>':
       return Number(customerValue) > Number(value);
-    
+
     case 'greater_than_or_equal':
     case 'gte':
     case '>=':
       return Number(customerValue) >= Number(value);
-    
+
     case 'less_than':
     case 'lt':
     case '<':
       return Number(customerValue) < Number(value);
-    
+
     case 'less_than_or_equal':
     case 'lte':
     case '<=':
       return Number(customerValue) <= Number(value);
-    
+
     case 'contains':
       return String(customerValue || '').toLowerCase().includes(String(value).toLowerCase());
-    
+
     case 'not_contains':
       return !String(customerValue || '').toLowerCase().includes(String(value).toLowerCase());
-    
+
     case 'starts_with':
       return String(customerValue || '').toLowerCase().startsWith(String(value).toLowerCase());
-    
+
     case 'ends_with':
       return String(customerValue || '').toLowerCase().endsWith(String(value).toLowerCase());
-    
+
     case 'is_empty':
       return customerValue === null || customerValue === undefined || customerValue === '';
-    
+
     case 'is_not_empty':
       return customerValue !== null && customerValue !== undefined && customerValue !== '';
-    
+
     case 'in':
       return Array.isArray(value) && value.includes(customerValue);
-    
+
     case 'not_in':
       return !Array.isArray(value) || !value.includes(customerValue);
-    
+
     case 'is_true':
       return customerValue === true;
-    
+
     case 'is_false':
       return customerValue === false;
-    
+
     case 'between':
       if (Array.isArray(value) && value.length === 2) {
         const numValue = Number(customerValue);
         return numValue >= Number(value[0]) && numValue <= Number(value[1]);
       }
       return false;
-    
+
     case 'days_ago_less_than':
       return getDaysAgo(customerValue) < Number(value);
-    
+
     case 'days_ago_greater_than':
       return getDaysAgo(customerValue) > Number(value);
-    
+
     default:
       console.warn(`[evaluate-segments] Unknown operator: ${operator}`);
       return false;

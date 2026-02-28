@@ -1,29 +1,32 @@
-import React from 'react';
-import { Card, CardContent } from '@/components/ui/card';
+import React from "react";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-} from '@/components/ui/accordion';
-import { 
-  Shield, 
-  TrendingUp, 
-  Mail, 
-  Clock, 
-  CheckCircle2, 
+} from "@/components/ui/accordion";
+import {
+  Shield,
+  TrendingUp,
+  Mail,
+  Clock,
+  CheckCircle2,
   AlertTriangle,
   Zap,
   Users,
   Lock,
-  BarChart3
-} from 'lucide-react';
+  BarChart3,
+} from "lucide-react";
 
 export const EmailDomainGuide: React.FC = () => {
   return (
     <Accordion type="single" collapsible className="w-full">
       {/* Why Custom Domains */}
-      <AccordionItem value="why-custom-domain" className="border rounded-lg px-4 mb-3">
+      <AccordionItem
+        value="why-custom-domain"
+        className="border rounded-lg px-4 mb-3"
+      >
         <AccordionTrigger className="hover:no-underline">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-primary/10">
@@ -44,9 +47,12 @@ export const EmailDomainGuide: React.FC = () => {
                 <div className="flex items-start gap-3">
                   <CheckCircle2 className="h-5 w-5 text-green-600 mt-0.5" />
                   <div>
-                    <p className="font-medium text-green-900 dark:text-green-100">Better Inbox Placement</p>
+                    <p className="font-medium text-green-900 dark:text-green-100">
+                      Better Inbox Placement
+                    </p>
                     <p className="text-sm text-green-700 dark:text-green-300">
-                      Emails from authenticated domains are more likely to reach the inbox instead of spam.
+                      Emails from authenticated domains are more likely to reach
+                      the inbox instead of spam.
                     </p>
                   </div>
                 </div>
@@ -58,9 +64,12 @@ export const EmailDomainGuide: React.FC = () => {
                 <div className="flex items-start gap-3">
                   <Users className="h-5 w-5 text-blue-600 mt-0.5" />
                   <div>
-                    <p className="font-medium text-blue-900 dark:text-blue-100">Brand Recognition</p>
+                    <p className="font-medium text-blue-900 dark:text-blue-100">
+                      Brand Recognition
+                    </p>
                     <p className="text-sm text-blue-700 dark:text-blue-300">
-                      Recipients see your brand in the "from" address, building trust and recognition.
+                      Recipients see your brand in the "from" address, building
+                      trust and recognition.
                     </p>
                   </div>
                 </div>
@@ -72,9 +81,12 @@ export const EmailDomainGuide: React.FC = () => {
                 <div className="flex items-start gap-3">
                   <BarChart3 className="h-5 w-5 text-purple-600 mt-0.5" />
                   <div>
-                    <p className="font-medium text-purple-900 dark:text-purple-100">Reputation Control</p>
+                    <p className="font-medium text-purple-900 dark:text-purple-100">
+                      Reputation Control
+                    </p>
                     <p className="text-sm text-purple-700 dark:text-purple-300">
-                      Your sending reputation is yours alone—not affected by other senders.
+                      Your sending reputation is yours alone—not affected by
+                      other senders.
                     </p>
                   </div>
                 </div>
@@ -86,9 +98,12 @@ export const EmailDomainGuide: React.FC = () => {
                 <div className="flex items-start gap-3">
                   <Zap className="h-5 w-5 text-orange-600 mt-0.5" />
                   <div>
-                    <p className="font-medium text-orange-900 dark:text-orange-100">Higher Engagement</p>
+                    <p className="font-medium text-orange-900 dark:text-orange-100">
+                      Higher Engagement
+                    </p>
                     <p className="text-sm text-orange-700 dark:text-orange-300">
-                      Customers are more likely to open emails from a brand they recognize.
+                      Customers are more likely to open emails from a brand they
+                      recognize.
                     </p>
                   </div>
                 </div>
@@ -101,11 +116,13 @@ export const EmailDomainGuide: React.FC = () => {
               <div className="flex items-start gap-3">
                 <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5" />
                 <div>
-                  <p className="font-medium text-amber-900 dark:text-amber-100">Why Avoid Shared Domains?</p>
+                  <p className="font-medium text-amber-900 dark:text-amber-100">
+                    Why Custom Domains Matter
+                  </p>
                   <p className="text-sm text-amber-700 dark:text-amber-300">
-                    When using a shared sending domain (like noreply@bloomsuite.app), your deliverability 
-                    can be affected by other senders' practices. A bad actor on a shared domain can harm 
-                    everyone's reputation.
+                    BloomSuite requires a verified custom sending domain for
+                    campaigns so your deliverability and brand reputation are
+                    isolated to your business.
                   </p>
                 </div>
               </div>
@@ -115,7 +132,10 @@ export const EmailDomainGuide: React.FC = () => {
       </AccordionItem>
 
       {/* How Authentication Works */}
-      <AccordionItem value="authentication" className="border rounded-lg px-4 mb-3">
+      <AccordionItem
+        value="authentication"
+        className="border rounded-lg px-4 mb-3"
+      >
         <AccordionTrigger className="hover:no-underline">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-primary/10">
@@ -131,8 +151,9 @@ export const EmailDomainGuide: React.FC = () => {
         </AccordionTrigger>
         <AccordionContent className="pt-2 pb-4 space-y-4">
           <p className="text-sm text-muted-foreground">
-            Email authentication uses DNS records to prove that emails actually come from you. 
-            Think of it like showing ID when picking up a package—it proves you are who you say you are.
+            Email authentication uses DNS records to prove that emails actually
+            come from you. Think of it like showing ID when picking up a
+            package—it proves you are who you say you are.
           </p>
 
           <div className="space-y-3">
@@ -140,15 +161,25 @@ export const EmailDomainGuide: React.FC = () => {
               <CardContent className="pt-4">
                 <div className="flex items-start gap-3">
                   <div className="p-1.5 rounded bg-blue-100 dark:bg-blue-900">
-                    <span className="text-xs font-bold text-blue-700 dark:text-blue-300">SPF</span>
+                    <span className="text-xs font-bold text-blue-700 dark:text-blue-300">
+                      SPF
+                    </span>
                   </div>
                   <div>
                     <p className="font-medium">Sender Policy Framework</p>
                     <p className="text-sm text-muted-foreground">
-                      <span className="font-medium text-foreground">What it does:</span> Tells mailboxes which servers are allowed to send emails on your behalf.
+                      <span className="font-medium text-foreground">
+                        What it does:
+                      </span>{" "}
+                      Tells mailboxes which servers are allowed to send emails
+                      on your behalf.
                     </p>
                     <p className="text-sm text-muted-foreground mt-1">
-                      <span className="font-medium text-foreground">Analogy:</span> Like a guest list at a venue—only approved servers can send as you.
+                      <span className="font-medium text-foreground">
+                        Analogy:
+                      </span>{" "}
+                      Like a guest list at a venue—only approved servers can
+                      send as you.
                     </p>
                   </div>
                 </div>
@@ -159,15 +190,25 @@ export const EmailDomainGuide: React.FC = () => {
               <CardContent className="pt-4">
                 <div className="flex items-start gap-3">
                   <div className="p-1.5 rounded bg-green-100 dark:bg-green-900">
-                    <span className="text-xs font-bold text-green-700 dark:text-green-300">DKIM</span>
+                    <span className="text-xs font-bold text-green-700 dark:text-green-300">
+                      DKIM
+                    </span>
                   </div>
                   <div>
                     <p className="font-medium">DomainKeys Identified Mail</p>
                     <p className="text-sm text-muted-foreground">
-                      <span className="font-medium text-foreground">What it does:</span> Adds a digital signature to every email proving it hasn't been tampered with.
+                      <span className="font-medium text-foreground">
+                        What it does:
+                      </span>{" "}
+                      Adds a digital signature to every email proving it hasn't
+                      been tampered with.
                     </p>
                     <p className="text-sm text-muted-foreground mt-1">
-                      <span className="font-medium text-foreground">Analogy:</span> Like a wax seal on a letter—proves authenticity and that nothing was changed.
+                      <span className="font-medium text-foreground">
+                        Analogy:
+                      </span>{" "}
+                      Like a wax seal on a letter—proves authenticity and that
+                      nothing was changed.
                     </p>
                   </div>
                 </div>
@@ -178,15 +219,27 @@ export const EmailDomainGuide: React.FC = () => {
               <CardContent className="pt-4">
                 <div className="flex items-start gap-3">
                   <div className="p-1.5 rounded bg-purple-100 dark:bg-purple-900">
-                    <span className="text-xs font-bold text-purple-700 dark:text-purple-300">DMARC</span>
+                    <span className="text-xs font-bold text-purple-700 dark:text-purple-300">
+                      DMARC
+                    </span>
                   </div>
                   <div>
-                    <p className="font-medium">Domain-based Message Authentication</p>
+                    <p className="font-medium">
+                      Domain-based Message Authentication
+                    </p>
                     <p className="text-sm text-muted-foreground">
-                      <span className="font-medium text-foreground">What it does:</span> Tells mailboxes what to do if SPF or DKIM checks fail (reject, quarantine, or allow).
+                      <span className="font-medium text-foreground">
+                        What it does:
+                      </span>{" "}
+                      Tells mailboxes what to do if SPF or DKIM checks fail
+                      (reject, quarantine, or allow).
                     </p>
                     <p className="text-sm text-muted-foreground mt-1">
-                      <span className="font-medium text-foreground">Analogy:</span> Like a policy for what security should do if someone fails the guest list check.
+                      <span className="font-medium text-foreground">
+                        Analogy:
+                      </span>{" "}
+                      Like a policy for what security should do if someone fails
+                      the guest list check.
                     </p>
                   </div>
                 </div>
@@ -197,15 +250,25 @@ export const EmailDomainGuide: React.FC = () => {
               <CardContent className="pt-4">
                 <div className="flex items-start gap-3">
                   <div className="p-1.5 rounded bg-orange-100 dark:bg-orange-900">
-                    <span className="text-xs font-bold text-orange-700 dark:text-orange-300">Return Path</span>
+                    <span className="text-xs font-bold text-orange-700 dark:text-orange-300">
+                      Return Path
+                    </span>
                   </div>
                   <div>
                     <p className="font-medium">Bounce Handling Address</p>
                     <p className="text-sm text-muted-foreground">
-                      <span className="font-medium text-foreground">What it does:</span> Specifies where bounce notifications (undeliverable emails) should be sent.
+                      <span className="font-medium text-foreground">
+                        What it does:
+                      </span>{" "}
+                      Specifies where bounce notifications (undeliverable
+                      emails) should be sent.
                     </p>
                     <p className="text-sm text-muted-foreground mt-1">
-                      <span className="font-medium text-foreground">Analogy:</span> Like a return address on a package—where to send it back if delivery fails.
+                      <span className="font-medium text-foreground">
+                        Analogy:
+                      </span>{" "}
+                      Like a return address on a package—where to send it back
+                      if delivery fails.
                     </p>
                   </div>
                 </div>
@@ -232,8 +295,9 @@ export const EmailDomainGuide: React.FC = () => {
         </AccordionTrigger>
         <AccordionContent className="pt-2 pb-4 space-y-4">
           <p className="text-sm text-muted-foreground">
-            Your domain starts with full sending capacity. We monitor your bounce and complaint 
-            rates to ensure good deliverability and protect your sender reputation.
+            Your domain starts with full sending capacity. We monitor your
+            bounce and complaint rates to ensure good deliverability and protect
+            your sender reputation.
           </p>
 
           <Card className="bg-muted/50">
@@ -255,17 +319,20 @@ export const EmailDomainGuide: React.FC = () => {
           <Card className="bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-900">
             <CardContent className="pt-4">
               <p className="text-sm text-blue-700 dark:text-blue-300">
-                <span className="font-medium">Pro tip:</span> Send your best content to engaged 
-                subscribers. High open rates and low bounces build a strong sender reputation.
+                <span className="font-medium">Pro tip:</span> Send your best
+                content to engaged subscribers. High open rates and low bounces
+                build a strong sender reputation.
               </p>
             </CardContent>
           </Card>
         </AccordionContent>
       </AccordionItem>
 
-
       {/* Best Practices */}
-      <AccordionItem value="best-practices" className="border rounded-lg px-4 mb-3">
+      <AccordionItem
+        value="best-practices"
+        className="border rounded-lg px-4 mb-3"
+      >
         <AccordionTrigger className="hover:no-underline">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-primary/10">
@@ -286,7 +353,8 @@ export const EmailDomainGuide: React.FC = () => {
               <div>
                 <p className="font-medium">Only Email Opted-in Contacts</p>
                 <p className="text-sm text-muted-foreground">
-                  Never purchase email lists or add people without permission. Always use confirmed opt-ins.
+                  Never purchase email lists or add people without permission.
+                  Always use confirmed opt-ins.
                 </p>
               </div>
             </div>
@@ -296,7 +364,8 @@ export const EmailDomainGuide: React.FC = () => {
               <div>
                 <p className="font-medium">Honor Unsubscribes Immediately</p>
                 <p className="text-sm text-muted-foreground">
-                  We automatically add unsubscribe links and process opt-outs instantly.
+                  We automatically add unsubscribe links and process opt-outs
+                  instantly.
                 </p>
               </div>
             </div>
@@ -306,7 +375,8 @@ export const EmailDomainGuide: React.FC = () => {
               <div>
                 <p className="font-medium">Remove Bounced Emails</p>
                 <p className="text-sm text-muted-foreground">
-                  We automatically track bounces. Repeatedly sending to invalid addresses hurts reputation.
+                  We automatically track bounces. Repeatedly sending to invalid
+                  addresses hurts reputation.
                 </p>
               </div>
             </div>
@@ -316,7 +386,8 @@ export const EmailDomainGuide: React.FC = () => {
               <div>
                 <p className="font-medium">Monitor Your Metrics</p>
                 <p className="text-sm text-muted-foreground">
-                  Keep bounce rate under 5% and complaint rate under 0.2%. We'll warn you if you're approaching limits.
+                  Keep bounce rate under 5% and complaint rate under 0.2%. We'll
+                  warn you if you're approaching limits.
                 </p>
               </div>
             </div>
@@ -326,11 +397,14 @@ export const EmailDomainGuide: React.FC = () => {
                 <div className="flex items-start gap-3">
                   <AlertTriangle className="h-5 w-5 text-red-600 mt-0.5" />
                   <div>
-                    <p className="font-medium text-red-900 dark:text-red-100">Automatic Protection</p>
+                    <p className="font-medium text-red-900 dark:text-red-100">
+                      Automatic Protection
+                    </p>
                     <p className="text-sm text-red-700 dark:text-red-300">
-                      If your bounce rate exceeds 5% or complaint rate exceeds 0.2%, we'll automatically 
-                      pause your domain to protect your reputation. You'll be notified so you can address 
-                      the issue.
+                      If your bounce rate exceeds 5% or complaint rate exceeds
+                      0.2%, campaign sends may be blocked until you fix sender
+                      configuration and list quality issues. You'll be notified
+                      so you can address the issue.
                     </p>
                   </div>
                 </div>
@@ -363,51 +437,73 @@ export const EmailDomainGuide: React.FC = () => {
             <div className="space-y-6">
               <div className="relative">
                 <div className="absolute -left-5 w-4 h-4 rounded-full bg-primary flex items-center justify-center">
-                  <span className="text-[10px] text-primary-foreground font-bold">1</span>
+                  <span className="text-[10px] text-primary-foreground font-bold">
+                    1
+                  </span>
                 </div>
                 <div>
                   <p className="font-medium">Enter Your Domain</p>
-                  <p className="text-sm text-muted-foreground">Click "Connect Domain" and enter your domain name (e.g., yourbusiness.com)</p>
-                  <p className="text-xs text-muted-foreground mt-1">⏱️ Takes about 30 seconds</p>
+                  <p className="text-sm text-muted-foreground">
+                    Click "Connect Domain" and enter your domain name (e.g.,
+                    yourbusiness.com)
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    ⏱️ Takes about 30 seconds
+                  </p>
                 </div>
               </div>
 
               <div className="relative">
                 <div className="absolute -left-5 w-4 h-4 rounded-full bg-primary flex items-center justify-center">
-                  <span className="text-[10px] text-primary-foreground font-bold">2</span>
+                  <span className="text-[10px] text-primary-foreground font-bold">
+                    2
+                  </span>
                 </div>
                 <div>
                   <p className="font-medium">Add DNS Records</p>
                   <p className="text-sm text-muted-foreground">
-                    We'll provide DNS records to add at your domain registrar (Cloudflare, GoDaddy, Namecheap, etc.)
+                    We'll provide DNS records to add at your domain registrar
+                    (Cloudflare, GoDaddy, Namecheap, etc.)
                   </p>
-                  <p className="text-xs text-muted-foreground mt-1">⏱️ Takes 5-10 minutes depending on your provider</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    ⏱️ Takes 5-10 minutes depending on your provider
+                  </p>
                 </div>
               </div>
 
               <div className="relative">
                 <div className="absolute -left-5 w-4 h-4 rounded-full bg-primary flex items-center justify-center">
-                  <span className="text-[10px] text-primary-foreground font-bold">3</span>
+                  <span className="text-[10px] text-primary-foreground font-bold">
+                    3
+                  </span>
                 </div>
                 <div>
                   <p className="font-medium">Wait for Verification</p>
                   <p className="text-sm text-muted-foreground">
-                    DNS changes take time to propagate across the internet. Click "Check DNS" to verify status.
+                    DNS changes take time to propagate across the internet.
+                    Click "Check DNS" to verify status.
                   </p>
-                  <p className="text-xs text-muted-foreground mt-1">⏱️ Usually 15 minutes to 4 hours, can take up to 48 hours</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    ⏱️ Usually 15 minutes to 4 hours, can take up to 48 hours
+                  </p>
                 </div>
               </div>
 
               <div className="relative">
                 <div className="absolute -left-5 w-4 h-4 rounded-full bg-primary flex items-center justify-center">
-                  <span className="text-[10px] text-primary-foreground font-bold">4</span>
+                  <span className="text-[10px] text-primary-foreground font-bold">
+                    4
+                  </span>
                 </div>
                 <div>
                   <p className="font-medium">Automatic Warm-up Begins</p>
                   <p className="text-sm text-muted-foreground">
-                    Once verified, we start building your sending reputation with gradually increasing limits.
+                    Once verified, we start building your sending reputation
+                    with gradually increasing limits.
                   </p>
-                  <p className="text-xs text-muted-foreground mt-1">⏱️ About 2 weeks to full capacity</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    ⏱️ About 2 weeks to full capacity
+                  </p>
                 </div>
               </div>
 
@@ -416,9 +512,12 @@ export const EmailDomainGuide: React.FC = () => {
                   <CheckCircle2 className="h-3 w-3 text-white" />
                 </div>
                 <div>
-                  <p className="font-medium text-green-600 dark:text-green-400">Ready to Send!</p>
+                  <p className="font-medium text-green-600 dark:text-green-400">
+                    Ready to Send!
+                  </p>
                   <p className="text-sm text-muted-foreground">
-                    Your domain is fully warmed up and ready for high-volume sending.
+                    Your domain is fully warmed up and ready for high-volume
+                    sending.
                   </p>
                 </div>
               </div>

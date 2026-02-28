@@ -1,12 +1,45 @@
 /**
  * Automation Email Execution Logging
- * 
+ *
  * Provides per-recipient logging of automation email executions.
  * Every attempt creates an append-only row for visibility.
  */
 
 import { createClient } from "npm:@supabase/supabase-js@2.7.1";
 import { canSendEmail, type SkipReason } from './canSendEmail.ts';
+
+type TenantSuppressionBypassState = {
+  suppression_bypass_active: boolean;
+  suppression_bypass_automation_mode: 'campaign_only' | 'campaign_and_automation';
+};
+
+async function getTenantSuppressionBypassState(
+  supabase: ReturnType<typeof createClient>,
+  tenantId: string,
+): Promise<TenantSuppressionBypassState> {
+  const { data, error } = await supabase.rpc('get_tenant_suppression_bypass_state', {
+    p_tenant_id: tenantId,
+  });
+
+  if (error) {
+    console.warn('[AutomationEmailExecution] Failed to fetch suppression bypass state:', error.message);
+    return {
+      suppression_bypass_active: false,
+      suppression_bypass_automation_mode: 'campaign_only',
+    };
+  }
+
+  const row = Array.isArray(data) ? data[0] : data;
+  const mode = String(row?.suppression_bypass_automation_mode || 'campaign_only')
+    .toLowerCase() === 'campaign_and_automation'
+    ? 'campaign_and_automation'
+    : 'campaign_only';
+
+  return {
+    suppression_bypass_active: Boolean(row?.suppression_bypass_active),
+    suppression_bypass_automation_mode: mode,
+  };
+}
 
 export type ExecutionStatus = 'sent' | 'skipped' | 'failed';
 
@@ -90,10 +123,20 @@ export async function checkAndLogSuppression(
     outboxId?: string;
   }
 ): Promise<{ allowed: boolean; reason?: SkipReason }> {
+  const bypassState = await getTenantSuppressionBypassState(supabase, params.tenantId);
+  const bypassSuppressionTypes = (
+    bypassState.suppression_bypass_active
+    && bypassState.suppression_bypass_automation_mode === 'campaign_and_automation'
+  )
+    ? ['bounced', 'hard_bounce', 'complaint', 'complained']
+    : [];
+
   const result = await canSendEmail(supabase, {
     tenantId: params.tenantId,
     customerId: params.customerId,
     email: params.email,
+  }, {
+    bypassSuppressionTypes,
   });
 
   if (!result.allowed && result.reason) {

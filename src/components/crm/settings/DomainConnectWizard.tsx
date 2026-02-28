@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -6,32 +6,58 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Globe, ArrowRight, Loader2, Info, CheckCircle2, Zap, Settings, Sparkles, Copy, Check, ExternalLink } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import { useEmailDomainManagement } from '@/hooks/useEmailDomainManagement';
-import { useEntriConnect } from '@/hooks/useEntriConnect';
-import { useTenant } from '@/hooks/useTenant';
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  Globe,
+  ArrowRight,
+  Loader2,
+  Info,
+  CheckCircle2,
+  Zap,
+  Settings,
+  Sparkles,
+  Copy,
+  Check,
+  ExternalLink,
+} from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { useEmailDomainManagement } from "@/hooks/useEmailDomainManagement";
+import { useEntriConnect } from "@/hooks/useEntriConnect";
+import { useTenant } from "@/hooks/useTenant";
 
 interface DomainConnectWizardProps {
   open: boolean;
   onClose: () => void;
 }
 
-type WizardStep = 'enter_domain' | 'choose_method' | 'provisioning' | 'dns_pending' | 'entri_success' | 'complete';
+type WizardStep =
+  | "enter_domain"
+  | "choose_method"
+  | "provisioning"
+  | "dns_pending"
+  | "entri_success"
+  | "complete";
 
-export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({ open, onClose }) => {
+export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({
+  open,
+  onClose,
+}) => {
   const { provisionDomain, refetch } = useEmailDomainManagement();
-  const { openEntriSetup, sanitizeAndConvertRecords, isEntriConfigured, isLoading: entriLoading } = useEntriConnect();
+  const {
+    openEntriSetup,
+    sanitizeAndConvertRecords,
+    isEntriConfigured,
+    isLoading: entriLoading,
+  } = useEntriConnect();
   const { tenant } = useTenant();
   const { toast } = useToast();
-  
-  const [step, setStep] = useState<WizardStep>('enter_domain');
-  const [domain, setDomain] = useState('');
+
+  const [step, setStep] = useState<WizardStep>("enter_domain");
+  const [domain, setDomain] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [provisionedData, setProvisionedData] = useState<any>(null);
@@ -48,120 +74,148 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({ open, 
       toast({
         title: "Copy failed",
         description: "Please copy manually",
-        variant: "destructive"
+        variant: "destructive",
       });
     }
   };
 
   const getRecordPurpose = (record: any): string => {
-    const name = record.name?.toLowerCase() || '';
-    const recordType = record.record_type || record.type || '';
-    
-    if (name.includes('_dmarc')) return 'DMARC (Policy)';
-    if (name.includes('domainkey') || name.includes('dkim')) return 'DKIM (Email Signing)';
-    if (recordType === 'MX') return 'MX (Mail Exchange)';
-    if (recordType === 'TXT' && !name.includes('dmarc') && !name.includes('domainkey')) return 'SPF (Sender Policy)';
-    return 'DNS Record';
+    const name = record.name?.toLowerCase() || "";
+    const recordType = record.record_type || record.type || "";
+
+    if (name.includes("_dmarc")) return "DMARC (Policy)";
+    if (name.includes("domainkey") || name.includes("dkim"))
+      return "DKIM (Email Signing)";
+    if (recordType === "MX") return "MX (Mail Exchange)";
+    if (
+      recordType === "TXT" &&
+      !name.includes("dmarc") &&
+      !name.includes("domainkey")
+    )
+      return "SPF (Sender Policy)";
+    return "DNS Record";
   };
 
   const dnsProviderLinks = [
-    { name: 'Cloudflare', url: 'https://dash.cloudflare.com/' },
-    { name: 'GoDaddy', url: 'https://dcc.godaddy.com/domains' },
-    { name: 'Namecheap', url: 'https://ap.www.namecheap.com/domains/list/' },
+    { name: "Cloudflare", url: "https://dash.cloudflare.com/" },
+    { name: "GoDaddy", url: "https://dcc.godaddy.com/domains" },
+    { name: "Namecheap", url: "https://ap.www.namecheap.com/domains/list/" },
   ];
 
   const validateDomain = (value: string): boolean => {
-    const domainRegex = /^[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9]?\.[a-zA-Z]{2,}$/;
+    const domainRegex =
+      /^[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9]?\.[a-zA-Z]{2,}$/;
     return domainRegex.test(value);
   };
 
   const cleanDomainInput = (value: string): string => {
-    return value.trim().toLowerCase().replace(/^(https?:\/\/)?(www\.)?/, '');
+    return value
+      .trim()
+      .toLowerCase()
+      .replace(/^(https?:\/\/)?(www\.)?/, "");
   };
 
   const handleContinueToMethod = () => {
     setError(null);
-    
+
     if (!domain.trim()) {
-      setError('Please enter a domain');
+      setError("Please enter a domain");
       return;
     }
 
     const cleanDomain = cleanDomainInput(domain);
-    
+
     if (!validateDomain(cleanDomain)) {
-      setError('Please enter a valid domain (e.g., example.com)');
+      setError("Please enter a valid domain (e.g., example.com)");
       return;
     }
 
     setDomain(cleanDomain);
-    setStep('choose_method');
+    setStep("choose_method");
   };
 
   const handleEntriSetup = async () => {
     if (!tenant?.id) {
-      setError('No workspace context');
+      setError("No workspace context");
       return;
     }
 
     const cleanDomain = cleanDomainInput(domain);
     setError(null);
     setLoading(true);
-    
+
     console.log(`🚀 Starting Entri setup for domain: ${cleanDomain}`);
-    
+
     try {
       // Step 1: Provision domain in Resend FIRST to get real DNS records
       console.log(`📧 Provisioning domain in Resend to get DNS records...`);
       const result = await provisionDomain(cleanDomain);
-      
+
       if (!result.success) {
-        setError(result.error || 'Failed to provision domain');
+        setError(result.error || "Failed to provision domain");
         setLoading(false);
         return;
       }
-      
+
       setProvisionedData(result.data);
-      
+
       // Step 2: Extract DNS records from backend response
       const backendRecords = result.data?.records;
-      
-      if (!backendRecords || !Array.isArray(backendRecords) || backendRecords.length === 0) {
-        console.error('❌ No DNS records returned from backend');
-        setError('Failed to get DNS records from email service. Please try manual setup.');
+
+      if (
+        !backendRecords ||
+        !Array.isArray(backendRecords) ||
+        backendRecords.length === 0
+      ) {
+        console.error("❌ No DNS records returned from backend");
+        setError(
+          "Failed to get DNS records from email service. Please try manual setup.",
+        );
         setLoading(false);
         return;
       }
-      
-      console.log(`📋 Received ${backendRecords.length} DNS records from backend`);
-      
+
+      console.log(
+        `📋 Received ${backendRecords.length} DNS records from backend`,
+      );
+
       // Step 3: Sanitize and convert to Entri format using new sanitizer
-      const { records: entriRecords, validation } = sanitizeAndConvertRecords(cleanDomain, backendRecords);
-      
+      const { records: entriRecords, validation } = sanitizeAndConvertRecords(
+        cleanDomain,
+        backendRecords,
+      );
+
       // Step 4: STRICT validation - block if required records are missing
       if (!validation.valid) {
-        const errorMsg = validation.errors.join('\n• ');
+        const errorMsg = validation.errors.join("\n• ");
         console.error(`❌ DNS validation FAILED:`, validation.errors);
-        setError(`DNS record validation failed:\n• ${errorMsg}\n\nPlease contact support.`);
+        setError(
+          `DNS record validation failed:\n• ${errorMsg}\n\nPlease contact support.`,
+        );
         setLoading(false);
         return;
       }
-      
+
       // Log warnings but continue
       if (validation.warnings.length > 0) {
         console.warn(`⚠️ DNS validation warnings:`, validation.warnings);
       }
-      
+
       // Step 5: Final logging before Entri
-      console.log(`✅ All required DNS records present. Opening Entri with ${entriRecords.length} records:`);
-      console.log(`📋 Records for Entri:`, JSON.stringify(entriRecords, null, 2));
+      console.log(
+        `✅ All required DNS records present. Opening Entri with ${entriRecords.length} records:`,
+      );
+      console.log(
+        `📋 Records for Entri:`,
+        JSON.stringify(entriRecords, null, 2),
+      );
       console.log(`📋 Validation details:`, validation.details);
-      
+
       setLoading(false);
-      
+
       // Step 6: Open Entri with sanitized records
       setIsEntriModalOpen(true);
-      
+
       openEntriSetup(
         cleanDomain,
         tenant.id,
@@ -171,18 +225,20 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({ open, 
           console.log(`✅ Entri setup completed for ${cleanDomain}`);
           setIsEntriModalOpen(false);
           refetch();
-          setStep('entri_success');
+          setStep("entri_success");
         },
         // onCancel - fall back to manual
         () => {
-          console.log(`⚠️ Entri setup cancelled for ${cleanDomain}, falling back to manual`);
+          console.log(
+            `⚠️ Entri setup cancelled for ${cleanDomain}, falling back to manual`,
+          );
           setIsEntriModalOpen(false);
-          setStep('dns_pending'); // Show manual DNS setup since domain is provisioned
-        }
+          setStep("dns_pending"); // Show manual DNS setup since domain is provisioned
+        },
       );
     } catch (err: any) {
-      console.error('Error in Entri setup:', err);
-      setError(err.message || 'Failed to set up domain');
+      console.error("Error in Entri setup:", err);
+      setError(err.message || "Failed to set up domain");
       setLoading(false);
     }
   };
@@ -190,25 +246,25 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({ open, 
   const handleManualSetup = async () => {
     setError(null);
     setLoading(true);
-    setStep('provisioning');
+    setStep("provisioning");
 
     const cleanDomain = cleanDomainInput(domain);
     const result = await provisionDomain(cleanDomain);
-    
+
     setLoading(false);
 
     if (result.success) {
       setProvisionedData(result.data);
-      setStep('dns_pending');
+      setStep("dns_pending");
     } else {
-      setStep('choose_method');
-      setError(result.error || 'Failed to provision domain');
+      setStep("choose_method");
+      setError(result.error || "Failed to provision domain");
     }
   };
 
   const handleClose = () => {
-    setStep('enter_domain');
-    setDomain('');
+    setStep("enter_domain");
+    setDomain("");
     setError(null);
     setProvisionedData(null);
     setEntriProvider(null);
@@ -223,13 +279,17 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({ open, 
 
   const getStepNumber = () => {
     switch (step) {
-      case 'enter_domain': return 1;
-      case 'choose_method': return 2;
-      case 'provisioning': 
-      case 'dns_pending':
-      case 'entri_success':
-      case 'complete': return 3;
-      default: return 1;
+      case "enter_domain":
+        return 1;
+      case "choose_method":
+        return 2;
+      case "provisioning":
+      case "dns_pending":
+      case "entri_success":
+      case "complete":
+        return 3;
+      default:
+        return 1;
     }
   };
 
@@ -243,24 +303,28 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({ open, 
               Connect Your Domain
             </DialogTitle>
             <div className="flex items-center gap-1 text-xs text-muted-foreground">
-              <span className="font-medium text-foreground">Step {getStepNumber()}</span>
+              <span className="font-medium text-foreground">
+                Step {getStepNumber()}
+              </span>
               <span>/</span>
               <span>3</span>
             </div>
           </div>
           <DialogDescription>
-            Send emails from your own domain for better deliverability and brand recognition.
+            Send emails from your own domain for better deliverability and brand
+            recognition.
           </DialogDescription>
         </DialogHeader>
 
         {/* Step 1: Enter Domain */}
-        {step === 'enter_domain' && (
+        {step === "enter_domain" && (
           <div className="space-y-4 py-4">
             <Alert className="bg-primary/5 border-primary/20">
               <CheckCircle2 className="h-4 w-4 text-primary" />
               <AlertDescription className="text-xs">
-                <span className="font-medium">Why connect your domain?</span> Emails sent from your own domain 
-                (like news@yourbusiness.com) have better deliverability than shared addresses, and recipients 
+                <span className="font-medium">Why connect your domain?</span>{" "}
+                Emails sent from your own domain (like news@yourbusiness.com)
+                have better deliverability than shared addresses, and recipients
                 recognize and trust your brand.
               </AlertDescription>
             </Alert>
@@ -272,7 +336,7 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({ open, 
                 placeholder="example.com"
                 value={domain}
                 onChange={(e) => setDomain(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleContinueToMethod()}
+                onKeyDown={(e) => e.key === "Enter" && handleContinueToMethod()}
               />
               <p className="text-xs text-muted-foreground">
                 Enter your domain without https:// or www
@@ -288,18 +352,19 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({ open, 
         )}
 
         {/* Step 2: Choose Setup Method */}
-        {step === 'choose_method' && (
+        {step === "choose_method" && (
           <div className="space-y-4 py-4">
             <div className="text-center mb-4">
               <p className="text-sm text-muted-foreground">
-                Setting up <span className="font-medium text-foreground">{domain}</span>
+                Setting up{" "}
+                <span className="font-medium text-foreground">{domain}</span>
               </p>
             </div>
 
             {/* Automatic Setup Option */}
             {isEntriConfigured && (
-              <div 
-                className={`relative border-2 border-primary/20 rounded-lg p-4 transition-colors ${loading ? 'opacity-75' : 'hover:border-primary/40 cursor-pointer'} bg-primary/5`}
+              <div
+                className={`relative border-2 border-primary/20 rounded-lg p-4 transition-colors ${loading ? "opacity-75" : "hover:border-primary/40 cursor-pointer"} bg-primary/5`}
                 onClick={() => !loading && handleEntriSetup()}
               >
                 <div className="absolute -top-2.5 left-3 px-2 bg-background">
@@ -313,9 +378,13 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({ open, 
                     <Zap className="h-5 w-5 text-primary" />
                   </div>
                   <div className="flex-1">
-                    <h3 className="font-medium text-sm">Automatic Setup via Entri</h3>
+                    <h3 className="font-medium text-sm">
+                      Automatic Setup via Entri
+                    </h3>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Securely connect to your DNS provider for one-click setup. Works with GoDaddy, Cloudflare, Namecheap, and 50+ providers.
+                      Securely connect to your DNS provider for one-click setup.
+                      Works with GoDaddy, Cloudflare, Namecheap, and 50+
+                      providers.
                     </p>
                     {loading && (
                       <p className="text-xs text-primary mt-2 flex items-center gap-1">
@@ -324,8 +393,8 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({ open, 
                       </p>
                     )}
                   </div>
-                  <Button 
-                    size="sm" 
+                  <Button
+                    size="sm"
                     disabled={loading || entriLoading}
                     onClick={(e) => {
                       e.stopPropagation();
@@ -335,7 +404,7 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({ open, 
                     {loading ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
-                      'Set Up'
+                      "Set Up"
                     )}
                   </Button>
                 </div>
@@ -349,7 +418,7 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({ open, 
             </div>
 
             {/* Manual Setup Option */}
-            <div 
+            <div
               className="border rounded-lg p-4 hover:border-primary/30 transition-colors cursor-pointer"
               onClick={handleManualSetup}
             >
@@ -360,11 +429,12 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({ open, 
                 <div className="flex-1">
                   <h3 className="font-medium text-sm">Manual Setup</h3>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Get DNS records to add manually. Best for advanced users or unsupported providers.
+                    Get DNS records to add manually. Best for advanced users or
+                    unsupported providers.
                   </p>
                 </div>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   size="sm"
                   disabled={loading}
                   onClick={(e) => {
@@ -375,7 +445,7 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({ open, 
                   {loading ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
-                    'Configure'
+                    "Configure"
                   )}
                 </Button>
               </div>
@@ -390,31 +460,35 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({ open, 
             <Alert>
               <Info className="h-4 w-4" />
               <AlertDescription className="text-xs">
-                <span className="font-medium">What's configured:</span> SPF (sender verification), 
-                DKIM (email signing), and DMARC (policy enforcement) records for email authentication.
+                <span className="font-medium">What's configured:</span> SPF
+                (sender verification), DKIM (email signing), and DMARC (policy
+                enforcement) records for email authentication.
               </AlertDescription>
             </Alert>
           </div>
         )}
 
         {/* Step 3: Provisioning */}
-        {step === 'provisioning' && (
+        {step === "provisioning" && (
           <div className="py-8 text-center space-y-4">
             <Loader2 className="h-12 w-12 animate-spin mx-auto text-primary" />
             <div>
               <p className="font-medium">Setting up your domain...</p>
-              <p className="text-sm text-muted-foreground">This may take a few seconds</p>
+              <p className="text-sm text-muted-foreground">
+                This may take a few seconds
+              </p>
             </div>
           </div>
         )}
 
         {/* Step 4: DNS Pending (Manual) */}
-        {step === 'dns_pending' && (
+        {step === "dns_pending" && (
           <div className="space-y-4 py-4">
             <Alert className="bg-green-50 border-green-200 dark:bg-green-950/20 dark:border-green-900">
               <CheckCircle2 className="h-4 w-4 text-green-600" />
               <AlertDescription className="text-green-800 dark:text-green-200">
-                Domain registered! Now add the DNS records below to verify ownership.
+                Domain registered! Now add the DNS records below to verify
+                ownership.
               </AlertDescription>
             </Alert>
 
@@ -425,11 +499,12 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({ open, 
                 <div className="border rounded-lg divide-y max-h-[240px] overflow-y-auto">
                   {provisionedData.records.map((record: any, index: number) => {
                     const recordId = `record-${index}`;
-                    const recordType = record.record_type || record.type || 'TXT';
-                    const recordName = record.name || '@';
-                    const recordValue = record.value || record.data || '';
+                    const recordType =
+                      record.record_type || record.type || "TXT";
+                    const recordName = record.name || "@";
+                    const recordValue = record.value || record.data || "";
                     const purpose = getRecordPurpose(record);
-                    
+
                     return (
                       <div key={recordId} className="p-3 space-y-2">
                         <div className="flex items-center justify-between">
@@ -437,13 +512,17 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({ open, 
                             <span className="px-2 py-0.5 text-xs font-mono font-medium bg-muted rounded">
                               {recordType}
                             </span>
-                            <span className="text-xs text-muted-foreground">{purpose}</span>
+                            <span className="text-xs text-muted-foreground">
+                              {purpose}
+                            </span>
                           </div>
                           <Button
                             variant="ghost"
                             size="sm"
                             className="h-7 px-2"
-                            onClick={() => copyToClipboard(recordValue, recordId)}
+                            onClick={() =>
+                              copyToClipboard(recordValue, recordId)
+                            }
                           >
                             {copiedRecordId === recordId ? (
                               <Check className="h-3.5 w-3.5 text-green-600" />
@@ -451,21 +530,27 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({ open, 
                               <Copy className="h-3.5 w-3.5" />
                             )}
                             <span className="ml-1 text-xs">
-                              {copiedRecordId === recordId ? 'Copied' : 'Copy'}
+                              {copiedRecordId === recordId ? "Copied" : "Copy"}
                             </span>
                           </Button>
                         </div>
                         <div className="space-y-1">
                           <div className="flex items-center gap-2 text-xs">
-                            <span className="text-muted-foreground w-12">Name:</span>
+                            <span className="text-muted-foreground w-12">
+                              Name:
+                            </span>
                             <code className="font-mono text-foreground bg-muted px-1.5 py-0.5 rounded break-all">
                               {recordName}
                             </code>
                           </div>
                           <div className="flex items-start gap-2 text-xs">
-                            <span className="text-muted-foreground w-12 shrink-0">Value:</span>
+                            <span className="text-muted-foreground w-12 shrink-0">
+                              Value:
+                            </span>
                             <code className="font-mono text-foreground bg-muted px-1.5 py-0.5 rounded break-all text-[11px] leading-relaxed">
-                              {recordValue.length > 80 ? `${recordValue.substring(0, 80)}...` : recordValue}
+                              {recordValue.length > 80
+                                ? `${recordValue.substring(0, 80)}...`
+                                : recordValue}
                             </code>
                           </div>
                         </div>
@@ -476,7 +561,9 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({ open, 
 
                 {/* Provider Quick Links */}
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-xs text-muted-foreground">Quick links:</span>
+                  <span className="text-xs text-muted-foreground">
+                    Quick links:
+                  </span>
                   {dnsProviderLinks.map((provider) => (
                     <a
                       key={provider.name}
@@ -495,8 +582,9 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({ open, 
               <Alert>
                 <Info className="h-4 w-4" />
                 <AlertDescription className="text-xs">
-                  DNS records could not be loaded. Please close this wizard and click "DNS Instructions" 
-                  on your domain in the list to view the records.
+                  DNS records could not be loaded. Please close this wizard and
+                  click "DNS Instructions" on your domain in the list to view
+                  the records.
                 </AlertDescription>
               </Alert>
             )}
@@ -512,45 +600,41 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({ open, 
             </div>
 
             <p className="text-xs text-muted-foreground">
-              Once verified, your domain will go through a warmup period to build sending reputation.
+              Once verified, your domain will be ready for campaign sending.
             </p>
           </div>
         )}
 
         {/* Step 5: Entri Success */}
-        {step === 'entri_success' && (
+        {step === "entri_success" && (
           <div className="space-y-4 py-4">
             <div className="text-center">
               <div className="mx-auto w-12 h-12 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center mb-4">
                 <CheckCircle2 className="h-6 w-6 text-green-600" />
               </div>
-              <h3 className="font-semibold text-lg">DNS Configured Successfully!</h3>
+              <h3 className="font-semibold text-lg">
+                DNS Configured Successfully!
+              </h3>
               <p className="text-sm text-muted-foreground mt-2">
-                Your DNS records have been automatically applied{entriProvider ? ` via ${entriProvider}` : ''}.
+                Your DNS records have been automatically applied
+                {entriProvider ? ` via ${entriProvider}` : ""}.
               </p>
             </div>
 
             <Alert className="bg-blue-50 border-blue-200 dark:bg-blue-950/20 dark:border-blue-900">
               <Info className="h-4 w-4 text-blue-600" />
               <AlertDescription className="text-blue-800 dark:text-blue-200 text-xs">
-                <span className="font-medium">What happens next:</span> DNS changes typically propagate within 
-                5-30 minutes. We'll automatically verify your domain and start the warmup process to build 
-                sending reputation.
+                <span className="font-medium">What happens next:</span> DNS
+                changes typically propagate within 5-30 minutes. We'll
+                automatically verify your domain so you can start sending
+                campaigns.
               </AlertDescription>
             </Alert>
-
-            <div className="space-y-2">
-              <p className="text-sm font-medium">Warmup Period:</p>
-              <p className="text-xs text-muted-foreground">
-                New domains start with limited sending capacity that gradually increases over 2-3 weeks. 
-                This protects your domain reputation and ensures high deliverability.
-              </p>
-            </div>
           </div>
         )}
 
         <DialogFooter>
-          {step === 'enter_domain' && (
+          {step === "enter_domain" && (
             <>
               <Button variant="outline" onClick={handleClose}>
                 Cancel
@@ -562,16 +646,14 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({ open, 
             </>
           )}
 
-          {step === 'choose_method' && (
-            <Button variant="outline" onClick={() => setStep('enter_domain')}>
+          {step === "choose_method" && (
+            <Button variant="outline" onClick={() => setStep("enter_domain")}>
               Back
             </Button>
           )}
 
-          {(step === 'dns_pending' || step === 'entri_success') && (
-            <Button onClick={handleClose}>
-              Done
-            </Button>
+          {(step === "dns_pending" || step === "entri_success") && (
+            <Button onClick={handleClose}>Done</Button>
           )}
         </DialogFooter>
       </DialogContent>

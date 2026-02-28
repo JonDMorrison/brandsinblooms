@@ -69,10 +69,10 @@ const handler = async (req: Request): Promise<Response> => {
     console.log(`🏢 Found ${tenantSettings?.length || 0} tenants with CRM enabled`);
 
     if (!tenantSettings || tenantSettings.length === 0) {
-      return new Response(JSON.stringify({ 
-        success: true, 
+      return new Response(JSON.stringify({
+        success: true,
         message: 'No tenants with CRM enabled found',
-        campaignsCreated: 0 
+        campaignsCreated: 0
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -86,7 +86,7 @@ const handler = async (req: Request): Promise<Response> => {
       try {
         // Check if auto-generation is enabled for this tenant (default to true if not set)
         const autoGenEnabled = tenant.company_profiles?.feature_flags?.auto_create_weekly_campaigns !== false;
-        
+
         if (!autoGenEnabled) {
           console.log(`⏭️ Skipping tenant ${tenant.tenant_id} - auto-generation disabled`);
           continue;
@@ -178,7 +178,7 @@ const handler = async (req: Request): Promise<Response> => {
             suggested_send_time: aiContent.suggestedSendTime
           },
           scheduled_at: null,
-          delivery_method: 'shared_sender'
+          delivery_method: 'custom_domain'
         };
 
         const { data: newCampaign, error: createError } = await supabase
@@ -204,7 +204,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log(`🎉 Weekly campaign auto-generation completed. Created ${campaignsCreated} campaigns`);
 
-    return new Response(JSON.stringify({ 
+    return new Response(JSON.stringify({
       success: true,
       campaignsCreated,
       errors: errors.length > 0 ? errors : undefined,
@@ -216,9 +216,9 @@ const handler = async (req: Request): Promise<Response> => {
 
   } catch (error) {
     console.error('❌ Error in auto-generate-weekly-campaigns function:', error);
-    return new Response(JSON.stringify({ 
+    return new Response(JSON.stringify({
       error: error.message,
-      success: false 
+      success: false
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

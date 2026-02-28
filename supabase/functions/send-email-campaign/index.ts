@@ -4,16 +4,222 @@ import { extractLinks, getUniqueUrls, hasPII } from "../_shared/linkRewriter.ts"
 import { type CompanyProfileData } from "../_shared/footerGenerator.ts";
 import {
   serializeSupabaseError,
-  isEngagementBasedSuppression,
   isUuidLike,
 } from "../_shared/campaignHelpers.ts";
+import { canSendEmailBatch, logSkippedSends } from "../_shared/canSendEmail.ts";
+import {
+  analyzeCampaignListHygiene,
+  persistCampaignHygieneReport,
+} from "../_shared/listHygieneAnalyzer.ts";
+import { getEmailGovernanceRuntimeConfig } from "../_shared/emailGovernanceConfig.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, traceparent, tracestate',
 }
 
-const BATCH_SIZE_PER_JOB = 200;
+const DEFAULT_BATCH_SIZE_PER_JOB = 50;
+
+type CampaignReputationPolicy = {
+  score: number;
+  tier: 'normal' | 'throttled' | 'restricted' | 'critical';
+  action: 'allow' | 'throttle' | 'restrict' | 'pause';
+  recipient_cap: number | null;
+  job_batch_size: number | null;
+  send_pacing_multiplier: number | null;
+};
+
+type TenantSuppressionBypassState = {
+  suppression_bypass_active: boolean;
+  suppression_bypass_automation_mode: 'campaign_only' | 'campaign_and_automation';
+};
+
+type CampaignInterventionState = {
+  admin_paused: boolean;
+  force_stopped: boolean;
+  autopause_override_enabled: boolean;
+  autopause_override_precedence: 'final_override' | 'automation_allowed';
+  autopause_override_final: boolean;
+};
+
+async function getTenantSuppressionBypassState(
+  supabase: any,
+  tenantId: string,
+): Promise<TenantSuppressionBypassState> {
+  const { data, error } = await supabase.rpc('get_tenant_suppression_bypass_state', {
+    p_tenant_id: tenantId,
+  });
+
+  if (error) {
+    console.warn('⚠️ Failed to fetch tenant suppression bypass state, defaulting to disabled:', error.message);
+    return {
+      suppression_bypass_active: false,
+      suppression_bypass_automation_mode: 'campaign_only',
+    };
+  }
+
+  const row = Array.isArray(data) ? data[0] : data;
+  const mode = String(row?.suppression_bypass_automation_mode || 'campaign_only')
+    .toLowerCase() === 'campaign_and_automation'
+    ? 'campaign_and_automation'
+    : 'campaign_only';
+
+  return {
+    suppression_bypass_active: Boolean(row?.suppression_bypass_active),
+    suppression_bypass_automation_mode: mode,
+  };
+}
+
+async function getCampaignInterventionState(
+  supabase: any,
+  campaignId: string,
+): Promise<CampaignInterventionState> {
+  const { data, error } = await supabase.rpc('get_campaign_intervention_state', {
+    p_campaign_id: campaignId,
+  });
+
+  if (error) {
+    console.warn('⚠️ Failed to fetch campaign intervention state, defaulting to no override:', error.message);
+    return {
+      admin_paused: false,
+      force_stopped: false,
+      autopause_override_enabled: false,
+      autopause_override_precedence: 'automation_allowed',
+      autopause_override_final: false,
+    };
+  }
+
+  const row = Array.isArray(data) ? data[0] : data;
+  const precedence = String(row?.autopause_override_precedence || 'automation_allowed').toLowerCase() === 'final_override'
+    ? 'final_override'
+    : 'automation_allowed';
+
+  return {
+    admin_paused: Boolean(row?.admin_paused),
+    force_stopped: Boolean(row?.force_stopped),
+    autopause_override_enabled: Boolean(row?.autopause_override_enabled),
+    autopause_override_precedence: precedence,
+    autopause_override_final: Boolean(row?.autopause_override_final),
+  };
+}
+
+async function getCampaignReputationPolicy(supabase: any, campaignId: string): Promise<CampaignReputationPolicy> {
+  const { data, error } = await supabase.rpc('get_campaign_reputation_policy', {
+    p_campaign_id: campaignId,
+  });
+
+  if (error) {
+    console.warn('⚠️ Failed to fetch campaign reputation policy, defaulting to normal:', error.message);
+    return {
+      score: 100,
+      tier: 'normal',
+      action: 'allow',
+      recipient_cap: null,
+      job_batch_size: DEFAULT_BATCH_SIZE_PER_JOB,
+      send_pacing_multiplier: 1,
+    };
+  }
+
+  const row = Array.isArray(data) ? data[0] : data;
+  return {
+    score: Number(row?.score ?? 100),
+    tier: (row?.tier || 'normal') as CampaignReputationPolicy['tier'],
+    action: (row?.action || 'allow') as CampaignReputationPolicy['action'],
+    recipient_cap: Number.isFinite(Number(row?.recipient_cap)) ? Number(row.recipient_cap) : null,
+    job_batch_size: Number.isFinite(Number(row?.job_batch_size)) ? Number(row.job_batch_size) : DEFAULT_BATCH_SIZE_PER_JOB,
+    send_pacing_multiplier: Number.isFinite(Number(row?.send_pacing_multiplier)) ? Number(row.send_pacing_multiplier) : 1,
+  };
+}
+
+function randomIntInclusive(min: number, max: number): number {
+  const lo = Math.ceil(Math.min(min, max));
+  const hi = Math.floor(Math.max(min, max));
+  return Math.floor(Math.random() * (hi - lo + 1)) + lo;
+}
+
+function stripHtml(input: string): string {
+  return String(input || '')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function computeHeuristicSpamScore(subject: string, htmlContent: string): { score: number; issues: string[] } {
+  const issues: string[] = [];
+  const text = stripHtml(htmlContent);
+  const normalizedSubject = String(subject || '').trim();
+
+  let score = 0;
+
+  if (!normalizedSubject) {
+    score += 3;
+    issues.push('Missing subject line');
+  }
+
+  if (!text) {
+    score += 3;
+    issues.push('Missing email body content');
+  }
+
+  const spamWords = ['FREE', 'URGENT', 'ACT NOW', 'LIMITED TIME', 'CLICK HERE', 'BUY NOW'];
+  const subjectUpper = normalizedSubject.toUpperCase();
+  const foundSpamWords = spamWords.filter((word) => subjectUpper.includes(word));
+  if (foundSpamWords.length > 0) {
+    score += Math.min(4, foundSpamWords.length * 1.2);
+    issues.push(`Spam-trigger words in subject: ${foundSpamWords.join(', ')}`);
+  }
+
+  if ((normalizedSubject.match(/[!?]{2,}/g) || []).length > 0) {
+    score += 1.5;
+    issues.push('Excessive punctuation in subject');
+  }
+
+  if (normalizedSubject.length > 10 && normalizedSubject === normalizedSubject.toUpperCase()) {
+    score += 2;
+    issues.push('Subject appears to be ALL CAPS');
+  }
+
+  const imageCount = (String(htmlContent || '').match(/<img\b/gi) || []).length;
+  const linkCount = (String(htmlContent || '').match(/<a\s+href/gi) || []).length;
+  if (linkCount > 10) {
+    score += linkCount > 20 ? 2 : 1;
+    issues.push(`High link density (${linkCount} links)`);
+  }
+
+  if (imageCount > 0) {
+    const textToImageRatio = text.length / imageCount;
+    if (textToImageRatio < 100) {
+      score += 1.5;
+      issues.push('Low text-to-image ratio');
+    }
+  }
+
+  return {
+    score: Math.min(10, Math.max(0, Number(score.toFixed(1)))),
+    issues,
+  };
+}
+
+function hasPhysicalAddress(companyProfile: any): boolean {
+  const hasStreetLike = Boolean(String(companyProfile?.street_address || companyProfile?.location_info || '').trim());
+  const hasLocality = Boolean(
+    String(companyProfile?.city || '').trim() ||
+    String(companyProfile?.state_province || '').trim() ||
+    String(companyProfile?.postal_code || '').trim() ||
+    String(companyProfile?.country || '').trim()
+  );
+  return hasStreetLike && hasLocality;
+}
+
+function isFromNameValid(fromName: string): boolean {
+  const normalized = String(fromName || '').trim();
+  if (normalized.length < 2) return false;
+  if (/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(normalized)) return false;
+  if (/^(no\s?-?reply|noreply|test|admin)$/i.test(normalized)) return false;
+  return true;
+}
 
 serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
@@ -82,6 +288,60 @@ serve(async (req: Request) => {
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    const governanceConfig = await getEmailGovernanceRuntimeConfig(supabase, campaign.tenant_id);
+    const campaignIntervention = await getCampaignInterventionState(supabase, campaignId);
+
+    if (campaignIntervention.force_stopped || campaignIntervention.admin_paused) {
+      return new Response(
+        JSON.stringify({ error: 'Campaign is paused.' }),
+        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const reputationPolicy = await getCampaignReputationPolicy(supabase, campaignId);
+    if (reputationPolicy.action === 'pause' && !campaignIntervention.autopause_override_final) {
+      const pauseMessage = `Campaign auto-paused: tenant reputation score ${reputationPolicy.score} is below 60.`;
+      await supabase.rpc('system_pause_email_campaign_sending', {
+        p_campaign_id: campaignId,
+        p_block_reason: 'reputation_critical_autopause',
+        p_error_message: pauseMessage,
+      });
+
+      return new Response(
+        JSON.stringify({
+          error: pauseMessage,
+          reputation: reputationPolicy,
+        }),
+        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (reputationPolicy.action === 'restrict') {
+      const blockMessage = `Campaign blocked: tenant reputation score ${reputationPolicy.score} is in restricted tier (60-74).`;
+      await supabase
+        .from('crm_campaigns')
+        .update({
+          send_blocked_reason: 'reputation_restricted',
+          send_error: blockMessage,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', campaignId);
+
+      return new Response(
+        JSON.stringify({
+          error: blockMessage,
+          reputation: reputationPolicy,
+        }),
+        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const maxBatchSizePerJob = governanceConfig.batch.max_batch_size;
+    const batchDelayMinSeconds = governanceConfig.batch.delay_min_seconds;
+    const batchDelayMaxSeconds = governanceConfig.batch.delay_max_seconds;
+    const highVolumeThreshold = governanceConfig.compliance.high_volume_threshold;
+    const spamScoreThreshold = governanceConfig.compliance.spam_score_threshold;
 
     // Get company profile
     const { data: companyProfile } = await supabase
@@ -287,7 +547,7 @@ serve(async (req: Request) => {
     const buildCustomersQuery = () =>
       supabase
         .from('crm_customers')
-        .select('id, first_name, last_name, email, suppressed, suppressed_reason')
+        .select('id, first_name, last_name, email, suppressed, suppressed_reason, created_at, last_open_at, last_email_clicked_at')
         .eq('tenant_id', campaign.tenant_id)
         .not('email', 'is', null);
 
@@ -332,6 +592,101 @@ serve(async (req: Request) => {
       customers = fetched;
     }
 
+    const hygieneAnalysis = await analyzeCampaignListHygiene(supabase, {
+      tenantId: campaign.tenant_id,
+      domainId: campaign.from_email_domain_id || null,
+      recipients: (customers || []).map((c: any) => ({
+        customerId: c?.id,
+        email: c?.email,
+        createdAt: c?.created_at,
+        lastOpenAt: c?.last_open_at,
+        lastEmailClickedAt: c?.last_email_clicked_at,
+      })),
+    });
+
+    await persistCampaignHygieneReport(supabase, {
+      tenantId: campaign.tenant_id,
+      campaignId,
+      analysis: hygieneAnalysis,
+    });
+
+    if (hygieneAnalysis.blocked) {
+      const pauseMessage = `Campaign blocked: invalid email ratio ${hygieneAnalysis.invalidEmailsPct.toFixed(2)}% exceeds 5%.`;
+      await supabase.rpc('system_pause_email_campaign_sending', {
+        p_campaign_id: campaignId,
+        p_block_reason: hygieneAnalysis.blockReason || 'list_hygiene_invalid_ratio',
+        p_error_message: pauseMessage,
+      });
+
+      return new Response(
+        JSON.stringify({
+          error: pauseMessage,
+          hygiene: {
+            blocked: true,
+            block_reason: hygieneAnalysis.blockReason,
+            invalid_emails_pct: hygieneAnalysis.invalidEmailsPct,
+            invalid_emails_count: hygieneAnalysis.invalidEmailsCount,
+            audience_total: hygieneAnalysis.audienceTotal,
+            warnings: hygieneAnalysis.warnings,
+          },
+        }),
+        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (hygieneAnalysis.warnings.length > 0) {
+      console.warn('⚠️ List hygiene warnings detected:', {
+        campaignId,
+        warnings: hygieneAnalysis.warnings,
+      });
+    }
+
+    const { data: abuseEnforcementResult, error: abuseEnforcementError } = await supabase.rpc(
+      'maybe_enforce_tenant_abuse_under_review',
+      {
+        p_campaign_id: campaignId,
+        p_source: 'send_email_campaign',
+      }
+    );
+
+    if (abuseEnforcementError) {
+      console.error('❌ Failed to evaluate abuse risk before send:', abuseEnforcementError);
+      return new Response(
+        JSON.stringify({ error: 'Failed to evaluate abuse risk before send' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const abuseRow = Array.isArray(abuseEnforcementResult)
+      ? abuseEnforcementResult[0]
+      : abuseEnforcementResult;
+
+    if (abuseRow?.was_blocked) {
+      const abusePauseMessage =
+        abuseRow?.message ||
+        'Campaign blocked pending manual review due to abuse detection signals.';
+
+      await supabase.rpc('system_pause_email_campaign_sending', {
+        p_campaign_id: campaignId,
+        p_block_reason: 'abuse_detection_under_review',
+        p_error_message: abusePauseMessage,
+      });
+
+      return new Response(
+        JSON.stringify({
+          error: abusePauseMessage,
+          abuse_risk: {
+            risk_level: abuseRow?.risk_level || 'high',
+            reasons: abuseRow?.reasons || [],
+            monitoring_severity: abuseRow?.monitoring_severity || 'critical',
+            details: abuseRow?.details || {},
+            manual_review_required: true,
+          },
+        }),
+        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     customers = (customers || []).filter((c: any) => {
       const email = c?.email?.trim();
       if (!email) return false;
@@ -339,143 +694,92 @@ serve(async (req: Request) => {
       return true;
     });
 
-    // Filter out suppressed customers
+    // Filter out suppressed recipients (Milestone 5: suppression_list is canonical)
+    // includeSuppressed bypass is intentionally ignored.
     const totalBeforeSuppression = customers.length;
     let suppressedCount = 0;
-    let suppressedByListCount = 0;
-    const skippedRecipients: Array<{ customer_id: string; email: string; reason: string }> = [];
 
-    if (!includeSuppressed) {
-      const suppressedFlagRows = customers.filter(
-        (c: any) => c?.suppressed && c?.email && !isEngagementBasedSuppression(c?.suppressed_reason)
+    if (customers.length > 0) {
+      const suppressionBypassState = await getTenantSuppressionBypassState(
+        supabase,
+        campaign.tenant_id,
       );
-      const activeCustomers = customers.filter(
-        (c: any) => !c?.suppressed || isEngagementBasedSuppression(c?.suppressed_reason)
-      );
-      suppressedCount = suppressedFlagRows.length;
 
-      suppressedFlagRows.forEach((c: any) => {
-        if (typeof c?.id === 'string' && typeof c?.email === 'string') {
-          skippedRecipients.push({ customer_id: c.id, email: c.email, reason: 'suppressed flag' });
-        }
+      const bypassSuppressionTypes = suppressionBypassState.suppression_bypass_active
+        ? ['bounced', 'hard_bounce', 'complaint', 'complained']
+        : [];
+
+      const eligibility = await canSendEmailBatch(supabase, {
+        tenantId: campaign.tenant_id,
+        recipients: customers
+          .filter((c: any) => typeof c?.email === 'string' && c.email.trim())
+          .map((c: any) => ({ customerId: c.id, email: c.email })),
+      }, {
+        bypassSuppressionTypes,
       });
 
-      const customerIds = activeCustomers.map((c: any) => c.id);
-      if (customerIds.length > 0) {
-        const emailByCustomerId = new Map<string, string>();
-        activeCustomers.forEach((c: any) => {
-          if (typeof c?.id === 'string' && typeof c?.email === 'string') {
-            emailByCustomerId.set(c.id, c.email);
-          }
+      const skips: Array<{
+        tenantId: string;
+        campaignId?: string;
+        customerId?: string;
+        email: string;
+        reason: any;
+      }> = [];
+
+      customers = customers.filter((c: any) => {
+        const email = String(c?.email || '').toLowerCase().trim();
+        const result = eligibility.get(email);
+        if (!result || result.allowed) return true;
+        suppressedCount++;
+        skips.push({
+          tenantId: campaign.tenant_id,
+          campaignId,
+          customerId: c?.id,
+          email: String(c.email),
+          reason: result.reason || 'unsubscribed',
         });
+        return false;
+      });
 
-        const suppressedSet = new Set<string>();
-        const IN_CHUNK = 200;
-        const filteredCustomerIds = customerIds.filter((id: any) => typeof id === 'string' && isUuidLike(id));
-        for (let i = 0; i < filteredCustomerIds.length; i += IN_CHUNK) {
-          const chunk = filteredCustomerIds.slice(i, i + IN_CHUNK);
-          const { data: suppressedInList, error: supErr } = await supabase
-            .from('suppression_list')
-            .select('customer_id')
-            .eq('tenant_id', campaign.tenant_id)
-            .in('customer_id', chunk);
-          if (supErr) {
-            console.warn('⚠️ Failed to fetch suppression_list chunk (continuing):', supErr.message);
-            continue;
-          }
-          (suppressedInList || []).forEach((s: any) => {
-            if (typeof s?.customer_id === 'string') suppressedSet.add(s.customer_id);
-          });
-        }
-
-        if (suppressedSet.size > 0) {
-          customers = activeCustomers.filter((c: any) => !suppressedSet.has(c.id));
-          suppressedByListCount = suppressedSet.size;
-          console.log(`📧 Excluded ${suppressedByListCount} contacts from suppression_list`);
-
-          suppressedSet.forEach((cid) => {
-            const email = emailByCustomerId.get(cid);
-            if (email) {
-              skippedRecipients.push({ customer_id: cid, email, reason: 'suppression_list' });
-            }
-          });
-        } else {
-          customers = activeCustomers;
-        }
-      } else {
-        customers = activeCustomers;
+      if (suppressedCount > 0) {
+        console.log(`📧 Excluded ${suppressedCount} suppressed contacts (${totalBeforeSuppression} → ${customers.length} active)`);
+        await logSkippedSends(supabase, skips as any);
       }
-
-      const totalSuppressed = suppressedCount + suppressedByListCount;
-      if (totalSuppressed > 0) {
-        console.log(`📧 Excluded ${totalSuppressed} suppressed contacts total (${totalBeforeSuppression} → ${customers.length} active)`);
-
-        if (skippedRecipients.length > 0) {
-          const skipInserts = skippedRecipients.map(skip => ({
-            tenant_id: campaign.tenant_id,
-            campaign_id: campaignId,
-            customer_id: skip.customer_id,
-            email: skip.email,
-            reason: skip.reason,
-          }));
-
-          for (let i = 0; i < skipInserts.length; i += 500) {
-            const batch = skipInserts.slice(i, i + 500);
-            const { error: skipError } = await supabase
-              .from('email_send_skips')
-              .insert(batch);
-
-            if (skipError) {
-              console.warn(`⚠️ Failed to log skipped recipients batch ${i}-${i + batch.length}:`, skipError.message);
-            }
-          }
-          console.log(`📧 Logged ${skippedRecipients.length} skipped recipients to email_send_skips`);
-        }
-      }
-    } else {
-      console.log(`⚠️ Including ${customers.filter((c: any) => c.suppressed).length} suppressed contacts (override enabled)`);
-    }
-
-    if (!customers || customers.length === 0) {
-      await supabase
-        .from('crm_campaigns')
-        .update({ status: 'failed', send_blocked_reason: 'No contacts found' })
-        .eq('id', campaignId);
-
-      return new Response(
-        JSON.stringify({ error: 'No contacts found in the selected audience' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
     }
 
     let recipientCount = customers.length;
-    const originalRecipientCount = recipientCount;
-    const isPartialSend = false;
+    const recipientCap = reputationPolicy.recipient_cap ?? null;
+    if (recipientCap !== null && recipientCap >= 0 && recipientCount > recipientCap) {
+      customers = customers.slice(0, recipientCap);
+      recipientCount = customers.length;
+      console.log(`📧 Reputation tier cap applied (${reputationPolicy.tier}): limited recipients to ${recipientCap}`);
+    }
+
+    const policyBatchSize = Math.max(1, Number(reputationPolicy.job_batch_size || DEFAULT_BATCH_SIZE_PER_JOB));
+    const batchSizePerJob = Math.min(policyBatchSize, maxBatchSizePerJob);
+    // Warmup/throttling removed: no partial-send truncation.
     console.log(`📧 Found ${recipientCount} customers`);
 
-    // Auto-select the tenant's active domain
-    let domainIdToUse = campaign.from_email_domain_id;
+    // Milestone 7: Campaigns must declare an explicit sending domain.
+    const domainIdToUse = campaign.from_email_domain_id;
     if (!domainIdToUse) {
-      const { data: activeDomains } = await supabase
-        .from('email_domains')
-        .select('id, domain, status')
-        .eq('tenant_id', campaign.tenant_id)
-        .eq('status', 'active')
-        .order('created_at', { ascending: false })
-        .limit(1);
+      const pauseMessage = 'Campaign sending requires a configured custom domain sender.';
+      await supabase.rpc('system_pause_email_campaign_sending', {
+        p_campaign_id: campaignId,
+        p_block_reason: 'sender_domain_required',
+        p_error_message: pauseMessage,
+      });
 
-      if (activeDomains && activeDomains.length > 0) {
-        domainIdToUse = activeDomains[0].id;
-        console.log(`📧 Auto-selected active domain: ${activeDomains[0].domain} (${domainIdToUse})`);
-      } else {
-        console.log(`📧 No active domain found for tenant, will use fallback sender`);
-      }
+      return new Response(
+        JSON.stringify({ error: pauseMessage }),
+        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     // Quota check
     const { data: quotaCheck, error: quotaError } = await supabase.rpc('check_send_quota', {
       p_tenant_id: campaign.tenant_id,
-      p_domain_id: domainIdToUse || null,
+      p_domain_id: domainIdToUse,
       p_recipient_count: recipientCount
     });
 
@@ -487,14 +791,30 @@ serve(async (req: Request) => {
       );
     }
 
-    if (quotaCheck?.limits) {
-      const dailyLimit = quotaCheck.limits.daily_limit || 5000;
-      const dailyUsed = quotaCheck.limits.daily_used || 0;
-      console.log(`📧 Domain quota info: daily_limit=${dailyLimit}, daily_used=${dailyUsed}, sending=${recipientCount}`);
-    }
+    // Warmup/limits removed: quota RPC no longer returns limits.
 
     if (!quotaCheck?.allowed) {
-      console.warn(`📧 Quota check returned allowed=false, but proceeding anyway: ${quotaCheck?.message}`);
+      const pauseMessage = quotaCheck?.message || 'Email sending requires an operational sending domain.';
+      console.warn(`📧 Cannot send campaign; pausing instead: ${pauseMessage}`);
+
+      await supabase.rpc('system_pause_email_campaign_sending', {
+        p_campaign_id: campaignId,
+        p_block_reason: quotaCheck?.reason || 'sender_domain_required',
+        p_error_message: pauseMessage,
+      });
+
+      return new Response(
+        JSON.stringify({
+          error: pauseMessage,
+          compliance: quotaCheck?.compliance || null,
+        }),
+        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const complianceWarnings: string[] = [];
+    if (Array.isArray(quotaCheck?.warnings)) {
+      complianceWarnings.push(...quotaCheck.warnings.filter((warning: unknown) => typeof warning === 'string'));
     }
 
     // Determine sender
@@ -505,28 +825,94 @@ serve(async (req: Request) => {
     let usesVerifiedDomain: boolean;
     let activeDomainId: string | null = null;
 
-    if (quotaCheck.using_fallback) {
-      senderEmail = quotaCheck.sender?.from_email || 'noreply@bloomsuite.app';
-      senderDisplayName = companyName;
-      deliveryMethod = 'shared_sender';
-      usesVerifiedDomain = false;
-    } else {
-      const domainName = quotaCheck.domain?.domain;
-      const configuredEmail = quotaCheck.sender?.from_email;
+    const domainName = quotaCheck.domain?.domain;
+    const configuredEmail = quotaCheck.sender?.from_email;
 
-      if (configuredEmail && configuredEmail !== 'noreply@bloomsuite.app') {
-        senderEmail = configuredEmail;
-      } else if (domainName) {
-        senderEmail = `mail@${domainName}`;
-        console.log(`📧 No default_from_email set, using constructed: ${senderEmail}`);
-      } else {
-        senderEmail = 'noreply@bloomsuite.app';
-      }
+    if (!domainName) {
+      const pauseMessage = 'No operational sending domain configured.';
+      await supabase.rpc('system_pause_email_campaign_sending', {
+        p_campaign_id: campaignId,
+        p_block_reason: 'sender_domain_required',
+        p_error_message: pauseMessage,
+      });
+      return new Response(
+        JSON.stringify({ error: pauseMessage }),
+        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
-      senderDisplayName = quotaCheck.sender?.from_name || companyName;
-      deliveryMethod = 'custom_domain';
-      usesVerifiedDomain = true;
-      activeDomainId = quotaCheck.domain?.id || null;
+    senderEmail = configuredEmail || `mail@${domainName}`;
+    if (senderEmail === 'noreply@bloomsuite.app') {
+      const pauseMessage = 'Campaign sending requires a verified custom domain. Shared sender is disabled.';
+      await supabase.rpc('system_pause_email_campaign_sending', {
+        p_campaign_id: campaignId,
+        p_block_reason: 'shared_sender_disabled',
+        p_error_message: pauseMessage,
+      });
+      return new Response(
+        JSON.stringify({ error: pauseMessage }),
+        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    senderDisplayName = quotaCheck.sender?.from_name || companyName;
+    deliveryMethod = 'custom_domain';
+    usesVerifiedDomain = true;
+    activeDomainId = quotaCheck.domain?.id || null;
+
+    const isHighVolume = recipientCount > highVolumeThreshold;
+    const spamAssessment = computeHeuristicSpamScore(campaign.subject || '', campaign.content || '');
+    const unsubscribePresent = true; // Send pipeline always injects footer with unsubscribe links in send mode.
+    const physicalAddressPresent = hasPhysicalAddress(companyProfile);
+    const fromNameValid = isFromNameValid(senderDisplayName);
+
+    const complianceFailures: string[] = [];
+    if (!unsubscribePresent) {
+      complianceFailures.push('Unsubscribe link is missing');
+    }
+    if (!physicalAddressPresent) {
+      complianceFailures.push('Physical business address is missing');
+    }
+    if (!fromNameValid) {
+      complianceFailures.push('From-name is invalid');
+    }
+    if (spamAssessment.score >= spamScoreThreshold) {
+      complianceFailures.push(`AI spam score threshold exceeded (${spamAssessment.score}/10)`);
+    }
+
+    if (isHighVolume && complianceFailures.length > 0) {
+      const pauseMessage = 'High-volume sending blocked: campaign compliance requirements are not met.';
+      await supabase.rpc('system_pause_email_campaign_sending', {
+        p_campaign_id: campaignId,
+        p_block_reason: 'compliance_not_met_for_scale',
+        p_error_message: pauseMessage,
+      });
+
+      return new Response(
+        JSON.stringify({
+          error: pauseMessage,
+          compliance: {
+            high_volume: true,
+            high_volume_threshold: highVolumeThreshold,
+            checks: {
+              unsubscribe_present: unsubscribePresent,
+              physical_address_present: physicalAddressPresent,
+              from_name_valid: fromNameValid,
+              spam_score: spamAssessment.score,
+              spam_score_threshold: spamScoreThreshold,
+              spam_issues: spamAssessment.issues,
+            },
+            failures: complianceFailures,
+            warnings: complianceWarnings,
+          },
+        }),
+        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (!isHighVolume && complianceFailures.length > 0) {
+      complianceWarnings.push(
+        ...complianceFailures.map((failure) => `Low-volume only warning: ${failure}`)
+      );
     }
 
     // Fetch reply-to email
@@ -570,7 +956,7 @@ serve(async (req: Request) => {
     };
 
     // Queue recipients
-    console.log(`📧 Queuing ${recipientCount} recipients in batches of ${BATCH_SIZE_PER_JOB}...`);
+    console.log(`📧 Queuing ${recipientCount} recipients in batches of ${batchSizePerJob}...`);
     const piiWarningSet = new Set<string>();
     let queuedRecipientCount = 0;
 
@@ -607,11 +993,16 @@ serve(async (req: Request) => {
       }
     }
 
+    const sendPacingMultiplier = Math.max(1, Number(reputationPolicy.send_pacing_multiplier || 1));
+
     // Process recipients in batches
-    const totalBatches = Math.ceil(recipientCount / BATCH_SIZE_PER_JOB);
-    for (let batchStart = 0; batchStart < customers.length; batchStart += BATCH_SIZE_PER_JOB) {
-      const batchIndex = Math.floor(batchStart / BATCH_SIZE_PER_JOB);
-      const batchCustomers = customers.slice(batchStart, batchStart + BATCH_SIZE_PER_JOB);
+    const totalBatches = Math.ceil(recipientCount / batchSizePerJob);
+    let nextBatchAvailableAtMs = Date.now();
+    for (let batchStart = 0; batchStart < customers.length; batchStart += batchSizePerJob) {
+      const batchIndex = Math.floor(batchStart / batchSizePerJob);
+      const batchCustomers = customers.slice(batchStart, batchStart + batchSizePerJob);
+      const batchAvailableAtIso = new Date(nextBatchAvailableAtMs).toISOString();
+      nextBatchAvailableAtMs += randomIntInclusive(batchDelayMinSeconds, batchDelayMaxSeconds) * 1000 * sendPacingMultiplier;
 
       const batchMessageUpserts: any[] = [];
       const batchRecipientEmails: Array<{ email: string; customerId: string }> = [];
@@ -740,6 +1131,7 @@ serve(async (req: Request) => {
               tenant_id: campaign.tenant_id,
               domain_id: activeDomainId,
               status: 'pending',
+              available_at: batchAvailableAtIso,
               recipient_message_ids: recipientMessageIds,
               recipient_emails: batchRecipientEmails,
               batch_index: batchIndex,
@@ -782,7 +1174,7 @@ serve(async (req: Request) => {
     }
 
     // Mark campaign as sending
-    const campaignStatus = isPartialSend ? 'partially_queued' : 'queued';
+    const campaignStatus = 'queued';
     await supabase
       .from('crm_campaigns')
       .update({
@@ -792,9 +1184,42 @@ serve(async (req: Request) => {
         metrics: {
           ...(campaign.metrics || {}),
           queued: queuedRecipientCount,
-          skipped_suppressed: suppressedCount + suppressedByListCount,
+          skipped_suppressed: suppressedCount,
           links_tracked: urlsToTrack.length,
           pii_warnings: piiWarningSet.size,
+          compliance: {
+            high_volume: isHighVolume,
+            high_volume_threshold: highVolumeThreshold,
+            warnings: complianceWarnings,
+            spam_score: spamAssessment.score,
+            spam_score_threshold: spamScoreThreshold,
+            spam_issues: spamAssessment.issues,
+            checks: {
+              unsubscribe_present: unsubscribePresent,
+              physical_address_present: physicalAddressPresent,
+              from_name_valid: fromNameValid,
+            },
+            domain: quotaCheck?.compliance || null,
+          },
+          reputation_policy: {
+            score: reputationPolicy.score,
+            tier: reputationPolicy.tier,
+            action: reputationPolicy.action,
+            recipient_cap: recipientCap,
+            job_batch_size: batchSizePerJob,
+            send_pacing_multiplier: reputationPolicy.send_pacing_multiplier,
+          },
+          list_hygiene: {
+            audience_total: hygieneAnalysis.audienceTotal,
+            duplicate_emails_count: hygieneAnalysis.duplicateEmailsCount,
+            invalid_emails_count: hygieneAnalysis.invalidEmailsCount,
+            invalid_emails_pct: hygieneAnalysis.invalidEmailsPct,
+            suppressed_count: hygieneAnalysis.suppressedCount,
+            inactive_count: hygieneAnalysis.inactiveCount,
+            inactive_pct: hygieneAnalysis.inactivePct,
+            warnings: hygieneAnalysis.warnings,
+            blocked: false,
+          },
         },
       })
       .eq('id', campaignId);
@@ -805,20 +1230,45 @@ serve(async (req: Request) => {
       JSON.stringify({
         success: true,
         mode: 'queued',
-        partial_send: isPartialSend,
         campaign_id: campaignId,
         total_recipients: queuedRecipientCount,
-        original_recipients: isPartialSend ? originalRecipientCount : undefined,
-        truncated_count: isPartialSend ? originalRecipientCount - recipientCount : undefined,
         total_batches: totalBatches,
-        warmup_info: isPartialSend ? {
-          daily_limit: quotaCheck.limits?.daily_limit,
-          daily_used: quotaCheck.limits?.daily_used,
-          warmup_stage: quotaCheck.domain?.warmup_stage
-        } : undefined,
-        message: isPartialSend
-          ? `Campaign queued for ${queuedRecipientCount} of ${originalRecipientCount} recipients (limited by warmup)`
-          : `Campaign queued for sending to ${queuedRecipientCount} recipients`
+        message: `Campaign queued for sending to ${queuedRecipientCount} recipients`,
+        reputation: {
+          score: reputationPolicy.score,
+          tier: reputationPolicy.tier,
+          action: reputationPolicy.action,
+          recipient_cap: recipientCap,
+          job_batch_size: batchSizePerJob,
+          send_pacing_multiplier: reputationPolicy.send_pacing_multiplier,
+        },
+        hygiene: {
+          blocked: false,
+          warnings: hygieneAnalysis.warnings,
+          summary: {
+            audience_total: hygieneAnalysis.audienceTotal,
+            duplicate_emails_count: hygieneAnalysis.duplicateEmailsCount,
+            invalid_emails_count: hygieneAnalysis.invalidEmailsCount,
+            invalid_emails_pct: hygieneAnalysis.invalidEmailsPct,
+            suppressed_count: hygieneAnalysis.suppressedCount,
+            inactive_count: hygieneAnalysis.inactiveCount,
+            inactive_pct: hygieneAnalysis.inactivePct,
+          },
+        },
+        warnings: complianceWarnings,
+        compliance: {
+          high_volume: isHighVolume,
+          high_volume_threshold: highVolumeThreshold,
+          checks: {
+            unsubscribe_present: unsubscribePresent,
+            physical_address_present: physicalAddressPresent,
+            from_name_valid: fromNameValid,
+            spam_score: spamAssessment.score,
+            spam_score_threshold: spamScoreThreshold,
+            spam_issues: spamAssessment.issues,
+          },
+          domain: quotaCheck?.compliance || null,
+        },
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

@@ -38,17 +38,6 @@ export function serializeSupabaseError(err: any) {
   };
 }
 
-export function isEngagementBasedSuppression(reason?: string | null): boolean {
-  if (!reason) return false;
-  const lower = reason.toLowerCase();
-  return (
-    lower.includes('no email opens') ||
-    lower.includes('inactivity') ||
-    lower.includes('engagement') ||
-    lower.includes('180 days')
-  );
-}
-
 export function isUuidLike(value: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
 }

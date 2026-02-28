@@ -125,7 +125,7 @@ export const useNewsletterCalendar = () => {
           tenant_id: userData.tenant_id,
           user_id: user.user.id,
           status: 'scheduled',
-          delivery_method: 'shared_sender'
+          delivery_method: 'custom_domain'
         }])
         .select()
         .single();
@@ -133,7 +133,7 @@ export const useNewsletterCalendar = () => {
       if (error) throw error;
 
       await loadNewsletters();
-      
+
       toast({
         title: "Newsletter Created",
         description: "Your newsletter has been successfully scheduled."
@@ -161,7 +161,7 @@ export const useNewsletterCalendar = () => {
       if (error) throw error;
 
       await loadNewsletters();
-      
+
       toast({
         title: "Newsletter Updated",
         description: "Your newsletter has been successfully updated."
@@ -187,7 +187,7 @@ export const useNewsletterCalendar = () => {
       if (error) throw error;
 
       await loadNewsletters();
-      
+
       toast({
         title: "Newsletter Deleted",
         description: "The newsletter has been successfully deleted."
@@ -225,7 +225,7 @@ export const useNewsletterCalendar = () => {
         preheader_text: newsletter.preheader_text,
         segment_id: newsletter.segment_id,
         status: 'draft',
-        delivery_method: 'shared_sender',
+        delivery_method: 'custom_domain',
         scheduled_at: null // Reset scheduling
       };
 
@@ -238,7 +238,7 @@ export const useNewsletterCalendar = () => {
       if (error) throw error;
 
       await loadNewsletters();
-      
+
       toast({
         title: "Newsletter Duplicated",
         description: "A copy of the newsletter has been created as a draft."
@@ -261,7 +261,7 @@ export const useNewsletterCalendar = () => {
     return newsletters.filter(newsletter => {
       const scheduleDate = newsletter.scheduled_at ? new Date(newsletter.scheduled_at) : null;
       if (!scheduleDate) return false;
-      
+
       return scheduleDate >= startDate && scheduleDate <= endDate;
     });
   }, [newsletters]);
@@ -270,10 +270,10 @@ export const useNewsletterCalendar = () => {
   const getNewslettersForDate = useCallback((date: Date) => {
     const startOfDay = new Date(date);
     startOfDay.setHours(0, 0, 0, 0);
-    
+
     const endOfDay = new Date(date);
     endOfDay.setHours(23, 59, 59, 999);
-    
+
     return getNewslettersForDateRange(startOfDay, endOfDay);
   }, [getNewslettersForDateRange]);
 

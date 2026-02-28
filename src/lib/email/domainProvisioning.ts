@@ -99,9 +99,9 @@ export async function refreshResendVerificationStatus(
       return { success: false, error: fetchError.message };
     }
 
-    return { 
-      success: true, 
-      data: updatedDomain as unknown as EmailDomain 
+    return {
+      success: true,
+      data: updatedDomain as unknown as EmailDomain
     };
   } catch (err: any) {
     console.error('Error in refreshResendVerificationStatus:', err);
@@ -154,7 +154,7 @@ export async function upsertEmailDomainFromEntriCallback(
 
       domainId = existingDomain.id;
     } else {
-      // Insert new domain - skip warmup, use full limits immediately
+      // Insert new domain
       const { data: newDomain, error: insertError } = await supabase
         .from('email_domains')
         .insert({
@@ -164,9 +164,6 @@ export async function upsertEmailDomainFromEntriCallback(
           entri_provider: entriProvider,
           is_entri_managed: true,
           status: 'verifying',
-          warmup_stage: 4,
-          daily_limit: 2000,
-          hourly_limit: 500,
           total_sent_30d: 0,
           total_bounces_30d: 0,
           total_complaints_30d: 0,
@@ -187,7 +184,7 @@ export async function upsertEmailDomainFromEntriCallback(
 
     // Ensure Resend domain is provisioned and DNS records are fetched
     const provisionResult = await ensureResendDomainForEmailDomain(domainId);
-    
+
     if (!provisionResult.success) {
       console.warn('Warning: Resend domain provisioning issue:', provisionResult.error);
       // Don't fail the whole operation - domain is created, Resend can be retried

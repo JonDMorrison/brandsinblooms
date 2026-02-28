@@ -27,10 +27,8 @@ import {
   X,
 } from "lucide-react";
 import { useSenderConfiguration } from "@/hooks/useSenderConfiguration";
-import { SharedSenderConfirmationModal } from "./campaigns/SharedSenderConfirmationModal";
+import { SenderVerificationModal } from "./campaigns/SenderVerificationModal";
 import { CampaignSendConfirmationModal } from "./campaigns/CampaignSendConfirmationModal";
-import { WarmupLimitModal } from "./WarmupLimitModal";
-import { WarmupLimitDetails } from "@/utils/campaignSendingErrors";
 import { CleanEmailBlockEditor } from "./CleanEmailBlockEditor";
 import { FullEmailPreview } from "./FullEmailPreview";
 import { ContentBlock } from "@/types/emailBuilder";
@@ -70,6 +68,7 @@ import {
   applyAIToBlock,
 } from "@/lib/newsletter/aiMapping";
 import { usePagePersistence } from "@/hooks/usePagePersistence";
+import { DomainHealthBanner } from "@/components/crm/email/DomainHealthBanner";
 import {
   normalizeBlockForSave,
   normalizeBlockFromDatabase,
@@ -1211,9 +1210,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   const [sending, setSending] = useState(false);
   const [showSenderConfirmation, setShowSenderConfirmation] = useState(false);
   const [showSendConfirmation, setShowSendConfirmation] = useState(false);
-  const [showWarmupLimitModal, setShowWarmupLimitModal] = useState(false);
-  const [warmupLimitDetails, setWarmupLimitDetails] =
-    useState<WarmupLimitDetails | null>(null);
   const [showAIImageDialog, setShowAIImageDialog] = useState(false);
   const [editingBlockId, setEditingBlockId] = useState<string | null>(null);
 
@@ -3489,8 +3485,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                         preheaderText ||
                         generatePreheaderText(topic, description),
                       sender_name: senderConfig?.displayName || "BloomSuite",
-                      sender_email:
-                        senderConfig?.senderEmail || "noreply@bloomsuite.app",
+                      sender_email: senderConfig?.senderEmail || "",
                       content: "", // HTML will be generated when needed
                       segments: [],
                       schedule: { type: "immediate" as const },
@@ -5304,7 +5299,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           name: campaignName,
           subject: subjectLine,
           sender_name: senderConfig?.displayName || "BloomSuite",
-          sender_email: senderConfig?.senderEmail || "noreply@bloomsuite.app",
+          sender_email: senderConfig?.senderEmail || "",
           content: htmlContent,
           preheader: preheaderText,
           segments: [], // Default empty segments for now
@@ -5390,12 +5385,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
       return;
     }
 
-    const hasPendingDomain =
-      !!senderConfig?.domainStatus &&
-      ["pending", "pending_dns", "verifying"].includes(
-        senderConfig.domainStatus,
-      );
-
     // Check if audience is selected
     // Allow sending to All Contacts when no segments/personas are selected
     // Previously blocked when selectedSegments.length === 0
@@ -5411,19 +5400,10 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
     //   return;
     // }
 
-    // Check sender configuration
-    // If a custom domain is still verifying, allow sending via shared/platform and auto-switch once active.
-    if (!senderConfig?.isVerified && !hasPendingDomain) {
+    // Campaigns must use an operational custom domain (no fallback senders)
+    if (!senderConfig?.isVerified || !senderConfig?.senderEmail) {
       setShowSenderConfirmation(true);
       return;
-    }
-
-    if (!senderConfig?.isVerified && hasPendingDomain) {
-      toast({
-        title: "Domain still verifying",
-        description:
-          "We'll send using your BloomSuite sender for now and automatically switch to your domain once verification completes.",
-      });
     }
 
     // Show the send confirmation modal with audience summary
@@ -5433,6 +5413,16 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   const proceedWithSending = async () => {
     try {
       setSending(true);
+
+      if (!senderConfig?.isVerified || !senderConfig?.senderEmail) {
+        toast({
+          title: "Custom domain required",
+          description: "Verify a sending domain before sending campaigns.",
+          variant: "destructive",
+        });
+        setShowSenderConfirmation(true);
+        return;
+      }
 
       // Pre-flight validation
       if (!blocks || blocks.length === 0) {
@@ -5450,7 +5440,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         name: campaignName,
         subject: subjectLine,
         sender_name: senderConfig?.displayName || "Garden Center",
-        sender_email: senderConfig?.senderEmail || "noreply@bloomsuite.app",
+        sender_email: senderConfig?.senderEmail || "",
         content: generateEmailHTML(),
         preheader: preheaderText,
         segments: selectedSegments,
@@ -5528,32 +5518,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
       // Handle error responses from edge function
       if (sendResult?.error) {
         console.error("❌ Send result error:", sendResult.error, sendResult);
-
-        // Check for warmup limit error specifically
-        if (
-          sendResult.reason === "daily_limit_reached" ||
-          sendResult.error?.includes("warmup limit") ||
-          sendResult.error?.includes("blocked by warmup")
-        ) {
-          const details: WarmupLimitDetails = {
-            warmupStage: sendResult.warmup_stage ?? 0,
-            dailyLimit: sendResult.daily_limit ?? 50,
-            dailyUsed: sendResult.daily_used ?? 0,
-            remaining: Math.max(
-              0,
-              (sendResult.daily_limit ?? 50) - (sendResult.daily_used ?? 0),
-            ),
-            requested:
-              selectedSegments.reduce(
-                (sum, s) => sum + (s.customer_count || 0),
-                0,
-              ) || 0,
-          };
-          setWarmupLimitDetails(details);
-          setShowWarmupLimitModal(true);
-          return; // Don't throw, modal will handle it
-        }
-
         throw new Error(sendResult.error);
       }
 
@@ -5602,9 +5566,9 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         description =
           "You've reached your email sending limit. Upgrade your plan or wait until your quota resets.";
       } else if (errorMsg.includes("blocked") || errorMsg.includes("paused")) {
-        title = "Domain blocked";
+        title = "Campaign blocked";
         description =
-          "Your sending domain has been paused. Check your domain health in Email Settings.";
+          "This campaign is blocked due to sender configuration or delivery policy. Check campaign sender settings and domain status.";
       } else if (
         errorMsg.includes("Authentication") ||
         errorMsg.includes("JWT")
@@ -5929,6 +5893,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
       />
 
       <div className="max-w-7xl mx-auto p-6 space-y-6">
+        <DomainHealthBanner />
         {/* Scheduled Campaign Banner - shows when campaign is scheduled */}
         <ScheduledCampaignBanner
           campaignId={existingCampaignId}
@@ -6074,7 +6039,9 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
             setSelectedPersonas(personas);
           }}
           onSegmentsChange={setSelectedSegments}
-          lockedSegmentIds={isSegmentLocked && segmentIdParam ? [segmentIdParam] : []}
+          lockedSegmentIds={
+            isSegmentLocked && segmentIdParam ? [segmentIdParam] : []
+          }
         />
 
         {/* Email Content Builder - Full Width */}
@@ -6365,38 +6332,11 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           loading={sending}
         />
 
-        {/* Sender Confirmation Modal (for unverified senders) */}
-        <SharedSenderConfirmationModal
-          isOpen={showSenderConfirmation}
-          onClose={() => setShowSenderConfirmation(false)}
-          onConfirm={() => {
-            setShowSenderConfirmation(false);
-            setShowSendConfirmation(true);
-          }}
+        {/* Sender Setup Modal (custom domain required) */}
+        <SenderVerificationModal
+          open={showSenderConfirmation}
+          onOpenChange={setShowSenderConfirmation}
           senderConfig={senderConfig}
-          campaignName={campaignName}
-          recipientCount={
-            selectedSegments.length === 0 && selectedPersonas.length === 0
-              ? totalCustomerCount
-              : selectedPersonas.reduce(
-                  (total, persona) => total + (persona.customerCount || 0),
-                  0,
-                ) +
-                selectedSegments.reduce(
-                  (total, segment) => total + (segment.customerCount || 0),
-                  0,
-                )
-          }
-        />
-
-        {/* Warmup Limit Modal */}
-        <WarmupLimitModal
-          open={showWarmupLimitModal}
-          onClose={() => {
-            setShowWarmupLimitModal(false);
-            setWarmupLimitDetails(null);
-          }}
-          details={warmupLimitDetails}
         />
 
         {/* 🚨 EMERGENCY MANUAL PREFILL BUTTON */}

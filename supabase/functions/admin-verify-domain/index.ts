@@ -19,7 +19,7 @@ const handler = async (req: Request): Promise<Response> => {
 
   try {
     const { domain, domain_id, action, default_from_name, default_from_email, tenant_id } = await req.json();
-    
+
     console.log(`🔧 Admin domain action: ${action} for ${domain || domain_id}`);
 
     const resendApiKey = Deno.env.get('RESEND_API_KEY');
@@ -185,13 +185,13 @@ const handler = async (req: Request): Promise<Response> => {
 
     if (emailDomain.resend_domain_id && resendApiKey2) {
       const resend = new Resend(resendApiKey2);
-      
+
       // Trigger Resend verification
       console.log(`📧 Triggering Resend verification for ${emailDomain.resend_domain_id}`);
       try {
         await resend.domains.verify(emailDomain.resend_domain_id);
         await new Promise(resolve => setTimeout(resolve, 2000));
-        
+
         const { data: domainStatus } = await resend.domains.get(emailDomain.resend_domain_id);
         resendStatus = domainStatus;
         console.log(`✅ Resend status: ${domainStatus?.status}`);
@@ -204,11 +204,7 @@ const handler = async (req: Request): Promise<Response> => {
       // Update domain to active status
       const updateData: any = {
         status: 'active',
-        warmup_stage: 4,
-        warmup_started_at: new Date().toISOString(),
         verified_at: new Date().toISOString(),
-        daily_limit: 2000,
-        hourly_limit: 500,
         error: null,
         last_verify_error: null,
         updated_at: new Date().toISOString()

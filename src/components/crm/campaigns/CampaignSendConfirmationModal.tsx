@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 import {
   Dialog,
   DialogContent,
@@ -6,9 +6,10 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Send, Users, Tag, Layers } from 'lucide-react';
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Send, Users, Tag, Layers } from "lucide-react";
+import { DomainHealthBanner } from "@/components/crm/email/DomainHealthBanner";
 
 interface SelectedSegment {
   id: string;
@@ -34,7 +35,9 @@ interface CampaignSendConfirmationModalProps {
   loading?: boolean;
 }
 
-export const CampaignSendConfirmationModal: React.FC<CampaignSendConfirmationModalProps> = ({
+export const CampaignSendConfirmationModal: React.FC<
+  CampaignSendConfirmationModalProps
+> = ({
   isOpen,
   onClose,
   onConfirm,
@@ -43,9 +46,10 @@ export const CampaignSendConfirmationModal: React.FC<CampaignSendConfirmationMod
   selectedSegments,
   selectedPersonas,
   totalContacts,
-  loading = false
+  loading = false,
 }) => {
-  const hasAudience = selectedSegments.length > 0 || selectedPersonas.length > 0;
+  const hasAudience =
+    selectedSegments.length > 0 || selectedPersonas.length > 0;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -61,14 +65,19 @@ export const CampaignSendConfirmationModal: React.FC<CampaignSendConfirmationMod
         </DialogHeader>
 
         <div className="space-y-4 py-4">
+          <DomainHealthBanner compact />
           {/* Campaign Details */}
           <div className="bg-muted/50 rounded-lg p-4 space-y-3">
             <div>
-              <p className="text-xs text-muted-foreground font-medium">Campaign</p>
+              <p className="text-xs text-muted-foreground font-medium">
+                Campaign
+              </p>
               <p className="text-sm font-medium">{campaignName}</p>
             </div>
             <div>
-              <p className="text-xs text-muted-foreground font-medium">Subject Line</p>
+              <p className="text-xs text-muted-foreground font-medium">
+                Subject Line
+              </p>
               <p className="text-sm">{subjectLine}</p>
             </div>
           </div>
@@ -96,7 +105,9 @@ export const CampaignSendConfirmationModal: React.FC<CampaignSendConfirmationMod
                         >
                           {segment.name}
                           {segment.customerCount !== undefined && (
-                            <span className="ml-1 text-blue-600">({segment.customerCount})</span>
+                            <span className="ml-1 text-blue-600">
+                              ({segment.customerCount})
+                            </span>
                           )}
                         </span>
                       ))}
@@ -118,7 +129,9 @@ export const CampaignSendConfirmationModal: React.FC<CampaignSendConfirmationMod
                         >
                           {persona.name}
                           {persona.customerCount !== undefined && (
-                            <span className="ml-1 text-purple-600">({persona.customerCount})</span>
+                            <span className="ml-1 text-purple-600">
+                              ({persona.customerCount})
+                            </span>
                           )}
                         </span>
                       ))}
@@ -133,8 +146,12 @@ export const CampaignSendConfirmationModal: React.FC<CampaignSendConfirmationMod
             {/* Total Recipients */}
             <div className="pt-2 border-t">
               <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Total recipients</span>
-                <span className="text-lg font-semibold text-primary">{totalContacts.toLocaleString()}</span>
+                <span className="text-sm text-muted-foreground">
+                  Total recipients
+                </span>
+                <span className="text-lg font-semibold text-primary">
+                  {totalContacts.toLocaleString()}
+                </span>
               </div>
             </div>
           </div>

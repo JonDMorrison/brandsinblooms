@@ -148,21 +148,6 @@ export function useCampaignBounces(campaignId: string): UseCampaignBouncesResult
         if (suppressError) throw suppressError;
       }
 
-      // Update crm_customers.suppressed flag
-      const emails = uniqueEmails;
-      const { error: customerError } = await supabase
-        .from('crm_customers')
-        .update({ 
-          suppressed: true,
-          updated_at: new Date().toISOString()
-        })
-        .eq('tenant_id', tenantId)
-        .in('email', emails);
-
-      if (customerError) {
-        console.warn('Failed to update customer suppressed flags:', customerError);
-      }
-
       return { count: uniqueEmails.length };
     },
     onSuccess: (result) => {

@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 // Event types we track
-type TrackableEventType = 'sent' | 'delivered' | 'opened' | 'clicked' | 'bounced' | 'complained' | 'unsubscribed';
+type TrackableEventType = 'sent' | 'delivered' | 'opened' | 'clicked' | 'bounced' | 'complained' | 'unsubscribed' | 'deferred' | 'rejected';
 
 interface ResendWebhookPayload {
   type: string;
@@ -40,11 +40,24 @@ interface ResendWebhookPayload {
 
 // ========== SIGNATURE VERIFICATION ==========
 const verifyWebhookSignature = async (request: Request, body: string): Promise<boolean> => {
+  const retryToken = Deno.env.get('WEBHOOK_RETRY_TOKEN');
+  const internalRetryToken = request.headers.get('x-webhook-retry-token');
+
+  if (retryToken && internalRetryToken === retryToken) {
+    return true;
+  }
+
   const webhookSecret = Deno.env.get('RESEND_WEBHOOK_SECRET');
+  const allowInsecureWebhooks = Deno.env.get('ALLOW_INSECURE_WEBHOOKS') === 'true';
+
   if (!webhookSecret) {
-    console.warn('⚠️ RESEND_WEBHOOK_SECRET not configured - skipping signature verification');
-    console.warn('   For production, add RESEND_WEBHOOK_SECRET to secure the webhook endpoint');
-    return true; // Allow through but warn
+    if (allowInsecureWebhooks) {
+      console.warn('⚠️ RESEND_WEBHOOK_SECRET not configured - ALLOW_INSECURE_WEBHOOKS=true, allowing request');
+      return true;
+    }
+
+    console.error('❌ RESEND_WEBHOOK_SECRET is required for webhook verification');
+    return false;
   }
 
   try {
@@ -62,7 +75,7 @@ const verifyWebhookSignature = async (request: Request, body: string): Promise<b
       const now = Math.floor(Date.now() / 1000);
       const timestampInt = parseInt(svixTimestamp);
       const timeDiff = Math.abs(now - timestampInt);
-      
+
       if (timeDiff > 300) {
         console.error(`Webhook timestamp too old: ${timeDiff} seconds`);
         return false;
@@ -76,7 +89,7 @@ const verifyWebhookSignature = async (request: Request, body: string): Promise<b
       });
 
       const payloadToSign = `${svixId}.${svixTimestamp}.${body}`;
-      
+
       for (const sig of signatures) {
         const encoder = new TextEncoder();
         const secretBytes = base64ToBytes(webhookSecret.replace('whsec_', ''));
@@ -87,15 +100,15 @@ const verifyWebhookSignature = async (request: Request, body: string): Promise<b
           false,
           ['sign']
         );
-        
+
         const signatureBuffer = await crypto.subtle.sign('HMAC', key, encoder.encode(payloadToSign));
         const computedSignature = bytesToBase64(new Uint8Array(signatureBuffer));
-        
+
         if (sig.includes(computedSignature)) {
           return true;
         }
       }
-      
+
       console.error('Invalid Svix webhook signature');
       return false;
     }
@@ -105,14 +118,14 @@ const verifyWebhookSignature = async (request: Request, body: string): Promise<b
       const now = Math.floor(Date.now() / 1000);
       const timestampInt = parseInt(resendTimestamp);
       const timeDiff = Math.abs(now - timestampInt);
-      
+
       if (timeDiff > 300) {
         console.error(`Webhook timestamp too old: ${timeDiff} seconds`);
         return false;
       }
 
       const payloadToSign = `${resendTimestamp}.${body}`;
-      
+
       const encoder = new TextEncoder();
       const key = await crypto.subtle.importKey(
         'raw',
@@ -121,24 +134,29 @@ const verifyWebhookSignature = async (request: Request, body: string): Promise<b
         false,
         ['sign']
       );
-      
+
       const signatureBuffer = await crypto.subtle.sign('HMAC', key, encoder.encode(payloadToSign));
       const computedSignature = Array.from(new Uint8Array(signatureBuffer))
         .map(b => b.toString(16).padStart(2, '0'))
         .join('');
-      
+
       const expectedSignature = `sha256=${computedSignature}`;
-      
+
       if (resendSignature === expectedSignature) {
         return true;
       }
-      
+
       console.error('Invalid legacy webhook signature');
       return false;
     }
 
-    console.warn('⚠️ No signature headers found in webhook request');
-    return true; // Allow through during initial setup
+    if (allowInsecureWebhooks) {
+      console.warn('⚠️ No signature headers found - ALLOW_INSECURE_WEBHOOKS=true, allowing request');
+      return true;
+    }
+
+    console.error('❌ No signature headers found in webhook request');
+    return false;
 
   } catch (error) {
     console.error('Error verifying webhook signature:', error);
@@ -170,6 +188,67 @@ function hashIP(ip: string): string {
   }
   return Math.abs(hash).toString(16).padStart(8, '0');
 }
+
+function hashPayload(payload: string): string {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(payload + 'webhook_payload_salt_v1');
+  let hash = 0;
+  for (let i = 0; i < data.length; i++) {
+    hash = ((hash << 5) - hash) + data[i];
+    hash = hash & hash;
+  }
+  return Math.abs(hash).toString(16).padStart(8, '0');
+}
+
+const resolveGovernanceContext = async (
+  supabase: any,
+  metadata: { campaignId?: string; tenantId?: string; domainId?: string },
+  providerMessageId: string,
+) => {
+  let tenantId = metadata.tenantId || null;
+  let campaignId = metadata.campaignId || null;
+  let domainId = metadata.domainId || null;
+  let emailMessageId: string | null = null;
+  let customerId: string | null = null;
+
+  if (campaignId && !tenantId) {
+    const { data: campaign } = await supabase
+      .from('crm_campaigns')
+      .select('tenant_id')
+      .eq('id', campaignId)
+      .maybeSingle();
+
+    if (campaign?.tenant_id) {
+      tenantId = campaign.tenant_id;
+    }
+  }
+
+  if (providerMessageId && (!tenantId || !campaignId || !domainId || !emailMessageId)) {
+    const { data: message } = await supabase
+      .from('email_messages')
+      .select('id, tenant_id, campaign_id, domain_id, customer_id')
+      .eq('resend_id', providerMessageId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (message) {
+      tenantId = tenantId || message.tenant_id || null;
+      campaignId = campaignId || message.campaign_id || null;
+      domainId = domainId || message.domain_id || null;
+      emailMessageId = message.id || null;
+      customerId = message.customer_id || null;
+    }
+  }
+
+  return {
+    tenantId,
+    campaignId,
+    domainId,
+    emailMessageId,
+    customerId,
+  };
+};
 
 // ========== EXTRACT METADATA FROM HEADERS/TAGS ==========
 const extractMetadata = (payload: ResendWebhookPayload): { campaignId?: string; tenantId?: string; domainId?: string } => {
@@ -213,7 +292,9 @@ const mapEventType = (resendType: string): TrackableEventType | null => {
   const eventTypeMap: Record<string, TrackableEventType> = {
     'email.sent': 'sent',
     'email.delivered': 'delivered',
-    'email.delivery_delayed': 'delivered', // Treat delayed as delivered for now
+    'email.delivery_delayed': 'deferred',
+    'email.deferred': 'deferred',
+    'email.rejected': 'rejected',
     'email.opened': 'opened',
     'email.clicked': 'clicked',
     'email.bounced': 'bounced',
@@ -223,10 +304,170 @@ const mapEventType = (resendType: string): TrackableEventType | null => {
   return eventTypeMap[resendType] || null;
 };
 
+const classifyBounceSeverity = (bounceType?: string | null): 'hard' | 'soft' | 'unknown' => {
+  if (!bounceType) return 'unknown';
+
+  const normalized = bounceType.toLowerCase();
+  if (
+    normalized.includes('hard') ||
+    normalized.includes('permanent') ||
+    normalized.includes('recipient_not_found') ||
+    normalized.includes('user_unknown')
+  ) {
+    return 'hard';
+  }
+
+  if (
+    normalized.includes('soft') ||
+    normalized.includes('temporary') ||
+    normalized.includes('mailbox_full') ||
+    normalized.includes('deferred') ||
+    normalized.includes('timeout')
+  ) {
+    return 'soft';
+  }
+
+  return 'unknown';
+};
+
+const isSpamTrapBounce = (bounceType?: string | null, bounceMessage?: string | null): boolean => {
+  const haystack = `${String(bounceType || '')} ${String(bounceMessage || '')}`.toLowerCase();
+  if (!haystack.trim()) return false;
+
+  return (
+    haystack.includes('spamtrap') ||
+    haystack.includes('spam trap') ||
+    haystack.includes('honey pot') ||
+    haystack.includes('honeypot') ||
+    haystack.includes('pristine trap') ||
+    haystack.includes('spam_trap')
+  );
+};
+
+const shouldInstantlySuppress = (eventType: TrackableEventType, bounceType?: string | null): boolean => {
+  if (eventType === 'unsubscribed' || eventType === 'complained') return true;
+  if (eventType !== 'bounced') return false;
+  return classifyBounceSeverity(bounceType) === 'hard';
+};
+
+const sleep = async (ms: number): Promise<void> => {
+  await new Promise((resolve) => setTimeout(resolve, ms));
+};
+
+const withExponentialBackoff = async <T>(
+  operation: () => Promise<T>,
+  operationName: string,
+  maxAttempts = 3,
+  baseDelayMs = 250,
+): Promise<T> => {
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error;
+      if (attempt >= maxAttempts) {
+        break;
+      }
+
+      const delay = baseDelayMs * Math.pow(2, attempt - 1);
+      console.warn(`⚠️ ${operationName} attempt ${attempt}/${maxAttempts} failed, retrying in ${delay}ms`);
+      await sleep(delay);
+    }
+  }
+
+  throw lastError;
+};
+
+const scheduleWebhookDeliveryRetryOrDeadLetter = async (
+  supabase: any,
+  deliveryId: string,
+  failureStage: string,
+  errorMessage: string,
+) => {
+  const { data: delivery, error: deliveryFetchError } = await supabase
+    .from('email_governance_webhook_deliveries')
+    .select('id, tenant_id, provider, delivery_id, event_type, provider_message_id, campaign_id, domain_id, retry_count, max_retries, raw_payload, headers')
+    .eq('id', deliveryId)
+    .single();
+
+  if (deliveryFetchError || !delivery) {
+    console.error('❌ Failed to fetch webhook delivery for retry scheduling:', deliveryFetchError);
+    return;
+  }
+
+  const currentRetryCount = Number(delivery.retry_count || 0);
+  const maxRetries = Number(delivery.max_retries || 8);
+  const nextRetryCount = currentRetryCount + 1;
+
+  if (nextRetryCount >= maxRetries) {
+    const nowIso = new Date().toISOString();
+
+    await supabase
+      .from('email_governance_webhook_deliveries')
+      .update({
+        processing_status: 'dead_lettered',
+        retry_count: nextRetryCount,
+        dead_lettered_at: nowIso,
+        dead_letter_reason: `${failureStage}: ${errorMessage}`,
+        error_message: errorMessage,
+        processed_at: nowIso,
+        claimed_at: null,
+        claimed_by: null,
+        claim_token: null,
+      })
+      .eq('id', deliveryId);
+
+    await supabase
+      .from('email_governance_webhook_dead_letters')
+      .upsert({
+        tenant_id: delivery.tenant_id,
+        webhook_delivery_id: delivery.id,
+        provider: delivery.provider,
+        delivery_id: delivery.delivery_id,
+        event_type: delivery.event_type,
+        provider_message_id: delivery.provider_message_id,
+        campaign_id: delivery.campaign_id,
+        domain_id: delivery.domain_id,
+        failure_stage: failureStage,
+        retry_count: nextRetryCount,
+        max_retries: maxRetries,
+        last_error_message: errorMessage,
+        raw_payload: delivery.raw_payload || {},
+        headers: delivery.headers || {},
+        dead_lettered_at: nowIso,
+      }, {
+        onConflict: 'webhook_delivery_id',
+      });
+
+    return;
+  }
+
+  const backoffMinutes = Math.pow(2, Math.max(0, nextRetryCount - 1));
+  const nextRetryAt = new Date(Date.now() + backoffMinutes * 60 * 1000).toISOString();
+
+  await supabase
+    .from('email_governance_webhook_deliveries')
+    .update({
+      processing_status: 'retrying',
+      retry_count: nextRetryCount,
+      next_retry_at: nextRetryAt,
+      error_message: errorMessage,
+      processed_at: null,
+      claimed_at: null,
+      claimed_by: null,
+      claim_token: null,
+    })
+    .eq('id', deliveryId);
+};
+
 // ========== MAIN HANDLER ==========
 const handler = async (req: Request): Promise<Response> => {
   const startTime = Date.now();
-  
+  let supabase: any = null;
+  let governanceWebhookId: string | null = null;
+
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -242,13 +483,13 @@ const handler = async (req: Request): Promise<Response> => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Read raw body for signature verification
     const rawBody = await req.text();
-    
+
     console.log('📨 Incoming webhook request at', new Date().toISOString());
-    
+
     // Verify signature
     const isValidSignature = await verifyWebhookSignature(req, rawBody);
     if (!isValidSignature) {
@@ -261,7 +502,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Parse payload
     const payload: ResendWebhookPayload = JSON.parse(rawBody);
-    
+
     console.log('✅ Webhook payload received:', {
       type: payload.type,
       email_id: payload.data.email_id,
@@ -281,14 +522,76 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Extract metadata (campaign_id, tenant_id, domain_id)
     const metadata = extractMetadata(payload);
-    
-    console.log('📋 Extracted metadata:', metadata);
+    const providerMessageId = payload.data.email_id;
+    const eventTsProvider = payload.created_at;
+
+    const governanceContext = await resolveGovernanceContext(supabase, metadata, providerMessageId);
+    const effectiveTenantId = governanceContext.tenantId || metadata.tenantId || null;
+    const effectiveCampaignId = governanceContext.campaignId || metadata.campaignId || null;
+    const effectiveDomainId = governanceContext.domainId || metadata.domainId || null;
+    const effectiveEmailMessageId = governanceContext.emailMessageId || null;
+    const effectiveCustomerId = governanceContext.customerId || null;
+
+    console.log('📋 Extracted metadata:', {
+      ...metadata,
+      resolved_tenant_id: effectiveTenantId,
+      resolved_campaign_id: effectiveCampaignId,
+      resolved_domain_id: effectiveDomainId,
+      resolved_email_message_id: effectiveEmailMessageId,
+    });
+
+    const requestHeaders = Object.fromEntries(req.headers.entries());
+    const webhookDeliveryId = req.headers.get('svix-id') || req.headers.get('webhook-id') || req.headers.get('x-request-id') || `${providerMessageId}:${payload.type}:${eventTsProvider}`;
+    const payloadHash = hashPayload(rawBody);
+
+    if (effectiveTenantId) {
+      const { data: webhookDelivery, error: webhookDeliveryError } = await supabase
+        .from('email_governance_webhook_deliveries')
+        .upsert({
+          tenant_id: effectiveTenantId,
+          provider: 'resend',
+          delivery_id: webhookDeliveryId,
+          provider_event_id: null,
+          provider_message_id: providerMessageId,
+          event_type: eventType,
+          campaign_id: effectiveCampaignId,
+          domain_id: effectiveDomainId,
+          signature_verified: isValidSignature,
+          payload_hash: payloadHash,
+          headers: requestHeaders,
+          raw_payload: payload,
+          processing_status: 'received',
+          error_message: null,
+          received_at: new Date().toISOString(),
+        }, {
+          onConflict: 'provider,delivery_id',
+        })
+        .select('id')
+        .single();
+
+      if (webhookDeliveryError) {
+        console.error('⚠️ Non-fatal: Failed to record governance webhook delivery:', webhookDeliveryError);
+      } else {
+        governanceWebhookId = webhookDelivery?.id || null;
+      }
+    }
 
     // Skip if no campaign_id - we can't attribute the event
-    if (!metadata.campaignId) {
+    if (!effectiveCampaignId) {
+      if (governanceWebhookId) {
+        await supabase
+          .from('email_governance_webhook_deliveries')
+          .update({
+            processing_status: 'failed',
+            error_message: 'No campaign_id available for attribution',
+            processed_at: new Date().toISOString(),
+          })
+          .eq('id', governanceWebhookId);
+      }
+
       console.log('⚠️ No campaign_id in webhook payload - cannot attribute event');
       // Still return 200 to acknowledge receipt
-      return new Response(JSON.stringify({ 
+      return new Response(JSON.stringify({
         message: 'Event received but no campaign_id for attribution',
         email_id: payload.data.email_id
       }), {
@@ -304,8 +607,8 @@ const handler = async (req: Request): Promise<Response> => {
       from: payload.data.from,
       occurred_at: payload.created_at,
       tags: payload.data.tags || [],
-      tenant_id: metadata.tenantId,
-      domain_id: metadata.domainId
+      tenant_id: effectiveTenantId,
+      domain_id: effectiveDomainId
     };
 
     // Add event-specific data
@@ -313,18 +616,18 @@ const handler = async (req: Request): Promise<Response> => {
       eventData.click_link = payload.data.click.link;
       eventData.click_timestamp = payload.data.click.timestamp;
     }
-    
+
     // MPP Detection for opens
     let isMppGuess = false;
     if ((eventType === 'opened') && payload.data.open) {
       eventData.open_timestamp = payload.data.open.timestamp;
       eventData.open_ip = payload.data.open.ip_address;
       eventData.open_user_agent = payload.data.open.user_agent;
-      
+
       // Heuristic: Apple Mail Privacy Protection detection
       const ua = payload.data.open.user_agent?.toLowerCase() || '';
       const ip = payload.data.open.ip_address || '';
-      
+
       // Common MPP indicators:
       // 1. User agent contains Apple Mail
       // 2. Opens happening from Apple's proxy IPs (17.x.x.x range or known proxy ASNs)
@@ -337,34 +640,64 @@ const handler = async (req: Request): Promise<Response> => {
         isMppGuess = true;
       }
     }
-    
+
     if (eventType === 'bounced' && payload.data.bounce) {
       eventData.bounce_message = payload.data.bounce.message;
       eventData.bounce_type = payload.data.bounce.type;
+      eventData.bounce_severity = classifyBounceSeverity(payload.data.bounce.type);
+      eventData.is_spam_trap = isSpamTrapBounce(payload.data.bounce.type, payload.data.bounce.message);
     }
     if (eventType === 'complained' && payload.data.complaint) {
       eventData.complaint_feedback_type = payload.data.complaint.feedback_type;
     }
 
+    // ========== INSTANT SUPPRESSION UPDATE ==========
+    if (effectiveTenantId && shouldInstantlySuppress(eventType, payload.data.bounce?.type)) {
+      try {
+        const suppressionReason = eventType === 'unsubscribed'
+          ? 'unsubscribed'
+          : eventType === 'complained'
+            ? 'complaint'
+            : 'bounced';
+
+        await withExponentialBackoff(async () => {
+          const { error } = await supabase
+            .from('suppression_list')
+            .upsert({
+              tenant_id: effectiveTenantId,
+              email: payload.data.to[0],
+              suppression_type: suppressionReason,
+              channel: 'email',
+              reason: suppressionReason,
+              source_event_id: null,
+              auto_suppressed: true,
+              suppressed_at: new Date().toISOString(),
+              lifted_at: null,
+            }, {
+              onConflict: 'tenant_id,email,channel,suppression_type',
+              ignoreDuplicates: true,
+            });
+
+          if (error) throw error;
+        }, 'instant suppression upsert');
+      } catch (instantSuppressionError: any) {
+        console.error('⚠️ Instant suppression update failed:', instantSuppressionError);
+      }
+    }
+
     // Get client info from request
     const userAgent = req.headers.get('user-agent');
-    const ipAddress = req.headers.get('x-forwarded-for') || 
-                     req.headers.get('x-real-ip') || 
+    const ipAddress = req.headers.get('x-forwarded-for') ||
+                     req.headers.get('x-real-ip') ||
                      req.headers.get('cf-connecting-ip');
-    
+
     // Hash IP for privacy
     const ipHash = ipAddress ? hashIP(ipAddress) : null;
-    
-    // Webhook delivery ID for debugging
-    const webhookDeliveryId = req.headers.get('svix-id') || req.headers.get('x-request-id') || null;
 
     // ========== IDEMPOTENT UPSERT ==========
     // Use (tenant_id, provider_message_id, event_type, event_ts_provider) as unique key
-    const providerMessageId = payload.data.email_id;
-    const eventTsProvider = payload.created_at;
-
     const trackingRecord = {
-      campaign_id: metadata.campaignId,
+      campaign_id: effectiveCampaignId,
       customer_email: payload.data.to[0],
       event_type: eventType,
       event_data: {
@@ -376,55 +709,213 @@ const handler = async (req: Request): Promise<Response> => {
       provider_message_id: providerMessageId,
       event_ts_provider: eventTsProvider,
       ingested_at: new Date().toISOString(),
-      tenant_id: metadata.tenantId || null,
+      tenant_id: effectiveTenantId || null,
       is_mpp_guess: isMppGuess,
       ip_hash: ipHash,
       webhook_delivery_id: webhookDeliveryId
     };
 
-    const { data: insertedEvent, error: insertError } = await supabase
-      .from('email_tracking_events')
-      .insert(trackingRecord)
-      .select('id')
-      .single();
+    let governanceEventId: string | null = null;
+    if (effectiveTenantId) {
+      const governanceEventRecord = {
+        tenant_id: effectiveTenantId,
+        campaign_id: effectiveCampaignId,
+        email_message_id: effectiveEmailMessageId,
+        customer_id: effectiveCustomerId,
+        domain_id: effectiveDomainId,
+        email: payload.data.to[0],
+        provider: 'resend',
+        provider_message_id: providerMessageId,
+        provider_event_id: null,
+        event_type: eventType,
+        event_ts_provider: eventTsProvider,
+        ingested_at: new Date().toISOString(),
+        event_data: {
+          ...eventData,
+          raw_payload: payload,
+        },
+        is_spam_trap: Boolean(eventData.is_spam_trap),
+        webhook_delivery_id: webhookDeliveryId,
+        is_mpp_guess: isMppGuess,
+        ip_hash: ipHash,
+        user_agent: userAgent,
+      };
+
+      const { data: insertedGovEvent, error: governanceEventError } = await withExponentialBackoff(async () => {
+        const result = await supabase
+          .from('email_governance_email_events')
+          .insert(governanceEventRecord)
+          .select('id')
+          .single();
+
+        if (result.error && result.error.code !== '23505') {
+          throw result.error;
+        }
+
+        return result;
+      }, 'governance event insert');
+
+      if (governanceEventError) {
+        if (governanceEventError.code === '23505') {
+          console.log('🔄 Duplicate governance event detected');
+          if (governanceWebhookId) {
+            await supabase
+              .from('email_governance_webhook_deliveries')
+              .update({
+                processing_status: 'duplicate',
+                processed_at: new Date().toISOString(),
+              })
+              .eq('id', governanceWebhookId);
+          }
+        } else {
+          console.error('⚠️ Non-fatal: Failed to insert governance email event:', governanceEventError);
+          if (governanceWebhookId) {
+            await supabase
+              .from('email_governance_webhook_deliveries')
+              .update({
+                processing_status: 'failed',
+                error_message: governanceEventError.message,
+                processed_at: new Date().toISOString(),
+              })
+              .eq('id', governanceWebhookId);
+          }
+        }
+      } else {
+        governanceEventId = insertedGovEvent?.id || null;
+      }
+    }
+
+    const { data: insertedEvent, error: insertError } = await withExponentialBackoff(async () => {
+      const result = await supabase
+        .from('email_tracking_events')
+        .insert(trackingRecord)
+        .select('id')
+        .single();
+
+      if (result.error && result.error.code !== '23505') {
+        throw result.error;
+      }
+
+      return result;
+    }, 'legacy event insert');
 
     if (insertError) {
       // Check if it's a duplicate key error (race condition)
       if (insertError.code === '23505') {
         console.log(`🔄 Duplicate event (constraint violation) - already recorded`);
+
+        if (governanceWebhookId) {
+          await supabase
+            .from('email_governance_webhook_deliveries')
+            .update({
+              processing_status: 'duplicate',
+              processed_at: new Date().toISOString(),
+              error_message: null,
+            })
+            .eq('id', governanceWebhookId);
+        }
+
         return new Response(JSON.stringify({ message: 'Duplicate event' }), {
           status: 200,
           headers: { "Content-Type": "application/json", ...corsHeaders },
         });
       }
+
+      if (governanceWebhookId) {
+        await scheduleWebhookDeliveryRetryOrDeadLetter(
+          supabase,
+          governanceWebhookId,
+          'legacy_event_insert',
+          insertError.message || 'Failed to insert legacy tracking event',
+        );
+      }
+
       console.error('❌ Error inserting tracking event:', insertError);
       throw insertError;
     }
 
-    console.log(`✅ Recorded ${eventType} event for campaign ${metadata.campaignId} (event_id: ${insertedEvent?.id})`);
+    console.log(`✅ Recorded ${eventType} event for campaign ${effectiveCampaignId} (event_id: ${insertedEvent?.id})`);
+
+    if (governanceWebhookId) {
+      await supabase
+        .from('email_governance_webhook_deliveries')
+        .update({
+          processing_status: 'processed',
+          linked_event_id: governanceEventId,
+          processed_at: new Date().toISOString(),
+          error_message: null,
+        })
+        .eq('id', governanceWebhookId);
+    }
+
+    if (effectiveTenantId) {
+      await supabase
+        .from('email_governance_audit_logs')
+        .insert({
+          tenant_id: effectiveTenantId,
+          actor_type: 'webhook',
+          actor_id: null,
+          action_type: 'email_event_ingested',
+          decision: 'allow',
+          reason: 'Event accepted and processed',
+          policy_name: 'email_governance_ingestion',
+          policy_version: 'milestone_1',
+          campaign_id: effectiveCampaignId,
+          domain_id: effectiveDomainId,
+          customer_id: effectiveCustomerId,
+          governance_message_id: null,
+          metadata: {
+            provider: 'resend',
+            event_type: eventType,
+            provider_message_id: providerMessageId,
+            webhook_delivery_id: webhookDeliveryId,
+            governance_event_id: governanceEventId,
+            legacy_event_id: insertedEvent?.id,
+          },
+          occurred_at: new Date().toISOString(),
+        });
+    }
 
     // ========== UPDATE AGGREGATES (defensive - don't crash on failures) ==========
-    
+
     // Update campaign metrics
     try {
-      await updateCampaignMetrics(supabase, metadata.campaignId);
+      await updateCampaignMetrics(supabase, effectiveCampaignId);
     } catch (err) {
       console.error('⚠️ Non-fatal: Failed to update campaign metrics:', err);
     }
 
     // Update domain stats for bounces/complaints
-    if (metadata.domainId && (eventType === 'bounced' || eventType === 'complained')) {
+    if (effectiveDomainId && (eventType === 'bounced' || eventType === 'complained')) {
       try {
-        await updateDomainReputationStats(supabase, metadata.domainId, eventType);
+        await updateDomainReputationStats(supabase, effectiveDomainId, eventType);
+
+        if (effectiveTenantId) {
+          await supabase
+            .from('email_governance_domain_health_logs')
+            .insert({
+              tenant_id: effectiveTenantId,
+              domain_id: effectiveDomainId,
+              event_type: eventType,
+              status: 'informational',
+              details: {
+                provider: 'resend',
+                campaign_id: effectiveCampaignId,
+                provider_message_id: providerMessageId,
+                governance_event_id: governanceEventId,
+              },
+              observed_at: new Date().toISOString(),
+            });
+        }
       } catch (err) {
         console.error('⚠️ Non-fatal: Failed to update domain stats:', err);
       }
     }
 
-    // Track delivered for domain warmup metrics
-    if (metadata.domainId && eventType === 'delivered') {
+    // Track delivered for domain delivery metrics (informational)
+    if (effectiveDomainId && eventType === 'delivered') {
       try {
-        await incrementDomainSentCount(supabase, metadata.domainId);
+        await incrementDomainSentCount(supabase, effectiveDomainId);
       } catch (err) {
         console.error('⚠️ Non-fatal: Failed to increment domain sent count:', err);
       }
@@ -432,18 +923,18 @@ const handler = async (req: Request): Promise<Response> => {
 
     // ========== SUPPRESSION LIST UPDATES ==========
     // Add to suppression list for unsubscribes, bounces, and complaints
-    if (eventType === 'unsubscribed' || eventType === 'bounced' || eventType === 'complained') {
+    if (eventType === 'unsubscribed' || eventType === 'complained' || (eventType === 'bounced' && shouldInstantlySuppress(eventType, payload.data.bounce?.type))) {
       try {
-        const suppressionReason = eventType === 'unsubscribed' ? 'unsubscribed' : 
+        const suppressionReason = eventType === 'unsubscribed' ? 'unsubscribed' :
                                   eventType === 'bounced' ? 'bounced' : 'complaint';
-        
+
         // Build detailed meta for the suppression record
         const suppressionMeta: Record<string, any> = {
           event_id: insertedEvent?.id,
           provider_message_id: providerMessageId,
           occurred_at: eventTsProvider
         };
-        
+
         if (eventType === 'bounced' && payload.data.bounce) {
           suppressionMeta.bounce_type = payload.data.bounce.type;
           suppressionMeta.bounce_message = payload.data.bounce.message;
@@ -451,64 +942,57 @@ const handler = async (req: Request): Promise<Response> => {
         if (eventType === 'complained' && payload.data.complaint) {
           suppressionMeta.complaint_type = payload.data.complaint.feedback_type;
         }
-        
-        await supabase
-          .from('suppression_list')
-          .upsert({
-            tenant_id: metadata.tenantId,
-            email: payload.data.to[0],
-            suppression_type: suppressionReason,
-            channel: 'email',
-            reason: suppressionReason,
-            source_event_id: insertedEvent?.id,
-            auto_suppressed: true,
-            suppressed_at: new Date().toISOString()
-          }, {
-            onConflict: 'tenant_id,email,suppression_type',
-            ignoreDuplicates: true
-          });
-        
-        console.log(`📝 Added ${payload.data.to[0]} to suppression list (${suppressionReason})`);
-        
-        // ========== UPDATE CUSTOMER SUPPRESSED FLAG ==========
-        // Also set the customer's suppressed flag for fast filtering
-        if (metadata.tenantId) {
-          const { error: customerUpdateError } = await supabase
-            .from('crm_customers')
-            .update({ 
-              suppressed: true,
-              updated_at: new Date().toISOString()
-            })
-            .eq('email', payload.data.to[0])
-            .eq('tenant_id', metadata.tenantId);
-          
-          if (customerUpdateError) {
-            console.warn('⚠️ Failed to update customer suppressed flag:', customerUpdateError);
-          } else {
-            console.log(`📝 Set suppressed=true for customer with email ${payload.data.to[0]}`);
-          }
+
+        await withExponentialBackoff(async () => {
+          const { error } = await supabase
+            .from('suppression_list')
+            .upsert({
+              tenant_id: effectiveTenantId,
+              email: payload.data.to[0],
+              suppression_type: suppressionReason,
+              channel: 'email',
+              reason: suppressionReason,
+              source_event_id: insertedEvent?.id,
+              auto_suppressed: true,
+              suppressed_at: new Date().toISOString(),
+              lifted_at: null,
+            }, {
+              onConflict: 'tenant_id,email,channel,suppression_type',
+              ignoreDuplicates: true
+            });
+          if (error) throw error;
+        }, 'suppression upsert');
+
+        if (effectiveTenantId) {
+          await supabase
+            .from('email_governance_suppression_events')
+            .insert({
+              tenant_id: effectiveTenantId,
+              email: payload.data.to[0],
+              channel: 'email',
+              suppression_type: suppressionReason,
+              reason: suppressionReason,
+              source: 'webhook',
+              source_event_id: governanceEventId,
+              is_active: true,
+              metadata: suppressionMeta,
+              occurred_at: new Date().toISOString(),
+            });
         }
+
+        console.log(`📝 Added ${payload.data.to[0]} to suppression list (${suppressionReason})`);
       } catch (err) {
         console.error('⚠️ Non-fatal: Failed to update suppression list:', err);
-      }
-    }
-
-    // Handle unsubscribe - update customer preference
-    if (eventType === 'unsubscribed') {
-      try {
-        await handleUnsubscribe(supabase, payload.data.to[0], metadata.tenantId);
-      } catch (err) {
-        console.error('⚠️ Non-fatal: Failed to handle unsubscribe:', err);
       }
     }
 
     const duration = Date.now() - startTime;
     console.log(`✅ Webhook processed in ${duration}ms`);
 
-    return new Response(JSON.stringify({ 
+    return new Response(JSON.stringify({
       message: 'Event recorded successfully',
       event_id: insertedEvent?.id,
-      campaign_id: metadata.campaignId,
+      campaign_id: effectiveCampaignId,
       event_type: eventType,
       recipient: payload.data.to[0],
       processing_time_ms: duration
@@ -520,9 +1004,22 @@ const handler = async (req: Request): Promise<Response> => {
   } catch (error: any) {
     const duration = Date.now() - startTime;
     console.error(`❌ Error in email tracking webhook (${duration}ms):`, error);
-    
+
+    if (supabase && governanceWebhookId) {
+      try {
+        await scheduleWebhookDeliveryRetryOrDeadLetter(
+          supabase,
+          governanceWebhookId,
+          'unhandled_exception',
+          error?.message || 'Unhandled webhook processing error',
+        );
+      } catch (retryScheduleError) {
+        console.error('❌ Failed to schedule webhook retry/dead-letter:', retryScheduleError);
+      }
+    }
+
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         error: error.message,
         details: 'Failed to process email tracking event'
       }),
@@ -549,7 +1046,7 @@ const updateCampaignMetrics = async (supabase: any, campaignId: string) => {
 
   // Count unique recipients per event type
   const uniqueByType = new Map<string, Set<string>>();
-  
+
   for (const event of events || []) {
     const key = event.event_type;
     if (!uniqueByType.has(key)) {
@@ -596,7 +1093,7 @@ const updateCampaignMetrics = async (supabase: any, campaignId: string) => {
 // ========== UPDATE DOMAIN REPUTATION STATS ==========
 const updateDomainReputationStats = async (supabase: any, domainId: string, eventType: 'bounced' | 'complained') => {
   const column = eventType === 'bounced' ? 'total_bounces_30d' : 'total_complaints_30d';
-  
+
   // Get current stats
   const { data: domain, error: fetchError } = await supabase
     .from('email_domains')
@@ -622,18 +1119,13 @@ const updateDomainReputationStats = async (supabase: any, domainId: string, even
   updates.bounce_rate_30d = bounces / totalSent;
   updates.complaint_rate_30d = complaints / totalSent;
 
-  // Auto-pause thresholds (relaxed to reduce false positives for small lists)
-  const BOUNCE_THRESHOLD = 0.15;     // 15% (was 8%)
-  const COMPLAINT_THRESHOLD = 0.01;  // 1% (was 0.5%)
-  const MIN_SENDS_FOR_PAUSE = 50;    // Don't auto-pause until at least 50 emails sent
-
-  // Only auto-pause if we have enough data AND thresholds are exceeded
-  if (totalSent >= MIN_SENDS_FOR_PAUSE && 
-      (updates.bounce_rate_30d >= BOUNCE_THRESHOLD || updates.complaint_rate_30d >= COMPLAINT_THRESHOLD)) {
-    updates.status = 'paused';
-    updates.notes = `Auto-paused: ${eventType} rate exceeded threshold (${eventType === 'bounced' ? (updates.bounce_rate_30d * 100).toFixed(1) : (updates.complaint_rate_30d * 100).toFixed(2)}%)`;
-    console.warn(`⚠️ Domain ${domainId} AUTO-PAUSED due to high ${eventType} rate`);
-  }
+  // Milestone 1: Domain reputation is informational only.
+  // Never auto-pause/lock domains based on bounce/complaint thresholds.
+  console.warn(
+    `⚠️ Domain ${domainId} reputation event: ${eventType}. ` +
+      `Bounce ${(updates.bounce_rate_30d * 100).toFixed(2)}%, ` +
+      `Complaints ${(updates.complaint_rate_30d * 100).toFixed(3)}% (informational)`
+  );
 
   const { error: updateError } = await supabase
     .from('email_domains')
@@ -672,31 +1164,6 @@ const incrementDomainSentCount = async (supabase: any, domainId: string) => {
       complaint_rate_30d: complaintRate
     })
     .eq('id', domainId);
-};
-
-// ========== HANDLE UNSUBSCRIBE ==========
-const handleUnsubscribe = async (supabase: any, email: string, tenantId?: string) => {
-  // Update customer's email opt-in status
-  const query = supabase
-    .from('crm_customers')
-    .update({ 
-      email_opt_in: false,
-      updated_at: new Date().toISOString()
-    })
-    .eq('email', email);
-  
-  if (tenantId) {
-    query.eq('tenant_id', tenantId);
-  }
-
-  const { error } = await query;
-  
-  if (error) {
-    console.error('Error updating customer opt-in status:', error);
-    throw error;
-  }
-
-  console.log(`📧 Marked ${email} as unsubscribed`);
 };
 
 serve(handler);

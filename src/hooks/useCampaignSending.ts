@@ -3,28 +3,25 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { saveCampaignAsDraft, CampaignData } from '@/utils/crmCampaignService';
-import { 
-  validateBeforeSend, 
-  parseEdgeFunctionError, 
+import {
+  validateBeforeSend,
+  parseEdgeFunctionError,
   SendError,
-  SendErrorCode,
-  WarmupLimitDetails
+  SendErrorCode
 } from '@/utils/campaignSendingErrors';
 
 export interface SendingState {
-  status: 'idle' | 'saving' | 'sending' | 'success' | 'error' | 'warmup_limit';
+  status: 'idle' | 'saving' | 'sending' | 'success' | 'error';
   progress?: number;
   message?: string;
   error?: SendError;
   campaignId?: string;
   sentCount?: number;
-  warmupDetails?: WarmupLimitDetails;
 }
 
 export interface UseCampaignSendingOptions {
   onSuccess?: (campaignId: string, sentCount: number) => void;
   onError?: (error: SendError) => void;
-  onWarmupLimit?: (details: WarmupLimitDetails) => void;
   navigateOnSuccess?: boolean;
 }
 
@@ -49,16 +46,16 @@ export function useCampaignSending(options: UseCampaignSendingOptions = {}) {
     blocks: any[];
     segments: Array<{ id: string; name: string; customer_count: number }>;
   }) => {
-    const { 
+    const {
       campaignId: existingCampaignId,
-      campaignName, 
-      subjectLine, 
+      campaignName,
+      subjectLine,
       preheaderText,
       senderName,
       senderEmail,
-      content, 
-      blocks, 
-      segments 
+      content,
+      blocks,
+      segments
     } = params;
 
     // Step 1: Pre-send validation
@@ -100,13 +97,13 @@ export function useCampaignSending(options: UseCampaignSendingOptions = {}) {
       };
 
       campaign = await saveCampaignAsDraft(campaignData);
-      
+
       if (!campaign?.id) {
         throw new Error('Campaign save returned no ID');
       }
-      
+
       console.log('✅ Campaign saved:', campaign.id);
-      
+
     } catch (saveError: any) {
       console.error('❌ Campaign save failed:', saveError);
       const error: SendError = {
@@ -126,15 +123,15 @@ export function useCampaignSending(options: UseCampaignSendingOptions = {}) {
     }
 
     // Step 3: Send via edge function
-    setState({ 
-      status: 'sending', 
-      message: 'Sending emails...', 
-      campaignId: campaign.id 
+    setState({
+      status: 'sending',
+      message: 'Sending emails...',
+      campaignId: campaign.id
     });
 
     try {
       console.log('🚀 Invoking send-email-campaign for campaign:', campaign.id);
-      
+
       const { data: sendResult, error: sendError } = await supabase.functions.invoke(
         'send-email-campaign',
         { body: { campaignId: campaign.id } }
@@ -145,35 +142,30 @@ export function useCampaignSending(options: UseCampaignSendingOptions = {}) {
         throw sendError;
       }
 
-      // Check for error in response body (including warmup limit)
+      // Check for error in response body
       if (sendResult?.error) {
         console.error('❌ Send result error:', sendResult.error);
-        
-        // Parse error with response data for warmup details
+
         const error = parseEdgeFunctionError({ message: sendResult.error }, sendResult);
-        
-        // Handle warmup limit specifically
-        if (error.code === 'WARMUP_LIMIT' && error.warmupDetails) {
-          setState({ 
-            status: 'warmup_limit', 
-            error, 
-            campaignId: campaign.id,
-            warmupDetails: error.warmupDetails
-          });
-          
-          // Don't show toast for warmup limit - modal will handle it
-          options.onWarmupLimit?.(error.warmupDetails);
-          return { success: false, error, campaignId: campaign.id, warmupDetails: error.warmupDetails };
-        }
-        
-        throw new Error(sendResult.error);
+        setState({ status: 'error', error, campaignId: campaign.id });
+        toast({
+          title: error.title,
+          description: error.description,
+          variant: 'destructive'
+        });
+        options.onError?.(error);
+        return { success: false, error, campaignId: campaign.id };
       }
 
       const sentCount = sendResult?.metrics?.sent || 0;
       console.log('✅ Campaign sent successfully:', sendResult);
 
-      setState({ 
-        status: 'success', 
+      const complianceWarnings = Array.isArray(sendResult?.warnings)
+        ? sendResult.warnings.filter((w: unknown) => typeof w === 'string')
+        : [];
+
+      setState({
+        status: 'success',
         campaignId: campaign.id,
         sentCount,
         message: `Sent to ${sentCount} recipients`
@@ -183,6 +175,13 @@ export function useCampaignSending(options: UseCampaignSendingOptions = {}) {
         title: "Campaign sent!",
         description: `Your campaign "${campaignName}" has been sent to ${sentCount} customers.`
       });
+
+      if (complianceWarnings.length > 0) {
+        toast({
+          title: 'Compliance warning',
+          description: complianceWarnings[0],
+        });
+      }
 
       options.onSuccess?.(campaign.id, sentCount);
 
@@ -194,16 +193,16 @@ export function useCampaignSending(options: UseCampaignSendingOptions = {}) {
 
     } catch (sendError: any) {
       console.error('❌ Send failed:', sendError);
-      
+
       const error = parseEdgeFunctionError(sendError);
       setState({ status: 'error', error, campaignId: campaign.id });
-      
+
       toast({
         title: error.title,
         description: error.description,
         variant: 'destructive'
       });
-      
+
       options.onError?.(error);
       return { success: false, error, campaignId: campaign.id };
     }
@@ -216,7 +215,7 @@ export function useCampaignSending(options: UseCampaignSendingOptions = {}) {
     isSending: state.status === 'saving' || state.status === 'sending',
     isError: state.status === 'error',
     isSuccess: state.status === 'success',
-    isWarmupLimit: state.status === 'warmup_limit',
-    warmupDetails: state.warmupDetails
+    isWarmupLimit: false,
+    warmupDetails: undefined
   };
 }

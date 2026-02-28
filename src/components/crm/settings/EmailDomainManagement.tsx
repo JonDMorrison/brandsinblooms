@@ -1,36 +1,41 @@
-import React, { useState, useRef } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { Separator } from '@/components/ui/separator';
-import { 
-  Globe, 
-  Plus, 
-  RefreshCw, 
-  Pause, 
-  Play, 
-  Trash2, 
-  Settings, 
+import React, { useState, useRef } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import {
+  Globe,
+  Plus,
+  RefreshCw,
+  Trash2,
+  Settings,
   AlertTriangle,
   CheckCircle2,
   ExternalLink,
   BookOpen,
-  ChevronDown
-} from 'lucide-react';
-import { useEmailDomainManagement } from '@/hooks/useEmailDomainManagement';
-import { 
-  getDomainStatusConfig, 
-  getWarmupProgress, 
+  ChevronDown,
+} from "lucide-react";
+import { useEmailDomainManagement } from "@/hooks/useEmailDomainManagement";
+import {
+  getDomainStatusConfig,
   formatReputationRate,
   isReputationHealthy,
-  WARMUP_SCHEDULE
-} from '@/lib/email/domainService';
-import { DomainConnectWizard } from './DomainConnectWizard';
-import { DomainSenderSettings } from './DomainSenderSettings';
-import { DnsInstructionsCard } from './DnsInstructionsCard';
-import { EmailDomainGuide } from './EmailDomainGuide';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+} from "@/lib/email/domainService";
+import { DomainConnectWizard } from "./DomainConnectWizard";
+import { DomainSenderSettings } from "./DomainSenderSettings";
+import { DnsInstructionsCard } from "./DnsInstructionsCard";
+import { EmailDomainGuide } from "./EmailDomainGuide";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -40,22 +45,25 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+} from "@/components/ui/alert-dialog";
 
 export const EmailDomainManagement: React.FC = () => {
-  const { 
-    domains, 
-    loading, 
-    refreshVerificationStatus, 
-    toggleDomainPause,
+  const {
+    domains,
+    loading,
+    refreshVerificationStatus,
     deleteDomain,
-    refetch
+    refetch,
   } = useEmailDomainManagement();
 
   const [showWizard, setShowWizard] = useState(false);
   const [selectedDomain, setSelectedDomain] = useState<string | null>(null);
-  const [showDnsInstructions, setShowDnsInstructions] = useState<string | null>(null);
-  const [showSenderSettings, setShowSenderSettings] = useState<string | null>(null);
+  const [showDnsInstructions, setShowDnsInstructions] = useState<string | null>(
+    null,
+  );
+  const [showSenderSettings, setShowSenderSettings] = useState<string | null>(
+    null,
+  );
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState<string | null>(null);
   const [guideOpen, setGuideOpen] = useState(false);
@@ -65,7 +73,7 @@ export const EmailDomainManagement: React.FC = () => {
     setGuideOpen(true);
     // Scroll to guide section after state update
     setTimeout(() => {
-      guideRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      guideRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 100);
   };
 
@@ -106,14 +114,19 @@ export const EmailDomainManagement: React.FC = () => {
               <div>
                 <CardTitle>Email Sending Domains</CardTitle>
                 <CardDescription>
-                  Manage your custom sending domains for better deliverability and brand recognition.
+                  Manage your custom sending domains for better deliverability
+                  and brand recognition.
                 </CardDescription>
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={() => setGuideOpen(!guideOpen)}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setGuideOpen(!guideOpen)}
+              >
                 <BookOpen className="h-4 w-4 mr-2" />
-                {guideOpen ? 'Hide Guide' : 'Setup Guide'}
+                {guideOpen ? "Hide Guide" : "Setup Guide"}
               </Button>
               <Button onClick={() => setShowWizard(true)}>
                 <Plus className="h-4 w-4 mr-2" />
@@ -121,19 +134,19 @@ export const EmailDomainManagement: React.FC = () => {
               </Button>
             </div>
           </div>
-          
+
           {/* Quick help link */}
           <div className="flex items-center gap-4 mt-3 pt-3 border-t text-sm">
             <span className="text-muted-foreground">Quick links:</span>
-            <a 
-              href="https://resend.com/domains" 
-              target="_blank" 
+            <a
+              href="https://resend.com/domains"
+              target="_blank"
               rel="noopener noreferrer"
               className="text-primary hover:underline inline-flex items-center gap-1"
             >
               Resend Domain Settings <ExternalLink className="h-3 w-3" />
             </a>
-            <button 
+            <button
               onClick={handleOpenGuide}
               className="text-primary hover:underline inline-flex items-center gap-1"
             >
@@ -147,30 +160,34 @@ export const EmailDomainManagement: React.FC = () => {
       <div ref={guideRef}>
         <Collapsible open={shouldShowGuide} onOpenChange={setGuideOpen}>
           <Card>
-          <CollapsibleTrigger className="w-full">
-            <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors rounded-t-lg">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-primary/10">
-                    <BookOpen className="h-5 w-5 text-primary" />
+            <CollapsibleTrigger className="w-full">
+              <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors rounded-t-lg">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-primary/10">
+                      <BookOpen className="h-5 w-5 text-primary" />
+                    </div>
+                    <div className="text-left">
+                      <CardTitle className="text-base">
+                        Email Domain Setup Guide
+                      </CardTitle>
+                      <CardDescription>
+                        Learn why custom domains matter and how to set yours up
+                      </CardDescription>
+                    </div>
                   </div>
-                  <div className="text-left">
-                    <CardTitle className="text-base">Email Domain Setup Guide</CardTitle>
-                    <CardDescription>
-                      Learn why custom domains matter and how to set yours up
-                    </CardDescription>
-                  </div>
+                  <ChevronDown
+                    className={`h-5 w-5 text-muted-foreground transition-transform duration-200 ${shouldShowGuide ? "rotate-180" : ""}`}
+                  />
                 </div>
-                <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform duration-200 ${shouldShowGuide ? 'rotate-180' : ''}`} />
-              </div>
-            </CardHeader>
-          </CollapsibleTrigger>
-          <CollapsibleContent>
-            <CardContent className="pt-0">
-              <EmailDomainGuide />
-            </CardContent>
-          </CollapsibleContent>
-        </Card>
+              </CardHeader>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <CardContent className="pt-0">
+                <EmailDomainGuide />
+              </CardContent>
+            </CollapsibleContent>
+          </Card>
         </Collapsible>
       </div>
 
@@ -181,15 +198,16 @@ export const EmailDomainManagement: React.FC = () => {
             <Globe className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
             <h3 className="text-lg font-medium mb-2">No Domains Connected</h3>
             <p className="text-sm text-muted-foreground mb-4 max-w-md mx-auto">
-              Connect your first custom domain to start sending emails from your own address.
-              You'll need to add DNS records (SPF, DKIM, DMARC) to verify ownership.
+              Connect your first custom domain to start sending emails from your
+              own address. You'll need to add DNS records (SPF, DKIM, DMARC) to
+              verify ownership.
             </p>
             <div className="flex flex-col items-center gap-3">
               <Button onClick={() => setShowWizard(true)}>
                 <Plus className="h-4 w-4 mr-2" />
                 Connect Domain
               </Button>
-              <button 
+              <button
                 onClick={handleOpenGuide}
                 className="text-sm text-primary hover:underline inline-flex items-center gap-1"
               >
@@ -203,9 +221,8 @@ export const EmailDomainManagement: React.FC = () => {
         <div className="space-y-4">
           {domains.map((domain) => {
             const statusConfig = getDomainStatusConfig(domain.status);
-            const warmupProgress = getWarmupProgress(domain);
             const reputation = isReputationHealthy(domain);
-            
+
             return (
               <Card key={domain.id}>
                 <CardContent className="pt-6">
@@ -213,35 +230,28 @@ export const EmailDomainManagement: React.FC = () => {
                     {/* Domain Info */}
                     <div className="flex-1 space-y-4">
                       <div className="flex items-center gap-3">
-                        <h3 className="text-lg font-semibold">{domain.domain}</h3>
+                        <h3 className="text-lg font-semibold">
+                          {domain.domain}
+                        </h3>
                         <Badge variant={statusConfig.variant}>
                           {statusConfig.label}
                         </Badge>
-                        {domain.manual_pause && (
-                          <Badge variant="outline" className="text-orange-600">
-                            Manually Paused
-                          </Badge>
-                        )}
                       </div>
 
                       {/* Sender Info */}
                       {domain.default_from_email && (
                         <p className="text-sm text-muted-foreground">
-                          Default sender: <span className="font-medium">{domain.default_from_name || 'Unknown'}</span>
-                          {' '}({domain.default_from_email})
+                          Default sender:{" "}
+                          <span className="font-medium">
+                            {domain.default_from_name || "Unknown"}
+                          </span>{" "}
+                          ({domain.default_from_email})
                         </p>
                       )}
 
-                      {/* Domain Limits - shown for active and warming_up domains */}
-                      {(domain.status === 'active' || domain.status === 'warming_up') && (
-                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                          <span>Daily limit: <span className="font-medium text-foreground">{domain.daily_limit}</span></span>
-                          <span>Hourly limit: <span className="font-medium text-foreground">{domain.hourly_limit}</span></span>
-                        </div>
-                      )}
-
                       {/* Reputation Stats */}
-                      {(domain.status === 'warming_up' || domain.status === 'active') && (
+                      {(domain.status === "warming_up" ||
+                        domain.status === "active") && (
                         <div className="flex items-center gap-6">
                           <div className="flex items-center gap-2">
                             {reputation.bounceWarning ? (
@@ -250,7 +260,14 @@ export const EmailDomainManagement: React.FC = () => {
                               <CheckCircle2 className="h-4 w-4 text-green-500" />
                             )}
                             <span className="text-sm">
-                              Bounce rate: <span className={reputation.bounceWarning ? 'text-orange-600 font-medium' : ''}>
+                              Bounce rate:{" "}
+                              <span
+                                className={
+                                  reputation.bounceWarning
+                                    ? "text-orange-600 font-medium"
+                                    : ""
+                                }
+                              >
                                 {formatReputationRate(domain.bounce_rate_30d)}
                               </span>
                             </span>
@@ -262,8 +279,17 @@ export const EmailDomainManagement: React.FC = () => {
                               <CheckCircle2 className="h-4 w-4 text-green-500" />
                             )}
                             <span className="text-sm">
-                              Complaint rate: <span className={reputation.complaintWarning ? 'text-orange-600 font-medium' : ''}>
-                                {formatReputationRate(domain.complaint_rate_30d)}
+                              Complaint rate:{" "}
+                              <span
+                                className={
+                                  reputation.complaintWarning
+                                    ? "text-orange-600 font-medium"
+                                    : ""
+                                }
+                              >
+                                {formatReputationRate(
+                                  domain.complaint_rate_30d,
+                                )}
                               </span>
                             </span>
                           </div>
@@ -276,7 +302,8 @@ export const EmailDomainManagement: React.FC = () => {
 
                     {/* Actions */}
                     <div className="flex items-center gap-2">
-                      {(domain.status === 'pending_dns' || domain.status === 'verifying') && (
+                      {(domain.status === "pending_dns" ||
+                        domain.status === "verifying") && (
                         <>
                           <Button
                             variant="outline"
@@ -292,13 +319,16 @@ export const EmailDomainManagement: React.FC = () => {
                             onClick={() => handleRefreshVerification(domain.id)}
                             disabled={refreshing === domain.id}
                           >
-                            <RefreshCw className={`h-4 w-4 mr-1 ${refreshing === domain.id ? 'animate-spin' : ''}`} />
+                            <RefreshCw
+                              className={`h-4 w-4 mr-1 ${refreshing === domain.id ? "animate-spin" : ""}`}
+                            />
                             Check DNS
                           </Button>
                         </>
                       )}
 
-                      {(domain.status === 'warming_up' || domain.status === 'active') && (
+                      {(domain.status === "warming_up" ||
+                        domain.status === "active") && (
                         <>
                           <Button
                             variant="outline"
@@ -307,23 +337,6 @@ export const EmailDomainManagement: React.FC = () => {
                           >
                             <Settings className="h-4 w-4 mr-1" />
                             Sender Settings
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => toggleDomainPause(domain.id, !domain.manual_pause)}
-                          >
-                            {domain.manual_pause ? (
-                              <>
-                                <Play className="h-4 w-4 mr-1" />
-                                Resume
-                              </>
-                            ) : (
-                              <>
-                                <Pause className="h-4 w-4 mr-1" />
-                                Pause
-                              </>
-                            )}
                           </Button>
                         </>
                       )}
@@ -340,12 +353,15 @@ export const EmailDomainManagement: React.FC = () => {
                   </div>
 
                   {/* Notes/Errors */}
-                  {(domain.notes || domain.status === 'failed') && (
+                  {(domain.notes || domain.status === "failed") && (
                     <>
                       <Separator className="my-4" />
                       <div className="flex items-start gap-2 text-sm">
                         <AlertTriangle className="h-4 w-4 text-destructive mt-0.5" />
-                        <p className="text-muted-foreground">{domain.notes || 'Domain verification failed. Please check your DNS settings.'}</p>
+                        <p className="text-muted-foreground">
+                          {domain.notes ||
+                            "Domain verification failed. Please check your DNS settings."}
+                        </p>
                       </div>
                     </>
                   )}
@@ -357,12 +373,12 @@ export const EmailDomainManagement: React.FC = () => {
       )}
 
       {/* Wizard Dialog */}
-      <DomainConnectWizard 
-        open={showWizard} 
+      <DomainConnectWizard
+        open={showWizard}
         onClose={() => {
           setShowWizard(false);
           refetch();
-        }} 
+        }}
       />
 
       {/* DNS Instructions Dialog */}
@@ -384,17 +400,24 @@ export const EmailDomainManagement: React.FC = () => {
       )}
 
       {/* Delete Confirmation */}
-      <AlertDialog open={!!deleteConfirm} onOpenChange={() => setDeleteConfirm(null)}>
+      <AlertDialog
+        open={!!deleteConfirm}
+        onOpenChange={() => setDeleteConfirm(null)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Domain?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will remove the domain from your account. You will need to reconfigure DNS records if you add it again later.
+              This will remove the domain from your account. You will need to
+              reconfigure DNS records if you add it again later.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground">
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground"
+            >
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>

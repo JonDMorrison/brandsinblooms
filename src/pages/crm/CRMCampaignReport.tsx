@@ -28,6 +28,7 @@ import {
 import { BouncedEmailsList } from "@/components/crm/BouncedEmailsList";
 import { useCampaignBounces } from "@/hooks/useCampaignBounces";
 import { toast } from "sonner";
+import { CampaignGovernanceMetricsCard } from "@/components/crm/CampaignGovernanceMetricsCard";
 
 interface CampaignMetrics {
   sent: number;
@@ -438,6 +439,8 @@ const CRMCampaignReport: React.FC = () => {
             </CardContent>
           </Card>
         </div>
+
+        <CampaignGovernanceMetricsCard campaignId={campaignId} />
 
         {/* Performance Insights */}
         {campaign.status === "sent" && (

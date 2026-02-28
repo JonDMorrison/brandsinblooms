@@ -7,6 +7,35 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+type TenantSuppressionBypassState = {
+  suppression_bypass_active: boolean;
+  suppression_bypass_automation_mode: 'campaign_only' | 'campaign_and_automation';
+};
+
+async function getTenantSuppressionBypassState(supabase: any, tenantId: string): Promise<TenantSuppressionBypassState> {
+  const { data, error } = await supabase.rpc('get_tenant_suppression_bypass_state', {
+    p_tenant_id: tenantId,
+  });
+
+  if (error) {
+    console.warn('[process-form-submitted] Failed to fetch suppression bypass state:', error.message);
+    return {
+      suppression_bypass_active: false,
+      suppression_bypass_automation_mode: 'campaign_only',
+    };
+  }
+
+  const row = Array.isArray(data) ? data[0] : data;
+  const mode = String(row?.suppression_bypass_automation_mode || 'campaign_only').toLowerCase() === 'campaign_and_automation'
+    ? 'campaign_and_automation'
+    : 'campaign_only';
+
+  return {
+    suppression_bypass_active: Boolean(row?.suppression_bypass_active),
+    suppression_bypass_automation_mode: mode,
+  };
+}
+
 /**
  * Process FormSubmitted trigger events and execute matching automations.
  *
@@ -374,11 +403,21 @@ const handler = async (req: Request): Promise<Response> => {
               const scheduledAt = new Date(Date.now() + cumulativeDelayMs).toISOString();
 
               if (nodeType === "send_email" || nodeType === "email") {
+                  const bypassState = await getTenantSuppressionBypassState(supabase, tenantId);
+                  const bypassSuppressionTypes = (
+                    bypassState.suppression_bypass_active
+                    && bypassState.suppression_bypass_automation_mode === 'campaign_and_automation'
+                  )
+                    ? ['bounced', 'hard_bounce', 'complaint', 'complained']
+                    : [];
+
                 // Check consent before queuing (read-only, no mutation)
                 const consentCheck = await canSendEmail(supabase, {
                   tenantId,
                   customerId,
                   email: customerEmail,
+                  }, {
+                    bypassSuppressionTypes,
                 });
 
                 if (!consentCheck.allowed) {

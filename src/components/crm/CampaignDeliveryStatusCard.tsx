@@ -27,6 +27,7 @@ import { parseEdgeFunctionError } from "@/utils/campaignSendingErrors";
 import { toast } from "sonner";
 import { retryFailedEmailMessages } from "@/lib/email/emailRetryService";
 import { markEmailCampaignCompletedWithFailures } from "@/lib/email/emailCompletionService";
+import { useCampaignGovernanceVisibility } from "@/hooks/useCampaignGovernanceVisibility";
 
 type CampaignRow = {
   id: string;
@@ -37,6 +38,10 @@ type CampaignRow = {
   updated_at: string | null;
   send_error: string | null;
   send_blocked_reason: string | null;
+  is_throttled?: boolean | null;
+  throttle_reasons?: string[] | null;
+  throttled_at?: string | null;
+  throttle_last_evaluated_at?: string | null;
 };
 
 type ProgressRow = {
@@ -55,6 +60,7 @@ type ProgressRow = {
 };
 
 const POLL_MS = 15000;
+const THROTTLED_POLL_MS = 5000;
 
 function isSameCampaign(a: CampaignRow | null, b: CampaignRow | null) {
   if (!a || !b) return false;
@@ -66,7 +72,10 @@ function isSameCampaign(a: CampaignRow | null, b: CampaignRow | null) {
     a.sent_at === b.sent_at &&
     a.updated_at === b.updated_at &&
     a.send_error === b.send_error &&
-    a.send_blocked_reason === b.send_blocked_reason
+    a.send_blocked_reason === b.send_blocked_reason &&
+    a.is_throttled === b.is_throttled &&
+    a.throttled_at === b.throttled_at &&
+    a.throttle_last_evaluated_at === b.throttle_last_evaluated_at
   );
 }
 
@@ -115,11 +124,43 @@ function sanitizeUserMessage(message?: string | null) {
   return null;
 }
 
+function formatThresholdCategory(category: string) {
+  const value = (category || "").toLowerCase();
+  if (value === "hard_bounce_rate") return "Hard bounce threshold";
+  if (value === "soft_bounce_rate") return "Soft bounce threshold";
+  if (value === "complaint_rate") return "Complaint threshold";
+  if (value === "failed_delivery_rate") return "Failed delivery threshold";
+  if (value === "rapid_negative_trend") return "Rapid negative trend";
+  return "Deliverability threshold";
+}
+
+function formatPauseCategory(category: string | null | undefined) {
+  const value = (category || "").toLowerCase();
+  if (value === "paused_by_user" || value === "paused") {
+    return "Campaign is currently paused.";
+  }
+  if (value === "account_under_review") {
+    return "Campaign is paused while your account is under review.";
+  }
+  if (value === "reputation_restricted") {
+    return "Campaign is paused due to current reputation restrictions.";
+  }
+  if (value === "reputation_critical") {
+    return "Campaign is paused due to critical reputation risk.";
+  }
+  if (value === "deliverability_threshold") {
+    return "Campaign is paused because a deliverability threshold was exceeded.";
+  }
+  return "Campaign is currently paused.";
+}
+
 export function CampaignDeliveryStatusCard(props: {
   campaignId: string | null | undefined;
   timezone?: string;
 }) {
   const { campaignId, timezone } = props;
+  const { data: governanceVisibility } =
+    useCampaignGovernanceVisibility(campaignId);
 
   const [campaign, setCampaign] = useState<CampaignRow | null>(null);
   const [progress, setProgress] = useState<ProgressRow | null>(null);
@@ -128,6 +169,7 @@ export function CampaignDeliveryStatusCard(props: {
   const [isRetryingFailed, setIsRetryingFailed] = useState(false);
   const [showMarkCompletedDialog, setShowMarkCompletedDialog] = useState(false);
   const [isMarkingCompleted, setIsMarkingCompleted] = useState(false);
+  const effectivePollMs = campaign?.is_throttled ? THROTTLED_POLL_MS : POLL_MS;
 
   useEffect(() => {
     if (!campaignId) return;
@@ -139,7 +181,7 @@ export function CampaignDeliveryStatusCard(props: {
       // Prefer the SECURITY DEFINER RPC to avoid RLS drift breaking this UI.
       try {
         const { data: rpcData, error: rpcError } = await supabase.rpc(
-          "get_campaign_delivery_status" as any,
+          "get_campaign_delivery_status_tenant_safe" as any,
           { p_campaign_id: campaignId },
         );
 
@@ -149,8 +191,6 @@ export function CampaignDeliveryStatusCard(props: {
           const rpcRow = ((Array.isArray(rpcData) ? rpcData[0] : rpcData) ||
             null) as CampaignRow | null;
 
-          // If RPC returns nothing (unauthorized/not found), we still attempt direct select
-          // because some environments may not yet have the RPC.
           if (rpcRow) {
             setCampaign((prev) =>
               isSameCampaign(prev, rpcRow) ? prev : rpcRow,
@@ -175,37 +215,17 @@ export function CampaignDeliveryStatusCard(props: {
         }
       }
 
-      const { data, error } = await supabase
-        .from("crm_campaigns")
-        .select(
-          "id,status,scheduled_at,send_started_at,sent_at,updated_at,send_error,send_blocked_reason",
-        )
-        .eq("id", campaignId)
-        .maybeSingle();
-
       if (cancelled) return;
-      if (error) {
-        if (import.meta.env.DEV) {
-          console.warn("Failed to load campaign delivery status", {
-            campaignId,
-            error,
-          });
-        }
-        return;
-      }
-
-      const row = (data || null) as CampaignRow | null;
-      setCampaign((prev) => (isSameCampaign(prev, row) ? prev : row));
     };
 
     load();
-    intervalId = window.setInterval(load, POLL_MS);
+    intervalId = window.setInterval(load, effectivePollMs);
 
     return () => {
       cancelled = true;
       if (intervalId) window.clearInterval(intervalId);
     };
-  }, [campaignId]);
+  }, [campaignId, effectivePollMs]);
 
   useEffect(() => {
     if (!campaignId) return;
@@ -266,13 +286,14 @@ export function CampaignDeliveryStatusCard(props: {
       "sent_with_errors",
       "failed",
     ].includes(status);
-    if (shouldPoll) intervalId = window.setInterval(loadProgress, POLL_MS);
+    if (shouldPoll)
+      intervalId = window.setInterval(loadProgress, effectivePollMs);
 
     return () => {
       cancelled = true;
       if (intervalId) window.clearInterval(intervalId);
     };
-  }, [campaignId, campaign?.status]);
+  }, [campaignId, campaign?.status, effectivePollMs]);
 
   const status = (campaign?.status || "draft").toLowerCase();
 
@@ -341,6 +362,49 @@ export function CampaignDeliveryStatusCard(props: {
       ? null
       : campaign?.send_blocked_reason) ||
     null;
+
+  const throttleReasons = (campaign?.throttle_reasons || []).filter(
+    (reason): reason is string =>
+      typeof reason === "string" && reason.length > 0,
+  );
+  const throttleReasonLabels = throttleReasons.map((reason) =>
+    formatThresholdCategory(reason),
+  );
+
+  const isPaused = status === "paused";
+  const pausedReason = formatPauseCategory(
+    campaign?.send_blocked_reason || campaign?.send_error,
+  );
+
+  const pausedNextSteps = useMemo(() => {
+    const exceeded = governanceVisibility?.threshold_exceeded || [];
+
+    if (exceeded.some((reason) => reason.includes("complaint_rate"))) {
+      return [
+        "Pause any high-risk lists and review recent complaint sources.",
+        "Tighten segmentation and confirm sender/domain alignment.",
+      ];
+    }
+
+    if (exceeded.some((reason) => reason.includes("hard_bounce_rate"))) {
+      return [
+        "Remove invalid recipients and suppress previously bounced contacts.",
+        "Verify list import quality and opt-in provenance.",
+      ];
+    }
+
+    if (exceeded.some((reason) => reason.includes("failed_delivery_rate"))) {
+      return [
+        "Check sender/domain infrastructure and provider response errors.",
+        "Retry after delivery errors stabilize.",
+      ];
+    }
+
+    return [
+      "Review the campaign audience and recent delivery issues.",
+      "Resolve the blocking condition, then resume sending.",
+    ];
+  }, [governanceVisibility?.threshold_exceeded]);
 
   const userError = useMemo(() => {
     if (!errorTextRaw) return null;
@@ -468,6 +532,31 @@ export function CampaignDeliveryStatusCard(props: {
 
   return (
     <div className="space-y-4">
+      {campaign?.is_throttled && (
+        <Alert className="border-amber-200 bg-amber-50">
+          <AlertTriangle className="h-4 w-4 text-amber-700" />
+          <AlertTitle className="text-amber-900">Risk warning</AlertTitle>
+          <AlertDescription className="text-amber-800">
+            <div className="space-y-1">
+              <p>
+                Sending is temporarily slowed to protect deliverability. Batch
+                size is reduced by 50% and delay between batches is increased.
+              </p>
+              {throttleReasons.length > 0 && (
+                <p className="text-sm text-amber-700">
+                  Triggered by: {throttleReasonLabels.join(", ")}
+                </p>
+              )}
+              {campaign.throttled_at && (
+                <p className="text-sm text-amber-700">
+                  Throttled since {formatWhen(campaign.throttled_at, timezone)}.
+                </p>
+              )}
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
+
       {(userError || status === "failed" || status === "sent_with_errors") && (
         <Alert className="border-red-200 bg-red-50">
           <AlertTriangle className="h-4 w-4 text-red-600" />
@@ -511,6 +600,28 @@ export function CampaignDeliveryStatusCard(props: {
                   </div>
                 </div>
               )}
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {isPaused && (
+        <Alert className="border-amber-200 bg-amber-50">
+          <AlertTriangle className="h-4 w-4 text-amber-700" />
+          <AlertTitle className="text-amber-900">Campaign paused</AlertTitle>
+          <AlertDescription className="text-amber-800">
+            <div className="space-y-1">
+              <p>{pausedReason}</p>
+              {governanceVisibility?.threshold_exceeded &&
+                governanceVisibility.threshold_exceeded.length > 0 && (
+                  <p className="text-sm">
+                    Threshold exceeded:{" "}
+                    {governanceVisibility.threshold_exceeded
+                      .map((reason) => formatThresholdCategory(reason))
+                      .join(", ")}
+                  </p>
+                )}
+              <p className="text-sm">Next steps: {pausedNextSteps.join(" ")}</p>
             </div>
           </AlertDescription>
         </Alert>
@@ -623,17 +734,19 @@ export function CampaignDeliveryStatusCard(props: {
                 <p className="text-sm">
                   {progressUnavailable
                     ? "Delivery details temporarily unavailable"
-                    : status === "scheduled"
-                      ? "Scheduled"
-                      : status === "sending"
-                        ? "Sending"
-                        : status === "queued" || status === "partially_queued"
-                          ? "Queued for sending"
-                          : status === "sent"
-                            ? "Completed"
-                            : status === "failed"
-                              ? "Failed"
-                              : ""}
+                    : campaign?.is_throttled
+                      ? "Sending with protective throttling"
+                      : status === "scheduled"
+                        ? "Scheduled"
+                        : status === "sending"
+                          ? "Sending"
+                          : status === "queued" || status === "partially_queued"
+                            ? "Queued for sending"
+                            : status === "sent"
+                              ? "Completed"
+                              : status === "failed"
+                                ? "Failed"
+                                : ""}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
                   Scheduler runs every minute

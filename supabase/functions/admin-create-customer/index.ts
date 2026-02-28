@@ -16,43 +16,6 @@ Deno.serve(async (req) => {
     const { action } = body;
 
     // Route by action
-    if (action === "unpause_domain") {
-      const { domain_id, warmup_override } = body;
-      if (!domain_id) throw new Error("domain_id is required");
-
-      const updatePayload: Record<string, unknown> = {
-        status: "active",
-        manual_pause: false,
-        notes: "Manually unpaused by admin — 30d stats reset",
-        total_bounces_30d: 0,
-        total_complaints_30d: 0,
-        total_sent_30d: 0,
-        bounce_rate_30d: 0,
-        complaint_rate_30d: 0,
-      };
-
-      // Allow warmup stage & limit override
-      if (warmup_override) {
-        if (warmup_override.stage !== undefined) updatePayload.warmup_stage = warmup_override.stage;
-        if (warmup_override.daily_limit !== undefined) updatePayload.daily_limit = warmup_override.daily_limit;
-        if (warmup_override.hourly_limit !== undefined) updatePayload.hourly_limit = warmup_override.hourly_limit;
-        updatePayload.warmup_started_at = new Date().toISOString();
-        updatePayload.last_stage_updated_at = new Date().toISOString();
-      }
-
-      const { data, error } = await supabaseAdmin
-        .from("email_domains")
-        .update(updatePayload)
-        .eq("id", domain_id)
-        .select("id, domain, status, warmup_stage, daily_limit")
-        .single();
-
-      if (error) throw error;
-      return new Response(JSON.stringify({ success: true, domain: data }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
     if (action === "reset_campaign") {
       const { campaign_id } = body;
       if (!campaign_id) throw new Error("campaign_id is required");

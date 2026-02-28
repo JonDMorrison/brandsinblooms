@@ -2,11 +2,11 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/useTenant';
 import { toast } from 'sonner';
-import { 
-  EmailDomain, 
-  QuotaCheckResult, 
+import {
+  EmailDomain,
+  QuotaCheckResult,
   canSendCampaign,
-  getActiveOrFallbackSender
+  getOperationalSender
 } from '@/lib/email/domainService';
 import { upsertEmailDomainFromEntriCallback } from '@/lib/email/domainProvisioning';
 
@@ -25,10 +25,10 @@ export const useEmailDomainManagement = () => {
 
   const fetchDomains = useCallback(async () => {
     if (!tenant?.id) return;
-    
+
     setLoading(true);
     setError(null);
-    
+
     try {
       const { data, error: fetchError } = await supabase
         .from('email_domains')
@@ -70,10 +70,10 @@ export const useEmailDomainManagement = () => {
       });
 
       if (error) throw error;
-      
+
       toast.success('Domain provisioning started. Please add the DNS records shown below.');
       await fetchDomains();
-      
+
       return { success: true, data };
     } catch (err: any) {
       console.error('Error provisioning domain:', err);
@@ -92,15 +92,15 @@ export const useEmailDomainManagement = () => {
       });
 
       if (error) throw error;
-      
+
       const isVerified = data?.ok || data?.status === 'active';
-      
+
       toast[isVerified ? 'success' : 'info'](
-        isVerified 
-          ? 'Domain verified! Warmup period has begun.' 
+        isVerified
+          ? 'Domain verified! You can start sending.'
           : 'DNS records still pending. Please check your DNS settings.'
       );
-      
+
       await fetchDomains();
       return { success: true, verified: isVerified };
     } catch (err: any) {
@@ -114,8 +114,8 @@ export const useEmailDomainManagement = () => {
    * Update domain sender settings
    */
   const updateDomainSender = async (
-    domainId: string, 
-    fromName: string, 
+    domainId: string,
+    fromName: string,
     fromEmail: string,
     replyToEmail?: string | null
   ): Promise<{ success: boolean }> => {
@@ -144,44 +144,13 @@ export const useEmailDomainManagement = () => {
         .eq('id', domainId);
 
       if (error) throw error;
-      
+
       toast.success('Sender settings updated');
       await fetchDomains();
       return { success: true };
     } catch (err: any) {
       console.error('Error updating domain sender:', err);
       toast.error(err.message || 'Failed to update sender settings');
-      return { success: false };
-    }
-  };
-
-  /**
-   * Pause or resume a domain
-   */
-  const toggleDomainPause = async (domainId: string, pause: boolean): Promise<{ success: boolean }> => {
-    try {
-      const updates: any = {
-        manual_pause: pause,
-        updated_at: new Date().toISOString()
-      };
-
-      if (pause) {
-        updates.notes = `Manually paused on ${new Date().toISOString()}`;
-      }
-
-      const { error } = await supabase
-        .from('email_domains')
-        .update(updates)
-        .eq('id', domainId);
-
-      if (error) throw error;
-      
-      toast.success(pause ? 'Domain paused' : 'Domain resumed');
-      await fetchDomains();
-      return { success: true };
-    } catch (err: any) {
-      console.error('Error toggling domain pause:', err);
-      toast.error(err.message || 'Failed to update domain');
       return { success: false };
     }
   };
@@ -197,7 +166,7 @@ export const useEmailDomainManagement = () => {
         .eq('id', domainId);
 
       if (error) throw error;
-      
+
       toast.success('Domain removed');
       await fetchDomains();
       return { success: true };
@@ -224,7 +193,7 @@ export const useEmailDomainManagement = () => {
         .order('date', { ascending: true });
 
       if (error) throw error;
-      
+
       // Aggregate by date
       const aggregated = (data || []).reduce((acc: Record<string, DomainUsageStats>, row: any) => {
         const date = row.date;
@@ -248,7 +217,7 @@ export const useEmailDomainManagement = () => {
    * Check if a campaign can be sent
    */
   const checkCampaignQuota = async (
-    domainId: string | null, 
+    domainId: string | null,
     recipientCount: number
   ): Promise<QuotaCheckResult> => {
     if (!tenant?.id) {
@@ -263,12 +232,27 @@ export const useEmailDomainManagement = () => {
   const getDefaultSender = async () => {
     if (!tenant?.id) {
       return {
-        fromName: 'BloomSuite',
-        fromEmail: 'noreply@bloomsuite.app',
-        usingFallback: true
+        fromName: '',
+        fromEmail: '',
+        usingFallback: false,
+        reason: 'no_tenant'
       };
     }
-    return getActiveOrFallbackSender(tenant.id);
+
+    const sender = await getOperationalSender(tenant.id);
+    if (!sender) {
+      return {
+        fromName: '',
+        fromEmail: '',
+        usingFallback: false,
+        reason: 'no_operational_domain'
+      };
+    }
+
+    return {
+      ...sender,
+      usingFallback: false
+    };
   };
 
   /**
@@ -315,7 +299,6 @@ export const useEmailDomainManagement = () => {
     provisionDomainWithEntri,
     refreshVerificationStatus,
     updateDomainSender,
-    toggleDomainPause,
     deleteDomain,
     getDomainUsageStats,
     checkCampaignQuota,

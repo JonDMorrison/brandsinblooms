@@ -7,11 +7,10 @@ export interface SenderConfig {
   isVerified: boolean;
   senderEmail: string;
   displayName: string;
-  deliveryMethod: 'shared' | 'platform' | 'custom';
+  deliveryMethod: 'custom';
   companyName?: string;
   domain?: string;
   domainStatus?: string;
-  fallbackEmail?: string;
 }
 
 export const useSenderConfiguration = () => {
@@ -89,32 +88,6 @@ export const useSenderConfiguration = () => {
 
       const latestDomain = latestDomains && latestDomains.length > 0 ? latestDomains[0] : null;
 
-      // Check for tenant platform fallback email
-      const { data: tenantData, error: tenantError } = await supabase
-        .from('tenants')
-        .select('fallback_sender_email, fallback_from_name, name')
-        .eq('id', tenant.id)
-        .single();
-
-      if (tenantError) {
-        console.error('Error fetching tenant data:', tenantError);
-      }
-
-      if (tenantData?.fallback_sender_email) {
-        setSenderConfig({
-          isVerified: false,
-          senderEmail: tenantData.fallback_sender_email,
-          displayName: displayName,
-          deliveryMethod: 'platform',
-          companyName: displayName,
-          fallbackEmail: tenantData.fallback_sender_email,
-          domain: latestDomain?.domain,
-          domainStatus: latestDomain?.status,
-        });
-        setLoading(false);
-        return;
-      }
-
       // Check legacy company_profiles verification
       const hasLegacyVerification =
         companyProfile?.email_auth_status === 'verified' &&
@@ -134,12 +107,12 @@ export const useSenderConfiguration = () => {
         return;
       }
 
-      // Fallback to generic BloomSuite sender
+      // No operational sender configured
       setSenderConfig({
         isVerified: false,
-        senderEmail: 'noreply@bloomsuite.app',
+        senderEmail: '',
         displayName: displayName,
-        deliveryMethod: 'shared',
+        deliveryMethod: 'custom',
         companyName: displayName,
         domain: latestDomain?.domain,
         domainStatus: latestDomain?.status,
@@ -148,9 +121,9 @@ export const useSenderConfiguration = () => {
       console.error('Error in fetchSenderConfiguration:', error);
       setSenderConfig({
         isVerified: false,
-        senderEmail: 'noreply@bloomsuite.app',
+        senderEmail: '',
         displayName: 'Your Business',
-        deliveryMethod: 'shared'
+        deliveryMethod: 'custom'
       });
     } finally {
       setLoading(false);

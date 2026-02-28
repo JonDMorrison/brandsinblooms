@@ -39,17 +39,21 @@ serve(async (req) => {
       });
     }
 
-    // Update or insert subscription record
+    // Canonical suppression: record unsubscribe in suppression_list
     const { error: upsertError } = await supabase
-      .from('crm_subscriptions')
+      .from('suppression_list')
       .upsert({
-        email: email,
         tenant_id: tenantId,
-        opt_out: true,
-        opt_out_at: new Date().toISOString(),
-        source: 'unsubscribe_link'
+        email: email.toLowerCase().trim(),
+        suppression_type: 'unsubscribed',
+        channel: 'email',
+        reason: 'unsubscribe_link',
+        auto_suppressed: false,
+        suppressed_at: new Date().toISOString(),
+        lifted_at: null,
       }, {
-        onConflict: 'email,tenant_id'
+        onConflict: 'tenant_id,email,channel,suppression_type',
+        ignoreDuplicates: false,
       });
 
     if (upsertError) {

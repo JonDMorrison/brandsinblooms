@@ -1,25 +1,30 @@
-import React, { useState, useMemo } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
-import { useToast } from '@/hooks/use-toast';
-import { sendCampaignTestEmail, isValidEmail } from '@/lib/sendTestEmail';
-import { useCompanyInfo } from '@/hooks/useCompanyInfo';
-import { useFooterSettings } from '@/hooks/useFooterSettings';
-import { generateNewsletterFooterHtml } from '@/utils/newsletterFooterHtml';
-import { cn } from '@/lib/utils';
-import { 
-  Monitor, 
-  Smartphone, 
-  Send, 
+import React, { useState, useMemo } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
+import { sendCampaignTestEmail, isValidEmail } from "@/lib/sendTestEmail";
+import { useCompanyInfo } from "@/hooks/useCompanyInfo";
+import { useFooterSettings } from "@/hooks/useFooterSettings";
+import { generateNewsletterFooterHtml } from "@/utils/newsletterFooterHtml";
+import { cn } from "@/lib/utils";
+import {
+  Monitor,
+  Smartphone,
+  Send,
   Loader2,
   Mail,
   Eye,
   CheckCircle,
-  AlertCircle
-} from 'lucide-react';
+  AlertCircle,
+} from "lucide-react";
 
 interface FullEmailPreviewProps {
   isOpen: boolean;
@@ -38,31 +43,38 @@ export const FullEmailPreview: React.FC<FullEmailPreviewProps> = ({
   content,
   campaignId,
   senderName,
-  senderEmail
+  senderEmail,
 }) => {
   const { toast } = useToast();
   const { companyInfo } = useCompanyInfo();
   const { footerSettings, campaignOverrides } = useFooterSettings(campaignId);
-  const [viewMode, setViewMode] = useState<'desktop' | 'mobile'>('desktop');
-  const [testEmail, setTestEmail] = useState('');
+  const [viewMode, setViewMode] = useState<"desktop" | "mobile">("desktop");
+  const [testEmail, setTestEmail] = useState("");
   const [sendingTest, setSendingTest] = useState(false);
 
   // Generate the complete email HTML with footer
   const completeEmailHtml = useMemo(() => {
     // Check if content already has a proper footer - comprehensive detection
-    const hasUnsubscribe = content.toLowerCase().includes('unsubscribe');
-    const hasFooterStructure = content.includes('Manage Preferences') || 
-                               content.includes('manage-preferences') ||
-                               content.includes('margin-top: 40px') || // Footer container style
-                               content.includes('max-width: 640px'); // Footer inner container
-    const hasSocialIcons = content.includes('social-icons/') || 
-                           content.includes('/storage/v1/object/public/assets/social-icons/') ||
-                           content.includes('viewBox="0 0 24 24"');
-    
+    const hasUnsubscribe = content.toLowerCase().includes("unsubscribe");
+    const hasFooterStructure =
+      content.includes("Manage Preferences") ||
+      content.includes("manage-preferences") ||
+      content.includes("margin-top: 40px") || // Footer container style
+      content.includes("max-width: 640px"); // Footer inner container
+    const hasSocialIcons =
+      content.includes("social-icons/") ||
+      content.includes("/storage/v1/object/public/assets/social-icons/") ||
+      content.includes('viewBox="0 0 24 24"');
+
     // If we have unsubscribe AND either footer structure or social icons, don't add another footer
     const hasFooter = hasUnsubscribe && (hasFooterStructure || hasSocialIcons);
-    
-    console.log('[FullEmailPreview] Footer detection:', { hasUnsubscribe, hasFooterStructure, hasSocialIcons, hasFooter });
+
+    console.log("[FullEmailPreview] Footer detection:", {
+      hasUnsubscribe,
+      hasFooterStructure,
+      hasSocialIcons,
+      hasFooter,
+    });
 
     if (hasFooter) {
       return content;
@@ -73,31 +85,27 @@ export const FullEmailPreview: React.FC<FullEmailPreviewProps> = ({
     const brandFooterColors = companyInfo?.brandFooterColors;
 
     const effectiveColors = {
-      backgroundColor: 
-        footerStyling?.backgroundColor || 
-        brandFooterColors?.backgroundColor || 
+      backgroundColor:
+        footerStyling?.backgroundColor ||
+        brandFooterColors?.backgroundColor ||
         companyInfo?.brandPrimaryColor ||
-        '#283024',
-      textColor: 
-        footerStyling?.textColor || 
-        brandFooterColors?.textColor ||
-        '#F3F4F6',
-      linkColor: 
-        footerStyling?.linkColor || 
-        brandFooterColors?.linkColor ||
-        '#E5BFA7',
-      dividerColor: 
-        footerStyling?.dividerColor || 
+        "#283024",
+      textColor:
+        footerStyling?.textColor || brandFooterColors?.textColor || "#F3F4F6",
+      linkColor:
+        footerStyling?.linkColor || brandFooterColors?.linkColor || "#E5BFA7",
+      dividerColor:
+        footerStyling?.dividerColor ||
         brandFooterColors?.dividerColor ||
-        '#3D4A38',
-      logoBackgroundColor: 
-        footerStyling?.logoBackgroundColor || 
+        "#3D4A38",
+      logoBackgroundColor:
+        footerStyling?.logoBackgroundColor ||
         brandFooterColors?.logoBackgroundColor ||
-        '#22C55E',
-      logoTextColor: 
-        footerStyling?.logoTextColor || 
+        "#22C55E",
+      logoTextColor:
+        footerStyling?.logoTextColor ||
         brandFooterColors?.logoTextColor ||
-        '#FFFFFF',
+        "#FFFFFF",
     };
 
     const footerHtml = generateNewsletterFooterHtml({
@@ -117,8 +125,8 @@ export const FullEmailPreview: React.FC<FullEmailPreviewProps> = ({
       pinterestUrl: companyInfo?.pinterestUrl,
       youtubeUrl: companyInfo?.youtubeUrl,
       linkedinUrl: companyInfo?.linkedinUrl,
-      unsubscribeUrl: '#unsubscribe',
-      managePreferencesUrl: '#preferences',
+      unsubscribeUrl: "#unsubscribe",
+      managePreferencesUrl: "#preferences",
       legalText: companyInfo?.footerLegalText || footerSettings?.complianceText,
       footerBackgroundColor: effectiveColors.backgroundColor,
       footerTextColor: effectiveColors.textColor,
@@ -131,10 +139,10 @@ export const FullEmailPreview: React.FC<FullEmailPreviewProps> = ({
 
     // Combine content with footer
     // If content ends with </body> or </html>, insert footer before it
-    if (content.includes('</body>')) {
-      return content.replace('</body>', `${footerHtml}</body>`);
-    } else if (content.includes('</html>')) {
-      return content.replace('</html>', `${footerHtml}</html>`);
+    if (content.includes("</body>")) {
+      return content.replace("</body>", `${footerHtml}</body>`);
+    } else if (content.includes("</html>")) {
+      return content.replace("</html>", `${footerHtml}</html>`);
     } else {
       return `${content}${footerHtml}`;
     }
@@ -156,12 +164,12 @@ export const FullEmailPreview: React.FC<FullEmailPreviewProps> = ({
 
   const sendTestEmailHandler = async () => {
     const email = testEmail.trim();
-    
+
     if (!email) {
       toast({
         title: "Email Required",
         description: "Please enter an email address for the test",
-        variant: "destructive"
+        variant: "destructive",
       });
       return;
     }
@@ -170,43 +178,43 @@ export const FullEmailPreview: React.FC<FullEmailPreviewProps> = ({
       toast({
         title: "Invalid Email",
         description: "Please enter a valid email address",
-        variant: "destructive"
+        variant: "destructive",
       });
       return;
     }
 
     setSendingTest(true);
-    
+
     try {
       // IMPORTANT: Send raw content WITHOUT footer - the server-side edge function
       // will strip any existing footer and add the canonical server footer.
       // This prevents double footers in sent emails.
       const result = await sendCampaignTestEmail({
         email,
-        subject: subject || 'Test Email Campaign',
+        subject: subject || "Test Email Campaign",
         content: content, // Use RAW content - server adds footer
-        campaignId: campaignId
+        campaignId: campaignId,
       });
 
       if (result.success) {
         toast({
           title: "Test Email Sent!",
-          description: result.message
+          description: result.message,
         });
-        setTestEmail('');
+        setTestEmail("");
       } else {
         toast({
           title: "Failed to Send Test Email",
           description: result.message,
-          variant: "destructive"
+          variant: "destructive",
         });
       }
     } catch (error) {
-      console.error('Error sending test email:', error);
+      console.error("Error sending test email:", error);
       toast({
         title: "Error",
         description: "An unexpected error occurred. Please try again.",
-        variant: "destructive"
+        variant: "destructive",
       });
     } finally {
       setSendingTest(false);
@@ -227,33 +235,35 @@ export const FullEmailPreview: React.FC<FullEmailPreviewProps> = ({
             </DialogTitle>
           </div>
         </DialogHeader>
-        
+
         <div className="flex flex-col h-full max-h-[calc(90vh-120px)]">
           {/* Controls Bar */}
           <div className="flex items-center justify-between p-3 border-b bg-background">
             {/* View Mode Toggle */}
             <div className="flex items-center gap-2">
               <Button
-                variant={viewMode === 'desktop' ? 'default' : 'outline'}
+                variant={viewMode === "desktop" ? "default" : "outline"}
                 size="sm"
-                onClick={() => setViewMode('desktop')}
+                onClick={() => setViewMode("desktop")}
               >
                 <Monitor className="h-4 w-4 mr-1" />
                 Desktop
               </Button>
               <Button
-                variant={viewMode === 'mobile' ? 'default' : 'outline'}
+                variant={viewMode === "mobile" ? "default" : "outline"}
                 size="sm"
-                onClick={() => setViewMode('mobile')}
+                onClick={() => setViewMode("mobile")}
               >
                 <Smartphone className="h-4 w-4 mr-1" />
                 Mobile
               </Button>
             </div>
-            
+
             {/* Test Email Section */}
             <div className="flex items-center gap-2">
-              <Label htmlFor="test-email" className="text-sm whitespace-nowrap">Send test to:</Label>
+              <Label htmlFor="test-email" className="text-sm whitespace-nowrap">
+                Send test to:
+              </Label>
               <Input
                 id="test-email"
                 type="email"
@@ -262,8 +272,8 @@ export const FullEmailPreview: React.FC<FullEmailPreviewProps> = ({
                 placeholder="your@email.com"
                 className="w-44 h-8"
               />
-              <Button 
-                onClick={sendTestEmailHandler} 
+              <Button
+                onClick={sendTestEmailHandler}
                 disabled={sendingTest}
                 size="sm"
               >
@@ -284,11 +294,16 @@ export const FullEmailPreview: React.FC<FullEmailPreviewProps> = ({
             <div className="grid grid-cols-3 gap-4 text-sm">
               <div>
                 <span className="font-medium text-muted-foreground">From:</span>
-                <p className="truncate">{senderName || companyInfo?.name} &lt;{senderEmail || 'noreply@bloomsuite.app'}&gt;</p>
+                <p className="truncate">
+                  {senderName || companyInfo?.name}
+                  {senderEmail ? ` <${senderEmail}>` : ""}
+                </p>
               </div>
               <div>
-                <span className="font-medium text-muted-foreground">Subject:</span>
-                <p className="truncate">{subject || 'No subject line'}</p>
+                <span className="font-medium text-muted-foreground">
+                  Subject:
+                </span>
+                <p className="truncate">{subject || "No subject line"}</p>
               </div>
               <div>
                 <span className="font-medium text-muted-foreground">To:</span>
@@ -297,33 +312,33 @@ export const FullEmailPreview: React.FC<FullEmailPreviewProps> = ({
             </div>
           </div>
 
-          
           {/* Email Preview */}
           <div className="flex-1 overflow-auto p-4 bg-muted/50">
-            <div 
+            <div
               className={cn(
                 "mx-auto bg-white shadow-lg transition-all duration-300 rounded-lg overflow-hidden",
-                viewMode === 'mobile' ? 'max-w-sm' : 'max-w-2xl'
+                viewMode === "mobile" ? "max-w-sm" : "max-w-2xl",
               )}
             >
               <iframe
                 srcDoc={completeEmailHtml}
                 className="w-full border-0"
-                style={{ 
-                  minHeight: '600px',
-                  height: viewMode === 'mobile' ? '700px' : '800px'
+                style={{
+                  minHeight: "600px",
+                  height: viewMode === "mobile" ? "700px" : "800px",
                 }}
                 title="Full Email Preview"
                 sandbox="allow-same-origin"
               />
             </div>
           </div>
-          
+
           {/* Footer */}
           <div className="p-3 border-t bg-muted/30 flex items-center justify-between">
             <p className="text-xs text-muted-foreground">
               <Mail className="h-3 w-3 inline-block mr-1" />
-              This preview shows exactly what recipients will see, including the dynamically generated footer with social icons.
+              This preview shows exactly what recipients will see, including the
+              dynamically generated footer with social icons.
             </p>
             <Button variant="outline" size="sm" onClick={onClose}>
               Close Preview

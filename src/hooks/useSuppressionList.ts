@@ -32,6 +32,8 @@ export interface SuppressionStats {
   manual: number;
 }
 
+const EMAIL_BLOCKING_TYPES = ['unsubscribed', 'bounced', 'complaint', 'complained', 'hard_bounce'] as const;
+
 /**
  * Fetch paginated suppression list
  */
@@ -58,6 +60,10 @@ export function useSuppressionList(options?: {
         .is('lifted_at', null)
         .order('suppressed_at', { ascending: false })
         .range(page * pageSize, (page + 1) * pageSize - 1);
+
+      if (channel === 'email') {
+        query = query.in('suppression_type', EMAIL_BLOCKING_TYPES as unknown as string[]);
+      }
 
       if (search) {
         query = query.ilike('email', `%${search}%`);
@@ -91,7 +97,8 @@ export function useSuppressionStats() {
         .select('suppression_type, auto_suppressed')
         .eq('tenant_id', tenantId)
         .eq('channel', 'email')
-        .is('lifted_at', null);
+        .is('lifted_at', null)
+        .in('suppression_type', EMAIL_BLOCKING_TYPES as unknown as string[]);
 
       if (error) throw error;
 
@@ -122,60 +129,6 @@ export function useSuppressionStats() {
 }
 
 /**
- * Add email to suppression list (manual suppression)
- */
-export function useAddSuppression() {
-  const { tenant } = useTenant();
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({ 
-      email, 
-      reason 
-    }: { 
-      email: string; 
-      reason?: string;
-    }) => {
-      if (!tenant?.id) throw new Error('No tenant');
-
-      const { error } = await supabase
-        .from('suppression_list')
-        .upsert({
-          tenant_id: tenant.id,
-          email: email.toLowerCase().trim(),
-          suppression_type: 'manual',
-          channel: 'email',
-          reason: reason || 'Manual suppression',
-          auto_suppressed: false,
-          suppressed_at: new Date().toISOString()
-        }, {
-          onConflict: 'tenant_id,email,suppression_type',
-          ignoreDuplicates: false
-        });
-
-      if (error) throw error;
-
-      // Also update customer suppressed flag
-      await supabase
-        .from('crm_customers')
-        .update({ suppressed: true })
-        .eq('email', email.toLowerCase().trim())
-        .eq('tenant_id', tenant.id);
-
-      return { email };
-    },
-    onSuccess: (data) => {
-      toast.success(`Added ${data.email} to suppression list`);
-      queryClient.invalidateQueries({ queryKey: ['suppression-list'] });
-      queryClient.invalidateQueries({ queryKey: ['suppression-stats'] });
-    },
-    onError: (error: any) => {
-      toast.error(error.message || 'Failed to add suppression');
-    }
-  });
-}
-
-/**
  * Remove email from suppression list (unsuppress)
  */
 export function useRemoveSuppression() {
@@ -183,10 +136,10 @@ export function useRemoveSuppression() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ 
+    mutationFn: async ({
       suppressionId,
-      email 
-    }: { 
+      email
+    }: {
       suppressionId: string;
       email: string;
     }) => {
@@ -195,30 +148,12 @@ export function useRemoveSuppression() {
       // Soft-delete by setting lifted_at
       const { error } = await supabase
         .from('suppression_list')
-        .update({ 
+        .update({
           lifted_at: new Date().toISOString()
         })
         .eq('id', suppressionId);
 
       if (error) throw error;
-
-      // Check if there are any remaining suppressions for this email
-      const { data: remaining } = await supabase
-        .from('suppression_list')
-        .select('id')
-        .eq('tenant_id', tenant.id)
-        .eq('email', email.toLowerCase())
-        .is('lifted_at', null)
-        .limit(1);
-
-      // If no remaining suppressions, clear the customer flag
-      if (!remaining || remaining.length === 0) {
-        await supabase
-          .from('crm_customers')
-          .update({ suppressed: false })
-          .eq('email', email.toLowerCase().trim())
-          .eq('tenant_id', tenant.id);
-      }
 
       return { email };
     },

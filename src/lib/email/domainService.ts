@@ -50,49 +50,12 @@ export interface QuotaCheckResult {
     id: string;
     domain: string;
     status: string;
-    warmup_stage: number;
   };
   sender?: {
     from_name: string;
     from_email: string;
   };
-  limits?: {
-    daily_limit: number;
-    hourly_limit: number;
-    daily_used: number;
-    hourly_used: number;
-  };
-  using_fallback?: boolean;
 }
-
-export interface WarmupSchedule {
-  stage: number;
-  minDays: number;
-  dailyLimit: number;
-  hourlyLimit: number;
-}
-
-// Default limits for all domains (no warmup - full capacity immediately)
-export const DEFAULT_DOMAIN_LIMITS = {
-  dailyLimit: 2000,
-  hourlyLimit: 500,
-};
-
-// Legacy warmup schedule kept for reference only (no longer used)
-export const WARMUP_SCHEDULE: WarmupSchedule[] = [
-  { stage: 4, minDays: 0, dailyLimit: 2000, hourlyLimit: 500 },
-];
-
-// Reputation thresholds (relaxed to reduce false positives for small lists)
-export const REPUTATION_THRESHOLDS = {
-  BOUNCE_WARNING: 0.05,       // 5% - warning
-  BOUNCE_CRITICAL: 0.10,      // 10% - block sends
-  BOUNCE_AUTO_PAUSE: 0.15,    // 15% - auto-pause domain
-  COMPLAINT_WARNING: 0.003,   // 0.3% - warning
-  COMPLAINT_CRITICAL: 0.005,  // 0.5% - block sends
-  COMPLAINT_AUTO_PAUSE: 0.01, // 1% - auto-pause domain
-  MIN_SENDS_FOR_PAUSE: 50,    // Minimum emails before auto-pause kicks in
-};
 
 /**
  * Check if sending is allowed for a campaign
@@ -121,48 +84,35 @@ export async function canSendCampaign(
 }
 
 /**
- * Get the active sender for an account (custom domain or fallback)
+ * Get the operational sender for an account (custom domain only).
+ *
+ * Milestone 2: There is no fallback sender.
  */
-export async function getActiveOrFallbackSender(tenantId: string): Promise<{
+export async function getOperationalSender(tenantId: string): Promise<{
   fromName: string;
   fromEmail: string;
-  domainId?: string;
-  usingFallback: boolean;
-}> {
-  // Prefer Entri-managed domains first, then any verified domain
+  domainId: string;
+} | null> {
   const { data: domains, error } = await supabase
     .from('email_domains')
-    .select('*')
+    .select('id, domain, status, default_from_email, default_from_name, is_entri_managed, created_at')
     .eq('tenant_id', tenantId)
     .in('status', ['warming_up', 'active'])
-    .eq('manual_pause', false)
-    .order('is_entri_managed', { ascending: false }) // Entri-managed first
+    .order('is_entri_managed', { ascending: false })
     .order('created_at', { ascending: false })
     .limit(1);
 
   if (error || !domains || domains.length === 0) {
-    return {
-      fromName: 'BloomSuite',
-      fromEmail: 'noreply@bloomsuite.app',
-      usingFallback: true,
-    };
+    return null;
   }
 
-  const domain = domains[0] as EmailDomain;
-  
-  if (domain.default_from_email) {
-    return {
-      fromName: domain.default_from_name || 'BloomSuite',
-      fromEmail: domain.default_from_email,
-      domainId: domain.id,
-      usingFallback: false,
-    };
-  }
+  const domain = domains[0] as any;
+  const fromEmail = String(domain.default_from_email || `mail@${domain.domain}`);
 
   return {
-    fromName: 'BloomSuite',
-    fromEmail: 'noreply@bloomsuite.app',
-    usingFallback: true,
+    fromName: String(domain.default_from_name || 'BloomSuite'),
+    fromEmail,
+    domainId: String(domain.id),
   };
 }
 
@@ -196,14 +146,6 @@ export function getDomainStatusConfig(status: EmailDomain['status']): {
 }
 
 /**
- * Get warmup progress percentage (deprecated - always returns 100)
- */
-export function getWarmupProgress(domain: EmailDomain): number {
-  // Warmup removed - all domains are at full capacity
-  return 100;
-}
-
-/**
  * Format reputation rate as percentage
  */
 export function formatReputationRate(rate: number): string {
@@ -218,9 +160,26 @@ export function isReputationHealthy(domain: EmailDomain): {
   bounceWarning: boolean;
   complaintWarning: boolean;
 } {
-  const bounceWarning = domain.bounce_rate_30d > REPUTATION_THRESHOLDS.BOUNCE_WARNING;
-  const complaintWarning = domain.complaint_rate_30d > REPUTATION_THRESHOLDS.COMPLAINT_WARNING;
-  
+  return isReputationHealthyWithThresholds(domain, {
+    bounceWarningRate: Number.POSITIVE_INFINITY,
+    complaintWarningRate: Number.POSITIVE_INFINITY,
+  });
+}
+
+export function isReputationHealthyWithThresholds(
+  domain: EmailDomain,
+  thresholds: {
+    bounceWarningRate: number;
+    complaintWarningRate: number;
+  },
+): {
+  healthy: boolean;
+  bounceWarning: boolean;
+  complaintWarning: boolean;
+} {
+  const bounceWarning = domain.bounce_rate_30d > thresholds.bounceWarningRate;
+  const complaintWarning = domain.complaint_rate_30d > thresholds.complaintWarningRate;
+
   return {
     healthy: !bounceWarning && !complaintWarning,
     bounceWarning,
