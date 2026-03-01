@@ -28,10 +28,13 @@ export interface TenantEmailHealthDashboard {
 
 export const useTenantEmailHealthDashboard = (
   tenantId: string | null | undefined,
+  options?: {
+    enabled?: boolean;
+  },
 ) => {
   return useQuery({
     queryKey: ["tenant-email-health-dashboard", tenantId],
-    enabled: !!tenantId,
+    enabled: Boolean(tenantId) && (options?.enabled ?? true),
     queryFn: async (): Promise<TenantEmailHealthDashboard | null> => {
       const { data, error } = await supabase.rpc(
         "get_tenant_email_health_dashboard" as never,

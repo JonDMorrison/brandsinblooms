@@ -11,6 +11,7 @@ export interface SenderConfig {
   companyName?: string;
   domain?: string;
   domainStatus?: string;
+  replyToEmail?: string;
 }
 
 export const useSenderConfiguration = () => {
@@ -44,7 +45,7 @@ export const useSenderConfiguration = () => {
       // Include 'warming_up' status as it's also usable for sending
       const { data: activeDomains, error: domainsError } = await supabase
         .from('email_domains')
-        .select('id, domain, status, default_from_email, default_from_name')
+        .select('id, domain, status, default_from_email, default_from_name, default_reply_to')
         .eq('tenant_id', tenant.id)
         .in('status', ['active', 'warming_up'])
         .order('created_at', { ascending: false })
@@ -60,15 +61,18 @@ export const useSenderConfiguration = () => {
       // If we have an active custom domain, use it
       if (activeDomain) {
         const domainEmail = activeDomain.default_from_email || `mail@${activeDomain.domain}`;
+        const fromName = activeDomain.default_from_name || displayName;
+        const replyToEmail = activeDomain.default_reply_to || domainEmail;
 
         setSenderConfig({
           isVerified: true,
           senderEmail: domainEmail,
-          displayName: displayName,
+          displayName: fromName,
           deliveryMethod: 'custom',
           companyName: displayName,
           domain: activeDomain.domain,
           domainStatus: activeDomain.status,
+          replyToEmail,
         });
         setLoading(false);
         return;
@@ -102,6 +106,7 @@ export const useSenderConfiguration = () => {
           companyName: displayName,
           domain: companyProfile.email_domain,
           domainStatus: 'active',
+          replyToEmail: companyProfile.custom_sender_email!,
         });
         setLoading(false);
         return;
@@ -116,6 +121,7 @@ export const useSenderConfiguration = () => {
         companyName: displayName,
         domain: latestDomain?.domain,
         domainStatus: latestDomain?.status,
+        replyToEmail: '',
       });
     } catch (error) {
       console.error('Error in fetchSenderConfiguration:', error);
@@ -123,7 +129,8 @@ export const useSenderConfiguration = () => {
         isVerified: false,
         senderEmail: '',
         displayName: 'Your Business',
-        deliveryMethod: 'custom'
+        deliveryMethod: 'custom',
+        replyToEmail: ''
       });
     } finally {
       setLoading(false);

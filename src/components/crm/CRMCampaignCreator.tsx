@@ -802,6 +802,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   const urlContentTaskId = searchParams.get("contentTaskId");
   const templateIdParam = searchParams.get("templateId");
   const finalContentTaskId = propContentTaskId || urlContentTaskId;
+  const { query: bundleQuery } = useGeneratedBundle(bundleIdParam || undefined);
 
   // Parse URL personas early
   const personaParam = searchParams.get("persona");
@@ -822,6 +823,12 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
 
   const [campaignName, setCampaignName] = useState("");
 
+  const [subjectLine, setSubjectLine] = useState("");
+
+  const [preheaderText, setPreheaderText] = useState("");
+
+  const [blocks, setBlocks] = useState<ContentBlock[]>([]);
+
   // Track used images to prevent duplicates
   const [usedImageIds, setUsedImageIds] = useState<Set<string>>(new Set());
 
@@ -839,6 +846,9 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   // Schedule state
   const [schedule, setSchedule] = useState<ScheduleOption>({ type: "now" });
   const skipNextSchedulePersistRef = useRef(false);
+  const [campaignControlBusyAction, setCampaignControlBusyAction] = useState<
+    "pause" | "resume" | "stop" | null
+  >(null);
 
   const { cloneCampaign, isCloning: isCloningCampaign } = useCampaignCloning();
   const [lockedScheduleDialogOpen, setLockedScheduleDialogOpen] =
@@ -858,6 +868,8 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   const [campaignStatus, setCampaignStatus] = useState<string>("draft");
   const [scheduledAt, setScheduledAt] = useState<string | null>(null);
   const [isScheduleProcessing, setIsScheduleProcessing] = useState(false);
+  const isContentLocked =
+    campaignStatus === "sending" || campaignStatus === "sent";
 
   const isScheduleLockedMessage = useCallback((message: string) => {
     const normalized = (message || "").toLowerCase();
@@ -871,109 +883,44 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   }, []);
 
   const openLockedScheduleDialog = useCallback(
-    (args: {
+    (params: {
       message: string;
       desiredSchedule?: { date: Date; timezone: string };
       statusOverride?: string;
     }) => {
-      setLockedScheduleDialogMessage(args.message);
-      setLockedScheduleDialogStatus(args.statusOverride ?? campaignStatus);
-      setPendingLockedSchedule(args.desiredSchedule ?? null);
+      const normalized = (params.message || "").toLowerCase();
+      const inferredStatus = normalized.includes("sent")
+        ? "sent"
+        : normalized.includes("sending") ||
+            normalized.includes("in progress") ||
+            normalized.includes("already in progress")
+          ? "sending"
+          : "draft";
+
+      const status = params.statusOverride || inferredStatus;
+
+      setLockedScheduleDialogMessage(params.message || "");
+      setLockedScheduleDialogStatus(status);
+
+      if (params.desiredSchedule && status === "sent") {
+        setPendingLockedSchedule({
+          date: params.desiredSchedule.date,
+          timezone: params.desiredSchedule.timezone,
+        });
+      } else {
+        setPendingLockedSchedule(null);
+      }
+
       setLockedScheduleDialogOpen(true);
     },
-    [campaignStatus],
+    [
+      setLockedScheduleDialogMessage,
+      setLockedScheduleDialogOpen,
+      setLockedScheduleDialogStatus,
+      setPendingLockedSchedule,
+    ],
   );
 
-  const inferLockedScheduleStatus = useCallback(
-    (message: string): string => {
-      const normalized = (message || "").toLowerCase();
-      if (normalized.includes("sent") || normalized.includes("already sent")) {
-        return "sent";
-      }
-      if (
-        normalized.includes("in progress") ||
-        normalized.includes("sending") ||
-        normalized.includes("applied")
-      ) {
-        return "sending";
-      }
-      return campaignStatus;
-    },
-    [campaignStatus],
-  );
-
-  // Derived: is content locked (scheduled or sending)
-  const isContentLocked =
-    campaignStatus === "scheduled" || campaignStatus === "sending";
-
-  const [pendingDraftData, setPendingDraftData] = useState<{
-    state: any;
-    draftTimestamp?: string;
-    dbTimestamp?: string;
-  } | null>(null);
-
-  // CRITICAL FIX: Generate unique session ID for new campaigns to prevent cross-contamination
-  // Uses helper function that ensures:
-  // - Existing campaigns (UUID slug) use campaignSlug as session ID
-  // - New campaigns get unique session ID that cannot collide with other campaigns
-  const sessionIdRef = useRef<string | null>(null);
-  if (sessionIdRef.current === null) {
-    sessionIdRef.current = generateCampaignSessionId(campaignSlug);
-    console.log(
-      `🔑 Generated session ID: ${sessionIdRef.current} for slug: ${campaignSlug || "new"}`,
-    );
-  }
-
-  // Reset tracker when campaign changes
-  useEffect(() => {
-    setUsedImageIds(new Set());
-  }, [campaignSlug]);
-
-  // Page persistence hook with unique session ID and lastModifiedAt support
-  const {
-    persistState,
-    restoreState,
-    clearPersistedState,
-    getPersistedTimestamp,
-  } = usePagePersistence<{
-    campaignName: string;
-    subjectLine: string;
-    preheaderText: string;
-    blocks: ContentBlock[];
-    showPreview: boolean;
-    selectedPersonas: any[];
-    selectedSegments: any[];
-    flow?: string;
-  }>({
-    key: "campaign_creator",
-    sessionId: sessionIdRef.current,
-    ttl: 2 * 60 * 60 * 1000, // 2 hours
-    onHidden: () => {
-      // Persist with current lastModifiedAt
-      persistState(
-        {
-          campaignName,
-          subjectLine,
-          preheaderText,
-          blocks,
-          showPreview,
-          selectedPersonas,
-          selectedSegments,
-          flow: searchParams.get("flow") || undefined,
-        },
-        lastModifiedAt,
-      );
-    },
-  });
-
-  const { query: bundleQuery } = useGeneratedBundle(bundleIdParam || undefined);
-
-  const [subjectLine, setSubjectLine] = useState("");
-  const [preheaderText, setPreheaderText] = useState("");
-  const [blocks, setBlocks] = useState<ContentBlock[]>([]);
-
-  // UNIFIED PREFILL EFFECT - Runs exactly once when component mounts
-  // Handles: URL prefillData, bundleId, templateId, contentTaskId
   useEffect(() => {
     if (hasAppliedPrefillRef.current) {
       console.log("🚫 Prefill already applied, skipping");
@@ -1213,6 +1160,135 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   const [showAIImageDialog, setShowAIImageDialog] = useState(false);
   const [editingBlockId, setEditingBlockId] = useState<string | null>(null);
 
+  const refreshCampaignStatusFromDb = useCallback(
+    async (campaignId: string) => {
+      const { data, error } = await supabase
+        .from("crm_campaigns")
+        .select("status, scheduled_at")
+        .eq("id", campaignId)
+        .maybeSingle();
+
+      if (error) {
+        if (import.meta.env.DEV) {
+          console.warn("Failed to refresh campaign status:", error);
+        }
+        return;
+      }
+
+      if (data?.status) {
+        setCampaignStatus(data.status);
+      }
+      setScheduledAt(data?.scheduled_at ?? null);
+    },
+    [],
+  );
+
+  const handlePauseCampaignSending = useCallback(async () => {
+    if (!existingCampaignId) {
+      toast({
+        title: "Pause unavailable",
+        description: "Save the campaign first.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setCampaignControlBusyAction("pause");
+    const { data, error } = await supabase.rpc("pause_email_campaign_sending", {
+      p_campaign_id: existingCampaignId,
+    });
+    setCampaignControlBusyAction(null);
+
+    if (error) {
+      toast({
+        title: "Pause failed",
+        description: error.message || "Action failed",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const row = Array.isArray(data) ? data[0] : data;
+    toast({
+      title: "Campaign paused",
+      description: `Paused ${row?.messages_paused ?? 0} messages and ${row?.jobs_paused ?? 0} jobs.`,
+    });
+    await refreshCampaignStatusFromDb(existingCampaignId);
+  }, [existingCampaignId, refreshCampaignStatusFromDb, toast]);
+
+  const handleResumeCampaignSending = useCallback(async () => {
+    if (!existingCampaignId) {
+      toast({
+        title: "Resume unavailable",
+        description: "Save the campaign first.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setCampaignControlBusyAction("resume");
+    const { data, error } = await supabase.rpc(
+      "resume_email_campaign_sending",
+      {
+        p_campaign_id: existingCampaignId,
+      },
+    );
+    setCampaignControlBusyAction(null);
+
+    if (error) {
+      toast({
+        title: "Resume failed",
+        description: error.message || "Action failed",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const row = Array.isArray(data) ? data[0] : data;
+    toast({
+      title: "Campaign resumed",
+      description: `Resumed ${row?.messages_resumed ?? 0} messages and ${row?.jobs_resumed ?? 0} jobs.`,
+    });
+    await refreshCampaignStatusFromDb(existingCampaignId);
+  }, [existingCampaignId, refreshCampaignStatusFromDb, toast]);
+
+  const handleStopCampaignSending = useCallback(async () => {
+    if (!existingCampaignId) {
+      toast({
+        title: "Stop unavailable",
+        description: "Save the campaign first.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setCampaignControlBusyAction("stop");
+    const { data, error } = await supabase.rpc(
+      "stop_email_campaign_sending" as never,
+      {
+        p_campaign_id: existingCampaignId,
+        p_reason: "stopped_by_user",
+      } as never,
+    );
+    setCampaignControlBusyAction(null);
+
+    if (error) {
+      toast({
+        title: "Stop failed",
+        description: error.message || "Action failed",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const row = Array.isArray(data) ? data[0] : data;
+    toast({
+      title: "Campaign stopped",
+      description: `Stopped ${row?.messages_stopped ?? 0} messages and ${row?.jobs_stopped ?? 0} jobs.`,
+    });
+    await refreshCampaignStatusFromDb(existingCampaignId);
+  }, [existingCampaignId, refreshCampaignStatusFromDb, toast]);
+
   // Sender configuration for domain verification
   const {
     senderConfig,
@@ -1261,6 +1337,11 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   // Auto-save functionality with queue-based protection
   const [isAutoSaving, setIsAutoSaving] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const { persistState, restoreState, clearPersistedState } =
+    usePagePersistence<any>({
+      key: "crm-campaign-creator",
+      sessionId: existingCampaignId || campaignSlug || "new",
+    });
   const autoSaveTimeoutRef = useRef<NodeJS.Timeout>();
   const { enqueueSave, cancelPendingSaves } = useSaveQueue();
   const isCreatingDraftRef = useRef(false);
@@ -1415,7 +1496,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                       date: schedule.date as Date,
                       timezone: schedule.timezone,
                     },
-                    statusOverride: inferLockedScheduleStatus(message),
                   });
 
                   // Revert UI selection back to "Now" so it doesn't look like it saved.
@@ -5512,7 +5592,32 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
       // Handle edge function errors
       if (sendError) {
         console.error("❌ Edge function error:", sendError);
-        throw new Error(sendError.message || "Failed to invoke email service");
+
+        const contextBody = (sendError as any)?.context?.body;
+        let parsedBody: any = undefined;
+
+        if (typeof contextBody === "string" && contextBody.length > 0) {
+          try {
+            parsedBody = JSON.parse(contextBody);
+          } catch {
+            parsedBody = { error: contextBody };
+          }
+        } else if (contextBody && typeof contextBody === "object") {
+          parsedBody = contextBody;
+        }
+
+        const extractedMessage =
+          typeof parsedBody?.error === "string"
+            ? parsedBody.error
+            : typeof parsedBody?.message === "string"
+              ? parsedBody.message
+              : "";
+
+        throw new Error(
+          extractedMessage ||
+            sendError.message ||
+            "Failed to invoke email service",
+        );
       }
 
       // Handle error responses from edge function
@@ -5633,7 +5738,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                   date: newSchedule.date as Date,
                   timezone: newSchedule.timezone,
                 },
-                statusOverride: inferLockedScheduleStatus(message),
               });
               return;
             }
@@ -5679,7 +5783,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           if (isScheduleLockedMessage(message)) {
             openLockedScheduleDialog({
               message,
-              statusOverride: inferLockedScheduleStatus(message),
             });
             return;
           }
@@ -5870,6 +5973,8 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
 
       {/* Sticky Action Bar */}
       <CampaignActionBar
+        campaignId={existingCampaignId}
+        campaignStatus={campaignStatus}
         campaignName={campaignName}
         subjectLine={subjectLine}
         blocks={blocks}
@@ -6310,10 +6415,9 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
             proceedWithSending();
           }}
           campaignName={campaignName}
-          subjectLine={subjectLine}
           selectedSegments={selectedSegments}
           selectedPersonas={selectedPersonas}
-          totalContacts={
+          totalRecipients={
             selectedSegments.length === 0 && selectedPersonas.length === 0
               ? totalCustomerCount
               : selectedPersonas.reduce(
@@ -6329,6 +6433,21 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                   0,
                 )
           }
+          schedule={
+            schedule.type === "scheduled" && schedule.date
+              ? {
+                  type: "scheduled",
+                  sendAt: schedule.date,
+                  timezone: schedule.timezone,
+                }
+              : { type: "immediate" }
+          }
+          senderIdentity={{
+            senderName: senderConfig?.displayName || "—",
+            senderEmail: senderConfig?.senderEmail || "—",
+            replyToEmail: senderConfig?.replyToEmail || null,
+            sendingDomain: senderConfig?.domain || null,
+          }}
           loading={sending}
         />
 

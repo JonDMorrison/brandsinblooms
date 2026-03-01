@@ -67,11 +67,15 @@ async function getCampaignReputationPolicy(supabase: any, campaignId: string): P
   }
 
   const row = Array.isArray(data) ? data[0] : data;
+  const rawRecipientCap = Number(row?.recipient_cap);
+  const normalizedRecipientCap = Number.isFinite(rawRecipientCap) && rawRecipientCap > 0
+    ? rawRecipientCap
+    : null;
   return {
     score: Number(row?.score ?? 100),
     tier: (row?.tier || 'normal') as CampaignReputationPolicy['tier'],
     action: (row?.action || 'allow') as CampaignReputationPolicy['action'],
-    recipient_cap: Number.isFinite(Number(row?.recipient_cap)) ? Number(row.recipient_cap) : null,
+    recipient_cap: normalizedRecipientCap,
     job_batch_size: Number.isFinite(Number(row?.job_batch_size)) ? Number(row.job_batch_size) : DEFAULT_BATCH_SIZE_PER_JOB,
     send_pacing_multiplier: Number.isFinite(Number(row?.send_pacing_multiplier)) ? Number(row.send_pacing_multiplier) : 1,
   };
@@ -647,9 +651,25 @@ serve(async (req) => {
       });
     }
 
-    const { error: insertError } = await supabase
+    let { error: insertError } = await supabase
       .from('email_send_jobs')
       .upsert(jobInserts, { onConflict: 'campaign_id,batch_index', ignoreDuplicates: true });
+
+    // If PostgREST schema cache is stale (or remote schema is behind), retry without `available_at`.
+    if (
+      insertError &&
+      String((insertError as any)?.code || '') === 'PGRST204' &&
+      String((insertError as any)?.message || '').includes("'available_at'")
+    ) {
+      console.warn('⚠️ email_send_jobs.available_at not in schema cache; retrying job upsert without available_at');
+      const jobInsertsWithoutAvailableAt = jobInserts.map(({ available_at: _omit, ...rest }) => rest);
+      ({ error: insertError } = await supabase
+        .from('email_send_jobs')
+        .upsert(jobInsertsWithoutAvailableAt, {
+          onConflict: 'campaign_id,batch_index',
+          ignoreDuplicates: true,
+        }));
+    }
 
     if (insertError) {
       console.error('❌ Failed to create batch jobs:', insertError);

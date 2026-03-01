@@ -154,6 +154,17 @@ function formatPauseCategory(category: string | null | undefined) {
   return "Campaign is currently paused.";
 }
 
+function formatStatusLabel(status: string | null | undefined) {
+  const raw = (status || "").trim();
+  if (!raw) return "Unknown";
+
+  return raw
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .toLowerCase()
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
 export function CampaignDeliveryStatusCard(props: {
   campaignId: string | null | undefined;
   timezone?: string;
@@ -165,6 +176,7 @@ export function CampaignDeliveryStatusCard(props: {
   const [campaign, setCampaign] = useState<CampaignRow | null>(null);
   const [progress, setProgress] = useState<ProgressRow | null>(null);
   const [progressUnavailable, setProgressUnavailable] = useState(false);
+  const [isStatusRpcMissing, setIsStatusRpcMissing] = useState(false);
   const [showRetryDialog, setShowRetryDialog] = useState(false);
   const [isRetryingFailed, setIsRetryingFailed] = useState(false);
   const [showMarkCompletedDialog, setShowMarkCompletedDialog] = useState(false);
@@ -179,41 +191,90 @@ export function CampaignDeliveryStatusCard(props: {
 
     const load = async () => {
       // Prefer the SECURITY DEFINER RPC to avoid RLS drift breaking this UI.
-      try {
-        const { data: rpcData, error: rpcError } = await supabase.rpc(
-          "get_campaign_delivery_status_tenant_safe" as any,
-          { p_campaign_id: campaignId },
-        );
+      if (!isStatusRpcMissing) {
+        try {
+          const { data: rpcData, error: rpcError } = await supabase.rpc(
+            "get_campaign_delivery_status_tenant_safe" as any,
+            { p_campaign_id: campaignId },
+          );
 
-        if (cancelled) return;
+          if (cancelled) return;
 
-        if (!rpcError) {
-          const rpcRow = ((Array.isArray(rpcData) ? rpcData[0] : rpcData) ||
-            null) as CampaignRow | null;
+          if (!rpcError) {
+            const rpcRow = ((Array.isArray(rpcData) ? rpcData[0] : rpcData) ||
+              null) as CampaignRow | null;
 
-          if (rpcRow) {
-            setCampaign((prev) =>
-              isSameCampaign(prev, rpcRow) ? prev : rpcRow,
-            );
-            return;
+            if (rpcRow) {
+              setCampaign((prev) =>
+                isSameCampaign(prev, rpcRow) ? prev : rpcRow,
+              );
+              return;
+            }
+          } else {
+            const message = (rpcError.message || "").toLowerCase();
+            const code = (rpcError.code || "").toLowerCase();
+            const isMissingFunction =
+              code === "pgrst202" ||
+              code === "42883" ||
+              message.includes("could not find the function") ||
+              message.includes("schema cache") ||
+              message.includes("get_campaign_delivery_status_tenant_safe");
+
+            if (isMissingFunction) {
+              setIsStatusRpcMissing(true);
+            } else if (import.meta.env.DEV) {
+              console.warn("Failed to load campaign delivery status via RPC", {
+                campaignId,
+                error: rpcError,
+              });
+            }
           }
-        } else {
-          if (import.meta.env.DEV) {
+        } catch (e: any) {
+          if (cancelled) return;
+          const message = (e?.message || "").toLowerCase();
+          if (
+            message.includes("get_campaign_delivery_status_tenant_safe") ||
+            message.includes("could not find the function")
+          ) {
+            setIsStatusRpcMissing(true);
+          } else if (import.meta.env.DEV) {
             console.warn("Failed to load campaign delivery status via RPC", {
               campaignId,
-              error: rpcError,
+              error: e,
             });
           }
         }
-      } catch (e: any) {
-        if (cancelled) return;
+      }
+
+      if (cancelled) return;
+
+      // Fallback path when RPC is unavailable.
+      const { data: fallbackRow, error: fallbackError } = await supabase
+        .from("crm_campaigns")
+        .select(
+          "id,status,scheduled_at,send_started_at,sent_at,updated_at,send_error,send_blocked_reason,is_throttled,throttle_reasons,throttled_at,throttle_last_evaluated_at",
+        )
+        .eq("id", campaignId)
+        .maybeSingle();
+
+      if (cancelled) return;
+
+      if (fallbackError) {
         if (import.meta.env.DEV) {
-          console.warn("Failed to load campaign delivery status via RPC", {
+          console.warn("Failed to load campaign delivery status via fallback", {
             campaignId,
-            error: e,
+            error: fallbackError,
           });
         }
+        return;
       }
+
+      const normalizedFallbackRow = (fallbackRow || null) as CampaignRow | null;
+      setCampaign((prev) =>
+        isSameCampaign(prev, normalizedFallbackRow)
+          ? prev
+          : normalizedFallbackRow,
+      );
 
       if (cancelled) return;
     };
@@ -225,7 +286,7 @@ export function CampaignDeliveryStatusCard(props: {
       cancelled = true;
       if (intervalId) window.clearInterval(intervalId);
     };
-  }, [campaignId, effectivePollMs]);
+  }, [campaignId, effectivePollMs, isStatusRpcMissing]);
 
   useEffect(() => {
     if (!campaignId) return;
@@ -295,7 +356,31 @@ export function CampaignDeliveryStatusCard(props: {
     };
   }, [campaignId, campaign?.status, effectivePollMs]);
 
-  const status = (campaign?.status || "draft").toLowerCase();
+  const inferredStatusFromProgress = useMemo(() => {
+    if (!progress) return null;
+
+    const total = progress.total || 0;
+    const queued = progress.queued || 0;
+    const sending = progress.sending || 0;
+    const sent = progress.sent || 0;
+    const failed = progress.failed || 0;
+    const skipped = progress.skipped || 0;
+
+    if (sending > 0) return "sending";
+    if (queued > 0) return "queued";
+
+    if (total > 0 && sent + failed + skipped >= total) {
+      return failed > 0 ? "sent_with_errors" : "sent";
+    }
+
+    return null;
+  }, [progress]);
+
+  const campaignStatus = (campaign?.status || "").toLowerCase();
+  const status =
+    campaignStatus && campaignStatus !== "draft"
+      ? campaignStatus
+      : inferredStatusFromProgress || campaignStatus || "draft";
 
   const failedCount = progress?.failed || 0;
   const canRetryFailed = failedCount > 0 && !progressUnavailable;
@@ -336,23 +421,37 @@ export function CampaignDeliveryStatusCard(props: {
   }, [progress]);
 
   const badge = useMemo(() => {
+    const statusLabel = formatStatusLabel(status);
+
     if (status === "sent")
       return {
-        label: "Completed",
+        label: statusLabel,
         variant: "default" as const,
         icon: CheckCircle2,
       };
     if (status === "sending")
-      return { label: "Sending", variant: "secondary" as const, icon: Clock };
+      return {
+        label: statusLabel,
+        variant: "secondary" as const,
+        icon: Clock,
+      };
     if (status === "queued" || status === "partially_queued")
-      return { label: "Queued", variant: "secondary" as const, icon: Mail };
+      return {
+        label: statusLabel,
+        variant: "secondary" as const,
+        icon: Mail,
+      };
     if (status === "failed" || status === "sent_with_errors")
       return {
-        label: "Needs Review",
+        label: statusLabel,
         variant: "destructive" as const,
         icon: AlertTriangle,
       };
-    return { label: "Status", variant: "secondary" as const, icon: Info };
+    return {
+      label: statusLabel,
+      variant: "secondary" as const,
+      icon: Info,
+    };
   }, [status]);
 
   const errorTextRaw =
@@ -371,10 +470,13 @@ export function CampaignDeliveryStatusCard(props: {
     formatThresholdCategory(reason),
   );
 
-  const isPaused = status === "paused";
   const pausedReason = formatPauseCategory(
     campaign?.send_blocked_reason || campaign?.send_error,
   );
+
+  const isPaused =
+    status === "paused" ||
+    (campaign?.send_blocked_reason || "").toLowerCase().includes("paused");
 
   const pausedNextSteps = useMemo(() => {
     const exceeded = governanceVisibility?.threshold_exceeded || [];
@@ -683,22 +785,28 @@ export function CampaignDeliveryStatusCard(props: {
         </AlertDialogContent>
       </AlertDialog>
 
-      {hasAnyScheduleHistory && (
+      {hasAnyDeliverySignals && (
         <Card className="border-slate-200/70 bg-gradient-to-br from-white to-slate-50">
           <CardHeader className="pb-4">
-            <div className="flex items-start justify-between gap-4">
+            <div className="flex items-center justify-between gap-4">
               <div>
-                <CardTitle className="text-xl">Last Schedule Run</CardTitle>
+                <CardTitle className="text-xl">
+                  Campaign Sending Status
+                </CardTitle>
                 <CardDescription>
-                  {lastScheduleRunAt
-                    ? `Your schedule was last processed ${lastScheduleRunAt}.`
-                    : "This campaign has recent delivery activity."}
+                  {emailsLine
+                    ? `Sent ${emailsLine.sent} of ${emailsLine.total} email(s).`
+                    : lastScheduleRunAt
+                      ? `Last activity ${lastScheduleRunAt}.`
+                      : "This campaign has recent delivery activity."}
                 </CardDescription>
               </div>
-              <Badge variant={badge.variant} className="gap-1">
-                <badge.icon className="h-3.5 w-3.5" />
-                {badge.label}
-              </Badge>
+              <div className="flex items-center gap-2">
+                <Badge variant={badge.variant} className="gap-1">
+                  <badge.icon className="h-3.5 w-3.5" />
+                  {badge.label}
+                </Badge>
+              </div>
             </div>
           </CardHeader>
 

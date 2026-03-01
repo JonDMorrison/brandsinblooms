@@ -10,6 +10,7 @@ export type SendErrorCode =
   | 'NO_CONTENT'
   | 'NO_OPTED_IN_CUSTOMERS'
   | 'EMAIL_SERVICE_NOT_CONFIGURED'
+  | 'SENDER_DOMAIN_REQUIRED'
   | 'QUOTA_EXCEEDED'
   | 'DOMAIN_NON_COMPLIANT_FOR_SCALE'
   | 'DOMAIN_BLOCKED'
@@ -59,6 +60,12 @@ export const SEND_ERRORS: Record<SendErrorCode, Omit<SendError, 'code'>> = {
     description: "The email service (Resend) is not configured properly.",
     action: "Please contact support to configure email sending.",
     recoverable: false
+  },
+  SENDER_DOMAIN_REQUIRED: {
+    title: "Sender domain required",
+    description: "Campaign sending requires a configured custom sending domain.",
+    action: "Go to Email Settings to configure and verify your sending domain, then try again.",
+    recoverable: true
   },
   QUOTA_EXCEEDED: {
     title: "Sending limit reached",
@@ -111,6 +118,9 @@ export function parseEdgeFunctionError(error: any, responseData?: any): SendErro
   const message = error?.message || error?.toString() || '';
   const data = responseData || {};
 
+  const reason = typeof data?.reason === 'string' ? data.reason : '';
+  const bodyError = typeof data?.error === 'string' ? data.error : '';
+
   // Check for specific error patterns from send-email-campaign edge function
   if (message.includes('Campaign ID is required')) {
     return { code: 'CAMPAIGN_NOT_FOUND', ...SEND_ERRORS.CAMPAIGN_NOT_FOUND };
@@ -122,6 +132,15 @@ export function parseEdgeFunctionError(error: any, responseData?: any): SendErro
 
   if (message.includes('Email service not configured') || message.includes('RESEND_API_KEY')) {
     return { code: 'EMAIL_SERVICE_NOT_CONFIGURED', ...SEND_ERRORS.EMAIL_SERVICE_NOT_CONFIGURED };
+  }
+
+  if (
+    reason === 'sender_domain_required' ||
+    bodyError.includes('custom domain sender') ||
+    message.includes('custom domain sender') ||
+    message.includes('sender domain')
+  ) {
+    return { code: 'SENDER_DOMAIN_REQUIRED', ...SEND_ERRORS.SENDER_DOMAIN_REQUIRED };
   }
 
   if (message.includes('no segments selected') || message.includes('Campaign has no segments')) {
@@ -162,7 +181,7 @@ export function parseEdgeFunctionError(error: any, responseData?: any): SendErro
   return {
     code: 'UNKNOWN_ERROR',
     title: 'Send failed',
-    description: message || SEND_ERRORS.UNKNOWN_ERROR.description,
+    description: bodyError || message || SEND_ERRORS.UNKNOWN_ERROR.description,
     action: SEND_ERRORS.UNKNOWN_ERROR.action,
     recoverable: true
   };

@@ -81,7 +81,7 @@ export function useSuppressionList(options?: {
 /**
  * Get suppression statistics
  */
-export function useSuppressionStats() {
+export function useSuppressionStats(options?: { enabled?: boolean }) {
   const { tenant } = useTenant();
   const tenantId = tenant?.id;
 
@@ -123,7 +123,7 @@ export function useSuppressionStats() {
         manual
       };
     },
-    enabled: !!tenantId,
+    enabled: Boolean(tenantId) && (options?.enabled ?? true),
     staleTime: 60000,
   });
 }
@@ -162,8 +162,14 @@ export function useRemoveSuppression() {
       queryClient.invalidateQueries({ queryKey: ['suppression-list'] });
       queryClient.invalidateQueries({ queryKey: ['suppression-stats'] });
     },
-    onError: (error: any) => {
-      toast.error(error.message || 'Failed to remove suppression');
+    onError: (error: unknown) => {
+      const message =
+        error instanceof Error
+          ? error.message
+          : typeof error === 'string'
+            ? error
+            : null;
+      toast.error(message || 'Failed to remove suppression');
     }
   });
 }

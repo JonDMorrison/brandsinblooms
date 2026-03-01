@@ -569,6 +569,7 @@ export default function AdminGovernanceConfig() {
         <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Field
             label="Hard Bounce %"
+            helperText="Automatically stops sending when too many emails permanently fail (bad addresses)."
             value={toPercent(config.hard_stop_thresholds.hard_bounce_rate)}
             onChange={updatePercent((n, v) => {
               n.hard_stop_thresholds.hard_bounce_rate = v;
@@ -577,6 +578,7 @@ export default function AdminGovernanceConfig() {
           />
           <Field
             label="Complaint %"
+            helperText="Automatically stops sending when recipients report too many spam/complaints."
             value={toPercent(config.hard_stop_thresholds.complaint_rate)}
             onChange={updatePercent((n, v) => {
               n.hard_stop_thresholds.complaint_rate = v;
@@ -585,6 +587,7 @@ export default function AdminGovernanceConfig() {
           />
           <Field
             label="Spam %"
+            helperText="Automatically stops sending when spam signals exceed this threshold."
             value={toPercent(config.hard_stop_thresholds.spam_rate)}
             onChange={updatePercent((n, v) => {
               n.hard_stop_thresholds.spam_rate = v;
@@ -593,6 +596,7 @@ export default function AdminGovernanceConfig() {
           />
           <Field
             label="Delivery Failure %"
+            helperText="Automatically stops sending when too many deliveries fail (rejects/timeouts)."
             value={toPercent(config.hard_stop_thresholds.failed_delivery_rate)}
             onChange={updatePercent((n, v) => {
               n.hard_stop_thresholds.failed_delivery_rate = v;
@@ -612,6 +616,7 @@ export default function AdminGovernanceConfig() {
         <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Field
             label="Warning Hard Bounce %"
+            helperText="Shows a warning (and may throttle) before a hard stop if permanent failures increase."
             value={toPercent(config.warning_thresholds.hard_bounce_rate)}
             onChange={updatePercent((n, v) => {
               n.warning_thresholds.hard_bounce_rate = v;
@@ -620,6 +625,7 @@ export default function AdminGovernanceConfig() {
           />
           <Field
             label="Soft Bounce %"
+            helperText="Shows a warning for temporary delivery issues (mailbox full, rate limiting, etc.)."
             value={toPercent(config.warning_thresholds.soft_bounce_rate)}
             onChange={updatePercent((n, v) => {
               n.warning_thresholds.soft_bounce_rate = v;
@@ -628,6 +634,7 @@ export default function AdminGovernanceConfig() {
           />
           <Field
             label="Warning Complaint %"
+            helperText="Shows a warning when recipients report spam/complaints above this level."
             value={toPercent(config.warning_thresholds.complaint_rate)}
             onChange={updatePercent((n, v) => {
               n.warning_thresholds.complaint_rate = v;
@@ -636,6 +643,7 @@ export default function AdminGovernanceConfig() {
           />
           <Field
             label="Trend Multiplier"
+            helperText="How sensitive warnings are to sudden spikes (recent window vs prior window)."
             value={String(config.warning_thresholds.trend_multiplier)}
             onChange={updateNumeric((n, v) => {
               n.warning_thresholds.trend_multiplier = v;
@@ -644,6 +652,7 @@ export default function AdminGovernanceConfig() {
           />
           <Field
             label="Trend Prior Min Sent"
+            helperText="Minimum emails in the prior window before trend comparisons are considered reliable."
             value={String(config.warning_thresholds.trend_prior_min_sent)}
             onChange={updateNumeric((n, v) => {
               n.warning_thresholds.trend_prior_min_sent = v;
@@ -663,6 +672,7 @@ export default function AdminGovernanceConfig() {
         <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Field
             label="Healthy Min Score"
+            helperText="Score at or above this is treated as Healthy."
             value={String(config.reputation_tiers.healthy_min)}
             onChange={updateNumeric((n, v) => {
               n.reputation_tiers.healthy_min = v;
@@ -671,6 +681,7 @@ export default function AdminGovernanceConfig() {
           />
           <Field
             label="Warning Min Score"
+            helperText="Below Healthy but above this cutoff enters Warning tier."
             value={String(config.reputation_tiers.warning_min)}
             onChange={updateNumeric((n, v) => {
               n.reputation_tiers.warning_min = v;
@@ -679,6 +690,7 @@ export default function AdminGovernanceConfig() {
           />
           <Field
             label="Risk Min Score"
+            helperText="Below this cutoff enters higher-risk tiers with stronger sending limits."
             value={String(config.reputation_tiers.risk_min)}
             onChange={updateNumeric((n, v) => {
               n.reputation_tiers.risk_min = v;
@@ -698,6 +710,7 @@ export default function AdminGovernanceConfig() {
         <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Field
             label="Default Batch Size"
+            helperText="How many recipients are sent per chunk before pausing."
             value={String(config.batch.max_batch_size)}
             onChange={updateNumeric((n, v) => {
               n.batch.max_batch_size = v;
@@ -706,6 +719,7 @@ export default function AdminGovernanceConfig() {
           />
           <Field
             label="Default Batch Delay Min (s)"
+            helperText="Shortest pause between chunks (in seconds)."
             value={String(config.batch.delay_min_seconds)}
             onChange={updateNumeric((n, v) => {
               n.batch.delay_min_seconds = v;
@@ -717,6 +731,7 @@ export default function AdminGovernanceConfig() {
           />
           <Field
             label="Default Batch Delay Max (s)"
+            helperText="Longest pause between chunks (randomized up to this limit)."
             value={String(config.batch.delay_max_seconds)}
             onChange={updateNumeric((n, v) => {
               n.batch.delay_max_seconds = v;
@@ -739,6 +754,7 @@ export default function AdminGovernanceConfig() {
         <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Field
             label="Warmup Base Caps (comma-separated)"
+            helperText="Daily limits for early warmup days (example: 50, 100, 200)."
             value={warmupBaseCapsText}
             onChange={(valueText) => {
               setWarmupBaseCapsText(valueText);
@@ -747,6 +763,7 @@ export default function AdminGovernanceConfig() {
           />
           <Field
             label="Warmup Scaling Factor"
+            helperText="How quickly the daily cap grows over time (higher = faster growth)."
             value={String(config.warmup.scaling_factor)}
             onChange={updateNumeric((n, v) => {
               n.warmup.scaling_factor = v;
@@ -755,6 +772,7 @@ export default function AdminGovernanceConfig() {
           />
           <Field
             label="Warmup Max Daily Cap"
+            helperText="Absolute ceiling for warmup sends per day."
             value={String(config.warmup.max_daily_cap)}
             onChange={updateNumeric((n, v) => {
               n.warmup.max_daily_cap = v;
@@ -766,6 +784,7 @@ export default function AdminGovernanceConfig() {
           />
           <Field
             label="Warmup Min Healthy Floor"
+            helperText="Minimum daily cap when things look healthy (prevents over-throttling)."
             value={String(config.warmup.min_healthy_cap_floor)}
             onChange={updateNumeric((n, v) => {
               n.warmup.min_healthy_cap_floor = v;
@@ -789,6 +808,9 @@ export default function AdminGovernanceConfig() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div className="space-y-2 md:col-span-2">
               <Label>Search Email</Label>
+              <p className="text-xs text-muted-foreground">
+                Find recipients suppressed across all tenants.
+              </p>
               <div className="flex gap-2">
                 <Input
                   value={globalSuppressionSearch}
@@ -809,6 +831,9 @@ export default function AdminGovernanceConfig() {
             </div>
             <div className="space-y-2">
               <Label>Reason Filter</Label>
+              <p className="text-xs text-muted-foreground">
+                Filter results by suppression reason text.
+              </p>
               <Input
                 value={globalSuppressionReasonFilter}
                 onChange={(event) => {
@@ -981,16 +1006,21 @@ export default function AdminGovernanceConfig() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
               <Field
                 label="Email"
+                helperText="Email address to block globally (applies to every tenant)."
                 value={manualGlobalSuppressionEmail}
                 onChange={setManualGlobalSuppressionEmail}
               />
               <Field
                 label="Reason"
+                helperText="Why this address is blocked (used for audit/history)."
                 value={manualGlobalSuppressionReason}
                 onChange={setManualGlobalSuppressionReason}
               />
               <div className="space-y-2">
                 <Label>Expires At (optional)</Label>
+                <p className="text-xs text-muted-foreground">
+                  Optional expiry time to automatically lift this suppression.
+                </p>
                 <Input
                   type="datetime-local"
                   value={manualGlobalSuppressionExpiresAt}
@@ -1057,11 +1087,13 @@ export default function AdminGovernanceConfig() {
 
 function Field({
   label,
+  helperText,
   value,
   onChange,
   error,
 }: {
   label: string;
+  helperText?: string;
   value: string;
   onChange: (value: string) => void;
   error?: string;
@@ -1069,6 +1101,9 @@ function Field({
   return (
     <div className="space-y-2">
       <Label>{label}</Label>
+      {helperText ? (
+        <p className="text-xs text-muted-foreground">{helperText}</p>
+      ) : null}
       <Input
         value={value}
         onChange={(event) => onChange(event.target.value)}

@@ -139,7 +139,38 @@ export function useCampaignSending(options: UseCampaignSendingOptions = {}) {
 
       if (sendError) {
         console.error('❌ Edge function error:', sendError);
-        throw sendError;
+
+        const contextBody = (sendError as any)?.context?.body;
+        let parsedBody: any = undefined;
+
+        if (typeof contextBody === 'string' && contextBody.length > 0) {
+          try {
+            parsedBody = JSON.parse(contextBody);
+          } catch {
+            parsedBody = { error: contextBody };
+          }
+        } else if (contextBody && typeof contextBody === 'object') {
+          parsedBody = contextBody;
+        }
+
+        const extractedMessage =
+          typeof parsedBody?.error === 'string' ? parsedBody.error :
+          typeof parsedBody?.message === 'string' ? parsedBody.message :
+          '';
+
+        const error = parseEdgeFunctionError(
+          extractedMessage ? { message: extractedMessage } : sendError,
+          parsedBody
+        );
+
+        setState({ status: 'error', error, campaignId: campaign.id });
+        toast({
+          title: error.title,
+          description: error.description,
+          variant: 'destructive'
+        });
+        options.onError?.(error);
+        return { success: false, error, campaignId: campaign.id };
       }
 
       // Check for error in response body

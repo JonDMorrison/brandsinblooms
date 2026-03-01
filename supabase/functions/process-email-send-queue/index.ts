@@ -78,11 +78,15 @@ async function getCampaignReputationPolicy(supabase: any, campaignId: string): P
   }
 
   const row = Array.isArray(data) ? data[0] : data;
+  const rawRecipientCap = Number(row?.recipient_cap);
+  const normalizedRecipientCap = Number.isFinite(rawRecipientCap) && rawRecipientCap > 0
+    ? rawRecipientCap
+    : null;
   return {
     score: Number(row?.score ?? 100),
     tier: (row?.tier || 'normal') as CampaignReputationPolicy['tier'],
     action: (row?.action || 'allow') as CampaignReputationPolicy['action'],
-    recipient_cap: Number.isFinite(Number(row?.recipient_cap)) ? Number(row.recipient_cap) : null,
+    recipient_cap: normalizedRecipientCap,
     job_batch_size: Number.isFinite(Number(row?.job_batch_size)) ? Number(row.job_batch_size) : null,
     send_pacing_multiplier: Number.isFinite(Number(row?.send_pacing_multiplier)) ? Number(row.send_pacing_multiplier) : 1,
   };

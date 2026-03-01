@@ -121,11 +121,15 @@ async function getCampaignReputationPolicy(supabase: any, campaignId: string): P
   }
 
   const row = Array.isArray(data) ? data[0] : data;
+  const rawRecipientCap = Number(row?.recipient_cap);
+  const normalizedRecipientCap = Number.isFinite(rawRecipientCap) && rawRecipientCap > 0
+    ? rawRecipientCap
+    : null;
   return {
     score: Number(row?.score ?? 100),
     tier: (row?.tier || 'normal') as CampaignReputationPolicy['tier'],
     action: (row?.action || 'allow') as CampaignReputationPolicy['action'],
-    recipient_cap: Number.isFinite(Number(row?.recipient_cap)) ? Number(row.recipient_cap) : null,
+    recipient_cap: normalizedRecipientCap,
     job_batch_size: Number.isFinite(Number(row?.job_batch_size)) ? Number(row.job_batch_size) : DEFAULT_BATCH_SIZE_PER_JOB,
     send_pacing_multiplier: Number.isFinite(Number(row?.send_pacing_multiplier)) ? Number(row.send_pacing_multiplier) : 1,
   };
@@ -242,6 +246,48 @@ serve(async (req: Request) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+    const pauseCampaignSafely = async (params: {
+      campaignId: string;
+      blockReason: string;
+      errorMessage: string;
+    }) => {
+      const { campaignId, blockReason, errorMessage } = params;
+
+      const { error: pauseError } = await supabase.rpc('system_pause_email_campaign_sending', {
+        p_campaign_id: campaignId,
+        p_block_reason: blockReason,
+        p_error_message: errorMessage,
+      });
+
+      if (!pauseError) return;
+
+      console.error('❌ Failed to pause campaign via RPC; falling back to direct update:', {
+        campaignId,
+        blockReason,
+        err: serializeSupabaseError(pauseError),
+      });
+
+      const { error: directUpdateError } = await supabase
+        .from('crm_campaigns')
+        .update({
+          status: 'paused',
+          send_blocked_reason: blockReason,
+          send_error: errorMessage,
+          sending_started_at: null,
+          send_started_at: null,
+          claim_token: null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', campaignId);
+
+      if (directUpdateError) {
+        console.error('❌ Failed to pause campaign via direct update:', {
+          campaignId,
+          err: serializeSupabaseError(directUpdateError),
+        });
+      }
+    };
+
     const resendApiKey = Deno.env.get('RESEND_API_KEY');
     if (!resendApiKey) {
       console.error('Missing Resend API key');
@@ -302,15 +348,16 @@ serve(async (req: Request) => {
     const reputationPolicy = await getCampaignReputationPolicy(supabase, campaignId);
     if (reputationPolicy.action === 'pause' && !campaignIntervention.autopause_override_final) {
       const pauseMessage = `Campaign auto-paused: tenant reputation score ${reputationPolicy.score} is below 60.`;
-      await supabase.rpc('system_pause_email_campaign_sending', {
-        p_campaign_id: campaignId,
-        p_block_reason: 'reputation_critical_autopause',
-        p_error_message: pauseMessage,
+      await pauseCampaignSafely({
+        campaignId,
+        blockReason: 'reputation_critical_autopause',
+        errorMessage: pauseMessage,
       });
 
       return new Response(
         JSON.stringify({
           error: pauseMessage,
+          reason: 'reputation_critical_autopause',
           reputation: reputationPolicy,
         }),
         { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -761,17 +808,67 @@ serve(async (req: Request) => {
     console.log(`📧 Found ${recipientCount} customers`);
 
     // Milestone 7: Campaigns must declare an explicit sending domain.
-    const domainIdToUse = campaign.from_email_domain_id;
+    // If missing, attempt to auto-select the tenant's most recent operational domain.
+    let domainIdToUse: string | null = campaign.from_email_domain_id;
+    if (!domainIdToUse) {
+      const { data: operationalDomains, error: operationalDomainsError } = await supabase
+        .from('email_domains')
+        .select('id, domain, status')
+        .eq('tenant_id', campaign.tenant_id)
+        .in('status', ['active', 'warming_up'])
+        .order('created_at', { ascending: false })
+        .limit(2);
+
+      if (operationalDomainsError) {
+        console.error('❌ Failed to look up operational sending domains:', serializeSupabaseError(operationalDomainsError));
+      }
+
+      if (Array.isArray(operationalDomains) && operationalDomains.length === 1) {
+        domainIdToUse = operationalDomains[0].id;
+        console.log(`📧 Auto-selected sending domain: ${operationalDomains[0].domain} (${domainIdToUse})`);
+
+        const { error: persistDomainError } = await supabase
+          .from('crm_campaigns')
+          .update({
+            from_email_domain_id: domainIdToUse,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', campaignId);
+
+        if (persistDomainError) {
+          console.warn('⚠️ Failed to persist auto-selected domain on campaign; continuing anyway:', {
+            campaignId,
+            domainIdToUse,
+            err: serializeSupabaseError(persistDomainError),
+          });
+        }
+      } else {
+        const pauseMessage = Array.isArray(operationalDomains) && operationalDomains.length > 1
+          ? 'Multiple sending domains are configured. Please select a sending domain for this campaign.'
+          : 'Campaign sending requires a configured custom domain sender.';
+
+        await pauseCampaignSafely({
+          campaignId,
+          blockReason: 'sender_domain_required',
+          errorMessage: pauseMessage,
+        });
+
+        return new Response(
+          JSON.stringify({ error: pauseMessage, reason: 'sender_domain_required' }),
+          { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
     if (!domainIdToUse) {
       const pauseMessage = 'Campaign sending requires a configured custom domain sender.';
-      await supabase.rpc('system_pause_email_campaign_sending', {
-        p_campaign_id: campaignId,
-        p_block_reason: 'sender_domain_required',
-        p_error_message: pauseMessage,
+      await pauseCampaignSafely({
+        campaignId,
+        blockReason: 'sender_domain_required',
+        errorMessage: pauseMessage,
       });
-
       return new Response(
-        JSON.stringify({ error: pauseMessage }),
+        JSON.stringify({ error: pauseMessage, reason: 'sender_domain_required' }),
         { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -797,15 +894,16 @@ serve(async (req: Request) => {
       const pauseMessage = quotaCheck?.message || 'Email sending requires an operational sending domain.';
       console.warn(`📧 Cannot send campaign; pausing instead: ${pauseMessage}`);
 
-      await supabase.rpc('system_pause_email_campaign_sending', {
-        p_campaign_id: campaignId,
-        p_block_reason: quotaCheck?.reason || 'sender_domain_required',
-        p_error_message: pauseMessage,
+      await pauseCampaignSafely({
+        campaignId,
+        blockReason: quotaCheck?.reason || 'sender_domain_required',
+        errorMessage: pauseMessage,
       });
 
       return new Response(
         JSON.stringify({
           error: pauseMessage,
+          reason: quotaCheck?.reason || 'sender_domain_required',
           compliance: quotaCheck?.compliance || null,
         }),
         { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -830,13 +928,13 @@ serve(async (req: Request) => {
 
     if (!domainName) {
       const pauseMessage = 'No operational sending domain configured.';
-      await supabase.rpc('system_pause_email_campaign_sending', {
-        p_campaign_id: campaignId,
-        p_block_reason: 'sender_domain_required',
-        p_error_message: pauseMessage,
+      await pauseCampaignSafely({
+        campaignId,
+        blockReason: 'sender_domain_required',
+        errorMessage: pauseMessage,
       });
       return new Response(
-        JSON.stringify({ error: pauseMessage }),
+        JSON.stringify({ error: pauseMessage, reason: 'sender_domain_required' }),
         { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -881,15 +979,16 @@ serve(async (req: Request) => {
 
     if (isHighVolume && complianceFailures.length > 0) {
       const pauseMessage = 'High-volume sending blocked: campaign compliance requirements are not met.';
-      await supabase.rpc('system_pause_email_campaign_sending', {
-        p_campaign_id: campaignId,
-        p_block_reason: 'compliance_not_met_for_scale',
-        p_error_message: pauseMessage,
+      await pauseCampaignSafely({
+        campaignId,
+        blockReason: 'compliance_not_met_for_scale',
+        errorMessage: pauseMessage,
       });
 
       return new Response(
         JSON.stringify({
           error: pauseMessage,
+          reason: 'compliance_not_met_for_scale',
           compliance: {
             high_volume: true,
             high_volume_threshold: highVolumeThreshold,
@@ -1123,21 +1222,35 @@ serve(async (req: Request) => {
           );
         }
 
-        const { error: jobErr } = await supabase
-          .from('email_send_jobs')
-          .upsert(
-            {
-              campaign_id: campaignId,
-              tenant_id: campaign.tenant_id,
-              domain_id: activeDomainId,
-              status: 'pending',
-              available_at: batchAvailableAtIso,
-              recipient_message_ids: recipientMessageIds,
-              recipient_emails: batchRecipientEmails,
-              batch_index: batchIndex,
-            },
-            { onConflict: 'campaign_id,batch_index', ignoreDuplicates: true }
-          );
+        const jobPayload: Record<string, unknown> = {
+          campaign_id: campaignId,
+          tenant_id: campaign.tenant_id,
+          domain_id: activeDomainId,
+          status: 'pending',
+          available_at: batchAvailableAtIso,
+          recipient_message_ids: recipientMessageIds,
+          recipient_emails: batchRecipientEmails,
+          batch_index: batchIndex,
+        };
+
+        const tryUpsert = async (payload: Record<string, unknown>) =>
+          supabase
+            .from('email_send_jobs')
+            .upsert(payload, { onConflict: 'campaign_id,batch_index', ignoreDuplicates: true });
+
+        let { error: jobErr } = await tryUpsert(jobPayload);
+
+        // If PostgREST schema cache is stale (or remote schema is behind), retry without `available_at`.
+        // This unblocks queueing and relies on DB defaults when the column exists.
+        if (
+          jobErr &&
+          String((jobErr as any)?.code || '') === 'PGRST204' &&
+          String((jobErr as any)?.message || '').includes("'available_at'")
+        ) {
+          console.warn('⚠️ email_send_jobs.available_at not in schema cache; retrying job upsert without available_at');
+          const { available_at: _omit, ...payloadWithoutAvailableAt } = jobPayload;
+          ({ error: jobErr } = await tryUpsert(payloadWithoutAvailableAt));
+        }
 
         if (jobErr) {
           console.error('❌ Failed to create batch job:', { batchIndex, err: serializeSupabaseError(jobErr) });
