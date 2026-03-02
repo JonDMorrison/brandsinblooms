@@ -62,6 +62,30 @@ export type Database = {
           },
         ]
       }
+      admin_crm_customers_backup: {
+        Row: {
+          backed_up_at: string
+          backup_batch: string
+          customer_id: string
+          customer_snapshot: Json
+          tenant_id: string
+        }
+        Insert: {
+          backed_up_at?: string
+          backup_batch: string
+          customer_id: string
+          customer_snapshot: Json
+          tenant_id: string
+        }
+        Update: {
+          backed_up_at?: string
+          backup_batch?: string
+          customer_id?: string
+          customer_snapshot?: Json
+          tenant_id?: string
+        }
+        Relationships: []
+      }
       admin_session_context: {
         Row: {
           active_tenant_id: string | null
@@ -1260,6 +1284,85 @@ export type Database = {
           },
           {
             foreignKeyName: "campaign_content_classification_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      campaign_hygiene_reports: {
+        Row: {
+          audience_total: number
+          block_reason: string | null
+          blocked: boolean
+          campaign_id: string
+          created_at: string
+          deliverability: Json
+          details: Json
+          duplicate_emails_count: number
+          id: string
+          inactive_count: number
+          inactive_pct: number
+          invalid_emails_count: number
+          invalid_emails_pct: number
+          suppressed_count: number
+          tenant_id: string
+          warnings: Json
+        }
+        Insert: {
+          audience_total?: number
+          block_reason?: string | null
+          blocked?: boolean
+          campaign_id: string
+          created_at?: string
+          deliverability?: Json
+          details?: Json
+          duplicate_emails_count?: number
+          id?: string
+          inactive_count?: number
+          inactive_pct?: number
+          invalid_emails_count?: number
+          invalid_emails_pct?: number
+          suppressed_count?: number
+          tenant_id: string
+          warnings?: Json
+        }
+        Update: {
+          audience_total?: number
+          block_reason?: string | null
+          blocked?: boolean
+          campaign_id?: string
+          created_at?: string
+          deliverability?: Json
+          details?: Json
+          duplicate_emails_count?: number
+          id?: string
+          inactive_count?: number
+          inactive_pct?: number
+          invalid_emails_count?: number
+          invalid_emails_pct?: number
+          suppressed_count?: number
+          tenant_id?: string
+          warnings?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_hygiene_reports_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "crm_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_hygiene_reports_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "admin_tenant_overview"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "campaign_hygiene_reports_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -2772,6 +2875,7 @@ export type Database = {
           country_code: string | null
           created_at: string | null
           custom_fields: Json | null
+          deleted_at: string | null
           email: string
           email_bounce_rate: number | null
           email_click_rate: number | null
@@ -2856,6 +2960,7 @@ export type Database = {
           country_code?: string | null
           created_at?: string | null
           custom_fields?: Json | null
+          deleted_at?: string | null
           email: string
           email_bounce_rate?: number | null
           email_click_rate?: number | null
@@ -2940,6 +3045,7 @@ export type Database = {
           country_code?: string | null
           created_at?: string | null
           custom_fields?: Json | null
+          deleted_at?: string | null
           email?: string
           email_bounce_rate?: number | null
           email_click_rate?: number | null
@@ -6794,6 +6900,373 @@ export type Database = {
         }
         Relationships: []
       }
+      email_governance_campaign_intervention_state: {
+        Row: {
+          admin_paused: boolean
+          autopause_override_enabled: boolean
+          autopause_override_precedence: string
+          campaign_id: string
+          force_stopped: boolean
+          tenant_id: string
+          updated_at: string
+          updated_by: string | null
+          updated_reason: string | null
+        }
+        Insert: {
+          admin_paused?: boolean
+          autopause_override_enabled?: boolean
+          autopause_override_precedence?: string
+          campaign_id: string
+          force_stopped?: boolean
+          tenant_id: string
+          updated_at?: string
+          updated_by?: string | null
+          updated_reason?: string | null
+        }
+        Update: {
+          admin_paused?: boolean
+          autopause_override_enabled?: boolean
+          autopause_override_precedence?: string
+          campaign_id?: string
+          force_stopped?: boolean
+          tenant_id?: string
+          updated_at?: string
+          updated_by?: string | null
+          updated_reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_governance_campaign_intervention_state_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: true
+            referencedRelation: "crm_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_governance_campaign_intervention_state_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "admin_tenant_overview"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "email_governance_campaign_intervention_state_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_governance_email_events: {
+        Row: {
+          campaign_id: string | null
+          created_at: string
+          customer_id: string | null
+          domain_id: string | null
+          email: string
+          email_message_id: string | null
+          event_data: Json
+          event_ts_provider: string | null
+          event_type: string
+          governance_message_id: string | null
+          id: string
+          ingested_at: string
+          ip_hash: string | null
+          is_mpp_guess: boolean
+          provider: string
+          provider_event_id: string | null
+          provider_message_id: string | null
+          tenant_id: string
+          user_agent: string | null
+          webhook_delivery_id: string | null
+        }
+        Insert: {
+          campaign_id?: string | null
+          created_at?: string
+          customer_id?: string | null
+          domain_id?: string | null
+          email: string
+          email_message_id?: string | null
+          event_data?: Json
+          event_ts_provider?: string | null
+          event_type: string
+          governance_message_id?: string | null
+          id?: string
+          ingested_at?: string
+          ip_hash?: string | null
+          is_mpp_guess?: boolean
+          provider?: string
+          provider_event_id?: string | null
+          provider_message_id?: string | null
+          tenant_id: string
+          user_agent?: string | null
+          webhook_delivery_id?: string | null
+        }
+        Update: {
+          campaign_id?: string | null
+          created_at?: string
+          customer_id?: string | null
+          domain_id?: string | null
+          email?: string
+          email_message_id?: string | null
+          event_data?: Json
+          event_ts_provider?: string | null
+          event_type?: string
+          governance_message_id?: string | null
+          id?: string
+          ingested_at?: string
+          ip_hash?: string | null
+          is_mpp_guess?: boolean
+          provider?: string
+          provider_event_id?: string | null
+          provider_message_id?: string | null
+          tenant_id?: string
+          user_agent?: string | null
+          webhook_delivery_id?: string | null
+        }
+        Relationships: []
+      }
+      email_governance_tenant_control_state: {
+        Row: {
+          boost_daily: number | null
+          boost_hourly: number | null
+          boost_monthly: number | null
+          boost_reason: string | null
+          boost_until: string | null
+          campaign_creation_locked: boolean
+          campaign_creation_locked_reason: string | null
+          created_at: string
+          emergency_restriction_enabled: boolean
+          emergency_restriction_reason: string | null
+          emergency_restriction_until: string | null
+          forgive_bounce_before: string | null
+          forgive_complaint_before: string | null
+          is_reputation_frozen: boolean
+          manual_reputation_score: number | null
+          penalties_disabled_reason: string | null
+          penalties_disabled_until: string | null
+          reputation_override_expires_at: string | null
+          reputation_override_mode: string | null
+          reputation_override_precedence: string
+          reputation_override_reason: string | null
+          send_limit_daily: number | null
+          send_limit_hourly: number | null
+          send_limit_monthly: number | null
+          suppression_bypass_automation_mode: string
+          suppression_bypass_enabled: boolean
+          suppression_bypass_reason: string | null
+          suppression_bypass_until: string | null
+          tenant_id: string
+          under_review_override_enabled: boolean
+          under_review_override_precedence: string
+          under_review_override_reason: string | null
+          under_review_override_until: string | null
+          unlimited_sending_enabled: boolean
+          updated_at: string
+          updated_by: string | null
+          updated_reason: string | null
+        }
+        Insert: {
+          boost_daily?: number | null
+          boost_hourly?: number | null
+          boost_monthly?: number | null
+          boost_reason?: string | null
+          boost_until?: string | null
+          campaign_creation_locked?: boolean
+          campaign_creation_locked_reason?: string | null
+          created_at?: string
+          emergency_restriction_enabled?: boolean
+          emergency_restriction_reason?: string | null
+          emergency_restriction_until?: string | null
+          forgive_bounce_before?: string | null
+          forgive_complaint_before?: string | null
+          is_reputation_frozen?: boolean
+          manual_reputation_score?: number | null
+          penalties_disabled_reason?: string | null
+          penalties_disabled_until?: string | null
+          reputation_override_expires_at?: string | null
+          reputation_override_mode?: string | null
+          reputation_override_precedence?: string
+          reputation_override_reason?: string | null
+          send_limit_daily?: number | null
+          send_limit_hourly?: number | null
+          send_limit_monthly?: number | null
+          suppression_bypass_automation_mode?: string
+          suppression_bypass_enabled?: boolean
+          suppression_bypass_reason?: string | null
+          suppression_bypass_until?: string | null
+          tenant_id: string
+          under_review_override_enabled?: boolean
+          under_review_override_precedence?: string
+          under_review_override_reason?: string | null
+          under_review_override_until?: string | null
+          unlimited_sending_enabled?: boolean
+          updated_at?: string
+          updated_by?: string | null
+          updated_reason?: string | null
+        }
+        Update: {
+          boost_daily?: number | null
+          boost_hourly?: number | null
+          boost_monthly?: number | null
+          boost_reason?: string | null
+          boost_until?: string | null
+          campaign_creation_locked?: boolean
+          campaign_creation_locked_reason?: string | null
+          created_at?: string
+          emergency_restriction_enabled?: boolean
+          emergency_restriction_reason?: string | null
+          emergency_restriction_until?: string | null
+          forgive_bounce_before?: string | null
+          forgive_complaint_before?: string | null
+          is_reputation_frozen?: boolean
+          manual_reputation_score?: number | null
+          penalties_disabled_reason?: string | null
+          penalties_disabled_until?: string | null
+          reputation_override_expires_at?: string | null
+          reputation_override_mode?: string | null
+          reputation_override_precedence?: string
+          reputation_override_reason?: string | null
+          send_limit_daily?: number | null
+          send_limit_hourly?: number | null
+          send_limit_monthly?: number | null
+          suppression_bypass_automation_mode?: string
+          suppression_bypass_enabled?: boolean
+          suppression_bypass_reason?: string | null
+          suppression_bypass_until?: string | null
+          tenant_id?: string
+          under_review_override_enabled?: boolean
+          under_review_override_precedence?: string
+          under_review_override_reason?: string | null
+          under_review_override_until?: string | null
+          unlimited_sending_enabled?: boolean
+          updated_at?: string
+          updated_by?: string | null
+          updated_reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_governance_tenant_control_state_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
+            referencedRelation: "admin_tenant_overview"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "email_governance_tenant_control_state_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_governance_tenant_reputation_score_history: {
+        Row: {
+          as_of: string
+          computed_at: string
+          created_at: string
+          id: string
+          inputs: Json
+          penalties: Json
+          score: number
+          status: string
+          tenant_id: string
+        }
+        Insert: {
+          as_of: string
+          computed_at?: string
+          created_at?: string
+          id?: string
+          inputs?: Json
+          penalties?: Json
+          score: number
+          status: string
+          tenant_id: string
+        }
+        Update: {
+          as_of?: string
+          computed_at?: string
+          created_at?: string
+          id?: string
+          inputs?: Json
+          penalties?: Json
+          score?: number
+          status?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_governance_tenant_reputation_score_history_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "admin_tenant_overview"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "email_governance_tenant_reputation_score_history_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_governance_tenant_reputation_scores: {
+        Row: {
+          as_of: string
+          computed_at: string
+          created_at: string
+          id: string
+          inputs: Json
+          penalties: Json
+          score: number
+          status: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          as_of: string
+          computed_at?: string
+          created_at?: string
+          id?: string
+          inputs?: Json
+          penalties?: Json
+          score: number
+          status: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          as_of?: string
+          computed_at?: string
+          created_at?: string
+          id?: string
+          inputs?: Json
+          penalties?: Json
+          score?: number
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_governance_tenant_reputation_scores_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
+            referencedRelation: "admin_tenant_overview"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "email_governance_tenant_reputation_scores_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_messages: {
         Row: {
           attempts: number
@@ -6885,6 +7358,7 @@ export type Database = {
       email_send_jobs: {
         Row: {
           attempts: number
+          available_at: string
           batch_index: number
           campaign_id: string
           claim_token: string | null
@@ -6904,6 +7378,7 @@ export type Database = {
         }
         Insert: {
           attempts?: number
+          available_at?: string
           batch_index?: number
           campaign_id: string
           claim_token?: string | null
@@ -6923,6 +7398,7 @@ export type Database = {
         }
         Update: {
           attempts?: number
+          available_at?: string
           batch_index?: number
           campaign_id?: string
           claim_token?: string | null
@@ -7791,6 +8267,48 @@ export type Database = {
           status?: Database["public"]["Enums"]["content_status"] | null
           updated_at?: string | null
           user_id?: string
+        }
+        Relationships: []
+      }
+      global_email_suppression_list: {
+        Row: {
+          created_at: string
+          email: string
+          expires_at: string | null
+          id: string
+          lifted_at: string | null
+          metadata: Json
+          reason: string | null
+          source: string | null
+          suppressed_at: string
+          suppression_type: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          expires_at?: string | null
+          id?: string
+          lifted_at?: string | null
+          metadata?: Json
+          reason?: string | null
+          source?: string | null
+          suppressed_at?: string
+          suppression_type?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          expires_at?: string | null
+          id?: string
+          lifted_at?: string | null
+          metadata?: Json
+          reason?: string | null
+          source?: string | null
+          suppressed_at?: string
+          suppression_type?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -12384,6 +12902,48 @@ export type Database = {
         }
         Relationships: []
       }
+      tenant_email_governance_overrides: {
+        Row: {
+          created_at: string
+          overrides: Json
+          tenant_id: string
+          updated_at: string
+          updated_by: string | null
+          updated_reason: string | null
+        }
+        Insert: {
+          created_at?: string
+          overrides?: Json
+          tenant_id: string
+          updated_at?: string
+          updated_by?: string | null
+          updated_reason?: string | null
+        }
+        Update: {
+          created_at?: string
+          overrides?: Json
+          tenant_id?: string
+          updated_at?: string
+          updated_by?: string | null
+          updated_reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_email_governance_overrides_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
+            referencedRelation: "admin_tenant_overview"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "tenant_email_governance_overrides_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tenant_lifecycle_thresholds: {
         Row: {
           active_to_at_risk_days: number | null
@@ -13346,6 +13906,18 @@ export type Database = {
         Args: { p_min_interval_ms?: number; p_provider: string }
         Returns: number
       }
+      admin_add_global_email_suppression: {
+        Args: { p_email: string; p_expires_at?: string; p_reason?: string }
+        Returns: Json
+      }
+      admin_apply_email_governance_profile: {
+        Args: { p_profile: string; p_reason?: string }
+        Returns: Json
+      }
+      admin_bulk_lift_global_email_suppressions: {
+        Args: { p_ids: string[]; p_reason?: string }
+        Returns: Json
+      }
       admin_delete_user: { Args: { target_user_id: string }; Returns: boolean }
       admin_extend_trial: {
         Args: { p_days: number; p_tenant_id: string }
@@ -13355,6 +13927,7 @@ export type Database = {
         Args: { p_days: number; p_email: string }
         Returns: Json
       }
+      admin_get_email_governance_config: { Args: never; Returns: Json }
       admin_get_stats: {
         Args: never
         Returns: {
@@ -13363,6 +13936,47 @@ export type Database = {
           paid_active: number
           total_tenants: number
         }[]
+      }
+      admin_get_tenant_email_governance_overrides: {
+        Args: { p_tenant_id: string }
+        Returns: Json
+      }
+      admin_get_tenant_email_management_panel: {
+        Args: { p_as_of?: string; p_tenant_id: string }
+        Returns: Json
+      }
+      admin_lift_global_email_suppression: {
+        Args: { p_id: string; p_reason?: string }
+        Returns: Json
+      }
+      admin_list_global_email_suppressions: {
+        Args: {
+          p_page?: number
+          p_page_size?: number
+          p_reason_filter?: string
+          p_search?: string
+        }
+        Returns: Json
+      }
+      admin_list_tenant_campaigns: {
+        Args: {
+          p_page?: number
+          p_page_size?: number
+          p_search?: string
+          p_status_filter?: string
+          p_tenant_id: string
+        }
+        Returns: Json
+      }
+      admin_list_tenant_suppressions: {
+        Args: {
+          p_page?: number
+          p_page_size?: number
+          p_reason_filter?: string
+          p_search?: string
+          p_tenant_id: string
+        }
+        Returns: Json
       }
       admin_list_tenants: {
         Args: {
@@ -13394,6 +14008,10 @@ export type Database = {
           trial_start: string
           website: string
         }[]
+      }
+      admin_set_email_governance_config: {
+        Args: { p_config: Json; p_reason?: string }
+        Returns: Json
       }
       admin_toggle_tenant_active: {
         Args: { p_active: boolean; p_tenant_id: string }
@@ -13486,6 +14104,23 @@ export type Database = {
           success: boolean
         }[]
       }
+      claim_domain_crisis_notifications: {
+        Args: {
+          p_claim_token?: string
+          p_limit?: number
+          p_stale_after_minutes?: number
+          p_worker_id?: string
+        }
+        Returns: {
+          body_text: string
+          crisis_action_id: string
+          domain_id: string
+          id: string
+          recipient_email: string
+          subject: string
+          tenant_id: string
+        }[]
+      }
       claim_email_send_job_ids: {
         Args: {
           batch_size?: number
@@ -13506,6 +14141,7 @@ export type Database = {
         }
         Returns: {
           attempts: number
+          available_at: string
           batch_index: number
           campaign_id: string
           claim_token: string | null
@@ -13671,6 +14307,22 @@ export type Database = {
         }
         Returns: boolean
       }
+      claim_tenant_hard_stop_notifications: {
+        Args: {
+          p_claim_token?: string
+          p_limit?: number
+          p_stale_after_minutes?: number
+          p_worker_id?: string
+        }
+        Returns: {
+          body_text: string
+          enforcement_action_id: string
+          id: string
+          recipient_email: string
+          subject: string
+          tenant_id: string
+        }[]
+      }
       claim_trigger_events: {
         Args: { p_event_type: string; p_limit?: number }
         Returns: {
@@ -13757,6 +14409,27 @@ export type Database = {
         Args: { p_customer_id: string }
         Returns: string
       }
+      email_gov_cfg_int: { Args: { p_path: string[] }; Returns: number }
+      email_gov_cfg_interval: { Args: { p_path: string[] }; Returns: unknown }
+      email_gov_cfg_num: { Args: { p_path: string[] }; Returns: number }
+      email_gov_cfg_value: { Args: { p_path: string[] }; Returns: Json }
+      email_gov_eff_int: {
+        Args: { p_path: string[]; p_tenant_id: string }
+        Returns: number
+      }
+      email_gov_eff_num: {
+        Args: { p_path: string[]; p_tenant_id: string }
+        Returns: number
+      }
+      email_gov_eff_source: {
+        Args: { p_path: string[]; p_tenant_id: string }
+        Returns: string
+      }
+      email_gov_eff_value: {
+        Args: { p_path: string[]; p_tenant_id: string }
+        Returns: Json
+      }
+      email_governance_default_config: { Args: never; Returns: Json }
       enable_crm_for_user: {
         Args: { target_user_id: string }
         Returns: boolean
@@ -13887,6 +14560,31 @@ export type Database = {
         Args: { p_campaign_id: string }
         Returns: Json
       }
+      get_campaign_intervention_state: {
+        Args: { p_campaign_id: string }
+        Returns: {
+          admin_paused: boolean
+          autopause_override_enabled: boolean
+          autopause_override_final: boolean
+          autopause_override_precedence: string
+          campaign_id: string
+          force_stopped: boolean
+          tenant_id: string
+        }[]
+      }
+      get_campaign_reputation_policy: {
+        Args: { p_campaign_id: string }
+        Returns: {
+          action: string
+          campaign_id: string
+          job_batch_size: number
+          recipient_cap: number
+          score: number
+          send_pacing_multiplier: number
+          tenant_id: string
+          tier: string
+        }[]
+      }
       get_customer_activity_heatmap: {
         Args: { p_channel?: string; p_customer_id: string }
         Returns: {
@@ -14016,6 +14714,7 @@ export type Database = {
           unknown_count: number
         }[]
       }
+      get_email_governance_config: { Args: never; Returns: Json }
       get_global_in_progress_count: { Args: never; Returns: number }
       get_jwt_tenant_id: { Args: never; Returns: string }
       get_my_overdue_campaigns: {
@@ -14061,11 +14760,31 @@ export type Database = {
         Args: { p_tenant_id: string }
         Returns: Json
       }
+      get_tenant_email_governance_overrides: {
+        Args: { p_tenant_id: string }
+        Returns: Json
+      }
       get_tenant_lifecycle_stats: {
         Args: { p_tenant_id: string }
         Returns: Json
       }
+      get_tenant_reputation_policy: {
+        Args: { p_tenant_id: string }
+        Returns: {
+          action: string
+          job_batch_size: number
+          recipient_cap: number
+          score: number
+          send_pacing_multiplier: number
+          tenant_id: string
+          tier: string
+        }[]
+      }
       get_tenant_risk_stats: { Args: { p_tenant_id: string }; Returns: Json }
+      get_tenant_suppression_bypass_state: {
+        Args: { p_tenant_id: string }
+        Returns: Json
+      }
       get_token_balance: {
         Args: { p_user_id: string }
         Returns: {
@@ -14159,6 +14878,20 @@ export type Database = {
       mark_onboarding_completed: {
         Args: { p_company?: string }
         Returns: undefined
+      }
+      maybe_enforce_tenant_abuse_under_review: {
+        Args: { p_campaign_id: string; p_source?: string }
+        Returns: {
+          campaign_id: string
+          details: Json
+          message: string
+          monitoring_severity: string
+          reasons: string[]
+          risk_level: string
+          state_changed: boolean
+          tenant_id: string
+          was_blocked: boolean
+        }[]
       }
       merge_duplicate_accounts: {
         Args: { keep_user_id: string; merge_user_id: string }
@@ -14276,6 +15009,10 @@ export type Database = {
         Args: { p_tenant_id: string }
         Returns: number
       }
+      refresh_email_governance_tenant_reputation_score: {
+        Args: { p_as_of?: string; p_tenant_id: string }
+        Returns: Json
+      }
       release_stale_claims: {
         Args: { p_stale_threshold_minutes?: number }
         Returns: number
@@ -14344,6 +15081,13 @@ export type Database = {
           p_user_id: string
         }
         Returns: boolean
+      }
+      stop_email_campaign_sending: {
+        Args: { p_campaign_id: string; p_reason?: string }
+        Returns: {
+          jobs_stopped: number
+          messages_stopped: number
+        }[]
       }
       track_content_interaction: {
         Args: {
@@ -14521,6 +15265,10 @@ export type Database = {
           p_window_start: string
         }
         Returns: number
+      }
+      validate_email_governance_config: {
+        Args: { p_config: Json }
+        Returns: undefined
       }
       verify_campaign_claim: {
         Args: { p_campaign_id: string; p_claim_token: string }
