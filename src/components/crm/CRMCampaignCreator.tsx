@@ -1299,8 +1299,17 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   // Tenant context for customer count
   const { tenant } = useTenant();
 
+  const isUuidLike = React.useCallback((value: string) => {
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      value,
+    );
+  }, []);
+
   // Total customer count for "All Contacts" audience
   const [totalCustomerCount, setTotalCustomerCount] = useState<number>(0);
+
+  const [campaignAudienceRecipientCount, setCampaignAudienceRecipientCount] =
+    useState<number | null>(null);
 
   // Fetch total customer count when tenant is available
   useEffect(() => {
@@ -1319,6 +1328,237 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
 
     fetchTotalCustomerCount();
   }, [tenant?.id]);
+
+  const computeAudienceRecipientCount = useCallback(
+    async (params: {
+      segmentIds: string[];
+      personaIds: string[];
+    }): Promise<number> => {
+      if (!tenant?.id) return 0;
+
+      const segmentIds = (params.segmentIds || []).filter(isUuidLike);
+      const personaIds = (params.personaIds || []).filter(Boolean);
+
+      if (segmentIds.length === 0 && personaIds.length === 0) {
+        return totalCustomerCount;
+      }
+
+      const PAGE_SIZE = 1000;
+
+      const fetchIdsPaged = async (
+        queryFactory: (from: number, to: number) => any,
+        rowToId: (row: any) => string | null,
+      ): Promise<Set<string>> => {
+        const ids = new Set<string>();
+        for (let from = 0; ; from += PAGE_SIZE) {
+          const to = from + PAGE_SIZE - 1;
+          const { data, error } = await queryFactory(from, to);
+          if (error) throw error;
+          (data || []).forEach((row: any) => {
+            const id = rowToId(row);
+            if (id) ids.add(id);
+          });
+          if (!data || data.length < PAGE_SIZE) break;
+        }
+        return ids;
+      };
+
+      let segmentCustomerIds: Set<string> | null = null;
+      if (segmentIds.length > 0) {
+        segmentCustomerIds = await fetchIdsPaged(
+          (from, to) =>
+            supabase
+              .from("customer_segments")
+              .select("customer_id")
+              .in("segment_id", segmentIds)
+              .range(from, to),
+          (row) => {
+            const id = String(row?.customer_id || "");
+            return isUuidLike(id) ? id : null;
+          },
+        );
+      }
+
+      let personaCustomerIds: Set<string> | null = null;
+      if (personaIds.length > 0) {
+        const uuidPersonas = personaIds.filter(isUuidLike);
+        const predefinedPersonas = personaIds.filter((p) => !isUuidLike(p));
+
+        const combined = new Set<string>();
+
+        if (uuidPersonas.length > 0) {
+          const idsFromJunction = await fetchIdsPaged(
+            (from, to) =>
+              supabase
+                .from("customer_personas")
+                .select("customer_id")
+                .in("persona_id", uuidPersonas)
+                .range(from, to),
+            (row) => {
+              const id = String(row?.customer_id || "");
+              return isUuidLike(id) ? id : null;
+            },
+          );
+          idsFromJunction.forEach((id) => combined.add(id));
+
+          const idsFromLegacy = await fetchIdsPaged(
+            (from, to) =>
+              supabase
+                .from("crm_customers")
+                .select("id")
+                .eq("tenant_id", tenant.id)
+                .in("persona_id", uuidPersonas)
+                .range(from, to),
+            (row) => {
+              const id = String(row?.id || "");
+              return isUuidLike(id) ? id : null;
+            },
+          );
+          idsFromLegacy.forEach((id) => combined.add(id));
+        }
+
+        if (predefinedPersonas.length > 0) {
+          const idsFromPredefined = await fetchIdsPaged(
+            (from, to) =>
+              supabase
+                .from("customer_personas")
+                .select("customer_id")
+                .in("predefined_persona_id", predefinedPersonas)
+                .range(from, to),
+            (row) => {
+              const id = String(row?.customer_id || "");
+              return isUuidLike(id) ? id : null;
+            },
+          );
+          idsFromPredefined.forEach((id) => combined.add(id));
+        }
+
+        personaCustomerIds = combined;
+      }
+
+      if (segmentCustomerIds && personaCustomerIds) {
+        const [small, big] =
+          segmentCustomerIds.size <= personaCustomerIds.size
+            ? [segmentCustomerIds, personaCustomerIds]
+            : [personaCustomerIds, segmentCustomerIds];
+
+        let intersectionCount = 0;
+        for (const id of small) {
+          if (big.has(id)) intersectionCount++;
+        }
+        return intersectionCount;
+      }
+
+      if (segmentCustomerIds) return segmentCustomerIds.size;
+      if (personaCustomerIds) return personaCustomerIds.size;
+      return 0;
+    },
+    [tenant?.id, totalCustomerCount, isUuidLike],
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const run = async () => {
+      if (!tenant?.id) return;
+
+      // Prefer DB-sourced targeting when editing an existing campaign
+      const campaignId = existingCampaignId;
+      if (campaignId) {
+        try {
+          const { data: campaignRow, error: campaignErr } = await supabase
+            .from("crm_campaigns")
+            .select("id, tenant_id, segment_id, persona_ids")
+            .eq("id", campaignId)
+            .maybeSingle();
+          if (campaignErr) throw campaignErr;
+
+          const { data: segRows, error: segErr } = await supabase
+            .from("campaign_segments")
+            .select("segment_id")
+            .eq("campaign_id", campaignId);
+          if (segErr) throw segErr;
+
+          const { data: personaRows, error: personaErr } = await supabase
+            .from("campaign_personas")
+            .select("persona_id")
+            .eq("campaign_id", campaignId);
+          if (personaErr) throw personaErr;
+
+          const segmentIds = Array.from(
+            new Set(
+              [
+                ...(segRows || [])
+                  .map((r: any) => String(r?.segment_id || ""))
+                  .filter(Boolean),
+                String((campaignRow as any)?.segment_id || "").trim(),
+              ].filter(Boolean),
+            ),
+          );
+
+          const personaFromCampaignField: string[] = Array.isArray(
+            (campaignRow as any)?.persona_ids,
+          )
+            ? ((campaignRow as any).persona_ids as any[])
+                .map((p) => String(p || "").trim())
+                .filter(Boolean)
+            : [];
+
+          const personaIds = Array.from(
+            new Set([
+              ...personaFromCampaignField,
+              ...(personaRows || [])
+                .map((r: any) => String(r?.persona_id || "").trim())
+                .filter(Boolean),
+            ]),
+          );
+
+          const count = await computeAudienceRecipientCount({
+            segmentIds,
+            personaIds,
+          });
+          if (!cancelled) setCampaignAudienceRecipientCount(count);
+          return;
+        } catch (error) {
+          console.error(
+            "❌ Failed to resolve campaign audience count from DB:",
+            error,
+          );
+          // Fall through to state-based estimate
+        }
+      }
+
+      // New/unsaved campaign: derive from in-memory selections
+      const segmentIds = (selectedSegments || [])
+        .map((s: any) => String(s?.id || "").trim())
+        .filter(Boolean);
+      const personaIds = (selectedPersonas || [])
+        .map((p: any) => String(p?.id || "").trim())
+        .filter(Boolean);
+
+      try {
+        const count = await computeAudienceRecipientCount({
+          segmentIds,
+          personaIds,
+        });
+        if (!cancelled) setCampaignAudienceRecipientCount(count);
+      } catch (error) {
+        console.error("❌ Failed to resolve campaign audience count:", error);
+        if (!cancelled) setCampaignAudienceRecipientCount(null);
+      }
+    };
+
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    tenant?.id,
+    existingCampaignId,
+    selectedSegments,
+    selectedPersonas,
+    computeAudienceRecipientCount,
+  ]);
 
   // Footer and company data - pass campaignId to load campaign-specific styling
   const { footerSettings, campaignOverrides, setCampaignOverrides } =
@@ -3804,6 +4044,144 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
       });
 
       if (blocksError) throw blocksError;
+
+      // Load campaign targeting (segments + personas) so UI reflects stored audience
+      const [campaignSegmentsResult, campaignPersonasResult] =
+        await Promise.all([
+          supabase
+            .from("campaign_segments")
+            .select("segment_id")
+            .eq("campaign_id", campaignId),
+          supabase
+            .from("campaign_personas")
+            .select("persona_id")
+            .eq("campaign_id", campaignId),
+        ]);
+
+      if (campaignSegmentsResult.error) throw campaignSegmentsResult.error;
+      if (campaignPersonasResult.error) throw campaignPersonasResult.error;
+
+      const persistedSegmentIds = (campaignSegmentsResult.data || [])
+        .map((r: any) => String(r?.segment_id || ""))
+        .filter(Boolean);
+
+      // Single-segment campaigns store segment directly on crm_campaigns.segment_id
+      const campaignSingleSegmentId = String(
+        (campaign as any)?.segment_id || "",
+      );
+      const allSegmentIds = Array.from(
+        new Set([
+          ...persistedSegmentIds,
+          ...(campaignSingleSegmentId ? [campaignSingleSegmentId] : []),
+        ]),
+      );
+
+      const personaFromCampaignField: string[] = Array.isArray(
+        (campaign as any)?.persona_ids,
+      )
+        ? ((campaign as any).persona_ids as any[])
+            .map((p) => String(p || ""))
+            .filter(Boolean)
+        : [];
+
+      const persistedPersonaIds = (campaignPersonasResult.data || [])
+        .map((r: any) => String(r?.persona_id || ""))
+        .filter(Boolean);
+
+      const allPersonaIds = Array.from(
+        new Set([...personaFromCampaignField, ...persistedPersonaIds]),
+      );
+
+      // Hydrate persona details
+      if (allPersonaIds.length > 0) {
+        const { data: personas, error: personaDetailError } = await supabase
+          .from("crm_personas")
+          .select("id, persona_name, persona_description, is_custom")
+          .in("id", allPersonaIds);
+
+        if (personaDetailError) throw personaDetailError;
+
+        const foundById = new Map(
+          (personas || []).map((p: any) => [String(p.id), p]),
+        );
+        const hydrated = allPersonaIds
+          .map((id) => foundById.get(id) || null)
+          .filter(Boolean);
+
+        setSelectedPersonas(hydrated as any[]);
+      } else {
+        setSelectedPersonas([]);
+      }
+
+      // Hydrate segment details (support UUID segments and system string segments)
+      if (allSegmentIds.length > 0) {
+        const uuidSegmentIds = allSegmentIds.filter(isUuidLike);
+
+        const [crmSegmentsResult, customSegmentsResult] = await Promise.all([
+          uuidSegmentIds.length > 0
+            ? supabase
+                .from("crm_segments")
+                .select("id, name, description, customer_count")
+                .in("id", uuidSegmentIds)
+            : Promise.resolve({ data: [], error: null } as any),
+          uuidSegmentIds.length > 0
+            ? supabase
+                .from("custom_segments")
+                .select("id, name, customer_count")
+                .in("id", uuidSegmentIds)
+            : Promise.resolve({ data: [], error: null } as any),
+        ]);
+
+        if (crmSegmentsResult.error) throw crmSegmentsResult.error;
+        if (customSegmentsResult.error) throw customSegmentsResult.error;
+
+        const hydratedSegments: any[] = [];
+
+        const crmById = new Map(
+          (crmSegmentsResult.data || []).map((s: any) => [String(s.id), s]),
+        );
+        const customById = new Map(
+          (customSegmentsResult.data || []).map((s: any) => [String(s.id), s]),
+        );
+
+        for (const id of allSegmentIds) {
+          if (isUuidLike(id)) {
+            const seg = crmById.get(id) || customById.get(id);
+            if (seg) {
+              hydratedSegments.push({
+                id: seg.id,
+                name: seg.name,
+                description: seg.description || undefined,
+                type: "custom",
+                customer_count: seg.customer_count || 0,
+              });
+              continue;
+            }
+          }
+
+          // System/predefined segment fallback
+          const predefinedSegments: Record<string, string> = {
+            "new-customers": "New Customers",
+            "loyalty-members": "Loyalty Members",
+            "high-value": "High-Value Customers",
+            "lapsed-customers": "Lapsed Customers",
+            "seasonal-shoppers": "Seasonal Shoppers",
+            "frequent-buyers": "Frequent Buyers",
+          };
+          const name = predefinedSegments[id] || id;
+          const countFromHook = (segmentCounts as any)?.[id] || 0;
+          hydratedSegments.push({
+            id,
+            name,
+            type: "predefined",
+            customer_count: countFromHook,
+          });
+        }
+
+        setSelectedSegments(hydratedSegments);
+      } else {
+        setSelectedSegments([]);
+      }
 
       // Restore campaign state
       setCampaignName(campaign.name);
@@ -6418,20 +6796,28 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           selectedSegments={selectedSegments}
           selectedPersonas={selectedPersonas}
           totalRecipients={
-            selectedSegments.length === 0 && selectedPersonas.length === 0
-              ? totalCustomerCount
-              : selectedPersonas.reduce(
-                  (total, persona) =>
-                    total +
-                    (persona.customerCount || persona.customer_count || 0),
-                  0,
-                ) +
-                selectedSegments.reduce(
-                  (total, segment) =>
-                    total +
-                    (segment.customerCount || segment.customer_count || 0),
-                  0,
-                )
+            existingCampaignId
+              ? campaignAudienceRecipientCount !== null
+                ? campaignAudienceRecipientCount
+                : loadingExistingCampaign
+                  ? 0
+                  : Number.NaN
+              : campaignAudienceRecipientCount !== null
+                ? campaignAudienceRecipientCount
+                : selectedSegments.length === 0 && selectedPersonas.length === 0
+                  ? totalCustomerCount
+                  : selectedPersonas.reduce(
+                      (total, persona) =>
+                        total +
+                        (persona.customerCount || persona.customer_count || 0),
+                      0,
+                    ) +
+                    selectedSegments.reduce(
+                      (total, segment) =>
+                        total +
+                        (segment.customerCount || segment.customer_count || 0),
+                      0,
+                    )
           }
           schedule={
             schedule.type === "scheduled" && schedule.date

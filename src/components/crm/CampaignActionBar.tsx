@@ -45,7 +45,7 @@ interface CampaignActionBarProps {
   campaignName: string;
   subjectLine: string;
   blocks: ContentBlock[];
-  selectedSegments: any[];
+  selectedSegments: unknown[];
 
   // Sender info
   senderConfig?: SenderConfig;
@@ -116,14 +116,11 @@ export const CampaignActionBar: React.FC<CampaignActionBarProps> = ({
       { threshold: 1 },
     );
 
-    if (stickyRef.current) {
-      observer.observe(stickyRef.current);
-    }
+    const node = stickyRef.current;
+    if (node) observer.observe(node);
 
     return () => {
-      if (stickyRef.current) {
-        observer.unobserve(stickyRef.current);
-      }
+      if (node) observer.unobserve(node);
     };
   }, []);
 
@@ -284,7 +281,7 @@ export const CampaignActionBar: React.FC<CampaignActionBarProps> = ({
                   ) : (
                     <>
                       <Send className="h-4 w-4" />
-                      <span>Send</span>
+                      <span>Send Campaign</span>
                     </>
                   )}
                 </Button>

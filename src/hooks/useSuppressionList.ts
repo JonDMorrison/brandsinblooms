@@ -35,6 +35,35 @@ export interface SuppressionStats {
 const EMAIL_BLOCKING_TYPES = ['unsubscribed', 'bounced', 'complaint', 'complained', 'hard_bounce'] as const;
 
 /**
+ * Count tenant-scoped blocked emails (suppression_type = 'blocked').
+ * This intentionally does NOT include global blocks.
+ */
+export function useBlockedEmailCount(options?: { enabled?: boolean }) {
+  const { tenant } = useTenant();
+  const tenantId = tenant?.id;
+
+  return useQuery({
+    queryKey: ['blocked-email-count', tenantId],
+    queryFn: async (): Promise<number> => {
+      if (!tenantId) return 0;
+
+      const { count, error } = await supabase
+        .from('suppression_list')
+        .select('id', { count: 'exact', head: true })
+        .eq('tenant_id', tenantId)
+        .eq('channel', 'email')
+        .is('lifted_at', null)
+        .eq('suppression_type', 'blocked');
+
+      if (error) throw error;
+      return count || 0;
+    },
+    enabled: Boolean(tenantId) && (options?.enabled ?? true),
+    staleTime: 60000,
+  });
+}
+
+/**
  * Fetch paginated suppression list
  */
 export function useSuppressionList(options?: {

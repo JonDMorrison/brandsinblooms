@@ -246,6 +246,25 @@ serve(async (req: Request) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+    const requesterJwt = (() => {
+      const authHeader = req.headers.get('authorization') || req.headers.get('Authorization');
+      if (!authHeader) return null;
+      const trimmed = authHeader.trim();
+      if (!trimmed.toLowerCase().startsWith('bearer ')) return null;
+      return trimmed.slice(7).trim() || null;
+    })();
+
+    const getRequesterUserId = async (): Promise<string | null> => {
+      if (!requesterJwt) return null;
+      try {
+        const { data, error } = await supabase.auth.getUser(requesterJwt);
+        if (error) return null;
+        return data?.user?.id || null;
+      } catch {
+        return null;
+      }
+    };
+
     const pauseCampaignSafely = async (params: {
       campaignId: string;
       blockReason: string;
@@ -335,10 +354,52 @@ serve(async (req: Request) => {
       );
     }
 
+    const requesterUserId = await getRequesterUserId();
+
+    const logCampaignGovernanceDecision = async (params: {
+      decision: 'allow' | 'block' | 'warn' | 'log';
+      actionType: string;
+      reason?: string;
+      policyName?: string;
+      policyVersion?: string;
+      domainId?: string | null;
+      metadata?: Record<string, unknown>;
+    }) => {
+      try {
+        await supabase
+          .from('email_governance_audit_logs')
+          .insert({
+            tenant_id: campaign.tenant_id,
+            actor_type: requesterUserId ? 'user' : 'system',
+            actor_id: requesterUserId,
+            action_type: params.actionType,
+            decision: params.decision,
+            reason: params.reason || null,
+            policy_name: params.policyName || null,
+            policy_version: params.policyVersion || null,
+            campaign_id: campaignId,
+            domain_id: typeof params.domainId === 'string' ? params.domainId : (campaign.from_email_domain_id || null),
+            metadata: params.metadata || {},
+            occurred_at: new Date().toISOString(),
+          });
+      } catch (error) {
+        console.warn('⚠️ Failed to write governance audit log (non-fatal):', error);
+      }
+    };
+
     const governanceConfig = await getEmailGovernanceRuntimeConfig(supabase, campaign.tenant_id);
     const campaignIntervention = await getCampaignInterventionState(supabase, campaignId);
 
     if (campaignIntervention.force_stopped || campaignIntervention.admin_paused) {
+      await logCampaignGovernanceDecision({
+        decision: 'block',
+        actionType: 'campaign_send_preflight',
+        reason: campaignIntervention.force_stopped ? 'force_stopped' : 'admin_paused',
+        metadata: {
+          force_stopped: campaignIntervention.force_stopped,
+          admin_paused: campaignIntervention.admin_paused,
+        },
+      });
       return new Response(
         JSON.stringify({ error: 'Campaign is paused.' }),
         { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -352,6 +413,18 @@ serve(async (req: Request) => {
         campaignId,
         blockReason: 'reputation_critical_autopause',
         errorMessage: pauseMessage,
+      });
+
+      await logCampaignGovernanceDecision({
+        decision: 'block',
+        actionType: 'campaign_send_preflight',
+        reason: 'reputation_critical_autopause',
+        policyName: 'campaign_reputation_policy',
+        metadata: {
+          message: pauseMessage,
+          reputation: reputationPolicy,
+          autopause_override_final: campaignIntervention.autopause_override_final,
+        },
       });
 
       return new Response(
@@ -374,6 +447,17 @@ serve(async (req: Request) => {
           updated_at: new Date().toISOString(),
         })
         .eq('id', campaignId);
+
+      await logCampaignGovernanceDecision({
+        decision: 'block',
+        actionType: 'campaign_send_preflight',
+        reason: 'reputation_restricted',
+        policyName: 'campaign_reputation_policy',
+        metadata: {
+          message: blockMessage,
+          reputation: reputationPolicy,
+        },
+      });
 
       return new Response(
         JSON.stringify({
@@ -665,6 +749,20 @@ serve(async (req: Request) => {
         p_error_message: pauseMessage,
       });
 
+      await logCampaignGovernanceDecision({
+        decision: 'block',
+        actionType: 'campaign_send_preflight',
+        reason: hygieneAnalysis.blockReason || 'list_hygiene_invalid_ratio',
+        policyName: 'list_hygiene',
+        metadata: {
+          message: pauseMessage,
+          invalid_emails_pct: hygieneAnalysis.invalidEmailsPct,
+          invalid_emails_count: hygieneAnalysis.invalidEmailsCount,
+          audience_total: hygieneAnalysis.audienceTotal,
+          warnings: hygieneAnalysis.warnings,
+        },
+      });
+
       return new Response(
         JSON.stringify({
           error: pauseMessage,
@@ -717,6 +815,20 @@ serve(async (req: Request) => {
         p_campaign_id: campaignId,
         p_block_reason: 'abuse_detection_under_review',
         p_error_message: abusePauseMessage,
+      });
+
+      await logCampaignGovernanceDecision({
+        decision: 'block',
+        actionType: 'campaign_send_preflight',
+        reason: 'abuse_detection_under_review',
+        policyName: 'abuse_detection',
+        metadata: {
+          message: abusePauseMessage,
+          risk_level: abuseRow?.risk_level || 'high',
+          reasons: abuseRow?.reasons || [],
+          monitoring_severity: abuseRow?.monitoring_severity || 'critical',
+          manual_review_required: true,
+        },
       });
 
       return new Response(
@@ -867,6 +979,16 @@ serve(async (req: Request) => {
         blockReason: 'sender_domain_required',
         errorMessage: pauseMessage,
       });
+
+      await logCampaignGovernanceDecision({
+        decision: 'block',
+        actionType: 'campaign_send_preflight',
+        reason: 'sender_domain_required',
+        metadata: {
+          message: pauseMessage,
+          recipient_count: recipientCount,
+        },
+      });
       return new Response(
         JSON.stringify({ error: pauseMessage, reason: 'sender_domain_required' }),
         { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -898,6 +1020,20 @@ serve(async (req: Request) => {
         campaignId,
         blockReason: quotaCheck?.reason || 'sender_domain_required',
         errorMessage: pauseMessage,
+      });
+
+      await logCampaignGovernanceDecision({
+        decision: 'block',
+        actionType: 'campaign_send_preflight',
+        reason: quotaCheck?.reason || 'sender_domain_required',
+        policyName: 'send_quota',
+        domainId: domainIdToUse,
+        metadata: {
+          message: pauseMessage,
+          recipient_count: recipientCount,
+          compliance: quotaCheck?.compliance || null,
+          warnings: quotaCheck?.warnings || [],
+        },
       });
 
       return new Response(
@@ -947,6 +1083,16 @@ serve(async (req: Request) => {
         p_block_reason: 'shared_sender_disabled',
         p_error_message: pauseMessage,
       });
+
+      await logCampaignGovernanceDecision({
+        decision: 'block',
+        actionType: 'campaign_send_preflight',
+        reason: 'shared_sender_disabled',
+        metadata: {
+          message: pauseMessage,
+          recipient_count: recipientCount,
+        },
+      });
       return new Response(
         JSON.stringify({ error: pauseMessage }),
         { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -983,6 +1129,23 @@ serve(async (req: Request) => {
         campaignId,
         blockReason: 'compliance_not_met_for_scale',
         errorMessage: pauseMessage,
+      });
+
+      await logCampaignGovernanceDecision({
+        decision: 'block',
+        actionType: 'campaign_send_preflight',
+        reason: 'compliance_not_met_for_scale',
+        policyName: 'high_volume_compliance',
+        domainId: activeDomainId,
+        metadata: {
+          message: pauseMessage,
+          recipient_count: recipientCount,
+          high_volume_threshold: highVolumeThreshold,
+          failures: complianceFailures,
+          warnings: complianceWarnings,
+          spam_score: spamAssessment.score,
+          spam_score_threshold: spamScoreThreshold,
+        },
       });
 
       return new Response(
@@ -1338,6 +1501,26 @@ serve(async (req: Request) => {
       .eq('id', campaignId);
 
     console.log(`📧 Campaign ${campaignId} queued with ${totalBatches} batch jobs`);
+
+    await logCampaignGovernanceDecision({
+      decision: complianceWarnings.length > 0 || hygieneAnalysis.warnings.length > 0 ? 'warn' : 'allow',
+      actionType: 'campaign_send_queued',
+      reason: complianceWarnings.length > 0 || hygieneAnalysis.warnings.length > 0 ? 'preflight_warnings' : 'preflight_ok',
+      policyName: 'send_pipeline',
+      domainId: activeDomainId,
+      metadata: {
+        recipient_count: recipientCount,
+        queued_recipient_count: queuedRecipientCount,
+        suppressed_count: suppressedCount,
+        compliance_warnings: complianceWarnings,
+        hygiene_warnings: hygieneAnalysis.warnings,
+        reputation: {
+          score: reputationPolicy.score,
+          tier: reputationPolicy.tier,
+          action: reputationPolicy.action,
+        },
+      },
+    });
 
     return new Response(
       JSON.stringify({
