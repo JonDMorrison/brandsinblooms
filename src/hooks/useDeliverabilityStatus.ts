@@ -15,8 +15,6 @@ export interface DeliverabilityStatus {
   tenant_id: string;
   status: 'healthy' | 'warning' | 'critical';
   verification_status: string;
-  warmup_stage: number;
-  daily_limit: number;
   metrics: {
     sent_30d: number;
     delivered_30d: number;

@@ -4,6 +4,16 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   ArrowLeft,
   Copy,
   Users,
@@ -15,11 +25,14 @@ import {
   UserMinus,
   TrendingUp,
   AlertTriangle,
+  Pause,
+  Play,
+  Square,
+  Loader2,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
-import { ForceSendButton } from "@/components/crm/campaigns/ForceSendButton";
 
 interface EmailCampaignDetail {
   id: string;
@@ -43,6 +56,10 @@ export default function CRMCampaignDetail() {
   const { id } = useParams<{ id: string }>();
   const [campaign, setCampaign] = useState<EmailCampaignDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [busyAction, setBusyAction] = useState<
+    null | "pause" | "resume" | "stop"
+  >(null);
+  const [showStopDialog, setShowStopDialog] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -83,6 +100,95 @@ export default function CRMCampaignDetail() {
     }
   };
 
+  const pauseCampaign = async () => {
+    if (!campaign?.id) return;
+    setBusyAction("pause");
+
+    const { data, error } = await supabase.rpc("pause_email_campaign_sending", {
+      p_campaign_id: campaign.id,
+    });
+
+    setBusyAction(null);
+
+    if (error) {
+      toast({
+        title: "Pause failed",
+        description: error.message || "Action failed",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const row = Array.isArray(data) ? data[0] : data;
+    toast({
+      title: "Campaign paused",
+      description: `Paused ${row?.messages_paused ?? 0} messages and ${row?.jobs_paused ?? 0} jobs.`,
+    });
+    await fetchCampaign();
+  };
+
+  const resumeCampaign = async () => {
+    if (!campaign?.id) return;
+    setBusyAction("resume");
+
+    const { data, error } = await supabase.rpc(
+      "resume_email_campaign_sending",
+      {
+        p_campaign_id: campaign.id,
+      },
+    );
+
+    setBusyAction(null);
+
+    if (error) {
+      toast({
+        title: "Resume failed",
+        description: error.message || "Action failed",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const row = Array.isArray(data) ? data[0] : data;
+    toast({
+      title: "Campaign resumed",
+      description: `Resumed ${row?.messages_resumed ?? 0} messages and ${row?.jobs_resumed ?? 0} jobs.`,
+    });
+    await fetchCampaign();
+  };
+
+  const stopCampaign = async () => {
+    if (!campaign?.id) return;
+    setBusyAction("stop");
+    setShowStopDialog(false);
+
+    const { data, error } = await supabase.rpc(
+      "stop_email_campaign_sending" as never,
+      {
+        p_campaign_id: campaign.id,
+        p_reason: "stopped_by_user",
+      } as never,
+    );
+
+    setBusyAction(null);
+
+    if (error) {
+      toast({
+        title: "Stop failed",
+        description: error.message || "Action failed",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const row = Array.isArray(data) ? data[0] : data;
+    toast({
+      title: "Campaign stopped",
+      description: `Stopped ${row?.messages_stopped ?? 0} messages and ${row?.jobs_stopped ?? 0} jobs.`,
+    });
+    await fetchCampaign();
+  };
+
   const getStatusBadge = (status: string) => {
     const variants: Record<
       string,
@@ -90,7 +196,12 @@ export default function CRMCampaignDetail() {
     > = {
       draft: "outline",
       scheduled: "secondary",
+      queued: "secondary",
+      partially_queued: "secondary",
+      sending: "secondary",
+      paused: "outline",
       sent: "default",
+      sent_with_errors: "default",
       failed: "destructive",
     };
 
@@ -178,7 +289,96 @@ export default function CRMCampaignDetail() {
         </div>
         <div className="flex items-center space-x-2">
           {getStatusBadge(campaign.status)}
-          {campaign.status === "sent" && (
+
+          {(campaign.status === "scheduled" ||
+            campaign.status === "queued" ||
+            campaign.status === "partially_queued" ||
+            campaign.status === "sending") && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => void pauseCampaign()}
+              disabled={busyAction !== null}
+              className="gap-2"
+            >
+              {busyAction === "pause" ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Pause className="h-4 w-4" />
+              )}
+              Pause
+            </Button>
+          )}
+
+          {campaign.status === "paused" && (
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => void resumeCampaign()}
+              disabled={busyAction !== null}
+              className="gap-2"
+            >
+              {busyAction === "resume" ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Play className="h-4 w-4" />
+              )}
+              Resume
+            </Button>
+          )}
+
+          {(campaign.status === "scheduled" ||
+            campaign.status === "queued" ||
+            campaign.status === "partially_queued" ||
+            campaign.status === "sending" ||
+            campaign.status === "paused") && (
+            <>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => setShowStopDialog(true)}
+                disabled={busyAction !== null}
+                className="gap-2"
+              >
+                {busyAction === "stop" ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Square className="h-4 w-4" />
+                )}
+                Stop
+              </Button>
+
+              <AlertDialog
+                open={showStopDialog}
+                onOpenChange={setShowStopDialog}
+              >
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Stop campaign?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will stop sending and mark the campaign as failed.
+                      You can’t resume after stopping.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel disabled={busyAction !== null}>
+                      Cancel
+                    </AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() => void stopCampaign()}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      disabled={busyAction !== null}
+                    >
+                      Stop
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </>
+          )}
+
+          {(campaign.status === "sent" ||
+            campaign.status === "sent_with_errors") && (
             <Button variant="default" size="sm" asChild className="ml-4">
               <Link to={`/crm/campaigns/${campaign.id}/analytics`}>
                 <TrendingUp className="h-4 w-4 mr-2" />

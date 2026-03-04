@@ -3,6 +3,16 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useTenant } from '@/hooks/useTenant';
 
+const ID_CHUNK_SIZE = 200;
+
+function chunkIds(ids: string[], size = ID_CHUNK_SIZE): string[][] {
+  const chunks: string[][] = [];
+  for (let index = 0; index < ids.length; index += size) {
+    chunks.push(ids.slice(index, index + size));
+  }
+  return chunks;
+}
+
 interface SegmentCounts {
   'perks-members': number;
   'loyalty-members': number;
@@ -69,40 +79,52 @@ export const useSegmentCounts = () => {
         console.log('📅 Date calculations:', { now, thirtyDaysAgo, ninetyDaysAgo });
 
         // Calculate automatic segment qualifications
-        const newCustomers = customers.filter(customer => 
+        const newCustomers = customers.filter(customer =>
           new Date(customer.created_at) >= thirtyDaysAgo
         );
-        const loyaltyCustomers = customers.filter(customer => 
+        const loyaltyCustomers = customers.filter(customer =>
           customer.tags && customer.tags.includes('loyalty')
         );
-        const highValueCustomers = customers.filter(customer => 
+        const highValueCustomers = customers.filter(customer =>
           customer.total_spent && customer.total_spent > 500
         );
-        const lapsedCustomers = customers.filter(customer => 
-          customer.last_purchase_date && 
+        const lapsedCustomers = customers.filter(customer =>
+          customer.last_purchase_date &&
           new Date(customer.last_purchase_date) < ninetyDaysAgo
         );
-        const seasonalCustomers = customers.filter(customer => 
+        const seasonalCustomers = customers.filter(customer =>
           customer.tags && (
-            customer.tags.some((tag: string) => 
+            customer.tags.some((tag: string) =>
               ['seasonal', 'holiday', 'christmas', 'valentine', 'easter', 'summer', 'winter'].includes(tag.toLowerCase())
             )
           )
         );
-        const frequentBuyers = customers.filter(customer => 
-          customer.order_history && 
-          Array.isArray(customer.order_history) && 
+        const frequentBuyers = customers.filter(customer =>
+          customer.order_history &&
+          Array.isArray(customer.order_history) &&
           customer.order_history.length >= 3
         );
 
         // Get perks members from customer_loyalty_metrics
-        const { data: perksMetrics } = await supabase
-          .from('customer_loyalty_metrics')
-          .select('customer_id')
-          .eq('is_perks_member', true)
-          .in('customer_id', customers.map(c => c.id));
-        
-        const perksMembers = perksMetrics || [];
+        const customerIds = customers.map(c => c.id);
+
+        const perksMembers: Array<{ customer_id: string }> = [];
+        for (const idChunk of chunkIds(customerIds)) {
+          const { data: perksMetricsChunk, error: perksMetricsError } = await supabase
+            .from('customer_loyalty_metrics')
+            .select('customer_id')
+            .eq('is_perks_member', true)
+            .in('customer_id', idChunk);
+
+          if (perksMetricsError) {
+            console.error('Error fetching perks members chunk:', perksMetricsError);
+            continue;
+          }
+
+          if (perksMetricsChunk?.length) {
+            perksMembers.push(...perksMetricsChunk);
+          }
+        }
 
         console.log('🔍 Automatic qualifications:', {
           newCustomers: newCustomers.length,
@@ -117,12 +139,27 @@ export const useSegmentCounts = () => {
 
         // Get manual segment assignments for predefined segments
         let manualAssignments: Record<string, Set<string>> = {};
-        
+
         // First, try to get ALL customer segments for this tenant
-        const { data: allCustomerSegments, error: segmentsError } = await supabase
-          .from('customer_segments')
-          .select('customer_id, segment_id')
-          .in('customer_id', customers.map(c => c.id));
+        const allCustomerSegments: Array<{ customer_id: string; segment_id: string }> = [];
+        let segmentsError: any = null;
+
+        for (const idChunk of chunkIds(customerIds)) {
+          const { data: customerSegmentsChunk, error: customerSegmentsError } = await supabase
+            .from('customer_segments')
+            .select('customer_id, segment_id')
+            .in('customer_id', idChunk);
+
+          if (customerSegmentsError) {
+            segmentsError = customerSegmentsError;
+            console.error('Error fetching customer segments chunk:', customerSegmentsError);
+            continue;
+          }
+
+          if (customerSegmentsChunk?.length) {
+            allCustomerSegments.push(...customerSegmentsChunk);
+          }
+        }
 
         if (segmentsError) {
           console.error('Error fetching customer segments:', segmentsError);
@@ -163,32 +200,32 @@ export const useSegmentCounts = () => {
             ...perksMembers.map(m => m.customer_id),
             ...(manualAssignments['Perks Members'] || [])
           ]).size,
-          
+
           'loyalty-members': new Set([
             ...loyaltyCustomers.map(c => c.id),
             ...(manualAssignments['Loyalty Members'] || [])
           ]).size,
-          
+
           'high-value': new Set([
             ...highValueCustomers.map(c => c.id),
             ...(manualAssignments['High-Value Customers'] || [])
           ]).size,
-          
+
           'new-customers': new Set([
             ...newCustomers.map(c => c.id),
             ...(manualAssignments['New Customers'] || [])
           ]).size,
-          
+
           'lapsed-customers': new Set([
             ...lapsedCustomers.map(c => c.id),
             ...(manualAssignments['Lapsed Customers'] || [])
           ]).size,
-          
+
           'seasonal-shoppers': new Set([
             ...seasonalCustomers.map(c => c.id),
             ...(manualAssignments['Seasonal Shoppers'] || [])
           ]).size,
-          
+
           'frequent-buyers': new Set([
             ...frequentBuyers.map(c => c.id),
             ...(manualAssignments['Frequent Buyers'] || [])

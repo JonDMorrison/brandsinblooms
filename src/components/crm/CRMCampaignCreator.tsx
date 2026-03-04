@@ -27,10 +27,8 @@ import {
   X,
 } from "lucide-react";
 import { useSenderConfiguration } from "@/hooks/useSenderConfiguration";
-import { SharedSenderConfirmationModal } from "./campaigns/SharedSenderConfirmationModal";
+import { SenderVerificationModal } from "./campaigns/SenderVerificationModal";
 import { CampaignSendConfirmationModal } from "./campaigns/CampaignSendConfirmationModal";
-import { WarmupLimitModal } from "./WarmupLimitModal";
-import { WarmupLimitDetails } from "@/utils/campaignSendingErrors";
 import { CleanEmailBlockEditor } from "./CleanEmailBlockEditor";
 import { FullEmailPreview } from "./FullEmailPreview";
 import { ContentBlock } from "@/types/emailBuilder";
@@ -70,6 +68,7 @@ import {
   applyAIToBlock,
 } from "@/lib/newsletter/aiMapping";
 import { usePagePersistence } from "@/hooks/usePagePersistence";
+import { DomainHealthBanner } from "@/components/crm/email/DomainHealthBanner";
 import {
   normalizeBlockForSave,
   normalizeBlockFromDatabase,
@@ -803,6 +802,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   const urlContentTaskId = searchParams.get("contentTaskId");
   const templateIdParam = searchParams.get("templateId");
   const finalContentTaskId = propContentTaskId || urlContentTaskId;
+  const { query: bundleQuery } = useGeneratedBundle(bundleIdParam || undefined);
 
   // Parse URL personas early
   const personaParam = searchParams.get("persona");
@@ -823,6 +823,12 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
 
   const [campaignName, setCampaignName] = useState("");
 
+  const [subjectLine, setSubjectLine] = useState("");
+
+  const [preheaderText, setPreheaderText] = useState("");
+
+  const [blocks, setBlocks] = useState<ContentBlock[]>([]);
+
   // Track used images to prevent duplicates
   const [usedImageIds, setUsedImageIds] = useState<Set<string>>(new Set());
 
@@ -840,6 +846,9 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   // Schedule state
   const [schedule, setSchedule] = useState<ScheduleOption>({ type: "now" });
   const skipNextSchedulePersistRef = useRef(false);
+  const [campaignControlBusyAction, setCampaignControlBusyAction] = useState<
+    "pause" | "resume" | "stop" | null
+  >(null);
 
   const { cloneCampaign, isCloning: isCloningCampaign } = useCampaignCloning();
   const [lockedScheduleDialogOpen, setLockedScheduleDialogOpen] =
@@ -859,6 +868,8 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   const [campaignStatus, setCampaignStatus] = useState<string>("draft");
   const [scheduledAt, setScheduledAt] = useState<string | null>(null);
   const [isScheduleProcessing, setIsScheduleProcessing] = useState(false);
+  const isContentLocked =
+    campaignStatus === "sending" || campaignStatus === "sent";
 
   const isScheduleLockedMessage = useCallback((message: string) => {
     const normalized = (message || "").toLowerCase();
@@ -872,109 +883,44 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   }, []);
 
   const openLockedScheduleDialog = useCallback(
-    (args: {
+    (params: {
       message: string;
       desiredSchedule?: { date: Date; timezone: string };
       statusOverride?: string;
     }) => {
-      setLockedScheduleDialogMessage(args.message);
-      setLockedScheduleDialogStatus(args.statusOverride ?? campaignStatus);
-      setPendingLockedSchedule(args.desiredSchedule ?? null);
+      const normalized = (params.message || "").toLowerCase();
+      const inferredStatus = normalized.includes("sent")
+        ? "sent"
+        : normalized.includes("sending") ||
+            normalized.includes("in progress") ||
+            normalized.includes("already in progress")
+          ? "sending"
+          : "draft";
+
+      const status = params.statusOverride || inferredStatus;
+
+      setLockedScheduleDialogMessage(params.message || "");
+      setLockedScheduleDialogStatus(status);
+
+      if (params.desiredSchedule && status === "sent") {
+        setPendingLockedSchedule({
+          date: params.desiredSchedule.date,
+          timezone: params.desiredSchedule.timezone,
+        });
+      } else {
+        setPendingLockedSchedule(null);
+      }
+
       setLockedScheduleDialogOpen(true);
     },
-    [campaignStatus],
+    [
+      setLockedScheduleDialogMessage,
+      setLockedScheduleDialogOpen,
+      setLockedScheduleDialogStatus,
+      setPendingLockedSchedule,
+    ],
   );
 
-  const inferLockedScheduleStatus = useCallback(
-    (message: string): string => {
-      const normalized = (message || "").toLowerCase();
-      if (normalized.includes("sent") || normalized.includes("already sent")) {
-        return "sent";
-      }
-      if (
-        normalized.includes("in progress") ||
-        normalized.includes("sending") ||
-        normalized.includes("applied")
-      ) {
-        return "sending";
-      }
-      return campaignStatus;
-    },
-    [campaignStatus],
-  );
-
-  // Derived: is content locked (scheduled or sending)
-  const isContentLocked =
-    campaignStatus === "scheduled" || campaignStatus === "sending";
-
-  const [pendingDraftData, setPendingDraftData] = useState<{
-    state: any;
-    draftTimestamp?: string;
-    dbTimestamp?: string;
-  } | null>(null);
-
-  // CRITICAL FIX: Generate unique session ID for new campaigns to prevent cross-contamination
-  // Uses helper function that ensures:
-  // - Existing campaigns (UUID slug) use campaignSlug as session ID
-  // - New campaigns get unique session ID that cannot collide with other campaigns
-  const sessionIdRef = useRef<string | null>(null);
-  if (sessionIdRef.current === null) {
-    sessionIdRef.current = generateCampaignSessionId(campaignSlug);
-    console.log(
-      `🔑 Generated session ID: ${sessionIdRef.current} for slug: ${campaignSlug || "new"}`,
-    );
-  }
-
-  // Reset tracker when campaign changes
-  useEffect(() => {
-    setUsedImageIds(new Set());
-  }, [campaignSlug]);
-
-  // Page persistence hook with unique session ID and lastModifiedAt support
-  const {
-    persistState,
-    restoreState,
-    clearPersistedState,
-    getPersistedTimestamp,
-  } = usePagePersistence<{
-    campaignName: string;
-    subjectLine: string;
-    preheaderText: string;
-    blocks: ContentBlock[];
-    showPreview: boolean;
-    selectedPersonas: any[];
-    selectedSegments: any[];
-    flow?: string;
-  }>({
-    key: "campaign_creator",
-    sessionId: sessionIdRef.current,
-    ttl: 2 * 60 * 60 * 1000, // 2 hours
-    onHidden: () => {
-      // Persist with current lastModifiedAt
-      persistState(
-        {
-          campaignName,
-          subjectLine,
-          preheaderText,
-          blocks,
-          showPreview,
-          selectedPersonas,
-          selectedSegments,
-          flow: searchParams.get("flow") || undefined,
-        },
-        lastModifiedAt,
-      );
-    },
-  });
-
-  const { query: bundleQuery } = useGeneratedBundle(bundleIdParam || undefined);
-
-  const [subjectLine, setSubjectLine] = useState("");
-  const [preheaderText, setPreheaderText] = useState("");
-  const [blocks, setBlocks] = useState<ContentBlock[]>([]);
-
-  // UNIFIED PREFILL EFFECT - Runs exactly once when component mounts
-  // Handles: URL prefillData, bundleId, templateId, contentTaskId
   useEffect(() => {
     if (hasAppliedPrefillRef.current) {
       console.log("🚫 Prefill already applied, skipping");
@@ -1211,11 +1157,140 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   const [sending, setSending] = useState(false);
   const [showSenderConfirmation, setShowSenderConfirmation] = useState(false);
   const [showSendConfirmation, setShowSendConfirmation] = useState(false);
-  const [showWarmupLimitModal, setShowWarmupLimitModal] = useState(false);
-  const [warmupLimitDetails, setWarmupLimitDetails] =
-    useState<WarmupLimitDetails | null>(null);
+  const [pendingSendFlow, setPendingSendFlow] = useState(false);
   const [showAIImageDialog, setShowAIImageDialog] = useState(false);
   const [editingBlockId, setEditingBlockId] = useState<string | null>(null);
+
+  const refreshCampaignStatusFromDb = useCallback(
+    async (campaignId: string) => {
+      const { data: rows, error } = await supabase
+        .from("crm_campaigns")
+        .select("status, scheduled_at")
+        .eq("id", campaignId)
+        .limit(1);
+
+      if (error) {
+        if (import.meta.env.DEV) {
+          console.warn("Failed to refresh campaign status:", error);
+        }
+        return;
+      }
+
+      const data = Array.isArray(rows) ? rows[0] : null;
+
+      if (data?.status) {
+        setCampaignStatus(data.status);
+      }
+      setScheduledAt(data?.scheduled_at ?? null);
+    },
+    [],
+  );
+
+  const handlePauseCampaignSending = useCallback(async () => {
+    if (!existingCampaignId) {
+      toast({
+        title: "Pause unavailable",
+        description: "Save the campaign first.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setCampaignControlBusyAction("pause");
+    const { data, error } = await supabase.rpc("pause_email_campaign_sending", {
+      p_campaign_id: existingCampaignId,
+    });
+    setCampaignControlBusyAction(null);
+
+    if (error) {
+      toast({
+        title: "Pause failed",
+        description: error.message || "Action failed",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const row = Array.isArray(data) ? data[0] : data;
+    toast({
+      title: "Campaign paused",
+      description: `Paused ${row?.messages_paused ?? 0} messages and ${row?.jobs_paused ?? 0} jobs.`,
+    });
+    await refreshCampaignStatusFromDb(existingCampaignId);
+  }, [existingCampaignId, refreshCampaignStatusFromDb, toast]);
+
+  const handleResumeCampaignSending = useCallback(async () => {
+    if (!existingCampaignId) {
+      toast({
+        title: "Resume unavailable",
+        description: "Save the campaign first.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setCampaignControlBusyAction("resume");
+    const { data, error } = await supabase.rpc(
+      "resume_email_campaign_sending",
+      {
+        p_campaign_id: existingCampaignId,
+      },
+    );
+    setCampaignControlBusyAction(null);
+
+    if (error) {
+      toast({
+        title: "Resume failed",
+        description: error.message || "Action failed",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const row = Array.isArray(data) ? data[0] : data;
+    toast({
+      title: "Campaign resumed",
+      description: `Resumed ${row?.messages_resumed ?? 0} messages and ${row?.jobs_resumed ?? 0} jobs.`,
+    });
+    await refreshCampaignStatusFromDb(existingCampaignId);
+  }, [existingCampaignId, refreshCampaignStatusFromDb, toast]);
+
+  const handleStopCampaignSending = useCallback(async () => {
+    if (!existingCampaignId) {
+      toast({
+        title: "Stop unavailable",
+        description: "Save the campaign first.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setCampaignControlBusyAction("stop");
+    const { data, error } = await supabase.rpc(
+      "stop_email_campaign_sending" as never,
+      {
+        p_campaign_id: existingCampaignId,
+        p_reason: "stopped_by_user",
+      } as never,
+    );
+    setCampaignControlBusyAction(null);
+
+    if (error) {
+      toast({
+        title: "Stop failed",
+        description: error.message || "Action failed",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const row = Array.isArray(data) ? data[0] : data;
+    toast({
+      title: "Campaign stopped",
+      description: `Stopped ${row?.messages_stopped ?? 0} messages and ${row?.jobs_stopped ?? 0} jobs.`,
+    });
+    await refreshCampaignStatusFromDb(existingCampaignId);
+  }, [existingCampaignId, refreshCampaignStatusFromDb, toast]);
 
   // Sender configuration for domain verification
   const {
@@ -1227,8 +1302,17 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   // Tenant context for customer count
   const { tenant } = useTenant();
 
+  const isUuidLike = React.useCallback((value: string) => {
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      value,
+    );
+  }, []);
+
   // Total customer count for "All Contacts" audience
   const [totalCustomerCount, setTotalCustomerCount] = useState<number>(0);
+
+  const [campaignAudienceRecipientCount, setCampaignAudienceRecipientCount] =
+    useState<number | null>(null);
 
   // Fetch total customer count when tenant is available
   useEffect(() => {
@@ -1248,6 +1332,245 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
     fetchTotalCustomerCount();
   }, [tenant?.id]);
 
+  const computeAudienceRecipientCount = useCallback(
+    async (params: {
+      segmentIds: string[];
+      personaIds: string[];
+    }): Promise<number> => {
+      if (!tenant?.id) return 0;
+
+      const segmentIds = (params.segmentIds || []).filter(isUuidLike);
+      const personaIds = (params.personaIds || []).filter(Boolean);
+
+      if (segmentIds.length === 0 && personaIds.length === 0) {
+        return totalCustomerCount;
+      }
+
+      const PAGE_SIZE = 1000;
+
+      const fetchIdsPaged = async (
+        queryFactory: (from: number, to: number) => any,
+        rowToId: (row: any) => string | null,
+      ): Promise<Set<string>> => {
+        const ids = new Set<string>();
+        for (let from = 0; ; from += PAGE_SIZE) {
+          const to = from + PAGE_SIZE - 1;
+          const { data, error } = await queryFactory(from, to);
+          if (error) throw error;
+          (data || []).forEach((row: any) => {
+            const id = rowToId(row);
+            if (id) ids.add(id);
+          });
+          if (!data || data.length < PAGE_SIZE) break;
+        }
+        return ids;
+      };
+
+      let segmentCustomerIds: Set<string> | null = null;
+      if (segmentIds.length > 0) {
+        segmentCustomerIds = await fetchIdsPaged(
+          (from, to) =>
+            supabase
+              .from("customer_segments")
+              .select("customer_id")
+              .in("segment_id", segmentIds)
+              .range(from, to),
+          (row) => {
+            const id = String(row?.customer_id || "");
+            return isUuidLike(id) ? id : null;
+          },
+        );
+      }
+
+      let personaCustomerIds: Set<string> | null = null;
+      if (personaIds.length > 0) {
+        const uuidPersonas = personaIds.filter(isUuidLike);
+        const predefinedPersonas = personaIds.filter((p) => !isUuidLike(p));
+
+        const combined = new Set<string>();
+
+        if (uuidPersonas.length > 0) {
+          const idsFromJunction = await fetchIdsPaged(
+            (from, to) =>
+              supabase
+                .from("customer_personas")
+                .select("customer_id")
+                .in("persona_id", uuidPersonas)
+                .range(from, to),
+            (row) => {
+              const id = String(row?.customer_id || "");
+              return isUuidLike(id) ? id : null;
+            },
+          );
+          idsFromJunction.forEach((id) => combined.add(id));
+
+          const idsFromLegacy = await fetchIdsPaged(
+            (from, to) =>
+              supabase
+                .from("crm_customers")
+                .select("id")
+                .eq("tenant_id", tenant.id)
+                .in("persona_id", uuidPersonas)
+                .range(from, to),
+            (row) => {
+              const id = String(row?.id || "");
+              return isUuidLike(id) ? id : null;
+            },
+          );
+          idsFromLegacy.forEach((id) => combined.add(id));
+        }
+
+        if (predefinedPersonas.length > 0) {
+          const idsFromPredefined = await fetchIdsPaged(
+            (from, to) =>
+              supabase
+                .from("customer_personas")
+                .select("customer_id")
+                .in("predefined_persona_id", predefinedPersonas)
+                .range(from, to),
+            (row) => {
+              const id = String(row?.customer_id || "");
+              return isUuidLike(id) ? id : null;
+            },
+          );
+          idsFromPredefined.forEach((id) => combined.add(id));
+        }
+
+        personaCustomerIds = combined;
+      }
+
+      if (segmentCustomerIds && personaCustomerIds) {
+        const [small, big] =
+          segmentCustomerIds.size <= personaCustomerIds.size
+            ? [segmentCustomerIds, personaCustomerIds]
+            : [personaCustomerIds, segmentCustomerIds];
+
+        let intersectionCount = 0;
+        for (const id of small) {
+          if (big.has(id)) intersectionCount++;
+        }
+        return intersectionCount;
+      }
+
+      if (segmentCustomerIds) return segmentCustomerIds.size;
+      if (personaCustomerIds) return personaCustomerIds.size;
+      return 0;
+    },
+    [tenant?.id, totalCustomerCount, isUuidLike],
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const run = async () => {
+      if (!tenant?.id) return;
+
+      // Prefer in-memory targeting when the user has made selections in this session.
+      // (If we always read from DB for existing campaigns, the confirmation dialog
+      // can temporarily show stale "All Contacts" while targeting is being persisted.)
+      const stateSegmentIds = (selectedSegments || [])
+        .map((s: any) => String(s?.id || "").trim())
+        .filter(Boolean);
+      const statePersonaIds = (selectedPersonas || [])
+        .map((p: any) => String(p?.id || "").trim())
+        .filter(Boolean);
+
+      if (stateSegmentIds.length > 0 || statePersonaIds.length > 0) {
+        try {
+          const count = await computeAudienceRecipientCount({
+            segmentIds: stateSegmentIds,
+            personaIds: statePersonaIds,
+          });
+          if (!cancelled) setCampaignAudienceRecipientCount(count);
+        } catch (error) {
+          console.error("❌ Failed to resolve campaign audience count:", error);
+          if (!cancelled) setCampaignAudienceRecipientCount(null);
+        }
+        return;
+      }
+
+      // Otherwise, when editing an existing campaign, derive from DB-sourced targeting.
+      const campaignId = existingCampaignId;
+      if (campaignId) {
+        try {
+          const { data: campaignRow, error: campaignErr } = await supabase
+            .from("crm_campaigns")
+            .select("id, tenant_id, segment_id, persona_ids")
+            .eq("id", campaignId)
+            .maybeSingle();
+          if (campaignErr) throw campaignErr;
+
+          const { data: segRows, error: segErr } = await supabase
+            .from("campaign_segments")
+            .select("segment_id")
+            .eq("campaign_id", campaignId);
+          if (segErr) throw segErr;
+
+          const { data: personaRows, error: personaErr } = await supabase
+            .from("campaign_personas")
+            .select("persona_id")
+            .eq("campaign_id", campaignId);
+          if (personaErr) throw personaErr;
+
+          const segmentIds = Array.from(
+            new Set(
+              [
+                ...(segRows || [])
+                  .map((r: any) => String(r?.segment_id || ""))
+                  .filter(Boolean),
+                String((campaignRow as any)?.segment_id || "").trim(),
+              ].filter(Boolean),
+            ),
+          );
+
+          const personaFromCampaignField: string[] = Array.isArray(
+            (campaignRow as any)?.persona_ids,
+          )
+            ? ((campaignRow as any).persona_ids as any[])
+                .map((p) => String(p || "").trim())
+                .filter(Boolean)
+            : [];
+
+          const personaIds = Array.from(
+            new Set([
+              ...personaFromCampaignField,
+              ...(personaRows || [])
+                .map((r: any) => String(r?.persona_id || "").trim())
+                .filter(Boolean),
+            ]),
+          );
+
+          const count = await computeAudienceRecipientCount({
+            segmentIds,
+            personaIds,
+          });
+          if (!cancelled) setCampaignAudienceRecipientCount(count);
+          return;
+        } catch (error) {
+          console.error(
+            "❌ Failed to resolve campaign audience count from DB:",
+            error,
+          );
+          // Fall through to state-based estimate
+        }
+      }
+
+      // New/unsaved campaign with no explicit selection: All Contacts.
+      if (!cancelled) setCampaignAudienceRecipientCount(totalCustomerCount);
+    };
+
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    tenant?.id,
+    existingCampaignId,
+    selectedSegments,
+    selectedPersonas,
+    computeAudienceRecipientCount,
+  ]);
+
   // Footer and company data - pass campaignId to load campaign-specific styling
   const { footerSettings, campaignOverrides, setCampaignOverrides } =
     useFooterSettings(existingCampaignId || undefined);
@@ -1265,6 +1588,11 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   // Auto-save functionality with queue-based protection
   const [isAutoSaving, setIsAutoSaving] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const { persistState, restoreState, clearPersistedState } =
+    usePagePersistence<any>({
+      key: "crm-campaign-creator",
+      sessionId: existingCampaignId || campaignSlug || "new",
+    });
   const autoSaveTimeoutRef = useRef<NodeJS.Timeout>();
   const { enqueueSave, cancelPendingSaves } = useSaveQueue();
   const isCreatingDraftRef = useRef(false);
@@ -1288,11 +1616,11 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
       // Ensure tenant_id is set; RLS policies typically rely on it.
       let tenantId = tenant?.id;
       if (!tenantId) {
-        const { data: userRow, error: userRowError } = await supabase
+        const { data: userRows, error: userRowError } = await supabase
           .from("users")
           .select("tenant_id")
           .eq("id", user.id)
-          .maybeSingle();
+          .limit(1);
 
         if (userRowError) {
           console.warn(
@@ -1301,6 +1629,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           );
         }
 
+        const userRow = Array.isArray(userRows) ? userRows[0] : null;
         tenantId = userRow?.tenant_id ?? null;
       }
 
@@ -1311,7 +1640,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         return null;
       }
 
-      const { data, error } = await supabase
+      const { data: insertedRows, error } = await supabase
         .from("crm_campaigns")
         .insert({
           tenant_id: tenantId,
@@ -1323,22 +1652,27 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })
-        .select("id")
-        .single();
+        .select("id");
 
       if (error) {
         console.error("❌ Failed to create draft campaign:", error);
         return null;
       }
 
-      console.log("✅ Draft campaign created:", data.id);
-      setExistingCampaignId(data.id);
+      const inserted = Array.isArray(insertedRows) ? insertedRows[0] : null;
+      if (!inserted?.id) {
+        console.error("❌ Failed to create draft campaign: no row returned");
+        return null;
+      }
+
+      console.log("✅ Draft campaign created:", inserted.id);
+      setExistingCampaignId(inserted.id);
 
       // Update URL to include the new campaign ID
       const url = new URL(window.location.href);
-      navigate(`/crm/campaigns/${data.id}`, { replace: true });
+      navigate(`/crm/campaigns/${inserted.id}`, { replace: true });
 
-      return data.id;
+      return inserted.id;
     } catch (error) {
       console.error("❌ Error creating draft campaign:", error);
       return null;
@@ -1388,6 +1722,12 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           return;
         }
 
+        // Only auto-persist schedule edits for campaigns that are already scheduled.
+        // New schedules should be confirmed via the CampaignSendConfirmationModal.
+        if (campaignStatus !== "scheduled") {
+          return;
+        }
+
         setIsScheduleProcessing(true);
         try {
           let campaignId = existingCampaignId;
@@ -1419,7 +1759,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                       date: schedule.date as Date,
                       timezone: schedule.timezone,
                     },
-                    statusOverride: inferLockedScheduleStatus(message),
                   });
 
                   // Revert UI selection back to "Now" so it doesn't look like it saved.
@@ -1746,6 +2085,144 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
     },
     [existingCampaignId, enqueueSave, toast],
   );
+
+  const persistCampaignAudienceToDb = useCallback(
+    async (campaignId: string) => {
+      if (!campaignId) return;
+
+      // Only persist DB-safe IDs (UUIDs) to FK-backed tables/columns.
+      const segmentIds = (selectedSegments || [])
+        .map((s: any) => String(s?.id || "").trim())
+        .filter((id) => id.length > 0 && isUuidLike(id));
+
+      const personaIds = (selectedPersonas || [])
+        .map((p: any) => String(p?.id || "").trim())
+        .filter(Boolean);
+
+      return enqueueSave(async () => {
+        // Keep join tables in sync with current selection.
+        const [{ error: delSegErr }, { error: delPersErr }] = await Promise.all(
+          [
+            supabase
+              .from("campaign_segments")
+              .delete()
+              .eq("campaign_id", campaignId),
+            supabase
+              .from("campaign_personas")
+              .delete()
+              .eq("campaign_id", campaignId),
+          ],
+        );
+
+        if (delSegErr) throw delSegErr;
+        if (delPersErr) throw delPersErr;
+
+        // Single segment is stored on crm_campaigns.segment_id (FK) for legacy compatibility.
+        // Multiple segments are stored in campaign_segments.
+        if (segmentIds.length === 1) {
+          const { error: updateErr } = await supabase
+            .from("crm_campaigns")
+            .update({ segment_id: segmentIds[0] })
+            .eq("id", campaignId);
+          if (updateErr) throw updateErr;
+        } else {
+          const { error: clearErr } = await supabase
+            .from("crm_campaigns")
+            .update({ segment_id: null })
+            .eq("id", campaignId);
+          if (clearErr) throw clearErr;
+
+          if (segmentIds.length > 1) {
+            const { error: insertErr } = await supabase
+              .from("campaign_segments")
+              .insert(
+                segmentIds.map((segmentId) => ({
+                  campaign_id: campaignId,
+                  segment_id: segmentId,
+                })),
+              );
+            if (insertErr) throw insertErr;
+          }
+        }
+
+        // Persist personas as both an array field (crm_campaigns.persona_ids)
+        // and a join table (campaign_personas) for compatibility across screens.
+        const { error: personaFieldErr } = await supabase
+          .from("crm_campaigns")
+          .update({ persona_ids: personaIds.length > 0 ? personaIds : [] })
+          .eq("id", campaignId);
+        if (personaFieldErr) throw personaFieldErr;
+
+        const uuidPersonaIds = personaIds.filter((id) => isUuidLike(id));
+        if (uuidPersonaIds.length > 0) {
+          const { error: personaInsertErr } = await supabase
+            .from("campaign_personas")
+            .insert(
+              uuidPersonaIds.map((personaId) => ({
+                campaign_id: campaignId,
+                persona_id: personaId,
+              })),
+            );
+          if (personaInsertErr) throw personaInsertErr;
+        }
+      });
+    },
+    [enqueueSave, isUuidLike, selectedPersonas, selectedSegments],
+  );
+
+  const audiencePersistTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Persist audience selection so refresh restores the chosen segment(s)/persona(s).
+  useEffect(() => {
+    // Avoid persisting while we are still loading the campaign.
+    if (loadingExistingCampaign) return;
+
+    // Cancel any pending persist
+    if (audiencePersistTimeoutRef.current) {
+      clearTimeout(audiencePersistTimeoutRef.current);
+      audiencePersistTimeoutRef.current = null;
+    }
+
+    const hasAudienceSelection =
+      (selectedSegments?.length || 0) > 0 ||
+      (selectedPersonas?.length || 0) > 0;
+
+    // If nothing is selected and we don't have a campaign yet, nothing to do.
+    if (!hasAudienceSelection && !existingCampaignId) return;
+
+    // Debounce to avoid hammering DB while user clicks around.
+    audiencePersistTimeoutRef.current = setTimeout(() => {
+      void (async () => {
+        let campaignId = existingCampaignId;
+        if (!campaignId) {
+          // Create a draft so the targeting survives refresh.
+          campaignId = await createDraftCampaign();
+        }
+        if (!campaignId) return;
+        try {
+          await persistCampaignAudienceToDb(campaignId);
+        } catch (error) {
+          if (import.meta.env.DEV) {
+            console.warn("Failed to persist campaign targeting:", error);
+          }
+        }
+      })();
+    }, 800);
+
+    return () => {
+      if (audiencePersistTimeoutRef.current) {
+        clearTimeout(audiencePersistTimeoutRef.current);
+        audiencePersistTimeoutRef.current = null;
+      }
+    };
+  }, [
+    selectedSegments,
+    selectedPersonas,
+    existingCampaignId,
+    loadingExistingCampaign,
+    createDraftCampaign,
+    persistCampaignAudienceToDb,
+  ]);
 
   // Immediate save for critical updates like image generation
   // Uses a 500ms batching window to collect concurrent image saves
@@ -3489,8 +3966,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                         preheaderText ||
                         generatePreheaderText(topic, description),
                       sender_name: senderConfig?.displayName || "BloomSuite",
-                      sender_email:
-                        senderConfig?.senderEmail || "noreply@bloomsuite.app",
+                      sender_email: senderConfig?.senderEmail || "",
                       content: "", // HTML will be generated when needed
                       segments: [],
                       schedule: { type: "immediate" as const },
@@ -3729,6 +4205,144 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
       });
 
       if (blocksError) throw blocksError;
+
+      // Load campaign targeting (segments + personas) so UI reflects stored audience
+      const [campaignSegmentsResult, campaignPersonasResult] =
+        await Promise.all([
+          supabase
+            .from("campaign_segments")
+            .select("segment_id")
+            .eq("campaign_id", campaignId),
+          supabase
+            .from("campaign_personas")
+            .select("persona_id")
+            .eq("campaign_id", campaignId),
+        ]);
+
+      if (campaignSegmentsResult.error) throw campaignSegmentsResult.error;
+      if (campaignPersonasResult.error) throw campaignPersonasResult.error;
+
+      const persistedSegmentIds = (campaignSegmentsResult.data || [])
+        .map((r: any) => String(r?.segment_id || ""))
+        .filter(Boolean);
+
+      // Single-segment campaigns store segment directly on crm_campaigns.segment_id
+      const campaignSingleSegmentId = String(
+        (campaign as any)?.segment_id || "",
+      );
+      const allSegmentIds = Array.from(
+        new Set([
+          ...persistedSegmentIds,
+          ...(campaignSingleSegmentId ? [campaignSingleSegmentId] : []),
+        ]),
+      );
+
+      const personaFromCampaignField: string[] = Array.isArray(
+        (campaign as any)?.persona_ids,
+      )
+        ? ((campaign as any).persona_ids as any[])
+            .map((p) => String(p || ""))
+            .filter(Boolean)
+        : [];
+
+      const persistedPersonaIds = (campaignPersonasResult.data || [])
+        .map((r: any) => String(r?.persona_id || ""))
+        .filter(Boolean);
+
+      const allPersonaIds = Array.from(
+        new Set([...personaFromCampaignField, ...persistedPersonaIds]),
+      );
+
+      // Hydrate persona details
+      if (allPersonaIds.length > 0) {
+        const { data: personas, error: personaDetailError } = await supabase
+          .from("crm_personas")
+          .select("id, persona_name, persona_description, is_custom")
+          .in("id", allPersonaIds);
+
+        if (personaDetailError) throw personaDetailError;
+
+        const foundById = new Map(
+          (personas || []).map((p: any) => [String(p.id), p]),
+        );
+        const hydrated = allPersonaIds
+          .map((id) => foundById.get(id) || null)
+          .filter(Boolean);
+
+        setSelectedPersonas(hydrated as any[]);
+      } else {
+        setSelectedPersonas([]);
+      }
+
+      // Hydrate segment details (support UUID segments and system string segments)
+      if (allSegmentIds.length > 0) {
+        const uuidSegmentIds = allSegmentIds.filter(isUuidLike);
+
+        const [crmSegmentsResult, customSegmentsResult] = await Promise.all([
+          uuidSegmentIds.length > 0
+            ? supabase
+                .from("crm_segments")
+                .select("id, name, description, customer_count")
+                .in("id", uuidSegmentIds)
+            : Promise.resolve({ data: [], error: null } as any),
+          uuidSegmentIds.length > 0
+            ? supabase
+                .from("custom_segments")
+                .select("id, name, customer_count")
+                .in("id", uuidSegmentIds)
+            : Promise.resolve({ data: [], error: null } as any),
+        ]);
+
+        if (crmSegmentsResult.error) throw crmSegmentsResult.error;
+        if (customSegmentsResult.error) throw customSegmentsResult.error;
+
+        const hydratedSegments: any[] = [];
+
+        const crmById = new Map(
+          (crmSegmentsResult.data || []).map((s: any) => [String(s.id), s]),
+        );
+        const customById = new Map(
+          (customSegmentsResult.data || []).map((s: any) => [String(s.id), s]),
+        );
+
+        for (const id of allSegmentIds) {
+          if (isUuidLike(id)) {
+            const seg = crmById.get(id) || customById.get(id);
+            if (seg) {
+              hydratedSegments.push({
+                id: seg.id,
+                name: seg.name,
+                description: seg.description || undefined,
+                type: "custom",
+                customer_count: seg.customer_count || 0,
+              });
+              continue;
+            }
+          }
+
+          // System/predefined segment fallback
+          const predefinedSegments: Record<string, string> = {
+            "new-customers": "New Customers",
+            "loyalty-members": "Loyalty Members",
+            "high-value": "High-Value Customers",
+            "lapsed-customers": "Lapsed Customers",
+            "seasonal-shoppers": "Seasonal Shoppers",
+            "frequent-buyers": "Frequent Buyers",
+          };
+          const name = predefinedSegments[id] || id;
+          const countFromHook = (segmentCounts as any)?.[id] || 0;
+          hydratedSegments.push({
+            id,
+            name,
+            type: "predefined",
+            customer_count: countFromHook,
+          });
+        }
+
+        setSelectedSegments(hydratedSegments);
+      } else {
+        setSelectedSegments([]);
+      }
 
       // Restore campaign state
       setCampaignName(campaign.name);
@@ -5256,6 +5870,9 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           preheader: preheaderText,
         });
 
+        // Ensure audience selection is persisted as part of an explicit Save.
+        await persistCampaignAudienceToDb(existingCampaignId);
+
         console.log("✅ Campaign updated successfully");
 
         toast({
@@ -5304,10 +5921,13 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           name: campaignName,
           subject: subjectLine,
           sender_name: senderConfig?.displayName || "BloomSuite",
-          sender_email: senderConfig?.senderEmail || "noreply@bloomsuite.app",
+          sender_email: senderConfig?.senderEmail || "",
           content: htmlContent,
           preheader: preheaderText,
-          segments: [], // Default empty segments for now
+          // Persist segments to DB so refresh doesn't revert to "All Contacts"
+          segments: (selectedSegments || []).filter((s: any) =>
+            isUuidLike(String(s?.id || "")),
+          ),
           schedule: {
             type: "immediate",
           },
@@ -5331,6 +5951,9 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
 
         // Save campaign using the service
         const result = await saveCampaignAsDraft(campaignData);
+
+        // Persist personas + join tables (service currently handles segments only).
+        await persistCampaignAudienceToDb(result.id);
 
         console.log("✅ Campaign created successfully:", result);
 
@@ -5361,78 +5984,125 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
     }
   };
 
+  const scheduleTriggeredConfirmationRef = useRef(false);
+
+  const openSendConfirmation = useCallback(
+    async (origin: "send" | "schedule") => {
+      scheduleTriggeredConfirmationRef.current = origin === "schedule";
+
+      // Validate required fields
+      if (!campaignName.trim()) {
+        toast({
+          title: "Campaign name required",
+          description: "Please enter a campaign name before sending.",
+          variant: "destructive",
+        });
+        if (origin === "schedule") {
+          skipNextSchedulePersistRef.current = true;
+          setSchedule({ type: "now" });
+        }
+        return;
+      }
+
+      if (!subjectLine.trim()) {
+        toast({
+          title: "Subject line required",
+          description: "Please enter a subject line before sending.",
+          variant: "destructive",
+        });
+        if (origin === "schedule") {
+          skipNextSchedulePersistRef.current = true;
+          setSchedule({ type: "now" });
+        }
+        return;
+      }
+
+      // Sender config can briefly be unavailable while tenant/user context hydrates.
+      // Avoid opening the SenderVerificationModal in that window (it causes a two-click send).
+      if (loadingSenderConfig || !senderConfig) {
+        if (!pendingSendFlow) {
+          setPendingSendFlow(true);
+          toast({
+            title: "Loading sender settings",
+            description:
+              "Please wait a moment while we load your email sending configuration.",
+          });
+          // Best-effort refresh; hook will also re-run when tenant/user becomes available.
+          refetchSenderConfig();
+        }
+        return;
+      }
+
+      // Campaigns must use an operational custom domain (no fallback senders)
+      if (!senderConfig?.isVerified || !senderConfig?.senderEmail) {
+        setShowSenderConfirmation(true);
+        return;
+      }
+
+      // Show the send confirmation modal with audience summary
+      setShowSendConfirmation(true);
+    },
+    [
+      campaignName,
+      subjectLine,
+      loadingSenderConfig,
+      senderConfig,
+      pendingSendFlow,
+      refetchSenderConfig,
+      toast,
+    ],
+  );
+
   const handleSendCampaign = async () => {
-    // Validate required fields
-    if (!campaignName.trim()) {
-      toast({
-        title: "Campaign name required",
-        description: "Please enter a campaign name before sending.",
-        variant: "destructive",
-      });
-      return;
-    }
+    await openSendConfirmation("send");
+  };
 
-    if (!subjectLine.trim()) {
-      toast({
-        title: "Subject line required",
-        description: "Please enter a subject line before sending.",
-        variant: "destructive",
-      });
-      return;
-    }
+  const handleScheduleChange = useCallback(
+    (newSchedule: ScheduleOption) => {
+      setSchedule(newSchedule);
 
-    if (loadingSenderConfig) {
-      toast({
-        title: "Loading sender settings",
-        description:
-          "Please wait a moment while we load your email sending configuration.",
-      });
-      return;
-    }
+      if (newSchedule.type === "scheduled" && newSchedule.date) {
+        void openSendConfirmation("schedule");
+      }
+    },
+    [openSendConfirmation],
+  );
 
-    const hasPendingDomain =
-      !!senderConfig?.domainStatus &&
-      ["pending", "pending_dns", "verifying"].includes(
-        senderConfig.domainStatus,
-      );
+  // If the user clicked Send while sender config was still loading, automatically
+  // continue the flow once senderConfig becomes available.
+  useEffect(() => {
+    if (!pendingSendFlow) return;
+    if (loadingSenderConfig) return;
+    if (!senderConfig) return;
 
-    // Check if audience is selected
-    // Allow sending to All Contacts when no segments/personas are selected
-    // Previously blocked when selectedSegments.length === 0
-    // This change enables "All Contacts" default audience
-    // (Backend should handle empty segments as all contacts)
-    // If you want to force targeting, re-enable this validation.
-    // if (selectedSegments.length === 0) {
-    //   toast({
-    //     title: "Audience required",
-    //     description: "Please select customer segments in the Audience section before sending.",
-    //     variant: "destructive"
-    //   });
-    //   return;
-    // }
+    setPendingSendFlow(false);
 
-    // Check sender configuration
-    // If a custom domain is still verifying, allow sending via shared/platform and auto-switch once active.
-    if (!senderConfig?.isVerified && !hasPendingDomain) {
+    if (!senderConfig.isVerified || !senderConfig.senderEmail) {
       setShowSenderConfirmation(true);
       return;
     }
 
-    if (!senderConfig?.isVerified && hasPendingDomain) {
-      toast({
-        title: "Domain still verifying",
-        description:
-          "We'll send using your BloomSuite sender for now and automatically switch to your domain once verification completes.",
-      });
-    }
-
-    // Show the send confirmation modal with audience summary
-    setShowSendConfirmation(true);
-  };
+    void openSendConfirmation("send");
+  }, [
+    pendingSendFlow,
+    loadingSenderConfig,
+    senderConfig,
+    openSendConfirmation,
+  ]);
 
   const proceedWithSending = async () => {
     try {
       setSending(true);
+
+      if (!senderConfig?.isVerified || !senderConfig?.senderEmail) {
+        toast({
+          title: "Custom domain required",
+          description: "Verify a sending domain before sending campaigns.",
+          variant: "destructive",
+        });
+        setShowSenderConfirmation(true);
+        return;
+      }
 
       // Pre-flight validation
       if (!blocks || blocks.length === 0) {
@@ -5450,10 +6120,13 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         name: campaignName,
         subject: subjectLine,
         sender_name: senderConfig?.displayName || "Garden Center",
-        sender_email: senderConfig?.senderEmail || "noreply@bloomsuite.app",
+        sender_email: senderConfig?.senderEmail || "",
         content: generateEmailHTML(),
         preheader: preheaderText,
-        segments: selectedSegments,
+        // Only persist DB-safe segment IDs (UUIDs) to FK-backed storage.
+        segments: (selectedSegments || []).filter((s: any) =>
+          isUuidLike(String(s?.id || "")),
+        ),
         schedule:
           schedule.type === "scheduled"
             ? { type: "scheduled", send_at: schedule.date?.toISOString() }
@@ -5502,11 +6175,38 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           campaign.id,
           schedule.date.toISOString(),
           schedule.timezone,
+          {
+            silent: true,
+            onFailureMessage: (message) => {
+              if (isScheduleLockedMessage(message)) {
+                openLockedScheduleDialog({
+                  message,
+                  desiredSchedule: {
+                    date: schedule.date as Date,
+                    timezone: schedule.timezone,
+                  },
+                });
+                return;
+              }
+
+              toast({
+                title: "Schedule not saved",
+                description: message,
+                variant: "destructive",
+              });
+            },
+          },
         );
 
         if (success) {
+          skipNextSchedulePersistRef.current = true;
           setCampaignStatus("scheduled");
           setScheduledAt(schedule.date.toISOString());
+          toast({
+            title: "Campaign scheduled",
+            description:
+              "Your campaign is scheduled and will send at the chosen time.",
+          });
         }
 
         return;
@@ -5522,38 +6222,37 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
       // Handle edge function errors
       if (sendError) {
         console.error("❌ Edge function error:", sendError);
-        throw new Error(sendError.message || "Failed to invoke email service");
+
+        const contextBody = (sendError as any)?.context?.body;
+        let parsedBody: any = undefined;
+
+        if (typeof contextBody === "string" && contextBody.length > 0) {
+          try {
+            parsedBody = JSON.parse(contextBody);
+          } catch {
+            parsedBody = { error: contextBody };
+          }
+        } else if (contextBody && typeof contextBody === "object") {
+          parsedBody = contextBody;
+        }
+
+        const extractedMessage =
+          typeof parsedBody?.error === "string"
+            ? parsedBody.error
+            : typeof parsedBody?.message === "string"
+              ? parsedBody.message
+              : "";
+
+        throw new Error(
+          extractedMessage ||
+            sendError.message ||
+            "Failed to invoke email service",
+        );
       }
 
       // Handle error responses from edge function
       if (sendResult?.error) {
         console.error("❌ Send result error:", sendResult.error, sendResult);
-
-        // Check for warmup limit error specifically
-        if (
-          sendResult.reason === "daily_limit_reached" ||
-          sendResult.error?.includes("warmup limit") ||
-          sendResult.error?.includes("blocked by warmup")
-        ) {
-          const details: WarmupLimitDetails = {
-            warmupStage: sendResult.warmup_stage ?? 0,
-            dailyLimit: sendResult.daily_limit ?? 50,
-            dailyUsed: sendResult.daily_used ?? 0,
-            remaining: Math.max(
-              0,
-              (sendResult.daily_limit ?? 50) - (sendResult.daily_used ?? 0),
-            ),
-            requested:
-              selectedSegments.reduce(
-                (sum, s) => sum + (s.customer_count || 0),
-                0,
-              ) || 0,
-          };
-          setWarmupLimitDetails(details);
-          setShowWarmupLimitModal(true);
-          return; // Don't throw, modal will handle it
-        }
-
         throw new Error(sendResult.error);
       }
 
@@ -5602,9 +6301,9 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         description =
           "You've reached your email sending limit. Upgrade your plan or wait until your quota resets.";
       } else if (errorMsg.includes("blocked") || errorMsg.includes("paused")) {
-        title = "Domain blocked";
+        title = "Campaign blocked";
         description =
-          "Your sending domain has been paused. Check your domain health in Email Settings.";
+          "This campaign is blocked due to sender configuration or delivery policy. Check campaign sender settings and domain status.";
       } else if (
         errorMsg.includes("Authentication") ||
         errorMsg.includes("JWT")
@@ -5669,7 +6368,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                   date: newSchedule.date as Date,
                   timezone: newSchedule.timezone,
                 },
-                statusOverride: inferLockedScheduleStatus(message),
               });
               return;
             }
@@ -5715,7 +6413,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           if (isScheduleLockedMessage(message)) {
             openLockedScheduleDialog({
               message,
-              statusOverride: inferLockedScheduleStatus(message),
             });
             return;
           }
@@ -5906,6 +6603,8 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
 
       {/* Sticky Action Bar */}
       <CampaignActionBar
+        campaignId={existingCampaignId}
+        campaignStatus={campaignStatus}
         campaignName={campaignName}
         subjectLine={subjectLine}
         blocks={blocks}
@@ -5919,7 +6618,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         loading={loading}
         hasGeneratingImages={hasGeneratingImages}
         schedule={schedule}
-        onScheduleChange={setSchedule}
+        onScheduleChange={handleScheduleChange}
         onSend={handleSendCampaign}
         onSave={handleSave}
         onPreview={() => setShowPreview(true)}
@@ -5929,6 +6628,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
       />
 
       <div className="max-w-7xl mx-auto p-6 space-y-6">
+        <DomainHealthBanner />
         {/* Scheduled Campaign Banner - shows when campaign is scheduled */}
         <ScheduledCampaignBanner
           campaignId={existingCampaignId}
@@ -5940,6 +6640,10 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           onEditSchedule={handleEditSchedule}
           onSendNow={handleSendScheduledNow}
           onUnschedule={handleUnschedule}
+          onPause={handlePauseCampaignSending}
+          onResume={handleResumeCampaignSending}
+          onStop={handleStopCampaignSending}
+          campaignControlBusyAction={campaignControlBusyAction}
           isProcessing={isScheduleProcessing}
         />
 
@@ -6074,7 +6778,9 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
             setSelectedPersonas(personas);
           }}
           onSegmentsChange={setSelectedSegments}
-          lockedSegmentIds={isSegmentLocked && segmentIdParam ? [segmentIdParam] : []}
+          lockedSegmentIds={
+            isSegmentLocked && segmentIdParam ? [segmentIdParam] : []
+          }
         />
 
         {/* Email Content Builder - Full Width */}
@@ -6337,66 +7043,80 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         {/* Campaign Send Confirmation Modal */}
         <CampaignSendConfirmationModal
           isOpen={showSendConfirmation}
-          onClose={() => setShowSendConfirmation(false)}
+          onClose={() => {
+            setShowSendConfirmation(false);
+
+            if (scheduleTriggeredConfirmationRef.current) {
+              scheduleTriggeredConfirmationRef.current = false;
+
+              // If the user picked a schedule but cancelled confirmation,
+              // revert UI back to Send Now (draft should not be scheduled).
+              if (campaignStatus !== "scheduled") {
+                skipNextSchedulePersistRef.current = true;
+                setSchedule({ type: "now" });
+              }
+            }
+          }}
           onConfirm={() => {
+            scheduleTriggeredConfirmationRef.current = false;
             setShowSendConfirmation(false);
             proceedWithSending();
           }}
           campaignName={campaignName}
-          subjectLine={subjectLine}
           selectedSegments={selectedSegments}
           selectedPersonas={selectedPersonas}
-          totalContacts={
-            selectedSegments.length === 0 && selectedPersonas.length === 0
-              ? totalCustomerCount
-              : selectedPersonas.reduce(
-                  (total, persona) =>
-                    total +
-                    (persona.customerCount || persona.customer_count || 0),
-                  0,
-                ) +
-                selectedSegments.reduce(
-                  (total, segment) =>
-                    total +
-                    (segment.customerCount || segment.customer_count || 0),
-                  0,
-                )
+          totalRecipients={
+            existingCampaignId
+              ? campaignAudienceRecipientCount !== null
+                ? campaignAudienceRecipientCount
+                : loadingExistingCampaign
+                  ? 0
+                  : Number.NaN
+              : campaignAudienceRecipientCount !== null
+                ? campaignAudienceRecipientCount
+                : selectedSegments.length === 0 && selectedPersonas.length === 0
+                  ? totalCustomerCount
+                  : selectedPersonas.reduce(
+                      (total, persona) =>
+                        total +
+                        (persona.customerCount || persona.customer_count || 0),
+                      0,
+                    ) +
+                    selectedSegments.reduce(
+                      (total, segment) =>
+                        total +
+                        (segment.customerCount || segment.customer_count || 0),
+                      0,
+                    )
           }
+          schedule={
+            schedule.type === "scheduled" && schedule.date
+              ? {
+                  type: "scheduled",
+                  sendAt: schedule.date,
+                  timezone: schedule.timezone,
+                }
+              : { type: "immediate" }
+          }
+          senderIdentity={{
+            senderName: senderConfig?.displayName || "—",
+            senderEmail: senderConfig?.senderEmail || "—",
+            replyToEmail: senderConfig?.replyToEmail || null,
+            sendingDomain: senderConfig?.domain || null,
+          }}
           loading={sending}
         />
 
-        {/* Sender Confirmation Modal (for unverified senders) */}
-        <SharedSenderConfirmationModal
-          isOpen={showSenderConfirmation}
-          onClose={() => setShowSenderConfirmation(false)}
-          onConfirm={() => {
-            setShowSenderConfirmation(false);
-            setShowSendConfirmation(true);
+        {/* Sender Setup Modal (custom domain required) */}
+        <SenderVerificationModal
+          open={showSenderConfirmation}
+          onOpenChange={(open) => {
+            setShowSenderConfirmation(open);
+            if (!open) {
+              refetchSenderConfig();
+            }
           }}
           senderConfig={senderConfig}
-          campaignName={campaignName}
-          recipientCount={
-            selectedSegments.length === 0 && selectedPersonas.length === 0
-              ? totalCustomerCount
-              : selectedPersonas.reduce(
-                  (total, persona) => total + (persona.customerCount || 0),
-                  0,
-                ) +
-                selectedSegments.reduce(
-                  (total, segment) => total + (segment.customerCount || 0),
-                  0,
-                )
-          }
-        />
-
-        {/* Warmup Limit Modal */}
-        <WarmupLimitModal
-          open={showWarmupLimitModal}
-          onClose={() => {
-            setShowWarmupLimitModal(false);
-            setWarmupLimitDetails(null);
-          }}
-          details={warmupLimitDetails}
         />
 
         {/* 🚨 EMERGENCY MANUAL PREFILL BUTTON */}

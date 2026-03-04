@@ -129,24 +129,18 @@ Deno.serve(async (req) => {
 
         // Process workflow steps and enqueue messages
         const workflowSteps = tenantAutomation.workflow_steps || [];
-        
+
         for (let i = 0; i < workflowSteps.length; i++) {
           const step = workflowSteps[i];
           const delayMinutes = step.delayMin || 0;
           const messageType = step.channel || step.type || 'email';
 
-          // Check opt-in consent
-          if (messageType === 'email' && customer.email_opt_in === false) {
-            console.log(`⏭️ Skipping email for ${customer.email} - not opted in`);
-            skippedOptOutCount++;
-            continue;
-          }
           if (messageType === 'sms' && customer.sms_opt_in !== true) {
             console.log(`⏭️ Skipping SMS for ${customer.email} - not opted in`);
             skippedOptOutCount++;
             continue;
           }
-          
+
           const scheduledAt = new Date();
           scheduledAt.setMinutes(scheduledAt.getMinutes() + delayMinutes);
 
@@ -242,9 +236,9 @@ Deno.serve(async (req) => {
 
   } catch (error) {
     console.error('❌ Lapsed Customer Checker failed:', error);
-    return new Response(JSON.stringify({ 
-      success: false, 
-      error: error.message 
+    return new Response(JSON.stringify({
+      success: false,
+      error: error.message
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

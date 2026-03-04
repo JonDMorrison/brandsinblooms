@@ -3,28 +3,21 @@
  * Maps technical errors to user-friendly messages
  */
 
-export type SendErrorCode = 
+export type SendErrorCode =
   | 'NO_CAMPAIGN_NAME'
   | 'NO_SUBJECT_LINE'
   | 'NO_SEGMENTS'
   | 'NO_CONTENT'
   | 'NO_OPTED_IN_CUSTOMERS'
   | 'EMAIL_SERVICE_NOT_CONFIGURED'
+  | 'SENDER_DOMAIN_REQUIRED'
   | 'QUOTA_EXCEEDED'
+  | 'DOMAIN_NON_COMPLIANT_FOR_SCALE'
   | 'DOMAIN_BLOCKED'
-  | 'WARMUP_LIMIT'
   | 'CAMPAIGN_SAVE_FAILED'
   | 'CAMPAIGN_NOT_FOUND'
   | 'NETWORK_ERROR'
   | 'UNKNOWN_ERROR';
-
-export interface WarmupLimitDetails {
-  warmupStage: number;
-  dailyLimit: number;
-  dailyUsed: number;
-  remaining: number;
-  requested: number;
-}
 
 export interface SendError {
   code: SendErrorCode;
@@ -68,23 +61,29 @@ export const SEND_ERRORS: Record<SendErrorCode, Omit<SendError, 'code'>> = {
     action: "Please contact support to configure email sending.",
     recoverable: false
   },
+  SENDER_DOMAIN_REQUIRED: {
+    title: "Sender domain required",
+    description: "Campaign sending requires a configured custom sending domain.",
+    action: "Go to Email Settings to configure and verify your sending domain, then try again.",
+    recoverable: true
+  },
   QUOTA_EXCEEDED: {
     title: "Sending limit reached",
     description: "You've reached your email sending limit for this period.",
     action: "Upgrade your plan or wait until your quota resets.",
     recoverable: false
   },
+  DOMAIN_NON_COMPLIANT_FOR_SCALE: {
+    title: "Domain compliance required for high-volume sending",
+    description: "High-volume campaigns require SPF, DKIM, DMARC (p=none minimum), verified ownership, valid sender identity, physical address, unsubscribe support, and acceptable spam risk.",
+    action: "Fix the domain and compliance issues shown in Email Settings and campaign checks, or send a lower-volume campaign.",
+    recoverable: true
+  },
   DOMAIN_BLOCKED: {
     title: "Domain blocked",
     description: "Your sending domain has been blocked due to high bounce or complaint rates.",
     action: "Review your domain health in Email Settings.",
     recoverable: false
-  },
-  WARMUP_LIMIT: {
-    title: "Daily sending limit reached",
-    description: "You've reached today's sending limit for your domain.",
-    action: "Wait until tomorrow when your limit resets, or reduce the number of recipients.",
-    recoverable: true
   },
   CAMPAIGN_SAVE_FAILED: {
     title: "Failed to save campaign",
@@ -114,74 +113,75 @@ export const SEND_ERRORS: Record<SendErrorCode, Omit<SendError, 'code'>> = {
 
 /**
  * Parse error response from edge function and return user-friendly error
- * Also extracts warmup limit details if present
  */
-export function parseEdgeFunctionError(error: any, responseData?: any): SendError & { warmupDetails?: WarmupLimitDetails } {
+export function parseEdgeFunctionError(error: any, responseData?: any): SendError {
   const message = error?.message || error?.toString() || '';
   const data = responseData || {};
-  
-  // Check for warmup limit errors first (from 403 response with reason)
-  if (data.reason === 'daily_limit_reached' || 
-      message.includes('warmup limit') || 
-      message.includes('blocked by warmup')) {
-    const warmupDetails: WarmupLimitDetails = {
-      warmupStage: data.warmup_stage ?? 0,
-      dailyLimit: data.daily_limit ?? 50,
-      dailyUsed: data.daily_used ?? 0,
-      remaining: Math.max(0, (data.daily_limit ?? 50) - (data.daily_used ?? 0)),
-      requested: data.requested ?? 0,
-    };
-    
-    return { 
-      code: 'WARMUP_LIMIT', 
-      ...SEND_ERRORS.WARMUP_LIMIT,
-      warmupDetails
-    };
-  }
-  
+
+  const reason = typeof data?.reason === 'string' ? data.reason : '';
+  const bodyError = typeof data?.error === 'string' ? data.error : '';
+
   // Check for specific error patterns from send-email-campaign edge function
   if (message.includes('Campaign ID is required')) {
     return { code: 'CAMPAIGN_NOT_FOUND', ...SEND_ERRORS.CAMPAIGN_NOT_FOUND };
   }
-  
+
   if (message.includes('Campaign not found')) {
     return { code: 'CAMPAIGN_NOT_FOUND', ...SEND_ERRORS.CAMPAIGN_NOT_FOUND };
   }
-  
+
   if (message.includes('Email service not configured') || message.includes('RESEND_API_KEY')) {
     return { code: 'EMAIL_SERVICE_NOT_CONFIGURED', ...SEND_ERRORS.EMAIL_SERVICE_NOT_CONFIGURED };
   }
-  
+
+  if (
+    reason === 'sender_domain_required' ||
+    bodyError.includes('custom domain sender') ||
+    message.includes('custom domain sender') ||
+    message.includes('sender domain')
+  ) {
+    return { code: 'SENDER_DOMAIN_REQUIRED', ...SEND_ERRORS.SENDER_DOMAIN_REQUIRED };
+  }
+
   if (message.includes('no segments selected') || message.includes('Campaign has no segments')) {
     return { code: 'NO_SEGMENTS', ...SEND_ERRORS.NO_SEGMENTS };
   }
-  
-  if (message.includes('No customers found') || 
-      message.includes('No eligible recipients') || 
+
+  if (message.includes('No customers found') ||
+      message.includes('No eligible recipients') ||
       message.includes('No contacts found') ||
       message.includes('no opted-in') ||
       message.includes('have not opted in') ||
       message.includes('No opted-in recipients')) {
     return { code: 'NO_OPTED_IN_CUSTOMERS', ...SEND_ERRORS.NO_OPTED_IN_CUSTOMERS };
   }
-  
+
   if (message.includes('quota') || message.includes('limit reached') || message.includes('Send blocked')) {
     return { code: 'QUOTA_EXCEEDED', ...SEND_ERRORS.QUOTA_EXCEEDED };
   }
-  
+
+  if (
+    message.includes('domain_not_compliant_for_scale') ||
+    message.includes('compliance_not_met_for_scale') ||
+    message.includes('High-volume sending blocked') ||
+    message.includes('requires SPF, DKIM, DMARC')
+  ) {
+    return { code: 'DOMAIN_NON_COMPLIANT_FOR_SCALE', ...SEND_ERRORS.DOMAIN_NON_COMPLIANT_FOR_SCALE };
+  }
+
   if (message.includes('blocked') || message.includes('paused') || message.includes('reputation')) {
     return { code: 'DOMAIN_BLOCKED', ...SEND_ERRORS.DOMAIN_BLOCKED };
   }
-  
+
   if (message.includes('Failed to fetch') || message.includes('Network') || message.includes('ECONNREFUSED')) {
     return { code: 'NETWORK_ERROR', ...SEND_ERRORS.NETWORK_ERROR };
   }
-  
+
   // Default unknown error with original message
   return {
     code: 'UNKNOWN_ERROR',
     title: 'Send failed',
-    description: message || SEND_ERRORS.UNKNOWN_ERROR.description,
+    description: bodyError || message || SEND_ERRORS.UNKNOWN_ERROR.description,
     action: SEND_ERRORS.UNKNOWN_ERROR.action,
     recoverable: true
   };
@@ -203,22 +203,22 @@ export function validateBeforeSend(params: {
   content: string;
 }): PreSendValidation {
   const { campaignName, subjectLine, segments, blocks, content } = params;
-  
+
   if (!campaignName?.trim()) {
     return { valid: false, error: { code: 'NO_CAMPAIGN_NAME', ...SEND_ERRORS.NO_CAMPAIGN_NAME } };
   }
-  
+
   if (!subjectLine?.trim()) {
     return { valid: false, error: { code: 'NO_SUBJECT_LINE', ...SEND_ERRORS.NO_SUBJECT_LINE } };
   }
-  
+
   // Check for content
   const hasBlocks = blocks && blocks.length > 0;
   const hasContent = content && content.trim().length > 100; // Minimum content check
-  
+
   if (!hasBlocks && !hasContent) {
     return { valid: false, error: { code: 'NO_CONTENT', ...SEND_ERRORS.NO_CONTENT } };
   }
-  
+
   return { valid: true };
 }

@@ -287,6 +287,9 @@ verify_jwt = false
 [functions.email-tracking-webhook]
 verify_jwt = false
 
+[functions.process-email-webhook-deliveries]
+verify_jwt = false
+
 [functions.process-email-send-queue]
 verify_jwt = false
 
@@ -411,6 +414,9 @@ verify_jwt = false
 verify_jwt = true
 
 [functions.cron-recompute-analytics]
+verify_jwt = false
+
+[functions.cron-recompute-tenant-reputation]
 verify_jwt = false
 
 [functions.cron-purge-email-events]

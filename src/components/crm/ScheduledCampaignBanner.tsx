@@ -2,7 +2,18 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, Clock, Send, Lock, AlertTriangle, X } from "lucide-react";
+import {
+  AlertTriangle,
+  Calendar,
+  Clock,
+  Loader2,
+  Lock,
+  Pause,
+  Play,
+  Send,
+  Square,
+  X,
+} from "lucide-react";
 import { format } from "date-fns";
 import { toZonedTime } from "date-fns-tz";
 import { supabase } from "@/integrations/supabase/client";
@@ -33,6 +44,10 @@ interface ScheduledCampaignBannerProps {
   onEditSchedule: (newSchedule: ScheduleOption) => void;
   onSendNow: () => void;
   onUnschedule: () => void;
+  onPause: () => void;
+  onResume: () => void;
+  onStop: () => void;
+  campaignControlBusyAction?: "pause" | "resume" | "stop" | null;
   isProcessing?: boolean;
 }
 
@@ -46,6 +61,10 @@ export const ScheduledCampaignBanner: React.FC<
   onEditSchedule,
   onSendNow,
   onUnschedule,
+  onPause,
+  onResume,
+  onStop,
+  campaignControlBusyAction = null,
   isProcessing = false,
 }) => {
   const { toast } = useToast();
@@ -135,8 +154,11 @@ export const ScheduledCampaignBanner: React.FC<
   );
 
   const effectiveStatus = status;
+  const normalizedStatus = String(effectiveStatus || "").toLowerCase();
+  const isPaused = effectiveStatus === "paused";
+  const isSendingOrPaused = effectiveStatus === "sending" || isPaused;
   const isRelevantEffective =
-    effectiveStatus === "scheduled" || effectiveStatus === "sending";
+    effectiveStatus === "scheduled" || isSendingOrPaused;
 
   const userTimezone =
     timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -160,7 +182,7 @@ export const ScheduledCampaignBanner: React.FC<
   }, [progress, processedCount]);
 
   useEffect(() => {
-    if (!isSending || !campaignId) return;
+    if (!isSendingOrPaused || !campaignId) return;
 
     let cancelled = false;
 
@@ -215,7 +237,7 @@ export const ScheduledCampaignBanner: React.FC<
       cancelled = true;
       window.clearInterval(intervalId);
     };
-  }, [isSending, campaignId, isSameProgress]);
+  }, [isSendingOrPaused, campaignId, isSameProgress]);
 
   const handleRetryWorker = async () => {
     if (isRetryingWorker) return;
@@ -389,12 +411,20 @@ export const ScheduledCampaignBanner: React.FC<
     timezone: userTimezone,
   };
 
-  if (isSending) {
+  if (isSendingOrPaused) {
     const stuckRaw = !!progress?.is_stuck;
     const isStuck =
       stuckRaw &&
       !(suppressAttentionUntil && Date.now() < suppressAttentionUntil);
     const needsAttention = isStuck || failedCount > 0;
+
+    const pauseResumeBusy =
+      campaignControlBusyAction === (isPaused ? "resume" : "pause");
+    const stopBusy = campaignControlBusyAction === "stop";
+    const pauseResumeDisabled =
+      isProcessing || pauseResumeBusy || stopBusy || (!isPaused && !isSending);
+    const stopDisabled = isProcessing || stopBusy;
+
     return (
       <Alert
         className={`mb-6 ${needsAttention ? "bg-amber-50 border-amber-200" : "bg-blue-50 border-blue-200"}`}
@@ -403,15 +433,21 @@ export const ScheduledCampaignBanner: React.FC<
           className={`h-4 w-4 animate-pulse ${needsAttention ? "text-amber-600" : "text-blue-600"}`}
         />
         <AlertTitle
-          className={`${needsAttention ? "text-amber-800" : "text-blue-800"} flex items-center gap-2`}
+          className={`${needsAttention ? "text-amber-800" : "text-blue-800"} flex w-full items-center justify-between gap-3`}
         >
-          Campaign Sending
-          <Badge
-            variant="default"
-            className={needsAttention ? "bg-amber-600" : "bg-blue-600"}
-          >
-            {needsAttention ? "Needs Attention" : "In Progress"}
-          </Badge>
+          <div className="flex items-center gap-2">
+            Campaign Sending
+            <Badge
+              variant="default"
+              className={needsAttention ? "bg-amber-600" : "bg-blue-600"}
+            >
+              {isPaused
+                ? "Paused"
+                : needsAttention
+                  ? "Needs Attention"
+                  : "In Progress"}
+            </Badge>
+          </div>
         </AlertTitle>
         <AlertDescription
           className={`${needsAttention ? "text-amber-700" : "text-blue-700"} mt-2`}
@@ -445,8 +481,9 @@ export const ScheduledCampaignBanner: React.FC<
                 </>
               ) : (
                 <p>
-                  This campaign is currently being sent. Please wait for the
-                  process to complete.
+                  {isPaused
+                    ? "This campaign is currently paused."
+                    : "This campaign is currently being sent. Please wait for the process to complete."}
                 </p>
               )}
 
@@ -490,6 +527,38 @@ export const ScheduledCampaignBanner: React.FC<
                   Retry Now
                 </Button>
               )}
+
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => void (isPaused ? onResume() : onPause())}
+                disabled={pauseResumeDisabled}
+                aria-label={isPaused ? "Unpause campaign" : "Pause campaign"}
+                title={isPaused ? "Unpause" : "Pause"}
+              >
+                {pauseResumeBusy ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : isPaused ? (
+                  <Play className="h-4 w-4" />
+                ) : (
+                  <Pause className="h-4 w-4" />
+                )}
+              </Button>
+
+              <Button
+                variant="destructive"
+                size="icon"
+                onClick={() => void onStop()}
+                disabled={stopDisabled}
+                aria-label="Stop campaign"
+                title="Stop"
+              >
+                {stopBusy ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Square className="h-4 w-4" />
+                )}
+              </Button>
             </div>
           </div>
         </AlertDescription>

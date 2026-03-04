@@ -198,11 +198,10 @@ async function fireAutomationTriggers(supabase: any, tenantId: string, customerI
       const step = workflowSteps[i];
       const scheduledAt = new Date(baseTime.getTime() + step.delayMin * 60 * 1000);
       const messageType = step.type || 'email';
-      if (messageType === 'email' && customer.email_opt_in === false) { skipped++; continue; }
       if (messageType === 'sms' && customer.sms_opt_in !== true) { skipped++; continue; }
       const recipient = messageType === 'sms' ? customer.phone : customer.email;
       if (!recipient) { skipped++; continue; }
-      
+
       await supabase.from('crm_outbox').insert({
         tenant_id: tenantId, automation_id: automation.id, automation_run_id: runId, customer_id: customerId,
         automation_node_id: step.id || step.node_id || `step-${i}`,
@@ -596,7 +595,7 @@ async function processLoyaltyAccountCreated(supabase: any, tenantId: string, use
     const { data } = await supabase.from('crm_customers').insert({ tenant_id: tenantId, user_id: userId, email, phone, first_name: squareCustomer.given_name, last_name: squareCustomer.family_name, tags: ['Loyalty Member'], pos_source: 'square', square_customer_id: squareCustomerId }).select().single();
     customer = data;
   }
-  
+
   if (customer) {
     // Find the Perks/Loyalty segment for this tenant and add customer to it
     // This triggers the segment.added automation via the database trigger
@@ -607,7 +606,7 @@ async function processLoyaltyAccountCreated(supabase: any, tenantId: string, use
       .or('name.ilike.%perks%,name.ilike.%loyalty%')
       .limit(1)
       .single();
-    
+
     if (perksSegment) {
       console.log(`[Loyalty] Adding customer ${customer.id} to Perks segment ${perksSegment.id}`);
       const { error: segmentError } = await supabase
@@ -617,7 +616,7 @@ async function processLoyaltyAccountCreated(supabase: any, tenantId: string, use
           segment_id: perksSegment.id,
           assigned_by_user_id: userId
         }, { onConflict: 'customer_id,segment_id' });
-      
+
       if (segmentError) {
         console.error(`[Loyalty] Failed to add customer to segment:`, segmentError);
       } else {
@@ -626,7 +625,7 @@ async function processLoyaltyAccountCreated(supabase: any, tenantId: string, use
     } else {
       console.log(`[Loyalty] No Perks/Loyalty segment found for tenant ${tenantId}`);
     }
-    
+
     // Also fire legacy automation triggers
     await fireAutomationTriggers(supabase, tenantId, customer.id, ['loyalty_join'], { loyalty_account_id: loyaltyAccount.id, merchant_id: merchantId });
   }
@@ -713,9 +712,9 @@ async function processCatalogVersionUpdated(supabase: any, tenantId: string, use
     .eq('merchant_id', merchantId)
     .eq('status', 'connected')
     .single();
-  
+
   if (!connection) return { success: false, reason: 'no_connection' };
-  
+
   if (connection.last_product_sync) {
     const lastSync = new Date(connection.last_product_sync);
     const minutesSinceLastSync = (Date.now() - lastSync.getTime()) / (1000 * 60);
@@ -727,7 +726,7 @@ async function processCatalogVersionUpdated(supabase: any, tenantId: string, use
 
   try {
     console.log('🔄 Enqueuing catalog sync job (passed throttle check)');
-    
+
     const { data: jobId, error: enqueueError } = await supabase.rpc('enqueue_pos_sync_job', {
       p_tenant_id: tenantId,
       p_provider: 'square',
@@ -748,8 +747,8 @@ async function processCatalogVersionUpdated(supabase: any, tenantId: string, use
     );
 
     return { success: true, jobEnqueued: jobId };
-  } catch (e: any) { 
-    return { success: false, error: e.message }; 
+  } catch (e: any) {
+    return { success: false, error: e.message };
   }
 }
 
@@ -769,40 +768,40 @@ async function processInventoryCountUpdated(supabase: any, tenantId: string, inv
 
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
-  
+
   console.log('📨 Square webhook received');
-  
+
   try {
     const body = await req.text();
     const signature = req.headers.get('x-square-hmacsha256-signature');
     const notificationUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/square-webhook-handler`;
-    
+
     // SIGNATURE VERIFICATION
     const signatureValid = await verifySquareSignature(body, signature, notificationUrl);
-    
+
     if (!signatureValid) {
       console.error('❌ SIGNATURE_FAILED - Invalid Square webhook signature');
-      return new Response(JSON.stringify({ error: 'Invalid signature' }), { 
-        status: 401, 
-        headers: { 'Content-Type': 'application/json', ...corsHeaders } 
+      return new Response(JSON.stringify({ error: 'Invalid signature' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders }
       });
     }
 
     const payload: SquareWebhookPayload = JSON.parse(body);
-    
+
     // ============================================
     // SIGNATURE_OK - Log after successful verification
     // ============================================
     console.log('✅ SIGNATURE_OK | event_id:', payload.event_id, '| event_type:', payload.type, '| merchant_id:', payload.merchant_id);
-    
+
     const supabase = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
     const connection = await findTenantByMerchantId(supabase, payload.merchant_id);
-    
+
     if (!connection) {
       console.warn('⚠️ Merchant not connected:', payload.merchant_id);
-      return new Response(JSON.stringify({ error: 'Merchant not connected' }), { 
-        status: 200, 
-        headers: { 'Content-Type': 'application/json', ...corsHeaders } 
+      return new Response(JSON.stringify({ error: 'Merchant not connected' }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders }
       });
     }
 
@@ -812,7 +811,7 @@ const handler = async (req: Request): Promise<Response> => {
     await updateLastWebhookReceived(supabase, connection.id);
 
     let result: any = { success: true, message: `Event ${payload.type} not handled` };
-    
+
     switch (payload.type) {
       case 'payment.created':
       case 'payment.updated':
@@ -822,39 +821,39 @@ const handler = async (req: Request): Promise<Response> => {
         result = await processInvoicePaymentMade(supabase, connection.tenant_id, connection.user_id, payload.data.object, payload.merchant_id, connection);
         break;
       case 'customer.created':
-        result = await processCustomerCreated(supabase, connection.tenant_id, connection.user_id, payload.data.object, connection); 
+        result = await processCustomerCreated(supabase, connection.tenant_id, connection.user_id, payload.data.object, connection);
         break;
-      case 'customer.updated': 
-        result = await processCustomerUpdated(supabase, connection.tenant_id, connection.user_id, payload.data.object, connection); 
+      case 'customer.updated':
+        result = await processCustomerUpdated(supabase, connection.tenant_id, connection.user_id, payload.data.object, connection);
         break;
-      case 'loyalty.account.created': 
-      case 'loyalty.program.enrollment.created': 
-        result = await processLoyaltyAccountCreated(supabase, connection.tenant_id, connection.user_id, payload.data.object, payload.merchant_id); 
+      case 'loyalty.account.created':
+      case 'loyalty.program.enrollment.created':
+        result = await processLoyaltyAccountCreated(supabase, connection.tenant_id, connection.user_id, payload.data.object, payload.merchant_id);
         break;
-      case 'order.fulfillment.updated': 
-        result = await processFulfillmentUpdated(supabase, connection.tenant_id, connection.user_id, payload.data.object, payload.merchant_id); 
+      case 'order.fulfillment.updated':
+        result = await processFulfillmentUpdated(supabase, connection.tenant_id, connection.user_id, payload.data.object, payload.merchant_id);
         break;
-      case 'refund.created': 
-        result = await processRefundCreated(supabase, connection.tenant_id, connection.user_id, payload.data.object, payload.merchant_id); 
+      case 'refund.created':
+        result = await processRefundCreated(supabase, connection.tenant_id, connection.user_id, payload.data.object, payload.merchant_id);
         break;
-      case 'catalog.version.updated': 
-        result = await processCatalogVersionUpdated(supabase, connection.tenant_id, connection.user_id, payload.data.object, payload.merchant_id); 
+      case 'catalog.version.updated':
+        result = await processCatalogVersionUpdated(supabase, connection.tenant_id, connection.user_id, payload.data.object, payload.merchant_id);
         break;
-      case 'inventory.count.updated': 
-        result = await processInventoryCountUpdated(supabase, connection.tenant_id, payload.data.object); 
+      case 'inventory.count.updated':
+        result = await processInventoryCountUpdated(supabase, connection.tenant_id, payload.data.object);
         break;
     }
-    
+
     console.log('✅ Result:', JSON.stringify(result));
-    return new Response(JSON.stringify({ success: true, result }), { 
-      status: 200, 
-      headers: { 'Content-Type': 'application/json', ...corsHeaders } 
+    return new Response(JSON.stringify({ success: true, result }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders }
     });
   } catch (error: any) {
     console.error('💥 Error:', error.message);
-    return new Response(JSON.stringify({ error: error.message }), { 
-      status: 500, 
-      headers: { 'Content-Type': 'application/json', ...corsHeaders } 
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders }
     });
   }
 };

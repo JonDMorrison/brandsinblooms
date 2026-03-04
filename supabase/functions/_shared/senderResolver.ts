@@ -1,12 +1,10 @@
 /**
  * Unified Sender Resolution Module
- * 
- * This module provides a consistent way to resolve the sender email address
- * for all email-sending edge functions. It implements a three-tier priority system:
- * 
- * 1. Custom Domain (Priority 1): If the tenant has a verified custom domain, use it
- * 2. Platform Email (Priority 2): If no custom domain, use the tenant's fallback platform email
- * 3. Generic Platform (Priority 3): Last resort - use the generic BloomSuite sender
+ *
+ * Milestone 2: Fallback sending is disabled.
+ *
+ * This resolver now requires an operational custom domain (status active|warming_up).
+ * If none exists, it throws and the calling function must not send.
  */
 
 import { SupabaseClient } from "npm:@supabase/supabase-js@2.7.1";
@@ -14,7 +12,7 @@ import { SupabaseClient } from "npm:@supabase/supabase-js@2.7.1";
 export interface SenderConfig {
   fromEmail: string;
   fromName: string;
-  deliveryMethod: 'custom_domain' | 'tenant_platform' | 'generic_platform';
+  deliveryMethod: 'custom_domain';
   replyTo?: string;
   domainId?: string;
   domain?: string;
@@ -27,12 +25,10 @@ export interface SenderResolutionOptions {
 
 /**
  * Resolves the sender configuration for a tenant.
- * 
+ *
  * Priority order:
- * 1. Custom verified domain (from email_domains table)
- * 2. Tenant's platform fallback email (from tenants table)
- * 3. Generic BloomSuite sender (noreply@bloomsuite.app)
- * 
+ * 1. Custom operational domain (from email_domains table)
+ *
  * @param supabase - Supabase client instance
  * @param tenantId - The tenant ID to resolve sender for
  * @param options - Optional configuration like preferred domain ID or user ID
@@ -44,19 +40,21 @@ export async function resolveSender(
   options: SenderResolutionOptions = {}
 ): Promise<SenderConfig> {
   const { preferredDomainId, userId } = options;
-  
+
   console.log(`[SenderResolver] Resolving sender for tenant: ${tenantId}, preferredDomainId: ${preferredDomainId || 'none'}`);
 
   // Valid statuses for sending emails (active or warming_up)
   const validStatuses = ['active', 'warming_up'];
-  
+
   // Step 1: Check for preferred domain first (if specified)
   if (preferredDomainId) {
     const { data: domain, error: domainError } = await supabase
       .from('email_domains')
-      .select('id, domain, status, default_from_email, default_from_name, default_reply_to')
+      .select('id, domain, status, default_from_email, default_from_name, default_reply_to, manual_pause, investigation_mode')
       .eq('id', preferredDomainId)
       .in('status', validStatuses)
+      .eq('manual_pause', false)
+      .eq('investigation_mode', false)
       .single();
 
     if (!domainError && domain) {
@@ -78,9 +76,11 @@ export async function resolveSender(
   // Step 2: Check for any usable custom domain for the tenant (active or warming_up)
   const { data: usableDomains, error: usableError } = await supabase
     .from('email_domains')
-    .select('id, domain, status, default_from_email, default_from_name, default_reply_to')
+    .select('id, domain, status, default_from_email, default_from_name, default_reply_to, manual_pause, investigation_mode')
     .eq('tenant_id', tenantId)
     .in('status', validStatuses)
+    .eq('manual_pause', false)
+    .eq('investigation_mode', false)
     .order('created_at', { ascending: false })
     .limit(1);
 
@@ -99,62 +99,13 @@ export async function resolveSender(
     };
   }
 
-  // Step 2b: Check if tenant has ANY custom domains (even non-active ones)
-  // If so, refuse to fall back to the shared platform sender to protect deliverability
-  const { data: allDomains } = await supabase
-    .from('email_domains')
-    .select('id, domain, status')
-    .eq('tenant_id', tenantId)
-    .limit(5);
-
-  if (allDomains && allDomains.length > 0) {
-    const domainList = allDomains.map(d => `${d.domain} (${d.status})`).join(', ');
-    console.error(`[SenderResolver] ❌ Tenant ${tenantId} has custom domains [${domainList}] but none are in a sendable status. Refusing to fall back to shared platform sender.`);
-    throw new Error(`Cannot send: tenant has custom domains configured [${domainList}] but none are active. Fix domain status before sending.`);
-  }
-
-  // Step 3: Check tenant for fallback platform email (only for tenants WITHOUT any custom domains)
-  const { data: tenant, error: tenantError } = await supabase
-    .from('tenants')
-    .select('fallback_sender_email, fallback_from_name, name')
-    .eq('id', tenantId)
-    .single();
-
-  if (!tenantError && tenant?.fallback_sender_email) {
-    console.log(`[SenderResolver] Using tenant platform email: ${tenant.fallback_sender_email}`);
-    return {
-      fromEmail: tenant.fallback_sender_email,
-      fromName: tenant.fallback_from_name || tenant.name || 'BloomSuite',
-      deliveryMethod: 'tenant_platform'
-    };
-  }
-
-  // Step 4: If we have a userId, try to get company name from company_profiles
-  let companyName = 'BloomSuite';
-  if (userId) {
-    const { data: profile } = await supabase
-      .from('company_profiles')
-      .select('company_name')
-      .eq('user_id', userId)
-      .single();
-    
-    if (profile?.company_name) {
-      companyName = profile.company_name;
-    }
-  }
-
-  // Step 5: Last resort - generic platform sender (only for tenants with NO custom domains at all)
-  console.log(`[SenderResolver] Using generic platform sender: noreply@bloomsuite.app`);
-  return {
-    fromEmail: 'noreply@bloomsuite.app',
-    fromName: companyName,
-    deliveryMethod: 'generic_platform'
-  };
+  const companyNameHint = userId ? ` (user_id=${userId})` : '';
+  throw new Error(`SENDER_DOMAIN_REQUIRED: No operational sending domain for tenant ${tenantId}${companyNameHint}`);
 }
 
 /**
  * Builds the "From" address string for email sending
- * 
+ *
  * @param config - The sender configuration
  * @returns Formatted from address string like "Company Name <email@domain.com>"
  */
@@ -164,7 +115,7 @@ export function buildFromAddress(config: SenderConfig): string {
 
 /**
  * Determines if the sender is using a verified custom domain
- * 
+ *
  * @param config - The sender configuration
  * @returns true if using a custom domain
  */
@@ -175,7 +126,7 @@ export function isCustomDomain(config: SenderConfig): boolean {
 /**
  * Gets a suffix for the from name when using shared/platform senders
  * This helps recipients understand the email is being sent on behalf of a business
- * 
+ *
  * @param config - The sender configuration
  * @param companyName - The company name to use
  * @returns Modified from name with appropriate suffix

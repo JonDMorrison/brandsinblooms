@@ -10,7 +10,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Eye, Clock, MoreHorizontal } from "lucide-react";
+import { Eye, Clock, MoreHorizontal, Mail } from "lucide-react";
 import {
   Popover,
   PopoverContent,
@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/popover";
 import { formatDistanceToNow, format } from "date-fns";
 
-interface AdminTenant {
+export interface AdminTenant {
   tenant_id: string;
   company_name: string;
   website: string;
@@ -48,6 +48,7 @@ interface TenantTableProps {
   onViewTenant: (tenant: AdminTenant) => void;
   onExtendTrial: (tenantId: string, days: number) => void;
   onToggleActive: (tenantId: string, active: boolean) => void;
+  onEmailManagement: (tenantId: string) => void;
 }
 
 export const TenantTable = ({
@@ -56,6 +57,7 @@ export const TenantTable = ({
   onViewTenant,
   onExtendTrial,
   onToggleActive,
+  onEmailManagement,
 }: TenantTableProps) => {
   const [openPopovers, setOpenPopovers] = useState<Set<string>>(new Set());
   const getStatusBadge = (tenant: AdminTenant) => {
@@ -63,22 +65,33 @@ export const TenantTable = ({
       return <Badge variant="secondary">Inactive</Badge>;
     }
     if (tenant.is_trialing) {
-      return <Badge variant="outline" className="border-yellow-500 text-yellow-700">Trialing</Badge>;
+      return (
+        <Badge variant="outline" className="border-yellow-500 text-yellow-700">
+          Trialing
+        </Badge>
+      );
     }
     if (tenant.is_paid_active) {
-      return <Badge variant="default" className="bg-green-500">Active</Badge>;
+      return (
+        <Badge variant="default" className="bg-green-500">
+          Active
+        </Badge>
+      );
     }
     return <Badge variant="destructive">Expired</Badge>;
   };
 
   const getActivityDot = (lastActivity: string | null) => {
-    if (!lastActivity) return <div className="w-2 h-2 rounded-full bg-gray-400" />;
-    
-    const hoursAgo = (Date.now() - new Date(lastActivity).getTime()) / (1000 * 60 * 60);
-    
+    if (!lastActivity)
+      return <div className="w-2 h-2 rounded-full bg-gray-400" />;
+
+    const hoursAgo =
+      (Date.now() - new Date(lastActivity).getTime()) / (1000 * 60 * 60);
+
     if (hoursAgo < 24) {
       return <div className="w-2 h-2 rounded-full bg-green-400" />;
-    } else if (hoursAgo < 168) { // 7 days
+    } else if (hoursAgo < 168) {
+      // 7 days
       return <div className="w-2 h-2 rounded-full bg-yellow-400" />;
     } else {
       return <div className="w-2 h-2 rounded-full bg-gray-400" />;
@@ -137,10 +150,13 @@ export const TenantTable = ({
         </TableHeader>
         <TableBody>
           {tenants.map((tenant) => (
-            <TableRow key={tenant.tenant_id} className="cursor-pointer hover:bg-muted/50">
+            <TableRow
+              key={tenant.tenant_id}
+              className="cursor-pointer hover:bg-muted/50"
+            >
               <TableCell>
                 <div className="font-medium">
-                  <button 
+                  <button
                     onClick={() => onViewTenant(tenant)}
                     className="text-primary hover:underline text-left"
                   >
@@ -153,11 +169,13 @@ export const TenantTable = ({
                   )}
                 </div>
               </TableCell>
-              
+
               <TableCell>
                 <div>
-                  <div className="font-medium">{tenant.primary_contact_name || "—"}</div>
-                  <a 
+                  <div className="font-medium">
+                    {tenant.primary_contact_name || "—"}
+                  </div>
+                  <a
                     href={`mailto:${tenant.primary_contact_email}`}
                     className="text-sm text-muted-foreground hover:text-primary"
                   >
@@ -165,11 +183,11 @@ export const TenantTable = ({
                   </a>
                 </div>
               </TableCell>
-              
+
               <TableCell className="text-sm">
                 {formatLocation(tenant.city, tenant.region, tenant.country)}
               </TableCell>
-              
+
               <TableCell>
                 <div>
                   <div className="font-medium capitalize">{tenant.plan}</div>
@@ -178,46 +196,44 @@ export const TenantTable = ({
                   </div>
                 </div>
               </TableCell>
-              
+
               <TableCell>
                 {tenant.trial_end ? (
                   <div className="text-sm">
                     {format(new Date(tenant.trial_end), "MMM d, yyyy")}
                     <div className="text-muted-foreground">
-                      {tenant.trial_not_expired ? 
-                        formatDistanceToNow(new Date(tenant.trial_end)) + " left" :
-                        "Expired"
-                      }
+                      {tenant.trial_not_expired
+                        ? formatDistanceToNow(new Date(tenant.trial_end)) +
+                          " left"
+                        : "Expired"}
                     </div>
                   </div>
                 ) : (
                   "—"
                 )}
               </TableCell>
-              
-              <TableCell>
-                {getStatusBadge(tenant)}
-              </TableCell>
-              
+
+              <TableCell>{getStatusBadge(tenant)}</TableCell>
+
               <TableCell>
                 <div className="flex items-center gap-2">
                   {getActivityDot(tenant.last_activity_at)}
                   <span className="text-sm">
-                    {tenant.last_activity_at ? 
-                      formatDistanceToNow(new Date(tenant.last_activity_at)) + " ago" :
-                      "Never"
-                    }
+                    {tenant.last_activity_at
+                      ? formatDistanceToNow(new Date(tenant.last_activity_at)) +
+                        " ago"
+                      : "Never"}
                   </span>
                 </div>
               </TableCell>
-              
+
               <TableCell className="text-sm">
                 {format(new Date(tenant.tenant_created_at), "MMM d, yyyy")}
               </TableCell>
-              
+
               <TableCell>
-                <Popover 
-                  open={openPopovers.has(tenant.tenant_id)} 
+                <Popover
+                  open={openPopovers.has(tenant.tenant_id)}
                   onOpenChange={(open) => {
                     const newSet = new Set(openPopovers);
                     if (open) {
@@ -229,19 +245,19 @@ export const TenantTable = ({
                   }}
                 >
                   <PopoverTrigger asChild>
-                    <Button 
-                      variant="ghost" 
+                    <Button
+                      variant="ghost"
                       size="sm"
-                      aria-label={`Actions for ${tenant.company_name || 'tenant'}`}
+                      aria-label={`Actions for ${tenant.company_name || "tenant"}`}
                       data-testid={`tenant-actions-${tenant.tenant_id}`}
                     >
                       <MoreHorizontal className="h-4 w-4" />
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent 
-                    align="end" 
+                  <PopoverContent
+                    align="end"
                     className="w-48 p-2"
-                    style={{ zIndex: 1000010, pointerEvents: 'auto' }}
+                    style={{ zIndex: 1000010, pointerEvents: "auto" }}
                   >
                     <div className="flex flex-col gap-1">
                       <Button
@@ -257,13 +273,28 @@ export const TenantTable = ({
                         <Eye className="mr-2 h-4 w-4" />
                         View Details
                       </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="justify-start"
+                        onClick={() => {
+                          onEmailManagement(tenant.tenant_id);
+                          setOpenPopovers(new Set());
+                        }}
+                      >
+                        <Mail className="mr-2 h-4 w-4" />
+                        Email Management
+                      </Button>
                       {tenant.is_trialing && (
                         <Button
                           variant="ghost"
                           size="sm"
                           className="justify-start"
                           onClick={() => {
-                            console.log("Extend trial clicked:", tenant.tenant_id);
+                            console.log(
+                              "Extend trial clicked:",
+                              tenant.tenant_id,
+                            );
                             onExtendTrial(tenant.tenant_id, 7);
                             setOpenPopovers(new Set());
                           }}
@@ -277,7 +308,11 @@ export const TenantTable = ({
                         size="sm"
                         className="justify-start"
                         onClick={() => {
-                          console.log("Toggle active clicked:", tenant.tenant_id, !tenant.is_active);
+                          console.log(
+                            "Toggle active clicked:",
+                            tenant.tenant_id,
+                            !tenant.is_active,
+                          );
                           onToggleActive(tenant.tenant_id, !tenant.is_active);
                           setOpenPopovers(new Set());
                         }}

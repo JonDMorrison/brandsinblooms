@@ -1,19 +1,16 @@
 import React, { useState } from 'react';
-import { useSuppressionList, useSuppressionStats, useAddSuppression, useRemoveSuppression } from '@/hooks/useSuppressionList';
+import { useSuppressionList, useSuppressionStats, useRemoveSuppression } from '@/hooks/useSuppressionList';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
-import { 
-  Search, 
-  Plus, 
-  Trash2, 
-  ShieldOff, 
-  AlertTriangle, 
+import {
+  Search,
+  Trash2,
+  ShieldOff,
+  AlertTriangle,
   XCircle,
   MailX,
   ChevronLeft,
@@ -28,9 +25,6 @@ export default function SuppressionListPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [page, setPage] = useState(0);
-  const [addDialogOpen, setAddDialogOpen] = useState(false);
-  const [newEmail, setNewEmail] = useState('');
-  const [newReason, setNewReason] = useState('');
 
   // Debounce search
   React.useEffect(() => {
@@ -48,16 +42,7 @@ export default function SuppressionListPage() {
   });
 
   const { data: stats } = useSuppressionStats();
-  const addMutation = useAddSuppression();
   const removeMutation = useRemoveSuppression();
-
-  const handleAdd = async () => {
-    if (!newEmail.trim()) return;
-    await addMutation.mutateAsync({ email: newEmail, reason: newReason || undefined });
-    setNewEmail('');
-    setNewReason('');
-    setAddDialogOpen(false);
-  };
 
   const handleRemove = async (id: string, email: string) => {
     await removeMutation.mutateAsync({ suppressionId: id, email });
@@ -72,8 +57,6 @@ export default function SuppressionListPage() {
         return <AlertTriangle className="h-4 w-4 text-orange-500" />;
       case 'unsubscribed':
         return <MailX className="h-4 w-4 text-muted-foreground" />;
-      case 'manual':
-        return <ShieldOff className="h-4 w-4 text-blue-500" />;
       default:
         return <ShieldOff className="h-4 w-4" />;
     }
@@ -85,7 +68,6 @@ export default function SuppressionListPage() {
       'complaint': 'destructive',
       'complained': 'destructive',
       'unsubscribed': 'secondary',
-      'manual': 'outline'
     };
     return (
       <Badge variant={variants[type] || 'outline'} className="gap-1 capitalize">
@@ -106,7 +88,7 @@ export default function SuppressionListPage() {
             Email Suppression List
           </h1>
           <p className="text-muted-foreground">
-            Manage suppressed email addresses that won't receive campaigns or automations.
+            Addresses blocked due to explicit unsubscribe, hard bounce, or spam complaint.
           </p>
         </div>
       </div>
@@ -146,51 +128,9 @@ export default function SuppressionListPage() {
             <div>
               <CardTitle>Suppressed Emails</CardTitle>
               <CardDescription>
-                Emails that have bounced, complained, or been manually suppressed
+                Emails that have bounced, complained, or unsubscribed
               </CardDescription>
             </div>
-            <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
-              <DialogTrigger asChild>
-                <Button size="sm">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Suppression
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Add Email to Suppression List</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4 py-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email Address</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      placeholder="email@example.com"
-                      value={newEmail}
-                      onChange={(e) => setNewEmail(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="reason">Reason (optional)</Label>
-                    <Input
-                      id="reason"
-                      placeholder="e.g., Customer requested removal"
-                      value={newReason}
-                      onChange={(e) => setNewReason(e.target.value)}
-                    />
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setAddDialogOpen(false)}>
-                    Cancel
-                  </Button>
-                  <Button onClick={handleAdd} disabled={!newEmail.trim() || addMutation.isPending}>
-                    {addMutation.isPending ? 'Adding...' : 'Add to List'}
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
           </div>
         </CardHeader>
         <CardContent>
@@ -313,7 +253,7 @@ export default function SuppressionListPage() {
                 <li><strong>Manual</strong> - Added by you or your team to prevent sending to specific addresses</li>
               </ul>
               <p className="text-muted-foreground mt-4">
-                Suppressed emails are excluded from all campaigns and automations. Removing a suppression allows 
+                Suppressed emails are excluded from all campaigns and automations. Removing a suppression allows
                 future emails to be sent, but won't affect past bounces or complaints recorded by email providers.
               </p>
             </div>

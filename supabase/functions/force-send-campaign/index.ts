@@ -32,7 +32,7 @@ serve(async (req: Request) => {
 
     const token = authHeader.replace("Bearer ", "");
     const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token);
-    
+
     if (authError || !user) {
       return new Response(
         JSON.stringify({ error: "Unauthorized" }),
@@ -82,7 +82,7 @@ serve(async (req: Request) => {
     const allowedStatuses = ["scheduled", "failed"];
     if (!allowedStatuses.includes(campaign.status)) {
       return new Response(
-        JSON.stringify({ 
+        JSON.stringify({
           error: `Cannot force send campaign with status: ${campaign.status}. Only 'scheduled' or 'failed' campaigns can be force sent.`
         }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -91,6 +91,53 @@ serve(async (req: Request) => {
 
     const previousStatus = campaign.status;
     const previousFailureReason = campaign.failure_reason;
+
+    const { data: policyData, error: policyError } = await supabaseClient.rpc('get_campaign_reputation_policy', {
+      p_campaign_id: campaignId,
+    });
+
+    if (policyError) {
+      console.error('[force-send] Failed to fetch reputation policy:', policyError);
+      return new Response(
+        JSON.stringify({ error: 'Failed to evaluate campaign reputation policy' }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const policy = Array.isArray(policyData) ? policyData[0] : policyData;
+    const policyAction = String(policy?.action || 'allow');
+    const policyScore = Number(policy?.score ?? 100);
+
+    if (policyAction === 'pause') {
+      const pauseMessage = `Campaign auto-paused: tenant reputation score ${policyScore} is below 60.`;
+      await supabaseClient.rpc('system_pause_email_campaign_sending', {
+        p_campaign_id: campaignId,
+        p_block_reason: 'reputation_critical_autopause',
+        p_error_message: pauseMessage,
+      });
+
+      return new Response(
+        JSON.stringify({ error: pauseMessage }),
+        { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (policyAction === 'restrict') {
+      const blockMessage = `Campaign blocked: tenant reputation score ${policyScore} is in restricted tier (60-74).`;
+      await supabaseClient
+        .from('crm_campaigns')
+        .update({
+          send_blocked_reason: 'reputation_restricted',
+          send_error: blockMessage,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', campaignId);
+
+      return new Response(
+        JSON.stringify({ error: blockMessage }),
+        { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     // Reset campaign to scheduled with immediate trigger
     const { error: updateError } = await supabaseClient
@@ -159,7 +206,7 @@ serve(async (req: Request) => {
         "auto-send-campaigns",
         { body: { manualTrigger: true } }
       );
-      
+
       if (sendError) {
         console.warn("[force-send] Auto-send invocation warning:", sendError);
       } else {

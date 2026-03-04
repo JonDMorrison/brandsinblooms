@@ -3,6 +3,7 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 import { generateServerFooterHtml, type CompanyProfileData } from "../_shared/footerGenerator.ts";
 import { renderMergeTags, convertLegacyTags, createMergeTagDataFromCustomer, type MergeTagData } from "../_shared/mergeTagEngine.ts";
 import { extractLinks, getUniqueUrls, rewriteLinksSync, hasPII } from "../_shared/linkRewriter.ts";
+import { canSendEmailBatch, logSkippedSends } from "../_shared/canSendEmail.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -15,8 +16,111 @@ const MAX_ATTEMPTS = 3;
 const DEFAULT_BATCH_DELAY_MS = 500;
 const DEFAULT_MESSAGE_STALE_MINUTES = 15;
 
-const RESEND_BATCH_SIZE = 25;
+const DEFAULT_RESEND_BATCH_SIZE = 80;
+const MAX_RESEND_BATCH_SIZE = 100;
 const RESEND_MIN_INTERVAL_MS = 500;
+
+type CampaignReputationPolicy = {
+  score: number;
+  tier: 'normal' | 'throttled' | 'restricted' | 'critical';
+  action: 'allow' | 'throttle' | 'restrict' | 'pause';
+  recipient_cap: number | null;
+  job_batch_size: number | null;
+  send_pacing_multiplier: number | null;
+};
+
+type TenantSuppressionBypassState = {
+  suppression_bypass_active: boolean;
+};
+
+type CampaignInterventionState = {
+  admin_paused: boolean;
+  force_stopped: boolean;
+  autopause_override_enabled: boolean;
+  autopause_override_precedence: 'final_override' | 'automation_allowed';
+  autopause_override_final: boolean;
+};
+
+async function getTenantSuppressionBypassState(
+  supabase: any,
+  tenantId: string,
+): Promise<TenantSuppressionBypassState> {
+  const { data, error } = await supabase.rpc('get_tenant_suppression_bypass_state', {
+    p_tenant_id: tenantId,
+  });
+
+  if (error) {
+    console.warn('⚠️ Failed to fetch tenant suppression bypass state, defaulting to disabled:', error.message);
+    return { suppression_bypass_active: false };
+  }
+
+  const row = Array.isArray(data) ? data[0] : data;
+  return {
+    suppression_bypass_active: Boolean(row?.suppression_bypass_active),
+  };
+}
+
+async function getCampaignReputationPolicy(supabase: any, campaignId: string): Promise<CampaignReputationPolicy> {
+  const { data, error } = await supabase.rpc('get_campaign_reputation_policy', {
+    p_campaign_id: campaignId,
+  });
+
+  if (error) {
+    console.warn(`⚠️ Failed to fetch campaign reputation policy for ${campaignId}; defaulting to normal:`, error.message);
+    return {
+      score: 100,
+      tier: 'normal',
+      action: 'allow',
+      recipient_cap: null,
+      job_batch_size: 50,
+      send_pacing_multiplier: 1,
+    };
+  }
+
+  const row = Array.isArray(data) ? data[0] : data;
+  const rawRecipientCap = Number(row?.recipient_cap);
+  const normalizedRecipientCap = Number.isFinite(rawRecipientCap) && rawRecipientCap > 0
+    ? rawRecipientCap
+    : null;
+  return {
+    score: Number(row?.score ?? 100),
+    tier: (row?.tier || 'normal') as CampaignReputationPolicy['tier'],
+    action: (row?.action || 'allow') as CampaignReputationPolicy['action'],
+    recipient_cap: normalizedRecipientCap,
+    job_batch_size: Number.isFinite(Number(row?.job_batch_size)) ? Number(row.job_batch_size) : null,
+    send_pacing_multiplier: Number.isFinite(Number(row?.send_pacing_multiplier)) ? Number(row.send_pacing_multiplier) : 1,
+  };
+}
+
+async function getCampaignInterventionState(supabase: any, campaignId: string): Promise<CampaignInterventionState> {
+  const { data, error } = await supabase.rpc('get_campaign_intervention_state', {
+    p_campaign_id: campaignId,
+  });
+
+  if (error) {
+    console.warn(`⚠️ Failed to fetch campaign intervention state for ${campaignId}; defaulting to no override:`, error.message);
+    return {
+      admin_paused: false,
+      force_stopped: false,
+      autopause_override_enabled: false,
+      autopause_override_precedence: 'automation_allowed',
+      autopause_override_final: false,
+    };
+  }
+
+  const row = Array.isArray(data) ? data[0] : data;
+  const precedence = String(row?.autopause_override_precedence || 'automation_allowed').toLowerCase() === 'final_override'
+    ? 'final_override'
+    : 'automation_allowed';
+
+  return {
+    admin_paused: Boolean(row?.admin_paused),
+    force_stopped: Boolean(row?.force_stopped),
+    autopause_override_enabled: Boolean(row?.autopause_override_enabled),
+    autopause_override_precedence: precedence,
+    autopause_override_final: Boolean(row?.autopause_override_final),
+  };
+}
 
 addEventListener('beforeunload', (ev) => {
   console.log(
@@ -181,7 +285,7 @@ function buildEmailPayloadOptimized(
       'X-Campaign-ID': campaign.id,
       'X-Campaign-Type': 'bulk',
       'X-Tenant-ID': campaign.tenant_id,
-      'X-Domain-ID': activeDomainId || 'fallback',
+      'X-Domain-ID': activeDomainId || 'none',
     },
     tags: [
       { name: 'campaign_id', value: campaign.id },
@@ -192,7 +296,7 @@ function buildEmailPayloadOptimized(
 
   if (replyToEmail) {
     emailPayload.reply_to = replyToEmail;
-  } else if (usesVerifiedDomain && senderEmail !== 'noreply@bloomsuite.app') {
+  } else if (usesVerifiedDomain && senderEmail) {
     emailPayload.reply_to = senderEmail;
   }
 
@@ -202,6 +306,254 @@ function buildEmailPayloadOptimized(
 function truncateError(message: string, maxLength: number = 500): string {
   if (!message) return '';
   return message.length > maxLength ? message.slice(0, maxLength) : message;
+}
+
+async function evaluateCampaignBatchSafety(supabase: any, campaignId: string): Promise<{ shouldPause: boolean; pauseReason?: string }> {
+  try {
+    const { data, error } = await supabase.rpc('evaluate_campaign_batch_safety', {
+      p_campaign_id: campaignId,
+    });
+
+    if (error) {
+      console.warn(`⚠️ Failed to evaluate campaign batch safety for ${campaignId}:`, error.message);
+      return { shouldPause: false };
+    }
+
+    const row = Array.isArray(data) ? data[0] : data;
+    return {
+      shouldPause: Boolean(row?.should_pause),
+      pauseReason: row?.pause_reason ? String(row.pause_reason) : undefined,
+    };
+  } catch (error: any) {
+    console.warn(`⚠️ Batch safety evaluation exception for ${campaignId}:`, error?.message || error);
+    return { shouldPause: false };
+  }
+}
+
+async function evaluateCampaignWarningThrottle(
+  supabase: any,
+  campaignId: string,
+): Promise<{ throttled: boolean; changed: boolean; reasons: string[] }> {
+  try {
+    const { data, error } = await supabase.rpc('maybe_update_campaign_throttle_state', {
+      p_campaign_id: campaignId,
+      p_source: 'queue_worker',
+      p_as_of: new Date().toISOString(),
+    });
+
+    if (error) {
+      console.warn(`⚠️ Failed to evaluate campaign warning throttle for ${campaignId}:`, error.message);
+      return { throttled: false, changed: false, reasons: [] };
+    }
+
+    const row = Array.isArray(data) ? data[0] : data;
+    const reasons = Array.isArray(row?.reasons)
+      ? row.reasons.map((x: unknown) => String(x))
+      : [];
+
+    return {
+      throttled: Boolean(row?.throttled),
+      changed: Boolean(row?.changed),
+      reasons,
+    };
+  } catch (error) {
+    console.warn(`⚠️ Exception evaluating campaign warning throttle for ${campaignId}:`, error);
+    return { throttled: false, changed: false, reasons: [] };
+  }
+}
+
+async function dispatchTenantHardStopNotifications(
+  supabase: any,
+  resendApiKey: string,
+  workerId: string,
+  limit: number = 20,
+): Promise<{ claimed: number; sent: number; failed: number }> {
+  const { data, error } = await supabase.rpc('claim_tenant_hard_stop_notifications', {
+    p_limit: limit,
+    p_worker_id: workerId,
+    p_stale_after_minutes: 10,
+  });
+
+  if (error) {
+    console.warn('⚠️ Failed to claim hard-stop notifications:', error.message);
+    return { claimed: 0, sent: 0, failed: 0 };
+  }
+
+  const notifications = Array.isArray(data) ? data : [];
+  if (notifications.length === 0) {
+    return { claimed: 0, sent: 0, failed: 0 };
+  }
+
+  let sent = 0;
+  let failed = 0;
+
+  for (const notification of notifications) {
+    const notificationId = String(notification?.id || '');
+    const to = String(notification?.recipient_email || '').trim();
+    const subject = String(notification?.subject || 'Sending paused: tenant under review');
+    const bodyText = String(notification?.body_text || 'Your tenant is under review and campaign sending is paused.');
+
+    if (!notificationId || !to) {
+      failed++;
+      continue;
+    }
+
+    try {
+      const resendResp = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${resendApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          from: 'BloomSuite Deliverability <noreply@brandsinblooms.com>',
+          to: [to],
+          subject,
+          text: bodyText,
+        }),
+      });
+
+      if (!resendResp.ok) {
+        const errText = await resendResp.text();
+        throw new Error(`Resend ${resendResp.status}: ${truncateError(errText || 'unknown error')}`);
+      }
+
+      await supabase
+        .from('email_governance_tenant_hard_stop_notifications')
+        .update({
+          status: 'sent',
+          sent_at: new Date().toISOString(),
+          error_message: null,
+          claim_token: null,
+          claimed_at: null,
+          claimed_by: null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', notificationId);
+
+      if (notification?.enforcement_action_id) {
+        await supabase
+          .from('email_governance_tenant_enforcement_actions')
+          .update({ notified_at: new Date().toISOString() })
+          .eq('id', notification.enforcement_action_id)
+          .is('notified_at', null);
+      }
+
+      sent++;
+    } catch (sendError: any) {
+      await supabase
+        .from('email_governance_tenant_hard_stop_notifications')
+        .update({
+          status: 'pending',
+          error_message: truncateError(sendError?.message || 'Failed to send hard-stop notification'),
+          claim_token: null,
+          claimed_at: null,
+          claimed_by: null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', notificationId);
+      failed++;
+    }
+  }
+
+  return {
+    claimed: notifications.length,
+    sent,
+    failed,
+  };
+}
+
+async function dispatchDomainCrisisNotifications(
+  supabase: any,
+  resendApiKey: string,
+  workerId: string,
+  limit: number = 20,
+): Promise<{ claimed: number; sent: number; failed: number }> {
+  const { data, error } = await supabase.rpc('claim_domain_crisis_notifications', {
+    p_limit: limit,
+    p_worker_id: workerId,
+    p_stale_after_minutes: 10,
+  });
+
+  if (error) {
+    console.warn('⚠️ Failed to claim domain crisis notifications:', error.message);
+    return { claimed: 0, sent: 0, failed: 0 };
+  }
+
+  const notifications = Array.isArray(data) ? data : [];
+  if (notifications.length === 0) {
+    return { claimed: 0, sent: 0, failed: 0 };
+  }
+
+  let sent = 0;
+  let failed = 0;
+
+  for (const notification of notifications) {
+    const notificationId = String(notification?.id || '');
+    const to = String(notification?.recipient_email || '').trim();
+    const subject = String(notification?.subject || 'Sending halted: domain under investigation');
+    const bodyText = String(notification?.body_text || 'A sending domain is under investigation and sending has been halted.');
+
+    if (!notificationId || !to) {
+      failed++;
+      continue;
+    }
+
+    try {
+      const resendResp = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${resendApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          from: 'BloomSuite Deliverability <noreply@brandsinblooms.com>',
+          to: [to],
+          subject,
+          text: bodyText,
+        }),
+      });
+
+      if (!resendResp.ok) {
+        const errText = await resendResp.text();
+        throw new Error(`Resend ${resendResp.status}: ${truncateError(errText || 'unknown error')}`);
+      }
+
+      await supabase
+        .from('email_governance_domain_crisis_notifications')
+        .update({
+          status: 'sent',
+          sent_at: new Date().toISOString(),
+          error_message: null,
+          claim_token: null,
+          claimed_at: null,
+          claimed_by: null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', notificationId);
+
+      sent++;
+    } catch (sendError: any) {
+      await supabase
+        .from('email_governance_domain_crisis_notifications')
+        .update({
+          status: 'pending',
+          error_message: truncateError(sendError?.message || 'Failed to send domain crisis notification'),
+          claim_token: null,
+          claimed_at: null,
+          claimed_by: null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', notificationId);
+      failed++;
+    }
+  }
+
+  return {
+    claimed: notifications.length,
+    sent,
+    failed,
+  };
 }
 
 async function resendSendEmail(
@@ -355,7 +707,8 @@ serve((req) => {
     const batchDelayMs = parseInt(Deno.env.get('EMAIL_BATCH_DELAY_MS') || String(DEFAULT_BATCH_DELAY_MS), 10);
     const sendConcurrency = parseInt(Deno.env.get('EMAIL_SEND_CONCURRENCY') || String(SEND_CONCURRENCY), 10);
     const messageStaleMinutes = parseInt(Deno.env.get('EMAIL_MESSAGE_STALE_MINUTES') || String(DEFAULT_MESSAGE_STALE_MINUTES), 10);
-    const resendBatchSize = RESEND_BATCH_SIZE;
+    const resendBatchSizeEnv = parseInt(Deno.env.get('RESEND_BATCH_SIZE') || String(DEFAULT_RESEND_BATCH_SIZE), 10);
+    const resendBatchSize = Math.max(1, Math.min(MAX_RESEND_BATCH_SIZE, Number.isFinite(resendBatchSizeEnv) ? resendBatchSizeEnv : DEFAULT_RESEND_BATCH_SIZE));
     const workerId = Deno.env.get('WORKER_ID') || `email-queue-worker-${crypto.randomUUID()}`;
     const claimToken = crypto.randomUUID();
 
@@ -364,7 +717,7 @@ serve((req) => {
     // extra delay so we don't accidentally double-throttle.
     const additionalBatchDelayMs = Math.max(0, batchDelayMs - RESEND_MIN_INTERVAL_MS);
 
-    console.log(`[process-email-send-queue][${runId}] ⚙️ Resend settings: batch_size=${resendBatchSize} (fixed), min_interval_ms=${RESEND_MIN_INTERVAL_MS} (fixed, global)`);
+    console.log(`[process-email-send-queue][${runId}] ⚙️ Resend settings: batch_size=${resendBatchSize} (env RESEND_BATCH_SIZE, max ${MAX_RESEND_BATCH_SIZE}), min_interval_ms=${RESEND_MIN_INTERVAL_MS} (fixed, global)`);
     console.log(`[process-email-send-queue][${runId}] ⚙️ Worker settings: send_concurrency=${sendConcurrency} (env EMAIL_SEND_CONCURRENCY), batch_delay_ms=${batchDelayMs} (env EMAIL_BATCH_DELAY_MS), stale_minutes=${messageStaleMinutes}`);
 
     try {
@@ -492,6 +845,32 @@ serve((req) => {
         finalized++;
       }
 
+      const hardStopNotifications = await dispatchTenantHardStopNotifications(
+        supabase,
+        resendApiKey,
+        workerId,
+        10,
+      );
+
+      const domainCrisisNotifications = await dispatchDomainCrisisNotifications(
+        supabase,
+        resendApiKey,
+        workerId,
+        10,
+      );
+
+      if (hardStopNotifications.claimed > 0) {
+        console.log(
+          `📣 Hard-stop notifications processed: claimed=${hardStopNotifications.claimed}, sent=${hardStopNotifications.sent}, failed=${hardStopNotifications.failed}`,
+        );
+      }
+
+      if (domainCrisisNotifications.claimed > 0) {
+        console.log(
+          `📣 Domain crisis notifications processed: claimed=${domainCrisisNotifications.claimed}, sent=${domainCrisisNotifications.sent}, failed=${domainCrisisNotifications.failed}`,
+        );
+      }
+
       console.log(`✅ No pending jobs to process${finalized > 0 ? ` (finalized ${finalized} stuck campaigns)` : ''}`);
       return;
     }
@@ -550,6 +929,7 @@ serve((req) => {
     const footerTemplateCache = new Map<string, string>();
     const trackedLinkMapCache = new Map<string, Map<string, string>>();
     const replyToCache = new Map<string, string | undefined>();
+    const domainInvestigationCache = new Map<string, boolean>();
 
     for (let jobIndex = 0; jobIndex < jobs.length; jobIndex++) {
       const job = jobs[jobIndex] as any;
@@ -562,6 +942,138 @@ serve((req) => {
       }
 
       try {
+        const nowIso = new Date().toISOString();
+
+        const pauseJob = async (errorMessage: string | null) => {
+          await supabase
+            .from('email_send_jobs')
+            .update({
+              status: 'paused',
+              error_message: errorMessage,
+              claim_token: null,
+              claimed_at: null,
+              claimed_by: null,
+              updated_at: nowIso,
+            })
+            .eq('id', job.id)
+            .eq('claim_token', claimToken);
+        };
+
+        const campaignIdForJob: string = String(job.campaign_id || '');
+        let campaignPolicy: CampaignReputationPolicy | null = null;
+        let campaignIntervention: CampaignInterventionState | null = null;
+        let jobResendLimiter = resendGlobalLimiter;
+        if (campaignIdForJob) {
+          campaignIntervention = await getCampaignInterventionState(supabase, campaignIdForJob);
+
+          if (campaignIntervention.force_stopped || campaignIntervention.admin_paused) {
+            await pauseJob('Campaign is paused.');
+            processedCount++;
+            continue;
+          }
+
+          campaignPolicy = await getCampaignReputationPolicy(supabase, campaignIdForJob);
+
+          if (campaignPolicy.action === 'pause' && !campaignIntervention.autopause_override_final) {
+            const pauseMessage = `Campaign auto-paused: tenant reputation score ${campaignPolicy.score} is below 60.`;
+            await supabase.rpc('system_pause_email_campaign_sending', {
+              p_campaign_id: campaignIdForJob,
+              p_block_reason: 'reputation_critical_autopause',
+              p_error_message: pauseMessage,
+            });
+            await pauseJob(pauseMessage);
+            processedCount++;
+            continue;
+          }
+
+          if (campaignPolicy.action === 'restrict') {
+            const blockMessage = `Campaign blocked: tenant reputation score ${campaignPolicy.score} is in restricted tier (60-74).`;
+            await supabase
+              .from('crm_campaigns')
+              .update({
+                send_blocked_reason: 'reputation_restricted',
+                send_error: blockMessage,
+                updated_at: new Date().toISOString(),
+              })
+              .eq('id', campaignIdForJob);
+            await pauseJob(blockMessage);
+            processedCount++;
+            continue;
+          }
+
+          const pacingMultiplier = Math.max(1, Number(campaignPolicy.send_pacing_multiplier || 1));
+          const effectiveMinIntervalMs = Math.max(RESEND_MIN_INTERVAL_MS, Math.round(RESEND_MIN_INTERVAL_MS * pacingMultiplier));
+          if (effectiveMinIntervalMs > RESEND_MIN_INTERVAL_MS) {
+            jobResendLimiter = createDbBackedProviderLimiter(supabase, 'resend', effectiveMinIntervalMs);
+          }
+
+          const { data: campaignState, error: campaignStateErr } = await supabase
+            .from('crm_campaigns')
+            .select('id, status, delivery_method, actual_sender_email, from_email_domain_id')
+            .eq('id', campaignIdForJob)
+            .maybeSingle();
+
+          if (campaignStateErr) {
+            console.warn(`⚠️ Failed to load campaign state for job ${job.id}:`, campaignStateErr.message);
+          } else if (campaignState?.status === 'paused') {
+            await pauseJob(null);
+            processedCount++;
+            continue;
+          } else {
+            const deliveryMethod = String(campaignState?.delivery_method || '');
+            const senderEmail = String(campaignState?.actual_sender_email || '');
+            const domainId = campaignState?.from_email_domain_id ? String(campaignState.from_email_domain_id) : '';
+
+            if (domainId && !domainInvestigationCache.has(domainId)) {
+              const { data: domainState, error: domainStateErr } = await supabase
+                .from('email_domains')
+                .select('investigation_mode')
+                .eq('id', domainId)
+                .maybeSingle();
+
+              if (domainStateErr) {
+                console.warn(`⚠️ Failed to load domain crisis state for ${domainId}:`, domainStateErr.message);
+                domainInvestigationCache.set(domainId, false);
+              } else {
+                domainInvestigationCache.set(domainId, Boolean(domainState?.investigation_mode));
+              }
+            }
+
+            if (domainId && domainInvestigationCache.get(domainId) === true) {
+              const pauseMessage = 'Campaign paused: sending domain is under investigation mode.';
+              await supabase.rpc('system_pause_email_campaign_sending', {
+                p_campaign_id: campaignIdForJob,
+                p_block_reason: 'domain_under_investigation',
+                p_error_message: pauseMessage,
+              });
+              await pauseJob(pauseMessage);
+              processedCount++;
+              continue;
+            }
+
+            const isSharedSenderConfigured = deliveryMethod && deliveryMethod !== 'custom_domain';
+            const isLegacySharedSenderEmail = senderEmail === 'noreply@bloomsuite.app';
+            const missingSenderConfig = !domainId || !senderEmail;
+
+            if (isSharedSenderConfigured || isLegacySharedSenderEmail || missingSenderConfig) {
+              const isSharedSender = isSharedSenderConfigured || isLegacySharedSenderEmail;
+              const pauseMessage = isSharedSender
+                ? 'Shared sender is disabled. Configure a custom domain to send campaigns.'
+                : 'Campaign sending requires a configured custom domain sender.';
+
+              await supabase.rpc('system_pause_email_campaign_sending', {
+                p_campaign_id: campaignIdForJob,
+                p_block_reason: isSharedSender ? 'shared_sender_disabled' : 'sender_domain_required',
+                p_error_message: pauseMessage,
+              });
+
+              await pauseJob(pauseMessage);
+              processedCount++;
+              continue;
+            }
+          }
+        }
+
         let messageIds: string[] = Array.isArray(job.recipient_message_ids) ? job.recipient_message_ids : [];
 
         // Backfill message IDs when jobs were queued with recipient_emails only.
@@ -645,10 +1157,10 @@ serve((req) => {
           continue;
         }
 
-        const nowIso = new Date().toISOString();
         let emailsSent = 0;
         let emailsFailed = 0;
         let lastError: string | null = null;
+        let jobWasPaused = false;
 
         const staleThresholdIso = new Date(Date.now() - messageStaleMinutes * 60 * 1000).toISOString();
 
@@ -667,7 +1179,7 @@ serve((req) => {
         });
 
         // Claim messages (idempotency + concurrency guard)
-        const claimedForSend: any[] = [];
+        let claimedForSend: any[] = [];
         for (const m of sendable) {
           // Increment attempts and mark as sending only if still queued and unsent
           let claimQuery = supabase
@@ -704,6 +1216,83 @@ serve((req) => {
           claimedForSend.push(claimed);
         }
 
+        // Re-check suppression at send-time (Milestone 5: suppression_list is canonical).
+        // This prevents sending to recipients who unsubscribe/bounce/complain after queuing.
+        if (claimedForSend.length > 0) {
+          const tenantIdForJob = String(
+            claimedForSend[0]?.tenant_id || messages?.[0]?.tenant_id || ''
+          );
+
+          if (tenantIdForJob) {
+            const suppressionBypassState = await getTenantSuppressionBypassState(
+              supabase,
+              tenantIdForJob,
+            );
+
+            const bypassSuppressionTypes = suppressionBypassState.suppression_bypass_active
+              ? ['bounced', 'hard_bounce', 'complaint', 'complained']
+              : [];
+
+            const eligibility = await canSendEmailBatch(supabase, {
+              tenantId: tenantIdForJob,
+              recipients: claimedForSend
+                .filter((m: any) => typeof m?.email === 'string' && m.email.trim())
+                .map((m: any) => ({ customerId: m.customer_id, email: m.email })),
+            }, {
+              bypassSuppressionTypes,
+            });
+
+            const suppressedMsgIds: string[] = [];
+            const skipLogs: Array<{
+              tenantId: string;
+              campaignId?: string;
+              customerId?: string;
+              email: string;
+              reason: any;
+            }> = [];
+
+            const remaining: any[] = [];
+            for (const msg of claimedForSend) {
+              const email = String(msg?.email || '').toLowerCase().trim();
+              const result = eligibility.get(email);
+              if (result && result.allowed === false) {
+                suppressedMsgIds.push(String(msg.id));
+                skipLogs.push({
+                  tenantId: tenantIdForJob,
+                  campaignId: msg.campaign_id,
+                  customerId: msg.customer_id,
+                  email: String(msg.email || email),
+                  reason: result.reason || 'unsubscribed',
+                });
+                continue;
+              }
+              remaining.push(msg);
+            }
+
+            if (suppressedMsgIds.length > 0) {
+              await supabase
+                .from('email_messages')
+                .update({
+                  status: 'skipped',
+                  error_message: 'suppressed',
+                  claim_token: null,
+                  claimed_at: null,
+                  claimed_by: null,
+                  updated_at: new Date().toISOString(),
+                })
+                .in('id', suppressedMsgIds)
+                .eq('claim_token', claimToken)
+                .is('resend_id', null);
+
+              await logSkippedSends(supabase, skipLogs as any);
+
+              console.log(`📧 Skipped ${suppressedMsgIds.length} messages due to suppression_list`);
+            }
+
+            claimedForSend = remaining;
+          }
+        }
+
         const needsPayloadBuild = claimedForSend.some((m: any) => {
           const payload = m?.payload;
           return !payload || typeof payload !== 'object' || !payload?.html || !payload?.subject || !payload?.to;
@@ -716,7 +1305,7 @@ serve((req) => {
         let companyProfile: any = null;
         let profileData: CompanyProfileData | null = null;
         let sharedFooterTemplate: string | null = null;
-        let senderEmail: string = 'noreply@bloomsuite.app';
+        let senderEmail: string = '';
         let senderDisplayName: string = 'Your Garden Center';
         let usesVerifiedDomain = false;
         let activeDomainId: string | null = null;
@@ -729,7 +1318,7 @@ serve((req) => {
           if (!campaignCache.has(campaignId)) {
             const { data: cRow, error: cErr } = await supabase
               .from('crm_campaigns')
-              .select('id, tenant_id, user_id, content, subject_line, from_email_domain_id, actual_sender_email, sender_display_name, delivery_method')
+              .select('id, tenant_id, user_id, status, content, subject_line, from_email_domain_id, actual_sender_email, sender_display_name, delivery_method')
               .eq('id', campaignId)
               .maybeSingle();
             if (cErr) console.warn('⚠️ Failed to load campaign for payload build:', cErr.message);
@@ -791,9 +1380,9 @@ serve((req) => {
             }
             sharedFooterTemplate = footerTemplateCache.get(campaignId) || null;
 
-            senderEmail = campaign.actual_sender_email || 'noreply@bloomsuite.app';
+            senderEmail = campaign.actual_sender_email || '';
             senderDisplayName = campaign.sender_display_name || companyProfile?.company_name || 'Your Garden Center';
-            usesVerifiedDomain = campaign.delivery_method === 'custom_domain' && senderEmail !== 'noreply@bloomsuite.app';
+            usesVerifiedDomain = campaign.delivery_method === 'custom_domain' && !!senderEmail;
 
             activeDomainId = campaign.from_email_domain_id || messages?.[0]?.domain_id || null;
             if (activeDomainId && !replyToCache.has(activeDomainId)) {
@@ -877,6 +1466,64 @@ serve((req) => {
           const batchMsgs = claimedForSend.slice(i, i + resendBatchSize);
           console.log(`📧 Sending ${batchMsgs.length} emails (batch request, size ${resendBatchSize})...`);
 
+          if (campaignId) {
+            const liveIntervention = await getCampaignInterventionState(supabase, campaignId);
+            if (liveIntervention.force_stopped || liveIntervention.admin_paused) {
+              await pauseJob('Campaign is paused.');
+              jobWasPaused = true;
+              break;
+            }
+
+            const livePolicy = await getCampaignReputationPolicy(supabase, campaignId);
+            if (livePolicy.action === 'pause' && !liveIntervention.autopause_override_final) {
+              const pauseMessage = `Campaign auto-paused mid-send: tenant reputation score ${livePolicy.score} is below 60.`;
+              await supabase.rpc('system_pause_email_campaign_sending', {
+                p_campaign_id: campaignId,
+                p_block_reason: 'reputation_critical_autopause',
+                p_error_message: pauseMessage,
+              });
+
+              await pauseJob(pauseMessage);
+              jobWasPaused = true;
+              break;
+            }
+
+            const { data: state, error: stErr } = await supabase
+              .from('crm_campaigns')
+              .select('status')
+              .eq('id', campaignId)
+              .maybeSingle();
+
+            if (stErr) {
+              console.warn('⚠️ Failed to check campaign pause state (continuing):', stErr.message);
+            } else if (state?.status === 'paused') {
+              const remainingMsgIds = claimedForSend
+                .slice(i)
+                .map((m: any) => m?.id)
+                .filter((id: any) => typeof id === 'string' && id.length > 0);
+
+              if (remainingMsgIds.length > 0) {
+                await supabase
+                  .from('email_messages')
+                  .update({
+                    status: 'paused',
+                    error_message: null,
+                    claim_token: null,
+                    claimed_at: null,
+                    claimed_by: null,
+                    updated_at: new Date().toISOString(),
+                  })
+                  .in('id', remainingMsgIds)
+                  .eq('claim_token', claimToken)
+                  .is('resend_id', null);
+              }
+
+              await pauseJob(null);
+              jobWasPaused = true;
+              break;
+            }
+          }
+
           // Build payloads (can be CPU-heavy; but we only do it for this batch)
           const payloads: any[] = [];
           const msgIds: string[] = [];
@@ -934,7 +1581,7 @@ serve((req) => {
 
           if (payloads.length > 0) {
             const idemSeed = `${job.id}:${campaignId}:${msgIds.join(',')}`;
-            const batchResp = await resendSendBatch(resendApiKey, payloads, idemSeed, resendGlobalLimiter);
+            const batchResp = await resendSendBatch(resendApiKey, payloads, idemSeed, jobResendLimiter);
 
             if (batchResp.ids && batchResp.ids.length === payloads.length) {
               for (let k = 0; k < batchResp.ids.length; k++) {
@@ -1005,6 +1652,11 @@ serve((req) => {
           }
         }
 
+        if (jobWasPaused) {
+          processedCount++;
+          continue;
+        }
+
         // If any messages remain queued/sending, keep job pending for retry; otherwise complete.
         // IMPORTANT: never treat a query error as "no remaining" (that can incorrectly complete jobs).
         const { data: remainingRows, error: remainingErr } = await supabase
@@ -1066,6 +1718,37 @@ serve((req) => {
           .eq('id', job.id)
           .eq('claim_token', claimToken);
 
+        const jobCampaignId = String(job?.campaign_id || '');
+        if (jobCampaignId) {
+          const safety = await evaluateCampaignBatchSafety(supabase, jobCampaignId);
+
+          const throttle = await evaluateCampaignWarningThrottle(supabase, jobCampaignId);
+          if (throttle.changed) {
+            if (throttle.throttled) {
+              console.warn(`⚠️ Campaign ${jobCampaignId} throttling activated: ${throttle.reasons.join(', ') || 'warning thresholds exceeded'}`);
+            } else {
+              console.log(`✅ Campaign ${jobCampaignId} throttling cleared after metrics improved.`);
+            }
+          }
+
+          if (safety.shouldPause) {
+            await supabase
+              .from('email_send_jobs')
+              .update({
+                status: 'paused',
+                error_message: safety.pauseReason || 'Campaign paused by safety controller',
+                claim_token: null,
+                claimed_at: null,
+                claimed_by: null,
+                updated_at: new Date().toISOString(),
+              })
+              .eq('id', job.id);
+            processedCount++;
+            console.warn(`🛑 Campaign ${jobCampaignId} paused by batch safety controller: ${safety.pauseReason || 'threshold exceeded'}`);
+            continue;
+          }
+        }
+
         totalEmailsSent += emailsSent;
         totalEmailsFailed += emailsFailed;
         processedCount++;
@@ -1096,12 +1779,22 @@ serve((req) => {
     // Campaign completion is based on the persisted email_messages ledger.
     const campaignIds = [...new Set((jobs || []).map((j: any) => j.campaign_id))];
     for (const campaignId of campaignIds) {
+      const { data: campaignRow } = await supabase
+        .from('crm_campaigns')
+        .select('status')
+        .eq('id', campaignId)
+        .maybeSingle();
+
+      if (campaignRow?.status === 'paused') {
+        continue;
+      }
+
       // If any queued/sending messages remain, campaign is still in progress.
       const { data: remaining } = await supabase
         .from('email_messages')
         .select('id')
         .eq('campaign_id', campaignId)
-        .in('status', ['queued', 'sending'])
+        .in('status', ['queued', 'sending', 'paused'])
         .limit(1);
 
       if (remaining && remaining.length > 0) {
@@ -1143,6 +1836,32 @@ serve((req) => {
         .eq('id', campaignId);
 
       console.log(`🎉 Campaign ${campaignId} completed: ${totalSent} sent, ${totalFailed} failed${hasErrors ? ' (with errors)' : ''}`);
+    }
+
+    const hardStopNotifications = await dispatchTenantHardStopNotifications(
+      supabase,
+      resendApiKey,
+      workerId,
+      25,
+    );
+
+    const domainCrisisNotifications = await dispatchDomainCrisisNotifications(
+      supabase,
+      resendApiKey,
+      workerId,
+      25,
+    );
+
+    if (hardStopNotifications.claimed > 0) {
+      console.log(
+        `📣 Hard-stop notifications processed: claimed=${hardStopNotifications.claimed}, sent=${hardStopNotifications.sent}, failed=${hardStopNotifications.failed}`,
+      );
+    }
+
+    if (domainCrisisNotifications.claimed > 0) {
+      console.log(
+        `📣 Domain crisis notifications processed: claimed=${domainCrisisNotifications.claimed}, sent=${domainCrisisNotifications.sent}, failed=${domainCrisisNotifications.failed}`,
+      );
     }
 
     const duration = Date.now() - startTime;

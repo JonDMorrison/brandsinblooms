@@ -10,7 +10,7 @@ const ENCRYPTION_KEY = Deno.env.get('ENCRYPTION_KEY');
 async function decryptToken(encryptedToken: string): Promise<string> {
   const parts = encryptedToken.split(':');
   if (parts.length !== 3) throw new Error('Invalid encrypted token format');
-  
+
   const [ivHex, authTagHex, encryptedHex] = parts;
   const key = await crypto.subtle.importKey(
     'raw',
@@ -19,18 +19,18 @@ async function decryptToken(encryptedToken: string): Promise<string> {
     false,
     ['decrypt']
   );
-  
+
   const iv = new Uint8Array(ivHex.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16)));
   const authTag = new Uint8Array(authTagHex.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16)));
   const encrypted = new Uint8Array(encryptedHex.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16)));
-  
+
   const combined = new Uint8Array([...encrypted, ...authTag]);
   const decrypted = await crypto.subtle.decrypt(
     { name: 'AES-GCM', iv },
     key,
     combined
   );
-  
+
   return new TextDecoder().decode(decrypted);
 }
 
@@ -98,7 +98,7 @@ Deno.serve(async (req) => {
     // Update job status
     await supabase
       .from('import_jobs')
-      .update({ 
+      .update({
         status: 'running',
         report: { started_at: new Date().toISOString() }
       })
@@ -120,19 +120,19 @@ Deno.serve(async (req) => {
       if (listId === 'segments') continue; // Skip segments container
 
       let pageUrl = `${baseUrl}/lists/${listId}/profiles/`;
-      
+
       while (pageUrl) {
         const profilesRes = await fetch(pageUrl, { headers });
-        
+
         // Check for token expiry
         if (profilesRes.status === 401) {
           throw new Error('Access token expired. Please reconnect Klaviyo and try again.');
         }
-        
+
         if (!profilesRes.ok) {
           throw new Error(`Klaviyo API error: ${profilesRes.status}`);
         }
-        
+
         const profilesData = await profilesRes.json();
         const profiles = profilesData.data || [];
 
@@ -190,14 +190,19 @@ Deno.serve(async (req) => {
               consent_timestamp: new Date().toISOString()
             }, { onConflict: 'customer_id,channel' });
 
-            // Add to suppression list if needed
-            if (consentStatus === 'suppressed') {
+            // Add to suppression list if needed (canonical blocking model)
+            if (consentStatus === 'suppressed' || consentStatus === 'opted_out') {
+              const suppressionType = consentStatus === 'opted_out' ? 'unsubscribed' : 'unsubscribed';
               await supabase.from('suppression_list').upsert({
                 tenant_id: tenantId,
                 email,
-                reason: 'suppressed',
-                source: 'klaviyo_import'
-              }, { onConflict: 'tenant_id,email' });
+                channel: 'email',
+                suppression_type: suppressionType,
+                reason: 'klaviyo_import',
+                auto_suppressed: false,
+                suppressed_at: new Date().toISOString(),
+                lifted_at: null,
+              }, { onConflict: 'tenant_id,email,channel,suppression_type' });
             }
 
             totalContacts++;
@@ -260,7 +265,7 @@ Deno.serve(async (req) => {
         if (newSegment) {
           // Fetch segment members
           let pageUrl = `${baseUrl}/segments/${segmentId}/profiles/`;
-          
+
           while (pageUrl) {
             const membersRes = await fetch(pageUrl, { headers });
             const membersData = await membersRes.json();

@@ -1,21 +1,20 @@
-import React from 'react';
-import { BarChart3, Users, Target, RefreshCw } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { useCRMRealStats } from '@/hooks/useCRMRealStats';
-import { MetricCard } from '@/components/crm/analytics/MetricCard';
-import { CRMStatsCards } from '@/components/crm/CRMStatsCards';
-import { CRMSegmentsSummary } from '@/components/crm/segments/CRMSegmentsSummary';
-import { CRMRecentActivity } from '@/components/crm/CRMRecentActivity';
-import { WarmupAssistantWidget } from '@/components/crm/WarmupAssistantWidget';
-import { OverdueCampaignsBanner } from '@/components/crm/OverdueCampaignsBanner';
+import React from "react";
+import { BarChart3, Users, Target, RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useCRMRealStats } from "@/hooks/useCRMRealStats";
+import { MetricCard } from "@/components/crm/analytics/MetricCard";
+import { CRMStatsCards } from "@/components/crm/CRMStatsCards";
+import { CRMSegmentsSummary } from "@/components/crm/segments/CRMSegmentsSummary";
+import { CRMRecentActivity } from "@/components/crm/CRMRecentActivity";
+import { OverdueCampaignsBanner } from "@/components/crm/OverdueCampaignsBanner";
 
 export const CRMDashboardPage: React.FC = () => {
   const { stats, loading, refetch } = useCRMRealStats();
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     }).format(amount);
@@ -28,13 +27,16 @@ export const CRMDashboardPage: React.FC = () => {
           <h1 className="text-3xl font-bold">CRM Dashboard</h1>
           <div className="h-9 bg-muted animate-pulse rounded w-24"></div>
         </div>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
           {[...Array(6)].map((_, i) => (
-            <div key={i} className="h-32 bg-muted animate-pulse rounded-lg"></div>
+            <div
+              key={i}
+              className="h-32 bg-muted animate-pulse rounded-lg"
+            ></div>
           ))}
         </div>
-        
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="h-80 bg-muted animate-pulse rounded-lg"></div>
           <div className="h-80 bg-muted animate-pulse rounded-lg"></div>
@@ -92,18 +94,10 @@ export const CRMDashboardPage: React.FC = () => {
         />
       </div>
 
-      {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left Column - Segments */}
-        <div className="lg:col-span-2 space-y-6">
-          <CRMSegmentsSummary />
-          <CRMRecentActivity />
-        </div>
-
-        {/* Right Column - Warmup Widget */}
-        <div className="space-y-6">
-          <WarmupAssistantWidget />
-        </div>
+      {/* Main Content */}
+      <div className="space-y-6">
+        <CRMSegmentsSummary />
+        <CRMRecentActivity />
       </div>
     </div>
   );

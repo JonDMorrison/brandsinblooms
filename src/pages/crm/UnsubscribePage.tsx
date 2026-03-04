@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
 import { CheckCircle, XCircle, Loader2 } from 'lucide-react';
 
 export default function UnsubscribePage() {
@@ -29,21 +28,13 @@ export default function UnsubscribePage() {
           return;
         }
 
-        // Update subscription status
-        const { error } = await supabase
-          .from('crm_subscriptions')
-          .upsert({
-            email: email,
-            tenant_id: tenantId,
-            opt_out: true,
-            opt_out_at: new Date().toISOString(),
-            source: 'unsubscribe_page'
-          }, {
-            onConflict: 'email,tenant_id'
-          });
+        // Canonical unsubscribe: call edge function (uses service role and writes suppression_list)
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://udldmkqwnxhdeztyqcau.supabase.co';
+        const url = `${supabaseUrl}/functions/v1/handle-unsubscribe?email=${encodeURIComponent(email)}&tenant_id=${encodeURIComponent(tenantId)}&token=${encodeURIComponent(token)}`;
+        const res = await fetch(url, { method: 'GET' });
 
-        if (error) {
-          console.error('Error updating subscription:', error);
+        if (!res.ok) {
+          console.error('Error calling handle-unsubscribe:', res.status);
           setStatus('error');
           setMessage('Failed to process your unsubscribe request. Please try again.');
         } else {
@@ -84,7 +75,7 @@ export default function UnsubscribePage() {
               <div className="space-y-2">
                 <p className="font-medium text-foreground">{message}</p>
                 <p className="text-sm text-muted-foreground">
-                  You will no longer receive emails from this sender. If you believe this was done in error, 
+                  You will no longer receive emails from this sender. If you believe this was done in error,
                   please contact the sender directly.
                 </p>
               </div>

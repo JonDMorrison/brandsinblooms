@@ -30,13 +30,13 @@ Deno.serve(async (req) => {
 
   try {
     const authHeader = req.headers.get('Authorization');
-    
+
     if (!authHeader) {
       throw new Error('Missing Authorization header');
     }
 
     const { listIds, importJobId } = await req.json();
-    
+
     if (!listIds || !Array.isArray(listIds) || listIds.length === 0) {
       throw new Error('listIds array is required');
     }
@@ -48,14 +48,14 @@ Deno.serve(async (req) => {
     );
 
     const token = authHeader.replace('Bearer ', '');
-    
+
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
     const { data: { user }, error: authError } = await supabaseAuth.auth.getUser(token);
-    
+
     if (authError || !user) {
       throw new Error('User not authenticated');
     }
@@ -96,6 +96,7 @@ Deno.serve(async (req) => {
     // Track import stats
     let imported = 0;
     let skipped = 0;
+    let processed = 0;
     let errors: string[] = [];
 
     // Process each list
@@ -111,7 +112,7 @@ Deno.serve(async (req) => {
         }
 
         const contactsRes = await fetch(url, {
-          headers: { 
+          headers: {
             Authorization: `Bearer ${accessToken}`,
             'Accept': 'application/json'
           },
@@ -131,13 +132,15 @@ Deno.serve(async (req) => {
         const batchSize = 50;
         for (let i = 0; i < contacts.length; i += batchSize) {
           const batch = contacts.slice(i, i + batchSize);
-          
+
           for (const contact of batch) {
             const email = contact.email_address?.address?.toLowerCase();
             if (!email) {
               skipped++;
               continue;
             }
+
+            processed++;
 
             // Check if customer already exists
             const { data: existingCustomer } = await supabase
@@ -162,7 +165,7 @@ Deno.serve(async (req) => {
               if (updateError) {
                 console.error('[constant-contact-import] Update error:', updateError);
               }
-              
+
               // Add source if not already present
               await supabase
                 .from('customer_sources')
@@ -216,8 +219,26 @@ Deno.serve(async (req) => {
         // Check for pagination
         cursor = data._links?.next?.cursor || null;
         hasMore = !!cursor;
-        
+
         console.log(`[constant-contact-import] Processed ${contacts.length} contacts from list ${listId}, cursor: ${cursor ? 'has more' : 'done'}`);
+      }
+    }
+
+    if (processed > 0) {
+      try {
+        await supabase.rpc('record_contact_import_event', {
+          p_tenant_id: tenant_id,
+          p_source: 'constant_contact',
+          p_contact_count: processed,
+          p_metadata: {
+            import_job_id: importJobId || null,
+            list_ids: listIds,
+            imported_count: imported,
+            skipped_count: skipped,
+          },
+        });
+      } catch (importEventError: any) {
+        console.warn('[constant-contact-import] Failed to record import activity event:', importEventError?.message || importEventError);
       }
     }
 
@@ -239,7 +260,7 @@ Deno.serve(async (req) => {
     console.log(`[constant-contact-import] Import complete: ${imported} imported, ${skipped} skipped, ${errors.length} errors`);
 
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         success: true,
         imported,
         skipped,

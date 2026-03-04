@@ -10,7 +10,7 @@ export interface ChannelStatus {
 
 export interface ChannelAvailability {
   email: ChannelStatus & {
-    deliveryMethod?: 'custom_domain' | 'shared_sender' | 'fallback';
+    deliveryMethod?: 'custom_domain';
   };
   sms: ChannelStatus;
 }
@@ -33,13 +33,21 @@ export function checkSMSAvailability(): ChannelStatus {
 
 /**
  * Check if Email channel is available
- * Email is always available because we have fallback senders
+ * Email requires the provider API key; there is no sender fallback.
  */
 export function checkEmailAvailability(): ChannelStatus & { deliveryMethod?: string } {
-  // Email always has a fallback, so it's always available
+  const resendApiKey = Deno.env.get('RESEND_API_KEY');
+
+  if (!resendApiKey) {
+    return {
+      available: false,
+      reason: 'Email not configured. Missing: RESEND_API_KEY'
+    };
+  }
+
   return {
     available: true,
-    deliveryMethod: 'fallback'
+    deliveryMethod: 'custom_domain'
   };
 }
 

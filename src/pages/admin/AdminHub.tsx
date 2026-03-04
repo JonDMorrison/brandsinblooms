@@ -1,22 +1,28 @@
-import { useNavigate } from 'react-router-dom';
-import { useIsSuperAdmin } from '@/hooks/useIsSuperAdmin';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Navigate } from 'react-router-dom';
-import { 
-  Shield, 
-  Users, 
-  Search, 
-  Database, 
-  FileText, 
+import { useNavigate } from "react-router-dom";
+import { useIsSuperAdmin } from "@/hooks/useIsSuperAdmin";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Navigate } from "react-router-dom";
+import {
+  Shield,
+  Users,
+  Search,
+  Database,
+  FileText,
   Settings,
   BarChart3,
   Upload,
   Eye,
   Wrench,
   TrendingUp,
-  DollarSign
-} from 'lucide-react';
+  DollarSign,
+} from "lucide-react";
 
 export default function AdminHub() {
   const navigate = useNavigate();
@@ -36,73 +42,86 @@ export default function AdminHub() {
 
   const adminTools = [
     {
-      category: 'Tenant Management',
+      category: "Tenant Management",
       tools: [
         {
-          title: 'All Tenants',
-          description: 'View and manage all tenant accounts with filtering and pagination',
+          title: "All Tenants",
+          description:
+            "View and manage all tenant accounts with filtering and pagination",
           icon: Users,
-          href: '/admin/tenants',
-          color: 'text-blue-500',
+          href: "/admin/tenants",
+          color: "text-blue-500",
         },
         {
-          title: 'Search Users',
-          description: 'Search for specific users by email and access their tenant data',
+          title: "Search Users",
+          description:
+            "Search for specific users by email and access their tenant data",
           icon: Search,
-          href: '/admin/search',
-          color: 'text-purple-500',
+          href: "/admin/search",
+          color: "text-purple-500",
         },
         {
-          title: 'Manage Client',
-          description: 'Switch context to manage a specific client account and their data',
+          title: "Manage Client",
+          description:
+            "Switch context to manage a specific client account and their data",
           icon: Wrench,
-          href: '/admin/manage',
-          color: 'text-orange-500',
+          href: "/admin/manage",
+          color: "text-orange-500",
         },
       ],
     },
     {
-      category: 'Data & Reporting',
+      category: "Data & Reporting",
       tools: [
         {
-          title: 'Reports Dashboard',
-          description: 'View comprehensive reports and analytics across all tenants',
+          title: "Reports Dashboard",
+          description:
+            "View comprehensive reports and analytics across all tenants",
           icon: BarChart3,
-          href: '/admin/reports',
-          color: 'text-green-500',
+          href: "/admin/reports",
+          color: "text-green-500",
         },
         {
-          title: 'Cost Dashboard',
-          description: 'Monitor platform resource usage, costs, and anomalies',
+          title: "Cost Dashboard",
+          description: "Monitor platform resource usage, costs, and anomalies",
           icon: DollarSign,
-          href: '/admin/costs',
-          color: 'text-emerald-500',
+          href: "/admin/costs",
+          color: "text-emerald-500",
         },
         {
-          title: 'Import Data',
-          description: 'Bulk import customer data via CSV for any tenant account',
+          title: "Import Data",
+          description:
+            "Bulk import customer data via CSV for any tenant account",
           icon: Upload,
-          href: '/admin/manage',
-          color: 'text-cyan-500',
+          href: "/admin/manage",
+          color: "text-cyan-500",
         },
       ],
     },
     {
-      category: 'System Tools',
+      category: "System Tools",
       tools: [
         {
-          title: 'Audit Logs',
-          description: 'View all administrative actions and system events',
+          title: "Audit Logs",
+          description: "View all administrative actions and system events",
           icon: FileText,
-          href: '/admin/tenants',
-          color: 'text-yellow-500',
+          href: "/admin/audit-logs",
+          color: "text-yellow-500",
         },
         {
-          title: 'System Settings',
-          description: 'Configure global system settings and permissions',
+          title: "System Settings",
+          description: "Configure global system settings and permissions",
           icon: Settings,
-          href: '/admin/manage',
-          color: 'text-red-500',
+          href: "/admin/manage",
+          color: "text-red-500",
+        },
+        {
+          title: "Email Governance Settings",
+          description:
+            "Manage global email governance thresholds, batch defaults, and warmup limits",
+          icon: Shield,
+          href: "/admin/governance-config",
+          color: "text-amber-500",
         },
       ],
     },
@@ -110,22 +129,22 @@ export default function AdminHub() {
 
   const quickActions = [
     {
-      title: 'Find User',
-      description: 'Quick search by email',
+      title: "Find User",
+      description: "Quick search by email",
       icon: Search,
-      action: () => navigate('/admin/search'),
+      action: () => navigate("/admin/search"),
     },
     {
-      title: 'View All Tenants',
-      description: 'Browse tenant list',
+      title: "View All Tenants",
+      description: "Browse tenant list",
       icon: Eye,
-      action: () => navigate('/admin/tenants'),
+      action: () => navigate("/admin/tenants"),
     },
     {
-      title: 'View Reports',
-      description: 'Analytics dashboard',
+      title: "View Reports",
+      description: "Analytics dashboard",
       icon: TrendingUp,
-      action: () => navigate('/admin/reports'),
+      action: () => navigate("/admin/reports"),
     },
   ];
 
@@ -138,7 +157,9 @@ export default function AdminHub() {
             <Shield className="w-8 h-8 text-destructive" />
             <div>
               <h1 className="text-3xl font-bold">Master Admin Hub</h1>
-              <p className="text-muted-foreground">Central control panel for all administrative tasks</p>
+              <p className="text-muted-foreground">
+                Central control panel for all administrative tasks
+              </p>
             </div>
           </div>
         </div>
@@ -150,7 +171,7 @@ export default function AdminHub() {
           <h2 className="text-xl font-semibold mb-4">Quick Actions</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {quickActions.map((action) => (
-              <Card 
+              <Card
                 key={action.title}
                 className="cursor-pointer hover:shadow-lg transition-shadow"
                 onClick={action.action}
@@ -162,7 +183,9 @@ export default function AdminHub() {
                     </div>
                     <div>
                       <h3 className="font-medium mb-1">{action.title}</h3>
-                      <p className="text-sm text-muted-foreground">{action.description}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {action.description}
+                      </p>
                     </div>
                   </div>
                 </CardContent>
@@ -177,7 +200,10 @@ export default function AdminHub() {
             <h2 className="text-xl font-semibold mb-4">{category.category}</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {category.tools.map((tool) => (
-                <Card key={tool.title} className="hover:shadow-lg transition-shadow">
+                <Card
+                  key={tool.title}
+                  className="hover:shadow-lg transition-shadow"
+                >
                   <CardHeader>
                     <div className="flex items-center gap-3 mb-2">
                       <tool.icon className={`h-5 w-5 ${tool.color}`} />
@@ -186,7 +212,7 @@ export default function AdminHub() {
                     <CardDescription>{tool.description}</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <Button 
+                    <Button
                       onClick={() => navigate(tool.href)}
                       className="w-full"
                       variant="outline"

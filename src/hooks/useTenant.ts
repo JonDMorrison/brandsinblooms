@@ -9,6 +9,10 @@ interface Tenant {
   slug?: string;
   settings: any;
   is_active: boolean;
+  email_under_review?: boolean;
+  email_under_review_at?: string | null;
+  email_under_review_reason?: string | null;
+  email_under_review_details?: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
 }

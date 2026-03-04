@@ -1,19 +1,17 @@
 /**
  * Unified email send permission checker
- * 
- * Checks suppression list, opt-out status, email validity
- * before allowing any email send.
+ *
+ * Milestone 5: suppression_list is the single source of truth.
+ * Only explicitly suppressed recipients are blocked.
  */
 
-import { createClient } from "npm:@supabase/supabase-js@2.7.1";
-
-export type SkipReason = 
-  | 'opt_out' 
-  | 'suppressed' 
+export type SkipReason =
   | 'bounced'
   | 'complained'
   | 'unsubscribed'
-  | 'invalid_email' 
+  | 'globally_blocked'
+  | 'role_based'
+  | 'invalid_email'
   | 'missing_email';
 
 export interface CanSendResult {
@@ -22,33 +20,123 @@ export interface CanSendResult {
   suppressionType?: string;
 }
 
+export interface SuppressionBypassOptions {
+  bypassSuppressionTypes?: string[];
+}
+
 // Basic email validation regex
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-// Engagement-based suppression reasons that should be bypassed
-const ENGAGEMENT_SUPPRESSION_PATTERNS = [
-  'no email opens',
-  'inactivity',
-  'engagement',
-  '180 days',
-];
+const EMAIL_SUPPRESSION_TYPES = [
+  'unsubscribed',
+  'bounced',
+  'complaint',
+  'blocked',
+  'global_block',
+  // Legacy synonyms we still honor for safety.
+  'complained',
+  'hard_bounce',
+] as const;
 
-function isEngagementSuppression(reason?: string | null): boolean {
-  if (!reason) return false;
-  const lower = reason.toLowerCase();
-  return ENGAGEMENT_SUPPRESSION_PATTERNS.some(p => lower.includes(p));
+const DEFAULT_ROLE_BASED_LOCALPARTS = [
+  'admin',
+  'support',
+  'info',
+  'sales',
+  'billing',
+  'contact',
+  'help',
+  'team',
+  'office',
+  'noreply',
+  'no-reply',
+  'donotreply',
+  'do-not-reply',
+  'postmaster',
+  'abuse',
+  'webmaster',
+  'security',
+  'compliance',
+  'marketing',
+  'hello',
+] as const;
+
+function isTruthyEnv(value: string | undefined): boolean {
+  const normalized = String(value || '').trim().toLowerCase();
+  return normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'on';
+}
+
+function getRoleBasedLocalparts(): Set<string> {
+  const raw = String(Deno.env.get('ROLE_BASED_LOCALPARTS') || '').trim();
+  if (!raw) {
+    return new Set(DEFAULT_ROLE_BASED_LOCALPARTS);
+  }
+
+  const list = raw
+    .split(',')
+    .map((part) => part.trim().toLowerCase())
+    .filter(Boolean);
+
+  return new Set(list.length > 0 ? list : DEFAULT_ROLE_BASED_LOCALPARTS);
+}
+
+function isRoleBasedEmail(email: string): boolean {
+  const localpart = String(email.split('@')[0] || '').trim().toLowerCase();
+  if (!localpart) return false;
+  return getRoleBasedLocalparts().has(localpart);
+}
+
+function suppressionTypeToReason(suppressionType: string): SkipReason | null {
+  const t = String(suppressionType || '').toLowerCase();
+  if (t === 'unsubscribed') return 'unsubscribed';
+  if (t === 'bounced' || t === 'hard_bounce') return 'bounced';
+  if (t === 'complaint' || t === 'complained') return 'complained';
+  if (t === 'blocked' || t === 'global_block') return 'globally_blocked';
+  return null;
+}
+
+function normalizeSuppressionType(value: string): string {
+  return String(value || '').trim().toLowerCase();
+}
+
+function buildBypassTypeSet(options?: SuppressionBypassOptions): Set<string> {
+  return new Set((options?.bypassSuppressionTypes || []).map(normalizeSuppressionType).filter(Boolean));
+}
+
+function pickMostSevereReason(reasons: Array<SkipReason | null | undefined>): SkipReason | undefined {
+  // Deterministic priority: global_block > complaint > bounce > unsubscribe.
+  const set = new Set(reasons.filter(Boolean) as SkipReason[]);
+  if (set.has('globally_blocked')) return 'globally_blocked';
+  if (set.has('complained')) return 'complained';
+  if (set.has('bounced')) return 'bounced';
+  if (set.has('unsubscribed')) return 'unsubscribed';
+  return undefined;
+}
+
+async function isGloballySuppressed(supabase: any, email: string): Promise<boolean> {
+  const nowIso = new Date().toISOString();
+  const { data: globalSuppressions } = await supabase
+    .from('global_email_suppression_list')
+    .select('id')
+    .eq('email', email)
+    .is('lifted_at', null)
+    .or(`expires_at.is.null,expires_at.gt.${nowIso}`)
+    .limit(1);
+
+  return Array.isArray(globalSuppressions) && globalSuppressions.length > 0;
 }
 
 /**
  * Check if an email can be sent to a recipient
  */
 export async function canSendEmail(
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   params: {
     tenantId: string;
     customerId?: string;
     email?: string;
-  }
+  },
+  options?: SuppressionBypassOptions
 ): Promise<CanSendResult> {
   const { tenantId, customerId, email } = params;
 
@@ -58,6 +146,16 @@ export async function canSendEmail(
   }
 
   const normalizedEmail = email.toLowerCase().trim();
+  const nowIso = new Date().toISOString();
+
+  const roleBasedBlockingEnabled = isTruthyEnv(Deno.env.get('BLOCK_ROLE_BASED_EMAILS'));
+  if (roleBasedBlockingEnabled && isRoleBasedEmail(normalizedEmail)) {
+    return { allowed: false, reason: 'role_based', suppressionType: 'role_based' };
+  }
+
+  if (await isGloballySuppressed(supabase, normalizedEmail)) {
+    return { allowed: false, reason: 'globally_blocked', suppressionType: 'global_block' };
+  }
 
   // 2. Validate email format
   if (!EMAIL_REGEX.test(normalizedEmail)) {
@@ -65,88 +163,37 @@ export async function canSendEmail(
   }
 
   // 3. Check suppression_list table (tenant-scoped, email channel)
-  const { data: suppression } = await supabase
+  // Only block on explicit suppression types.
+  const { data: suppressions } = await supabase
     .from('suppression_list')
-    .select('suppression_type, reason')
+    .select('suppression_type')
     .eq('tenant_id', tenantId)
     .eq('email', normalizedEmail)
-    .eq('channel', 'email')
+    .in('channel', ['email', 'all'])
     .is('lifted_at', null)
-    .maybeSingle();
+    .or(`expires_at.is.null,expires_at.gt.${nowIso}`)
+    .in('suppression_type', EMAIL_SUPPRESSION_TYPES as unknown as string[])
+    .limit(10);
 
-  if (suppression) {
-    // Map suppression type to reason
-    const typeToReason: Record<string, SkipReason> = {
-      'bounced': 'bounced',
-      'hard_bounce': 'bounced',
-      'complaint': 'complained',
-      'complained': 'complained',
-      'unsubscribed': 'unsubscribed',
-      'manual': 'suppressed',
-      'invalid': 'invalid_email'
-    };
+  if (Array.isArray(suppressions) && suppressions.length > 0) {
+    const bypassTypeSet = buildBypassTypeSet(options);
+    const effectiveSuppressions = suppressions.filter((s: any) => {
+      const suppressionType = normalizeSuppressionType(String(s?.suppression_type || ''));
+      return !bypassTypeSet.has(suppressionType);
+    });
 
-    const reason = typeToReason[suppression.suppression_type] || 'suppressed';
-    return { 
-      allowed: false, 
+    if (effectiveSuppressions.length === 0) {
+      return { allowed: true };
+    }
+
+    const reason = pickMostSevereReason(
+      effectiveSuppressions.map((s: any) => suppressionTypeToReason(s?.suppression_type))
+    ) || 'unsubscribed';
+    return {
+      allowed: false,
       reason,
-      suppressionType: suppression.suppression_type 
+      suppressionType: String(effectiveSuppressions[0]?.suppression_type || '')
     };
-  }
-
-  // 4. Check customer record if customerId provided
-  if (customerId) {
-    const { data: customer } = await supabase
-      .from('crm_customers')
-      .select('opt_out, suppressed, suppressed_reason, email_opt_in')
-      .eq('id', customerId)
-      .single();
-
-    if (customer) {
-      // Check opt_out flag
-      if (customer.opt_out === true) {
-        return { allowed: false, reason: 'opt_out' };
-      }
-
-      // Check suppressed flag — but bypass engagement-based suppression
-      if (customer.suppressed === true) {
-        const isEngagementBased = isEngagementSuppression(customer.suppressed_reason);
-        if (!isEngagementBased) {
-          return { allowed: false, reason: 'suppressed' };
-        }
-        // Engagement-based suppression is bypassed — allow send
-        console.log(`[canSendEmail] Bypassing engagement-based suppression for customer ${customerId}`);
-      }
-
-      // Check email_opt_in (if explicitly false, skip)
-      if (customer.email_opt_in === false) {
-        return { allowed: false, reason: 'unsubscribed' };
-      }
-    }
-  } else {
-    // No customerId - try to find customer by email and tenant
-    const { data: customer } = await supabase
-      .from('crm_customers')
-      .select('opt_out, suppressed, suppressed_reason, email_opt_in')
-      .eq('tenant_id', tenantId)
-      .eq('email', normalizedEmail)
-      .maybeSingle();
-
-    if (customer) {
-      if (customer.opt_out === true) {
-        return { allowed: false, reason: 'opt_out' };
-      }
-      if (customer.suppressed === true) {
-        const isEngagementBased = isEngagementSuppression(customer.suppressed_reason);
-        if (!isEngagementBased) {
-          return { allowed: false, reason: 'suppressed' };
-        }
-        console.log(`[canSendEmail] Bypassing engagement-based suppression for ${normalizedEmail}`);
-      }
-      if (customer.email_opt_in === false) {
-        return { allowed: false, reason: 'unsubscribed' };
-      }
-    }
   }
 
   return { allowed: true };
@@ -157,80 +204,85 @@ export async function canSendEmail(
  * More efficient than individual checks for campaigns
  */
 export async function canSendEmailBatch(
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   params: {
     tenantId: string;
     recipients: Array<{ customerId?: string; email: string }>;
-  }
+  },
+  options?: SuppressionBypassOptions
 ): Promise<Map<string, CanSendResult>> {
   const { tenantId, recipients } = params;
   const results = new Map<string, CanSendResult>();
+  const nowIso = new Date().toISOString();
+  const roleBasedBlockingEnabled = isTruthyEnv(Deno.env.get('BLOCK_ROLE_BASED_EMAILS'));
 
   // Collect all emails
   const emails = recipients
     .map(r => r.email?.toLowerCase().trim())
     .filter(Boolean);
 
-  if (emails.length === 0) {
+  const uniqueEmails = Array.from(new Set(emails));
+
+  if (uniqueEmails.length === 0) {
     return results;
   }
 
-  // Batch fetch suppressions
-  const { data: suppressions } = await supabase
-    .from('suppression_list')
-    .select('email, suppression_type')
-    .eq('tenant_id', tenantId)
-    .eq('channel', 'email')
-    .is('lifted_at', null)
-    .in('email', emails);
+  const globalSuppressedEmails = new Set<string>();
+  const GLOBAL_IN_CHUNK = 200;
+  for (let i = 0; i < uniqueEmails.length; i += GLOBAL_IN_CHUNK) {
+    const chunk = uniqueEmails.slice(i, i + GLOBAL_IN_CHUNK);
+    const { data: globalSuppressions, error: globalError } = await supabase
+      .from('global_email_suppression_list')
+      .select('email')
+      .is('lifted_at', null)
+      .or(`expires_at.is.null,expires_at.gt.${nowIso}`)
+      .in('email', chunk);
 
-  const suppressionMap = new Map<string, string>();
-  for (const s of suppressions || []) {
-    suppressionMap.set(s.email.toLowerCase(), s.suppression_type);
-  }
+    if (globalError) {
+      console.warn('[canSendEmailBatch] Failed to fetch global suppression chunk:', globalError.message);
+      continue;
+    }
 
-  // Batch fetch customer flags
-  const customerIds = recipients.map(r => r.customerId).filter(Boolean);
-  const customerMap = new Map<string, any>();
-
-  if (customerIds.length > 0) {
-    const { data: customers } = await supabase
-      .from('crm_customers')
-      .select('id, email, opt_out, suppressed, suppressed_reason, email_opt_in')
-      .in('id', customerIds);
-
-    for (const c of customers || []) {
-      customerMap.set(c.id, c);
-      if (c.email) {
-        customerMap.set(c.email.toLowerCase(), c);
-      }
+    for (const s of globalSuppressions || []) {
+      const key = String(s.email || '').toLowerCase();
+      if (key) globalSuppressedEmails.add(key);
     }
   }
 
-  // Also fetch by email for recipients without customerId
-  const emailsWithoutCustomerId = recipients
-    .filter(r => !r.customerId)
-    .map(r => r.email?.toLowerCase().trim())
-    .filter(Boolean);
-
-  if (emailsWithoutCustomerId.length > 0) {
-    const { data: customersByEmail } = await supabase
-      .from('crm_customers')
-      .select('id, email, opt_out, suppressed, suppressed_reason, email_opt_in')
+  // Batch fetch suppressions (chunked to avoid large IN lists)
+  const suppressionMap = new Map<string, string[]>();
+  const IN_CHUNK = 200;
+  for (let i = 0; i < uniqueEmails.length; i += IN_CHUNK) {
+    const chunk = uniqueEmails.slice(i, i + IN_CHUNK);
+    const { data: suppressions, error } = await supabase
+      .from('suppression_list')
+      .select('email, suppression_type')
       .eq('tenant_id', tenantId)
-      .in('email', emailsWithoutCustomerId);
+      .in('channel', ['email', 'all'])
+      .is('lifted_at', null)
+      .or(`expires_at.is.null,expires_at.gt.${nowIso}`)
+      .in('suppression_type', EMAIL_SUPPRESSION_TYPES as unknown as string[])
+      .in('email', chunk);
 
-    for (const c of customersByEmail || []) {
-      if (c.email && !customerMap.has(c.email.toLowerCase())) {
-        customerMap.set(c.email.toLowerCase(), c);
-      }
+    if (error) {
+      console.warn('[canSendEmailBatch] Failed to fetch suppression_list chunk:', error.message);
+      continue;
+    }
+
+    for (const s of suppressions || []) {
+      const key = String(s.email || '').toLowerCase();
+      const arr = suppressionMap.get(key) || [];
+      arr.push(String(s.suppression_type || ''));
+      suppressionMap.set(key, arr);
     }
   }
+
+  const bypassTypeSet = buildBypassTypeSet(options);
 
   // Process each recipient
   for (const recipient of recipients) {
     const email = recipient.email?.toLowerCase().trim();
-    
+
     if (!email) {
       results.set(recipient.email || '', { allowed: false, reason: 'missing_email' });
       continue;
@@ -241,47 +293,38 @@ export async function canSendEmailBatch(
       continue;
     }
 
-    // Check suppression
-    const suppressionType = suppressionMap.get(email);
-    if (suppressionType) {
-      const typeToReason: Record<string, SkipReason> = {
-        'bounced': 'bounced',
-        'hard_bounce': 'bounced',
-        'complaint': 'complained',
-        'complained': 'complained',
-        'unsubscribed': 'unsubscribed',
-        'manual': 'suppressed',
-        'invalid': 'invalid_email'
-      };
-      results.set(email, { 
-        allowed: false, 
-        reason: typeToReason[suppressionType] || 'suppressed',
-        suppressionType 
+    if (roleBasedBlockingEnabled && isRoleBasedEmail(email)) {
+      results.set(email, {
+        allowed: false,
+        reason: 'role_based',
+        suppressionType: 'role_based'
       });
       continue;
     }
 
-    // Check customer flags
-    const customer = recipient.customerId 
-      ? customerMap.get(recipient.customerId) 
-      : customerMap.get(email);
+    if (globalSuppressedEmails.has(email)) {
+      results.set(email, {
+        allowed: false,
+        reason: 'globally_blocked',
+        suppressionType: 'global_block'
+      });
+      continue;
+    }
 
-    if (customer) {
-      if (customer.opt_out === true) {
-        results.set(email, { allowed: false, reason: 'opt_out' });
-        continue;
-      }
-      if (customer.suppressed === true) {
-        const isEngBased = isEngagementSuppression(customer.suppressed_reason);
-        if (!isEngBased) {
-          results.set(email, { allowed: false, reason: 'suppressed' });
-          continue;
-        }
-      }
-      if (customer.email_opt_in === false) {
-        results.set(email, { allowed: false, reason: 'unsubscribed' });
-        continue;
-      }
+    // Check suppression
+    const suppressionTypes = suppressionMap.get(email);
+    const effectiveSuppressionTypes = (suppressionTypes || []).filter(
+      (suppressionType) => !bypassTypeSet.has(normalizeSuppressionType(suppressionType))
+    );
+
+    if (effectiveSuppressionTypes.length > 0) {
+      const reason = pickMostSevereReason(effectiveSuppressionTypes.map(suppressionTypeToReason));
+      results.set(email, {
+        allowed: false,
+        reason: reason || 'unsubscribed',
+        suppressionType: effectiveSuppressionTypes[0]
+      });
+      continue;
     }
 
     results.set(email, { allowed: true });
@@ -294,7 +337,7 @@ export async function canSendEmailBatch(
  * Log skipped sends to email_send_skips table
  */
 export async function logSkippedSends(
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   skips: Array<{
     tenantId: string;
     campaignId?: string;

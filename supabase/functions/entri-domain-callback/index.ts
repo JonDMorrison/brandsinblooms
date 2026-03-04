@@ -37,7 +37,7 @@ serve(async (req) => {
     // Verify user token
     const token = authHeader.replace('Bearer ', '');
     const { data: { user }, error: userError } = await supabase.auth.getUser(token);
-    
+
     if (userError || !user) {
       console.error('Auth error:', userError);
       return new Response(
@@ -125,7 +125,7 @@ serve(async (req) => {
       domainRecord = updated;
       console.log('Updated existing domain with Entri info:', domainRecord.id);
     } else {
-      // Create new domain record - skip warmup, use full limits immediately
+      // Create new domain record
       const { data: newDomain, error: insertError } = await supabase
         .from('email_domains')
         .insert({
@@ -135,9 +135,6 @@ serve(async (req) => {
           entri_provider: entriProvider,
           is_entri_managed: true,
           status: 'verifying',
-          warmup_stage: 4,
-          daily_limit: 2000,
-          hourly_limit: 500,
           total_sent_30d: 0,
           total_bounces_30d: 0,
           total_complaints_30d: 0,

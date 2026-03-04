@@ -1,35 +1,62 @@
-import { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Mail, Loader2, Users, FileText } from 'lucide-react';
-import { toast } from 'sonner';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
-import { isSuperAdmin } from '@/utils/adminUtils';
-import { Navigate } from 'react-router-dom';
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Mail, Loader2, Users, FileText } from "lucide-react";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { useIsSuperAdmin } from "@/hooks/useIsSuperAdmin";
+import { Navigate } from "react-router-dom";
 
 export const AdminReportsPage = () => {
   const { user } = useAuth();
+  const { data: isSuperAdmin, isLoading: isAdminLoading } = useIsSuperAdmin();
   const [sending, setSending] = useState(false);
 
   // Check if user is super admin
-  if (!user || !isSuperAdmin(user.email || '')) {
+  if (!user) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  if (isAdminLoading) {
+    return (
+      <div className="min-h-screen bg-background p-8">
+        <div className="max-w-4xl mx-auto">
+          <p className="text-sm text-muted-foreground">
+            Checking admin access{" "}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isSuperAdmin) {
     return <Navigate to="/dashboard" replace />;
   }
 
   const sendTrialUsersReport = async () => {
     setSending(true);
     try {
-      const { data, error } = await supabase.functions.invoke('send-trial-users-report');
-      
+      const { data, error } = await supabase.functions.invoke(
+        "send-trial-users-report",
+      );
+
       if (error) {
         throw error;
       }
 
-      toast.success(`Report sent successfully! ${data.totalUsers} users included in report.`);
+      toast.success(
+        `Report sent successfully! ${data.totalUsers} users included in report.`,
+      );
     } catch (error: any) {
-      console.error('Error sending report:', error);
-      toast.error(error.message || 'Failed to send report');
+      console.error("Error sending report:", error);
+      toast.error(error.message || "Failed to send report");
     } finally {
       setSending(false);
     }
@@ -40,7 +67,9 @@ export const AdminReportsPage = () => {
       <div className="max-w-4xl mx-auto">
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2">Admin Reports</h1>
-          <p className="text-muted-foreground">Generate and send administrative reports</p>
+          <p className="text-muted-foreground">
+            Generate and send administrative reports
+          </p>
         </div>
 
         <div className="grid gap-6">
@@ -83,8 +112,8 @@ export const AdminReportsPage = () => {
                   </div>
                 </div>
 
-                <Button 
-                  onClick={sendTrialUsersReport} 
+                <Button
+                  onClick={sendTrialUsersReport}
                   disabled={sending}
                   className="w-full"
                   size="lg"

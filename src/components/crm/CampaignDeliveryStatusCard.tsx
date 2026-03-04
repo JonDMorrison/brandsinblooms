@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Card,
   CardContent,
@@ -19,14 +19,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import { format } from "date-fns";
 import { toZonedTime } from "date-fns-tz";
 import { AlertTriangle, CheckCircle2, Clock, Info, Mail } from "lucide-react";
-import { parseEdgeFunctionError } from "@/utils/campaignSendingErrors";
-import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 import { retryFailedEmailMessages } from "@/lib/email/emailRetryService";
 import { markEmailCampaignCompletedWithFailures } from "@/lib/email/emailCompletionService";
+import { useCampaignGovernanceVisibility } from "@/hooks/useCampaignGovernanceVisibility";
 
 type CampaignRow = {
   id: string;
@@ -37,6 +37,10 @@ type CampaignRow = {
   updated_at: string | null;
   send_error: string | null;
   send_blocked_reason: string | null;
+  is_throttled?: boolean | null;
+  throttle_reasons?: string[] | null;
+  throttled_at?: string | null;
+  throttle_last_evaluated_at?: string | null;
 };
 
 type ProgressRow = {
@@ -55,6 +59,7 @@ type ProgressRow = {
 };
 
 const POLL_MS = 15000;
+const THROTTLED_POLL_MS = 5000;
 
 function isSameCampaign(a: CampaignRow | null, b: CampaignRow | null) {
   if (!a || !b) return false;
@@ -66,7 +71,10 @@ function isSameCampaign(a: CampaignRow | null, b: CampaignRow | null) {
     a.sent_at === b.sent_at &&
     a.updated_at === b.updated_at &&
     a.send_error === b.send_error &&
-    a.send_blocked_reason === b.send_blocked_reason
+    a.send_blocked_reason === b.send_blocked_reason &&
+    a.is_throttled === b.is_throttled &&
+    a.throttled_at === b.throttled_at &&
+    a.throttle_last_evaluated_at === b.throttle_last_evaluated_at
   );
 }
 
@@ -115,19 +123,64 @@ function sanitizeUserMessage(message?: string | null) {
   return null;
 }
 
+function formatThresholdCategory(category: string) {
+  const value = (category || "").toLowerCase();
+  if (value === "hard_bounce_rate") return "Hard bounce threshold";
+  if (value === "soft_bounce_rate") return "Soft bounce threshold";
+  if (value === "complaint_rate") return "Complaint threshold";
+  if (value === "failed_delivery_rate") return "Failed delivery threshold";
+  if (value === "rapid_negative_trend") return "Rapid negative trend";
+  return "Deliverability threshold";
+}
+
+function formatPauseCategory(category: string | null | undefined) {
+  const value = (category || "").toLowerCase();
+  if (value === "paused_by_user" || value === "paused") {
+    return "Campaign is currently paused.";
+  }
+  if (value === "account_under_review") {
+    return "Campaign is paused while your account is under review.";
+  }
+  if (value === "reputation_restricted") {
+    return "Campaign is paused due to current reputation restrictions.";
+  }
+  if (value === "reputation_critical") {
+    return "Campaign is paused due to critical reputation risk.";
+  }
+  if (value === "deliverability_threshold") {
+    return "Campaign is paused because a deliverability threshold was exceeded.";
+  }
+  return "Campaign is currently paused.";
+}
+
+function formatStatusLabel(status: string | null | undefined) {
+  const raw = (status || "").trim();
+  if (!raw) return "Unknown";
+
+  return raw
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .toLowerCase()
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
 export function CampaignDeliveryStatusCard(props: {
   campaignId: string | null | undefined;
   timezone?: string;
 }) {
   const { campaignId, timezone } = props;
+  const { data: governanceVisibility } =
+    useCampaignGovernanceVisibility(campaignId);
 
   const [campaign, setCampaign] = useState<CampaignRow | null>(null);
   const [progress, setProgress] = useState<ProgressRow | null>(null);
   const [progressUnavailable, setProgressUnavailable] = useState(false);
+  const [isStatusRpcMissing, setIsStatusRpcMissing] = useState(false);
   const [showRetryDialog, setShowRetryDialog] = useState(false);
   const [isRetryingFailed, setIsRetryingFailed] = useState(false);
   const [showMarkCompletedDialog, setShowMarkCompletedDialog] = useState(false);
   const [isMarkingCompleted, setIsMarkingCompleted] = useState(false);
+  const effectivePollMs = campaign?.is_throttled ? THROTTLED_POLL_MS : POLL_MS;
 
   useEffect(() => {
     if (!campaignId) return;
@@ -137,75 +190,108 @@ export function CampaignDeliveryStatusCard(props: {
 
     const load = async () => {
       // Prefer the SECURITY DEFINER RPC to avoid RLS drift breaking this UI.
-      try {
-        const { data: rpcData, error: rpcError } = await supabase.rpc(
-          "get_campaign_delivery_status" as any,
-          { p_campaign_id: campaignId },
-        );
+      if (!isStatusRpcMissing) {
+        try {
+          const { data: rpcData, error: rpcError } = await supabase.rpc(
+            "get_campaign_delivery_status_tenant_safe" as any,
+            { p_campaign_id: campaignId },
+          );
 
-        if (cancelled) return;
+          if (cancelled) return;
 
-        if (!rpcError) {
-          const rpcRow = ((Array.isArray(rpcData) ? rpcData[0] : rpcData) ||
-            null) as CampaignRow | null;
+          if (!rpcError) {
+            const rpcRow = ((Array.isArray(rpcData) ? rpcData[0] : rpcData) ||
+              null) as CampaignRow | null;
 
-          // If RPC returns nothing (unauthorized/not found), we still attempt direct select
-          // because some environments may not yet have the RPC.
-          if (rpcRow) {
-            setCampaign((prev) =>
-              isSameCampaign(prev, rpcRow) ? prev : rpcRow,
-            );
-            return;
+            if (rpcRow) {
+              setCampaign((prev) =>
+                isSameCampaign(prev, rpcRow) ? prev : rpcRow,
+              );
+              return;
+            }
+          } else {
+            const message = (rpcError.message || "").toLowerCase();
+            const code = (rpcError.code || "").toLowerCase();
+            const isMissingFunction =
+              code === "pgrst202" ||
+              code === "42883" ||
+              message.includes("could not find the function") ||
+              message.includes("schema cache") ||
+              message.includes("get_campaign_delivery_status_tenant_safe");
+
+            if (isMissingFunction) {
+              setIsStatusRpcMissing(true);
+            } else if (import.meta.env.DEV) {
+              console.warn("Failed to load campaign delivery status via RPC", {
+                campaignId,
+                error: rpcError,
+              });
+            }
           }
-        } else {
-          if (import.meta.env.DEV) {
+        } catch (e: any) {
+          if (cancelled) return;
+          const message = (e?.message || "").toLowerCase();
+          if (
+            message.includes("get_campaign_delivery_status_tenant_safe") ||
+            message.includes("could not find the function")
+          ) {
+            setIsStatusRpcMissing(true);
+          } else if (import.meta.env.DEV) {
             console.warn("Failed to load campaign delivery status via RPC", {
               campaignId,
-              error: rpcError,
+              error: e,
             });
           }
         }
-      } catch (e: any) {
-        if (cancelled) return;
-        if (import.meta.env.DEV) {
-          console.warn("Failed to load campaign delivery status via RPC", {
-            campaignId,
-            error: e,
-          });
-        }
       }
 
-      const { data, error } = await supabase
+      if (cancelled) return;
+
+      // Fallback path when RPC is unavailable.
+      const baseSelect =
+        "id,status,scheduled_at,send_started_at,sent_at,updated_at,send_error,send_blocked_reason";
+
+      // NOTE: Keep this fallback query restricted to stable columns only.
+      // Some DB environments haven't deployed throttling columns on crm_campaigns yet,
+      // and selecting unknown columns causes PostgREST to hard-fail with 42703.
+      const { data: fallbackRows, error: fallbackError } = await supabase
         .from("crm_campaigns")
-        .select(
-          "id,status,scheduled_at,send_started_at,sent_at,updated_at,send_error,send_blocked_reason",
-        )
+        .select(baseSelect)
         .eq("id", campaignId)
-        .maybeSingle();
+        .limit(1);
 
       if (cancelled) return;
-      if (error) {
+
+      if (fallbackError) {
         if (import.meta.env.DEV) {
-          console.warn("Failed to load campaign delivery status", {
+          console.warn("Failed to load campaign delivery status via fallback", {
             campaignId,
-            error,
+            error: fallbackError,
           });
         }
         return;
       }
 
-      const row = (data || null) as CampaignRow | null;
-      setCampaign((prev) => (isSameCampaign(prev, row) ? prev : row));
+      const normalizedFallbackRow = ((Array.isArray(fallbackRows)
+        ? fallbackRows[0]
+        : null) || null) as CampaignRow | null;
+      setCampaign((prev) =>
+        isSameCampaign(prev, normalizedFallbackRow)
+          ? prev
+          : normalizedFallbackRow,
+      );
+
+      if (cancelled) return;
     };
 
     load();
-    intervalId = window.setInterval(load, POLL_MS);
+    intervalId = window.setInterval(load, effectivePollMs);
 
     return () => {
       cancelled = true;
       if (intervalId) window.clearInterval(intervalId);
     };
-  }, [campaignId]);
+  }, [campaignId, effectivePollMs, isStatusRpcMissing]);
 
   useEffect(() => {
     if (!campaignId) return;
@@ -266,15 +352,40 @@ export function CampaignDeliveryStatusCard(props: {
       "sent_with_errors",
       "failed",
     ].includes(status);
-    if (shouldPoll) intervalId = window.setInterval(loadProgress, POLL_MS);
+    if (shouldPoll)
+      intervalId = window.setInterval(loadProgress, effectivePollMs);
 
     return () => {
       cancelled = true;
       if (intervalId) window.clearInterval(intervalId);
     };
-  }, [campaignId, campaign?.status]);
+  }, [campaignId, campaign?.status, effectivePollMs]);
 
-  const status = (campaign?.status || "draft").toLowerCase();
+  const inferredStatusFromProgress = useMemo(() => {
+    if (!progress) return null;
+
+    const total = progress.total || 0;
+    const queued = progress.queued || 0;
+    const sending = progress.sending || 0;
+    const sent = progress.sent || 0;
+    const failed = progress.failed || 0;
+    const skipped = progress.skipped || 0;
+
+    if (sending > 0) return "sending";
+    if (queued > 0) return "queued";
+
+    if (total > 0 && sent + failed + skipped >= total) {
+      return failed > 0 ? "sent_with_errors" : "sent";
+    }
+
+    return null;
+  }, [progress]);
+
+  const campaignStatus = (campaign?.status || "").toLowerCase();
+  const status =
+    campaignStatus && campaignStatus !== "draft"
+      ? campaignStatus
+      : inferredStatusFromProgress || campaignStatus || "draft";
 
   const failedCount = progress?.failed || 0;
   const canRetryFailed = failedCount > 0 && !progressUnavailable;
@@ -315,23 +426,37 @@ export function CampaignDeliveryStatusCard(props: {
   }, [progress]);
 
   const badge = useMemo(() => {
+    const statusLabel = formatStatusLabel(status);
+
     if (status === "sent")
       return {
-        label: "Completed",
+        label: statusLabel,
         variant: "default" as const,
         icon: CheckCircle2,
       };
     if (status === "sending")
-      return { label: "Sending", variant: "secondary" as const, icon: Clock };
+      return {
+        label: statusLabel,
+        variant: "secondary" as const,
+        icon: Clock,
+      };
     if (status === "queued" || status === "partially_queued")
-      return { label: "Queued", variant: "secondary" as const, icon: Mail };
+      return {
+        label: statusLabel,
+        variant: "secondary" as const,
+        icon: Mail,
+      };
     if (status === "failed" || status === "sent_with_errors")
       return {
-        label: "Needs Review",
+        label: statusLabel,
         variant: "destructive" as const,
         icon: AlertTriangle,
       };
-    return { label: "Status", variant: "secondary" as const, icon: Info };
+    return {
+      label: statusLabel,
+      variant: "secondary" as const,
+      icon: Info,
+    };
   }, [status]);
 
   const errorTextRaw =
@@ -341,6 +466,52 @@ export function CampaignDeliveryStatusCard(props: {
       ? null
       : campaign?.send_blocked_reason) ||
     null;
+
+  const throttleReasons = (campaign?.throttle_reasons || []).filter(
+    (reason): reason is string =>
+      typeof reason === "string" && reason.length > 0,
+  );
+  const throttleReasonLabels = throttleReasons.map((reason) =>
+    formatThresholdCategory(reason),
+  );
+
+  const pausedReason = formatPauseCategory(
+    campaign?.send_blocked_reason || campaign?.send_error,
+  );
+
+  const isPaused =
+    status === "paused" ||
+    (campaign?.send_blocked_reason || "").toLowerCase().includes("paused");
+
+  const pausedNextSteps = useMemo(() => {
+    const exceeded = governanceVisibility?.threshold_exceeded || [];
+
+    if (exceeded.some((reason) => reason.includes("complaint_rate"))) {
+      return [
+        "Pause any high-risk lists and review recent complaint sources.",
+        "Tighten segmentation and confirm sender/domain alignment.",
+      ];
+    }
+
+    if (exceeded.some((reason) => reason.includes("hard_bounce_rate"))) {
+      return [
+        "Remove invalid recipients and suppress previously bounced contacts.",
+        "Verify list import quality and opt-in provenance.",
+      ];
+    }
+
+    if (exceeded.some((reason) => reason.includes("failed_delivery_rate"))) {
+      return [
+        "Check sender/domain infrastructure and provider response errors.",
+        "Retry after delivery errors stabilize.",
+      ];
+    }
+
+    return [
+      "Review the campaign audience and recent delivery issues.",
+      "Resolve the blocking condition, then resume sending.",
+    ];
+  }, [governanceVisibility?.threshold_exceeded]);
 
   const userError = useMemo(() => {
     if (!errorTextRaw) return null;
@@ -468,6 +639,31 @@ export function CampaignDeliveryStatusCard(props: {
 
   return (
     <div className="space-y-4">
+      {campaign?.is_throttled && (
+        <Alert className="border-amber-200 bg-amber-50">
+          <AlertTriangle className="h-4 w-4 text-amber-700" />
+          <AlertTitle className="text-amber-900">Risk warning</AlertTitle>
+          <AlertDescription className="text-amber-800">
+            <div className="space-y-1">
+              <p>
+                Sending is temporarily slowed to protect deliverability. Batch
+                size is reduced by 50% and delay between batches is increased.
+              </p>
+              {throttleReasons.length > 0 && (
+                <p className="text-sm text-amber-700">
+                  Triggered by: {throttleReasonLabels.join(", ")}
+                </p>
+              )}
+              {campaign.throttled_at && (
+                <p className="text-sm text-amber-700">
+                  Throttled since {formatWhen(campaign.throttled_at, timezone)}.
+                </p>
+              )}
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
+
       {(userError || status === "failed" || status === "sent_with_errors") && (
         <Alert className="border-red-200 bg-red-50">
           <AlertTriangle className="h-4 w-4 text-red-600" />
@@ -511,6 +707,28 @@ export function CampaignDeliveryStatusCard(props: {
                   </div>
                 </div>
               )}
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {isPaused && (
+        <Alert className="border-amber-200 bg-amber-50">
+          <AlertTriangle className="h-4 w-4 text-amber-700" />
+          <AlertTitle className="text-amber-900">Campaign paused</AlertTitle>
+          <AlertDescription className="text-amber-800">
+            <div className="space-y-1">
+              <p>{pausedReason}</p>
+              {governanceVisibility?.threshold_exceeded &&
+                governanceVisibility.threshold_exceeded.length > 0 && (
+                  <p className="text-sm">
+                    Threshold exceeded:{" "}
+                    {governanceVisibility.threshold_exceeded
+                      .map((reason) => formatThresholdCategory(reason))
+                      .join(", ")}
+                  </p>
+                )}
+              <p className="text-sm">Next steps: {pausedNextSteps.join(" ")}</p>
             </div>
           </AlertDescription>
         </Alert>
@@ -572,22 +790,28 @@ export function CampaignDeliveryStatusCard(props: {
         </AlertDialogContent>
       </AlertDialog>
 
-      {hasAnyScheduleHistory && (
+      {hasAnyDeliverySignals && (
         <Card className="border-slate-200/70 bg-gradient-to-br from-white to-slate-50">
           <CardHeader className="pb-4">
-            <div className="flex items-start justify-between gap-4">
+            <div className="flex items-center justify-between gap-4">
               <div>
-                <CardTitle className="text-xl">Last Schedule Run</CardTitle>
+                <CardTitle className="text-xl">
+                  Campaign Sending Status
+                </CardTitle>
                 <CardDescription>
-                  {lastScheduleRunAt
-                    ? `Your schedule was last processed ${lastScheduleRunAt}.`
-                    : "This campaign has recent delivery activity."}
+                  {emailsLine
+                    ? `Sent ${emailsLine.sent} of ${emailsLine.total} email(s).`
+                    : lastScheduleRunAt
+                      ? `Last activity ${lastScheduleRunAt}.`
+                      : "This campaign has recent delivery activity."}
                 </CardDescription>
               </div>
-              <Badge variant={badge.variant} className="gap-1">
-                <badge.icon className="h-3.5 w-3.5" />
-                {badge.label}
-              </Badge>
+              <div className="flex items-center gap-2">
+                <Badge variant={badge.variant} className="gap-1">
+                  <badge.icon className="h-3.5 w-3.5" />
+                  {badge.label}
+                </Badge>
+              </div>
             </div>
           </CardHeader>
 
@@ -623,17 +847,19 @@ export function CampaignDeliveryStatusCard(props: {
                 <p className="text-sm">
                   {progressUnavailable
                     ? "Delivery details temporarily unavailable"
-                    : status === "scheduled"
-                      ? "Scheduled"
-                      : status === "sending"
-                        ? "Sending"
-                        : status === "queued" || status === "partially_queued"
-                          ? "Queued for sending"
-                          : status === "sent"
-                            ? "Completed"
-                            : status === "failed"
-                              ? "Failed"
-                              : ""}
+                    : campaign?.is_throttled
+                      ? "Sending with protective throttling"
+                      : status === "scheduled"
+                        ? "Scheduled"
+                        : status === "sending"
+                          ? "Sending"
+                          : status === "queued" || status === "partially_queued"
+                            ? "Queued for sending"
+                            : status === "sent"
+                              ? "Completed"
+                              : status === "failed"
+                                ? "Failed"
+                                : ""}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
                   Scheduler runs every minute

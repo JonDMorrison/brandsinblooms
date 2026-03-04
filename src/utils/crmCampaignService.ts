@@ -51,11 +51,15 @@ export const saveCampaignAsDraft = async (campaignData: CampaignData) => {
     if (!user) throw new Error('User not authenticated');
 
     // Get user's tenant
-    const { data: userProfile } = await supabase
+    const { data: userRows, error: userProfileError } = await supabase
       .from('users')
       .select('tenant_id')
       .eq('id', user.id)
-      .single();
+      .limit(1);
+
+    if (userProfileError) throw userProfileError;
+
+    const userProfile = Array.isArray(userRows) ? userRows[0] : null;
 
     if (!userProfile?.tenant_id) {
       throw new Error('User tenant not found');
@@ -86,10 +90,8 @@ export const saveCampaignAsDraft = async (campaignData: CampaignData) => {
     let campaign: any;
     let campaignError: any;
 
-    // If campaign ID provided, UPDATE existing campaign instead of creating duplicate
-    if (campaignData.id) {
-      console.log('📝 Updating existing campaign:', campaignData.id);
-      const { data, error } = await supabase
+    const tryUpdateOwnedCampaign = async () => {
+      const { data: rows, error } = await supabase
         .from('crm_campaigns')
         .update({
           name: campaignData.name,
@@ -103,22 +105,99 @@ export const saveCampaignAsDraft = async (campaignData: CampaignData) => {
         })
         .eq('id', campaignData.id)
         .eq('user_id', user.id) // Security: ensure user owns campaign
-        .select()
-        .single();
+        .select();
 
-      campaign = data;
-      campaignError = error;
+      return { rows, error };
+    };
+
+    // If campaign ID provided, UPDATE existing campaign instead of creating duplicate
+    if (campaignData.id) {
+      console.log('📝 Updating existing campaign:', campaignData.id);
+
+      const attemptResult = await tryUpdateOwnedCampaign();
+
+      if (attemptResult.error) {
+        campaignError = attemptResult.error;
+      } else {
+        const updated = Array.isArray(attemptResult.rows) ? attemptResult.rows[0] : null;
+
+        if (!updated) {
+          // If the row is unowned (user_id IS NULL), claim it once then retry.
+          // This keeps owner-only editing behavior while repairing legacy/system rows.
+          try {
+            const { data: claimed, error: claimError } = await supabase.rpc('claim_unowned_crm_campaign' as any, {
+              p_campaign_id: campaignData.id,
+            });
+
+            if (claimError) {
+              // If the function isn't available yet (schema cache drift), don't hard-fail here.
+              // We'll fall through to a diagnostic select for a clearer message.
+              console.warn('claim_unowned_crm_campaign RPC failed:', claimError);
+            }
+
+            if (claimed === true) {
+              const retryResult = await tryUpdateOwnedCampaign();
+              if (retryResult.error) {
+                campaignError = retryResult.error;
+              } else {
+                const retried = Array.isArray(retryResult.rows) ? retryResult.rows[0] : null;
+                if (retried) {
+                  campaign = retried;
+                  campaignError = null;
+                }
+              }
+            }
+          } catch (claimException) {
+            console.warn('claim_unowned_crm_campaign exception:', claimException);
+          }
+
+          if (!campaign) {
+            // Provide a more actionable error message.
+            const { data: probeRows, error: probeError } = await supabase
+              .from('crm_campaigns')
+              .select('id,user_id,tenant_id')
+              .eq('id', campaignData.id)
+              .limit(1);
+
+            if (probeError) {
+              campaignError = new Error('Campaign update failed (unable to verify ownership)');
+            } else {
+              const probed = Array.isArray(probeRows) ? probeRows[0] : null;
+              if (!probed) {
+                campaignError = new Error('Campaign not found or you do not have access');
+              } else if (probed.user_id && probed.user_id !== user.id) {
+                campaignError = new Error('This campaign is owned by another user and cannot be edited');
+              } else if (!probed.user_id) {
+                campaignError = new Error('Campaign is unowned but could not be claimed (tenant mismatch or policy)');
+              } else {
+                campaignError = new Error('Campaign update returned no row (permission denied)');
+              }
+            }
+          }
+        } else {
+          campaign = updated;
+          campaignError = null;
+        }
+      }
     } else {
       // Create NEW campaign
       console.log('📝 Creating new campaign');
-      const { data, error } = await supabase
+      const { data: rows, error } = await supabase
         .from('crm_campaigns')
         .insert(campaignPayload)
-        .select()
-        .single();
+        .select();
 
-      campaign = data;
-      campaignError = error;
+      if (error) {
+        campaignError = error;
+      } else {
+        const inserted = Array.isArray(rows) ? rows[0] : null;
+        if (!inserted) {
+          campaignError = new Error('Campaign insert returned no row');
+        } else {
+          campaign = inserted;
+          campaignError = null;
+        }
+      }
     }
 
     if (campaignError) throw campaignError;
@@ -546,13 +625,15 @@ export const updateCampaignSchedule = async (
     // even when UPDATE is permitted (e.g. owner-only UPDATE fallback). We should
     // not fail early in that case.
     try {
-      const { data: campaign, error: fetchError } = await supabase
+      const { data: rows, error: fetchError } = await supabase
         .from('crm_campaigns')
         .select('status')
         .eq('id', campaignId)
-        .maybeSingle();
+        .limit(1);
 
       if (fetchError) throw fetchError;
+
+      const campaign = Array.isArray(rows) ? rows[0] : null;
 
       if (campaign?.status === 'sending') {
         if (!options?.silent) {
@@ -611,8 +692,11 @@ export const updateCampaignSchedule = async (
         // even if we couldn't read status due to RLS.
         .neq('status', 'sending')
         .neq('status', 'sent')
-        .select('id')
-        .maybeSingle();
+        // IMPORTANT: do not use (maybe)Single() here.
+        // If 0 rows are updated (RLS denial or locked status), PostgREST will throw:
+        // "JSON object requested, multiple (or no) rows returned".
+        // We want to treat 0 rows as a normal "false" outcome.
+        .select('id');
     };
 
     const attempts: Array<{ label: string; payload: Record<string, any> }> = [
@@ -625,7 +709,8 @@ export const updateCampaignSchedule = async (
     for (const attempt of attempts) {
       const { data, error } = await attemptUpdate(attempt.payload);
       if (!error) {
-        if (data?.id) {
+        const rows = Array.isArray(data) ? data : [];
+        if (rows.length === 1 && (rows[0] as any)?.id) {
           lastError = null;
           break;
         }
@@ -635,6 +720,10 @@ export const updateCampaignSchedule = async (
           campaignId,
           attempt: attempt.label,
         });
+
+        const userMessage = "We couldn't save your schedule. Please try again.";
+        options?.onFailureMessage?.(userMessage);
+        if (!options?.silent) toast.error(userMessage);
         return false;
       }
 
@@ -761,13 +850,15 @@ export const unscheduleCampaign = async (
 
     // Best-effort status check. Don't fail early if SELECT is blocked by RLS.
     try {
-      const { data: campaign, error: fetchError } = await supabase
+      const { data: rows, error: fetchError } = await supabase
         .from('crm_campaigns')
         .select('status')
         .eq('id', campaignId)
-        .maybeSingle();
+        .limit(1);
 
       if (fetchError) throw fetchError;
+
+      const campaign = Array.isArray(rows) ? rows[0] : null;
 
       if (campaign?.status === 'sending') {
         if (!options?.silent) {
@@ -818,8 +909,7 @@ export const unscheduleCampaign = async (
         .eq('id', campaignId)
         .neq('status', 'sending')
         .neq('status', 'sent')
-        .select('id')
-        .maybeSingle();
+        .select('id');
     };
 
     const attempts: Array<{ label: string; payload: Record<string, any> }> = [
@@ -832,7 +922,8 @@ export const unscheduleCampaign = async (
     for (const attempt of attempts) {
       const { data, error } = await attemptUpdate(attempt.payload);
       if (!error) {
-        if (data?.id) {
+        const rows = Array.isArray(data) ? data : [];
+        if (rows.length === 1 && (rows[0] as any)?.id) {
           lastError = null;
           break;
         }

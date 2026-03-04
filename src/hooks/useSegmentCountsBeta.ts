@@ -4,6 +4,16 @@ import { useAuth } from '@/hooks/useAuth';
 import { useTenant } from '@/hooks/useTenant';
 import { SYSTEM_SEGMENTS, SegmentDefinition } from '@/config/segmentDefinitions';
 
+const ID_CHUNK_SIZE = 200;
+
+function chunkIds(ids: string[], size = ID_CHUNK_SIZE): string[][] {
+  const chunks: string[][] = [];
+  for (let index = 0; index < ids.length; index += size) {
+    chunks.push(ids.slice(index, index + size));
+  }
+  return chunks;
+}
+
 interface SegmentCounts {
   [key: string]: number;
 }
@@ -34,7 +44,7 @@ export const useSegmentCountsBeta = () => {
         return customerValue !== value;
       case 'contains':
         if (Array.isArray(customerValue)) {
-          return customerValue.some((v: string) => 
+          return customerValue.some((v: string) =>
             v.toLowerCase().includes(String(value).toLowerCase())
           );
         }
@@ -65,7 +75,7 @@ export const useSegmentCountsBeta = () => {
 
   const evaluateSegment = (customer: any, segment: SegmentDefinition): boolean => {
     const { rules, logic } = segment.conditions;
-    
+
     if (rules.length === 0) return false;
 
     if (logic === 'AND') {
@@ -95,10 +105,24 @@ export const useSegmentCountsBeta = () => {
       }
 
       // Get manual segment assignments
-      const { data: customerSegments } = await supabase
-        .from('customer_segments')
-        .select('customer_id, segment_id')
-        .in('customer_id', customers.map(c => c.id));
+      const customerIds = customers.map(c => c.id);
+      const customerSegments: Array<{ customer_id: string; segment_id: string }> = [];
+
+      for (const idChunk of chunkIds(customerIds)) {
+        const { data: customerSegmentsChunk, error: customerSegmentsError } = await supabase
+          .from('customer_segments')
+          .select('customer_id, segment_id')
+          .in('customer_id', idChunk);
+
+        if (customerSegmentsError) {
+          console.error('Error fetching customer segments chunk:', customerSegmentsError);
+          continue;
+        }
+
+        if (customerSegmentsChunk?.length) {
+          customerSegments.push(...customerSegmentsChunk);
+        }
+      }
 
       const { data: segmentDetails } = await supabase
         .from('crm_segments')
@@ -107,7 +131,7 @@ export const useSegmentCountsBeta = () => {
 
       // Build manual assignment map by segment name
       const manualAssignments: Record<string, Set<string>> = {};
-      if (customerSegments && segmentDetails) {
+      if (customerSegments.length > 0 && segmentDetails) {
         customerSegments.forEach(assignment => {
           const segment = segmentDetails.find(s => s.id === assignment.segment_id);
           if (segment?.name) {
@@ -125,7 +149,7 @@ export const useSegmentCountsBeta = () => {
       SYSTEM_SEGMENTS.forEach(segment => {
         const automaticMatches = customers.filter(c => evaluateSegment(c, segment));
         const manualMatches = manualAssignments[segment.name] || new Set();
-        
+
         // Combine automatic + manual (unique customers)
         const allMatches = new Set([
           ...automaticMatches.map(c => c.id),
@@ -151,10 +175,10 @@ export const useSegmentCountsBeta = () => {
     setRefreshKey(prev => prev + 1);
   }, []);
 
-  return { 
-    counts, 
-    loading, 
+  return {
+    counts,
+    loading,
     refreshCounts,
-    segments: SYSTEM_SEGMENTS 
+    segments: SYSTEM_SEGMENTS
   };
 };

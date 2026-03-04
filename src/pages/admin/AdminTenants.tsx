@@ -1,23 +1,22 @@
-
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { Navigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 import { ProtectedPageWrapper } from "@/components/ProtectedPageWrapper";
 import { UserMenu } from "@/components/UserMenu";
 import { Shield, RefreshCw, FileText } from "lucide-react";
-import { isSuperAdmin } from "@/utils/adminUtils";
+import { useIsSuperAdmin } from "@/hooks/useIsSuperAdmin";
 import { useAdminTenants } from "@/hooks/useAdminTenants";
 import { AdminStats } from "@/components/admin/AdminStats";
 import { AdminFilters } from "@/components/admin/AdminFilters";
-import { TenantTable } from "@/components/admin/TenantTable";
+import { TenantTable, type AdminTenant } from "@/components/admin/TenantTable";
 import { TenantDrawer } from "@/components/admin/TenantDrawer";
-import { 
-  Pagination, 
-  PaginationContent, 
-  PaginationItem, 
-  PaginationLink, 
-  PaginationNext, 
-  PaginationPrevious 
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
 } from "@/components/ui/pagination";
 import { NativeSelect } from "@/components/ui/NativeSelect";
 import { Button } from "@/components/ui/button";
@@ -25,7 +24,11 @@ import { removeAllInertAttributes } from "@/utils/emergency-cleanup";
 
 const AdminPage = () => {
   const { user } = useAuth();
-  const [selectedTenant, setSelectedTenant] = useState<any>(null);
+  const navigate = useNavigate();
+  const { data: isSuperAdmin, isLoading: isAdminLoading } = useIsSuperAdmin();
+  const [selectedTenant, setSelectedTenant] = useState<AdminTenant | null>(
+    null,
+  );
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [currentSearch, setCurrentSearch] = useState("");
   const [currentStatus, setCurrentStatus] = useState("");
@@ -55,7 +58,25 @@ const AdminPage = () => {
   console.log("AdminPage data:", { tenants, stats, loading, error });
 
   // Only allow access to super admins - redirect to root instead of /app
-  if (!user || !isSuperAdmin(user.email)) {
+  if (!user) {
+    return <Navigate to="/" replace />;
+  }
+
+  if (isAdminLoading) {
+    return (
+      <ProtectedPageWrapper>
+        <div className="min-h-screen bg-background p-6">
+          <div className="max-w-7xl mx-auto">
+            <p className="text-sm text-muted-foreground">
+              Checking admin access
+            </p>
+          </div>
+        </div>
+      </ProtectedPageWrapper>
+    );
+  }
+
+  if (!isSuperAdmin) {
     return <Navigate to="/" replace />;
   }
 
@@ -72,7 +93,7 @@ const AdminPage = () => {
     fetchTenants(currentSearch, status, 1);
   };
 
-  const handleViewTenant = (tenant: any) => {
+  const handleViewTenant = (tenant: AdminTenant) => {
     setSelectedTenant(tenant);
     setDrawerOpen(true);
   };
@@ -80,6 +101,10 @@ const AdminPage = () => {
   const handleCloseDrawer = () => {
     setDrawerOpen(false);
     setSelectedTenant(null);
+  };
+
+  const handleEmailManagement = (tenantId: string) => {
+    navigate(`/admin/tenants/${tenantId}/email`);
   };
 
   return (
@@ -93,13 +118,15 @@ const AdminPage = () => {
                 <Shield className="w-8 h-8 text-destructive" />
                 <div>
                   <h1 className="text-3xl font-bold">Admin Console</h1>
-                  <p className="text-muted-foreground">Tenant management and administration</p>
+                  <p className="text-muted-foreground">
+                    Tenant management and administration
+                  </p>
                 </div>
               </div>
               <div className="flex items-center gap-4">
                 <Button
                   variant="outline"
-                  onClick={() => window.location.href = '/admin/reports'}
+                  onClick={() => (window.location.href = "/admin/reports")}
                 >
                   <FileText className="h-4 w-4 mr-2" />
                   Reports
@@ -110,7 +137,9 @@ const AdminPage = () => {
                   disabled={loading}
                   size="sm"
                 >
-                  <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                  <RefreshCw
+                    className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`}
+                  />
                   Refresh
                 </Button>
                 <UserMenu />
@@ -118,7 +147,7 @@ const AdminPage = () => {
             </div>
           </div>
         </div>
-        
+
         {/* Content */}
         <div className="max-w-7xl mx-auto p-6">
           {error && (
@@ -140,6 +169,7 @@ const AdminPage = () => {
             onViewTenant={handleViewTenant}
             onExtendTrial={extendTrial}
             onToggleActive={toggleTenantActive}
+            onEmailManagement={handleEmailManagement}
           />
 
           {/* Pagination Controls */}
@@ -147,7 +177,9 @@ const AdminPage = () => {
             <div className="flex items-center justify-between px-4 py-4 bg-card rounded-lg border mt-6">
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm text-muted-foreground">Rows per page:</span>
+                  <span className="text-sm text-muted-foreground">
+                    Rows per page:
+                  </span>
                   <NativeSelect
                     value={pageSize.toString()}
                     onChange={(e) => {
@@ -165,19 +197,29 @@ const AdminPage = () => {
                   />
                 </div>
                 <span className="text-sm text-muted-foreground">
-                  Showing {Math.min((currentPage - 1) * pageSize + 1, totalCount)}-{Math.min(currentPage * pageSize, totalCount)} of {totalCount} tenants
+                  Showing{" "}
+                  {Math.min((currentPage - 1) * pageSize + 1, totalCount)}-
+                  {Math.min(currentPage * pageSize, totalCount)} of {totalCount}{" "}
+                  tenants
                 </span>
               </div>
-              
+
               <div className="flex items-center gap-2">
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => {
-                    console.log('Previous button clicked, currentPage:', currentPage, 'totalPages:', totalPages, 'totalCount:', totalCount);
+                    console.log(
+                      "Previous button clicked, currentPage:",
+                      currentPage,
+                      "totalPages:",
+                      totalPages,
+                      "totalCount:",
+                      totalCount,
+                    );
                     if (currentPage > 1) {
                       const newPage = currentPage - 1;
-                      console.log('Going to previous page:', newPage);
+                      console.log("Going to previous page:", newPage);
                       goToPage(newPage);
                       fetchTenants(currentSearch, currentStatus, newPage);
                     }
@@ -186,19 +228,26 @@ const AdminPage = () => {
                 >
                   Previous
                 </Button>
-                
+
                 <span className="text-sm text-muted-foreground px-2">
                   Page {currentPage} of {totalPages} (Total: {totalCount})
                 </span>
-                
+
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => {
-                    console.log('Next button clicked, currentPage:', currentPage, 'totalPages:', totalPages, 'totalCount:', totalCount);
+                    console.log(
+                      "Next button clicked, currentPage:",
+                      currentPage,
+                      "totalPages:",
+                      totalPages,
+                      "totalCount:",
+                      totalCount,
+                    );
                     if (currentPage < totalPages) {
                       const newPage = currentPage + 1;
-                      console.log('Going to next page:', newPage);
+                      console.log("Going to next page:", newPage);
                       goToPage(newPage);
                       fetchTenants(currentSearch, currentStatus, newPage);
                     }

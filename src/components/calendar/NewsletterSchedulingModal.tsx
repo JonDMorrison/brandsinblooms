@@ -1,20 +1,43 @@
-import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { NativeSelect } from '@/components/ui/NativeSelect';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
-import { format } from 'date-fns';
-import { Calendar as CalendarIcon, Clock, Mail, Users, Save, X, Sparkles, CheckCircle, AlertTriangle } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { assessContentQuality, sanitizeAndImproveContent, generateContentSuggestions } from '@/utils/contentQuality';
-import { sanitizeCampaignTitle } from '@/utils/weekNumberSanitizer';
-import { usePersonaAwareGeneration } from '@/hooks/usePersonaAwareGeneration';
+import React, { useState, useEffect } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { NativeSelect } from "@/components/ui/NativeSelect";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { format } from "date-fns";
+import {
+  Calendar as CalendarIcon,
+  Clock,
+  Mail,
+  Users,
+  Save,
+  X,
+  Sparkles,
+  CheckCircle,
+  AlertTriangle,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import {
+  assessContentQuality,
+  sanitizeAndImproveContent,
+  generateContentSuggestions,
+} from "@/utils/contentQuality";
+import { sanitizeCampaignTitle } from "@/utils/weekNumberSanitizer";
+import { usePersonaAwareGeneration } from "@/hooks/usePersonaAwareGeneration";
 
 interface NewsletterSchedulingModalProps {
   isOpen: boolean;
@@ -22,7 +45,7 @@ interface NewsletterSchedulingModalProps {
   onSuccess: () => void;
   selectedDate?: Date;
   existingNewsletter?: any;
-  mode: 'create' | 'edit';
+  mode: "create" | "edit";
 }
 
 interface Segment {
@@ -31,13 +54,15 @@ interface Segment {
   customer_count: number;
 }
 
-export const NewsletterSchedulingModal: React.FC<NewsletterSchedulingModalProps> = ({
+export const NewsletterSchedulingModal: React.FC<
+  NewsletterSchedulingModalProps
+> = ({
   isOpen,
   onClose,
   onSuccess,
   selectedDate,
   existingNewsletter,
-  mode
+  mode,
 }) => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
@@ -48,24 +73,24 @@ export const NewsletterSchedulingModal: React.FC<NewsletterSchedulingModalProps>
   }>({ subjects: [], preheaders: [] });
   const [generatingAI, setGeneratingAI] = useState(false);
   const { generateSubjectLines } = usePersonaAwareGeneration();
-  
+
   // Form state
   const [formData, setFormData] = useState({
-    name: '',
-    subject_line: '',
-    preheader_text: '',
-    segment_id: '',
+    name: "",
+    subject_line: "",
+    preheader_text: "",
+    segment_id: "",
     schedule_date: selectedDate || new Date(),
-    schedule_time: '09:00'
+    schedule_time: "09:00",
   });
 
   // Load segments on mount
   useEffect(() => {
     if (isOpen) {
       loadSegments();
-      if (mode === 'edit' && existingNewsletter) {
+      if (mode === "edit" && existingNewsletter) {
         populateFormFromNewsletter();
-      } else if (mode === 'create') {
+      } else if (mode === "create") {
         resetForm();
       }
     }
@@ -74,62 +99,76 @@ export const NewsletterSchedulingModal: React.FC<NewsletterSchedulingModalProps>
   const loadSegments = async () => {
     try {
       const { data: userData } = await supabase
-        .from('users')
-        .select('tenant_id')
-        .eq('id', (await supabase.auth.getUser()).data.user?.id)
+        .from("users")
+        .select("tenant_id")
+        .eq("id", (await supabase.auth.getUser()).data.user?.id)
         .single();
 
       if (userData?.tenant_id) {
         const { data, error } = await supabase
-          .from('crm_segments')
-          .select('id, name, customer_count')
-          .eq('tenant_id', userData.tenant_id)
-          .order('name');
+          .from("crm_segments")
+          .select("id, name, customer_count")
+          .eq("tenant_id", userData.tenant_id)
+          .order("name");
 
         if (error) throw error;
         setSegments(data || []);
       }
     } catch (error) {
-      console.error('Error loading segments:', error);
+      console.error("Error loading segments:", error);
     }
   };
 
   const populateFormFromNewsletter = () => {
     if (!existingNewsletter) return;
-    
-    const scheduledAt = existingNewsletter.scheduled_at ? new Date(existingNewsletter.scheduled_at) : new Date();
-    
+
+    const scheduledAt = existingNewsletter.scheduled_at
+      ? new Date(existingNewsletter.scheduled_at)
+      : new Date();
+
     setFormData({
-      name: sanitizeCampaignTitle(existingNewsletter.name || ''),
-      subject_line: sanitizeAndImproveContent(existingNewsletter.subject_line || ''),
-      preheader_text: sanitizeAndImproveContent(existingNewsletter.preheader_text || ''),
-      segment_id: existingNewsletter.segment_id || '',
+      name: sanitizeCampaignTitle(existingNewsletter.name || ""),
+      subject_line: sanitizeAndImproveContent(
+        existingNewsletter.subject_line || "",
+      ),
+      preheader_text: sanitizeAndImproveContent(
+        existingNewsletter.preheader_text || "",
+      ),
+      segment_id: existingNewsletter.segment_id || "",
       schedule_date: scheduledAt,
-      schedule_time: format(scheduledAt, 'HH:mm')
+      schedule_time: format(scheduledAt, "HH:mm"),
     });
   };
 
   const generateAISuggestions = async () => {
     if (!formData.name) return;
-    
+
     setGeneratingAI(true);
     try {
       // Generate subject lines
       const subjectResponse = await generateSubjectLines({
         campaignTitle: formData.name,
-        numberOfSuggestions: 4
+        numberOfSuggestions: 4,
       });
 
-      const subjects = generateContentSuggestions('subject', formData.subject_line, formData.name);
-      const preheaders = generateContentSuggestions('preheader', formData.preheader_text, formData.name);
-      
+      const subjects = generateContentSuggestions(
+        "subject",
+        formData.subject_line,
+        formData.name,
+      );
+      const preheaders = generateContentSuggestions(
+        "preheader",
+        formData.preheader_text,
+        formData.name,
+      );
+
       setAiSuggestions({ subjects, preheaders });
     } catch (error) {
-      console.error('Error generating AI suggestions:', error);
+      console.error("Error generating AI suggestions:", error);
       toast({
         title: "AI Generation Failed",
         description: "Could not generate suggestions. Please try again.",
-        variant: "destructive"
+        variant: "destructive",
       });
     } finally {
       setGeneratingAI(false);
@@ -138,12 +177,12 @@ export const NewsletterSchedulingModal: React.FC<NewsletterSchedulingModalProps>
 
   const resetForm = () => {
     setFormData({
-      name: '',
-      subject_line: '',
-      preheader_text: '',
-      segment_id: '',
+      name: "",
+      subject_line: "",
+      preheader_text: "",
+      segment_id: "",
       schedule_date: selectedDate || new Date(),
-      schedule_time: '09:00'
+      schedule_time: "09:00",
     });
   };
 
@@ -153,18 +192,18 @@ export const NewsletterSchedulingModal: React.FC<NewsletterSchedulingModalProps>
 
     try {
       const { data: userData } = await supabase
-        .from('users')
-        .select('tenant_id')
-        .eq('id', (await supabase.auth.getUser()).data.user?.id)
+        .from("users")
+        .select("tenant_id")
+        .eq("id", (await supabase.auth.getUser()).data.user?.id)
         .single();
 
       if (!userData?.tenant_id) {
-        throw new Error('No tenant found');
+        throw new Error("No tenant found");
       }
 
       // Combine date and time
       const scheduledAt = new Date(formData.schedule_date);
-      const [hours, minutes] = formData.schedule_time.split(':');
+      const [hours, minutes] = formData.schedule_time.split(":");
       scheduledAt.setHours(parseInt(hours), parseInt(minutes), 0, 0);
 
       const campaignData = {
@@ -175,43 +214,43 @@ export const NewsletterSchedulingModal: React.FC<NewsletterSchedulingModalProps>
         preheader_text: formData.preheader_text,
         segment_id: formData.segment_id || null,
         scheduled_at: scheduledAt.toISOString(),
-        status: 'scheduled',
-        delivery_method: 'shared_sender'
+        status: "scheduled",
+        delivery_method: "custom_domain",
       };
 
-      if (mode === 'edit' && existingNewsletter) {
+      if (mode === "edit" && existingNewsletter) {
         const { error } = await supabase
-          .from('crm_campaigns')
+          .from("crm_campaigns")
           .update(campaignData)
-          .eq('id', existingNewsletter.id);
+          .eq("id", existingNewsletter.id);
 
         if (error) throw error;
 
         toast({
           title: "Newsletter Updated",
-          description: "Your newsletter has been successfully updated."
+          description: "Your newsletter has been successfully updated.",
         });
       } else {
         const { error } = await supabase
-          .from('crm_campaigns')
+          .from("crm_campaigns")
           .insert([campaignData]);
 
         if (error) throw error;
 
         toast({
           title: "Newsletter Scheduled",
-          description: `Your newsletter has been scheduled for ${format(scheduledAt, 'MMM d, h:mm a')}.`
+          description: `Your newsletter has been scheduled for ${format(scheduledAt, "MMM d, h:mm a")}.`,
         });
       }
 
       onSuccess();
       onClose();
     } catch (error) {
-      console.error('Error saving newsletter:', error);
+      console.error("Error saving newsletter:", error);
       toast({
         title: "Error",
         description: "Failed to save newsletter. Please try again.",
-        variant: "destructive"
+        variant: "destructive",
       });
     } finally {
       setLoading(false);
@@ -219,30 +258,30 @@ export const NewsletterSchedulingModal: React.FC<NewsletterSchedulingModalProps>
   };
 
   const handleDeleteNewsletter = async () => {
-    if (!existingNewsletter || mode !== 'edit') return;
+    if (!existingNewsletter || mode !== "edit") return;
 
     setLoading(true);
     try {
       const { error } = await supabase
-        .from('crm_campaigns')
+        .from("crm_campaigns")
         .delete()
-        .eq('id', existingNewsletter.id);
+        .eq("id", existingNewsletter.id);
 
       if (error) throw error;
 
       toast({
         title: "Newsletter Deleted",
-        description: "The newsletter has been successfully deleted."
+        description: "The newsletter has been successfully deleted.",
       });
 
       onSuccess();
       onClose();
     } catch (error) {
-      console.error('Error deleting newsletter:', error);
+      console.error("Error deleting newsletter:", error);
       toast({
         title: "Error",
         description: "Failed to delete newsletter. Please try again.",
-        variant: "destructive"
+        variant: "destructive",
       });
     } finally {
       setLoading(false);
@@ -255,7 +294,7 @@ export const NewsletterSchedulingModal: React.FC<NewsletterSchedulingModalProps>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Mail className="h-5 w-5 text-primary" />
-            {mode === 'edit' ? 'Edit Newsletter' : 'Schedule New Newsletter'}
+            {mode === "edit" ? "Edit Newsletter" : "Schedule New Newsletter"}
           </DialogTitle>
         </DialogHeader>
 
@@ -266,7 +305,12 @@ export const NewsletterSchedulingModal: React.FC<NewsletterSchedulingModalProps>
             <Input
               id="name"
               value={formData.name}
-              onChange={(e) => setFormData(prev => ({ ...prev, name: sanitizeCampaignTitle(e.target.value) }))}
+              onChange={(e) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  name: sanitizeCampaignTitle(e.target.value),
+                }))
+              }
               placeholder="e.g., Spring Garden Newsletter"
               required
             />
@@ -278,11 +322,22 @@ export const NewsletterSchedulingModal: React.FC<NewsletterSchedulingModalProps>
               <Label htmlFor="subject_line">Subject Line</Label>
               <div className="flex items-center gap-2">
                 {(() => {
-                  const quality = assessContentQuality(formData.subject_line, 'subject');
-                  const Icon = quality.level === 'excellent' || quality.level === 'good' ? CheckCircle : AlertTriangle;
-                  const color = quality.level === 'excellent' ? 'text-green-600' : 
-                               quality.level === 'good' ? 'text-blue-600' : 
-                               quality.level === 'fair' ? 'text-yellow-600' : 'text-red-600';
+                  const quality = assessContentQuality(
+                    formData.subject_line,
+                    "subject",
+                  );
+                  const Icon =
+                    quality.level === "excellent" || quality.level === "good"
+                      ? CheckCircle
+                      : AlertTriangle;
+                  const color =
+                    quality.level === "excellent"
+                      ? "text-green-600"
+                      : quality.level === "good"
+                        ? "text-blue-600"
+                        : quality.level === "fair"
+                          ? "text-yellow-600"
+                          : "text-red-600";
                   return formData.subject_line ? (
                     <div className={`flex items-center gap-1 text-xs ${color}`}>
                       <Icon className="w-3 h-3" />
@@ -299,14 +354,19 @@ export const NewsletterSchedulingModal: React.FC<NewsletterSchedulingModalProps>
                   className="h-7 text-xs"
                 >
                   <Sparkles className="w-3 h-3 mr-1" />
-                  {generatingAI ? 'Generating...' : 'AI Suggestions'}
+                  {generatingAI ? "Generating..." : "AI Suggestions"}
                 </Button>
               </div>
             </div>
             <Input
               id="subject_line"
               value={formData.subject_line}
-              onChange={(e) => setFormData(prev => ({ ...prev, subject_line: sanitizeAndImproveContent(e.target.value) }))}
+              onChange={(e) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  subject_line: sanitizeAndImproveContent(e.target.value),
+                }))
+              }
               placeholder="e.g., 🌱 Spring is Here - Time to Plant!"
               required
             />
@@ -321,7 +381,12 @@ export const NewsletterSchedulingModal: React.FC<NewsletterSchedulingModalProps>
                       variant="ghost"
                       size="sm"
                       className="h-auto p-2 text-left justify-start text-xs"
-                      onClick={() => setFormData(prev => ({ ...prev, subject_line: suggestion }))}
+                      onClick={() =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          subject_line: suggestion,
+                        }))
+                      }
                     >
                       {suggestion}
                     </Button>
@@ -336,11 +401,22 @@ export const NewsletterSchedulingModal: React.FC<NewsletterSchedulingModalProps>
             <div className="flex items-center justify-between">
               <Label htmlFor="preheader_text">Preheader Text (Optional)</Label>
               {(() => {
-                const quality = assessContentQuality(formData.preheader_text, 'preheader');
-                const Icon = quality.level === 'excellent' || quality.level === 'good' ? CheckCircle : AlertTriangle;
-                const color = quality.level === 'excellent' ? 'text-green-600' : 
-                             quality.level === 'good' ? 'text-blue-600' : 
-                             quality.level === 'fair' ? 'text-yellow-600' : 'text-red-600';
+                const quality = assessContentQuality(
+                  formData.preheader_text,
+                  "preheader",
+                );
+                const Icon =
+                  quality.level === "excellent" || quality.level === "good"
+                    ? CheckCircle
+                    : AlertTriangle;
+                const color =
+                  quality.level === "excellent"
+                    ? "text-green-600"
+                    : quality.level === "good"
+                      ? "text-blue-600"
+                      : quality.level === "fair"
+                        ? "text-yellow-600"
+                        : "text-red-600";
                 return formData.preheader_text ? (
                   <div className={`flex items-center gap-1 text-xs ${color}`}>
                     <Icon className="w-3 h-3" />
@@ -352,7 +428,12 @@ export const NewsletterSchedulingModal: React.FC<NewsletterSchedulingModalProps>
             <Textarea
               id="preheader_text"
               value={formData.preheader_text}
-              onChange={(e) => setFormData(prev => ({ ...prev, preheader_text: sanitizeAndImproveContent(e.target.value) }))}
+              onChange={(e) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  preheader_text: sanitizeAndImproveContent(e.target.value),
+                }))
+              }
               placeholder="Preview text that appears in email clients..."
               rows={2}
             />
@@ -367,7 +448,12 @@ export const NewsletterSchedulingModal: React.FC<NewsletterSchedulingModalProps>
                       variant="ghost"
                       size="sm"
                       className="h-auto p-2 text-left justify-start text-xs"
-                      onClick={() => setFormData(prev => ({ ...prev, preheader_text: suggestion }))}
+                      onClick={() =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          preheader_text: suggestion,
+                        }))
+                      }
                     >
                       {suggestion}
                     </Button>
@@ -383,14 +469,16 @@ export const NewsletterSchedulingModal: React.FC<NewsletterSchedulingModalProps>
             <NativeSelect
               label="Target Audience"
               value={formData.segment_id}
-              onChange={(e) => setFormData(prev => ({ ...prev, segment_id: e.target.value }))}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, segment_id: e.target.value }))
+              }
               placeholder="Select audience segment"
               options={[
-                { value: '', label: 'All Customers' },
+                { value: "", label: "All Customers" },
                 ...segments.map((segment) => ({
                   value: segment.id,
-                  label: `${segment.name} (${segment.customer_count} customers)`
-                }))
+                  label: `${segment.name} (${segment.customer_count} customers)`,
+                })),
               ]}
             />
           </div>
@@ -405,11 +493,13 @@ export const NewsletterSchedulingModal: React.FC<NewsletterSchedulingModalProps>
                     variant="outline"
                     className={cn(
                       "w-full justify-start text-left font-normal",
-                      !formData.schedule_date && "text-muted-foreground"
+                      !formData.schedule_date && "text-muted-foreground",
                     )}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {formData.schedule_date ? format(formData.schedule_date, "PPP") : "Pick a date"}
+                    {formData.schedule_date
+                      ? format(formData.schedule_date, "PPP")
+                      : "Pick a date"}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
@@ -418,7 +508,10 @@ export const NewsletterSchedulingModal: React.FC<NewsletterSchedulingModalProps>
                     selected={formData.schedule_date}
                     onSelect={(date) => {
                       if (date) {
-                        setFormData(prev => ({ ...prev, schedule_date: date }));
+                        setFormData((prev) => ({
+                          ...prev,
+                          schedule_date: date,
+                        }));
                       }
                     }}
                     initialFocus
@@ -436,7 +529,12 @@ export const NewsletterSchedulingModal: React.FC<NewsletterSchedulingModalProps>
                   id="schedule_time"
                   type="time"
                   value={formData.schedule_time}
-                  onChange={(e) => setFormData(prev => ({ ...prev, schedule_time: e.target.value }))}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      schedule_time: e.target.value,
+                    }))
+                  }
                   className="pl-10"
                   required
                 />
@@ -447,7 +545,7 @@ export const NewsletterSchedulingModal: React.FC<NewsletterSchedulingModalProps>
           {/* Action Buttons */}
           <div className="flex items-center justify-between pt-4">
             <div>
-              {mode === 'edit' && existingNewsletter?.status !== 'sent' && (
+              {mode === "edit" && existingNewsletter?.status !== "sent" && (
                 <Button
                   type="button"
                   variant="destructive"
@@ -458,7 +556,7 @@ export const NewsletterSchedulingModal: React.FC<NewsletterSchedulingModalProps>
                 </Button>
               )}
             </div>
-            
+
             <div className="flex items-center gap-3">
               <Button type="button" variant="outline" onClick={onClose}>
                 <X className="h-4 w-4 mr-2" />
@@ -466,7 +564,11 @@ export const NewsletterSchedulingModal: React.FC<NewsletterSchedulingModalProps>
               </Button>
               <Button type="submit" disabled={loading}>
                 <Save className="h-4 w-4 mr-2" />
-                {loading ? 'Saving...' : mode === 'edit' ? 'Update Newsletter' : 'Schedule Newsletter'}
+                {loading
+                  ? "Saving..."
+                  : mode === "edit"
+                    ? "Update Newsletter"
+                    : "Schedule Newsletter"}
               </Button>
             </div>
           </div>

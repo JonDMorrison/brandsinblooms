@@ -2,8 +2,8 @@ import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
+import { CampaignDeliveryStatusCard } from "@/components/crm/CampaignDeliveryStatusCard";
 import {
   Dialog,
   DialogContent,
@@ -20,14 +20,13 @@ import {
   MousePointer,
   TrendingUp,
   Users,
-  DollarSign,
   AlertTriangle,
   Loader2,
   Trash2,
 } from "lucide-react";
 import { BouncedEmailsList } from "@/components/crm/BouncedEmailsList";
 import { useCampaignBounces } from "@/hooks/useCampaignBounces";
-import { toast } from "sonner";
+import { CampaignGovernanceMetricsCard } from "@/components/crm/CampaignGovernanceMetricsCard";
 
 interface CampaignMetrics {
   sent: number;
@@ -106,11 +105,7 @@ const CRMCampaignReport: React.FC = () => {
     campaignId || "",
   );
 
-  const {
-    data: campaign,
-    isLoading: campaignLoading,
-    refetch: refetchCampaign,
-  } = useQuery({
+  const { data: campaign, isLoading: campaignLoading } = useQuery({
     queryKey: ["campaign-report", campaignId],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -157,7 +152,14 @@ const CRMCampaignReport: React.FC = () => {
           .maybeSingle();
 
         if (segmentData) {
-          return [{ id: campaignData.segment_id, campaign_id: campaignId, segment_id: campaignData.segment_id, crm_segments: segmentData }];
+          return [
+            {
+              id: campaignData.segment_id,
+              campaign_id: campaignId,
+              segment_id: campaignData.segment_id,
+              crm_segments: segmentData,
+            },
+          ];
         }
       }
 
@@ -253,6 +255,8 @@ const CRMCampaignReport: React.FC = () => {
           </div>
         </div>
 
+        <CampaignDeliveryStatusCard campaignId={campaignId} />
+
         {/* Campaign Overview */}
         <Card>
           <CardHeader>
@@ -310,95 +314,45 @@ const CRMCampaignReport: React.FC = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">
-                    Open Rate
-                  </p>
-                  <p className="text-2xl font-bold">{openRate.toFixed(1)}%</p>
-                  <Progress value={openRate} className="mt-2 h-2" />
-                </div>
-                <Eye className="h-8 w-8 text-blue-500" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">
-                    Click Rate
-                  </p>
-                  <p className="text-2xl font-bold">{clickRate.toFixed(1)}%</p>
-                  <Progress value={clickRate} className="mt-2 h-2" />
-                </div>
-                <MousePointer className="h-8 w-8 text-green-500" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">
-                    Revenue
+                    Delivered
                   </p>
                   <p className="text-2xl font-bold">
-                    ${metrics.revenue.toFixed(2)}
+                    {metrics.delivered.toLocaleString()}
                   </p>
                 </div>
-                <DollarSign className="h-8 w-8 text-yellow-500" />
+                <Users className="h-8 w-8 text-primary" />
               </div>
             </CardContent>
           </Card>
-        </div>
 
-        {/* Detailed Metrics */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <Card>
-            <CardHeader>
-              <CardTitle>Delivery Performance</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex justify-between items-center">
-                <span className="text-sm">Delivery Rate</span>
-                <span className="font-medium">{deliveryRate.toFixed(1)}%</span>
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">
+                    Opened
+                  </p>
+                  <p className="text-2xl font-bold">
+                    {metrics.opened.toLocaleString()}
+                  </p>
+                </div>
+                <Eye className="h-8 w-8 text-primary" />
               </div>
-              <Progress value={deliveryRate} className="h-2" />
+            </CardContent>
+          </Card>
 
-              <div className="flex justify-between items-center">
-                <span className="text-sm">Bounce Rate</span>
-                <span className="font-medium text-destructive">
-                  {bounceRate.toFixed(1)}%
-                </span>
-              </div>
-              <Progress value={bounceRate} className="h-2" />
-
-              <div className="text-sm text-muted-foreground space-y-1">
-                <div className="flex justify-between">
-                  <span>Delivered:</span>
-                  <span>{metrics.delivered.toLocaleString()}</span>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">
+                    Clicked
+                  </p>
+                  <p className="text-2xl font-bold">
+                    {metrics.clicked.toLocaleString()}
+                  </p>
                 </div>
-                <div className="flex justify-between items-center">
-                  <span>Bounced:</span>
-                  <div className="flex items-center gap-2">
-                    <span>{metrics.bounced.toLocaleString()}</span>
-                    {metrics.bounced > 0 && unsuppressedCount > 0 && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 px-2 text-xs text-destructive hover:text-destructive"
-                        onClick={() => setShowCleanupDialog(true)}
-                      >
-                        <Trash2 className="h-3 w-3 mr-1" />
-                        Suppress
-                      </Button>
-                    )}
-                  </div>
-                </div>
-                <div className="flex justify-between">
-                  <span>Unsubscribed:</span>
-                  <span>{metrics.unsubscribed.toLocaleString()}</span>
-                </div>
+                <MousePointer className="h-8 w-8 text-primary" />
               </div>
             </CardContent>
           </Card>
@@ -438,6 +392,8 @@ const CRMCampaignReport: React.FC = () => {
             </CardContent>
           </Card>
         </div>
+
+        <CampaignGovernanceMetricsCard campaignId={campaignId} />
 
         {/* Performance Insights */}
         {campaign.status === "sent" && (

@@ -43,6 +43,8 @@ interface ConsentBatch {
 interface SuppressionBatch {
   tenant_id: string;
   email: string;
+  channel: string;
+  suppression_type: string;
   reason: string;
 }
 
@@ -93,9 +95,9 @@ async function batchUpsertContacts(
 
   const { data: contacts, error: contactError } = await supabase
     .from('crm_customers')
-    .upsert(contactBatch, { 
+    .upsert(contactBatch, {
       onConflict: 'tenant_id,email',
-      ignoreDuplicates: false 
+      ignoreDuplicates: false
     })
     .select('id, email');
 
@@ -127,7 +129,7 @@ async function batchUpsertConsents(
     const customerId = emailToIdMap.get(email);
     if (!customerId) continue;
 
-    const consentStatus = member.status === 'subscribed' ? 'opted_in' : 
+    const consentStatus = member.status === 'subscribed' ? 'opted_in' :
                          member.status === 'unsubscribed' ? 'opted_out' :
                          member.status === 'cleaned' ? 'suppressed' : 'suppressed';
 
@@ -143,9 +145,9 @@ async function batchUpsertConsents(
 
   const { error: consentError } = await supabase
     .from('customer_consents')
-    .upsert(consentBatch, { 
+    .upsert(consentBatch, {
       onConflict: 'customer_id,channel',
-      ignoreDuplicates: false 
+      ignoreDuplicates: false
     });
 
   if (consentError) {
@@ -173,9 +175,13 @@ async function batchUpsertSuppressions(
       const email = member.email_address?.toLowerCase();
       if (!email) continue;
 
+      const suppressionType = member.status === 'cleaned' ? 'bounced' : 'unsubscribed';
+
       suppressionBatch.push({
         tenant_id: tenantId,
         email,
+        channel: 'email',
+        suppression_type: suppressionType,
         reason: member.status === 'cleaned' ? 'Cleaned/bounced by Mailchimp' : 'Unsubscribed in Mailchimp'
       });
     }
@@ -185,10 +191,18 @@ async function batchUpsertSuppressions(
 
   const { error: suppressionError } = await supabase
     .from('suppression_list')
-    .upsert(suppressionBatch, { 
-      onConflict: 'tenant_id,email',
-      ignoreDuplicates: true 
-    });
+    .upsert(
+      suppressionBatch.map((s) => ({
+        ...s,
+        auto_suppressed: false,
+        suppressed_at: new Date().toISOString(),
+        lifted_at: null,
+      })),
+      {
+        onConflict: 'tenant_id,email,channel,suppression_type',
+        ignoreDuplicates: false,
+      }
+    );
 
   if (suppressionError) {
     console.error('[mailchimp-import] ❌ Batch suppression upsert error:', {
@@ -238,9 +252,9 @@ async function batchUpsertTags(
 
   const { data: tags, error: tagError } = await supabase
     .from('crm_tags')
-    .upsert(tagBatch, { 
+    .upsert(tagBatch, {
       onConflict: 'tenant_id,name',
-      ignoreDuplicates: false 
+      ignoreDuplicates: false
     })
     .select('id, name');
 
@@ -282,9 +296,9 @@ async function batchUpsertTags(
 
   const { error: linkError } = await supabase
     .from('customer_tags')
-    .upsert(contactTagBatch, { 
+    .upsert(contactTagBatch, {
       onConflict: 'contact_id,tag_id',
-      ignoreDuplicates: true 
+      ignoreDuplicates: true
     });
 
   if (linkError) {
@@ -328,9 +342,9 @@ async function batchInsertSources(
 
   const { error: sourceError } = await supabase
     .from('customer_sources')
-    .upsert(sourceBatch, { 
+    .upsert(sourceBatch, {
       onConflict: 'customer_id,source_type',
-      ignoreDuplicates: true 
+      ignoreDuplicates: true
     });
 
   if (sourceError) {
@@ -386,7 +400,7 @@ async function processMailchimpImport(
         status: 'running',
         started_at: new Date().toISOString()
       }).eq('id', jobId),
-      
+
       supabase.from('migration_jobs' as any).update({
         status: 'running',
         started_at: new Date().toISOString()
@@ -402,7 +416,7 @@ async function processMailchimpImport(
             status: 'paused',
             paused_at: new Date().toISOString()
           }).eq('id', jobId),
-          
+
           supabase.from('migration_jobs' as any).update({
             status: 'paused',
             paused_at: new Date().toISOString()
@@ -431,7 +445,7 @@ async function processMailchimpImport(
 
         const data = await response.json();
         const members = data.members || [];
-        
+
         if (members.length === 0) {
           hasMore = false;
           break;
@@ -444,10 +458,26 @@ async function processMailchimpImport(
           await batchUpsertTags(supabase, tenantId, members, emailToIdMap);
           await batchInsertSources(supabase, tenantId, members, emailToIdMap);
 
+          try {
+            await supabase.rpc('record_contact_import_event', {
+              p_tenant_id: tenantId,
+              p_source: 'mailchimp',
+              p_contact_count: members.length,
+              p_metadata: {
+                job_id: jobId,
+                migration_job_id: migrationJobId,
+                list_id: listId,
+                batch_number: currentBatch,
+              },
+            });
+          } catch (importEventError: any) {
+            console.warn('[mailchimp-import] Failed to record import activity event:', importEventError?.message || importEventError);
+          }
+
           totalContacts += members.length;
 
           const progressPercentage = Math.floor((offset / (data.total_items || 1)) * 100);
-          
+
           await Promise.all([
             supabase.rpc('update_import_job_progress', {
               p_job_id: jobId,
@@ -478,7 +508,7 @@ async function processMailchimpImport(
         } catch (error: any) {
           console.error('[mailchimp-import] Batch processing error:', error);
           totalErrors++;
-          
+
           await supabase.rpc('log_import_batch_error', {
             p_job_id: jobId,
             p_batch_number: currentBatch,
@@ -522,7 +552,7 @@ async function processMailchimpImport(
 
   } catch (error: any) {
     console.error('[mailchimp-import] Background processing error:', error);
-    
+
     await Promise.all([
       supabase.from('import_jobs').update({
         status: 'failed',
@@ -572,7 +602,7 @@ Deno.serve(async (req) => {
     if (userError || !user) {
       console.error('[mailchimp-import] Auth error:', userError);
       return new Response(
-        JSON.stringify({ 
+        JSON.stringify({
           error: 'Authentication failed',
           details: userError?.message || 'No user session'
         }),
@@ -684,8 +714,8 @@ Deno.serve(async (req) => {
 
     // Return immediate response
     return new Response(
-      JSON.stringify({ 
-        success: true, 
+      JSON.stringify({
+        success: true,
         jobId: importJob.id,
         migrationJobId: migrationJob.id,
         message: 'Import started in background',
@@ -699,13 +729,13 @@ Deno.serve(async (req) => {
 
   } catch (error: any) {
     console.error('[mailchimp-import] Error:', error.message);
-    
-    const statusCode = error.message?.includes('Auth') ? 401 
-      : error.message?.includes('not found') ? 404 
+
+    const statusCode = error.message?.includes('Auth') ? 401
+      : error.message?.includes('not found') ? 404
       : 500;
-    
+
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         error: error.message,
         type: error.name
       }),

@@ -7,11 +7,11 @@ export interface SenderConfig {
   isVerified: boolean;
   senderEmail: string;
   displayName: string;
-  deliveryMethod: 'shared' | 'platform' | 'custom';
+  deliveryMethod: 'custom';
   companyName?: string;
   domain?: string;
   domainStatus?: string;
-  fallbackEmail?: string;
+  replyToEmail?: string;
 }
 
 export const useSenderConfiguration = () => {
@@ -45,7 +45,7 @@ export const useSenderConfiguration = () => {
       // Include 'warming_up' status as it's also usable for sending
       const { data: activeDomains, error: domainsError } = await supabase
         .from('email_domains')
-        .select('id, domain, status, default_from_email, default_from_name')
+        .select('id, domain, status, default_from_email, default_from_name, default_reply_to')
         .eq('tenant_id', tenant.id)
         .in('status', ['active', 'warming_up'])
         .order('created_at', { ascending: false })
@@ -61,15 +61,18 @@ export const useSenderConfiguration = () => {
       // If we have an active custom domain, use it
       if (activeDomain) {
         const domainEmail = activeDomain.default_from_email || `mail@${activeDomain.domain}`;
+        const fromName = activeDomain.default_from_name || displayName;
+        const replyToEmail = activeDomain.default_reply_to || domainEmail;
 
         setSenderConfig({
           isVerified: true,
           senderEmail: domainEmail,
-          displayName: displayName,
+          displayName: fromName,
           deliveryMethod: 'custom',
           companyName: displayName,
           domain: activeDomain.domain,
           domainStatus: activeDomain.status,
+          replyToEmail,
         });
         setLoading(false);
         return;
@@ -89,32 +92,6 @@ export const useSenderConfiguration = () => {
 
       const latestDomain = latestDomains && latestDomains.length > 0 ? latestDomains[0] : null;
 
-      // Check for tenant platform fallback email
-      const { data: tenantData, error: tenantError } = await supabase
-        .from('tenants')
-        .select('fallback_sender_email, fallback_from_name, name')
-        .eq('id', tenant.id)
-        .single();
-
-      if (tenantError) {
-        console.error('Error fetching tenant data:', tenantError);
-      }
-
-      if (tenantData?.fallback_sender_email) {
-        setSenderConfig({
-          isVerified: false,
-          senderEmail: tenantData.fallback_sender_email,
-          displayName: displayName,
-          deliveryMethod: 'platform',
-          companyName: displayName,
-          fallbackEmail: tenantData.fallback_sender_email,
-          domain: latestDomain?.domain,
-          domainStatus: latestDomain?.status,
-        });
-        setLoading(false);
-        return;
-      }
-
       // Check legacy company_profiles verification
       const hasLegacyVerification =
         companyProfile?.email_auth_status === 'verified' &&
@@ -129,28 +106,31 @@ export const useSenderConfiguration = () => {
           companyName: displayName,
           domain: companyProfile.email_domain,
           domainStatus: 'active',
+          replyToEmail: companyProfile.custom_sender_email!,
         });
         setLoading(false);
         return;
       }
 
-      // Fallback to generic BloomSuite sender
+      // No operational sender configured
       setSenderConfig({
         isVerified: false,
-        senderEmail: 'noreply@bloomsuite.app',
+        senderEmail: '',
         displayName: displayName,
-        deliveryMethod: 'shared',
+        deliveryMethod: 'custom',
         companyName: displayName,
         domain: latestDomain?.domain,
         domainStatus: latestDomain?.status,
+        replyToEmail: '',
       });
     } catch (error) {
       console.error('Error in fetchSenderConfiguration:', error);
       setSenderConfig({
         isVerified: false,
-        senderEmail: 'noreply@bloomsuite.app',
+        senderEmail: '',
         displayName: 'Your Business',
-        deliveryMethod: 'shared'
+        deliveryMethod: 'custom',
+        replyToEmail: ''
       });
     } finally {
       setLoading(false);

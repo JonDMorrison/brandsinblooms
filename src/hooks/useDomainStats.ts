@@ -6,9 +6,6 @@ export interface DomainStats {
   domain_name: string;
   tenant_id: string;
   verification_status: string;
-  warmup_stage: number;
-  daily_limit: number;
-  daily_used: number;
   emails_sent_30d: number;
   emails_delivered_30d: number;
   emails_opened_30d: number;
