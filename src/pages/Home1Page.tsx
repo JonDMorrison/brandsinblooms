@@ -8,10 +8,13 @@ import { BarChart3, Target, Smartphone, Users, TrendingUp, Heart, Brain } from '
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Navigation, Pagination, EffectCoverflow } from 'swiper/modules';
 
-// Import Swiper styles
+// @ts-ignore - Swiper CSS imports
 import 'swiper/css';
+// @ts-ignore
 import 'swiper/css/navigation';
+// @ts-ignore
 import 'swiper/css/pagination';
+// @ts-ignore
 import 'swiper/css/effect-coverflow';
 
 export const Home1Page = () => {

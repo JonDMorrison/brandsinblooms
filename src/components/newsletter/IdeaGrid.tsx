@@ -8,7 +8,7 @@ import { Swiper, SwiperSlide } from 'swiper/react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
-// Import Swiper styles
+// @ts-ignore - Swiper CSS imports
 import 'swiper/css';
 
 interface IdeaGridProps {
