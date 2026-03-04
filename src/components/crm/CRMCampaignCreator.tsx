@@ -3973,7 +3973,8 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                         generatePreheaderText(topic, description),
                       sender_name: senderConfig?.displayName || "BloomSuite",
                       sender_email: senderConfig?.senderEmail || "",
-                      from_email_domain_id: senderConfig?.fromEmailDomainId || null,
+                      from_email_domain_id:
+                        senderConfig?.fromEmailDomainId || null,
                       content: "", // HTML will be generated when needed
                       segments: [],
                       schedule: { type: "immediate" as const },
