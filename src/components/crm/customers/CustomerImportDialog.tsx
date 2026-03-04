@@ -408,7 +408,7 @@ export const CustomerImportDialog: React.FC<CustomerImportDialogProps> = ({ onIm
 
       if (importedCount > 0) {
         try {
-          await supabase.rpc('record_contact_import_event', {
+          await supabase.rpc('record_contact_import_event' as never, {
             p_tenant_id: userRecord.tenant_id,
             p_source: 'csv_import',
             p_contact_count: importedCount,
@@ -418,7 +418,7 @@ export const CustomerImportDialog: React.FC<CustomerImportDialogProps> = ({ onIm
               parsed_count: parsedData.length,
               skipped_count: skippedCount,
             },
-          });
+          } as never);
         } catch (importEventError) {
           console.warn('Failed to record import activity event:', importEventError);
         }

@@ -396,7 +396,7 @@ function parseFunctionsInvokeError(error: unknown): {
       const message =
         (typeof parsed?.message === "string" && parsed.message) ||
         (typeof parsed?.error === "string" && parsed.error) ||
-        (typeof error?.message === "string" && error.message) ||
+        (typeof (error as any)?.message === "string" && (error as any).message) ||
         "Request failed";
       return { message, status };
     } catch {
@@ -1429,7 +1429,7 @@ function PreflightPanels(props: {
         { p_tenant_id: tenantId } as never,
       );
       if (error) throw error;
-      const row = (Array.isArray(data) ? data[0] : data) as any;
+      const row = (Array.isArray(data as any) ? (data as any)[0] : data) as any;
       if (!row) return null;
       return {
         score: Number(row.score ?? 100),
@@ -1461,7 +1461,7 @@ function PreflightPanels(props: {
         { p_tenant_id: tenantId } as never,
       );
       if (error) throw error;
-      const row = (Array.isArray(data) ? data[0] : data) as any;
+      const row = (Array.isArray(data as any) ? (data as any)[0] : data) as any;
       return row || null;
     },
   });
@@ -1972,7 +1972,7 @@ function PreflightPanels(props: {
       );
     }
 
-    if (overridesState === "warn" || overridesState === "block") {
+    if ((overridesState as string) === "warn" || (overridesState as string) === "block") {
       const reason =
         typeof (override as any)?.under_review_override_reason === "string" &&
         (override as any)?.under_review_override_reason
@@ -2064,7 +2064,7 @@ function PreflightPanels(props: {
       );
     }
 
-    if (audienceState === "warn" || audienceState === "block") {
+    if ((audienceState as string) === "warn" || (audienceState as string) === "block") {
       rows.push(
         <ComplianceRow
           key="audience"

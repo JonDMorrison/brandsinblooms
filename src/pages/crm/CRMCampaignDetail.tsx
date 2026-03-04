@@ -181,7 +181,7 @@ export default function CRMCampaignDetail() {
       return;
     }
 
-    const row = Array.isArray(data) ? data[0] : data;
+    const row = (Array.isArray(data as any) ? (data as any)[0] : data) as any;
     toast({
       title: "Campaign stopped",
       description: `Stopped ${row?.messages_stopped ?? 0} messages and ${row?.jobs_stopped ?? 0} jobs.`,

@@ -1284,7 +1284,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
       return;
     }
 
-    const row = Array.isArray(data) ? data[0] : data;
+    const row = (Array.isArray(data as any) ? (data as any)[0] : data) as any;
     toast({
       title: "Campaign stopped",
       description: `Stopped ${row?.messages_stopped ?? 0} messages and ${row?.jobs_stopped ?? 0} jobs.`,
@@ -4315,14 +4315,14 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
 
         for (const id of allSegmentIds) {
           if (isUuidLike(id)) {
-            const seg = crmById.get(id) || customById.get(id);
+            const seg = crmById.get(id) || customById.get(id) as any;
             if (seg) {
               hydratedSegments.push({
-                id: seg.id,
-                name: seg.name,
-                description: seg.description || undefined,
+                id: (seg as any).id,
+                name: (seg as any).name,
+                description: (seg as any).description || undefined,
                 type: "custom",
-                customer_count: seg.customer_count || 0,
+                customer_count: (seg as any).customer_count || 0,
               });
               continue;
             }
@@ -6807,10 +6807,10 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                     ? "currently sending"
                     : "scheduled"}
                   .
-                  {campaignStatus === "scheduled" &&
+                  {(campaignStatus as string) === "scheduled" &&
                     " Unschedule to edit content."}
                 </p>
-                {campaignStatus === "scheduled" && (
+                {(campaignStatus as string) === "scheduled" && (
                   <Button
                     variant="outline"
                     size="sm"
