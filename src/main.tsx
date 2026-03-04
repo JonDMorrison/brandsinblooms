@@ -19,7 +19,7 @@ import { initUptrace } from '@/utils/uptrace'
 import { logDevError, logPromiseRejection } from '@/utils/devErrorLogger'
 
 // Initialize Uptrace for frontend monitoring
-initUptrace()
+// initUptrace() // TEMPORARILY DISABLED
 
 // Global error handlers for enhanced debugging visibility
 const isDev = import.meta.env.DEV || 

@@ -6905,6 +6905,8 @@ export type Database = {
           admin_paused: boolean
           autopause_override_enabled: boolean
           autopause_override_precedence: string
+          autopause_override_reason: string | null
+          autopause_override_until: string | null
           campaign_id: string
           force_stopped: boolean
           tenant_id: string
@@ -6916,6 +6918,8 @@ export type Database = {
           admin_paused?: boolean
           autopause_override_enabled?: boolean
           autopause_override_precedence?: string
+          autopause_override_reason?: string | null
+          autopause_override_until?: string | null
           campaign_id: string
           force_stopped?: boolean
           tenant_id: string
@@ -6927,6 +6931,8 @@ export type Database = {
           admin_paused?: boolean
           autopause_override_enabled?: boolean
           autopause_override_precedence?: string
+          autopause_override_reason?: string | null
+          autopause_override_until?: string | null
           campaign_id?: string
           force_stopped?: boolean
           tenant_id?: string
@@ -6958,6 +6964,125 @@ export type Database = {
           },
         ]
       }
+      email_governance_campaign_throttle_events: {
+        Row: {
+          campaign_id: string
+          created_at: string
+          details: Json
+          event_type: string
+          id: string
+          reasons: string[]
+          source: string
+          tenant_id: string
+        }
+        Insert: {
+          campaign_id: string
+          created_at?: string
+          details?: Json
+          event_type: string
+          id?: string
+          reasons?: string[]
+          source?: string
+          tenant_id: string
+        }
+        Update: {
+          campaign_id?: string
+          created_at?: string
+          details?: Json
+          event_type?: string
+          id?: string
+          reasons?: string[]
+          source?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_governance_campaign_throttle_events_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "crm_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_governance_campaign_throttle_events_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "admin_tenant_overview"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "email_governance_campaign_throttle_events_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_governance_campaign_throttle_states: {
+        Row: {
+          campaign_id: string
+          cleared_at: string | null
+          created_at: string
+          is_throttled: boolean
+          last_evaluated_at: string | null
+          next_claimable_at: string | null
+          tenant_id: string
+          throttled_at: string | null
+          trigger_details: Json
+          trigger_reasons: string[]
+          updated_at: string
+        }
+        Insert: {
+          campaign_id: string
+          cleared_at?: string | null
+          created_at?: string
+          is_throttled?: boolean
+          last_evaluated_at?: string | null
+          next_claimable_at?: string | null
+          tenant_id: string
+          throttled_at?: string | null
+          trigger_details?: Json
+          trigger_reasons?: string[]
+          updated_at?: string
+        }
+        Update: {
+          campaign_id?: string
+          cleared_at?: string | null
+          created_at?: string
+          is_throttled?: boolean
+          last_evaluated_at?: string | null
+          next_claimable_at?: string | null
+          tenant_id?: string
+          throttled_at?: string | null
+          trigger_details?: Json
+          trigger_reasons?: string[]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_governance_campaign_throttle_states_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: true
+            referencedRelation: "crm_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_governance_campaign_throttle_states_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "admin_tenant_overview"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "email_governance_campaign_throttle_states_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_governance_email_events: {
         Row: {
           campaign_id: string | null
@@ -6974,6 +7099,7 @@ export type Database = {
           ingested_at: string
           ip_hash: string | null
           is_mpp_guess: boolean
+          is_spam_trap: boolean
           provider: string
           provider_event_id: string | null
           provider_message_id: string | null
@@ -6996,6 +7122,7 @@ export type Database = {
           ingested_at?: string
           ip_hash?: string | null
           is_mpp_guess?: boolean
+          is_spam_trap?: boolean
           provider?: string
           provider_event_id?: string | null
           provider_message_id?: string | null
@@ -7018,6 +7145,7 @@ export type Database = {
           ingested_at?: string
           ip_hash?: string | null
           is_mpp_guess?: boolean
+          is_spam_trap?: boolean
           provider?: string
           provider_event_id?: string | null
           provider_message_id?: string | null
@@ -7026,6 +7154,66 @@ export type Database = {
           webhook_delivery_id?: string | null
         }
         Relationships: []
+      }
+      email_governance_suppression_events: {
+        Row: {
+          channel: string
+          created_at: string
+          email: string
+          id: string
+          is_active: boolean
+          metadata: Json
+          occurred_at: string
+          reason: string | null
+          source: string
+          source_event_id: string | null
+          suppression_type: string
+          tenant_id: string
+        }
+        Insert: {
+          channel?: string
+          created_at?: string
+          email: string
+          id?: string
+          is_active?: boolean
+          metadata?: Json
+          occurred_at?: string
+          reason?: string | null
+          source?: string
+          source_event_id?: string | null
+          suppression_type: string
+          tenant_id: string
+        }
+        Update: {
+          channel?: string
+          created_at?: string
+          email?: string
+          id?: string
+          is_active?: boolean
+          metadata?: Json
+          occurred_at?: string
+          reason?: string | null
+          source?: string
+          source_event_id?: string | null
+          suppression_type?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_governance_suppression_events_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "admin_tenant_overview"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "email_governance_suppression_events_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       email_governance_tenant_control_state: {
         Row: {
@@ -13010,6 +13198,10 @@ export type Database = {
           city: string | null
           country: string | null
           created_at: string
+          email_under_review: boolean
+          email_under_review_at: string | null
+          email_under_review_details: Json
+          email_under_review_reason: string | null
           fallback_from_name: string | null
           fallback_sender_created_at: string | null
           fallback_sender_email: string | null
@@ -13028,6 +13220,10 @@ export type Database = {
           city?: string | null
           country?: string | null
           created_at?: string
+          email_under_review?: boolean
+          email_under_review_at?: string | null
+          email_under_review_details?: Json
+          email_under_review_reason?: string | null
           fallback_from_name?: string | null
           fallback_sender_created_at?: string | null
           fallback_sender_email?: string | null
@@ -13046,6 +13242,10 @@ export type Database = {
           city?: string | null
           country?: string | null
           created_at?: string
+          email_under_review?: boolean
+          email_under_review_at?: string | null
+          email_under_review_details?: Json
+          email_under_review_reason?: string | null
           fallback_from_name?: string | null
           fallback_sender_created_at?: string | null
           fallback_sender_email?: string | null
@@ -13910,6 +14110,16 @@ export type Database = {
         Args: { p_email: string; p_expires_at?: string; p_reason?: string }
         Returns: Json
       }
+      admin_add_tenant_suppression: {
+        Args: {
+          p_email: string
+          p_expires_at?: string
+          p_reason?: string
+          p_suppression_type: string
+          p_tenant_id: string
+        }
+        Returns: Json
+      }
       admin_apply_email_governance_profile: {
         Args: { p_profile: string; p_reason?: string }
         Returns: Json
@@ -13918,13 +14128,61 @@ export type Database = {
         Args: { p_ids: string[]; p_reason?: string }
         Returns: Json
       }
+      admin_bulk_lift_tenant_suppressions: {
+        Args: {
+          p_reason?: string
+          p_suppression_ids: string[]
+          p_tenant_id: string
+        }
+        Returns: Json
+      }
+      admin_clear_tenant_reputation_override: {
+        Args: { p_reason?: string; p_tenant_id: string }
+        Returns: Json
+      }
+      admin_clear_tenant_suppression_history: {
+        Args: { p_reason?: string; p_tenant_id: string }
+        Returns: Json
+      }
+      admin_clear_tenant_suppression_list: {
+        Args: { p_reason?: string; p_tenant_id: string }
+        Returns: Json
+      }
+      admin_clear_tenant_temporary_boost: {
+        Args: { p_reason?: string; p_tenant_id: string }
+        Returns: Json
+      }
       admin_delete_user: { Args: { target_user_id: string }; Returns: boolean }
+      admin_disable_tenant_reputation_penalties: {
+        Args: { p_reason?: string; p_tenant_id: string; p_until?: string }
+        Returns: Json
+      }
+      admin_enable_tenant_reputation_penalties: {
+        Args: { p_reason?: string; p_tenant_id: string }
+        Returns: Json
+      }
       admin_extend_trial: {
         Args: { p_days: number; p_tenant_id: string }
         Returns: undefined
       }
       admin_extend_trial_by_email: {
         Args: { p_days: number; p_email: string }
+        Returns: Json
+      }
+      admin_force_stop_campaign: {
+        Args: { p_campaign_id: string; p_reason?: string }
+        Returns: Json
+      }
+      admin_forgive_tenant_bounce_history: {
+        Args: { p_reason?: string; p_tenant_id: string }
+        Returns: Json
+      }
+      admin_forgive_tenant_complaint_history: {
+        Args: { p_reason?: string; p_tenant_id: string }
+        Returns: Json
+      }
+      admin_freeze_tenant_reputation_score: {
+        Args: { p_is_frozen: boolean; p_reason?: string; p_tenant_id: string }
         Returns: Json
       }
       admin_get_email_governance_config: { Args: never; Returns: Json }
@@ -13937,6 +14195,10 @@ export type Database = {
           total_tenants: number
         }[]
       }
+      admin_get_tenant_campaign_creation_lock: {
+        Args: { p_tenant_id: string }
+        Returns: Json
+      }
       admin_get_tenant_email_governance_overrides: {
         Args: { p_tenant_id: string }
         Returns: Json
@@ -13945,8 +14207,24 @@ export type Database = {
         Args: { p_as_of?: string; p_tenant_id: string }
         Returns: Json
       }
+      admin_get_tenant_suppression_controls: {
+        Args: { p_tenant_id: string }
+        Returns: Json
+      }
+      admin_get_tenant_under_review_override: {
+        Args: { p_tenant_id: string }
+        Returns: Json
+      }
       admin_lift_global_email_suppression: {
         Args: { p_id: string; p_reason?: string }
+        Returns: Json
+      }
+      admin_lift_tenant_suppression: {
+        Args: {
+          p_reason?: string
+          p_suppression_id: string
+          p_tenant_id: string
+        }
         Returns: Json
       }
       admin_list_global_email_suppressions: {
@@ -13966,6 +14244,10 @@ export type Database = {
           p_status_filter?: string
           p_tenant_id: string
         }
+        Returns: Json
+      }
+      admin_list_tenant_email_domains: {
+        Args: { p_tenant_id: string }
         Returns: Json
       }
       admin_list_tenant_suppressions: {
@@ -14009,13 +14291,140 @@ export type Database = {
           website: string
         }[]
       }
+      admin_pause_campaign: {
+        Args: { p_campaign_id: string; p_reason?: string }
+        Returns: Json
+      }
+      admin_pause_tenant_email_campaigns: {
+        Args: { p_reason?: string; p_tenant_id: string }
+        Returns: Json
+      }
+      admin_reset_campaign_restrictions: {
+        Args: { p_campaign_id: string; p_reason?: string }
+        Returns: Json
+      }
+      admin_resume_campaign: {
+        Args: { p_campaign_id: string; p_reason?: string }
+        Returns: Json
+      }
+      admin_resume_tenant_email_campaigns: {
+        Args: { p_reason?: string; p_tenant_id: string }
+        Returns: Json
+      }
+      admin_set_campaign_autopause_override: {
+        Args: {
+          p_campaign_id: string
+          p_enabled: boolean
+          p_precedence?: string
+          p_reason?: string
+          p_until?: string
+        }
+        Returns: Json
+      }
+      admin_set_campaign_intervention_state: {
+        Args: {
+          p_admin_paused: boolean
+          p_autopause_override_enabled: boolean
+          p_autopause_override_precedence?: string
+          p_autopause_override_until?: string
+          p_campaign_id: string
+          p_force_stopped: boolean
+          p_reason?: string
+        }
+        Returns: Json
+      }
       admin_set_email_governance_config: {
         Args: { p_config: Json; p_reason?: string }
+        Returns: Json
+      }
+      admin_set_tenant_campaign_creation_lock: {
+        Args: { p_locked: boolean; p_reason?: string; p_tenant_id: string }
+        Returns: Json
+      }
+      admin_set_tenant_email_governance_overrides:
+        | {
+            Args: {
+              p_overrides_in: Json
+              p_reason_in: string
+              p_tenant_id_in: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: { p_overrides: Json; p_reason?: string; p_tenant_id: string }
+            Returns: Json
+          }
+      admin_set_tenant_emergency_restriction: {
+        Args: {
+          p_enabled: boolean
+          p_reason?: string
+          p_tenant_id: string
+          p_until?: string
+        }
+        Returns: Json
+      }
+      admin_set_tenant_reputation_override: {
+        Args: {
+          p_expires_at?: string
+          p_mode?: string
+          p_reason?: string
+          p_score: number
+          p_tenant_id: string
+        }
+        Returns: Json
+      }
+      admin_set_tenant_sending_limits: {
+        Args: {
+          p_daily?: number
+          p_hourly?: number
+          p_monthly?: number
+          p_reason?: string
+          p_tenant_id: string
+        }
+        Returns: Json
+      }
+      admin_set_tenant_suppression_bypass: {
+        Args: {
+          p_automation_mode?: string
+          p_enabled: boolean
+          p_reason?: string
+          p_tenant_id: string
+          p_until?: string
+        }
+        Returns: Json
+      }
+      admin_set_tenant_temporary_boost: {
+        Args: {
+          p_daily?: number
+          p_hourly?: number
+          p_monthly?: number
+          p_reason?: string
+          p_tenant_id: string
+          p_until?: string
+        }
+        Returns: Json
+      }
+      admin_set_tenant_under_review_override: {
+        Args: {
+          p_enabled: boolean
+          p_precedence?: string
+          p_reason?: string
+          p_tenant_id: string
+          p_until?: string
+        }
+        Returns: Json
+      }
+      admin_set_tenant_unlimited_sending: {
+        Args: { p_enabled: boolean; p_reason?: string; p_tenant_id: string }
         Returns: Json
       }
       admin_toggle_tenant_active: {
         Args: { p_active: boolean; p_tenant_id: string }
         Returns: undefined
+      }
+      admin_unpause_tenant_email_domain: {
+        Args: { p_domain_id: string; p_reason?: string; p_tenant_id: string }
+        Returns: Json
       }
       advance_automation_step: {
         Args: { p_next_scheduled_at?: string; p_run_id: string }
@@ -14352,6 +14761,18 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      claim_unowned_crm_campaign: {
+        Args: { p_campaign_id: string }
+        Returns: boolean
+      }
+      cleanup_expired_email_governance_overrides: {
+        Args: {
+          p_campaign_id?: string
+          p_source?: string
+          p_tenant_id?: string
+        }
+        Returns: Json
+      }
       cleanup_expired_oauth_states: { Args: never; Returns: undefined }
       cleanup_old_oauth_codes: { Args: never; Returns: undefined }
       cleanup_stale_sync_jobs: { Args: never; Returns: number }
@@ -14410,7 +14831,7 @@ export type Database = {
         Returns: string
       }
       email_gov_cfg_int: { Args: { p_path: string[] }; Returns: number }
-      email_gov_cfg_interval: { Args: { p_path: string[] }; Returns: unknown }
+      email_gov_cfg_interval: { Args: { p_path: string[] }; Returns: string }
       email_gov_cfg_num: { Args: { p_path: string[] }; Returns: number }
       email_gov_cfg_value: { Args: { p_path: string[] }; Returns: Json }
       email_gov_eff_int: {
