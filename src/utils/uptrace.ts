@@ -9,11 +9,45 @@ import { getWebAutoInstrumentations } from '@opentelemetry/auto-instrumentations
 
 let sdk: ReturnType<typeof Uptrace.configureOpentelemetry> | null = null;
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function getSupabaseIgnoreUrls(): Array<string | RegExp> {
+  const fallbackSupabaseUrl = 'https://udldmkqwnxhdeztyqcau.supabase.co';
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || fallbackSupabaseUrl;
+
+  try {
+    const host = new URL(supabaseUrl).host;
+    const escapedHost = escapeRegExp(host);
+    return [new RegExp(`^https?://${escapedHost}(?:/|$)`, 'i')];
+  } catch {
+    return [fallbackSupabaseUrl];
+  }
+}
+
 /**
  * Initialize Uptrace for the frontend
  * Should be called once in main.tsx
  */
 export function initUptrace() {
+  // Temporary kill-switch for debugging.
+  // - Build-time: set VITE_DISABLE_TELEMETRY=true
+  // - Runtime: append ?telemetry=off
+  try {
+    const envDisabled = String(import.meta.env.VITE_DISABLE_TELEMETRY || '').toLowerCase() === 'true';
+    const urlDisabled =
+      typeof window !== 'undefined' &&
+      new URLSearchParams(window.location.search).get('telemetry') === 'off';
+
+    if (envDisabled || urlDisabled) {
+      console.warn('[Uptrace] Telemetry disabled (kill-switch)');
+      return;
+    }
+  } catch {
+    // ignore
+  }
+
   const uptraceDsn = import.meta.env.VITE_UPTRACE_DSN;
   
   if (!uptraceDsn) {
@@ -27,6 +61,8 @@ export function initUptrace() {
   }
 
   try {
+    const ignoreUrls = getSupabaseIgnoreUrls();
+
     // Enable debug logging for OpenTelemetry (only in development)
     if (import.meta.env.DEV) {
       diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.DEBUG);
@@ -49,10 +85,12 @@ export function initUptrace() {
           '@opentelemetry/instrumentation-fetch': {
             propagateTraceHeaderCorsUrls: /.+/g,
             clearTimingResources: true,
+            ignoreUrls,
           },
           // Track XHR requests
           '@opentelemetry/instrumentation-xml-http-request': {
             propagateTraceHeaderCorsUrls: /.+/g,
+            ignoreUrls,
           },
           // Track document load events
           '@opentelemetry/instrumentation-document-load': {},
