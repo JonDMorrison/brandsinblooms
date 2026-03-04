@@ -1095,11 +1095,24 @@ const updateCampaignMetrics = async (supabase: any, campaignId: string) => {
     throw eventsError;
   }
 
-  // Count unique recipients per event type
+  // Normalize event type aliases before counting
+  const eventTypeMap: Record<string, string> = {
+    sent: 'sent',
+    delivered: 'delivered',
+    bounced: 'bounced',
+    opened: 'opened',
+    open: 'opened',
+    clicked: 'clicked',
+    click: 'clicked',
+    complained: 'complained',
+    unsubscribed: 'unsubscribed',
+  };
+
+  // Count unique recipients per normalized event type
   const uniqueByType = new Map<string, Set<string>>();
 
   for (const event of events || []) {
-    const key = event.event_type;
+    const key = eventTypeMap[event.event_type] || event.event_type;
     if (!uniqueByType.has(key)) {
       uniqueByType.set(key, new Set());
     }

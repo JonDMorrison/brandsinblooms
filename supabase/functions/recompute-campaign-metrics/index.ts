@@ -50,9 +50,23 @@ serve(async (req: Request): Promise<Response> => {
         unsubscribed: 0
       };
 
+      // Normalize event_type aliases: redirect-click stores 'click', webhook stores 'clicked'; similar for 'open'/'opened'
+      const eventTypeMap: Record<string, keyof typeof counts> = {
+        sent: 'sent',
+        delivered: 'delivered',
+        bounced: 'bounced',
+        opened: 'opened',
+        open: 'opened',
+        clicked: 'clicked',
+        click: 'clicked',
+        complained: 'complained',
+        unsubscribed: 'unsubscribed',
+      };
+
       for (const event of events || []) {
-        if (event.event_type in counts) {
-          counts[event.event_type as keyof typeof counts]++;
+        const normalizedType = eventTypeMap[event.event_type];
+        if (normalizedType) {
+          counts[normalizedType]++;
         }
       }
 
