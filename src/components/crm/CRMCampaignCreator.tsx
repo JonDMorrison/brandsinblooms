@@ -1157,16 +1157,17 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   const [sending, setSending] = useState(false);
   const [showSenderConfirmation, setShowSenderConfirmation] = useState(false);
   const [showSendConfirmation, setShowSendConfirmation] = useState(false);
+  const [pendingSendFlow, setPendingSendFlow] = useState(false);
   const [showAIImageDialog, setShowAIImageDialog] = useState(false);
   const [editingBlockId, setEditingBlockId] = useState<string | null>(null);
 
   const refreshCampaignStatusFromDb = useCallback(
     async (campaignId: string) => {
-      const { data, error } = await supabase
+      const { data: rows, error } = await supabase
         .from("crm_campaigns")
         .select("status, scheduled_at")
         .eq("id", campaignId)
-        .maybeSingle();
+        .limit(1);
 
       if (error) {
         if (import.meta.env.DEV) {
@@ -1174,6 +1175,8 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         }
         return;
       }
+
+      const data = Array.isArray(rows) ? rows[0] : null;
 
       if (data?.status) {
         setCampaignStatus(data.status);
@@ -1462,7 +1465,31 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
     const run = async () => {
       if (!tenant?.id) return;
 
-      // Prefer DB-sourced targeting when editing an existing campaign
+      // Prefer in-memory targeting when the user has made selections in this session.
+      // (If we always read from DB for existing campaigns, the confirmation dialog
+      // can temporarily show stale "All Contacts" while targeting is being persisted.)
+      const stateSegmentIds = (selectedSegments || [])
+        .map((s: any) => String(s?.id || "").trim())
+        .filter(Boolean);
+      const statePersonaIds = (selectedPersonas || [])
+        .map((p: any) => String(p?.id || "").trim())
+        .filter(Boolean);
+
+      if (stateSegmentIds.length > 0 || statePersonaIds.length > 0) {
+        try {
+          const count = await computeAudienceRecipientCount({
+            segmentIds: stateSegmentIds,
+            personaIds: statePersonaIds,
+          });
+          if (!cancelled) setCampaignAudienceRecipientCount(count);
+        } catch (error) {
+          console.error("❌ Failed to resolve campaign audience count:", error);
+          if (!cancelled) setCampaignAudienceRecipientCount(null);
+        }
+        return;
+      }
+
+      // Otherwise, when editing an existing campaign, derive from DB-sourced targeting.
       const campaignId = existingCampaignId;
       if (campaignId) {
         try {
@@ -1528,24 +1555,8 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         }
       }
 
-      // New/unsaved campaign: derive from in-memory selections
-      const segmentIds = (selectedSegments || [])
-        .map((s: any) => String(s?.id || "").trim())
-        .filter(Boolean);
-      const personaIds = (selectedPersonas || [])
-        .map((p: any) => String(p?.id || "").trim())
-        .filter(Boolean);
-
-      try {
-        const count = await computeAudienceRecipientCount({
-          segmentIds,
-          personaIds,
-        });
-        if (!cancelled) setCampaignAudienceRecipientCount(count);
-      } catch (error) {
-        console.error("❌ Failed to resolve campaign audience count:", error);
-        if (!cancelled) setCampaignAudienceRecipientCount(null);
-      }
+      // New/unsaved campaign with no explicit selection: All Contacts.
+      if (!cancelled) setCampaignAudienceRecipientCount(totalCustomerCount);
     };
 
     run();
@@ -1605,11 +1616,11 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
       // Ensure tenant_id is set; RLS policies typically rely on it.
       let tenantId = tenant?.id;
       if (!tenantId) {
-        const { data: userRow, error: userRowError } = await supabase
+        const { data: userRows, error: userRowError } = await supabase
           .from("users")
           .select("tenant_id")
           .eq("id", user.id)
-          .maybeSingle();
+          .limit(1);
 
         if (userRowError) {
           console.warn(
@@ -1618,6 +1629,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           );
         }
 
+        const userRow = Array.isArray(userRows) ? userRows[0] : null;
         tenantId = userRow?.tenant_id ?? null;
       }
 
@@ -1628,7 +1640,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         return null;
       }
 
-      const { data, error } = await supabase
+      const { data: insertedRows, error } = await supabase
         .from("crm_campaigns")
         .insert({
           tenant_id: tenantId,
@@ -1640,22 +1652,27 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })
-        .select("id")
-        .single();
+        .select("id");
 
       if (error) {
         console.error("❌ Failed to create draft campaign:", error);
         return null;
       }
 
-      console.log("✅ Draft campaign created:", data.id);
-      setExistingCampaignId(data.id);
+      const inserted = Array.isArray(insertedRows) ? insertedRows[0] : null;
+      if (!inserted?.id) {
+        console.error("❌ Failed to create draft campaign: no row returned");
+        return null;
+      }
+
+      console.log("✅ Draft campaign created:", inserted.id);
+      setExistingCampaignId(inserted.id);
 
       // Update URL to include the new campaign ID
       const url = new URL(window.location.href);
-      navigate(`/crm/campaigns/${data.id}`, { replace: true });
+      navigate(`/crm/campaigns/${inserted.id}`, { replace: true });
 
-      return data.id;
+      return inserted.id;
     } catch (error) {
       console.error("❌ Error creating draft campaign:", error);
       return null;
@@ -1702,6 +1719,12 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           // Revert UI selection back to "Now" so it doesn't look like it saved.
           skipNextSchedulePersistRef.current = true;
           setSchedule({ type: "now" });
+          return;
+        }
+
+        // Only auto-persist schedule edits for campaigns that are already scheduled.
+        // New schedules should be confirmed via the CampaignSendConfirmationModal.
+        if (campaignStatus !== "scheduled") {
           return;
         }
 
@@ -2062,6 +2085,144 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
     },
     [existingCampaignId, enqueueSave, toast],
   );
+
+  const persistCampaignAudienceToDb = useCallback(
+    async (campaignId: string) => {
+      if (!campaignId) return;
+
+      // Only persist DB-safe IDs (UUIDs) to FK-backed tables/columns.
+      const segmentIds = (selectedSegments || [])
+        .map((s: any) => String(s?.id || "").trim())
+        .filter((id) => id.length > 0 && isUuidLike(id));
+
+      const personaIds = (selectedPersonas || [])
+        .map((p: any) => String(p?.id || "").trim())
+        .filter(Boolean);
+
+      return enqueueSave(async () => {
+        // Keep join tables in sync with current selection.
+        const [{ error: delSegErr }, { error: delPersErr }] = await Promise.all(
+          [
+            supabase
+              .from("campaign_segments")
+              .delete()
+              .eq("campaign_id", campaignId),
+            supabase
+              .from("campaign_personas")
+              .delete()
+              .eq("campaign_id", campaignId),
+          ],
+        );
+
+        if (delSegErr) throw delSegErr;
+        if (delPersErr) throw delPersErr;
+
+        // Single segment is stored on crm_campaigns.segment_id (FK) for legacy compatibility.
+        // Multiple segments are stored in campaign_segments.
+        if (segmentIds.length === 1) {
+          const { error: updateErr } = await supabase
+            .from("crm_campaigns")
+            .update({ segment_id: segmentIds[0] })
+            .eq("id", campaignId);
+          if (updateErr) throw updateErr;
+        } else {
+          const { error: clearErr } = await supabase
+            .from("crm_campaigns")
+            .update({ segment_id: null })
+            .eq("id", campaignId);
+          if (clearErr) throw clearErr;
+
+          if (segmentIds.length > 1) {
+            const { error: insertErr } = await supabase
+              .from("campaign_segments")
+              .insert(
+                segmentIds.map((segmentId) => ({
+                  campaign_id: campaignId,
+                  segment_id: segmentId,
+                })),
+              );
+            if (insertErr) throw insertErr;
+          }
+        }
+
+        // Persist personas as both an array field (crm_campaigns.persona_ids)
+        // and a join table (campaign_personas) for compatibility across screens.
+        const { error: personaFieldErr } = await supabase
+          .from("crm_campaigns")
+          .update({ persona_ids: personaIds.length > 0 ? personaIds : [] })
+          .eq("id", campaignId);
+        if (personaFieldErr) throw personaFieldErr;
+
+        const uuidPersonaIds = personaIds.filter((id) => isUuidLike(id));
+        if (uuidPersonaIds.length > 0) {
+          const { error: personaInsertErr } = await supabase
+            .from("campaign_personas")
+            .insert(
+              uuidPersonaIds.map((personaId) => ({
+                campaign_id: campaignId,
+                persona_id: personaId,
+              })),
+            );
+          if (personaInsertErr) throw personaInsertErr;
+        }
+      });
+    },
+    [enqueueSave, isUuidLike, selectedPersonas, selectedSegments],
+  );
+
+  const audiencePersistTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Persist audience selection so refresh restores the chosen segment(s)/persona(s).
+  useEffect(() => {
+    // Avoid persisting while we are still loading the campaign.
+    if (loadingExistingCampaign) return;
+
+    // Cancel any pending persist
+    if (audiencePersistTimeoutRef.current) {
+      clearTimeout(audiencePersistTimeoutRef.current);
+      audiencePersistTimeoutRef.current = null;
+    }
+
+    const hasAudienceSelection =
+      (selectedSegments?.length || 0) > 0 ||
+      (selectedPersonas?.length || 0) > 0;
+
+    // If nothing is selected and we don't have a campaign yet, nothing to do.
+    if (!hasAudienceSelection && !existingCampaignId) return;
+
+    // Debounce to avoid hammering DB while user clicks around.
+    audiencePersistTimeoutRef.current = setTimeout(() => {
+      void (async () => {
+        let campaignId = existingCampaignId;
+        if (!campaignId) {
+          // Create a draft so the targeting survives refresh.
+          campaignId = await createDraftCampaign();
+        }
+        if (!campaignId) return;
+        try {
+          await persistCampaignAudienceToDb(campaignId);
+        } catch (error) {
+          if (import.meta.env.DEV) {
+            console.warn("Failed to persist campaign targeting:", error);
+          }
+        }
+      })();
+    }, 800);
+
+    return () => {
+      if (audiencePersistTimeoutRef.current) {
+        clearTimeout(audiencePersistTimeoutRef.current);
+        audiencePersistTimeoutRef.current = null;
+      }
+    };
+  }, [
+    selectedSegments,
+    selectedPersonas,
+    existingCampaignId,
+    loadingExistingCampaign,
+    createDraftCampaign,
+    persistCampaignAudienceToDb,
+  ]);
 
   // Immediate save for critical updates like image generation
   // Uses a 500ms batching window to collect concurrent image saves
@@ -5709,6 +5870,9 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           preheader: preheaderText,
         });
 
+        // Ensure audience selection is persisted as part of an explicit Save.
+        await persistCampaignAudienceToDb(existingCampaignId);
+
         console.log("✅ Campaign updated successfully");
 
         toast({
@@ -5760,7 +5924,10 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           sender_email: senderConfig?.senderEmail || "",
           content: htmlContent,
           preheader: preheaderText,
-          segments: [], // Default empty segments for now
+          // Persist segments to DB so refresh doesn't revert to "All Contacts"
+          segments: (selectedSegments || []).filter((s: any) =>
+            isUuidLike(String(s?.id || "")),
+          ),
           schedule: {
             type: "immediate",
           },
@@ -5784,6 +5951,9 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
 
         // Save campaign using the service
         const result = await saveCampaignAsDraft(campaignData);
+
+        // Persist personas + join tables (service currently handles segments only).
+        await persistCampaignAudienceToDb(result.id);
 
         console.log("✅ Campaign created successfully:", result);
 
@@ -5814,59 +5984,111 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
     }
   };
 
+  const scheduleTriggeredConfirmationRef = useRef(false);
+
+  const openSendConfirmation = useCallback(
+    async (origin: "send" | "schedule") => {
+      scheduleTriggeredConfirmationRef.current = origin === "schedule";
+
+      // Validate required fields
+      if (!campaignName.trim()) {
+        toast({
+          title: "Campaign name required",
+          description: "Please enter a campaign name before sending.",
+          variant: "destructive",
+        });
+        if (origin === "schedule") {
+          skipNextSchedulePersistRef.current = true;
+          setSchedule({ type: "now" });
+        }
+        return;
+      }
+
+      if (!subjectLine.trim()) {
+        toast({
+          title: "Subject line required",
+          description: "Please enter a subject line before sending.",
+          variant: "destructive",
+        });
+        if (origin === "schedule") {
+          skipNextSchedulePersistRef.current = true;
+          setSchedule({ type: "now" });
+        }
+        return;
+      }
+
+      // Sender config can briefly be unavailable while tenant/user context hydrates.
+      // Avoid opening the SenderVerificationModal in that window (it causes a two-click send).
+      if (loadingSenderConfig || !senderConfig) {
+        if (!pendingSendFlow) {
+          setPendingSendFlow(true);
+          toast({
+            title: "Loading sender settings",
+            description:
+              "Please wait a moment while we load your email sending configuration.",
+          });
+          // Best-effort refresh; hook will also re-run when tenant/user becomes available.
+          refetchSenderConfig();
+        }
+        return;
+      }
+
+      // Campaigns must use an operational custom domain (no fallback senders)
+      if (!senderConfig?.isVerified || !senderConfig?.senderEmail) {
+        setShowSenderConfirmation(true);
+        return;
+      }
+
+      // Show the send confirmation modal with audience summary
+      setShowSendConfirmation(true);
+    },
+    [
+      campaignName,
+      subjectLine,
+      loadingSenderConfig,
+      senderConfig,
+      pendingSendFlow,
+      refetchSenderConfig,
+      toast,
+    ],
+  );
+
   const handleSendCampaign = async () => {
-    // Validate required fields
-    if (!campaignName.trim()) {
-      toast({
-        title: "Campaign name required",
-        description: "Please enter a campaign name before sending.",
-        variant: "destructive",
-      });
-      return;
-    }
+    await openSendConfirmation("send");
+  };
 
-    if (!subjectLine.trim()) {
-      toast({
-        title: "Subject line required",
-        description: "Please enter a subject line before sending.",
-        variant: "destructive",
-      });
-      return;
-    }
+  const handleScheduleChange = useCallback(
+    (newSchedule: ScheduleOption) => {
+      setSchedule(newSchedule);
 
-    if (loadingSenderConfig) {
-      toast({
-        title: "Loading sender settings",
-        description:
-          "Please wait a moment while we load your email sending configuration.",
-      });
-      return;
-    }
+      if (newSchedule.type === "scheduled" && newSchedule.date) {
+        void openSendConfirmation("schedule");
+      }
+    },
+    [openSendConfirmation],
+  );
 
-    // Check if audience is selected
-    // Allow sending to All Contacts when no segments/personas are selected
-    // Previously blocked when selectedSegments.length === 0
-    // This change enables "All Contacts" default audience
-    // (Backend should handle empty segments as all contacts)
-    // If you want to force targeting, re-enable this validation.
-    // if (selectedSegments.length === 0) {
-    //   toast({
-    //     title: "Audience required",
-    //     description: "Please select customer segments in the Audience section before sending.",
-    //     variant: "destructive"
-    //   });
-    //   return;
-    // }
+  // If the user clicked Send while sender config was still loading, automatically
+  // continue the flow once senderConfig becomes available.
+  useEffect(() => {
+    if (!pendingSendFlow) return;
+    if (loadingSenderConfig) return;
+    if (!senderConfig) return;
 
-    // Campaigns must use an operational custom domain (no fallback senders)
-    if (!senderConfig?.isVerified || !senderConfig?.senderEmail) {
+    setPendingSendFlow(false);
+
+    if (!senderConfig.isVerified || !senderConfig.senderEmail) {
       setShowSenderConfirmation(true);
       return;
     }
 
-    // Show the send confirmation modal with audience summary
-    setShowSendConfirmation(true);
-  };
+    void openSendConfirmation("send");
+  }, [
+    pendingSendFlow,
+    loadingSenderConfig,
+    senderConfig,
+    openSendConfirmation,
+  ]);
 
   const proceedWithSending = async () => {
     try {
@@ -5901,7 +6123,10 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         sender_email: senderConfig?.senderEmail || "",
         content: generateEmailHTML(),
         preheader: preheaderText,
-        segments: selectedSegments,
+        // Only persist DB-safe segment IDs (UUIDs) to FK-backed storage.
+        segments: (selectedSegments || []).filter((s: any) =>
+          isUuidLike(String(s?.id || "")),
+        ),
         schedule:
           schedule.type === "scheduled"
             ? { type: "scheduled", send_at: schedule.date?.toISOString() }
@@ -5950,11 +6175,38 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           campaign.id,
           schedule.date.toISOString(),
           schedule.timezone,
+          {
+            silent: true,
+            onFailureMessage: (message) => {
+              if (isScheduleLockedMessage(message)) {
+                openLockedScheduleDialog({
+                  message,
+                  desiredSchedule: {
+                    date: schedule.date as Date,
+                    timezone: schedule.timezone,
+                  },
+                });
+                return;
+              }
+
+              toast({
+                title: "Schedule not saved",
+                description: message,
+                variant: "destructive",
+              });
+            },
+          },
         );
 
         if (success) {
+          skipNextSchedulePersistRef.current = true;
           setCampaignStatus("scheduled");
           setScheduledAt(schedule.date.toISOString());
+          toast({
+            title: "Campaign scheduled",
+            description:
+              "Your campaign is scheduled and will send at the chosen time.",
+          });
         }
 
         return;
@@ -6366,7 +6618,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         loading={loading}
         hasGeneratingImages={hasGeneratingImages}
         schedule={schedule}
-        onScheduleChange={setSchedule}
+        onScheduleChange={handleScheduleChange}
         onSend={handleSendCampaign}
         onSave={handleSave}
         onPreview={() => setShowPreview(true)}
@@ -6388,6 +6640,10 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           onEditSchedule={handleEditSchedule}
           onSendNow={handleSendScheduledNow}
           onUnschedule={handleUnschedule}
+          onPause={handlePauseCampaignSending}
+          onResume={handleResumeCampaignSending}
+          onStop={handleStopCampaignSending}
+          campaignControlBusyAction={campaignControlBusyAction}
           isProcessing={isScheduleProcessing}
         />
 
@@ -6787,8 +7043,22 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         {/* Campaign Send Confirmation Modal */}
         <CampaignSendConfirmationModal
           isOpen={showSendConfirmation}
-          onClose={() => setShowSendConfirmation(false)}
+          onClose={() => {
+            setShowSendConfirmation(false);
+
+            if (scheduleTriggeredConfirmationRef.current) {
+              scheduleTriggeredConfirmationRef.current = false;
+
+              // If the user picked a schedule but cancelled confirmation,
+              // revert UI back to Send Now (draft should not be scheduled).
+              if (campaignStatus !== "scheduled") {
+                skipNextSchedulePersistRef.current = true;
+                setSchedule({ type: "now" });
+              }
+            }
+          }}
           onConfirm={() => {
+            scheduleTriggeredConfirmationRef.current = false;
             setShowSendConfirmation(false);
             proceedWithSending();
           }}
@@ -6840,7 +7110,12 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         {/* Sender Setup Modal (custom domain required) */}
         <SenderVerificationModal
           open={showSenderConfirmation}
-          onOpenChange={setShowSenderConfirmation}
+          onOpenChange={(open) => {
+            setShowSenderConfirmation(open);
+            if (!open) {
+              refetchSenderConfig();
+            }
+          }}
           senderConfig={senderConfig}
         />
 

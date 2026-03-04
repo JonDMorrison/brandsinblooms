@@ -172,6 +172,11 @@ export function AppSidebar() {
           icon: Settings,
         },
         {
+          title: "Manage Domains",
+          url: "/crm/settings/email-sending",
+          icon: Mail,
+        },
+        {
           title: "Integrations",
           url: "/integrations",
           icon: Layers,

@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 import {
   Building2,
   Mail,
@@ -25,7 +26,7 @@ import {
   User,
   ExternalLink,
   Save,
-  RotateCcw
+  RotateCcw,
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 
@@ -106,7 +107,10 @@ const createEmptyFormState = (): OverrideFormState => ({
   batchMaxSize: emptyField(),
 });
 
-function toFieldFromNumber(rawValue: unknown, isPercent = false): OverrideFieldState {
+function toFieldFromNumber(
+  rawValue: unknown,
+  isPercent = false,
+): OverrideFieldState {
   const numericValue = Number(rawValue);
   if (!Number.isFinite(numericValue)) {
     return emptyField();
@@ -114,7 +118,9 @@ function toFieldFromNumber(rawValue: unknown, isPercent = false): OverrideFieldS
 
   return {
     enabled: true,
-    value: isPercent ? String(Number((numericValue * 100).toFixed(3))) : String(numericValue),
+    value: isPercent
+      ? String(Number((numericValue * 100).toFixed(3)))
+      : String(numericValue),
   };
 }
 
@@ -125,25 +131,74 @@ function getNested(source: unknown, path: string[]): unknown {
   }, source);
 }
 
-function formStateFromOverrides(overrides: Record<string, unknown> | null | undefined): OverrideFormState {
+function formStateFromOverrides(
+  overrides: Record<string, unknown> | null | undefined,
+): OverrideFormState {
   const source = overrides || {};
   return {
-    hardBounceRate: toFieldFromNumber(getNested(source, ["hard_stop_thresholds", "hard_bounce_rate"]), true),
-    complaintRate: toFieldFromNumber(getNested(source, ["hard_stop_thresholds", "complaint_rate"]), true),
-    spamRate: toFieldFromNumber(getNested(source, ["hard_stop_thresholds", "spam_rate"]), true),
-    healthyMin: toFieldFromNumber(getNested(source, ["reputation_tiers", "healthy_min"])),
-    warningMin: toFieldFromNumber(getNested(source, ["reputation_tiers", "warning_min"])),
-    riskMin: toFieldFromNumber(getNested(source, ["reputation_tiers", "risk_min"])),
-    throttledRecipientCap: toFieldFromNumber(getNested(source, ["reputation_tiers", "throttled", "recipient_cap"])),
-    throttledJobBatchSize: toFieldFromNumber(getNested(source, ["reputation_tiers", "throttled", "job_batch_size"])),
-    throttledPacingMultiplier: toFieldFromNumber(getNested(source, ["reputation_tiers", "throttled", "send_pacing_multiplier"])),
-    restrictedRecipientCap: toFieldFromNumber(getNested(source, ["reputation_tiers", "restricted", "recipient_cap"])),
-    restrictedJobBatchSize: toFieldFromNumber(getNested(source, ["reputation_tiers", "restricted", "job_batch_size"])),
-    restrictedPacingMultiplier: toFieldFromNumber(getNested(source, ["reputation_tiers", "restricted", "send_pacing_multiplier"])),
-    criticalRecipientCap: toFieldFromNumber(getNested(source, ["reputation_tiers", "critical", "recipient_cap"])),
-    criticalJobBatchSize: toFieldFromNumber(getNested(source, ["reputation_tiers", "critical", "job_batch_size"])),
-    criticalPacingMultiplier: toFieldFromNumber(getNested(source, ["reputation_tiers", "critical", "send_pacing_multiplier"])),
-    batchMaxSize: toFieldFromNumber(getNested(source, ["batch", "max_batch_size"])),
+    hardBounceRate: toFieldFromNumber(
+      getNested(source, ["hard_stop_thresholds", "hard_bounce_rate"]),
+      true,
+    ),
+    complaintRate: toFieldFromNumber(
+      getNested(source, ["hard_stop_thresholds", "complaint_rate"]),
+      true,
+    ),
+    spamRate: toFieldFromNumber(
+      getNested(source, ["hard_stop_thresholds", "spam_rate"]),
+      true,
+    ),
+    healthyMin: toFieldFromNumber(
+      getNested(source, ["reputation_tiers", "healthy_min"]),
+    ),
+    warningMin: toFieldFromNumber(
+      getNested(source, ["reputation_tiers", "warning_min"]),
+    ),
+    riskMin: toFieldFromNumber(
+      getNested(source, ["reputation_tiers", "risk_min"]),
+    ),
+    throttledRecipientCap: toFieldFromNumber(
+      getNested(source, ["reputation_tiers", "throttled", "recipient_cap"]),
+    ),
+    throttledJobBatchSize: toFieldFromNumber(
+      getNested(source, ["reputation_tiers", "throttled", "job_batch_size"]),
+    ),
+    throttledPacingMultiplier: toFieldFromNumber(
+      getNested(source, [
+        "reputation_tiers",
+        "throttled",
+        "send_pacing_multiplier",
+      ]),
+    ),
+    restrictedRecipientCap: toFieldFromNumber(
+      getNested(source, ["reputation_tiers", "restricted", "recipient_cap"]),
+    ),
+    restrictedJobBatchSize: toFieldFromNumber(
+      getNested(source, ["reputation_tiers", "restricted", "job_batch_size"]),
+    ),
+    restrictedPacingMultiplier: toFieldFromNumber(
+      getNested(source, [
+        "reputation_tiers",
+        "restricted",
+        "send_pacing_multiplier",
+      ]),
+    ),
+    criticalRecipientCap: toFieldFromNumber(
+      getNested(source, ["reputation_tiers", "critical", "recipient_cap"]),
+    ),
+    criticalJobBatchSize: toFieldFromNumber(
+      getNested(source, ["reputation_tiers", "critical", "job_batch_size"]),
+    ),
+    criticalPacingMultiplier: toFieldFromNumber(
+      getNested(source, [
+        "reputation_tiers",
+        "critical",
+        "send_pacing_multiplier",
+      ]),
+    ),
+    batchMaxSize: toFieldFromNumber(
+      getNested(source, ["batch", "max_batch_size"]),
+    ),
   };
 }
 
@@ -162,7 +217,10 @@ export const TenantDrawer = ({
   onExtendTrial,
   onToggleActive,
 }: TenantDrawerProps) => {
-  const [overrideState, setOverrideState] = useState<OverrideFormState>(createEmptyFormState());
+  const navigate = useNavigate();
+  const [overrideState, setOverrideState] = useState<OverrideFormState>(
+    createEmptyFormState(),
+  );
   const [loadingOverrides, setLoadingOverrides] = useState(false);
   const [savingOverrides, setSavingOverrides] = useState(false);
 
@@ -170,18 +228,25 @@ export const TenantDrawer = ({
     if (!tenant?.tenant_id) return;
     setLoadingOverrides(true);
 
-    const { data, error } = await supabase.rpc('admin_get_tenant_email_governance_overrides' as never, {
-      p_tenant_id: tenant.tenant_id,
-    } as never);
+    const { data, error } = await supabase.rpc(
+      "admin_get_tenant_email_governance_overrides" as never,
+      {
+        p_tenant_id: tenant.tenant_id,
+      } as never,
+    );
 
     setLoadingOverrides(false);
 
     if (error) {
-      toast.error(error.message || 'Failed to load tenant governance overrides');
+      toast.error(
+        error.message || "Failed to load tenant governance overrides",
+      );
       return;
     }
 
-    setOverrideState(formStateFromOverrides((data || {}) as Record<string, unknown>));
+    setOverrideState(
+      formStateFromOverrides((data || {}) as Record<string, unknown>),
+    );
   }, [tenant?.tenant_id]);
 
   useEffect(() => {
@@ -201,10 +266,18 @@ export const TenantDrawer = ({
       return <Badge variant="secondary">Inactive</Badge>;
     }
     if (tenant.is_trialing) {
-      return <Badge variant="outline" className="border-yellow-500 text-yellow-700">Trialing</Badge>;
+      return (
+        <Badge variant="outline" className="border-yellow-500 text-yellow-700">
+          Trialing
+        </Badge>
+      );
     }
     if (tenant.is_paid_active) {
-      return <Badge variant="default" className="bg-green-500">Active</Badge>;
+      return (
+        <Badge variant="default" className="bg-green-500">
+          Active
+        </Badge>
+      );
     }
     return <Badge variant="destructive">Expired</Badge>;
   };
@@ -239,53 +312,99 @@ export const TenantDrawer = ({
       const criticalTier: Record<string, number> = {};
 
       if (overrideState.hardBounceRate.enabled) {
-        hardStopThresholds.hard_bounce_rate = parseRequiredNumber(overrideState.hardBounceRate.value, 'Hard bounce threshold') / 100;
+        hardStopThresholds.hard_bounce_rate =
+          parseRequiredNumber(
+            overrideState.hardBounceRate.value,
+            "Hard bounce threshold",
+          ) / 100;
       }
       if (overrideState.complaintRate.enabled) {
-        hardStopThresholds.complaint_rate = parseRequiredNumber(overrideState.complaintRate.value, 'Complaint threshold') / 100;
+        hardStopThresholds.complaint_rate =
+          parseRequiredNumber(
+            overrideState.complaintRate.value,
+            "Complaint threshold",
+          ) / 100;
       }
       if (overrideState.spamRate.enabled) {
-        hardStopThresholds.spam_rate = parseRequiredNumber(overrideState.spamRate.value, 'Spam threshold') / 100;
+        hardStopThresholds.spam_rate =
+          parseRequiredNumber(overrideState.spamRate.value, "Spam threshold") /
+          100;
       }
 
       if (overrideState.healthyMin.enabled) {
-        reputationTiers.healthy_min = parseRequiredNumber(overrideState.healthyMin.value, 'Healthy min score');
+        reputationTiers.healthy_min = parseRequiredNumber(
+          overrideState.healthyMin.value,
+          "Healthy min score",
+        );
       }
       if (overrideState.warningMin.enabled) {
-        reputationTiers.warning_min = parseRequiredNumber(overrideState.warningMin.value, 'Warning min score');
+        reputationTiers.warning_min = parseRequiredNumber(
+          overrideState.warningMin.value,
+          "Warning min score",
+        );
       }
       if (overrideState.riskMin.enabled) {
-        reputationTiers.risk_min = parseRequiredNumber(overrideState.riskMin.value, 'Risk min score');
+        reputationTiers.risk_min = parseRequiredNumber(
+          overrideState.riskMin.value,
+          "Risk min score",
+        );
       }
 
       if (overrideState.throttledRecipientCap.enabled) {
-        throttledTier.recipient_cap = parseRequiredNumber(overrideState.throttledRecipientCap.value, 'Throttled recipient cap');
+        throttledTier.recipient_cap = parseRequiredNumber(
+          overrideState.throttledRecipientCap.value,
+          "Throttled recipient cap",
+        );
       }
       if (overrideState.throttledJobBatchSize.enabled) {
-        throttledTier.job_batch_size = parseRequiredNumber(overrideState.throttledJobBatchSize.value, 'Throttled job batch size');
+        throttledTier.job_batch_size = parseRequiredNumber(
+          overrideState.throttledJobBatchSize.value,
+          "Throttled job batch size",
+        );
       }
       if (overrideState.throttledPacingMultiplier.enabled) {
-        throttledTier.send_pacing_multiplier = parseRequiredNumber(overrideState.throttledPacingMultiplier.value, 'Throttled pacing multiplier');
+        throttledTier.send_pacing_multiplier = parseRequiredNumber(
+          overrideState.throttledPacingMultiplier.value,
+          "Throttled pacing multiplier",
+        );
       }
 
       if (overrideState.restrictedRecipientCap.enabled) {
-        restrictedTier.recipient_cap = parseRequiredNumber(overrideState.restrictedRecipientCap.value, 'Restricted recipient cap');
+        restrictedTier.recipient_cap = parseRequiredNumber(
+          overrideState.restrictedRecipientCap.value,
+          "Restricted recipient cap",
+        );
       }
       if (overrideState.restrictedJobBatchSize.enabled) {
-        restrictedTier.job_batch_size = parseRequiredNumber(overrideState.restrictedJobBatchSize.value, 'Restricted job batch size');
+        restrictedTier.job_batch_size = parseRequiredNumber(
+          overrideState.restrictedJobBatchSize.value,
+          "Restricted job batch size",
+        );
       }
       if (overrideState.restrictedPacingMultiplier.enabled) {
-        restrictedTier.send_pacing_multiplier = parseRequiredNumber(overrideState.restrictedPacingMultiplier.value, 'Restricted pacing multiplier');
+        restrictedTier.send_pacing_multiplier = parseRequiredNumber(
+          overrideState.restrictedPacingMultiplier.value,
+          "Restricted pacing multiplier",
+        );
       }
 
       if (overrideState.criticalRecipientCap.enabled) {
-        criticalTier.recipient_cap = parseRequiredNumber(overrideState.criticalRecipientCap.value, 'Critical recipient cap');
+        criticalTier.recipient_cap = parseRequiredNumber(
+          overrideState.criticalRecipientCap.value,
+          "Critical recipient cap",
+        );
       }
       if (overrideState.criticalJobBatchSize.enabled) {
-        criticalTier.job_batch_size = parseRequiredNumber(overrideState.criticalJobBatchSize.value, 'Critical job batch size');
+        criticalTier.job_batch_size = parseRequiredNumber(
+          overrideState.criticalJobBatchSize.value,
+          "Critical job batch size",
+        );
       }
       if (overrideState.criticalPacingMultiplier.enabled) {
-        criticalTier.send_pacing_multiplier = parseRequiredNumber(overrideState.criticalPacingMultiplier.value, 'Critical pacing multiplier');
+        criticalTier.send_pacing_multiplier = parseRequiredNumber(
+          overrideState.criticalPacingMultiplier.value,
+          "Critical pacing multiplier",
+        );
       }
 
       if (Object.keys(hardStopThresholds).length > 0) {
@@ -307,47 +426,61 @@ export const TenantDrawer = ({
 
       if (overrideState.batchMaxSize.enabled) {
         overrides.batch = {
-          max_batch_size: parseRequiredNumber(overrideState.batchMaxSize.value, 'Batch max size'),
+          max_batch_size: parseRequiredNumber(
+            overrideState.batchMaxSize.value,
+            "Batch max size",
+          ),
         };
       }
 
       setSavingOverrides(true);
-      const { error } = await supabase.rpc('admin_set_tenant_email_governance_overrides' as never, {
-        p_tenant_id: tenant.tenant_id,
-        p_overrides: overrides,
-        p_reason: 'admin_tenant_override_form_update',
-      } as never);
+      const { error } = await supabase.rpc(
+        "admin_set_tenant_email_governance_overrides" as never,
+        {
+          p_tenant_id: tenant.tenant_id,
+          p_overrides: overrides,
+          p_reason: "admin_tenant_override_form_update",
+        } as never,
+      );
       setSavingOverrides(false);
 
       if (error) {
-        toast.error(error.message || 'Failed to save tenant governance overrides');
+        toast.error(
+          error.message || "Failed to save tenant governance overrides",
+        );
         return;
       }
 
-      toast.success('Tenant governance overrides saved');
+      toast.success("Tenant governance overrides saved");
       await loadOverrides();
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Invalid override value';
+      const message =
+        error instanceof Error ? error.message : "Invalid override value";
       toast.error(message);
     }
   };
 
   const clearOverrides = async () => {
     setSavingOverrides(true);
-    const { error } = await supabase.rpc('admin_set_tenant_email_governance_overrides' as never, {
-      p_tenant_id: tenant.tenant_id,
-      p_overrides: {},
-      p_reason: 'admin_tenant_override_clear',
-    } as never);
+    const { error } = await supabase.rpc(
+      "admin_set_tenant_email_governance_overrides" as never,
+      {
+        p_tenant_id: tenant.tenant_id,
+        p_overrides: {},
+        p_reason: "admin_tenant_override_clear",
+      } as never,
+    );
     setSavingOverrides(false);
 
     if (error) {
-      toast.error(error.message || 'Failed to clear tenant governance overrides');
+      toast.error(
+        error.message || "Failed to clear tenant governance overrides",
+      );
       return;
     }
 
     setOverrideState(createEmptyFormState());
-    toast.success('Tenant governance overrides cleared');
+    toast.success("Tenant governance overrides cleared");
   };
 
   const renderOverrideField = (
@@ -362,7 +495,10 @@ export const TenantDrawer = ({
           <Label>{label}</Label>
           <div className="flex items-center gap-2">
             <Label className="text-xs text-muted-foreground">Override</Label>
-            <Switch checked={field.enabled} onCheckedChange={(checked) => toggleField(stateKey, checked)} />
+            <Switch
+              checked={field.enabled}
+              onCheckedChange={(checked) => toggleField(stateKey, checked)}
+            />
           </div>
         </div>
         <Input
@@ -409,9 +545,22 @@ export const TenantDrawer = ({
                   </Button>
                 )}
                 <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    onClose();
+                    navigate(`/admin/tenants/${tenant.tenant_id}/email`);
+                  }}
+                >
+                  <Globe className="mr-2 h-4 w-4" />
+                  Manage Domains
+                </Button>
+                <Button
                   variant={tenant.is_active ? "destructive" : "default"}
                   size="sm"
-                  onClick={() => onToggleActive(tenant.tenant_id, !tenant.is_active)}
+                  onClick={() =>
+                    onToggleActive(tenant.tenant_id, !tenant.is_active)
+                  }
                 >
                   {tenant.is_active ? "Deactivate Tenant" : "Activate Tenant"}
                 </Button>
@@ -432,7 +581,7 @@ export const TenantDrawer = ({
                     <div>
                       <p className="text-sm font-medium">Website</p>
                       <a
-                        href={`https://${tenant.website.replace(/https?:\/\//, '')}`}
+                        href={`https://${tenant.website.replace(/https?:\/\//, "")}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-sm text-primary hover:underline flex items-center gap-1"
@@ -449,7 +598,11 @@ export const TenantDrawer = ({
                   <div>
                     <p className="text-sm font-medium">Location</p>
                     <p className="text-sm text-muted-foreground">
-                      {formatLocation(tenant.city, tenant.region, tenant.country)}
+                      {formatLocation(
+                        tenant.city,
+                        tenant.region,
+                        tenant.country,
+                      )}
                     </p>
                   </div>
                 </div>
@@ -468,9 +621,14 @@ export const TenantDrawer = ({
                   <div className="flex items-center gap-3">
                     <Calendar className="h-4 w-4 text-muted-foreground" />
                     <div>
-                      <p className="text-sm font-medium">Onboarding Completed</p>
+                      <p className="text-sm font-medium">
+                        Onboarding Completed
+                      </p>
                       <p className="text-sm text-muted-foreground">
-                        {format(new Date(tenant.onboarding_completed_at), "PPP")}
+                        {format(
+                          new Date(tenant.onboarding_completed_at),
+                          "PPP",
+                        )}
                       </p>
                     </div>
                   </div>
@@ -483,13 +641,22 @@ export const TenantDrawer = ({
             <CardHeader>
               <CardTitle>Governance Overrides</CardTitle>
               <p className="text-sm text-muted-foreground">
-                Optional per-tenant overrides. Disabled fields automatically use global governance configuration.
+                Optional per-tenant overrides. Disabled fields automatically use
+                global governance configuration.
               </p>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {renderOverrideField("Hard Bounce Threshold (%)", "hardBounceRate", "5")}
-                {renderOverrideField("Complaint Threshold (%)", "complaintRate", "0.2")}
+                {renderOverrideField(
+                  "Hard Bounce Threshold (%)",
+                  "hardBounceRate",
+                  "5",
+                )}
+                {renderOverrideField(
+                  "Complaint Threshold (%)",
+                  "complaintRate",
+                  "0.2",
+                )}
                 {renderOverrideField("Spam Threshold (%)", "spamRate", "0.3")}
               </div>
 
@@ -502,21 +669,57 @@ export const TenantDrawer = ({
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {renderOverrideField("Throttled Recipient Cap", "throttledRecipientCap", "10000")}
-                {renderOverrideField("Throttled Job Batch Size", "throttledJobBatchSize", "25")}
-                {renderOverrideField("Throttled Pacing Multiplier", "throttledPacingMultiplier", "2")}
+                {renderOverrideField(
+                  "Throttled Recipient Cap",
+                  "throttledRecipientCap",
+                  "10000",
+                )}
+                {renderOverrideField(
+                  "Throttled Job Batch Size",
+                  "throttledJobBatchSize",
+                  "25",
+                )}
+                {renderOverrideField(
+                  "Throttled Pacing Multiplier",
+                  "throttledPacingMultiplier",
+                  "2",
+                )}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {renderOverrideField("Restricted Recipient Cap", "restrictedRecipientCap", "2000")}
-                {renderOverrideField("Restricted Job Batch Size", "restrictedJobBatchSize", "10")}
-                {renderOverrideField("Restricted Pacing Multiplier", "restrictedPacingMultiplier", "4")}
+                {renderOverrideField(
+                  "Restricted Recipient Cap",
+                  "restrictedRecipientCap",
+                  "2000",
+                )}
+                {renderOverrideField(
+                  "Restricted Job Batch Size",
+                  "restrictedJobBatchSize",
+                  "10",
+                )}
+                {renderOverrideField(
+                  "Restricted Pacing Multiplier",
+                  "restrictedPacingMultiplier",
+                  "4",
+                )}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {renderOverrideField("Critical Recipient Cap", "criticalRecipientCap", "0")}
-                {renderOverrideField("Critical Job Batch Size", "criticalJobBatchSize", "10")}
-                {renderOverrideField("Critical Pacing Multiplier", "criticalPacingMultiplier", "4")}
+                {renderOverrideField(
+                  "Critical Recipient Cap",
+                  "criticalRecipientCap",
+                  "0",
+                )}
+                {renderOverrideField(
+                  "Critical Job Batch Size",
+                  "criticalJobBatchSize",
+                  "10",
+                )}
+                {renderOverrideField(
+                  "Critical Pacing Multiplier",
+                  "criticalPacingMultiplier",
+                  "4",
+                )}
               </div>
 
               <Separator />
@@ -526,11 +729,21 @@ export const TenantDrawer = ({
               </div>
 
               <div className="flex flex-wrap gap-2">
-                <Button variant="default" size="sm" onClick={saveOverrides} disabled={savingOverrides || loadingOverrides}>
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={saveOverrides}
+                  disabled={savingOverrides || loadingOverrides}
+                >
                   <Save className="h-4 w-4 mr-2" />
                   {savingOverrides ? "Saving..." : "Save Overrides"}
                 </Button>
-                <Button variant="outline" size="sm" onClick={clearOverrides} disabled={savingOverrides || loadingOverrides}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={clearOverrides}
+                  disabled={savingOverrides || loadingOverrides}
+                >
                   <RotateCcw className="h-4 w-4 mr-2" />
                   Clear Overrides
                 </Button>
@@ -573,7 +786,10 @@ export const TenantDrawer = ({
                   <p className="text-sm font-medium">Last Login</p>
                   <p className="text-sm text-muted-foreground">
                     {tenant.primary_contact_last_login
-                      ? format(new Date(tenant.primary_contact_last_login), "PPP")
+                      ? format(
+                          new Date(tenant.primary_contact_last_login),
+                          "PPP",
+                        )
                       : "Never"}
                   </p>
                 </div>
@@ -585,7 +801,8 @@ export const TenantDrawer = ({
                   <p className="text-sm font-medium">Last Activity</p>
                   <p className="text-sm text-muted-foreground">
                     {tenant.last_activity_at
-                      ? formatDistanceToNow(new Date(tenant.last_activity_at)) + " ago"
+                      ? formatDistanceToNow(new Date(tenant.last_activity_at)) +
+                        " ago"
                       : "Never"}
                   </p>
                 </div>
@@ -642,7 +859,8 @@ export const TenantDrawer = ({
                       {format(new Date(tenant.trial_end), "PPP")}
                       {tenant.trial_not_expired && (
                         <span className="text-yellow-600 ml-2">
-                          ({formatDistanceToNow(new Date(tenant.trial_end))} remaining)
+                          ({formatDistanceToNow(new Date(tenant.trial_end))}{" "}
+                          remaining)
                         </span>
                       )}
                     </p>

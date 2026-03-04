@@ -10,9 +10,14 @@ import {
   Search,
   Shield,
   Trash2,
+  X,
 } from "lucide-react";
 import { useIsSuperAdmin } from "@/hooks/useIsSuperAdmin";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  formatReputationRate,
+  getDomainStatusConfig,
+} from "@/lib/email/domainService";
 import {
   Card,
   CardContent,
@@ -21,6 +26,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -168,6 +174,21 @@ interface TenantUnderReviewOverrideState {
   under_review_override_final: boolean;
 }
 
+interface TenantEmailDomainRow {
+  id: string;
+  tenant_id: string;
+  domain: string;
+  status: string;
+  manual_pause: boolean;
+  bounce_rate_30d: number | null;
+  complaint_rate_30d: number | null;
+  total_sent_30d: number | null;
+  total_bounces_30d: number | null;
+  total_complaints_30d: number | null;
+  updated_at: string | null;
+  notes: string | null;
+}
+
 const toPercent = (fraction: number) => `${(fraction * 100).toFixed(3)}%`;
 
 const toDateTimeLocal = (value: string | null | undefined) => {
@@ -205,6 +226,10 @@ export default function TenantEmailManagement() {
   const [loading, setLoading] = useState(true);
   const [busyAction, setBusyAction] = useState<string | null>(null);
 
+  const [domainRows, setDomainRows] = useState<TenantEmailDomainRow[]>([]);
+  const [domainCount, setDomainCount] = useState(0);
+  const [domainLoading, setDomainLoading] = useState(true);
+
   const [manualScore, setManualScore] = useState("");
   const [overrideMode, setOverrideMode] = useState<"final" | "temporary">(
     "final",
@@ -230,6 +255,93 @@ export default function TenantEmailManagement() {
   const [boostHourlyInput, setBoostHourlyInput] = useState("");
   const [boostUntilInput, setBoostUntilInput] = useState("");
   const [boostReason, setBoostReason] = useState("");
+
+  const sendLimitDefaults = useMemo(() => {
+    return {
+      monthlyLimitInput:
+        panel?.sending_limit_state?.base_monthly_limit?.toString() ?? "",
+      dailyLimitInput:
+        panel?.sending_limit_state?.base_daily_limit?.toString() ?? "",
+      hourlyLimitInput:
+        panel?.sending_limit_state?.base_hourly_limit?.toString() ?? "",
+      unlimitedMode: Boolean(
+        panel?.sending_limit_state?.unlimited_sending_enabled,
+      ),
+      emergencyRestrictionEnabled: Boolean(
+        panel?.sending_limit_state?.emergency_restriction_enabled,
+      ),
+      emergencyRestrictionUntil: toDateTimeLocal(
+        panel?.sending_limit_state?.emergency_restriction_until,
+      ),
+      emergencyRestrictionReason:
+        panel?.sending_limit_state?.emergency_restriction_reason ?? "",
+      boostMonthlyInput:
+        panel?.sending_limit_state?.boost_monthly?.toString() ?? "",
+      boostDailyInput:
+        panel?.sending_limit_state?.boost_daily?.toString() ?? "",
+      boostHourlyInput:
+        panel?.sending_limit_state?.boost_hourly?.toString() ?? "",
+      boostUntilInput: toDateTimeLocal(panel?.sending_limit_state?.boost_until),
+      boostReason: panel?.sending_limit_state?.boost_reason ?? "",
+    };
+  }, [panel]);
+
+  const sendLimitIsDirty = useMemo(() => {
+    if (!panel) return false;
+    return (
+      monthlyLimitInput !== sendLimitDefaults.monthlyLimitInput ||
+      dailyLimitInput !== sendLimitDefaults.dailyLimitInput ||
+      hourlyLimitInput !== sendLimitDefaults.hourlyLimitInput ||
+      unlimitedMode !== sendLimitDefaults.unlimitedMode ||
+      emergencyRestrictionEnabled !==
+        sendLimitDefaults.emergencyRestrictionEnabled ||
+      emergencyRestrictionUntil !==
+        sendLimitDefaults.emergencyRestrictionUntil ||
+      emergencyRestrictionReason !==
+        sendLimitDefaults.emergencyRestrictionReason ||
+      boostMonthlyInput !== sendLimitDefaults.boostMonthlyInput ||
+      boostDailyInput !== sendLimitDefaults.boostDailyInput ||
+      boostHourlyInput !== sendLimitDefaults.boostHourlyInput ||
+      boostUntilInput !== sendLimitDefaults.boostUntilInput ||
+      boostReason !== sendLimitDefaults.boostReason ||
+      Boolean(sendingLimitReason.trim())
+    );
+  }, [
+    boostDailyInput,
+    boostHourlyInput,
+    boostMonthlyInput,
+    boostReason,
+    boostUntilInput,
+    dailyLimitInput,
+    emergencyRestrictionEnabled,
+    emergencyRestrictionReason,
+    emergencyRestrictionUntil,
+    hourlyLimitInput,
+    monthlyLimitInput,
+    panel,
+    sendLimitDefaults,
+    sendingLimitReason,
+    unlimitedMode,
+  ]);
+
+  const resetSendLimitControls = useCallback(() => {
+    if (!panel) return;
+    setMonthlyLimitInput(sendLimitDefaults.monthlyLimitInput);
+    setDailyLimitInput(sendLimitDefaults.dailyLimitInput);
+    setHourlyLimitInput(sendLimitDefaults.hourlyLimitInput);
+    setUnlimitedMode(sendLimitDefaults.unlimitedMode);
+    setEmergencyRestrictionEnabled(
+      sendLimitDefaults.emergencyRestrictionEnabled,
+    );
+    setEmergencyRestrictionUntil(sendLimitDefaults.emergencyRestrictionUntil);
+    setEmergencyRestrictionReason(sendLimitDefaults.emergencyRestrictionReason);
+    setBoostMonthlyInput(sendLimitDefaults.boostMonthlyInput);
+    setBoostDailyInput(sendLimitDefaults.boostDailyInput);
+    setBoostHourlyInput(sendLimitDefaults.boostHourlyInput);
+    setBoostUntilInput(sendLimitDefaults.boostUntilInput);
+    setBoostReason(sendLimitDefaults.boostReason);
+    setSendingLimitReason("");
+  }, [panel, sendLimitDefaults]);
 
   const [suppressionSearch, setSuppressionSearch] = useState("");
   const [suppressionReasonFilter, setSuppressionReasonFilter] = useState<
@@ -463,6 +575,32 @@ export default function TenantEmailManagement() {
     setLoading(false);
   }, [tenantId]);
 
+  const loadDomains = useCallback(async () => {
+    if (!tenantId) return;
+
+    setDomainLoading(true);
+    const { data, error } = await supabase.rpc(
+      "admin_list_tenant_email_domains" as never,
+      {
+        p_tenant_id: tenantId,
+      } as never,
+    );
+
+    if (error) {
+      toast.error(error.message || "Failed to load tenant domains");
+      setDomainRows([]);
+      setDomainCount(0);
+      setDomainLoading(false);
+      return;
+    }
+
+    const payload =
+      (data as { data?: TenantEmailDomainRow[]; count?: number }) || {};
+    setDomainRows(payload.data || []);
+    setDomainCount(Number(payload.count || 0));
+    setDomainLoading(false);
+  }, [tenantId]);
+
   const loadSuppressionList = useCallback(async () => {
     if (!tenantId) return;
 
@@ -529,16 +667,51 @@ export default function TenantEmailManagement() {
   }, [tenantId, campaignSearch, campaignStatusFilter, campaignPage]);
 
   useEffect(() => {
+    if (isLoading || !isSuperAdmin) return;
     void loadPanel();
-  }, [loadPanel]);
+  }, [loadPanel, isLoading, isSuperAdmin]);
 
   useEffect(() => {
+    if (isLoading || !isSuperAdmin) return;
+    void loadDomains();
+  }, [loadDomains, isLoading, isSuperAdmin]);
+
+  useEffect(() => {
+    if (isLoading || !isSuperAdmin) return;
     void loadSuppressionList();
-  }, [loadSuppressionList]);
+  }, [loadSuppressionList, isLoading, isSuperAdmin]);
 
   useEffect(() => {
+    if (isLoading || !isSuperAdmin) return;
     void loadCampaignList();
-  }, [loadCampaignList]);
+  }, [loadCampaignList, isLoading, isSuperAdmin]);
+
+  const handleUnpauseDomain = async (domainId: string) => {
+    if (!tenantId) return;
+
+    const actionKey = `domain:unpause:${domainId}`;
+    setBusyAction(actionKey);
+
+    const { error } = await supabase.rpc(
+      "admin_unpause_tenant_email_domain" as never,
+      {
+        p_tenant_id: tenantId,
+        p_domain_id: domainId,
+        p_reason: "unpaused_from_tenant_email_management",
+      } as never,
+    );
+
+    setBusyAction(null);
+
+    if (error) {
+      toast.error(error.message || "Failed to unpause domain");
+      return;
+    }
+
+    toast.success("Domain unpaused");
+    await loadDomains();
+    await loadPanel();
+  };
 
   const runAction = useCallback(
     async (
@@ -650,6 +823,12 @@ export default function TenantEmailManagement() {
     await loadSuppressionList();
   };
 
+  const manualSuppressionHasValues =
+    manualSuppressionEmail.trim() !== "" ||
+    manualSuppressionReason.trim() !== "" ||
+    manualSuppressionExpiresAt.trim() !== "" ||
+    manualSuppressionType !== "bounced";
+
   const runCampaignAction = async (
     actionKey: string,
     rpcName: string,
@@ -726,6 +905,89 @@ export default function TenantEmailManagement() {
           Back to Tenants
         </Button>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Domains ({domainCount})</CardTitle>
+          <CardDescription>
+            View the tenant's sending domains and clear a paused state.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {domainLoading ? (
+            <div className="text-sm text-muted-foreground">
+              Loading domains...
+            </div>
+          ) : domainRows.length === 0 ? (
+            <div className="text-sm text-muted-foreground">
+              No domains found for this tenant.
+            </div>
+          ) : (
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Domain</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Bounce (30d)</TableHead>
+                    <TableHead className="text-right">
+                      Complaints (30d)
+                    </TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {domainRows.map((row) => {
+                    const config = getDomainStatusConfig(row.status as never);
+                    const bounce =
+                      row.bounce_rate_30d === null ||
+                      !Number.isFinite(Number(row.bounce_rate_30d))
+                        ? "—"
+                        : formatReputationRate(Number(row.bounce_rate_30d));
+                    const complaint =
+                      row.complaint_rate_30d === null ||
+                      !Number.isFinite(Number(row.complaint_rate_30d))
+                        ? "—"
+                        : formatReputationRate(Number(row.complaint_rate_30d));
+
+                    return (
+                      <TableRow key={row.id}>
+                        <TableCell className="font-medium">
+                          {row.domain}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={config.variant}>{config.label}</Badge>
+                        </TableCell>
+                        <TableCell className="text-right">{bounce}</TableCell>
+                        <TableCell className="text-right">
+                          {complaint}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {row.status === "paused" ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => void handleUnpauseDomain(row.id)}
+                              disabled={busyAction !== null}
+                            >
+                              <PlayCircle className="h-4 w-4 mr-1" />
+                              Unpause
+                            </Button>
+                          ) : (
+                            <span className="text-sm text-muted-foreground">
+                              —
+                            </span>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
@@ -938,7 +1200,25 @@ export default function TenantEmailManagement() {
           </div>
 
           <div className="space-y-3 border rounded-md p-3">
-            <p className="font-medium">Add Manual Suppression</p>
+            <div className="flex items-center justify-between gap-2">
+              <p className="font-medium">Add Manual Suppression</p>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-8 px-2"
+                onClick={() => {
+                  setManualSuppressionEmail("");
+                  setManualSuppressionType("bounced");
+                  setManualSuppressionReason("");
+                  setManualSuppressionExpiresAt("");
+                }}
+                disabled={busyAction !== null || !manualSuppressionHasValues}
+              >
+                <X className="h-4 w-4 mr-2" />
+                Clear
+              </Button>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
               <LabeledInput
                 label="Email"
@@ -1966,7 +2246,20 @@ export default function TenantEmailManagement() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Send Limit Controls</CardTitle>
+            <div className="flex items-center justify-between gap-4">
+              <CardTitle>Send Limit Controls</CardTitle>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-8 px-2"
+                onClick={resetSendLimitControls}
+                disabled={busyAction !== null || !sendLimitIsDirty}
+              >
+                <X className="h-4 w-4 mr-1" />
+                Clear
+              </Button>
+            </div>
             <CardDescription>
               Configure monthly, daily, hourly limits and mode overrides.
             </CardDescription>

@@ -4,7 +4,7 @@ import { Navigate, useNavigate } from "react-router-dom";
 import { ProtectedPageWrapper } from "@/components/ProtectedPageWrapper";
 import { UserMenu } from "@/components/UserMenu";
 import { Shield, RefreshCw, FileText } from "lucide-react";
-import { isSuperAdmin } from "@/utils/adminUtils";
+import { useIsSuperAdmin } from "@/hooks/useIsSuperAdmin";
 import { useAdminTenants } from "@/hooks/useAdminTenants";
 import { AdminStats } from "@/components/admin/AdminStats";
 import { AdminFilters } from "@/components/admin/AdminFilters";
@@ -25,6 +25,7 @@ import { removeAllInertAttributes } from "@/utils/emergency-cleanup";
 const AdminPage = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { data: isSuperAdmin, isLoading: isAdminLoading } = useIsSuperAdmin();
   const [selectedTenant, setSelectedTenant] = useState<AdminTenant | null>(
     null,
   );
@@ -57,7 +58,25 @@ const AdminPage = () => {
   console.log("AdminPage data:", { tenants, stats, loading, error });
 
   // Only allow access to super admins - redirect to root instead of /app
-  if (!user || !isSuperAdmin(user.email)) {
+  if (!user) {
+    return <Navigate to="/" replace />;
+  }
+
+  if (isAdminLoading) {
+    return (
+      <ProtectedPageWrapper>
+        <div className="min-h-screen bg-background p-6">
+          <div className="max-w-7xl mx-auto">
+            <p className="text-sm text-muted-foreground">
+              Checking admin access
+            </p>
+          </div>
+        </div>
+      </ProtectedPageWrapper>
+    );
+  }
+
+  if (!isSuperAdmin) {
     return <Navigate to="/" replace />;
   }
 

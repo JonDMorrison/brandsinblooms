@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Card,
   CardContent,
@@ -19,12 +19,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import { format } from "date-fns";
 import { toZonedTime } from "date-fns-tz";
 import { AlertTriangle, CheckCircle2, Clock, Info, Mail } from "lucide-react";
-import { parseEdgeFunctionError } from "@/utils/campaignSendingErrors";
-import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 import { retryFailedEmailMessages } from "@/lib/email/emailRetryService";
 import { markEmailCampaignCompletedWithFailures } from "@/lib/email/emailCompletionService";
 import { useCampaignGovernanceVisibility } from "@/hooks/useCampaignGovernanceVisibility";
@@ -249,13 +248,17 @@ export function CampaignDeliveryStatusCard(props: {
       if (cancelled) return;
 
       // Fallback path when RPC is unavailable.
-      const { data: fallbackRow, error: fallbackError } = await supabase
+      const baseSelect =
+        "id,status,scheduled_at,send_started_at,sent_at,updated_at,send_error,send_blocked_reason";
+
+      // NOTE: Keep this fallback query restricted to stable columns only.
+      // Some DB environments haven't deployed throttling columns on crm_campaigns yet,
+      // and selecting unknown columns causes PostgREST to hard-fail with 42703.
+      const { data: fallbackRows, error: fallbackError } = await supabase
         .from("crm_campaigns")
-        .select(
-          "id,status,scheduled_at,send_started_at,sent_at,updated_at,send_error,send_blocked_reason,is_throttled,throttle_reasons,throttled_at,throttle_last_evaluated_at",
-        )
+        .select(baseSelect)
         .eq("id", campaignId)
-        .maybeSingle();
+        .limit(1);
 
       if (cancelled) return;
 
@@ -269,7 +272,9 @@ export function CampaignDeliveryStatusCard(props: {
         return;
       }
 
-      const normalizedFallbackRow = (fallbackRow || null) as CampaignRow | null;
+      const normalizedFallbackRow = ((Array.isArray(fallbackRows)
+        ? fallbackRows[0]
+        : null) || null) as CampaignRow | null;
       setCampaign((prev) =>
         isSameCampaign(prev, normalizedFallbackRow)
           ? prev

@@ -44,13 +44,7 @@ import {
 type PreflightRowState = "ok" | "warn" | "block" | "unknown";
 
 type FinalPreflightCheck = {
-  id:
-    | "domain"
-    | "governance"
-    | "quota"
-    | "bounce"
-    | "complaint"
-    | "audience";
+  id: "domain" | "governance" | "quota" | "bounce" | "complaint" | "audience";
   label: string;
   loading: boolean;
   state: PreflightRowState;
@@ -172,6 +166,39 @@ function formatPercent(value: number, fractionDigits = 2) {
   return `${value.toFixed(fractionDigits)}%`;
 }
 
+function coerceRateToPercent(value: unknown): number | null {
+  if (value === null || value === undefined) return null;
+
+  const toNumber = (v: unknown): number => {
+    if (typeof v === "number") return v;
+    if (typeof v === "string") {
+      const trimmed = v.trim();
+      if (!trimmed) return Number.NaN;
+      return Number(trimmed.endsWith("%") ? trimmed.slice(0, -1) : trimmed);
+    }
+    return Number(v);
+  };
+
+  const n = toNumber(value);
+  if (!Number.isFinite(n)) return null;
+
+  // Most of the pipeline stores rates as fractions (0..1). If we ever get a
+  // percent (0..100), keep it as-is.
+  if (n > 1 && n <= 100) return n;
+  return n * 100;
+}
+
+function percentFromCounts(
+  numerator: unknown,
+  denominator: unknown,
+): number | null {
+  const num = Number(numerator);
+  const den = Number(denominator);
+  if (!Number.isFinite(num) || !Number.isFinite(den)) return null;
+  if (den <= 0) return num === 0 ? 0 : null;
+  return (num / den) * 100;
+}
+
 function formatDateTime(value: number | string | Date): string {
   try {
     const date =
@@ -217,8 +244,15 @@ function useCountUp(params: {
   const { target, durationMs = 650, format } = params;
   const prefersReducedMotion = usePrefersReducedMotion();
 
+  const formatRef = React.useRef(format);
+  React.useEffect(() => {
+    formatRef.current = format;
+  }, [format]);
+
   const [display, setDisplay] = React.useState(() =>
-    target === null || !Number.isFinite(target) ? "—" : format(target),
+    target === null || !Number.isFinite(target)
+      ? "—"
+      : formatRef.current(target),
   );
 
   React.useEffect(() => {
@@ -228,7 +262,7 @@ function useCountUp(params: {
     }
 
     if (prefersReducedMotion) {
-      setDisplay(format(target));
+      setDisplay(formatRef.current(target));
       return;
     }
 
@@ -241,13 +275,13 @@ function useCountUp(params: {
       const t = Math.min(1, (now - start) / durationMs);
       const eased = 1 - Math.pow(1 - t, 3);
       const current = from + (to - from) * eased;
-      setDisplay(format(current));
+      setDisplay(formatRef.current(current));
       if (t < 1) raf = requestAnimationFrame(step);
     };
 
     raf = requestAnimationFrame(step);
     return () => cancelAnimationFrame(raf);
-  }, [target, durationMs, format, prefersReducedMotion]);
+  }, [target, durationMs, prefersReducedMotion]);
 
   return display;
 }
@@ -388,29 +422,108 @@ function useEmailDomainReadiness(params: {
   enabled: boolean;
   tenantId: string | null | undefined;
   sendingDomain: string | null | undefined;
+  senderEmail?: string | null | undefined;
 }) {
-  const { enabled, tenantId, sendingDomain } = params;
+  const { enabled, tenantId, sendingDomain, senderEmail } = params;
 
-  const normalizedDomain = React.useMemo(() => {
-    const raw = String(sendingDomain || "").trim();
-    return raw.length > 0 ? raw.toLowerCase() : "";
-  }, [sendingDomain]);
+  const domainCandidates = React.useMemo(() => {
+    const candidates: string[] = [];
+
+    const normalizeHost = (value: string): string => {
+      let raw = String(value || "").trim();
+      if (!raw) return "";
+
+      raw = raw.replace(/^mailto:/i, "");
+
+      if (raw.includes("@")) {
+        const at = raw.lastIndexOf("@");
+        raw = raw.slice(at + 1);
+      }
+
+      // If it looks like a URL, parse the hostname.
+      if (raw.includes("://")) {
+        try {
+          const url = new URL(raw);
+          raw = url.hostname;
+        } catch {
+          // fall through
+        }
+      }
+
+      // Strip any path/query/fragment if present.
+      raw = raw.split("/")[0] || raw;
+      raw = raw.split("?")[0] || raw;
+      raw = raw.split("#")[0] || raw;
+
+      // Strip port.
+      raw = raw.split(":")[0] || raw;
+
+      raw = raw.trim().toLowerCase();
+      raw = raw.replace(/\.+$/, "");
+
+      return raw;
+    };
+
+    const addCandidate = (value: string) => {
+      const host = normalizeHost(value);
+      if (!host) return;
+      candidates.push(host);
+
+      const prefixes = ["www.", "mail.", "smtp.", "email."];
+      for (const prefix of prefixes) {
+        if (host.startsWith(prefix) && host.length > prefix.length) {
+          candidates.push(host.slice(prefix.length));
+        }
+      }
+    };
+
+    if (sendingDomain) addCandidate(sendingDomain);
+    if (senderEmail) addCandidate(senderEmail);
+
+    // De-dupe while preserving order.
+    return candidates.filter(
+      (candidate, index) => candidates.indexOf(candidate) === index,
+    );
+  }, [sendingDomain, senderEmail]);
+
+  const normalizedDomain = domainCandidates[0] || "";
 
   const domainLookupQuery = useQuery({
-    queryKey: ["email-domain-row", tenantId, normalizedDomain],
-    enabled: Boolean(enabled && tenantId && normalizedDomain),
+    queryKey: ["email-domain-row", tenantId, domainCandidates.join("|")],
+    enabled: Boolean(enabled && tenantId && domainCandidates.length > 0),
     staleTime: 60_000,
     queryFn: async (): Promise<DomainLookupRow | null> => {
-      const { data, error } = await supabase
-        .from("email_domains")
-        .select("id, domain, status")
-        .eq("tenant_id", tenantId)
-        .ilike("domain", normalizedDomain)
-        .limit(1)
-        .maybeSingle();
+      // Prefer an active/warming_up domain if multiple rows exist.
+      for (const candidate of domainCandidates) {
+        const preferred = await supabase
+          .from("email_domains")
+          .select("id, domain, status")
+          .eq("tenant_id", tenantId)
+          .ilike("domain", candidate)
+          .in("status", ["active", "warming_up"])
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
 
-      if (error) throw error;
-      return (data as any) || null;
+        if (preferred.error) throw preferred.error;
+        if (preferred.data) return (preferred.data as any) || null;
+      }
+
+      for (const candidate of domainCandidates) {
+        const fallback = await supabase
+          .from("email_domains")
+          .select("id, domain, status")
+          .eq("tenant_id", tenantId)
+          .ilike("domain", candidate)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (fallback.error) throw fallback.error;
+        if (fallback.data) return (fallback.data as any) || null;
+      }
+
+      return null;
     },
   });
 
@@ -445,22 +558,41 @@ function useEmailDomainReadiness(params: {
     .toUpperCase();
 
   const isReadyStatus =
+    // Legacy + current readiness statuses.
     readinessStatus === "READY_TO_SEND" ||
     readinessStatus === "CONNECTED_READY";
 
   const checksLoading =
     domainLookupQuery.isLoading || (Boolean(domainId) && verifyQuery.isLoading);
 
+  const domainStatus = String(domainRow?.status || "")
+    .trim()
+    .toLowerCase();
+  const domainStatusReady =
+    domainStatus === "active" || domainStatus === "warming_up";
+
+  const verifyStatus = String(verifyQuery.data?.status || "")
+    .trim()
+    .toLowerCase();
+  const verifyStatusReady =
+    verifyStatus === "active" || verifyStatus === "warming_up";
+
   const domainConfigured = Boolean(normalizedDomain && domainId);
   const domainReady: boolean | null = checksLoading
     ? null
     : domainConfigured
-      ? isReadyStatus
+      ? // IMPORTANT: elsewhere in the app, a domain with status=active/warming_up is
+        // considered send-ready. The readiness.status can be DOMAIN_NOT_CONNECTED for
+        // non-Entri/manual domains even when DNS is verified and status is active.
+        // To avoid false negatives, treat active/warming_up as ready.
+        domainStatusReady || verifyStatusReady || isReadyStatus
       : false;
 
   return {
     normalizedDomain,
+    domainCandidates,
     domainId,
+    domainStatus: domainStatus || null,
     domainLookupLoading: domainLookupQuery.isLoading,
     domainLookupError: domainLookupQuery.error
       ? getErrorMessage(domainLookupQuery.error) || "Failed to load domain"
@@ -675,6 +807,7 @@ export const CampaignSendConfirmationModal: React.FC<
     enabled: shouldLoadPreflight,
     tenantId,
     sendingDomain: senderIdentity.sendingDomain,
+    senderEmail: senderIdentity.senderEmail,
   });
 
   const buildDomainCheck = React.useCallback((): FinalPreflightCheck => {
@@ -697,10 +830,14 @@ export const CampaignSendConfirmationModal: React.FC<
       };
     }
 
+    const statusSuffix = domainReadiness.domainStatus
+      ? ` (status: ${domainReadiness.domainStatus})`
+      : "";
+
     const detail =
       domainReadiness.readinessMessage ||
       (senderIdentity.sendingDomain
-        ? "Sending domain is not ready to send."
+        ? `Sending domain is not ready to send.${statusSuffix}`
         : "No sending domain configured.");
 
     return {
@@ -712,7 +849,12 @@ export const CampaignSendConfirmationModal: React.FC<
       actionHref: "/crm/settings/email-sending",
       actionLabel: "Fix Now",
     };
-  }, [domainReadiness.domainReady, domainReadiness.readinessMessage, senderIdentity.sendingDomain]);
+  }, [
+    domainReadiness.domainReady,
+    domainReadiness.readinessMessage,
+    domainReadiness.domainStatus,
+    senderIdentity.sendingDomain,
+  ]);
 
   const finalPreflightChecks = React.useMemo(() => {
     const domainCheck = buildDomainCheck();
@@ -789,7 +931,13 @@ export const CampaignSendConfirmationModal: React.FC<
     } finally {
       setPreflightSubmitting(false);
     }
-  }, [buildDomainCheck, loading, onConfirm, preflightSubmitting, preflightSummary]);
+  }, [
+    buildDomainCheck,
+    loading,
+    onConfirm,
+    preflightSubmitting,
+    preflightSummary,
+  ]);
 
   const formatAudienceLabel = React.useMemo(() => {
     const names = [
@@ -840,19 +988,15 @@ export const CampaignSendConfirmationModal: React.FC<
     refetch: refetchHealth,
   } = useTenantEmailHealthDashboard(tenantId, { enabled: shouldLoadPreflight });
 
-  const { isLoading: suppressionLoading } = useSuppressionStats({
-    enabled: shouldLoadPreflight,
-  });
-  const { isLoading: blockedLoading } = useBlockedEmailCount({
-    enabled: shouldLoadPreflight,
-  });
+  const { data: suppressionStats, isLoading: suppressionLoading } =
+    useSuppressionStats({
+      enabled: shouldLoadPreflight,
+    });
 
-  const { data: suppressionStats } = useSuppressionStats({
-    enabled: shouldLoadPreflight,
-  });
-  const { data: blockedEmailCount } = useBlockedEmailCount({
-    enabled: shouldLoadPreflight,
-  });
+  const { data: blockedEmailCount, isLoading: blockedLoading } =
+    useBlockedEmailCount({
+      enabled: shouldLoadPreflight,
+    });
 
   const deliveryPct30d = React.useMemo(() => {
     const sent = Number(healthData?.sent_30d || 0);
@@ -862,13 +1006,15 @@ export const CampaignSendConfirmationModal: React.FC<
   }, [healthData]);
 
   const bouncePct30d = React.useMemo(() => {
-    const rate = Number(healthData?.bounce_rate_30d);
-    return Number.isFinite(rate) ? rate * 100 : null;
+    const fromRate = coerceRateToPercent(healthData?.bounce_rate_30d);
+    if (fromRate !== null) return fromRate;
+    return percentFromCounts(healthData?.bounced_30d, healthData?.sent_30d);
   }, [healthData]);
 
   const complaintPct30d = React.useMemo(() => {
-    const rate = Number(healthData?.complaint_rate_30d);
-    return Number.isFinite(rate) ? rate * 100 : null;
+    const fromRate = coerceRateToPercent(healthData?.complaint_rate_30d);
+    if (fromRate !== null) return fromRate;
+    return percentFromCounts(healthData?.complained_30d, healthData?.sent_30d);
   }, [healthData]);
 
   const bounceStatus: HealthStatus =
@@ -889,13 +1035,15 @@ export const CampaignSendConfirmationModal: React.FC<
   }, [healthData]);
 
   const bouncePct24h = React.useMemo(() => {
-    const rate = Number(healthData?.bounce_rate_24h);
-    return Number.isFinite(rate) ? rate * 100 : null;
+    const fromRate = coerceRateToPercent(healthData?.bounce_rate_24h);
+    if (fromRate !== null) return fromRate;
+    return percentFromCounts(healthData?.bounced_24h, healthData?.sent_24h);
   }, [healthData]);
 
   const complaintPct24h = React.useMemo(() => {
-    const rate = Number(healthData?.complaint_rate_24h);
-    return Number.isFinite(rate) ? rate * 100 : null;
+    const fromRate = coerceRateToPercent(healthData?.complaint_rate_24h);
+    if (fromRate !== null) return fromRate;
+    return percentFromCounts(healthData?.complained_24h, healthData?.sent_24h);
   }, [healthData]);
 
   const deliveryTrendDelta =
@@ -934,7 +1082,10 @@ export const CampaignSendConfirmationModal: React.FC<
 
   const preflightWarn = Boolean(preflightSummary?.hasWarnings);
   const sendDisabled =
-    loading || preflightSubmitting || finalPreflightChecking || finalPreflightBlocked;
+    loading ||
+    preflightSubmitting ||
+    finalPreflightChecking ||
+    finalPreflightBlocked;
 
   const governanceBadge = (() => {
     if (!shouldLoadPreflight) return null;
@@ -1359,14 +1510,14 @@ function PreflightPanels(props: {
     const effectivePolicyActionRaw = String(policy?.action || "").toLowerCase();
     const effectivePolicyTier = String(policy?.tier || "").toLowerCase();
 
-    const bouncePct30d =
-      healthData && Number.isFinite(Number(healthData.bounce_rate_30d))
-        ? Number(healthData.bounce_rate_30d) * 100
-        : null;
-    const complaintPct30d =
-      healthData && Number.isFinite(Number(healthData.complaint_rate_30d))
-        ? Number(healthData.complaint_rate_30d) * 100
-        : null;
+    const bouncePct30d = healthData
+      ? (coerceRateToPercent(healthData.bounce_rate_30d) ??
+        percentFromCounts(healthData.bounced_30d, healthData.sent_30d))
+      : null;
+    const complaintPct30d = healthData
+      ? (coerceRateToPercent(healthData.complaint_rate_30d) ??
+        percentFromCounts(healthData.complained_30d, healthData.sent_30d))
+      : null;
 
     const bounceStatus =
       bouncePct30d === null
@@ -1438,7 +1589,9 @@ function PreflightPanels(props: {
     const governanceRowState: PreflightRowState =
       accountState === "block" || policyState === "block"
         ? "block"
-        : accountState === "warn" || policyState === "warn" || overridesState === "warn"
+        : accountState === "warn" ||
+            policyState === "warn" ||
+            overridesState === "warn"
           ? "warn"
           : "ok";
 
@@ -1495,7 +1648,8 @@ function PreflightPanels(props: {
     const bounceRowLoading = healthLoading;
     const bounceDetail = (() => {
       if (bounceRowLoading) return undefined;
-      if (bounceState === "block") return "Bounce rate is above the hard-stop threshold.";
+      if (bounceState === "block")
+        return "Bounce rate is above the hard-stop threshold.";
       if (bounceState === "warn") return "Bounce rate is elevated.";
       return undefined;
     })();
@@ -1510,7 +1664,9 @@ function PreflightPanels(props: {
     })();
 
     const audienceDetail =
-      audienceState === "block" ? "Audience size is empty or invalid." : undefined;
+      audienceState === "block"
+        ? "Audience size is empty or invalid."
+        : undefined;
 
     const checks: FinalPreflightCheck[] = [
       {
@@ -1702,14 +1858,14 @@ function PreflightPanels(props: {
 
     const action = String(policy?.action || "").toLowerCase();
 
-    const bouncePct30d =
-      healthData && Number.isFinite(Number(healthData.bounce_rate_30d))
-        ? Number(healthData.bounce_rate_30d) * 100
-        : null;
-    const complaintPct30d =
-      healthData && Number.isFinite(Number(healthData.complaint_rate_30d))
-        ? Number(healthData.complaint_rate_30d) * 100
-        : null;
+    const bouncePct30d = healthData
+      ? (coerceRateToPercent(healthData.bounce_rate_30d) ??
+        percentFromCounts(healthData.bounced_30d, healthData.sent_30d))
+      : null;
+    const complaintPct30d = healthData
+      ? (coerceRateToPercent(healthData.complaint_rate_30d) ??
+        percentFromCounts(healthData.complained_30d, healthData.sent_30d))
+      : null;
 
     const bounceStatus =
       bouncePct30d === null

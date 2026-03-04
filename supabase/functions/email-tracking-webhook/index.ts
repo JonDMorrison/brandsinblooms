@@ -205,9 +205,16 @@ const resolveGovernanceContext = async (
   metadata: { campaignId?: string; tenantId?: string; domainId?: string },
   providerMessageId: string,
 ) => {
-  let tenantId = metadata.tenantId || null;
-  let campaignId = metadata.campaignId || null;
-  let domainId = metadata.domainId || null;
+  const isUuidLike = (value: unknown): value is string => {
+    if (typeof value !== 'string') return false;
+    const v = value.trim();
+    if (!v) return false;
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
+  };
+
+  let tenantId = isUuidLike(metadata.tenantId) ? metadata.tenantId : null;
+  let campaignId = isUuidLike(metadata.campaignId) ? metadata.campaignId : null;
+  let domainId = isUuidLike(metadata.domainId) ? metadata.domainId : null;
   let emailMessageId: string | null = null;
   let customerId: string | null = null;
 
@@ -526,14 +533,31 @@ const handler = async (req: Request): Promise<Response> => {
     const eventTsProvider = payload.created_at;
 
     const governanceContext = await resolveGovernanceContext(supabase, metadata, providerMessageId);
-    const effectiveTenantId = governanceContext.tenantId || metadata.tenantId || null;
-    const effectiveCampaignId = governanceContext.campaignId || metadata.campaignId || null;
-    const effectiveDomainId = governanceContext.domainId || metadata.domainId || null;
-    const effectiveEmailMessageId = governanceContext.emailMessageId || null;
-    const effectiveCustomerId = governanceContext.customerId || null;
+    const isUuid = (value: unknown): value is string => {
+      if (typeof value !== 'string') return false;
+      const v = value.trim();
+      if (!v) return false;
+      return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
+    };
+
+    const rawTenantId = governanceContext.tenantId || metadata.tenantId || null;
+    const rawCampaignId = governanceContext.campaignId || metadata.campaignId || null;
+    const rawDomainId = governanceContext.domainId || metadata.domainId || null;
+    const rawEmailMessageId = governanceContext.emailMessageId || null;
+    const rawCustomerId = governanceContext.customerId || null;
+
+    const effectiveTenantId = isUuid(rawTenantId) ? rawTenantId : null;
+    const effectiveCampaignId = isUuid(rawCampaignId) ? rawCampaignId : null;
+    const effectiveDomainId = isUuid(rawDomainId) ? rawDomainId : null;
+    const effectiveEmailMessageId = isUuid(rawEmailMessageId) ? rawEmailMessageId : null;
+    const effectiveCustomerId = isUuid(rawCustomerId) ? rawCustomerId : null;
 
     console.log('📋 Extracted metadata:', {
       ...metadata,
+      raw_tenant_id: rawTenantId,
+      raw_campaign_id: rawCampaignId,
+      raw_domain_id: rawDomainId,
+      raw_email_message_id: rawEmailMessageId,
       resolved_tenant_id: effectiveTenantId,
       resolved_campaign_id: effectiveCampaignId,
       resolved_domain_id: effectiveDomainId,
@@ -717,6 +741,21 @@ const handler = async (req: Request): Promise<Response> => {
 
     let governanceEventId: string | null = null;
     if (effectiveTenantId) {
+      const shouldRetryWithoutSpamTrap = (error: any) => {
+        const code = String(error?.code || '').trim();
+        const message = String(error?.message || '').toLowerCase();
+        const details = String(error?.details || '').toLowerCase();
+
+        // PostgREST schema cache error for unknown columns.
+        if (code === 'PGRST204') return true;
+
+        // Defensive match for older/newer error shapes.
+        return (
+          message.includes("could not find") &&
+          (message.includes("is_spam_trap") || details.includes("is_spam_trap"))
+        );
+      };
+
       const governanceEventRecord = {
         tenant_id: effectiveTenantId,
         campaign_id: effectiveCampaignId,
@@ -742,14 +781,26 @@ const handler = async (req: Request): Promise<Response> => {
       };
 
       const { data: insertedGovEvent, error: governanceEventError } = await withExponentialBackoff(async () => {
-        const result = await supabase
-          .from('email_governance_email_events')
-          .insert(governanceEventRecord)
-          .select('id')
-          .single();
+        const attemptInsert = async (record: any) => {
+          return await supabase
+            .from('email_governance_email_events')
+            .insert(record)
+            .select('id')
+            .single();
+        };
+
+        let result = await attemptInsert(governanceEventRecord);
 
         if (result.error && result.error.code !== '23505') {
-          throw result.error;
+          // If the DB hasn't been migrated yet (or schema cache is stale), retry without is_spam_trap.
+          if (shouldRetryWithoutSpamTrap(result.error)) {
+            const { is_spam_trap: _ignored, ...withoutSpamTrap } = governanceEventRecord as any;
+            result = await attemptInsert(withoutSpamTrap);
+          }
+
+          if (result.error && result.error.code !== '23505') {
+            throw result.error;
+          }
         }
 
         return result;

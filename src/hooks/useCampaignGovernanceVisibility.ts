@@ -31,19 +31,65 @@ export interface CampaignGovernanceVisibility {
   reputation_impact: "none" | "policy_only" | "throttle_only" | "policy_and_throttle";
 }
 
+let governanceVisibilityRpcMissing: boolean | null = null;
+
+function isMissingRpcFunction(error: any) {
+  const code = String(error?.code || "").toLowerCase();
+  const message = String(error?.message || "").toLowerCase();
+  return (
+    code === "pgrst202" ||
+    code === "42883" ||
+    message.includes("could not find the function") ||
+    message.includes("schema cache")
+  );
+}
+
 export const useCampaignGovernanceVisibility = (campaignId: string | null | undefined) => {
   return useQuery({
     queryKey: ["campaign-governance-visibility", campaignId],
     enabled: !!campaignId,
     queryFn: async (): Promise<CampaignGovernanceVisibility | null> => {
-      const { data, error } = await supabase.rpc(
+      if (!campaignId) return null;
+
+      // If this project is deployed against an older DB without the RPC,
+      // don't keep spamming failing calls.
+      if (governanceVisibilityRpcMissing === true) return null;
+
+      const asOf = new Date().toISOString();
+
+      // NOTE: PostgREST RPC matching requires ALL parameters to be present
+      // even if the SQL function defines defaults.
+      const primary = await supabase.rpc(
         "get_campaign_governance_visibility_tenant_safe" as never,
         {
           p_campaign_id: campaignId,
+          p_as_of: asOf,
         } as never,
       );
 
-      if (error) throw error;
+      let data = primary.data as any;
+      let error = primary.error as any;
+
+      if (error && isMissingRpcFunction(error)) {
+        // Fall back to non-tenant-safe function (if granted) for older schemas.
+        const fallback = await supabase.rpc(
+          "get_campaign_governance_visibility" as never,
+          {
+            p_campaign_id: campaignId,
+            p_as_of: asOf,
+          } as never,
+        );
+        data = fallback.data as any;
+        error = fallback.error as any;
+      }
+
+      if (error) {
+        if (isMissingRpcFunction(error)) {
+          governanceVisibilityRpcMissing = true;
+          return null;
+        }
+        throw error;
+      }
 
       if (!data) return null;
 
