@@ -13198,6 +13198,7 @@ export type Database = {
           city: string | null
           country: string | null
           created_at: string
+          default_from_email_domain_id: string | null
           email_under_review: boolean
           email_under_review_at: string | null
           email_under_review_details: Json
@@ -13220,6 +13221,7 @@ export type Database = {
           city?: string | null
           country?: string | null
           created_at?: string
+          default_from_email_domain_id?: string | null
           email_under_review?: boolean
           email_under_review_at?: string | null
           email_under_review_details?: Json
@@ -13242,6 +13244,7 @@ export type Database = {
           city?: string | null
           country?: string | null
           created_at?: string
+          default_from_email_domain_id?: string | null
           email_under_review?: boolean
           email_under_review_at?: string | null
           email_under_review_details?: Json
@@ -13259,7 +13262,29 @@ export type Database = {
           updated_at?: string
           website?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "tenants_default_from_email_domain_id_fkey"
+            columns: ["default_from_email_domain_id"]
+            isOneToOne: false
+            referencedRelation: "deliverability_summary_30d"
+            referencedColumns: ["domain_id"]
+          },
+          {
+            foreignKeyName: "tenants_default_from_email_domain_id_fkey"
+            columns: ["default_from_email_domain_id"]
+            isOneToOne: false
+            referencedRelation: "email_domain_stats_30d"
+            referencedColumns: ["domain_id"]
+          },
+          {
+            foreignKeyName: "tenants_default_from_email_domain_id_fkey"
+            columns: ["default_from_email_domain_id"]
+            isOneToOne: false
+            referencedRelation: "email_domains"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       tier_limits: {
         Row: {
@@ -15487,6 +15512,10 @@ export type Database = {
           success: boolean
         }[]
       }
+      set_tenant_default_from_email_domain: {
+        Args: { p_domain_id: string }
+        Returns: undefined
+      }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
       soft_delete_user_data: {
@@ -15508,6 +15537,17 @@ export type Database = {
         Returns: {
           jobs_stopped: number
           messages_stopped: number
+        }[]
+      }
+      system_pause_email_campaign_sending: {
+        Args: {
+          p_block_reason?: string
+          p_campaign_id: string
+          p_error_message?: string
+        }
+        Returns: {
+          jobs_paused: number
+          messages_paused: number
         }[]
       }
       track_content_interaction: {
