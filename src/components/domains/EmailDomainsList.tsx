@@ -22,6 +22,7 @@ import { useEntriConnect } from '@/hooks/useEntriConnect';
 import { useTenant } from '@/hooks/useTenant';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 // =========================================================
 // Readiness Status Types (matches edge function)
@@ -78,11 +79,12 @@ const ReadinessBadge = ({
 export const EmailDomainsList = () => {
   const { emailDomains, loading, verifyEmailDomain, retryEmailDomain, getDomainRecords, refetch } = useEmailDomains();
   const { openEntriSetup, sanitizeAndConvertRecords, isLoading: entriLoading } = useEntriConnect();
-  const { tenant } = useTenant();
+  const { tenant, refetch: refetchTenant } = useTenant();
   const [showWizard, setShowWizard] = useState(false);
   const [selectedDomain, setSelectedDomain] = useState<string | null>(null);
   const [verifyingDomains, setVerifyingDomains] = useState<Set<string>>(new Set());
   const [repairingDomains, setRepairingDomains] = useState<Set<string>>(new Set());
+  const [savingDefaultDomain, setSavingDefaultDomain] = useState(false);
 
   // Rate limiting: track last check time per domain
   const [lastCheckTimes, setLastCheckTimes] = useState<Record<string, number>>({});
@@ -91,6 +93,32 @@ export const EmailDomainsList = () => {
   // =========================================================
   // Compute Readiness Display (single source of truth)
   // =========================================================
+
+  const defaultDomainId = tenant?.default_from_email_domain_id || null;
+
+  const setDefaultSendingDomain = async (domainId: string | null) => {
+    if (!tenant?.id) return;
+
+    setSavingDefaultDomain(true);
+    try {
+      const { error } = await supabase.rpc('set_tenant_default_from_email_domain' as any, {
+        p_domain_id: domainId,
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      await refetchTenant();
+
+      toast.success(domainId ? 'Default sending domain updated.' : 'Default sending domain cleared.');
+    } catch (err: any) {
+      console.error('Failed to set default sending domain:', err);
+      toast.error(err?.message || 'Failed to update default sending domain');
+    } finally {
+      setSavingDefaultDomain(false);
+    }
+  };
 
   const getReadinessDisplay = (domain: EmailDomain): ReadinessDisplay => {
     const resendStatus = domain.resend_status as any;
@@ -416,10 +444,21 @@ export const EmailDomainsList = () => {
               Configure domains for sending emails with your brand
             </p>
           </div>
-          <Button onClick={() => setShowWizard(true)} className="flex items-center gap-2">
-            <Plus className="w-4 h-4" />
-            Add Domain
-          </Button>
+          <div className="flex items-center gap-2">
+            {defaultDomainId ? (
+              <Button
+                variant="outline"
+                onClick={() => setDefaultSendingDomain(null)}
+                disabled={savingDefaultDomain}
+              >
+                Clear default
+              </Button>
+            ) : null}
+            <Button onClick={() => setShowWizard(true)} className="flex items-center gap-2">
+              <Plus className="w-4 h-4" />
+              Add Domain
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           {emailDomains.length === 0 ? (
@@ -439,6 +478,8 @@ export const EmailDomainsList = () => {
                 const isRepairing = repairingDomains.has(domain.id);
                 const isFailed = domain.status === 'failed';
                 const canCheck = canForceCheck(domain.id);
+                const isOperational = domain.status === 'active' || domain.status === 'warming_up';
+                const isDefault = !!defaultDomainId && domain.id === defaultDomainId;
 
                 return (
                   <div
@@ -462,6 +503,11 @@ export const EmailDomainsList = () => {
                           <ReadinessBadge variant={display.badge.variant}>
                             {display.badge.text}
                           </ReadinessBadge>
+                          {isDefault && (
+                            <Badge variant="secondary" className="text-xs">
+                              Default
+                            </Badge>
+                          )}
                           {domain.is_sandbox && (
                             <Badge variant="secondary" className="text-xs bg-purple-100 text-purple-800">Sandbox</Badge>
                           )}
@@ -490,6 +536,18 @@ export const EmailDomainsList = () => {
 
                     {/* Actions - Single CTA pattern */}
                     <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+                      {/* Default domain selector */}
+                      {isOperational ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setDefaultSendingDomain(domain.id)}
+                          disabled={savingDefaultDomain || isDefault}
+                        >
+                          {isDefault ? 'Default' : 'Set default'}
+                        </Button>
+                      ) : null}
+
                       {/* Primary CTA Button (red actions) */}
                       {display.ctaAction && domain.is_entri_managed && (
                         <Button

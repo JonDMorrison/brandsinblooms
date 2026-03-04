@@ -968,52 +968,101 @@ serve(async (req: Request) => {
     // If missing, attempt to auto-select the tenant's most recent operational domain.
     let domainIdToUse: string | null = campaign.from_email_domain_id;
     if (!domainIdToUse) {
-      const { data: operationalDomains, error: operationalDomainsError } = await supabase
-        .from('email_domains')
-        .select('id, domain, status')
-        .eq('tenant_id', campaign.tenant_id)
-        .in('status', ['active', 'warming_up'])
-        .order('created_at', { ascending: false })
-        .limit(2);
+      // Prefer tenant-level default sending domain when configured.
+      const { data: tenantRow, error: tenantRowError } = await supabase
+        .from('tenants')
+        .select('default_from_email_domain_id')
+        .eq('id', campaign.tenant_id)
+        .maybeSingle();
 
-      if (operationalDomainsError) {
-        console.error('❌ Failed to look up operational sending domains:', serializeSupabaseError(operationalDomainsError));
+      if (tenantRowError) {
+        console.warn('⚠️ Failed to fetch tenant default sending domain:', serializeSupabaseError(tenantRowError));
       }
 
-      if (Array.isArray(operationalDomains) && operationalDomains.length === 1) {
-        domainIdToUse = operationalDomains[0].id;
-        console.log(`📧 Auto-selected sending domain: ${operationalDomains[0].domain} (${domainIdToUse})`);
+      const tenantDefaultDomainId = (tenantRow as any)?.default_from_email_domain_id as string | null | undefined;
+      if (tenantDefaultDomainId) {
+        const { data: defaultDomain, error: defaultDomainError } = await supabase
+          .from('email_domains')
+          .select('id, domain, status')
+          .eq('id', tenantDefaultDomainId)
+          .eq('tenant_id', campaign.tenant_id)
+          .in('status', ['active', 'warming_up'])
+          .maybeSingle();
 
-        const { error: persistDomainError } = await supabase
-          .from('crm_campaigns')
-          .update({
-            from_email_domain_id: domainIdToUse,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', campaignId);
-
-        if (persistDomainError) {
-          console.warn('⚠️ Failed to persist auto-selected domain on campaign; continuing anyway:', {
-            campaignId,
-            domainIdToUse,
-            err: serializeSupabaseError(persistDomainError),
-          });
+        if (defaultDomainError) {
+          console.warn('⚠️ Failed to validate tenant default sending domain:', serializeSupabaseError(defaultDomainError));
         }
-      } else {
-        const pauseMessage = Array.isArray(operationalDomains) && operationalDomains.length > 1
-          ? 'Multiple sending domains are configured. Please select a sending domain for this campaign.'
-          : 'Campaign sending requires a configured custom domain sender.';
 
-        await pauseCampaignSafely({
-          campaignId,
-          blockReason: 'sender_domain_required',
-          errorMessage: pauseMessage,
-        });
+        if (defaultDomain?.id) {
+          domainIdToUse = defaultDomain.id;
+          console.log(`📧 Using tenant default sending domain: ${defaultDomain.domain} (${domainIdToUse})`);
 
-        return new Response(
-          JSON.stringify({ error: pauseMessage, reason: 'sender_domain_required' }),
-          { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+          const { error: persistDomainError } = await supabase
+            .from('crm_campaigns')
+            .update({
+              from_email_domain_id: domainIdToUse,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', campaignId);
+
+          if (persistDomainError) {
+            console.warn('⚠️ Failed to persist tenant default domain on campaign; continuing anyway:', {
+              campaignId,
+              domainIdToUse,
+              err: serializeSupabaseError(persistDomainError),
+            });
+          }
+        }
+      }
+
+      if (!domainIdToUse) {
+        const { data: operationalDomains, error: operationalDomainsError } = await supabase
+          .from('email_domains')
+          .select('id, domain, status')
+          .eq('tenant_id', campaign.tenant_id)
+          .in('status', ['active', 'warming_up'])
+          .order('created_at', { ascending: false })
+          .limit(2);
+
+        if (operationalDomainsError) {
+          console.error('❌ Failed to look up operational sending domains:', serializeSupabaseError(operationalDomainsError));
+        }
+
+        if (Array.isArray(operationalDomains) && operationalDomains.length === 1) {
+          domainIdToUse = operationalDomains[0].id;
+          console.log(`📧 Auto-selected sending domain: ${operationalDomains[0].domain} (${domainIdToUse})`);
+
+          const { error: persistDomainError } = await supabase
+            .from('crm_campaigns')
+            .update({
+              from_email_domain_id: domainIdToUse,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', campaignId);
+
+          if (persistDomainError) {
+            console.warn('⚠️ Failed to persist auto-selected domain on campaign; continuing anyway:', {
+              campaignId,
+              domainIdToUse,
+              err: serializeSupabaseError(persistDomainError),
+            });
+          }
+        } else {
+          const pauseMessage = Array.isArray(operationalDomains) && operationalDomains.length > 1
+            ? 'Multiple sending domains are configured. Please select a sending domain for this campaign.'
+            : 'Campaign sending requires a configured custom domain sender.';
+
+          await pauseCampaignSafely({
+            campaignId,
+            blockReason: 'sender_domain_required',
+            errorMessage: pauseMessage,
+          });
+
+          return new Response(
+            JSON.stringify({ error: pauseMessage, reason: 'sender_domain_required' }),
+            { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
       }
     }
 

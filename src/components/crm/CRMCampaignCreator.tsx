@@ -1647,6 +1647,9 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           name: campaignName || "Untitled Draft",
           subject_line: subjectLine || "",
           preheader: preheaderText || "",
+          sender_name: senderConfig?.displayName || null,
+          sender_email: senderConfig?.senderEmail || null,
+          from_email_domain_id: senderConfig?.fromEmailDomainId || null,
           status: "draft",
           user_id: user.id,
           created_at: new Date().toISOString(),
@@ -1686,6 +1689,9 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
     campaignName,
     subjectLine,
     preheaderText,
+    senderConfig?.displayName,
+    senderConfig?.senderEmail,
+    senderConfig?.fromEmailDomainId,
     navigate,
   ]);
 
@@ -3967,6 +3973,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                         generatePreheaderText(topic, description),
                       sender_name: senderConfig?.displayName || "BloomSuite",
                       sender_email: senderConfig?.senderEmail || "",
+                      from_email_domain_id: senderConfig?.fromEmailDomainId || null,
                       content: "", // HTML will be generated when needed
                       segments: [],
                       schedule: { type: "immediate" as const },
@@ -5922,6 +5929,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           subject: subjectLine,
           sender_name: senderConfig?.displayName || "BloomSuite",
           sender_email: senderConfig?.senderEmail || "",
+          from_email_domain_id: senderConfig?.fromEmailDomainId || null,
           content: htmlContent,
           preheader: preheaderText,
           // Persist segments to DB so refresh doesn't revert to "All Contacts"
@@ -6121,6 +6129,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         subject: subjectLine,
         sender_name: senderConfig?.displayName || "Garden Center",
         sender_email: senderConfig?.senderEmail || "",
+        from_email_domain_id: senderConfig?.fromEmailDomainId || null,
         content: generateEmailHTML(),
         preheader: preheaderText,
         // Only persist DB-safe segment IDs (UUIDs) to FK-backed storage.

@@ -10,6 +10,7 @@ export interface SenderConfig {
   deliveryMethod: 'custom';
   companyName?: string;
   domain?: string;
+  fromEmailDomainId?: string | null;
   domainStatus?: string;
   replyToEmail?: string;
 }
@@ -41,6 +42,19 @@ export const useSenderConfiguration = () => {
       // The display name comes from company_profiles.company_name
       const displayName = companyProfile?.company_name || tenant.name || 'Your Business';
 
+      // Fetch tenant-level default sending domain (if configured)
+      const { data: tenantRow, error: tenantRowError } = await supabase
+        .from('tenants')
+        .select('default_from_email_domain_id')
+        .eq('id', tenant.id)
+        .maybeSingle();
+
+      if (tenantRowError) {
+        console.warn('Error fetching tenant default sending domain:', tenantRowError);
+      }
+
+      const defaultFromEmailDomainId = (tenantRow as any)?.default_from_email_domain_id as string | null | undefined;
+
       // Check for active/verified custom domain in email_domains table
       // Include 'warming_up' status as it's also usable for sending
       const { data: activeDomains, error: domainsError } = await supabase
@@ -49,14 +63,21 @@ export const useSenderConfiguration = () => {
         .eq('tenant_id', tenant.id)
         .in('status', ['active', 'warming_up'])
         .order('created_at', { ascending: false })
-        .limit(1);
+        .limit(20);
 
       if (domainsError) {
         console.error('Error fetching email domains:', domainsError);
       }
 
       const hasActiveDomain = activeDomains && activeDomains.length > 0;
-      const activeDomain = hasActiveDomain ? activeDomains[0] : null;
+      const activeDomain = (() => {
+        if (!hasActiveDomain) return null;
+        if (defaultFromEmailDomainId) {
+          const match = activeDomains.find((d: any) => d?.id === defaultFromEmailDomainId);
+          if (match) return match;
+        }
+        return activeDomains[0];
+      })();
 
       // If we have an active custom domain, use it
       if (activeDomain) {
@@ -71,6 +92,7 @@ export const useSenderConfiguration = () => {
           deliveryMethod: 'custom',
           companyName: displayName,
           domain: activeDomain.domain,
+          fromEmailDomainId: activeDomain.id,
           domainStatus: activeDomain.status,
           replyToEmail,
         });
@@ -105,6 +127,7 @@ export const useSenderConfiguration = () => {
           deliveryMethod: 'custom',
           companyName: displayName,
           domain: companyProfile.email_domain,
+          fromEmailDomainId: null,
           domainStatus: 'active',
           replyToEmail: companyProfile.custom_sender_email!,
         });
@@ -120,6 +143,7 @@ export const useSenderConfiguration = () => {
         deliveryMethod: 'custom',
         companyName: displayName,
         domain: latestDomain?.domain,
+        fromEmailDomainId: null,
         domainStatus: latestDomain?.status,
         replyToEmail: '',
       });
@@ -130,6 +154,7 @@ export const useSenderConfiguration = () => {
         senderEmail: '',
         displayName: 'Your Business',
         deliveryMethod: 'custom',
+        fromEmailDomainId: null,
         replyToEmail: ''
       });
     } finally {

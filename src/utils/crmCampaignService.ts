@@ -9,6 +9,7 @@ export interface CampaignData {
   subject: string;
   sender_name: string;
   sender_email: string;
+  from_email_domain_id?: string | null;
   content: string;
   preheader?: string;
   segments: Array<{
@@ -72,6 +73,7 @@ export const saveCampaignAsDraft = async (campaignData: CampaignData) => {
       subject_line: campaignData.subject,
       sender_name: campaignData.sender_name,
       sender_email: campaignData.sender_email,
+      from_email_domain_id: campaignData.from_email_domain_id ?? null,
       preheader: campaignData.preheader,
       content: campaignData.content,
       status: 'draft',
@@ -98,6 +100,7 @@ export const saveCampaignAsDraft = async (campaignData: CampaignData) => {
           subject_line: campaignData.subject,
           sender_name: campaignData.sender_name,
           sender_email: campaignData.sender_email,
+          from_email_domain_id: campaignData.from_email_domain_id ?? null,
           preheader: campaignData.preheader,
           content: campaignData.content,
           status: 'draft', // Reset to draft on re-save
