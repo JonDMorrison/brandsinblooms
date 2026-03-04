@@ -6,6 +6,7 @@ import { generateServerFooterHtml, type CompanyProfileData } from "../_shared/fo
 import { rewriteLinksSync } from "../_shared/linkRewriter.ts";
 import { canSendEmailBatch, logSkippedSends } from "../_shared/canSendEmail.ts";
 import { getEmailGovernanceRuntimeConfig } from "../_shared/emailGovernanceConfig.ts";
+import { systemPauseEmailCampaignSending } from "../_shared/systemPauseCampaign.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -259,10 +260,10 @@ serve(async (req) => {
     const reputationPolicy = await getCampaignReputationPolicy(supabase, campaignId);
     if (reputationPolicy.action === 'pause' && !campaignIntervention.autopause_override_final) {
       const pauseMessage = `Campaign auto-paused: tenant reputation score ${reputationPolicy.score} is below 60.`;
-      await supabase.rpc('system_pause_email_campaign_sending', {
-        p_campaign_id: campaignId,
-        p_block_reason: 'reputation_critical_autopause',
-        p_error_message: pauseMessage,
+      await systemPauseEmailCampaignSending(supabase, {
+        campaignId,
+        blockReason: 'reputation_critical_autopause',
+        errorMessage: pauseMessage,
       });
 
       return new Response(
@@ -456,10 +457,10 @@ serve(async (req) => {
     const activeDomainId = campaign.from_email_domain_id;
     if (!activeDomainId) {
       const pauseMessage = 'Campaign sending requires a configured custom domain sender.';
-      await supabase.rpc('system_pause_email_campaign_sending', {
-        p_campaign_id: campaignId,
-        p_block_reason: 'sender_domain_required',
-        p_error_message: pauseMessage,
+      await systemPauseEmailCampaignSending(supabase, {
+        campaignId,
+        blockReason: 'sender_domain_required',
+        errorMessage: pauseMessage,
       });
 
       return new Response(
@@ -478,10 +479,10 @@ serve(async (req) => {
 
     if (!activeDomain) {
       const pauseMessage = 'Campaign domain is not operational. Please verify your selected sending domain.';
-      await supabase.rpc('system_pause_email_campaign_sending', {
-        p_campaign_id: campaignId,
-        p_block_reason: 'domain_not_operational',
-        p_error_message: pauseMessage,
+      await systemPauseEmailCampaignSending(supabase, {
+        campaignId,
+        blockReason: 'domain_not_operational',
+        errorMessage: pauseMessage,
       });
 
       return new Response(

@@ -10,7 +10,7 @@ const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiO
 // Enhanced auth state cleanup utility
 export const cleanupAuthState = () => {
   console.log('🧹 Starting comprehensive auth state cleanup...');
-  
+
   try {
     // Remove all possible auth-related keys from localStorage
     const keysToRemove = [
@@ -19,12 +19,12 @@ export const cleanupAuthState = () => {
       'supabase.auth.refreshToken',
       'supabase.auth.expiresAt'
     ];
-    
+
     keysToRemove.forEach(key => {
       localStorage.removeItem(key);
       console.log(`Removed localStorage key: ${key}`);
     });
-    
+
     // Remove all Supabase auth keys with pattern matching
     Object.keys(localStorage).forEach((key) => {
       if (key.startsWith('supabase.auth.') || key.includes('sb-udld') || key.includes('sb-auth')) {
@@ -32,7 +32,7 @@ export const cleanupAuthState = () => {
         localStorage.removeItem(key);
       }
     });
-    
+
     // Remove from sessionStorage if in use
     if (typeof sessionStorage !== 'undefined') {
       Object.keys(sessionStorage).forEach((key) => {
@@ -42,7 +42,7 @@ export const cleanupAuthState = () => {
         }
       });
     }
-    
+
     console.log('✅ Auth state cleanup complete');
   } catch (error) {
     console.error('❌ Error during auth cleanup:', error);
@@ -52,15 +52,15 @@ export const cleanupAuthState = () => {
 // Force logout utility for emergency situations
 export const forceLogout = async () => {
   console.log('🚨 Starting force logout sequence...');
-  
+
   try {
     // Step 1: Clean up all auth state first
     cleanupAuthState();
-    
+
     // Step 2: Clear any app-specific state
     localStorage.removeItem('subscription-cache');
     localStorage.removeItem('user-profile-cache');
-    
+
     // Step 3: Attempt graceful signout (may fail in limbo state)
     try {
       await supabase.auth.signOut({ scope: 'global' });
@@ -68,7 +68,7 @@ export const forceLogout = async () => {
     } catch (signOutError) {
       console.warn('⚠️ Graceful signout failed (continuing anyway):', signOutError);
     }
-    
+
     // Step 4: Force page reload to completely reset state
     console.log('🔄 Forcing page reload for clean state...');
     window.location.href = '/auth';
@@ -99,16 +99,16 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
 export const signOutCompletely = async () => {
   try {
     console.log('🚪 Starting complete sign out...');
-    
+
     // Clean up auth state first
     cleanupAuthState();
-    
+
     // Attempt global sign out
     const { error } = await supabase.auth.signOut({ scope: 'global' });
     if (error) {
       console.error('Sign out error (continuing anyway):', error);
     }
-    
+
     // Force page reload for clean state
     window.location.href = '/auth';
   } catch (error) {
@@ -120,41 +120,41 @@ export const signOutCompletely = async () => {
 
 export const signInWithCleanup = async (email: string, password: string) => {
   console.log('🔑 Starting sign in with cleanup...');
-  
+
   // Clean up existing state
   cleanupAuthState();
-  
+
   // Attempt global sign out first
   try {
     await supabase.auth.signOut({ scope: 'global' });
   } catch (err) {
     console.log('Pre-signin cleanup (expected):', err);
   }
-  
+
   // Sign in with email/password
   const { data, error } = await supabase.auth.signInWithPassword({
     email,
     password,
   });
-  
+
   return { data, error };
 };
 
 export const signUpWithCleanup = async (email: string, password: string, fullName: string) => {
   console.log('📝 Starting sign up with cleanup...');
-  
+
   // Clean up existing state
   cleanupAuthState();
-  
+
   // Attempt global sign out first
   try {
     await supabase.auth.signOut({ scope: 'global' });
   } catch (err) {
     console.log('Pre-signup cleanup (expected):', err);
   }
-  
+
   const redirectUrl = `${window.location.origin}/onboarding`;
-  
+
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
@@ -165,6 +165,6 @@ export const signUpWithCleanup = async (email: string, password: string, fullNam
       }
     }
   });
-  
+
   return { data, error };
 };

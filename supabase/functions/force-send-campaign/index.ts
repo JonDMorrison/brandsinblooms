@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { systemPauseEmailCampaignSending } from "../_shared/systemPauseCampaign.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -110,10 +111,10 @@ serve(async (req: Request) => {
 
     if (policyAction === 'pause') {
       const pauseMessage = `Campaign auto-paused: tenant reputation score ${policyScore} is below 60.`;
-      await supabaseClient.rpc('system_pause_email_campaign_sending', {
-        p_campaign_id: campaignId,
-        p_block_reason: 'reputation_critical_autopause',
-        p_error_message: pauseMessage,
+      await systemPauseEmailCampaignSending(supabaseClient, {
+        campaignId,
+        blockReason: 'reputation_critical_autopause',
+        errorMessage: pauseMessage,
       });
 
       return new Response(

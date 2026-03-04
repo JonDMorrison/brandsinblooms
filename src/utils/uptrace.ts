@@ -49,7 +49,7 @@ export function initUptrace() {
   }
 
   const uptraceDsn = import.meta.env.VITE_UPTRACE_DSN;
-  
+
   if (!uptraceDsn) {
     console.warn('VITE_UPTRACE_DSN not configured, telemetry disabled');
     return;
@@ -70,14 +70,14 @@ export function initUptrace() {
     }
 
     console.log('[Uptrace] Initializing with DSN:', uptraceDsn.split('@')[0] + '@***');
-    
+
     // Configure OpenTelemetry with Uptrace
     sdk = Uptrace.configureOpentelemetry({
       dsn: uptraceDsn,
       serviceName: 'bloomsuite-frontend',
       serviceVersion: '1.0.0',
       deploymentEnvironment: import.meta.env.MODE || 'production',
-      
+
       // Add automatic instrumentations for browser
       instrumentations: [
         getWebAutoInstrumentations({
@@ -122,7 +122,7 @@ export function captureException(error: Error, context?: Record<string, any>) {
     // Get the global tracer from OpenTelemetry
     const tracer = trace.getTracer('bloomsuite-frontend');
     const span = tracer.startSpan('exception');
-    
+
     span.recordException(error);
     span.setAttributes({
       'error.type': error.name || 'Error',
@@ -130,7 +130,7 @@ export function captureException(error: Error, context?: Record<string, any>) {
       'error.stack': error.stack || '',
       ...(context || {}),
     });
-    
+
     span.setStatus({ code: SpanStatusCode.ERROR });
     span.end();
   } catch (err) {
@@ -167,13 +167,13 @@ export function setUserContext(userId: string, email?: string, metadata?: Record
   try {
     const tracer = trace.getTracer('bloomsuite-frontend');
     const span = tracer.startSpan('user.context');
-    
+
     span.setAttributes({
       'user.id': userId,
       'user.email': email || '',
       ...(metadata || {}),
     });
-    
+
     span.end();
     console.log('[User Context Set]', { userId, email });
   } catch (err) {
@@ -194,7 +194,7 @@ export function startTransaction(name: string, op?: string) {
     const span = tracer.startSpan(name, {
       attributes: { 'transaction.op': op || 'navigation' }
     });
-    
+
     console.log(`[Transaction Start] ${name}`, { op: op || 'navigation' });
     return { span, name, startTime: Date.now() };
   } catch (err) {
@@ -214,13 +214,13 @@ export function addBreadcrumb(message: string, category?: string, data?: Record<
   try {
     const tracer = trace.getTracer('bloomsuite-frontend');
     const span = tracer.startSpan(`breadcrumb.${category || 'user-action'}`);
-    
+
     span.setAttributes({
       'breadcrumb.message': message,
       'breadcrumb.category': category || 'user-action',
       ...(data || {}),
     });
-    
+
     span.end();
     console.log(`[Breadcrumb] ${message}`, { category: category || 'user-action', ...data });
   } catch (err) {

@@ -305,6 +305,51 @@ serve(async (req: Request) => {
           err: serializeSupabaseError(directUpdateError),
         });
       }
+
+      // Best-effort: also pause jobs/messages directly so the worker stops sending.
+      // This mirrors the system RPC behavior and prevents continued delivery if the RPC is missing.
+      const nowIso = new Date().toISOString();
+
+      const { error: jobsPauseError } = await supabase
+        .from('email_send_jobs')
+        .update({
+          status: 'paused',
+          error_message: null,
+          claim_token: null,
+          claimed_at: null,
+          claimed_by: null,
+          updated_at: nowIso,
+        })
+        .eq('campaign_id', campaignId)
+        .in('status', ['pending', 'in_progress']);
+
+      if (jobsPauseError) {
+        console.error('❌ Failed to pause send jobs via direct update:', {
+          campaignId,
+          err: serializeSupabaseError(jobsPauseError),
+        });
+      }
+
+      const { error: messagesPauseError } = await supabase
+        .from('email_messages')
+        .update({
+          status: 'paused',
+          error_message: null,
+          claim_token: null,
+          claimed_at: null,
+          claimed_by: null,
+          updated_at: nowIso,
+        })
+        .eq('campaign_id', campaignId)
+        .is('resend_id', null)
+        .in('status', ['queued', 'sending']);
+
+      if (messagesPauseError) {
+        console.error('❌ Failed to pause messages via direct update:', {
+          campaignId,
+          err: serializeSupabaseError(messagesPauseError),
+        });
+      }
     };
 
     const resendApiKey = Deno.env.get('RESEND_API_KEY');
@@ -743,10 +788,10 @@ serve(async (req: Request) => {
 
     if (hygieneAnalysis.blocked) {
       const pauseMessage = `Campaign blocked: invalid email ratio ${hygieneAnalysis.invalidEmailsPct.toFixed(2)}% exceeds 5%.`;
-      await supabase.rpc('system_pause_email_campaign_sending', {
-        p_campaign_id: campaignId,
-        p_block_reason: hygieneAnalysis.blockReason || 'list_hygiene_invalid_ratio',
-        p_error_message: pauseMessage,
+      await pauseCampaignSafely({
+        campaignId,
+        blockReason: hygieneAnalysis.blockReason || 'list_hygiene_invalid_ratio',
+        errorMessage: pauseMessage,
       });
 
       await logCampaignGovernanceDecision({
@@ -811,10 +856,10 @@ serve(async (req: Request) => {
         abuseRow?.message ||
         'Campaign blocked pending manual review due to abuse detection signals.';
 
-      await supabase.rpc('system_pause_email_campaign_sending', {
-        p_campaign_id: campaignId,
-        p_block_reason: 'abuse_detection_under_review',
-        p_error_message: abusePauseMessage,
+      await pauseCampaignSafely({
+        campaignId,
+        blockReason: 'abuse_detection_under_review',
+        errorMessage: abusePauseMessage,
       });
 
       await logCampaignGovernanceDecision({
@@ -1078,10 +1123,10 @@ serve(async (req: Request) => {
     senderEmail = configuredEmail || `mail@${domainName}`;
     if (senderEmail === 'noreply@bloomsuite.app') {
       const pauseMessage = 'Campaign sending requires a verified custom domain. Shared sender is disabled.';
-      await supabase.rpc('system_pause_email_campaign_sending', {
-        p_campaign_id: campaignId,
-        p_block_reason: 'shared_sender_disabled',
-        p_error_message: pauseMessage,
+      await pauseCampaignSafely({
+        campaignId,
+        blockReason: 'shared_sender_disabled',
+        errorMessage: pauseMessage,
       });
 
       await logCampaignGovernanceDecision({

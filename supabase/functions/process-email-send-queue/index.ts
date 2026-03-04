@@ -4,6 +4,7 @@ import { generateServerFooterHtml, type CompanyProfileData } from "../_shared/fo
 import { renderMergeTags, convertLegacyTags, createMergeTagDataFromCustomer, type MergeTagData } from "../_shared/mergeTagEngine.ts";
 import { extractLinks, getUniqueUrls, rewriteLinksSync, hasPII } from "../_shared/linkRewriter.ts";
 import { canSendEmailBatch, logSkippedSends } from "../_shared/canSendEmail.ts";
+import { systemPauseEmailCampaignSending } from "../_shared/systemPauseCampaign.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -976,10 +977,10 @@ serve((req) => {
 
           if (campaignPolicy.action === 'pause' && !campaignIntervention.autopause_override_final) {
             const pauseMessage = `Campaign auto-paused: tenant reputation score ${campaignPolicy.score} is below 60.`;
-            await supabase.rpc('system_pause_email_campaign_sending', {
-              p_campaign_id: campaignIdForJob,
-              p_block_reason: 'reputation_critical_autopause',
-              p_error_message: pauseMessage,
+            await systemPauseEmailCampaignSending(supabase, {
+              campaignId: campaignIdForJob,
+              blockReason: 'reputation_critical_autopause',
+              errorMessage: pauseMessage,
             });
             await pauseJob(pauseMessage);
             processedCount++;
@@ -1041,10 +1042,10 @@ serve((req) => {
 
             if (domainId && domainInvestigationCache.get(domainId) === true) {
               const pauseMessage = 'Campaign paused: sending domain is under investigation mode.';
-              await supabase.rpc('system_pause_email_campaign_sending', {
-                p_campaign_id: campaignIdForJob,
-                p_block_reason: 'domain_under_investigation',
-                p_error_message: pauseMessage,
+              await systemPauseEmailCampaignSending(supabase, {
+                campaignId: campaignIdForJob,
+                blockReason: 'domain_under_investigation',
+                errorMessage: pauseMessage,
               });
               await pauseJob(pauseMessage);
               processedCount++;
@@ -1061,10 +1062,10 @@ serve((req) => {
                 ? 'Shared sender is disabled. Configure a custom domain to send campaigns.'
                 : 'Campaign sending requires a configured custom domain sender.';
 
-              await supabase.rpc('system_pause_email_campaign_sending', {
-                p_campaign_id: campaignIdForJob,
-                p_block_reason: isSharedSender ? 'shared_sender_disabled' : 'sender_domain_required',
-                p_error_message: pauseMessage,
+              await systemPauseEmailCampaignSending(supabase, {
+                campaignId: campaignIdForJob,
+                blockReason: isSharedSender ? 'shared_sender_disabled' : 'sender_domain_required',
+                errorMessage: pauseMessage,
               });
 
               await pauseJob(pauseMessage);
@@ -1477,10 +1478,10 @@ serve((req) => {
             const livePolicy = await getCampaignReputationPolicy(supabase, campaignId);
             if (livePolicy.action === 'pause' && !liveIntervention.autopause_override_final) {
               const pauseMessage = `Campaign auto-paused mid-send: tenant reputation score ${livePolicy.score} is below 60.`;
-              await supabase.rpc('system_pause_email_campaign_sending', {
-                p_campaign_id: campaignId,
-                p_block_reason: 'reputation_critical_autopause',
-                p_error_message: pauseMessage,
+              await systemPauseEmailCampaignSending(supabase, {
+                campaignId,
+                blockReason: 'reputation_critical_autopause',
+                errorMessage: pauseMessage,
               });
 
               await pauseJob(pauseMessage);
