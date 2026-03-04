@@ -72,12 +72,19 @@ function normalizeCampaignMetrics(campaign: any): CampaignMetrics {
   }
 
   // Fallback to legacy flat shape + campaign columns
+  // Use campaign-level columns as override when flat metrics show 0 but columns have real values
   const flat = m && typeof m === "object" ? (m as any) : {};
   return {
     sent: toNumber(flat.sent ?? campaign?.total_sent, 0),
     delivered: toNumber(flat.delivered, 0),
-    opened: toNumber(flat.opened ?? flat.opens ?? campaign?.total_opens, 0),
-    clicked: toNumber(flat.clicked ?? flat.clicks ?? campaign?.total_clicks, 0),
+    opened: toNumber(
+      (flat.opened || flat.opens || 0) || campaign?.total_opens,
+      0,
+    ),
+    clicked: toNumber(
+      (flat.clicked || flat.clicks || 0) || campaign?.total_clicks,
+      0,
+    ),
     bounced: toNumber(flat.bounced ?? flat.bounces, 0),
     unsubscribed: toNumber(flat.unsubscribed ?? flat.unsubscribes, 0),
     revenue: toNumber(flat.revenue, 0),
