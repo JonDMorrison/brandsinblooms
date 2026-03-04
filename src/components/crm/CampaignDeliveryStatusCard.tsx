@@ -27,6 +27,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { retryFailedEmailMessages } from "@/lib/email/emailRetryService";
 import { markEmailCampaignCompletedWithFailures } from "@/lib/email/emailCompletionService";
 import { useCampaignGovernanceVisibility } from "@/hooks/useCampaignGovernanceVisibility";
+import { parseEdgeFunctionError } from "@/utils/campaignSendingErrors";
 
 type CampaignRow = {
   id: string;
