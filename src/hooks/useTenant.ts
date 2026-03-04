@@ -54,7 +54,7 @@ export const useTenant = () => {
           .maybeSingle();
 
         if (tenantError) throw tenantError;
-        setTenant(tenantData);
+        setTenant(tenantData as unknown as Tenant);
       } else {
         setTenant(null);
         setError('You are not assigned to a tenant. Please contact support or create an organization to continue.');
