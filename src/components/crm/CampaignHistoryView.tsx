@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -49,19 +49,14 @@ interface CampaignHistoryItem {
 
 export const CampaignHistoryView: React.FC = () => {
   const navigate = useNavigate();
-  const { campaigns, loading, loadCampaigns } = useCampaignAnalytics();
+  const { campaigns, loading } = useCampaignAnalytics();
   const { cloneCampaign, cloneCampaignWithAIRefresh, isCloning } = useCampaignCloning();
   
-  const [filteredCampaigns, setFilteredCampaigns] = useState<CampaignHistoryItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [sortBy, setSortBy] = useState<'recent' | 'performance' | 'sent'>('recent');
 
-  useEffect(() => {
-    loadCampaigns();
-  }, []);
-
-  useEffect(() => {
+  const filteredCampaigns = useMemo((): CampaignHistoryItem[] => {
     let filtered = campaigns.map(campaign => ({
       id: campaign.id,
       name: campaign.name,
@@ -110,7 +105,7 @@ export const CampaignHistoryView: React.FC = () => {
       }
     });
 
-    setFilteredCampaigns(filtered);
+    return filtered;
   }, [campaigns, searchQuery, statusFilter, sortBy]);
 
   const handleCloneCampaign = async (campaignId: string, withAI: boolean = false) => {
@@ -147,9 +142,13 @@ export const CampaignHistoryView: React.FC = () => {
     return <Badge variant="secondary" className="text-gray-600">Low</Badge>;
   };
 
-  const topPerformers = filteredCampaigns
-    .filter(c => c.metrics && c.metrics.total_sent > 0)
-    .slice(0, 3);
+  const topPerformers = useMemo(
+    () =>
+      filteredCampaigns
+        .filter(c => c.metrics && c.metrics.total_sent > 0)
+        .slice(0, 3),
+    [filteredCampaigns],
+  );
 
   return (
     <div className="space-y-6">
@@ -252,7 +251,12 @@ export const CampaignHistoryView: React.FC = () => {
 
             <NativeSelect
               value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as any)}
+              onChange={(e) => {
+                const value = e.target.value;
+                if (value === 'recent' || value === 'performance' || value === 'sent') {
+                  setSortBy(value);
+                }
+              }}
               className="w-40"
               options={[
                 { value: 'recent', label: 'Recent' },

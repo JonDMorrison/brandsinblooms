@@ -13,16 +13,16 @@ export type Environment = 'development' | 'production';
 export function detectEnvironment(req: Request): Environment {
   const origin = req.headers.get('origin') || '';
   const referer = req.headers.get('referer') || '';
-  
+
   // Check if request is from development/preview environment
-  const isDev = 
+  const isDev =
     origin.includes('localhost') ||
     origin.includes('lovableproject.com') ||
     origin.includes('lovable.app') || // Lovable preview URLs
     referer.includes('localhost') ||
     referer.includes('lovableproject.com') ||
     referer.includes('lovable.app');
-  
+
   return isDev ? 'development' : 'production';
 }
 
@@ -32,7 +32,14 @@ export function detectEnvironment(req: Request): Environment {
  */
 export function getEnvSecret(baseName: string, env: Environment): string | undefined {
   const suffix = env === 'development' ? '_DEV' : '_PROD';
-  return Deno.env.get(`${baseName}${suffix}`);
+
+  // Prefer environment-specific secrets (recommended)
+  const envSpecific = Deno.env.get(`${baseName}${suffix}`);
+  if (envSpecific) return envSpecific;
+
+  // Backwards-compatible fallback (some older deployments used unsuffixed secrets)
+  // Example: LIGHTSPEED_CLIENT_ID / LIGHTSPEED_CLIENT_SECRET
+  return Deno.env.get(baseName);
 }
 
 /**
@@ -89,20 +96,20 @@ export function getSquareCredentials(env: Environment): {
 
 /**
  * Get environment-aware redirect URI for OAuth callbacks
- * 
+ *
  * ⚠️ DEPRECATED - DO NOT USE THIS FUNCTION
  * This function is NOT used by the OAuth flow and has incorrect development URL.
- * 
+ *
  * The OAuth flow uses dynamic redirect URIs:
  * - Frontend: window.location.origin + '/oauth/callback' (via src/utils/environmentUtils.ts)
  * - Backend: Uses redirect_uri from frontend request body (no construction needed)
- * 
+ *
  * Development: https://{preview-id}.lovableproject.com/oauth/callback
  * Production: https://bloomsuite.app/oauth/callback
  */
 export function getOAuthRedirectUri(env: Environment, path: string = '/oauth/callback'): string {
   console.warn('⚠️ getOAuthRedirectUri() is deprecated and unused. Use frontend environment utils instead.');
-  const baseUrl = env === 'development' 
+  const baseUrl = env === 'development'
     ? 'https://lovable.app'  // ❌ INCORRECT - should be dynamic preview URL
     : 'https://bloomsuite.app';
   return `${baseUrl}${path}`;

@@ -1,6 +1,16 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+
+function getErrorMessage(err: unknown) {
+  if (err instanceof Error) return err.message;
+  if (typeof err === 'string') return err;
+  try {
+    return JSON.stringify(err);
+  } catch {
+    return 'Unknown error';
+  }
+}
 
 export interface DerivedMetrics {
   totals: {
@@ -47,6 +57,8 @@ export const useCampaignDerivedMetrics = (campaignId: string | undefined): UseCa
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
   const [rollupRefreshedAt, setRollupRefreshedAt] = useState<Date | null>(null);
   const [lastEventAt, setLastEventAt] = useState<Date | null>(null);
+
+  const lastEventStateUpdateAtMsRef = useRef<number>(0);
 
   // Check if data is stale (rollup older than last event by threshold)
   const isStale = (() => {
@@ -96,9 +108,9 @@ export const useCampaignDerivedMetrics = (campaignId: string | undefined): UseCa
       }
 
       setLastRefreshed(new Date());
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error fetching derived metrics:', err);
-      setError(err.message);
+      setError(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -122,10 +134,10 @@ export const useCampaignDerivedMetrics = (campaignId: string | undefined): UseCa
         setLastRefreshed(new Date());
         toast.success('Metrics recalculated');
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error recomputing metrics:', err);
       toast.error('Failed to recalculate metrics');
-      setError(err.message);
+      setError(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -151,8 +163,15 @@ export const useCampaignDerivedMetrics = (campaignId: string | undefined): UseCa
           filter: `campaign_id=eq.${campaignId}`
         },
         (payload) => {
-          console.log('New tracking event:', payload);
-          setLastEventAt(new Date());
+          if (import.meta.env.DEV) {
+            console.debug('New tracking event:', payload);
+          }
+          // Avoid rerendering this metrics card for every single tracking insert.
+          const nowMs = Date.now();
+          if (nowMs - lastEventStateUpdateAtMsRef.current >= 5000) {
+            lastEventStateUpdateAtMsRef.current = nowMs;
+            setLastEventAt(new Date());
+          }
           // Debounced refresh could be added here
         }
       )

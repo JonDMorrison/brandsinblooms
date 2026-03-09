@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -33,8 +33,18 @@ interface EmailTrackingEvent {
   campaign_id: string;
   customer_email: string;
   event_type: 'sent' | 'delivered' | 'opened' | 'clicked' | 'bounced' | 'unsubscribed';
-  event_data: Record<string, any>;
+  event_data: Record<string, unknown>;
   created_at: string;
+}
+
+function getErrorMessage(err: unknown) {
+  if (err instanceof Error) return err.message;
+  if (typeof err === 'string') return err;
+  try {
+    return JSON.stringify(err);
+  } catch {
+    return 'Unknown error';
+  }
 }
 
 export const useCampaignAnalytics = () => {
@@ -42,44 +52,127 @@ export const useCampaignAnalytics = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const loadCampaigns = async () => {
-    setLoading(true);
-    setError(null);
+  const reloadTimerRef = useRef<number | null>(null);
+  const unmountedRef = useRef(false);
+
+  const loadCampaigns = useCallback(
+    async (options?: { silent?: boolean }) => {
+      const silent = !!options?.silent;
+
+      if (!silent) setLoading(true);
+      setError(null);
     
-    try {
-      const { data, error: queryError } = await supabase
-        .from('crm_campaigns')
-        .select('*')
-        .order('created_at', { ascending: false });
+      try {
+        const baseColumns = [
+          'id',
+          'name',
+          'subject_line',
+          'status',
+          'sent_at',
+          'created_at',
+          'metrics',
+          'open_rate',
+          'click_rate',
+          'total_sent',
+          'total_opens',
+          'total_clicks',
+        ];
 
-      if (queryError) throw queryError;
+        // `delivery_method` is useful for UI but may not exist in some DB envs;
+        // fall back to the stable column set if PostgREST complains.
+        const preferredColumns = [...baseColumns, 'delivery_method'];
 
-      const processedCampaigns: CampaignAnalytics[] = (data || []).map(campaign => ({
-        id: campaign.id,
-        name: campaign.name,
-        subject_line: campaign.subject_line || '',
-        status: campaign.status,
-        sent_at: campaign.sent_at || campaign.created_at,
-        metrics: typeof campaign.metrics === 'object' && campaign.metrics !== null && !Array.isArray(campaign.metrics) ? 
-          campaign.metrics as unknown as CampaignMetrics : null,
-        created_at: campaign.created_at,
-        open_rate: campaign.open_rate || 0,
-        click_rate: campaign.click_rate || 0,
-        total_sent: campaign.total_sent || 0,
-        total_opens: campaign.total_opens || 0,
-        total_clicks: campaign.total_clicks || 0,
-        delivery_method: campaign.delivery_method
-      }));
+        const runQuery = async (columns: string[]) => {
+          return await supabase
+            .from('crm_campaigns')
+            .select(columns.join(','))
+            .order('created_at', { ascending: false });
+        };
 
-      setCampaigns(processedCampaigns);
-    } catch (err: any) {
-      console.error('Error loading campaigns:', err);
-      setError(err.message);
-      toast.error('Failed to load campaign analytics');
-    } finally {
-      setLoading(false);
-    }
-  };
+        let query = await runQuery(preferredColumns);
+        if (query.error) {
+          const maybeError = query.error as { code?: string; message?: string } | null;
+          const code = String(maybeError?.code || '').toLowerCase();
+          const message = String(maybeError?.message || '').toLowerCase();
+          const looksLikeMissingColumn =
+            code === '42703' || message.includes('column') || message.includes('does not exist');
+
+          if (looksLikeMissingColumn) {
+            query = await runQuery(baseColumns);
+          }
+        }
+
+        const { data, error: queryError } = query;
+        if (queryError) throw queryError;
+
+        type CampaignRow = {
+          id: string;
+          name: string;
+          subject_line: string | null;
+          status: string;
+          sent_at: string | null;
+          created_at: string;
+          metrics: unknown;
+          open_rate: number | null;
+          click_rate: number | null;
+          total_sent: number | null;
+          total_opens: number | null;
+          total_clicks: number | null;
+          delivery_method?: string | null;
+        };
+
+        const processedCampaigns: CampaignAnalytics[] = (data || []).map((row) => {
+          const campaign = row as CampaignRow;
+          return {
+            id: campaign.id,
+            name: campaign.name,
+            subject_line: campaign.subject_line || '',
+            status: campaign.status,
+            sent_at: campaign.sent_at || campaign.created_at,
+            metrics:
+              typeof campaign.metrics === 'object' &&
+              campaign.metrics !== null &&
+              !Array.isArray(campaign.metrics)
+                ? (campaign.metrics as CampaignMetrics)
+                : null,
+            created_at: campaign.created_at,
+            open_rate: campaign.open_rate || 0,
+            click_rate: campaign.click_rate || 0,
+            total_sent: campaign.total_sent || 0,
+            total_opens: campaign.total_opens || 0,
+            total_clicks: campaign.total_clicks || 0,
+            delivery_method: campaign.delivery_method ?? undefined,
+          };
+        });
+
+        if (!unmountedRef.current) setCampaigns(processedCampaigns);
+      } catch (err: unknown) {
+        if (import.meta.env.DEV) {
+          console.error('Error loading campaigns:', err);
+        }
+        const message = getErrorMessage(err);
+        if (!unmountedRef.current) setError(message || 'Failed to load campaigns');
+        if (!silent) toast.error('Failed to load campaign analytics');
+      } finally {
+        if (!silent) setLoading(false);
+      }
+    },
+    [],
+  );
+
+  const scheduleLoadCampaigns = useCallback(
+    (options?: { silent?: boolean; withinMs?: number }) => {
+      const withinMs = options?.withinMs ?? 10000;
+      const silent = options?.silent ?? true;
+
+      if (reloadTimerRef.current) return;
+      reloadTimerRef.current = window.setTimeout(() => {
+        reloadTimerRef.current = null;
+        loadCampaigns({ silent });
+      }, withinMs);
+    },
+    [loadCampaigns],
+  );
 
   const loadCampaignEvents = async (campaignId: string): Promise<EmailTrackingEvent[]> => {
     try {
@@ -94,9 +187,9 @@ export const useCampaignAnalytics = () => {
       return (data || []).map(event => ({
         ...event,
         event_type: event.event_type as EmailTrackingEvent['event_type'],
-        event_data: event.event_data as Record<string, any>
+        event_data: event.event_data as Record<string, unknown>
       }));
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error loading campaign events:', err);
       toast.error('Failed to load campaign events');
       return [];
@@ -165,7 +258,7 @@ export const useCampaignAnalytics = () => {
       const { error } = await supabase
         .from('crm_campaigns')
         .update({ 
-          metrics: calculatedMetrics as any,
+          metrics: calculatedMetrics as unknown as Record<string, unknown>,
           total_sent: calculatedMetrics.sent,
           total_opens: calculatedMetrics.opened,
           total_clicks: calculatedMetrics.clicked,
@@ -182,7 +275,7 @@ export const useCampaignAnalytics = () => {
       await loadCampaigns();
       
       toast.success('Campaign metrics updated');
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error refreshing metrics:', err);
       toast.error('Failed to refresh campaign metrics');
     }
@@ -201,9 +294,12 @@ export const useCampaignAnalytics = () => {
           table: 'email_tracking_events'
         },
         (payload) => {
-          console.log('New tracking event:', payload);
-          // Reload campaigns to get updated metrics
-          loadCampaigns();
+          if (import.meta.env.DEV) {
+            console.debug('New tracking event:', payload);
+          }
+          // Avoid refetching & rerendering for every single tracking insert.
+          // Collapse event storms into a periodic background refresh.
+          scheduleLoadCampaigns({ silent: true, withinMs: 10000 });
         }
       )
       .subscribe();
@@ -211,11 +307,18 @@ export const useCampaignAnalytics = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [scheduleLoadCampaigns]);
 
   useEffect(() => {
     loadCampaigns();
-  }, []);
+    return () => {
+      unmountedRef.current = true;
+      if (reloadTimerRef.current) {
+        window.clearTimeout(reloadTimerRef.current);
+        reloadTimerRef.current = null;
+      }
+    };
+  }, [loadCampaigns]);
 
   return {
     campaigns,

@@ -16,7 +16,7 @@ Deno.serve(async (req) => {
     const origin = req.headers.get('origin') || '';
     const referer = req.headers.get('referer') || '';
     const environment = detectEnvironment(req);
-    
+
     console.log('[LS-START] Request Details:', {
       method: req.method,
       origin,
@@ -39,6 +39,28 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
       { global: { headers: { Authorization: authHeader } } }
+    );
+
+    // Create admin client (service role) for DB writes that must succeed regardless of RLS drift.
+    // Safe because we only use it AFTER authenticating the user and we only write rows scoped
+    // to that authenticated user's tenant.
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+    if (!serviceRoleKey) {
+      console.error('[LS-START] Missing SUPABASE_SERVICE_ROLE_KEY');
+      return new Response(
+        JSON.stringify({ error: 'Server not configured (missing service role key)' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      serviceRoleKey,
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
+        }
+      }
     );
 
     // Authenticate user
@@ -88,8 +110,8 @@ Deno.serve(async (req) => {
     console.log('[LS-START] Generated state token');
 
     // Store state in database temporarily (expires in 30 minutes)
-    // Insert using user-authenticated client (RLS allows inserting own state)
-    const { error: stateError } = await supabaseClient
+    // Insert using service role to avoid RLS failures in production.
+    const { error: stateError } = await supabaseAdmin
       .from('oauth_states')
       .insert({
         state_token: state,
@@ -109,24 +131,24 @@ Deno.serve(async (req) => {
 
     // Get environment-specific credentials
     const { clientId, clientSecret } = getLightspeedCredentials(environment);
-    
+
     console.log('[LS-START] Credentials Check:', {
       environment,
       hasClientId: !!clientId,
       hasClientSecret: !!clientSecret,
       clientIdPrefix: clientId ? clientId.substring(0, 8) + '...' : 'missing'
     });
-    
+
     if (!clientId || !clientSecret) {
       const missingSecrets = [];
       if (!clientId) missingSecrets.push(`LIGHTSPEED_CLIENT_ID_${environment === 'development' ? 'DEV' : 'PROD'}`);
       if (!clientSecret) missingSecrets.push(`LIGHTSPEED_CLIENT_SECRET_${environment === 'development' ? 'DEV' : 'PROD'}`);
-      
+
       console.error('[LS-START] Missing secrets:', missingSecrets.join(', '));
       return new Response(
-        JSON.stringify({ 
+        JSON.stringify({
           error: `Lightspeed integration not configured for ${environment} environment. Missing: ${missingSecrets.join(', ')}`,
-          environment 
+          environment
         }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -134,7 +156,7 @@ Deno.serve(async (req) => {
 
     // Create pending connection in database
     console.log('[LS-START] Creating pending connection');
-    const { error: upsertError } = await supabaseClient
+    const { error: upsertError } = await supabaseAdmin
       .from('lightspeed_connections')
       .upsert({
         tenant_id: userData.tenant_id,
@@ -160,14 +182,14 @@ Deno.serve(async (req) => {
       ? redirectOrigin
       : 'https://bloomsuite.app';
     const callbackUrl = `${callbackOrigin}/integrations/lightspeed/callback`;
-    
+
     console.log('[LS-START] OAuth Configuration:', {
       environment,
       callbackOrigin,
       callbackUrl,
       domainPrefix
     });
-    
+
     const authUrl = new URL('https://secure.retail.lightspeed.app/connect');
     authUrl.searchParams.set('response_type', 'code');
     authUrl.searchParams.set('client_id', clientId);
@@ -177,7 +199,7 @@ Deno.serve(async (req) => {
     console.log('[LS-START] Success! Auth URL created');
 
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         authUrl: authUrl.toString(),
         success: true
       }),

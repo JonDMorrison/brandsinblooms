@@ -5,6 +5,94 @@ import { ensureLightspeedWebhooks } from '../_shared/webhooks/ensureLightspeedWe
 
 console.log('[LS-CALLBACK] Edge function starting');
 
+type CallbackPayload = {
+  code?: string | null;
+  state?: string | null;
+  redirectUri?: string | null;
+};
+
+type WebhookResult = {
+  verified: boolean;
+  error?: string | null;
+  subscription_id?: string | null;
+};
+
+const inferRedirectUri = (req: Request): string => {
+  const referer = req.headers.get('referer');
+  if (referer) {
+    try {
+      const u = new URL(referer);
+      return `${u.origin}/integrations/lightspeed/callback`;
+    } catch {
+      // ignore
+    }
+  }
+
+  const origin = req.headers.get('origin');
+  if (origin && origin.startsWith('http')) {
+    return `${origin}/integrations/lightspeed/callback`;
+  }
+
+  const appBaseUrl = Deno.env.get('APP_BASE_URL');
+  if (appBaseUrl && appBaseUrl.startsWith('http')) {
+    return `${appBaseUrl.replace(/\/$/, '')}/integrations/lightspeed/callback`;
+  }
+
+  return 'https://bloomsuite.app/integrations/lightspeed/callback';
+};
+
+const parseCallbackPayload = async (req: Request): Promise<CallbackPayload> => {
+  // Some environments/tools may send this as a GET with query params.
+  // Our frontend sends it as a POST JSON body.
+  if (req.method === 'GET') {
+    const url = new URL(req.url);
+    return {
+      code: url.searchParams.get('code'),
+      state: url.searchParams.get('state'),
+      redirectUri: url.searchParams.get('redirectUri') ?? url.searchParams.get('redirect_uri'),
+    };
+  }
+
+  const contentType = (req.headers.get('content-type') || '').toLowerCase();
+
+  // Best-effort parsing for common payload formats.
+  if (contentType.includes('application/json')) {
+    try {
+      const body = await req.json();
+      return {
+        code: body?.code ?? null,
+        state: body?.state ?? null,
+        redirectUri: body?.redirectUri ?? body?.redirect_uri ?? null,
+      };
+    } catch {
+      return {};
+    }
+  }
+
+  const raw = await req.text();
+  if (!raw) return {};
+
+  // Try JSON first
+  try {
+    const body = JSON.parse(raw);
+    return {
+      code: body?.code ?? null,
+      state: body?.state ?? null,
+      redirectUri: body?.redirectUri ?? body?.redirect_uri ?? null,
+    };
+  } catch {
+    // Fall through to form parsing
+  }
+
+  // application/x-www-form-urlencoded
+  const params = new URLSearchParams(raw);
+  return {
+    code: params.get('code'),
+    state: params.get('state'),
+    redirectUri: params.get('redirectUri') ?? params.get('redirect_uri'),
+  };
+};
+
 Deno.serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -26,11 +114,14 @@ Deno.serve(async (req) => {
       }
     );
 
-    // Parse request body
-    const { code, state, redirectUri } = await req.json();
+    // Parse request payload (supports JSON POST from frontend and GET query params)
+    const payload = await parseCallbackPayload(req);
+    const code = payload.code ?? undefined;
+    const state = payload.state ?? undefined;
+    const redirectUri = (payload.redirectUri ?? undefined) || inferRedirectUri(req);
 
-    console.log('[LS-CALLBACK] Request data:', { 
-      hasCode: !!code, 
+    console.log('[LS-CALLBACK] Request data:', {
+      hasCode: !!code,
       hasState: !!state,
       redirectUri
     });
@@ -38,7 +129,14 @@ Deno.serve(async (req) => {
     if (!code || !state || !redirectUri) {
       console.error('[LS-CALLBACK] Missing required parameters');
       return new Response(
-        JSON.stringify({ error: 'Missing code, state, or redirect URI' }),
+        JSON.stringify({
+          error: 'Missing code, state, or redirect URI',
+          missing: {
+            code: !code,
+            state: !state,
+            redirectUri: !redirectUri,
+          },
+        }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -78,14 +176,14 @@ Deno.serve(async (req) => {
     // Detect environment and get appropriate credentials
     const environment = detectEnvironment(req);
     console.log('[LS-CALLBACK] Environment detected:', environment);
-    
+
     const { clientId, clientSecret } = getLightspeedCredentials(environment);
     if (!clientId || !clientSecret) {
       console.error(`[LS-CALLBACK] Missing Lightspeed credentials for ${environment}`);
       return new Response(
-        JSON.stringify({ 
+        JSON.stringify({
           error: 'Lightspeed credentials not configured for this environment',
-          environment 
+          environment
         }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -114,9 +212,9 @@ Deno.serve(async (req) => {
       const errorText = await tokenResponse.text();
       console.error('[LS-CALLBACK] Token exchange failed:', tokenResponse.status, errorText);
       return new Response(
-        JSON.stringify({ 
+        JSON.stringify({
           error: 'Failed to exchange authorization code',
-          details: errorText 
+          details: errorText
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -180,45 +278,47 @@ Deno.serve(async (req) => {
       .eq('domain_prefix', domainPrefix)
       .single();
 
-    let webhookResult = { verified: false, error: 'Connection ID not found' };
+    let webhookResult: WebhookResult = { verified: false, error: 'Connection ID not found' };
     if (savedConnection?.id) {
       try {
         webhookResult = await ensureLightspeedWebhooks(supabaseClient, savedConnection.id);
         console.log('[LS-CALLBACK] Webhook setup result:', JSON.stringify(webhookResult));
-        
+
         if (webhookResult.verified) {
           console.log('[LS-CALLBACK] ✓ Webhooks configured:', webhookResult.subscription_id);
         } else {
           console.warn('[LS-CALLBACK] ⚠ Webhook setup pending:', webhookResult.error);
         }
-      } catch (webhookError: any) {
-        console.error('[LS-CALLBACK] Webhook setup error:', webhookError.message);
-        webhookResult = { verified: false, error: webhookError.message };
+      } catch (webhookError: unknown) {
+        const message = webhookError instanceof Error ? webhookError.message : String(webhookError);
+        console.error('[LS-CALLBACK] Webhook setup error:', message);
+        webhookResult = { verified: false, error: message };
       }
     }
 
     console.log('[LS-CALLBACK] Connection successful');
 
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         success: true,
         retailerName,
         message: 'Lightspeed connected successfully',
         webhooks: {
           configured: webhookResult?.verified || false,
-          subscription_id: (webhookResult as any)?.subscription_id || null,
+          subscription_id: webhookResult?.subscription_id ?? null,
           error: webhookResult?.error || null,
         },
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
-  } catch (error) {
-    console.error('[LS-CALLBACK] Unexpected error:', error);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error('[LS-CALLBACK] Unexpected error:', message);
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         error: 'Internal server error',
-        details: error.message 
+        details: message
       }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
