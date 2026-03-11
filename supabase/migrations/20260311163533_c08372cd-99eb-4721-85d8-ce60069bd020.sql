@@ -1,0 +1,1 @@
+UPDATE public.subscriptions SET plan = 'free_trial', end_date = '2027-03-11', updated_at = now() WHERE user_id = '1ecc34b2-c0b1-4c6b-8c72-e101f7f1a0ed';

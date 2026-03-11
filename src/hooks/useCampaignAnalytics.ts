@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import type { Json } from '@/integrations/supabase/types';
 
 interface CampaignMetrics {
   sent: number;
@@ -122,7 +123,7 @@ export const useCampaignAnalytics = () => {
         };
 
         const processedCampaigns: CampaignAnalytics[] = (data || []).map((row) => {
-          const campaign = row as CampaignRow;
+          const campaign = row as unknown as CampaignRow;
           return {
             id: campaign.id,
             name: campaign.name,
@@ -258,7 +259,7 @@ export const useCampaignAnalytics = () => {
       const { error } = await supabase
         .from('crm_campaigns')
         .update({ 
-          metrics: calculatedMetrics as unknown as Record<string, unknown>,
+          metrics: calculatedMetrics as unknown as Json,
           total_sent: calculatedMetrics.sent,
           total_opens: calculatedMetrics.opened,
           total_clicks: calculatedMetrics.clicked,
