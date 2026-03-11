@@ -6793,6 +6793,7 @@ export type Database = {
           healthy_days_counter: number | null
           hourly_limit: number | null
           id: string
+          investigation_mode: boolean
           is_entri_managed: boolean
           is_sandbox: boolean | null
           last_daily_reset_at: string | null
@@ -6834,6 +6835,7 @@ export type Database = {
           healthy_days_counter?: number | null
           hourly_limit?: number | null
           id?: string
+          investigation_mode?: boolean
           is_entri_managed?: boolean
           is_sandbox?: boolean | null
           last_daily_reset_at?: string | null
@@ -6875,6 +6877,7 @@ export type Database = {
           healthy_days_counter?: number | null
           hourly_limit?: number | null
           id?: string
+          investigation_mode?: boolean
           is_entri_managed?: boolean
           is_sandbox?: boolean | null
           last_daily_reset_at?: string | null
