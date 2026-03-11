@@ -122,7 +122,7 @@ export const useCampaignAnalytics = () => {
         };
 
         const processedCampaigns: CampaignAnalytics[] = (data || []).map((row) => {
-          const campaign = row as CampaignRow;
+          const campaign = row as unknown as CampaignRow;
           return {
             id: campaign.id,
             name: campaign.name,
