@@ -258,7 +258,7 @@ export const useCampaignAnalytics = () => {
       const { error } = await supabase
         .from('crm_campaigns')
         .update({ 
-          metrics: calculatedMetrics as unknown as Record<string, unknown>,
+          metrics: calculatedMetrics as unknown as Json,
           total_sent: calculatedMetrics.sent,
           total_opens: calculatedMetrics.opened,
           total_clicks: calculatedMetrics.clicked,
