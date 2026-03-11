@@ -1,0 +1,1 @@
+ALTER TABLE public.email_domains ADD COLUMN IF NOT EXISTS investigation_mode boolean NOT NULL DEFAULT false;
