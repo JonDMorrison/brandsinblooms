@@ -1,3 +1,6 @@
+-- Disabled migration (data-only).
+-- NOTE: This was a one-off data patch and should not be applied via Supabase CLI migrations.
+-- Kept for historical reference.
 UPDATE crm_campaigns 
 SET metrics = jsonb_build_object(
   'totals', jsonb_build_object(

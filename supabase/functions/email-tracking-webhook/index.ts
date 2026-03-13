@@ -17,7 +17,7 @@ interface ResendWebhookPayload {
     to: string[];
     from: string;
     subject?: string;
-    tags?: { name: string; value: string }[];
+    tags?: { name: string; value: string }[] | Record<string, string>;
     headers?: { name: string; value: string }[];
     click?: {
       link: string;
@@ -25,8 +25,11 @@ interface ResendWebhookPayload {
     };
     open?: {
       timestamp: string;
+      // Resend payloads can be snake_case or camelCase depending on version.
       ip_address?: string;
       user_agent?: string;
+      ipAddress?: string;
+      userAgent?: string;
     };
     bounce?: {
       message: string;
@@ -276,18 +279,27 @@ const extractMetadata = (payload: ResendWebhookPayload): { campaignId?: string; 
     }
   }
 
-  // Extract from tags array (Resend format: [{name, value}])
-  if (payload.data.tags && Array.isArray(payload.data.tags)) {
-    for (const tag of payload.data.tags) {
-      if (tag.name === 'campaign_id' && !result.campaignId) {
-        result.campaignId = tag.value;
+  // Extract from tags
+  // - Older Resend format: [{ name, value }]
+  // - Newer Resend format: { campaign_id, tenant_id, domain_id, ... }
+  if (payload.data.tags) {
+    if (Array.isArray(payload.data.tags)) {
+      for (const tag of payload.data.tags) {
+        if (tag.name === 'campaign_id' && !result.campaignId) {
+          result.campaignId = tag.value;
+        }
+        if (tag.name === 'tenant_id' && !result.tenantId) {
+          result.tenantId = tag.value;
+        }
+        if (tag.name === 'domain_id' && !result.domainId) {
+          result.domainId = tag.value;
+        }
       }
-      if (tag.name === 'tenant_id' && !result.tenantId) {
-        result.tenantId = tag.value;
-      }
-      if (tag.name === 'domain_id' && !result.domainId) {
-        result.domainId = tag.value;
-      }
+    } else if (typeof payload.data.tags === 'object') {
+      const tagMap = payload.data.tags as Record<string, string>;
+      if (tagMap.campaign_id && !result.campaignId) result.campaignId = tagMap.campaign_id;
+      if (tagMap.tenant_id && !result.tenantId) result.tenantId = tagMap.tenant_id;
+      if (tagMap.domain_id && !result.domainId) result.domainId = tagMap.domain_id;
     }
   }
 
@@ -645,12 +657,14 @@ const handler = async (req: Request): Promise<Response> => {
     let isMppGuess = false;
     if ((eventType === 'opened') && payload.data.open) {
       eventData.open_timestamp = payload.data.open.timestamp;
-      eventData.open_ip = payload.data.open.ip_address;
-      eventData.open_user_agent = payload.data.open.user_agent;
+      const openIp = payload.data.open.ip_address || payload.data.open.ipAddress;
+      const openUserAgent = payload.data.open.user_agent || payload.data.open.userAgent;
+      eventData.open_ip = openIp;
+      eventData.open_user_agent = openUserAgent;
 
       // Heuristic: Apple Mail Privacy Protection detection
-      const ua = payload.data.open.user_agent?.toLowerCase() || '';
-      const ip = payload.data.open.ip_address || '';
+      const ua = openUserAgent?.toLowerCase() || '';
+      const ip = openIp || '';
 
       // Common MPP indicators:
       // 1. User agent contains Apple Mail
@@ -853,7 +867,12 @@ const handler = async (req: Request): Promise<Response> => {
     if (insertError) {
       // Check if it's a duplicate key error (race condition)
       if (insertError.code === '23505') {
-        console.log(`🔄 Duplicate event (constraint violation) - already recorded`);
+        console.log('🔄 Duplicate event (constraint violation) - already recorded', {
+          code: insertError.code,
+          message: insertError.message,
+          details: insertError.details,
+          hint: insertError.hint,
+        });
 
         if (governanceWebhookId) {
           await supabase
@@ -866,7 +885,16 @@ const handler = async (req: Request): Promise<Response> => {
             .eq('id', governanceWebhookId);
         }
 
-        return new Response(JSON.stringify({ message: 'Duplicate event' }), {
+        // Important: acknowledge as success so providers/clients don't treat this as an error.
+        return new Response(JSON.stringify({
+          ok: true,
+          duplicate: true,
+          event_type: eventType,
+          campaign_id: effectiveCampaignId,
+          recipient: payload.data.to[0],
+          provider_message_id: providerMessageId,
+          webhook_delivery_id: webhookDeliveryId,
+        }), {
           status: 200,
           headers: { "Content-Type": "application/json", ...corsHeaders },
         });
