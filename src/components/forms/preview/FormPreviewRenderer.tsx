@@ -9,6 +9,7 @@ interface FormPreviewRendererProps {
   compliance: FormCompliance;
   mode?: 'preview' | 'embed';
   onSubmit?: (data: Record<string, any>) => void;
+  isSubmitting?: boolean;
   changedIds?: Set<string>;
 }
 
@@ -50,6 +51,7 @@ export function FormPreviewRenderer({
   compliance,
   mode = 'preview',
   onSubmit,
+  isSubmitting = false,
   changedIds = new Set(),
 }: FormPreviewRendererProps) {
   const [formData, setFormData] = useState<Record<string, any>>({});
@@ -327,6 +329,7 @@ export function FormPreviewRenderer({
         {/* Submit Button */}
         <button
           type="submit"
+          disabled={isSubmitting}
           className={cn(
             getButtonClasses(theme.button_style),
             changedIds.has('__settings') && "ring-2 ring-primary/50 ring-offset-2"
@@ -339,9 +342,11 @@ export function FormPreviewRenderer({
             color: theme.button_style === 'outline' ? 'var(--bs-form-primary)' : '#ffffff',
             borderRadius:
               theme.button_style === 'rounded' ? '9999px' : 'var(--bs-form-radius)',
+            opacity: isSubmitting ? 0.7 : 1,
+            cursor: isSubmitting ? 'not-allowed' : 'pointer',
           }}
         >
-          {settings.submit_button_text || 'Submit'}
+          {isSubmitting ? 'Submitting...' : (settings.submit_button_text || 'Submit')}
         </button>
 
         {/* Preview Helper Text - Privacy Notice */}

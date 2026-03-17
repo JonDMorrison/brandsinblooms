@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { FileText, Plus, Eye, Trash2, MoreHorizontal, Copy, Layout } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { FileText, Plus, Eye, Trash2, MoreHorizontal, Copy, Layout, Search } from 'lucide-react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useForms, useFormSubmissions } from '@/hooks/useForms';
 import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
@@ -12,15 +13,22 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { NativeSelect } from '@/components/ui/NativeSelect';
 import { FormTemplatesDialog } from '@/components/forms/FormTemplatesDialog';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useToast } from '@/hooks/use-toast';
 
 export default function FormsPage() {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const { forms, isLoading, deleteForm, isDeleting, createForm, isCreating } = useForms();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [formToDelete, setFormToDelete] = useState<{ id: string; name: string } | null>(null);
   const [templatesDialogOpen, setTemplatesDialogOpen] = useState(false);
+
+  // Fix 12: Search and filter state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
 
   const handleDeleteClick = (form: { id: string; name: string }) => {
     setFormToDelete(form);
@@ -54,20 +62,49 @@ export default function FormsPage() {
     }
   };
 
+  // Fix 11: Duplicate form
+  const handleDuplicate = async (form: any) => {
+    try {
+      const newForm = await createForm({
+        name: `${form.name} (Copy)`,
+        fields_json: form.fields_json,
+        settings_json: form.settings_json,
+        compliance_json: form.compliance_json,
+      });
+      if (newForm) {
+        toast({
+          title: 'Form duplicated',
+          description: `"${form.name}" has been duplicated.`,
+        });
+        navigate(`/crm/forms/${newForm.id}`);
+      }
+    } catch (err: any) {
+      toast({
+        title: 'Error duplicating form',
+        description: err.message,
+        variant: 'destructive',
+      });
+    }
+  };
+
+  // Fix 12: Filtered forms
+  const filteredForms = useMemo(() => {
+    return forms.filter(form => {
+      if (searchQuery && !form.name.toLowerCase().includes(searchQuery.toLowerCase())) {
+        return false;
+      }
+      if (statusFilter !== 'all' && form.status !== statusFilter) {
+        return false;
+      }
+      return true;
+    });
+  }, [forms, searchQuery, statusFilter]);
+
   const publishedForms = forms.filter(f => f.status === 'published').length;
   const draftForms = forms.filter(f => f.status === 'draft').length;
   const totalForms = forms.length;
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'published':
-        return <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Published</Badge>;
-      case 'archived':
-        return <Badge variant="secondary">Archived</Badge>;
-      default:
-        return <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100">Draft</Badge>;
-    }
-  };
+  // Fix 7: Removed duplicate getStatusBadge — only standalone function below is used
 
   return (
     <div className="p-6 space-y-6">
@@ -121,6 +158,38 @@ export default function FormsPage() {
         </Card>
       </div>
 
+      {/* Fix 12: Search and filter */}
+      {forms.length > 0 && (
+        <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+          <div className="relative flex-1 max-w-sm">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search forms..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+          <NativeSelect
+            label=""
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            options={[
+              { value: 'all', label: 'All statuses' },
+              { value: 'draft', label: 'Draft' },
+              { value: 'published', label: 'Published' },
+              { value: 'archived', label: 'Archived' },
+            ]}
+            className="w-40"
+          />
+          {(searchQuery || statusFilter !== 'all') && (
+            <span className="text-sm text-muted-foreground">
+              Showing {filteredForms.length} of {forms.length} forms
+            </span>
+          )}
+        </div>
+      )}
+
       {/* Forms List */}
       {isLoading ? (
         <Card>
@@ -136,7 +205,7 @@ export default function FormsPage() {
             ))}
           </CardContent>
         </Card>
-      ) : forms.length > 0 ? (
+      ) : filteredForms.length > 0 ? (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -146,14 +215,25 @@ export default function FormsPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {forms.map((form) => (
+              {filteredForms.map((form) => (
                 <FormListItem
                   key={form.id}
                   form={form}
                   onDelete={() => handleDeleteClick({ id: form.id, name: form.name })}
+                  onDuplicate={() => handleDuplicate(form)}
                 />
               ))}
             </div>
+          </CardContent>
+        </Card>
+      ) : forms.length > 0 ? (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <Search className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+            <p className="text-muted-foreground">No forms match your search</p>
+            <Button variant="link" onClick={() => { setSearchQuery(''); setStatusFilter('all'); }}>
+              Clear filters
+            </Button>
           </CardContent>
         </Card>
       ) : (
@@ -207,12 +287,15 @@ export default function FormsPage() {
   );
 }
 
+// Fix 11: Added onDuplicate prop
 function FormListItem({ 
   form, 
-  onDelete 
+  onDelete,
+  onDuplicate,
 }: { 
   form: any; 
   onDelete: () => void;
+  onDuplicate: () => void;
 }) {
   const { data: submissionsData } = useFormSubmissions(form.id, 7);
 
@@ -234,8 +317,7 @@ function FormListItem({
         </NavLink>
       </div>
       <div className="flex items-center gap-2">
-        {form.status === 'published' && getStatusBadge(form.status)}
-        {form.status === 'draft' && getStatusBadge(form.status)}
+        {getStatusBadge(form.status)}
         
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -258,6 +340,11 @@ function FormListItem({
                 Copy Link
               </DropdownMenuItem>
             )}
+            {/* Fix 11: Duplicate option */}
+            <DropdownMenuItem onClick={onDuplicate}>
+              <Copy className="h-4 w-4 mr-2" />
+              Duplicate
+            </DropdownMenuItem>
             <DropdownMenuItem 
               onClick={onDelete}
               className="text-destructive focus:text-destructive"
@@ -272,6 +359,7 @@ function FormListItem({
   );
 }
 
+// Fix 7: Single standalone getStatusBadge function (removed duplicate component method)
 function getStatusBadge(status: string) {
   switch (status) {
     case 'published':

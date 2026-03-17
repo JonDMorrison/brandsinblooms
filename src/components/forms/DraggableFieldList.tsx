@@ -35,6 +35,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { reorderArray } from '@/utils/dragUtils';
+import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 
 interface DraggableFieldListProps {
   fields: FormField[];
@@ -98,6 +99,9 @@ const FIELD_TYPE_CONFIG: Record<FormFieldType, {
 };
 
 export function DraggableFieldList({ fields, onFieldsChange }: DraggableFieldListProps) {
+  // Fix 13: Consent field deletion confirmation
+  const [consentDeleteField, setConsentDeleteField] = useState<FormField | null>(null);
+
   const handleDragEnd = useCallback((result: DropResult) => {
     if (!result.destination) return;
     
@@ -109,8 +113,20 @@ export function DraggableFieldList({ fields, onFieldsChange }: DraggableFieldLis
     onFieldsChange(fields.map(f => f.id === id ? { ...f, ...updates } : f));
   };
 
-  const removeField = (id: string) => {
-    onFieldsChange(fields.filter(f => f.id !== id));
+  // Fix 13: Check for consent fields before removing
+  const removeField = (field: FormField) => {
+    if (field.type === 'email_consent' || field.type === 'sms_consent') {
+      setConsentDeleteField(field);
+    } else {
+      onFieldsChange(fields.filter(f => f.id !== field.id));
+    }
+  };
+
+  const confirmConsentDelete = () => {
+    if (consentDeleteField) {
+      onFieldsChange(fields.filter(f => f.id !== consentDeleteField.id));
+      setConsentDeleteField(null);
+    }
   };
 
   if (fields.length === 0) {
@@ -126,30 +142,43 @@ export function DraggableFieldList({ fields, onFieldsChange }: DraggableFieldLis
   }
 
   return (
-    <DragDropContext onDragEnd={handleDragEnd}>
-      <Droppable droppableId="fields">
-        {(provided, snapshot) => (
-          <div
-            ref={provided.innerRef}
-            {...provided.droppableProps}
-            className={`space-y-2 transition-colors rounded-lg ${
-              snapshot.isDraggingOver ? 'bg-muted/50' : ''
-            }`}
-          >
-            {fields.map((field, index) => (
-              <DraggableFieldItem
-                key={field.id}
-                field={field}
-                index={index}
-                onUpdate={(updates) => updateField(field.id, updates)}
-                onRemove={() => removeField(field.id)}
-              />
-            ))}
-            {provided.placeholder}
-          </div>
-        )}
-      </Droppable>
-    </DragDropContext>
+    <>
+      <DragDropContext onDragEnd={handleDragEnd}>
+        <Droppable droppableId="fields">
+          {(provided, snapshot) => (
+            <div
+              ref={provided.innerRef}
+              {...provided.droppableProps}
+              className={`space-y-2 transition-colors rounded-lg ${
+                snapshot.isDraggingOver ? 'bg-muted/50' : ''
+              }`}
+            >
+              {fields.map((field, index) => (
+                <DraggableFieldItem
+                  key={field.id}
+                  field={field}
+                  index={index}
+                  onUpdate={(updates) => updateField(field.id, updates)}
+                  onRemove={() => removeField(field)}
+                />
+              ))}
+              {provided.placeholder}
+            </div>
+          )}
+        </Droppable>
+      </DragDropContext>
+
+      {/* Fix 13: Consent field deletion warning */}
+      <ConfirmationDialog
+        open={!!consentDeleteField}
+        onOpenChange={(open) => { if (!open) setConsentDeleteField(null); }}
+        title="Remove Compliance Field"
+        description={`This is a required compliance field (${consentDeleteField?.type === 'email_consent' ? 'Email Consent' : 'SMS Consent'}). Removing it may affect your legal obligations under CASL/TCPA. Are you sure you want to remove it?`}
+        confirmText="Remove Field"
+        cancelText="Keep Field"
+        onConfirm={confirmConsentDelete}
+      />
+    </>
   );
 }
 

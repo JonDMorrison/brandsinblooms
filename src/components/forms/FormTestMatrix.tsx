@@ -48,14 +48,13 @@ const TEST_CASES: TestCase[] = [
         return { passed: true, message: 'Skipped - email consent not required for this form' };
       }
       
-      // Try submitting without email consent
       const response = await fetch(`${supabaseUrl}/functions/v1/submit-form`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           embed_key: form.embed_key,
           data: { email: `test-${Date.now()}@example.com`, email_consent: false },
-          meta: { page_url: 'https://test.local/matrix' }
+          meta: { page_url: 'https://test.local/matrix', is_test: true, source: 'test_matrix' }
         })
       });
       
@@ -80,7 +79,6 @@ const TEST_CASES: TestCase[] = [
         return { passed: true, message: 'Skipped - no phone field or SMS consent not required' };
       }
       
-      // Try submitting with phone but without SMS consent
       const response = await fetch(`${supabaseUrl}/functions/v1/submit-form`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -92,7 +90,7 @@ const TEST_CASES: TestCase[] = [
             email_consent: true,
             sms_consent: false 
           },
-          meta: { page_url: 'https://test.local/matrix' }
+          meta: { page_url: 'https://test.local/matrix', is_test: true, source: 'test_matrix' }
         })
       });
       
@@ -119,9 +117,9 @@ const TEST_CASES: TestCase[] = [
           data: { 
             email: `test-${Date.now()}@example.com`,
             email_consent: true,
-            _honeypot: 'I am a bot!' // Filled honeypot field
+            _honeypot: 'I am a bot!'
           },
-          meta: { page_url: 'https://test.local/matrix' }
+          meta: { page_url: 'https://test.local/matrix', is_test: true, source: 'test_matrix' }
         })
       });
       
@@ -131,7 +129,6 @@ const TEST_CASES: TestCase[] = [
         return { passed: true, message: 'Correctly detected honeypot spam' };
       }
       
-      // If it was accepted, that's a failure
       if (response.ok) {
         return { passed: false, message: 'Honeypot submission was incorrectly accepted' };
       }
@@ -145,7 +142,6 @@ const TEST_CASES: TestCase[] = [
     description: 'Verifies that rapid submissions trigger rate limiting',
     category: 'security',
     run: async (form, supabaseUrl) => {
-      // Send 6 rapid requests (limit is 5 per minute)
       const promises = [];
       for (let i = 0; i < 6; i++) {
         promises.push(
@@ -158,7 +154,7 @@ const TEST_CASES: TestCase[] = [
                 email: `ratelimit-test-${Date.now()}-${i}@example.com`,
                 email_consent: true
               },
-              meta: { page_url: 'https://test.local/matrix/ratelimit' }
+              meta: { page_url: 'https://test.local/matrix/ratelimit', is_test: true, source: 'test_matrix' }
             })
           })
         );
@@ -186,7 +182,6 @@ const TEST_CASES: TestCase[] = [
         email: `valid-test-${Date.now()}@example.com`,
       };
       
-      // Add consent if required
       if (form.compliance_json.email_consent_required) {
         testData.email_consent = true;
       }
@@ -199,7 +194,9 @@ const TEST_CASES: TestCase[] = [
           data: testData,
           meta: { 
             page_url: 'https://test.local/matrix',
-            utm_source: 'test_matrix'
+            utm_source: 'test_matrix',
+            is_test: true,
+            source: 'test_matrix'
           }
         })
       });
@@ -219,7 +216,6 @@ const TEST_CASES: TestCase[] = [
     description: 'Verifies that submissions missing required fields are rejected',
     category: 'edge_case',
     run: async (form, supabaseUrl) => {
-      // Submit without email (assuming email is required)
       const response = await fetch(`${supabaseUrl}/functions/v1/submit-form`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -229,7 +225,7 @@ const TEST_CASES: TestCase[] = [
             first_name: 'Test',
             email_consent: true
           },
-          meta: { page_url: 'https://test.local/matrix' }
+          meta: { page_url: 'https://test.local/matrix', is_test: true, source: 'test_matrix' }
         })
       });
       
@@ -256,7 +252,7 @@ export function FormTestMatrix({ form }: FormTestMatrixProps) {
     new Set(TEST_CASES.map(t => t.id))
   );
 
-  const supabaseUrl = (supabase as any).supabaseUrl || 'https://udldmkqwnxhdeztyqcau.supabase.co';
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://udldmkqwnxhdeztyqcau.supabase.co';
 
   const runTest = async (testCase: TestCase) => {
     setResults(prev => new Map(prev).set(testCase.id, { 
@@ -297,7 +293,6 @@ export function FormTestMatrix({ form }: FormTestMatrixProps) {
     for (const testCase of TEST_CASES) {
       if (selectedTests.has(testCase.id)) {
         await runTest(testCase);
-        // Small delay between tests to avoid overwhelming the server
         await new Promise(resolve => setTimeout(resolve, 500));
       }
     }

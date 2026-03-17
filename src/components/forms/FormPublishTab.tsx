@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,33 +18,60 @@ import {
   FileCode,
   BookOpen,
   Shield,
-  Zap
+  Zap,
+  AlertCircle
 } from 'lucide-react';
-import { Form } from '@/types/formBuilder';
+import { Form, FormField } from '@/types/formBuilder';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
 
 interface FormPublishTabProps {
   form: Form;
+  fields: FormField[];
   hasChanges: boolean;
   onSave: () => Promise<void>;
   isSaving: boolean;
 }
 
-export function FormPublishTab({ form, hasChanges, onSave, isSaving }: FormPublishTabProps) {
+// Fix 5: Pre-publish validation
+function validateForPublish(fields: FormField[]): string[] {
+  const errors: string[] = [];
+  
+  if (fields.length === 0) {
+    errors.push('Form must have at least one field');
+  }
+  
+  if (!fields.some(f => f.type === 'email')) {
+    errors.push('Form must have an email field (required for customer identification)');
+  }
+  
+  const hasSmsConsent = fields.some(f => f.type === 'sms_consent');
+  const hasPhone = fields.some(f => f.type === 'phone');
+  if (hasSmsConsent && !hasPhone) {
+    errors.push('SMS consent field requires a phone field to be present');
+  }
+  
+  return errors;
+}
+
+export function FormPublishTab({ form, fields, hasChanges, onSave, isSaving }: FormPublishTabProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isPublishing, setIsPublishing] = useState(false);
   const [copiedItem, setCopiedItem] = useState<string | null>(null);
 
   const isPublished = form.status === 'published';
-  // Use published domain for embed URLs (not preview domain which requires Lovable auth)
-  const publishedDomain = 'https://brandsinblooms.lovable.app';
+  // Fix 8: Use window.location.origin instead of hardcoded domain
+  const publishedDomain = window.location.origin;
   const formUrl = `${publishedDomain}/f/${form.embed_key}`;
   const embedKey = form.embed_key;
   
-  // Multiple embed options - use published domain for stable embedding
+  // Fix 5: Validation errors
+  const validationErrors = useMemo(() => validateForPublish(fields), [fields]);
+  const canPublish = validationErrors.length === 0 && !hasChanges;
+  
+  // Embed code snippets use published domain for stable embedding
   const iframeCode = `<iframe 
   src="${formUrl}" 
   width="100%" 
@@ -54,7 +81,7 @@ export function FormPublishTab({ form, hasChanges, onSave, isSaving }: FormPubli
 ></iframe>`;
 
   // Supabase Edge Function URL for embed script
-  const embedScriptUrl = 'https://udldmkqwnxhdeztyqcau.supabase.co/functions/v1/serve-embed-js';
+  const embedScriptUrl = `${import.meta.env.VITE_SUPABASE_URL || 'https://udldmkqwnxhdeztyqcau.supabase.co'}/functions/v1/serve-embed-js`;
   
   const jsEmbedCode = `<!-- BloomSuite Form Embed -->
 <div data-bloomsuite-form="${embedKey}"></div>
@@ -80,6 +107,15 @@ export function BloomSuiteForm() {
       toast({
         title: 'Save changes first',
         description: 'Please save your changes before publishing.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (validationErrors.length > 0) {
+      toast({
+        title: 'Cannot publish',
+        description: 'Please fix the validation errors first.',
         variant: 'destructive',
       });
       return;
@@ -178,6 +214,21 @@ export function BloomSuiteForm() {
             </Alert>
           )}
 
+          {/* Fix 5: Show validation errors */}
+          {!isPublished && validationErrors.length > 0 && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                <p className="font-medium mb-1">Cannot publish — fix these issues:</p>
+                <ul className="list-disc list-inside text-sm space-y-0.5">
+                  {validationErrors.map((err, i) => (
+                    <li key={i}>{err}</li>
+                  ))}
+                </ul>
+              </AlertDescription>
+            </Alert>
+          )}
+
           <div className="flex items-center gap-4">
             {isPublished ? (
               <Button 
@@ -191,7 +242,7 @@ export function BloomSuiteForm() {
             ) : (
               <Button 
                 onClick={handlePublish}
-                disabled={isPublishing || hasChanges}
+                disabled={isPublishing || !canPublish}
               >
                 {isPublishing ? (
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -284,9 +335,6 @@ export function BloomSuiteForm() {
                       {copiedItem === 'iframe' ? <Check className="h-4 w-4 mr-2" /> : <Copy className="h-4 w-4 mr-2" />}
                       Copy Code
                     </Button>
-                    <p className="text-xs text-muted-foreground">
-                      If blocked, your website may need to add <code className="bg-muted px-1 rounded">brandsinblooms.lovable.app</code> to its CSP frame-src.
-                    </p>
                   </div>
                 </TabsContent>
 
@@ -379,11 +427,11 @@ export function BloomSuiteForm() {
                   If your site uses CSP and you're using the JavaScript embed, add these directives:
                 </p>
                 <pre className="p-3 bg-muted rounded-lg text-xs overflow-x-auto">
-                  <code>script-src 'self' https://udldmkqwnxhdeztyqcau.supabase.co;</code>
+                  <code>{`script-src 'self' ${import.meta.env.VITE_SUPABASE_URL || 'https://udldmkqwnxhdeztyqcau.supabase.co'};`}</code>
                   {'\n'}
-                  <code>connect-src 'self' https://udldmkqwnxhdeztyqcau.supabase.co;</code>
+                  <code>{`connect-src 'self' ${import.meta.env.VITE_SUPABASE_URL || 'https://udldmkqwnxhdeztyqcau.supabase.co'};`}</code>
                   {'\n'}
-                  <code>frame-src 'self' brandsinblooms.lovable.app;</code>
+                  <code>{`frame-src 'self' ${window.location.hostname};`}</code>
                 </pre>
               </div>
             </CardContent>
