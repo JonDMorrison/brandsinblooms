@@ -17,24 +17,50 @@ export const ResetPasswordPage = () => {
   const [isValidToken, setIsValidToken] = useState<boolean | null>(null);
 
   useEffect(() => {
-    // Check if we have a valid recovery token
     const checkToken = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      // PKCE flow: Supabase sends ?code=xxx in the URL
+      const urlParams = new URLSearchParams(window.location.search);
+      const code = urlParams.get('code');
       
-      // Check if this is a password recovery session
-      if (session?.user) {
-        setIsValidToken(true);
-      } else {
-        // Check for hash params that indicate password recovery
-        const hashParams = new URLSearchParams(window.location.hash.substring(1));
-        const type = hashParams.get('type');
-        
-        if (type === 'recovery') {
-          setIsValidToken(true);
-        } else {
+      if (code) {
+        console.log('🔑 PKCE recovery code detected, exchanging for session...');
+        try {
+          const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+          if (error) {
+            console.error('❌ Code exchange failed:', error.message);
+            setIsValidToken(false);
+            return;
+          }
+          if (data?.session) {
+            console.log('✅ Recovery session established');
+            // Clean the code from the URL so it can't be reused
+            window.history.replaceState(null, '', '/reset-password');
+            setIsValidToken(true);
+            return;
+          }
+        } catch (err) {
+          console.error('❌ Code exchange error:', err);
           setIsValidToken(false);
+          return;
         }
       }
+
+      // Fallback: check existing session (e.g. implicit flow or already exchanged)
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        setIsValidToken(true);
+        return;
+      }
+
+      // Legacy implicit flow: check hash params
+      const hashParams = new URLSearchParams(window.location.hash.substring(1));
+      const type = hashParams.get('type');
+      if (type === 'recovery') {
+        setIsValidToken(true);
+        return;
+      }
+
+      setIsValidToken(false);
     };
     
     checkToken();
