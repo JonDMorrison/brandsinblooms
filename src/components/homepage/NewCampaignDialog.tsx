@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { dateToWeekNumber } from "@/utils/dateUtils";
 import { AlertTriangle, Loader2, CheckCircle } from "lucide-react";
-// Removed sonner import - using global toast replacement
+import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTenant } from "@/hooks/useTenant";
@@ -25,6 +25,7 @@ interface NewCampaignDialogProps {
 export const NewCampaignDialog = ({ open, onOpenChange, onCreate }: NewCampaignDialogProps) => {
   const { user } = useAuth();
   const { tenant } = useTenant();
+  const { toast } = useToast();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [theme, setTheme] = useState("");
@@ -94,27 +95,26 @@ export const NewCampaignDialog = ({ open, onOpenChange, onCreate }: NewCampaignD
       }
 
       console.log('NewCampaignDialog: Campaign created successfully:', data);
+
+      // Immediately notify parent so the campaign list refreshes without delay
+      onCreate(data);
+
+      // Reset form
+      setTitle("");
+      setDescription("");
+      setTheme("");
+      setSelectedDate("");
+      setError(null);
       
-      // Wait a moment to ensure the campaign is fully committed to the database
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Now automatically generate content for the campaign
+      // Now generate content in the background while showing progress in the modal
       setGeneratingContent(true);
-      toast.loading('Generating content for your campaign...');
+      toast({
+        title: "Generating content for your campaign...",
+        description: "Please wait while we create your promotional content",
+      });
 
       try {
         console.log('NewCampaignDialog: Starting content generation for campaign ID:', data.id);
-        
-        // Double-check that the campaign exists before generating content
-        const { data: campaignCheck } = await supabase
-          .from('campaigns')
-          .select('id')
-          .eq('id', data.id)
-          .single();
-        
-        if (!campaignCheck) {
-          throw new Error('Campaign not found in database after creation');
-        }
         
         const result = await generateCampaignContent(
           data.id,
@@ -128,38 +128,42 @@ export const NewCampaignDialog = ({ open, onOpenChange, onCreate }: NewCampaignD
         if (result.success) {
           console.log('NewCampaignDialog: Content generated successfully');
           setContentGenerated(true);
-          toast.success(`Campaign created with ${result.tasks?.length || 5} content pieces!`);
+          toast({
+            title: "Success!",
+            description: `Campaign created with ${result.tasks?.length || 5} content pieces!`,
+          });
         } else {
           console.warn('NewCampaignDialog: Content generation had issues:', result.message);
-          toast.warning(`Campaign created, but content generation had issues: ${result.message}`);
+          toast({
+            title: "Warning",
+            description: `Campaign created, but content generation had issues: ${result.message}`,
+            variant: "destructive",
+          });
         }
       } catch (contentError) {
         console.error('NewCampaignDialog: Content generation failed:', contentError);
-        toast.error('Campaign created, but content generation failed. You can generate content manually.');
+        toast({
+          title: "Note",
+          description: "Campaign created, but content generation failed. You can generate content manually.",
+          variant: "destructive",
+        });
       }
 
-      // Reset form
-      setTitle("");
-      setDescription("");
-      setTheme("");
-      setSelectedDate("");
-      setError(null);
-      
-      console.log('NewCampaignDialog: Campaign created successfully');
-      toast.success('Campaign created successfully!');
-      
-      // Close modal after short delay to show success state
+      // Close modal after short delay to show success/error state
       setTimeout(() => {
         onOpenChange(false);
         setContentGenerated(false);
         setGeneratingContent(false);
-        onCreate(data);
       }, 2000);
       
     } catch (error: any) {
       console.error('NewCampaignDialog: Error creating campaign:', error);
       setError(error.message || 'Failed to create campaign');
-      toast.error(error.message || 'Failed to create campaign');
+      toast({
+        title: "Error",
+        description: error.message || 'Failed to create campaign',
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
