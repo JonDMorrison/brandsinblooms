@@ -10,7 +10,7 @@ import { NativeSelect } from '@/components/ui/NativeSelect';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
-import { Save, Send, ArrowLeft, Settings, Wand2, Calendar, Eye } from 'lucide-react';
+import { Save, Send, ArrowLeft, Settings, Wand2, Calendar, Eye, Loader2 } from 'lucide-react';
 
 import { CleanEmailBlockEditor } from '@/components/crm/CleanEmailBlockEditor';
 import { EmailPreview } from '@/components/crm/EmailPreview';
@@ -70,7 +70,7 @@ const CRMCampaignCreator = () => {
       if (error) throw error;
 
       toast.success('Campaign saved as draft');
-      navigate('/crm/campaigns');
+      navigate(data?.id ? `/crm/campaigns/${data.id}` : '/crm/campaigns');
     } catch (error) {
       console.error('Error saving campaign:', error);
       toast.error('Failed to save campaign');
@@ -125,6 +125,7 @@ const CRMCampaignCreator = () => {
             <Button
               variant="outline"
               onClick={() => setIsTemplateModalOpen(true)}
+              disabled={isSaving}
               className="flex items-center gap-2"
             >
               <Wand2 className="h-4 w-4" />
@@ -133,6 +134,7 @@ const CRMCampaignCreator = () => {
             <Button
               variant="outline"
               onClick={handleSaveAsTemplate}
+              disabled={isSaving}
               className="flex items-center gap-2"
             >
               <Save className="h-4 w-4" />
@@ -144,7 +146,14 @@ const CRMCampaignCreator = () => {
               className="flex items-center gap-2"
             >
               <Save className="h-4 w-4" />
-              {isSaving ? 'Saving...' : 'Save Draft'}
+              {isSaving ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                  Saving…
+                </>
+              ) : (
+                'Save Draft'
+              )}
             </Button>
           </div>
         </div>

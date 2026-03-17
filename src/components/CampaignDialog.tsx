@@ -7,7 +7,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { NativeSelect } from "@/components/ui/NativeSelect";
-import { CalendarIcon, Plus } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { CalendarIcon, Plus, Loader2, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -27,7 +28,7 @@ export const CampaignDialog = ({ onCampaignCreated, trigger }: CampaignDialogPro
   const [prompt, setPrompt] = useState("");
   const [eventDate, setEventDate] = useState<Date>();
   const [selectedWeek, setSelectedWeek] = useState<string>("");
-  
+  const [error, setError] = useState<string | null>(null);
 
   const currentWeekNumber = getCurrentWeekNumber();
 
@@ -71,6 +72,7 @@ export const CampaignDialog = ({ onCampaignCreated, trigger }: CampaignDialogPro
     }
 
     setLoading(true);
+    setError(null);
 
     try {
       const weekNumber = parseInt(selectedWeek);
@@ -97,7 +99,7 @@ export const CampaignDialog = ({ onCampaignCreated, trigger }: CampaignDialogPro
         }
       }
 
-      const { error } = await supabase
+      const { error: insertError } = await supabase
         .from('campaigns')
         .insert({
           title: title.trim(),
@@ -108,8 +110,7 @@ export const CampaignDialog = ({ onCampaignCreated, trigger }: CampaignDialogPro
           description: themeDescription
         });
 
-      if (error) throw error;
-
+      if (insertError) throw insertError;
 
       // Reset form
       setTitle("");
@@ -119,8 +120,9 @@ export const CampaignDialog = ({ onCampaignCreated, trigger }: CampaignDialogPro
       setOpen(false);
       
       onCampaignCreated?.();
-    } catch (error: any) {
-      // Error creating event
+    } catch (err: any) {
+      console.error('CampaignDialog: Error creating event:', err);
+      setError(err.message || 'Failed to create event. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -140,15 +142,24 @@ export const CampaignDialog = ({ onCampaignCreated, trigger }: CampaignDialogPro
         <DialogHeader>
           <DialogTitle>Add New Event</DialogTitle>
         </DialogHeader>
+
+        {error && (
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="title">Event Name *</Label>
             <Input
               id="title"
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              onChange={(e) => { setTitle(e.target.value); setError(null); }}
               placeholder="e.g., Spring Plant Sale, Pruning Workshop"
               required
+              disabled={loading}
             />
           </div>
 
@@ -158,6 +169,7 @@ export const CampaignDialog = ({ onCampaignCreated, trigger }: CampaignDialogPro
               <PopoverTrigger asChild>
                 <Button
                   variant="outline"
+                  disabled={loading}
                   className={cn(
                     "w-full justify-start text-left font-normal",
                     !eventDate && "text-muted-foreground"
@@ -186,6 +198,7 @@ export const CampaignDialog = ({ onCampaignCreated, trigger }: CampaignDialogPro
               placeholder="Select a week for the campaign"
               options={generateWeekOptions()}
               required
+              disabled={loading}
             />
           </div>
 
@@ -197,6 +210,7 @@ export const CampaignDialog = ({ onCampaignCreated, trigger }: CampaignDialogPro
               onChange={(e) => setPrompt(e.target.value)}
               placeholder="Describe the event, target audience, key messages, or special promotions..."
               rows={3}
+              disabled={loading}
             />
           </div>
 
@@ -209,8 +223,15 @@ export const CampaignDialog = ({ onCampaignCreated, trigger }: CampaignDialogPro
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={loading}>
-              {loading ? "Creating Event..." : "Create Event & Generate Materials"}
+            <Button type="submit" disabled={loading || !title.trim() || !eventDate || !selectedWeek}>
+              {loading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Creating Event…
+                </>
+              ) : (
+                'Create Event & Generate Materials'
+              )}
             </Button>
           </div>
         </form>
