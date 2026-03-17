@@ -8379,6 +8379,7 @@ export type Database = {
       }
       forms: {
         Row: {
+          audience_json: Json | null
           compliance_json: Json
           created_at: string
           embed_key: string | null
@@ -8391,6 +8392,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          audience_json?: Json | null
           compliance_json?: Json
           created_at?: string
           embed_key?: string | null
@@ -8403,6 +8405,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          audience_json?: Json | null
           compliance_json?: Json
           created_at?: string
           embed_key?: string | null
