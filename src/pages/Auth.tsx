@@ -9,6 +9,7 @@ import { Loader2, Eye, EyeOff, Sprout, CheckCircle, Unlock } from "lucide-react"
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase, signInWithCleanup, signUpWithCleanup } from "@/integrations/supabase/client";
+import { getOAuthRedirectUri } from "@/utils/environmentUtils";
 
 // import bloomSuiteLogo from "@/assets/bloomsuite-logo.png";
 
@@ -184,7 +185,7 @@ const Auth = () => {
 
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/auth`
+        redirectTo: getOAuthRedirectUri('/auth')
       });
 
       if (error) {
