@@ -5,13 +5,15 @@ import { EnhancedErrorBoundary } from "@/components/onboarding/EnhancedErrorBoun
 import { useAuth } from "@/contexts/AuthContext";
 import { useOnboardingStatus } from "@/contexts/OnboardingStatusContext";
 import { useNavigate } from "react-router-dom";
-import { useEffect } from "react";
-import { Loader2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Loader2, CheckCircle, Bookmark } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 const OnboardingPage = () => {
   const { user, loading } = useAuth();
   const { isCompleted, isLoading: onboardingLoading, markAsCompleted, refreshStatus } = useOnboardingStatus();
   const navigate = useNavigate();
+  const [showSetupComplete, setShowSetupComplete] = useState(false);
 
   useEffect(() => {
     console.log('🔍 OnboardingPage: Auth state check - user:', user?.id, 'loading:', loading);
@@ -62,15 +64,8 @@ const OnboardingPage = () => {
       // Small delay to ensure state propagation
       await new Promise(resolve => setTimeout(resolve, 150));
       
-      // Navigate directly to dashboard
-      console.log('🎯 OnboardingPage: Navigating to dashboard after completion');
-      navigate('/dashboard', { replace: true });
-      
-      // Clear handoff flag after navigation
-      setTimeout(() => {
-        sessionStorage.removeItem('onboarding-completing');
-        console.log('🧹 OnboardingPage: Cleared completion flag');
-      }, 800);
+      // Show the "setup complete" screen before going to dashboard
+      setShowSetupComplete(true);
       
     } catch (error) {
       console.error('❌ OnboardingPage: Error during completion:', error);
@@ -104,6 +99,44 @@ const OnboardingPage = () => {
   if (!user) {
     console.log('🚫 OnboardingPage: No user authenticated, returning null');
     return null;
+  }
+
+  // Post-onboarding success screen
+  if (showSetupComplete) {
+    return (
+      <div className="min-h-screen bg-garden-background flex items-center justify-center px-4">
+        <div className="w-full max-w-md text-center space-y-6">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full">
+            <CheckCircle className="w-8 h-8 text-green-600" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Your account is ready!</h1>
+            <p className="text-gray-600">You can now access BloomSuite anytime from:</p>
+          </div>
+          <div className="p-4 bg-white border border-gray-200 rounded-lg shadow-sm space-y-2">
+            <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
+              <Bookmark className="w-4 h-4" />
+              <span className="font-medium">Bookmark your login page</span>
+            </div>
+            <code className="font-mono text-sm font-semibold text-gray-900 select-all break-words">
+              https://bloomsuite.app/auth
+            </code>
+            <p className="text-xs text-gray-500">
+              Use this URL anytime to sign in. Save it now so you always know where to go.
+            </p>
+          </div>
+          <Button
+            className="w-full"
+            onClick={() => {
+              sessionStorage.removeItem('onboarding-completing');
+              navigate('/dashboard', { replace: true });
+            }}
+          >
+            Go to My Dashboard →
+          </Button>
+        </div>
+      </div>
+    );
   }
 
   console.log('🎯 OnboardingPage: Rendering onboarding flow for user:', user.id);

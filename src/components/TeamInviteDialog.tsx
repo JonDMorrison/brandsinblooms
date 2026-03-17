@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-
+import { toast } from "sonner";
 
 interface TeamInviteDialogProps {
   team: any;
@@ -58,6 +58,9 @@ export const TeamInviteDialog = ({ team, teamMembers, onInviteSuccess }: TeamInv
       setInviteEmail("");
       setInviteRole("member");
       setOpen(false);
+      toast.success(
+        `Invitation sent to ${inviteEmail}. Ask them to sign up or log in at https://bloomsuite.app/auth`
+      );
       onInviteSuccess();
     } catch (error) {
       console.error('Error in handleInviteMember:', error);

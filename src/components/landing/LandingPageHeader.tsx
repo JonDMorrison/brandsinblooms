@@ -85,10 +85,11 @@ export const LandingPageHeader = ({ onLogin, showUserMenu = true }: LandingPageH
         
         <Button 
           onClick={onLogin}
-          variant="ghost"
+          variant="outline"
           size="sm"
+          className="border-[#2c9da3] text-[#2c9da3] hover:bg-[#2c9da3]/10"
         >
-          Sign In
+          Log In
         </Button>
         <Button 
           variant="ghost"
@@ -148,10 +149,10 @@ export const LandingPageHeader = ({ onLogin, showUserMenu = true }: LandingPageH
                   onLogin();
                   setMobileMenuOpen(false);
                 }}
-                variant="ghost"
-                className="justify-start"
+                variant="outline"
+                className="justify-start border-[#2c9da3] text-[#2c9da3] hover:bg-[#2c9da3]/10"
               >
-                Sign In
+                Log In
               </Button>
               <Button
                 variant="ghost"

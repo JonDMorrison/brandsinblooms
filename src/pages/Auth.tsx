@@ -437,8 +437,9 @@ const Auth = () => {
   }
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-background">
-      <Card className="w-full max-w-md mx-auto shadow-lg border">
+    <div className="min-h-screen flex items-center justify-center bg-background py-8 px-4">
+      <div className="w-full max-w-md mx-auto">
+      <Card className="w-full shadow-lg border">
           <CardHeader className="text-center pb-6">
             <CardTitle className="text-2xl font-semibold mb-2">
               Welcome
@@ -657,6 +658,13 @@ const Auth = () => {
             )}
           </CardContent>
         </Card>
+
+        <div className="mt-4 p-3 bg-muted/50 border border-border rounded-lg text-center text-sm text-muted-foreground">
+          <p className="font-medium text-foreground mb-1">Your BloomSuite login page</p>
+          <p className="font-mono text-xs select-all break-words">https://bloomsuite.app/auth</p>
+          <p className="mt-1 text-xs">Bookmark this page so you can always find your way back.</p>
+        </div>
+      </div>
     </div>
   );
 };
