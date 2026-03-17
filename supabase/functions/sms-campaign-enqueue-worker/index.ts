@@ -8,7 +8,7 @@
  * Safe to run multiple times - uses atomic claiming and cursor-based paging.
  */
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient } from 'npm:@supabase/supabase-js@2'
 import { corsHeaders, handleCorsPrelight, corsJsonResponse } from '../_shared/cors.ts'
 import { renderMergeTags, convertLegacyTags, createMergeTagDataFromCustomer } from '../_shared/mergeTagEngine.ts'
 import { countSmsSegments } from '../_shared/smsSegmentCounter.ts'
