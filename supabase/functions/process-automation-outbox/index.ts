@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "npm:@supabase/supabase-js@2.7.1";
+import { createClient } from "npm:@supabase/supabase-js@2";
 import { resolveSender, buildFromAddress, type SenderConfig } from "../_shared/senderResolver.ts";
 import { checkSMSAvailability, isChannelAvailable } from "../_shared/channelAvailability.ts";
 import { renderEmailForRecipient, type CustomerShape, type CompanyProfileShape } from "../_shared/emailRenderer.ts";

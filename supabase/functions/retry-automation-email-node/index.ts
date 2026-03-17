@@ -6,7 +6,7 @@
  */
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "npm:@supabase/supabase-js@2.7.1";
+import { createClient } from "npm:@supabase/supabase-js@2";
 import { getFailedExecutions, logAutomationEmailExecution, checkAndLogSuppression, checkAlreadySent } from "../_shared/automationEmailExecution.ts";
 import { renderEmailForRecipient, type CustomerShape, type CompanyProfileShape } from "../_shared/emailRenderer.ts";
 import { resolveSender, buildFromAddress } from "../_shared/senderResolver.ts";
