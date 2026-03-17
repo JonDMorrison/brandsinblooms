@@ -385,7 +385,7 @@ const handler = async (req: Request): Promise<Response> => {
     const hasDkim = dnsRecords.some(r => r.purpose === 'dkim');
     const hasSpf = dnsRecords.some(r => r.purpose === 'spf' || (r.type === 'TXT' && r.value.includes('spf')));
     
-    console.log(`📋 Final DNS record check: DKIM=${hasDkim}, SPF=${hasSpf}, MX=${hasMx}, DMARC=${hasDmarc || true}`);
+    console.log(`📋 Final DNS record check: DKIM=${hasDkim}, SPF=${hasSpf}, MX=${hasMx}`);
     console.log(`📋 Total records to save: ${dnsRecords.length}`);
 
     // Insert DNS records (including priority)
