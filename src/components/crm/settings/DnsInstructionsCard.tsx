@@ -156,61 +156,60 @@ export const DnsInstructionsCard: React.FC<DnsInstructionsCardProps> = ({ domain
             </Card>
 
             {/* DNS Records Table */}
-            <div className="border rounded-lg overflow-hidden">
-              <table className="w-full text-sm">
-                <thead className="bg-muted">
-                  <tr>
-                    <th className="text-left px-4 py-2 font-medium">Type</th>
-                    <th className="text-left px-4 py-2 font-medium">Name</th>
-                    <th className="text-left px-4 py-2 font-medium">Value</th>
-                    <th className="text-left px-4 py-2 font-medium w-20">TTL</th>
-                    <th className="w-10"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {records.map((record) => (
-                    <tr key={record.id} className="border-t">
-                      <td className="px-4 py-3">
-                        <Badge variant="outline">{record.type}</Badge>
-                      </td>
-                      <td className="px-4 py-3">
-                        <code className="text-xs bg-muted px-1.5 py-0.5 rounded break-all">
+            <div className="space-y-3">
+              {records.map((record) => {
+                const purposeInfo = getPurposeInfo(record.purpose);
+                return (
+                  <div key={record.id} className="border rounded-lg p-3 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline">{record.type}</Badge>
+                      <span className="text-xs font-medium text-foreground">{purposeInfo.label}</span>
+                      {purposeInfo.description && (
+                        <span className="text-xs text-muted-foreground hidden sm:inline">— {purposeInfo.description}</span>
+                      )}
+                    </div>
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-2 text-xs">
+                        <span className="text-muted-foreground w-10 shrink-0">Name:</span>
+                        <code className="font-mono text-foreground bg-muted px-1.5 py-0.5 rounded break-all flex-1">
                           {record.name}
                         </code>
-                      </td>
-                      <td className="px-4 py-3">
-                        <code className="text-xs bg-muted px-1.5 py-0.5 rounded break-all max-w-[200px] block overflow-hidden text-ellipsis">
-                          {record.value}
-                        </code>
-                        <div className="mt-1">
-                          <p className="text-xs font-medium text-foreground">
-                            {getPurposeInfo(record.purpose).label}
-                          </p>
-                          {getPurposeInfo(record.purpose).description && (
-                            <p className="text-xs text-muted-foreground">
-                              {getPurposeInfo(record.purpose).description}
-                            </p>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-muted-foreground">Auto</td>
-                      <td className="px-4 py-3">
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => copyToClipboard(record.value, record.id)}
+                          className="h-6 px-2 shrink-0"
+                          onClick={() => copyToClipboard(record.name, `${record.id}-name`)}
                         >
-                          {copiedId === record.id ? (
-                            <CheckCircle2 className="h-4 w-4 text-green-500" />
+                          {copiedId === `${record.id}-name` ? (
+                            <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
                           ) : (
-                            <Copy className="h-4 w-4" />
+                            <Copy className="h-3.5 w-3.5" />
                           )}
                         </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                      </div>
+                      <div className="flex items-start gap-2 text-xs">
+                        <span className="text-muted-foreground w-10 shrink-0 pt-0.5">Value:</span>
+                        <code className="font-mono text-foreground bg-muted px-1.5 py-0.5 rounded break-all text-[11px] leading-relaxed flex-1">
+                          {record.value}
+                        </code>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 px-2 shrink-0 mt-0.5"
+                          onClick={() => copyToClipboard(record.value, `${record.id}-value`)}
+                        >
+                          {copiedId === `${record.id}-value` ? (
+                            <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                          ) : (
+                            <Copy className="h-3.5 w-3.5" />
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="text-xs text-muted-foreground">TTL: Auto</div>
+                  </div>
+                );
+              })}
             </div>
 
             {/* Provider Links */}

@@ -229,7 +229,7 @@ export const EmailDomainManagement: React.FC = () => {
                   <div className="flex items-start justify-between gap-4">
                     {/* Domain Info */}
                     <div className="flex-1 space-y-4">
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-3 flex-wrap">
                         <h3 className="text-lg font-semibold">
                           {domain.domain}
                         </h3>
@@ -237,6 +237,40 @@ export const EmailDomainManagement: React.FC = () => {
                           {statusConfig.label}
                         </Badge>
                       </div>
+
+                      {/* Pending DNS progress guidance */}
+                      {domain.status === "pending_dns" && (
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <CheckCircle2 className="h-3.5 w-3.5 text-green-600 shrink-0" />
+                            <span className="text-green-700 font-medium">Domain registered</span>
+                            <span>→</span>
+                            <span className="font-medium text-foreground">Add DNS records</span>
+                            <span>→</span>
+                            <span>Verified & ready</span>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            Click <span className="font-medium text-foreground">DNS Instructions</span> to see the exact records to add to your domain provider. After adding them, click <span className="font-medium text-foreground">Check DNS</span>.
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Verifying status guidance */}
+                      {domain.status === "verifying" && (
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <CheckCircle2 className="h-3.5 w-3.5 text-green-600 shrink-0" />
+                            <span className="text-green-700 font-medium">DNS records added</span>
+                            <span>→</span>
+                            <span className="font-medium text-foreground">Waiting for propagation</span>
+                            <span>→</span>
+                            <span>Verified & ready</span>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            DNS changes typically propagate within 5–30 minutes, but can take up to 48 hours. Click <span className="font-medium text-foreground">Check DNS</span> to test again.
+                          </p>
+                        </div>
+                      )}
 
                       {/* Sender Info */}
                       {domain.default_from_email && (
@@ -356,12 +390,19 @@ export const EmailDomainManagement: React.FC = () => {
                   {(domain.notes || domain.status === "failed") && (
                     <>
                       <Separator className="my-4" />
-                      <div className="flex items-start gap-2 text-sm">
-                        <AlertTriangle className="h-4 w-4 text-destructive mt-0.5" />
-                        <p className="text-muted-foreground">
-                          {domain.notes ||
-                            "Domain verification failed. Please check your DNS settings."}
-                        </p>
+                      <div className="space-y-2">
+                        <div className="flex items-start gap-2 text-sm">
+                          <AlertTriangle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
+                          <p className="text-muted-foreground">
+                            {domain.notes ||
+                              "Domain verification failed. Please check your DNS settings."}
+                          </p>
+                        </div>
+                        {domain.status === "failed" && (
+                          <p className="text-xs text-muted-foreground ml-6">
+                            Common causes: incorrect record values, missing records, or a conflicting existing record. Click <span className="font-medium text-foreground">DNS Instructions</span> to review the expected records, then click <span className="font-medium text-foreground">Connect Domain</span> to try again.
+                          </p>
+                        )}
                       </div>
                     </>
                   )}
