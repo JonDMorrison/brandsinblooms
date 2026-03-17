@@ -3,7 +3,7 @@
  * Enforces the invariant: postal_code IS NOT NULL AND location_needs_confirmation = false
  */
 
-import { createClient } from "npm:@supabase/supabase-js@2.7.1";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 export interface LocationValidationResult {
   isValid: boolean;

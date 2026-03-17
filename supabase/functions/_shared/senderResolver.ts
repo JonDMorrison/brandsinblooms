@@ -7,7 +7,7 @@
  * If none exists, it throws and the calling function must not send.
  */
 
-import { SupabaseClient } from "npm:@supabase/supabase-js@2.7.1";
+import { SupabaseClient } from "npm:@supabase/supabase-js@2";
 
 export interface SenderConfig {
   fromEmail: string;

@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "npm:@supabase/supabase-js@2.7.1";
+import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders, handleCorsPrelight, corsJsonResponse } from "../_shared/cors.ts";
 
 interface RepairRequest {
