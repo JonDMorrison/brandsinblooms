@@ -3826,7 +3826,18 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
             }
 
             // Add AI content generation for fallback blocks
+            // Guard against duplicate campaign creation from rapid clicks
+            if (existingCampaignId) {
+              console.log(`⚠️ [FallbackAI] Campaign already exists (${existingCampaignId}), skipping duplicate creation`);
+              setLoading(false);
+              return;
+            }
             setTimeout(async () => {
+              // Double-check inside setTimeout to catch race conditions
+              if (existingCampaignId) {
+                console.log(`⚠️ [FallbackAI] Campaign already created (${existingCampaignId}), aborting`);
+                return;
+              }
               try {
                 console.log(
                   `🤖 [FallbackAI] Starting AI enhancement for ${crmBlocks.length} blocks`,

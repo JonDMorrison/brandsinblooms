@@ -294,14 +294,18 @@ export const saveCampaignAsDraft = async (campaignData: CampaignData) => {
         };
       });
 
+      console.log(`📦 Inserting ${blocks.length} campaign blocks for campaign ${campaign.id}`);
       const { error: blocksError } = await supabase
         .from('campaign_blocks')
         .insert(blocks);
 
       if (blocksError) {
-        console.error('Error saving campaign blocks:', blocksError);
-        // Don't fail the whole operation for blocks
+        console.error('❌ CRITICAL: Block insert failed:', blocksError);
+        console.error('❌ Block data sample:', JSON.stringify(blocks[0], null, 2));
+        // Throw so callers know blocks weren't saved
+        throw new Error(`Campaign created but blocks failed to save: ${blocksError.message}`);
       }
+      console.log(`✅ Inserted ${blocks.length} blocks for campaign ${campaign.id}`);
     }
 
     // Handle segment linking
