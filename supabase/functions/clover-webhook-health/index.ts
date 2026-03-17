@@ -11,7 +11,7 @@
  * Ported from square-webhook-health with Clover-specific adaptations.
  */
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.10';
+import { createClient } from 'npm:@supabase/supabase-js@2';
 import { ensureCloverWebhooks } from '../_shared/webhooks/ensureCloverWebhooks.ts';
 import { WEBHOOK_RETRY_CONFIG } from '../_shared/webhooks/types.ts';
 
