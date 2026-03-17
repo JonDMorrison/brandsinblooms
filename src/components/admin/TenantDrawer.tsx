@@ -28,6 +28,7 @@ import {
   Save,
   RotateCcw,
 } from "lucide-react";
+import { StartSupportSessionDialog } from "@/components/admin/StartSupportSessionDialog";
 import { format, formatDistanceToNow } from "date-fns";
 
 interface AdminTenant {
@@ -564,6 +565,19 @@ export const TenantDrawer = ({
                 >
                   {tenant.is_active ? "Deactivate Tenant" : "Activate Tenant"}
                 </Button>
+              </div>
+
+              <Separator />
+
+              <div>
+                <p className="text-xs text-muted-foreground mb-2 font-medium uppercase tracking-wide">
+                  Support
+                </p>
+                <StartSupportSessionDialog
+                  tenantId={tenant.tenant_id}
+                  tenantName={tenant.company_name ?? tenant.tenant_id}
+                  onStarted={onClose}
+                />
               </div>
             </CardContent>
           </Card>

@@ -22,6 +22,7 @@ import {
   Wrench,
   TrendingUp,
   DollarSign,
+  Headset,
 } from "lucide-react";
 
 export default function AdminHub() {
@@ -122,6 +123,19 @@ export default function AdminHub() {
           icon: Shield,
           href: "/admin/governance-config",
           color: "text-amber-500",
+        },
+      ],
+    },
+    {
+      category: "Support",
+      tools: [
+        {
+          title: "Start Support Session",
+          description:
+            "Open a tenant account in secure, audited support mode to troubleshoot live issues on behalf of a customer",
+          icon: Headset,
+          href: "/admin/tenants",
+          color: "text-amber-600",
         },
       ],
     },

@@ -118,12 +118,17 @@ import { PlatformAgreementPage } from "@/pages/public/PlatformAgreementPage";
 import { EcommPage } from "@/pages/public/EcommPage";
 import { TwilioCopyPage } from "@/pages/admin/TwilioCopyPage";
 import AnalyticsHealthPage from "@/pages/admin/AnalyticsHealthPage";
+import AdminSupportSessionPage from "@/pages/admin/AdminSupportSessionPage";
+import { SupportSessionProvider } from "@/contexts/SupportSessionContext";
+import { SupportSessionBanner } from "@/components/admin/SupportSessionBanner";
 
 function App() {
   return (
     <HelmetProvider>
+      <SupportSessionProvider>
       <div className="min-h-screen bg-background text-foreground">
         <ErrorBoundary>
+          <SupportSessionBanner />
           <NavigationTracker />
           <Routes>
             {/* Public routes */}
@@ -1037,6 +1042,14 @@ function App() {
               }
             />
             <Route
+              path="/admin/support/:tenantId"
+              element={
+                <ProtectedRoute>
+                  <AdminSupportSessionPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/community"
               element={
                 <ProtectedRoute>
@@ -1060,6 +1073,7 @@ function App() {
           <ShadcnToaster />
         </ErrorBoundary>
       </div>
+      </SupportSessionProvider>
     </HelmetProvider>
   );
 }
