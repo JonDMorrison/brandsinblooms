@@ -10,7 +10,7 @@
  * - verify: Verify subscription exists in Square API
  */
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.10';
+import { createClient } from 'npm:@supabase/supabase-js@2';
 import { ensureSquareWebhooks } from '../_shared/webhooks/ensureSquareWebhooks.ts';
 
 const corsHeaders = {
