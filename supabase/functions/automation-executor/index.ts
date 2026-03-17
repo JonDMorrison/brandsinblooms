@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.10';
+import { createClient } from 'npm:@supabase/supabase-js@2';
 import { renderMergeTags, convertLegacyTags, createMergeTagDataFromCustomer, GLOBAL_FALLBACKS } from "../_shared/mergeTagEngine.ts";
 import { resolveSender, type SenderConfig } from "../_shared/senderResolver.ts";
 import { checkChannelAvailability, isChannelAvailable, type ChannelAvailability } from "../_shared/channelAvailability.ts";
