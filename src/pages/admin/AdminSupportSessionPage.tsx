@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, Navigate } from 'react-router-dom';
 import {
   AlertTriangle,
   ArrowLeft,
@@ -14,7 +14,6 @@ import {
   Shield,
   User,
 } from 'lucide-react';
-import { Navigate } from 'react-router-dom';
 import { format, formatDistanceToNow } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { useIsSuperAdmin } from '@/hooks/useIsSuperAdmin';

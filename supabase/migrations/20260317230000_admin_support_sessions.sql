@@ -73,7 +73,7 @@ AS $$
 DECLARE
     v_session_id UUID;
 BEGIN
-    -- Authorisation: caller must be a master admin
+    -- Authorization: caller must be a master admin
     IF auth.uid() IS NULL OR NOT public.is_master_admin(auth.uid()) THEN
         RAISE EXCEPTION 'Access denied. Master admin required.';
     END IF;
@@ -143,7 +143,7 @@ AS $$
 DECLARE
     v_session public.admin_support_sessions%ROWTYPE;
 BEGIN
-    -- Authorisation: caller must be a master admin
+    -- Authorization: caller must be a master admin
     IF auth.uid() IS NULL OR NOT public.is_master_admin(auth.uid()) THEN
         RAISE EXCEPTION 'Access denied. Master admin required.';
     END IF;
