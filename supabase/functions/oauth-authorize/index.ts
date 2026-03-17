@@ -1,4 +1,4 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
+import { createClient } from 'npm:@supabase/supabase-js@2';
 import { create, getNumericDate } from 'https://deno.land/x/djwt@v2.8/mod.ts';
 
 const corsHeaders = {

@@ -1,4 +1,4 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
+import { createClient } from 'npm:@supabase/supabase-js@2';
 import { verify } from 'https://deno.land/x/djwt@v2.8/mod.ts';
 import { encryptToken, assertEncryptionKeyConfigured } from '../_shared/crypto/tokens.ts';
 

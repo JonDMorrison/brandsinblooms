@@ -33,7 +33,7 @@ serve(async (req) => {
     const { content_task_id, content, platform_post_id } = await req.json()
     
     // Get the content task and connection info from database
-    const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2')
+    const { createClient } = await import('npm:@supabase/supabase-js@2')
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''

@@ -10,7 +10,7 @@
  * - Simple 3-way merge strategy with conflict detection per key path
  */
 
-import { createClient } from "npm:@supabase/supabase-js@2.7.1";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",

@@ -1,4 +1,4 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.10';
+import { createClient } from 'npm:@supabase/supabase-js@2';
 import { detectEnvironment } from '../_shared/environment.ts';
 import { encryptToken, assertEncryptionKeyConfigured } from '../_shared/crypto/tokens.ts';
 import { corsHeaders, corsJsonResponse } from '../_shared/cors.ts';

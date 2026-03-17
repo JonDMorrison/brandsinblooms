@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from "npm:@supabase/supabase-js@2.7.1";
+import { createClient } from "npm:@supabase/supabase-js@2";
 import { Resend } from "npm:resend@2.1.0";
 import { renderMergeTags, convertLegacyTags, createMergeTagDataFromCustomer, type MergeTagData } from "../_shared/mergeTagEngine.ts";
 import { generateServerFooterHtml, type CompanyProfileData } from "../_shared/footerGenerator.ts";

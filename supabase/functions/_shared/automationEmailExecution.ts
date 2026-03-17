@@ -5,7 +5,7 @@
  * Every attempt creates an append-only row for visibility.
  */
 
-import { createClient } from "npm:@supabase/supabase-js@2.7.1";
+import { createClient } from "npm:@supabase/supabase-js@2";
 import { canSendEmail, type SkipReason } from './canSendEmail.ts';
 
 type TenantSuppressionBypassState = {
