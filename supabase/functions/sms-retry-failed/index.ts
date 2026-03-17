@@ -5,7 +5,7 @@
  * Respects opt-out and suppression status.
  */
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient } from 'npm:@supabase/supabase-js@2'
 import { corsHeaders, handleCorsPrelight, corsJsonResponse } from '../_shared/cors.ts'
 
 interface RetryRequest {
