@@ -1,4 +1,4 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from 'npm:@supabase/supabase-js@2';
 
 // ─── CORS Headers (hardened for public embed access) ───────────────────────
 // These headers are included in ALL responses (success, error, 404, 429, etc.)
