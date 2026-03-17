@@ -1,5 +1,5 @@
 import React from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
 import { Toaster } from "sonner";
 import { Toaster as ShadcnToaster } from "@/components/ui/toaster";
@@ -118,6 +118,7 @@ import { PlatformAgreementPage } from "@/pages/public/PlatformAgreementPage";
 import { EcommPage } from "@/pages/public/EcommPage";
 import { TwilioCopyPage } from "@/pages/admin/TwilioCopyPage";
 import AnalyticsHealthPage from "@/pages/admin/AnalyticsHealthPage";
+import NotFound from "@/pages/NotFound";
 
 function App() {
   return (
@@ -1053,8 +1054,8 @@ function App() {
               element={<ConfirmSubscription />}
             />
 
-            {/* Redirect authenticated users to dashboard, unauthenticated to auth */}
-            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+            {/* Show NotFound for any unrecognized routes */}
+            <Route path="*" element={<NotFound />} />
           </Routes>
           <Toaster />
           <ShadcnToaster />

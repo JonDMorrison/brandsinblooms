@@ -9,6 +9,7 @@ import { Loader2, Eye, EyeOff, Sprout, CheckCircle, Unlock } from "lucide-react"
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase, signInWithCleanup, signUpWithCleanup } from "@/integrations/supabase/client";
+import { getAuthErrorMessage } from "@/utils/errorHandling";
 
 // import bloomSuiteLogo from "@/assets/bloomsuite-logo.png";
 
@@ -102,7 +103,7 @@ const Auth = () => {
 
       if (error) {
         console.error('❌ Auth: Sign in error:', error);
-        setError(error.message);
+        setError(getAuthErrorMessage(error));
         
         return;
       }
@@ -144,7 +145,7 @@ const Auth = () => {
 
       if (error) {
         console.error('❌ Auth: Sign up error:', error);
-        setError(error.message);
+        setError(getAuthErrorMessage(error));
         
         return;
       }
@@ -188,7 +189,7 @@ const Auth = () => {
       });
 
       if (error) {
-        setError(error.message);
+        setError(getAuthErrorMessage(error));
       } else {
         setMessage('Password reset email sent! Please check your inbox and spam folder.');
         setShowForgotPassword(false);
@@ -222,7 +223,7 @@ const Auth = () => {
       });
 
       if (error) {
-        setError(error.message);
+        setError(getAuthErrorMessage(error));
       } else {
         setMessage('Password updated successfully! You can now sign in.');
         setShowResetPassword(false);
@@ -252,7 +253,7 @@ const Auth = () => {
 
       if (error) {
         console.error('❌ Auth: Google auth error:', error);
-        setError(error.message);
+        setError(getAuthErrorMessage(error));
         
       }
     } catch (error: any) {
