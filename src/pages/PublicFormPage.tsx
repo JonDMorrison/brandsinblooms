@@ -1,14 +1,17 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
 import { Loader2 } from 'lucide-react';
+import { FormPreviewRenderer } from '@/components/forms/preview/FormPreviewRenderer';
+import { FormField, FormSettings, FormCompliance, DEFAULT_FORM_SETTINGS, DEFAULT_FORM_COMPLIANCE } from '@/types/formBuilder';
+
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://udldmkqwnxhdeztyqcau.supabase.co';
 
 interface FormConfig {
   id: string;
   name: string;
-  fields_json: any[];
-  settings_json: any;
-  compliance_json: any;
+  fields_json: FormField[];
+  settings_json: FormSettings;
+  compliance_json: FormCompliance;
   tenant_id: string;
 }
 
@@ -19,7 +22,6 @@ export default function PublicFormPage() {
   const [error, setError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [formData, setFormData] = useState<Record<string, any>>({});
 
   useEffect(() => {
     if (!embedKey) {
@@ -31,7 +33,7 @@ export default function PublicFormPage() {
     const fetchForm = async () => {
       try {
         const response = await fetch(
-          `https://udldmkqwnxhdeztyqcau.supabase.co/functions/v1/get-form-config?embed_key=${embedKey}`
+          `${SUPABASE_URL}/functions/v1/get-form-config?embed_key=${embedKey}`
         );
         
         if (!response.ok) {
@@ -51,20 +53,28 @@ export default function PublicFormPage() {
     fetchForm();
   }, [embedKey]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (formData: Record<string, any>) => {
     if (!form || !embedKey) return;
 
+    // Include hidden field default values in submission
+    const enrichedData = { ...formData };
+    form.fields_json.forEach(field => {
+      if (field.type === 'hidden' && field.default_value) {
+        enrichedData[field.mapping_key || field.id] = field.default_value;
+      }
+    });
+
     setSubmitting(true);
+    setError(null);
     try {
       const response = await fetch(
-        'https://udldmkqwnxhdeztyqcau.supabase.co/functions/v1/submit-form',
+        `${SUPABASE_URL}/functions/v1/submit-form`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             embed_key: embedKey,
-            data: formData,
+            data: enrichedData,
             page_url: window.location.href,
           }),
         }
@@ -89,10 +99,6 @@ export default function PublicFormPage() {
     }
   };
 
-  const handleInputChange = (fieldId: string, value: any) => {
-    setFormData(prev => ({ ...prev, [fieldId]: value }));
-  };
-
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -101,7 +107,7 @@ export default function PublicFormPage() {
     );
   }
 
-  if (error) {
+  if (error && !form) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
         <div className="max-w-md w-full bg-card border border-border rounded-lg p-6 text-center">
@@ -132,68 +138,24 @@ export default function PublicFormPage() {
 
   if (!form) return null;
 
-  const theme = form.settings_json?.theme || {};
-  const primaryColor = theme.primary_color || '#22C55E';
+  const formSettings = form.settings_json || DEFAULT_FORM_SETTINGS;
+  const formCompliance = form.compliance_json || DEFAULT_FORM_COMPLIANCE;
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <div 
-        className="max-w-md w-full bg-card border border-border rounded-lg p-6"
-        style={{ '--form-primary': primaryColor } as React.CSSProperties}
-      >
-        <h1 className="text-2xl font-semibold text-foreground mb-6">{form.name}</h1>
-        
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {form.fields_json.map((field: any) => (
-            <div key={field.id} className="space-y-2">
-              {field.type === 'email_consent' || field.type === 'sms_consent' ? (
-                <label className="flex items-start gap-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    required={field.required}
-                    checked={formData[field.id] || false}
-                    onChange={(e) => handleInputChange(field.id, e.target.checked)}
-                    className="mt-1 h-4 w-4 rounded border-border"
-                  />
-                  <span className="text-sm text-muted-foreground">
-                    {field.type === 'email_consent' 
-                      ? form.compliance_json?.email_consent_text || 'I agree to receive emails'
-                      : form.compliance_json?.sms_consent_text || 'I agree to receive SMS messages'}
-                  </span>
-                </label>
-              ) : (
-                <>
-                  <label className="block text-sm font-medium text-foreground">
-                    {field.label}
-                    {field.required && <span className="text-destructive ml-1">*</span>}
-                  </label>
-                  <input
-                    type={field.type === 'email' ? 'email' : field.type === 'phone' ? 'tel' : 'text'}
-                    placeholder={field.placeholder}
-                    required={field.required}
-                    value={formData[field.id] || ''}
-                    onChange={(e) => handleInputChange(field.id, e.target.value)}
-                    className="w-full px-3 py-2 bg-background border border-border rounded-md text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
-                  />
-                </>
-              )}
-            </div>
-          ))}
-
-          <button
-            type="submit"
-            disabled={submitting}
-            className="w-full py-2.5 px-4 rounded-md font-medium text-white transition-colors disabled:opacity-50"
-            style={{ backgroundColor: primaryColor }}
-          >
-            {submitting ? 'Submitting...' : (form.settings_json?.submit_button_text || 'Submit')}
-          </button>
-        </form>
-
-        {form.settings_json?.show_branding !== false && (
-          <p className="text-xs text-muted-foreground text-center mt-4">
-            Powered by BloomSuite
-          </p>
+      <div className="w-full max-w-lg">
+        <FormPreviewRenderer
+          fields={form.fields_json || []}
+          settings={formSettings}
+          compliance={formCompliance}
+          mode="embed"
+          onSubmit={handleSubmit}
+          isSubmitting={submitting}
+        />
+        {error && (
+          <div className="mt-4 p-3 bg-destructive/10 border border-destructive/20 rounded-md text-center">
+            <p className="text-sm text-destructive">{error}</p>
+          </div>
         )}
       </div>
     </div>

@@ -30,6 +30,9 @@ import {
   Eye,
   AlertCircle,
   ShieldX,
+  TestTube2,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -48,6 +51,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import {
   SubmissionFilters,
   SubmissionResultFilter,
@@ -90,7 +95,6 @@ const resultConfig: Record<
   },
 };
 
-// Rejection type display config (for breakdown)
 const rejectionTypeConfig: Record<
   RejectionType,
   {
@@ -116,12 +120,13 @@ const rejectionTypeConfig: Record<
   },
 };
 
-// Helper to get rejection type from metadata
 function getRejectionType(
   metadata: FormSubmissionMetadata | undefined,
 ): RejectionType | undefined {
   return metadata?.rejection_type;
 }
+
+const PAGE_SIZE = 50;
 
 export function FormSubmissionsTab({
   formId,
@@ -137,6 +142,10 @@ export function FormSubmissionsTab({
   const [selectedSubmission, setSelectedSubmission] =
     useState<FormSubmission | null>(null);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
+  // Fix 9: Pagination state
+  const [page, setPage] = useState(0);
+  // Fix 10: Hide test submissions toggle
+  const [hideTestSubmissions, setHideTestSubmissions] = useState(true);
 
   const {
     data: submissions,
@@ -168,6 +177,12 @@ export function FormSubmissionsTab({
     if (!submissions) return [];
 
     return submissions.filter((sub) => {
+      // Fix 10: Filter test submissions
+      if (hideTestSubmissions) {
+        const meta = sub.metadata as any;
+        if (meta?.is_test === true) return false;
+      }
+
       // Email search filter
       if (searchQuery) {
         const email = sub.data?.email || sub.data?.Email || "";
@@ -191,7 +206,7 @@ export function FormSubmissionsTab({
         }
       }
 
-      // Result filter (accepted vs any rejection)
+      // Result filter
       if (resultFilter === "accepted" && sub.result !== "accepted") {
         return false;
       }
@@ -201,9 +216,21 @@ export function FormSubmissionsTab({
 
       return true;
     });
-  }, [submissions, searchQuery, resultFilter, dateRange]);
+  }, [submissions, searchQuery, resultFilter, dateRange, hideTestSubmissions]);
 
-  // Calculate stats
+  // Fix 9: Paginate filtered results
+  const paginatedSubmissions = useMemo(() => {
+    return filteredSubmissions.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  }, [filteredSubmissions, page]);
+
+  const totalPages = Math.ceil(filteredSubmissions.length / PAGE_SIZE);
+
+  // Reset page when filters change
+  useMemo(() => {
+    setPage(0);
+  }, [searchQuery, resultFilter, dateRange, hideTestSubmissions]);
+
+  // Calculate stats (use all submissions, not filtered)
   const stats = useMemo(() => {
     if (!submissions)
       return {
@@ -217,18 +244,24 @@ export function FormSubmissionsTab({
         rejectionBreakdown: { invalid: 0, rateLimit: 0, spam: 0 },
       };
 
-    const accepted = submissions.filter((s) => s.result === "accepted").length;
-    const rejected = submissions.length - accepted;
+    // Exclude test submissions from stats
+    const realSubmissions = submissions.filter((s) => {
+      const meta = s.metadata as any;
+      return meta?.is_test !== true;
+    });
+
+    const accepted = realSubmissions.filter((s) => s.result === "accepted").length;
+    const rejected = realSubmissions.length - accepted;
 
     const now = new Date();
     const sevenDaysAgo = subDays(now, 7);
     const fourteenDaysAgo = subDays(now, 14);
 
-    const last7Days = submissions.filter(
+    const last7Days = realSubmissions.filter(
       (s) => new Date(s.submitted_at) >= sevenDaysAgo,
     ).length;
 
-    const previous7Days = submissions.filter((s) => {
+    const previous7Days = realSubmissions.filter((s) => {
       const date = new Date(s.submitted_at);
       return date >= fourteenDaysAgo && date < sevenDaysAgo;
     }).length;
@@ -240,8 +273,7 @@ export function FormSubmissionsTab({
           : 0
         : Math.round(((last7Days - previous7Days) / previous7Days) * 100);
 
-    // Count by rejection_type in metadata for rejected submissions
-    const rejectedSubmissions = submissions.filter(
+    const rejectedSubmissions = realSubmissions.filter(
       (s) => s.result === "rejected",
     );
     const rejectionBreakdown = {
@@ -257,12 +289,12 @@ export function FormSubmissionsTab({
     };
 
     return {
-      total: submissions.length,
+      total: realSubmissions.length,
       accepted,
       rejected,
       acceptRate:
-        submissions.length > 0
-          ? Math.round((accepted / submissions.length) * 100)
+        realSubmissions.length > 0
+          ? Math.round((accepted / realSubmissions.length) * 100)
           : 0,
       last7Days,
       previous7Days,
@@ -394,10 +426,23 @@ export function FormSubmissionsTab({
                   : `Showing ${filteredSubmissions.length} of ${submissions?.length || 0} submissions`}
               </CardDescription>
             </div>
-            <SubmissionExport
-              submissions={filteredSubmissions}
-              formName={formName}
-            />
+            <div className="flex items-center gap-4">
+              {/* Fix 10: Hide test submissions toggle */}
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="hide-test"
+                  checked={hideTestSubmissions}
+                  onCheckedChange={setHideTestSubmissions}
+                />
+                <Label htmlFor="hide-test" className="text-sm text-muted-foreground whitespace-nowrap">
+                  Hide test data
+                </Label>
+              </div>
+              <SubmissionExport
+                submissions={filteredSubmissions}
+                formName={formName}
+              />
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -413,32 +458,63 @@ export function FormSubmissionsTab({
             onClearFilters={handleClearFilters}
           />
 
-          {filteredSubmissions.length > 0 ? (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[140px]">Timestamp</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead className="w-[120px]">Status</TableHead>
-                    <TableHead>Rejection Reason</TableHead>
-                    <TableHead className="w-[100px]">Consent</TableHead>
-                    <TableHead className="text-right w-[80px]">
-                      Details
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredSubmissions.map((submission) => (
-                    <SubmissionRow
-                      key={submission.id}
-                      submission={submission}
-                      onViewDetails={() => handleViewDetails(submission)}
-                    />
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+          {paginatedSubmissions.length > 0 ? (
+            <>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[140px]">Timestamp</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead className="w-[120px]">Status</TableHead>
+                      <TableHead>Rejection Reason</TableHead>
+                      <TableHead className="w-[100px]">Consent</TableHead>
+                      <TableHead className="text-right w-[80px]">
+                        Details
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {paginatedSubmissions.map((submission) => (
+                      <SubmissionRow
+                        key={submission.id}
+                        submission={submission}
+                        onViewDetails={() => handleViewDetails(submission)}
+                      />
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Fix 9: Pagination controls */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between mt-4 pt-4 border-t">
+                  <p className="text-sm text-muted-foreground">
+                    Page {page + 1} of {totalPages}
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage(p => Math.max(0, p - 1))}
+                      disabled={page === 0}
+                    >
+                      <ChevronLeft className="h-4 w-4 mr-1" />
+                      Previous
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+                      disabled={page >= totalPages - 1}
+                    >
+                      Next
+                      <ChevronRight className="h-4 w-4 ml-1" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
           ) : submissions && submissions.length > 0 ? (
             <div className="text-center py-12">
               <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
@@ -483,7 +559,8 @@ function SubmissionRow({ submission, onViewDetails }: SubmissionRowProps) {
   const resultInfo = resultConfig[submission.result] || resultConfig.rejected;
   const metadata = submission.metadata || ({} as FormSubmissionMetadata);
   const isRejected = submission.result === "rejected";
-  const rejectionType = getRejectionType(metadata);
+  // Fix 10: Check if test submission
+  const isTest = (metadata as any)?.is_test === true;
 
   const email = submission.data?.email || submission.data?.Email || "—";
 
@@ -515,7 +592,16 @@ function SubmissionRow({ submission, onViewDetails }: SubmissionRowProps) {
 
       {/* Email */}
       <TableCell>
-        <span className="font-mono text-sm">{email}</span>
+        <div className="flex items-center gap-2">
+          <span className="font-mono text-sm">{email}</span>
+          {/* Fix 10: Test badge */}
+          {isTest && (
+            <Badge variant="outline" className="text-xs bg-muted border-border">
+              <TestTube2 className="h-3 w-3 mr-1" />
+              Test
+            </Badge>
+          )}
+        </div>
       </TableCell>
 
       {/* Status */}

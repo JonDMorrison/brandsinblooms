@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useBlocker } from 'react-router-dom';
 import { useForm } from '@/hooks/useForms';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -7,7 +7,7 @@ import { ArrowLeft, Save, Loader2, Eye, EyeOff, PanelRightClose, PanelRight } fr
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Form, FormField, FormSettings, FormCompliance } from '@/types/formBuilder';
+import { Form, FormField, FormSettings, FormCompliance, FormAudience } from '@/types/formBuilder';
 import { Json } from '@/integrations/supabase/types';
 import { FormBuildTab } from '@/components/forms/FormBuildTab';
 import { FormDesignTab } from '@/components/forms/FormDesignTab';
@@ -16,10 +16,13 @@ import { FormComplianceTab } from '@/components/forms/FormComplianceTab';
 import { FormPublishTab } from '@/components/forms/FormPublishTab';
 import { FormSubmissionsTab } from '@/components/forms/FormSubmissionsTab';
 import { FormTestMatrix } from '@/components/forms/FormTestMatrix';
+import { FormAnalyticsTab } from '@/components/forms/FormAnalyticsTab';
 import { PreviewPanel } from '@/components/forms/preview';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { useMediaQuery } from '@/hooks/use-media-query';
+import { useBeforeUnload } from '@/hooks/useBeforeUnload';
+import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 
 export default function FormEditorPage() {
   const { formId } = useParams<{ formId: string }>();
@@ -31,13 +34,22 @@ export default function FormEditorPage() {
   const [fields, setFields] = useState<FormField[]>([]);
   const [settings, setSettings] = useState<FormSettings | null>(null);
   const [compliance, setCompliance] = useState<FormCompliance | null>(null);
-  const [audience, setAudience] = useState({ assign_personas: [] as string[], assign_tags: [] as string[] });
+  const [audience, setAudience] = useState<FormAudience>({ assign_personas: [], assign_tags: [] });
   const [isSaving, setIsSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [showPreview, setShowPreview] = useState(true);
   const [activeTab, setActiveTab] = useState('build');
 
   const isMobile = useMediaQuery('(max-width: 1024px)');
+
+  // Fix 4: Browser beforeunload warning
+  useBeforeUnload({ when: hasChanges });
+
+  // Fix 4: React Router navigation guard
+  const blocker = useBlocker(
+    ({ currentLocation, nextLocation }) =>
+      hasChanges && currentLocation.pathname !== nextLocation.pathname
+  );
 
   // Hide preview by default on mobile
   useEffect(() => {
@@ -46,16 +58,25 @@ export default function FormEditorPage() {
     }
   }, [isMobile]);
 
-  // Initialize state from loaded form
+  // Initialize state from loaded form (Fix 2: include audience)
   useEffect(() => {
     if (form) {
       setName(form.name);
       setFields(form.fields_json || []);
       setSettings(form.settings_json);
       setCompliance(form.compliance_json);
+      // Initialize audience from saved form data
+      const formAny = form as any;
+      if (formAny.audience_json) {
+        setAudience({
+          assign_personas: formAny.audience_json.assign_personas || [],
+          assign_tags: formAny.audience_json.assign_tags || [],
+        });
+      }
     }
   }, [form]);
 
+  // Fix 2: Include audience_json in save payload
   const handleSave = async () => {
     if (!formId) return;
 
@@ -68,6 +89,7 @@ export default function FormEditorPage() {
           fields_json: fields as unknown as Json,
           settings_json: settings as unknown as Json,
           compliance_json: compliance as unknown as Json,
+          audience_json: audience as unknown as Json,
         })
         .eq('id', formId);
 
@@ -91,7 +113,6 @@ export default function FormEditorPage() {
 
   const markChanged = () => setHasChanges(true);
 
-  // Determine if preview should be shown for current tab
   const showPreviewForTab = ['build', 'design', 'compliance'].includes(activeTab);
 
   if (isLoading) {
@@ -141,7 +162,6 @@ export default function FormEditorPage() {
           />
         </div>
         <div className="flex items-center gap-2">
-          {/* Preview Toggle (visible on desktop) */}
           {showPreviewForTab && (
             <Button
               variant="outline"
@@ -175,21 +195,22 @@ export default function FormEditorPage() {
 
       {/* Main Content Area */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Left Column: Editor */}
         <div
           className={cn(
             'flex-1 overflow-auto p-6 transition-all duration-200',
             showPreview && showPreviewForTab && !isMobile ? 'lg:w-[60%] lg:max-w-[800px]' : 'w-full'
           )}
         >
+          {/* Fix 6: 7 tabs including Analytics */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-6 max-w-3xl">
+            <TabsList className="grid w-full grid-cols-7 max-w-3xl">
               <TabsTrigger value="build">Build</TabsTrigger>
               <TabsTrigger value="design">Design</TabsTrigger>
               <TabsTrigger value="audience">Audience</TabsTrigger>
               <TabsTrigger value="compliance">Compliance</TabsTrigger>
               <TabsTrigger value="publish">Publish</TabsTrigger>
               <TabsTrigger value="submissions">Submissions</TabsTrigger>
+              <TabsTrigger value="analytics">Analytics</TabsTrigger>
             </TabsList>
 
             <TabsContent value="build" className="mt-6">
@@ -245,9 +266,11 @@ export default function FormEditorPage() {
               )}
             </TabsContent>
 
+            {/* Fix 5: Pass current fields for validation */}
             <TabsContent value="publish" className="mt-6">
               <FormPublishTab
                 form={form}
+                fields={fields}
                 hasChanges={hasChanges}
                 onSave={handleSave}
                 isSaving={isSaving}
@@ -259,6 +282,11 @@ export default function FormEditorPage() {
                 <FormSubmissionsTab formId={form.id} formName={form.name} />
                 <FormTestMatrix form={form} />
               </div>
+            </TabsContent>
+
+            {/* Fix 6: Analytics tab */}
+            <TabsContent value="analytics" className="mt-6">
+              <FormAnalyticsTab formId={form.id} />
             </TabsContent>
           </Tabs>
         </div>
@@ -313,6 +341,19 @@ export default function FormEditorPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Fix 4: Unsaved changes navigation guard dialog */}
+      {blocker.state === 'blocked' && (
+        <ConfirmationDialog
+          open={true}
+          onOpenChange={() => blocker.reset?.()}
+          title="Unsaved Changes"
+          description="You have unsaved changes. Are you sure you want to leave?"
+          confirmText="Leave"
+          cancelText="Stay"
+          onConfirm={() => blocker.proceed?.()}
+        />
       )}
     </div>
   );

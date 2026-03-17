@@ -19,6 +19,7 @@ interface UpdateFormData {
   fields_json?: FormField[];
   settings_json?: FormSettings;
   compliance_json?: FormCompliance;
+  audience_json?: Record<string, any>;
 }
 
 export function useForms() {
@@ -126,6 +127,7 @@ export function useForms() {
       if (updates.fields_json !== undefined) dbUpdates.fields_json = updates.fields_json as unknown as Json;
       if (updates.settings_json !== undefined) dbUpdates.settings_json = updates.settings_json as unknown as Json;
       if (updates.compliance_json !== undefined) dbUpdates.compliance_json = updates.compliance_json as unknown as Json;
+      if (updates.audience_json !== undefined) dbUpdates.audience_json = updates.audience_json as unknown as Json;
 
       const { data, error } = await supabase
         .from('forms')
