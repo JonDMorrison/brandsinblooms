@@ -4,6 +4,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -25,6 +31,7 @@ import {
   UserMinus,
   TrendingUp,
   AlertTriangle,
+  Info,
   Pause,
   Play,
   Square,
@@ -215,15 +222,18 @@ export default function CRMCampaignDetail() {
   const getOpenRate = (metrics: any) => {
     if (!metrics || !metrics.sent) return "0%";
     const opens = metrics.opens || 0;
-    const sent = metrics.sent || 0;
-    return `${Math.round((opens / sent) * 100)}%`;
+    const delivered = metrics.delivered || metrics.sent || 0;
+    if (!delivered) return "0%";
+    return `${Math.round((opens / delivered) * 100)}%`;
   };
 
   const getClickRate = (metrics: any) => {
     if (!metrics || !metrics.sent) return "0%";
     const clicks = metrics.clicks || 0;
-    const sent = metrics.sent || 0;
-    return `${Math.round((clicks / sent) * 100)}%`;
+    // Use delivered as denominator (standard CTR). Fall back to sent if delivered is 0.
+    const delivered = metrics.delivered || metrics.sent || 0;
+    if (!delivered) return "0%";
+    return `${Math.round((clicks / delivered) * 100)}%`;
   };
 
   const getDeliveryRate = (metrics: any) => {
@@ -231,6 +241,12 @@ export default function CRMCampaignDetail() {
     const delivered = metrics.delivered || 0;
     const sent = metrics.sent || 0;
     return `${Math.round((delivered / sent) * 100)}%`;
+  };
+
+  // Click-to-open rate: only meaningful when open tracking data is present
+  const getCTOR = (clicks: number, opens: number): string => {
+    if (opens <= 0) return "—";
+    return `${Math.round((clicks / opens) * 100)}%`;
   };
 
   if (loading) {
@@ -406,6 +422,20 @@ export default function CRMCampaignDetail() {
               </CardTitle>
             </CardHeader>
             <CardContent>
+              {/* Sanity check: impossible state warning */}
+              {(campaign.metrics.clicks || 0) > 0 &&
+                (campaign.metrics.opens || 0) === 0 && (
+                  <div className="flex items-start gap-3 p-3 mb-4 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 dark:bg-amber-900/20 dark:border-amber-700 dark:text-amber-200">
+                    <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                    <p className="text-sm">
+                      Open tracking appears incomplete — this campaign shows{" "}
+                      {campaign.metrics.clicks} click
+                      {campaign.metrics.clicks !== 1 ? "s" : ""} but 0 opens.
+                      Use <strong>click rate</strong> as the primary engagement
+                      signal.
+                    </p>
+                  </div>
+                )}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                 <div className="text-center p-4 bg-muted/50 rounded-lg">
                   <div className="text-3xl font-bold text-primary">
@@ -424,16 +454,8 @@ export default function CRMCampaignDetail() {
                     {getDeliveryRate(campaign.metrics)} delivery rate
                   </div>
                 </div>
-                <div className="text-center p-4 bg-muted/50 rounded-lg">
-                  <div className="text-3xl font-bold text-blue-600">
-                    {campaign.metrics.opens || 0}
-                  </div>
-                  <div className="text-sm text-muted-foreground">Opens</div>
-                  <div className="text-xs text-muted-foreground">
-                    {getOpenRate(campaign.metrics)} open rate
-                  </div>
-                </div>
-                <div className="text-center p-4 bg-muted/50 rounded-lg">
+                {/* Clicks — primary engagement metric */}
+                <div className="text-center p-4 bg-primary/5 border border-primary/20 rounded-lg">
                   <div className="text-3xl font-bold text-purple-600">
                     {campaign.metrics.clicks || 0}
                   </div>
@@ -442,6 +464,32 @@ export default function CRMCampaignDetail() {
                     {getClickRate(campaign.metrics)} click rate
                   </div>
                 </div>
+                {/* Opens — secondary, with MPP disclaimer */}
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className="text-center p-4 bg-muted/50 rounded-lg cursor-default">
+                        <div className="text-3xl font-bold text-blue-600">
+                          {campaign.metrics.opens || 0}
+                        </div>
+                        <div className="text-sm text-muted-foreground flex items-center justify-center gap-1">
+                          Opens
+                          <Info className="h-3 w-3" />
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {getOpenRate(campaign.metrics)} open rate
+                        </div>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs">
+                      <p>
+                        Open tracking is unreliable due to Apple Mail Privacy
+                        Protection and pixel-blocking. Click rate is a more
+                        accurate engagement signal.
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -459,19 +507,27 @@ export default function CRMCampaignDetail() {
                     Unsubscribes
                   </div>
                 </div>
-                <div className="text-center p-4 bg-muted/50 rounded-lg">
-                  <div className="text-2xl font-bold text-cyan-600">
-                    {Math.round(
-                      ((campaign.metrics.clicks || 0) /
-                        (campaign.metrics.opens || 1)) *
-                        100,
-                    )}
-                    %
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    Click-to-Open Rate
-                  </div>
-                </div>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className="text-center p-4 bg-muted/50 rounded-lg cursor-default">
+                        <div className="text-2xl font-bold text-cyan-600">
+                          {getCTOR(campaign.metrics.clicks || 0, campaign.metrics.opens || 0)}
+                        </div>
+                        <div className="text-sm text-muted-foreground flex items-center justify-center gap-1">
+                          Click-to-Open Rate
+                          <Info className="h-3 w-3" />
+                        </div>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs">
+                      <p>
+                        Click-to-open rate (CTOR) measures clicks among openers.
+                        Shown as "—" when open tracking is unreliable or zero.
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </div>
             </CardContent>
           </Card>
@@ -625,24 +681,43 @@ export default function CRMCampaignDetail() {
                     Engagement Summary
                   </label>
                   <div className="space-y-2">
+                    {/* Click rate — primary metric */}
                     <div className="flex justify-between items-center">
-                      <span className="flex items-center text-sm">
-                        <Eye className="h-4 w-4 mr-2 text-blue-600" />
-                        Open Rate
-                      </span>
-                      <span className="font-medium">
-                        {getOpenRate(campaign.metrics)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="flex items-center text-sm">
+                      <span className="flex items-center text-sm font-medium">
                         <MousePointerClick className="h-4 w-4 mr-2 text-purple-600" />
                         Click Rate
                       </span>
-                      <span className="font-medium">
+                      <span className="font-bold text-purple-600">
                         {getClickRate(campaign.metrics)}
                       </span>
                     </div>
+                    {/* Open rate — secondary with disclaimer */}
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className="flex justify-between items-center cursor-default">
+                            <span className="flex items-center text-sm text-muted-foreground">
+                              <Eye className="h-4 w-4 mr-2 text-blue-400" />
+                              Open Rate
+                              <Info className="h-3 w-3 ml-1 text-muted-foreground" />
+                            </span>
+                            <span className="text-muted-foreground">
+                              {(campaign.metrics.clicks || 0) > 0 &&
+                              (campaign.metrics.opens || 0) === 0
+                                ? "—"
+                                : getOpenRate(campaign.metrics)}
+                            </span>
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs">
+                          <p>
+                            Open tracking is unreliable due to Apple Mail Privacy
+                            Protection. Use click rate as your primary engagement
+                            signal.
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                     <div className="flex justify-between items-center">
                       <span className="flex items-center text-sm">
                         <UserMinus className="h-4 w-4 mr-2 text-orange-600" />

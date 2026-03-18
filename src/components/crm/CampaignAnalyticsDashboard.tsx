@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { NativeSelect } from '@/components/ui/NativeSelect';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { CampaignPerformanceCard } from './CampaignPerformanceCard';
 import { supabase } from '@/integrations/supabase/client';
 import { useCRMAccess } from '@/hooks/useCRMAccess';
@@ -14,6 +15,7 @@ import {
   Mail,
   Eye,
   MousePointer,
+  Info,
   Download
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -89,12 +91,12 @@ export const CampaignAnalyticsDashboard: React.FC = () => {
     if (sortBy === 'recent') {
       return new Date(b.sent_at).getTime() - new Date(a.sent_at).getTime();
     } else {
-      // Sort by performance (open rate)
-      const aOpenRate = a.metrics ? 
-        (a.metrics.opened / (a.metrics.delivered || a.metrics.sent || 1)) * 100 : 0;
-      const bOpenRate = b.metrics ? 
-        (b.metrics.opened / (b.metrics.delivered || b.metrics.sent || 1)) * 100 : 0;
-      return bOpenRate - aOpenRate;
+      // Sort by performance (click rate — more reliable than open rate)
+      const aClickRate = a.metrics ? 
+        (a.metrics.clicked / (a.metrics.delivered || a.metrics.sent || 1)) * 100 : 0;
+      const bClickRate = b.metrics ? 
+        (b.metrics.clicked / (b.metrics.delivered || b.metrics.sent || 1)) * 100 : 0;
+      return bClickRate - aClickRate;
     }
   });
 
@@ -196,22 +198,8 @@ export const CampaignAnalyticsDashboard: React.FC = () => {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <Eye className="h-4 w-4" />
-                Avg Open Rate
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{overallStats.avgOpenRate}%</div>
-              <p className="text-xs text-muted-foreground">
-                {overallStats.opened.toLocaleString()} total opens
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
+          {/* Click rate — primary engagement metric */}
+          <Card className="border-primary/30 bg-primary/5">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium flex items-center gap-2">
                 <MousePointer className="h-4 w-4" />
@@ -219,12 +207,38 @@ export const CampaignAnalyticsDashboard: React.FC = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{overallStats.avgClickRate}%</div>
+              <div className="text-2xl font-bold text-primary">{overallStats.avgClickRate}%</div>
               <p className="text-xs text-muted-foreground">
                 {overallStats.clicked.toLocaleString()} total clicks
               </p>
             </CardContent>
           </Card>
+
+          {/* Open rate — secondary, with MPP disclaimer */}
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Card className="cursor-default">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium flex items-center gap-2">
+                      <Eye className="h-4 w-4" />
+                      Avg Open Rate
+                      <Info className="h-3 w-3 text-muted-foreground" />
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-muted-foreground">{overallStats.avgOpenRate}%</div>
+                    <p className="text-xs text-muted-foreground">
+                      {overallStats.opened.toLocaleString()} total opens
+                    </p>
+                  </CardContent>
+                </Card>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">
+                <p>Open tracking is unreliable due to Apple Mail Privacy Protection (MPP) and pixel-blocking. Use click rate as your primary engagement signal.</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
 
           <Card>
             <CardHeader className="pb-2">

@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { CampaignDeliveryStatusCard } from "@/components/crm/CampaignDeliveryStatusCard";
 import {
   Dialog,
@@ -21,6 +22,7 @@ import {
   TrendingUp,
   Users,
   AlertTriangle,
+  Info,
   Loader2,
   Trash2,
 } from "lucide-react";
@@ -232,9 +234,16 @@ const CRMCampaignReport: React.FC = () => {
   const metrics = normalizeCampaignMetrics(campaign);
 
   const openRate = calculateRate(metrics.opened, metrics.delivered);
-  const clickRate = calculateRate(metrics.clicked, metrics.opened);
+  // Click rate is clicks / delivered (standard CTR). Avoid using opens as denominator
+  // since open tracking is unreliable (Apple MPP, pixel blocking, etc.).
+  const clickRate = calculateRate(metrics.clicked, metrics.delivered || metrics.sent);
   const deliveryRate = calculateRate(metrics.delivered, metrics.sent);
   const bounceRate = calculateRate(metrics.bounced, metrics.sent);
+
+  // Sanity check: a campaign cannot have clicks without opens.
+  // When this is detected, open tracking is likely incomplete.
+  const hasImpossibleState = metrics.clicked > 0 && metrics.opened === 0;
+  const clicksExceedOpens = metrics.clicked > metrics.opened && metrics.opened > 0;
 
   return (
     <div className="min-h-screen bg-background p-6">
@@ -263,6 +272,23 @@ const CRMCampaignReport: React.FC = () => {
         </div>
 
         <CampaignDeliveryStatusCard campaignId={campaignId} />
+
+        {/* Open tracking reliability notice */}
+        {(hasImpossibleState || clicksExceedOpens) && (
+          <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 dark:bg-amber-900/20 dark:border-amber-700 dark:text-amber-200">
+            <AlertTriangle className="h-5 w-5 shrink-0 mt-0.5" />
+            <div className="text-sm">
+              <p className="font-medium">Open tracking appears incomplete</p>
+              <p className="mt-1 text-amber-700 dark:text-amber-300">
+                {hasImpossibleState
+                  ? `This campaign recorded ${metrics.clicked.toLocaleString()} click${metrics.clicked !== 1 ? "s" : ""} but 0 opens — a mathematically impossible result. Open events may not be ingesting correctly.`
+                  : `This campaign shows more clicks (${metrics.clicked.toLocaleString()}) than opens (${metrics.opened.toLocaleString()}), which suggests incomplete open tracking.`}{" "}
+                Click rate is a more reliable engagement signal. Consider{" "}
+                <strong>recomputing metrics</strong> from raw events if numbers look stale.
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Campaign Overview */}
         <Card>
@@ -332,37 +358,59 @@ const CRMCampaignReport: React.FC = () => {
             </CardContent>
           </Card>
 
-          <Card>
+          {/* Click rate — primary engagement metric */}
+          <Card className="border-primary/30 bg-primary/5">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">
-                    Opened
+                    Click Rate
                   </p>
-                  <p className="text-2xl font-bold">
-                    {metrics.opened.toLocaleString()}
+                  <p className="text-2xl font-bold text-primary">
+                    {clickRate.toFixed(1)}%
                   </p>
-                </div>
-                <Eye className="h-8 w-8 text-primary" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">
-                    Clicked
-                  </p>
-                  <p className="text-2xl font-bold">
-                    {metrics.clicked.toLocaleString()}
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {metrics.clicked.toLocaleString()} clicks
                   </p>
                 </div>
                 <MousePointer className="h-8 w-8 text-primary" />
               </div>
             </CardContent>
           </Card>
+
+          {/* Open rate — secondary, with reliability caveat */}
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Card className="cursor-default">
+                  <CardContent className="pt-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground flex items-center gap-1">
+                          Open Rate
+                          <Info className="h-3 w-3 text-muted-foreground" />
+                        </p>
+                        <p className={`text-2xl font-bold ${hasImpossibleState ? "text-amber-500" : ""}`}>
+                          {hasImpossibleState ? "—" : `${openRate.toFixed(1)}%`}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {metrics.opened.toLocaleString()} opens
+                        </p>
+                      </div>
+                      <Eye className={`h-8 w-8 ${hasImpossibleState ? "text-amber-400" : "text-muted-foreground"}`} />
+                    </div>
+                  </CardContent>
+                </Card>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">
+                <p>
+                  Open tracking is unreliable due to Apple Mail Privacy Protection (MPP) and
+                  other pixel-blocking technologies. Use click rate as your primary engagement signal.
+                  {hasImpossibleState && " Open data for this campaign appears incomplete."}
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
 
           <Card>
             <CardHeader>
@@ -413,41 +461,51 @@ const CRMCampaignReport: React.FC = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {openRate > 25 ? (
-                  <div className="flex items-center gap-2 text-green-600">
-                    <TrendingUp className="h-4 w-4" />
-                    <span className="text-sm">
-                      Great open rate! Your subject line resonated well with
-                      your audience.
-                    </span>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-2 text-yellow-600">
-                    <AlertTriangle className="h-4 w-4" />
-                    <span className="text-sm">
-                      Consider A/B testing different subject lines to improve
-                      open rates.
-                    </span>
-                  </div>
-                )}
-
+                {/* Click rate is the primary signal */}
                 {clickRate > 5 ? (
                   <div className="flex items-center gap-2 text-green-600">
                     <MousePointer className="h-4 w-4" />
                     <span className="text-sm">
-                      Excellent click-through rate! Your content is engaging
-                      your audience.
+                      Excellent click rate ({clickRate.toFixed(1)}%)! Your content is engaging
+                      your audience effectively.
+                    </span>
+                  </div>
+                ) : clickRate > 2 ? (
+                  <div className="flex items-center gap-2 text-yellow-600">
+                    <MousePointer className="h-4 w-4" />
+                    <span className="text-sm">
+                      Solid click rate ({clickRate.toFixed(1)}%). Try adding clearer
+                      call-to-action buttons to increase engagement.
                     </span>
                   </div>
                 ) : (
                   <div className="flex items-center gap-2 text-yellow-600">
                     <AlertTriangle className="h-4 w-4" />
                     <span className="text-sm">
-                      Try adding clearer call-to-action buttons to increase
-                      engagement.
+                      Low click rate ({clickRate.toFixed(1)}%). Consider reviewing your
+                      content and call-to-action placement.
                     </span>
                   </div>
                 )}
+
+                {/* Open rate insight — only shown if data looks reliable */}
+                {!hasImpossibleState && !clicksExceedOpens && openRate > 25 ? (
+                  <div className="flex items-center gap-2 text-green-600">
+                    <TrendingUp className="h-4 w-4" />
+                    <span className="text-sm">
+                      Strong open rate ({openRate.toFixed(1)}%). Note: open tracking may be
+                      understated due to Apple Mail Privacy Protection.
+                    </span>
+                  </div>
+                ) : (hasImpossibleState || clicksExceedOpens) ? (
+                  <div className="flex items-center gap-2 text-amber-600">
+                    <Info className="h-4 w-4" />
+                    <span className="text-sm">
+                      Open rate data appears unreliable for this campaign. Use click rate as
+                      your primary engagement signal — it is not affected by pixel-blocking.
+                    </span>
+                  </div>
+                ) : null}
 
                 {bounceRate > 2 && (
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 bg-destructive/10 rounded-lg border border-destructive/20">
