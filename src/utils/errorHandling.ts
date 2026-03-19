@@ -1,4 +1,4 @@
-// Removed sonner import - using global toast replacement
+import { toast } from 'sonner';
 import { captureException as uptraceException, captureMessage } from './uptrace'
 
 export interface AppError {
@@ -75,4 +75,83 @@ export const logError = (error: any, context: string) => {
       stack: error.stack
     });
   }
+};
+
+/**
+ * Maps raw Supabase/auth error messages to user-friendly messages.
+ * Never exposes infrastructure-level error details to the user.
+ */
+export const getAuthErrorMessage = (error: any): string => {
+  const raw: string = (error?.message || error?.toString() || '').toLowerCase();
+  const code: string = (error?.code || error?.status || '').toLowerCase();
+
+  // Network / connectivity
+  if (isNetworkError(error) || raw.includes('failed to fetch') || raw.includes('network')) {
+    return 'Unable to connect. Please check your internet connection and try again.';
+  }
+
+  // Invalid credentials
+  if (raw.includes('invalid login credentials') || raw.includes('invalid credentials')) {
+    return 'The email or password you entered is incorrect. Please try again.';
+  }
+
+  // Email not confirmed
+  if (raw.includes('email not confirmed') || raw.includes('email_not_confirmed') || code === 'email_not_confirmed') {
+    return 'Please verify your email address before signing in. Check your inbox for a confirmation link.';
+  }
+
+  // User not found
+  if (raw.includes('user not found') || raw.includes('no user found')) {
+    return 'No account found with this email address. Please check your email or create a new account.';
+  }
+
+  // Account already exists
+  if (raw.includes('user already registered') || raw.includes('already been registered') || raw.includes('already exists')) {
+    return 'An account with this email address already exists. Please sign in instead.';
+  }
+
+  // Weak / invalid password
+  if (raw.includes('password should be at least') || raw.includes('weak_password') || code === 'weak_password') {
+    return 'Your password is too weak. Please choose a stronger password with at least 8 characters.';
+  }
+
+  // Invalid email format
+  if (raw.includes('invalid email') || raw.includes('email_address_invalid') || code === 'email_address_invalid') {
+    return 'Please enter a valid email address.';
+  }
+
+  // Token expired or invalid
+  if (
+    raw.includes('token has expired') ||
+    raw.includes('token is invalid') ||
+    raw.includes('invalid token') ||
+    raw.includes('jwt expired') ||
+    raw.includes('refresh_token_not_found') ||
+    code === 'otp_expired'
+  ) {
+    return 'This link has expired or is no longer valid. Please request a new one.';
+  }
+
+  // Rate limiting
+  if (
+    raw.includes('rate limit') ||
+    raw.includes('too many requests') ||
+    raw.includes('over_email_send_rate_limit') ||
+    code === 'over_email_send_rate_limit'
+  ) {
+    return 'Too many attempts. Please wait a few minutes and try again.';
+  }
+
+  // Signups disabled
+  if (raw.includes('signup_disabled') || raw.includes('signups not allowed') || code === 'signup_disabled') {
+    return 'New account registrations are temporarily unavailable. Please try again later.';
+  }
+
+  // Session expired
+  if (raw.includes('session expired') || raw.includes('invalid refresh token')) {
+    return 'Your session has expired. Please sign in again.';
+  }
+
+  // Generic fallback — never expose the raw error text
+  return 'Something went wrong. Please try again or contact support if the problem persists.';
 };

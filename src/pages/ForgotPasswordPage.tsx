@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { getOAuthRedirectUri } from '@/utils/environmentUtils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -21,7 +22,7 @@ export const ForgotPasswordPage = () => {
     try {
       // Always call the API, but never show if email exists or not
       await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`
+        redirectTo: getOAuthRedirectUri('/reset-password')
       });
       
       // Always navigate to success page regardless of API response

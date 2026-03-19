@@ -1,6 +1,6 @@
 
-import { useState, useRef } from "react";
-import { format } from "date-fns";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,8 +8,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { dateToWeekNumber } from "@/utils/dateUtils";
-import { AlertTriangle, Loader2, CheckCircle } from "lucide-react";
-// Removed sonner import - using global toast replacement
+import { AlertTriangle, Loader2, CheckCircle, Circle } from "lucide-react";
+import { toast } from "@/utils/toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTenant } from "@/hooks/useTenant";
@@ -23,8 +23,10 @@ interface NewCampaignDialogProps {
 }
 
 export const NewCampaignDialog = ({ open, onOpenChange, onCreate }: NewCampaignDialogProps) => {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { tenant } = useTenant();
+  const { toast } = useToast();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [theme, setTheme] = useState("");
@@ -33,6 +35,9 @@ export const NewCampaignDialog = ({ open, onOpenChange, onCreate }: NewCampaignD
   const [generatingContent, setGeneratingContent] = useState(false);
   const [contentGenerated, setContentGenerated] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [creationStep, setCreationStep] = useState<'idle' | 'creating' | 'generating' | 'done'>('idle');
+
+  const isInProgress = loading || generatingContent;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,6 +64,7 @@ export const NewCampaignDialog = ({ open, onOpenChange, onCreate }: NewCampaignD
     }
 
     setLoading(true);
+    setCreationStep('creating');
     setError(null);
     
     try {
@@ -94,27 +100,24 @@ export const NewCampaignDialog = ({ open, onOpenChange, onCreate }: NewCampaignD
       }
 
       console.log('NewCampaignDialog: Campaign created successfully:', data);
+
+      // Immediately notify parent so the campaign list refreshes without delay
+      onCreate(data);
+
+      // Reset form
+      setTitle("");
+      setDescription("");
+      setTheme("");
+      setSelectedDate("");
+      setError(null);
       
-      // Wait a moment to ensure the campaign is fully committed to the database
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Now automatically generate content for the campaign
+      // Campaign draft created — move to content generation step
+      setLoading(false);
       setGeneratingContent(true);
-      toast.loading('Generating content for your campaign...');
+      setCreationStep('generating');
 
       try {
         console.log('NewCampaignDialog: Starting content generation for campaign ID:', data.id);
-        
-        // Double-check that the campaign exists before generating content
-        const { data: campaignCheck } = await supabase
-          .from('campaigns')
-          .select('id')
-          .eq('id', data.id)
-          .single();
-        
-        if (!campaignCheck) {
-          throw new Error('Campaign not found in database after creation');
-        }
         
         const result = await generateCampaignContent(
           data.id,
@@ -128,13 +131,19 @@ export const NewCampaignDialog = ({ open, onOpenChange, onCreate }: NewCampaignD
         if (result.success) {
           console.log('NewCampaignDialog: Content generated successfully');
           setContentGenerated(true);
+          setCreationStep('done');
           toast.success(`Campaign created with ${result.tasks?.length || 5} content pieces!`);
         } else {
           console.warn('NewCampaignDialog: Content generation had issues:', result.message);
-          toast.warning(`Campaign created, but content generation had issues: ${result.message}`);
+          setContentGenerated(true);
+          setCreationStep('done');
+          toast.info(`Campaign created. Content generation had issues: ${result.message}`);
         }
       } catch (contentError) {
         console.error('NewCampaignDialog: Content generation failed:', contentError);
+        // Campaign was still created — mark as done and let user continue
+        setContentGenerated(true);
+        setCreationStep('done');
         toast.error('Campaign created, but content generation failed. You can generate content manually.');
       }
 
@@ -145,20 +154,22 @@ export const NewCampaignDialog = ({ open, onOpenChange, onCreate }: NewCampaignD
       setSelectedDate("");
       setError(null);
       
-      console.log('NewCampaignDialog: Campaign created successfully');
-      toast.success('Campaign created successfully!');
+      console.log('NewCampaignDialog: Campaign creation complete');
       
-      // Close modal after short delay to show success state
+      // Close modal after short delay to show success state, then navigate
       setTimeout(() => {
         onOpenChange(false);
         setContentGenerated(false);
         setGeneratingContent(false);
+        setCreationStep('idle');
         onCreate(data);
+        navigate('/campaigns');
       }, 2000);
       
     } catch (error: any) {
       console.error('NewCampaignDialog: Error creating campaign:', error);
       setError(error.message || 'Failed to create campaign');
+      setCreationStep('idle');
       toast.error(error.message || 'Failed to create campaign');
     } finally {
       setLoading(false);
@@ -166,13 +177,14 @@ export const NewCampaignDialog = ({ open, onOpenChange, onCreate }: NewCampaignD
   };
 
   const handleClose = () => {
-    if (!loading && !generatingContent) {
+    if (!isInProgress) {
       setTitle("");
       setDescription("");
       setTheme("");
       setSelectedDate("");
       setError(null);
       setContentGenerated(false);
+      setCreationStep('idle');
       onOpenChange(false);
     }
   };
@@ -194,11 +206,49 @@ export const NewCampaignDialog = ({ open, onOpenChange, onCreate }: NewCampaignD
           </Alert>
         )}
 
-        {contentGenerated && (
+        {creationStep !== 'idle' && (
+          <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 space-y-2">
+            <p className="text-sm font-medium text-gray-700 mb-3">Campaign creation progress</p>
+            <div className="flex items-center gap-3">
+              {creationStep === 'creating' ? (
+                <Loader2 className="h-4 w-4 animate-spin text-brand-teal-mint shrink-0" />
+              ) : (
+                <CheckCircle className="h-4 w-4 text-green-600 shrink-0" />
+              )}
+              <span className={`text-sm ${creationStep === 'creating' ? 'text-gray-900 font-medium' : 'text-gray-500'}`}>
+                Draft created
+              </span>
+            </div>
+            <div className="flex items-center gap-3">
+              {creationStep === 'generating' ? (
+                <Loader2 className="h-4 w-4 animate-spin text-brand-teal-mint shrink-0" />
+              ) : creationStep === 'done' ? (
+                <CheckCircle className="h-4 w-4 text-green-600 shrink-0" />
+              ) : (
+                <Circle className="h-4 w-4 text-gray-300 shrink-0" />
+              )}
+              <span className={`text-sm ${creationStep === 'generating' ? 'text-gray-900 font-medium' : creationStep === 'done' ? 'text-gray-500' : 'text-gray-400'}`}>
+                Generating campaign content
+              </span>
+            </div>
+            <div className="flex items-center gap-3">
+              {creationStep === 'done' ? (
+                <CheckCircle className="h-4 w-4 text-green-600 shrink-0" />
+              ) : (
+                <Circle className="h-4 w-4 text-gray-300 shrink-0" />
+              )}
+              <span className={`text-sm ${creationStep === 'done' ? 'text-green-700 font-medium' : 'text-gray-400'}`}>
+                {creationStep === 'done' ? 'All done — redirecting you now…' : 'Finalizing content'}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {contentGenerated && creationStep === 'done' && (
           <Alert className="border-green-200 bg-green-50">
             <CheckCircle className="h-4 w-4 text-green-600" />
             <AlertDescription className="text-green-800">
-              Campaign created successfully with 5 content pieces! Check your dashboard to review and approve the content.
+              Campaign created successfully with content pieces! You'll be redirected to your new campaign shortly.
             </AlertDescription>
           </Alert>
         )}
@@ -218,7 +268,7 @@ export const NewCampaignDialog = ({ open, onOpenChange, onCreate }: NewCampaignD
               placeholder="Enter campaign title"
               required
               className="border-garden-green-light focus:border-garden-green"
-              disabled={loading || generatingContent}
+              disabled={isInProgress}
             />
           </div>
 
@@ -237,7 +287,7 @@ export const NewCampaignDialog = ({ open, onOpenChange, onCreate }: NewCampaignD
               min={new Date().toISOString().split('T')[0]}
               required
               className="border-garden-green-light focus:border-garden-green"
-              disabled={loading || generatingContent}
+              disabled={isInProgress}
             />
           </div>
           
@@ -251,7 +301,7 @@ export const NewCampaignDialog = ({ open, onOpenChange, onCreate }: NewCampaignD
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Describe your campaign"
               className="border-garden-green-light focus:border-garden-green"
-              disabled={loading || generatingContent}
+              disabled={isInProgress}
             />
           </div>
           
@@ -265,7 +315,7 @@ export const NewCampaignDialog = ({ open, onOpenChange, onCreate }: NewCampaignD
               onChange={(e) => setTheme(e.target.value)}
               placeholder="Campaign theme (e.g., Spring Planting)"
               className="border-garden-green-light focus:border-garden-green"
-              disabled={loading || generatingContent}
+              disabled={isInProgress}
               aria-describedby="theme-help"
             />
             <p id="theme-help" className="text-sm text-gray-500 mt-1">
@@ -279,29 +329,29 @@ export const NewCampaignDialog = ({ open, onOpenChange, onCreate }: NewCampaignD
               variant="outline"
               onClick={handleClose}
               className="border-garden-green-light text-garden-green-dark"
-              disabled={loading || generatingContent}
+              disabled={isInProgress}
             >
               Cancel
             </Button>
             <Button
               type="submit"
-              disabled={!title.trim() || !selectedDate || loading || generatingContent}
+              disabled={!title.trim() || !selectedDate || isInProgress}
               className="bg-brand-teal-mint hover:bg-brand-teal-mint-600 text-white"
             >
-              {loading ? (
+              {creationStep === 'creating' ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Creating...
+                  Creating draft…
                 </>
-              ) : generatingContent ? (
+              ) : creationStep === 'generating' ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Generating Content...
+                  Generating content…
                 </>
-              ) : contentGenerated ? (
+              ) : creationStep === 'done' ? (
                 <>
                   <CheckCircle className="w-4 h-4 mr-2" />
-                  Complete!
+                  Done!
                 </>
               ) : (
                 'Create Campaign'
