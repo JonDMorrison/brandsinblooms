@@ -424,7 +424,8 @@ const handler = async (req: Request): Promise<Response> => {
             const rootDomain = Deno.env.get('DEV_TEST_ROOT_DOMAIN');
             if (rootDomain) {
               const zoneResponse = await fetch(`https://api.cloudflare.com/client/v4/zones?name=${rootDomain}`, {
-                headers: { 'Authorization': `Bearer ${cloudflareToken}` }
+                headers: { 'Authorization': `Bearer ${cloudflareToken}` },
+                signal: AbortSignal.timeout(10000)
               });
               const zoneData = await zoneResponse.json();
               if (zoneData.result && zoneData.result.length > 0) {
@@ -436,7 +437,8 @@ const handler = async (req: Request): Promise<Response> => {
             for (let i = 0; i < domainParts.length - 1; i++) {
               const testDomain = domainParts.slice(i).join('.');
               const zoneResponse = await fetch(`https://api.cloudflare.com/client/v4/zones?name=${testDomain}`, {
-                headers: { 'Authorization': `Bearer ${cloudflareToken}` }
+                headers: { 'Authorization': `Bearer ${cloudflareToken}` },
+                signal: AbortSignal.timeout(10000)
               });
               const zoneData = await zoneResponse.json();
               if (zoneData.result && zoneData.result.length > 0) {
@@ -474,7 +476,8 @@ const handler = async (req: Request): Promise<Response> => {
                     'Authorization': `Bearer ${cloudflareToken}`,
                     'Content-Type': 'application/json'
                   },
-                  body: JSON.stringify(cfRecord)
+                  body: JSON.stringify(cfRecord),
+                  signal: AbortSignal.timeout(10000)
                 });
 
                 const createResult = await createResponse.json();

@@ -37,7 +37,7 @@ const handler = async (req: Request): Promise<Response> => {
       .or(`next_verify_at.lte.${now},next_verify_at.is.null`)
       .lt('verify_attempts', 10)
       .order('next_verify_at', { ascending: true, nullsFirst: true })
-      .limit(10); // Process max 10 at a time to avoid timeout
+      .limit(5); // Process max 5 at a time to avoid timeout
 
     if (fetchError) {
       console.error('❌ Error fetching pending domains:', fetchError);
@@ -79,7 +79,8 @@ const handler = async (req: Request): Promise<Response> => {
             },
             body: JSON.stringify({
               email_domain_id: domain.id
-            })
+            }),
+            signal: AbortSignal.timeout(10000)
           }
         );
 
