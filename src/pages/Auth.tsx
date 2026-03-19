@@ -103,7 +103,7 @@ const Auth = () => {
 
       if (error) {
         console.error('❌ Auth: Sign in error:', error);
-        setError(error.message);
+        setError(getAuthErrorMessage(error));
         
         return;
       }
@@ -145,7 +145,7 @@ const Auth = () => {
 
       if (error) {
         console.error('❌ Auth: Sign up error:', error);
-        setError(error.message);
+        setError(getAuthErrorMessage(error));
         
         return;
       }
@@ -189,7 +189,7 @@ const Auth = () => {
       });
 
       if (error) {
-        setError(error.message);
+        setError(getAuthErrorMessage(error));
       } else {
         setMessage('Password reset email sent! Please check your inbox and spam folder.');
         setShowForgotPassword(false);
@@ -223,7 +223,7 @@ const Auth = () => {
       });
 
       if (error) {
-        setError(error.message);
+        setError(getAuthErrorMessage(error));
       } else {
         setMessage('Password updated successfully! You can now sign in.');
         setShowResetPassword(false);
@@ -253,7 +253,7 @@ const Auth = () => {
 
       if (error) {
         console.error('❌ Auth: Google auth error:', error);
-        setError(error.message);
+        setError(getAuthErrorMessage(error));
         
       }
     } catch (error: any) {
