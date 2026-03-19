@@ -26,6 +26,7 @@ export const NewCampaignDialog = ({ open, onOpenChange, onCreate }: NewCampaignD
   const navigate = useNavigate();
   const { user } = useAuth();
   const { tenant } = useTenant();
+  const { toast } = useToast();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [theme, setTheme] = useState("");
@@ -99,6 +100,16 @@ export const NewCampaignDialog = ({ open, onOpenChange, onCreate }: NewCampaignD
       }
 
       console.log('NewCampaignDialog: Campaign created successfully:', data);
+
+      // Immediately notify parent so the campaign list refreshes without delay
+      onCreate(data);
+
+      // Reset form
+      setTitle("");
+      setDescription("");
+      setTheme("");
+      setSelectedDate("");
+      setError(null);
       
       // Campaign draft created — move to content generation step
       setLoading(false);
@@ -107,17 +118,6 @@ export const NewCampaignDialog = ({ open, onOpenChange, onCreate }: NewCampaignD
 
       try {
         console.log('NewCampaignDialog: Starting content generation for campaign ID:', data.id);
-        
-        // Double-check that the campaign exists before generating content
-        const { data: campaignCheck } = await supabase
-          .from('campaigns')
-          .select('id')
-          .eq('id', data.id)
-          .single();
-        
-        if (!campaignCheck) {
-          throw new Error('Campaign not found in database after creation');
-        }
         
         const result = await generateCampaignContent(
           data.id,

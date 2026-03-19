@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { toast } from 'sonner';
 import { Loader2, Lock, AlertCircle } from 'lucide-react';
 import { LandingPageHeader } from '@/components/landing/LandingPageHeader';
+import { getAuthErrorMessage } from '@/utils/errorHandling';
 
 export const ResetPasswordPage = () => {
   const navigate = useNavigate();
@@ -86,7 +87,7 @@ export const ResetPasswordPage = () => {
       });
 
       if (error) {
-        toast.error(error.message);
+        toast.error(getAuthErrorMessage(error));
       } else {
         toast.success('Password updated successfully!');
         

@@ -195,7 +195,8 @@ async function dnsLookup(
     }));
 
     const response = await fetch(url, {
-      headers: { 'Accept': 'application/dns-json' }
+      headers: { 'Accept': 'application/dns-json' },
+      signal: AbortSignal.timeout(5000)
     });
 
     if (!response.ok) {
@@ -727,7 +728,7 @@ const handler = async (req: Request): Promise<Response> => {
       }
 
       // Step 2: Wait for Resend to process
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
       // Step 3: Get updated domain status from Resend
       console.log(`📊 Fetching updated domain status...`);

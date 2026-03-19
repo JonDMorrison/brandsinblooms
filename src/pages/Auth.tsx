@@ -9,6 +9,7 @@ import { Loader2, Eye, EyeOff, Sprout, CheckCircle, Unlock } from "lucide-react"
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase, signInWithCleanup, signUpWithCleanup } from "@/integrations/supabase/client";
+import { getOAuthRedirectUri } from "@/utils/environmentUtils";
 
 // import bloomSuiteLogo from "@/assets/bloomsuite-logo.png";
 
@@ -102,7 +103,7 @@ const Auth = () => {
 
       if (error) {
         console.error('❌ Auth: Sign in error:', error);
-        setError(error.message);
+        setError(getAuthErrorMessage(error));
         
         return;
       }
@@ -144,7 +145,7 @@ const Auth = () => {
 
       if (error) {
         console.error('❌ Auth: Sign up error:', error);
-        setError(error.message);
+        setError(getAuthErrorMessage(error));
         
         return;
       }
@@ -184,11 +185,11 @@ const Auth = () => {
 
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/auth`
+        redirectTo: getOAuthRedirectUri('/auth')
       });
 
       if (error) {
-        setError(error.message);
+        setError(getAuthErrorMessage(error));
       } else {
         setMessage('Password reset email sent! Please check your inbox and spam folder.');
         setShowForgotPassword(false);
@@ -222,7 +223,7 @@ const Auth = () => {
       });
 
       if (error) {
-        setError(error.message);
+        setError(getAuthErrorMessage(error));
       } else {
         setMessage('Password updated successfully! You can now sign in.');
         setShowResetPassword(false);
@@ -252,7 +253,7 @@ const Auth = () => {
 
       if (error) {
         console.error('❌ Auth: Google auth error:', error);
-        setError(error.message);
+        setError(getAuthErrorMessage(error));
         
       }
     } catch (error: any) {
@@ -437,8 +438,9 @@ const Auth = () => {
   }
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-background">
-      <Card className="w-full max-w-md mx-auto shadow-lg border">
+    <div className="min-h-screen flex items-center justify-center bg-background py-8 px-4">
+      <div className="w-full max-w-md mx-auto">
+      <Card className="w-full shadow-lg border">
           <CardHeader className="text-center pb-6">
             <CardTitle className="text-2xl font-semibold mb-2">
               Welcome
@@ -657,6 +659,13 @@ const Auth = () => {
             )}
           </CardContent>
         </Card>
+
+        <div className="mt-4 p-3 bg-muted/50 border border-border rounded-lg text-center text-sm text-muted-foreground">
+          <p className="font-medium text-foreground mb-1">Your BloomSuite login page</p>
+          <p className="font-mono text-xs select-all break-words">https://bloomsuite.app/auth</p>
+          <p className="mt-1 text-xs">Bookmark this page so you can always find your way back.</p>
+        </div>
+      </div>
     </div>
   );
 };

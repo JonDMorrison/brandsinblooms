@@ -98,6 +98,9 @@ export const NewCampaignModal = ({ open, onOpenChange, onCampaignCreated }: NewC
       }
 
       console.log('✅ NewCampaignModal: Campaign created with proper isolation:', insertedCampaign);
+
+      // Immediately notify parent to refresh the campaign list
+      onCampaignCreated();
       
       // Campaign draft created — move to content generation step
       setLoading(false);
