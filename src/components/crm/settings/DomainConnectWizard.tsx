@@ -65,10 +65,10 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({
   const [isEntriModalOpen, setIsEntriModalOpen] = useState(false);
   const [copiedRecordId, setCopiedRecordId] = useState<string | null>(null);
 
-  const copyToClipboard = async (text: string, recordId: string) => {
+  const copyToClipboard = async (text: string, fieldKey: string) => {
     try {
       await navigator.clipboard.writeText(text);
-      setCopiedRecordId(recordId);
+      setCopiedRecordId(fieldKey);
       setTimeout(() => setCopiedRecordId(null), 2000);
     } catch (err) {
       toast({
@@ -295,7 +295,7 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[520px]">
+      <DialogContent className="sm:max-w-[580px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex items-center justify-between mb-1">
             <DialogTitle className="flex items-center gap-2">
@@ -484,11 +484,20 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({
         {/* Step 4: DNS Pending (Manual) */}
         {step === "dns_pending" && (
           <div className="space-y-4 py-4">
-            <Alert className="bg-green-50 border-green-200 dark:bg-green-950/20 dark:border-green-900">
-              <CheckCircle2 className="h-4 w-4 text-green-600" />
-              <AlertDescription className="text-green-800 dark:text-green-200">
-                Domain registered! Now add the DNS records below to verify
-                ownership.
+            {/* Progress checklist */}
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />
+              <span className="text-green-700 font-medium">Domain registered</span>
+              <span className="mx-1">→</span>
+              <span className="font-medium text-foreground">Add DNS records</span>
+              <span className="mx-1">→</span>
+              <span>Verified</span>
+            </div>
+
+            <Alert className="bg-blue-50 border-blue-200 dark:bg-blue-950/20 dark:border-blue-900">
+              <Info className="h-4 w-4 text-blue-600" />
+              <AlertDescription className="text-blue-800 dark:text-blue-200 text-xs">
+                <span className="font-medium">What to do:</span> Log in to your domain registrar (e.g., GoDaddy, Cloudflare, Namecheap), go to the DNS settings for <span className="font-semibold">{domain}</span>, and add each record below exactly as shown. Then come back and click "Check DNS".
               </AlertDescription>
             </Alert>
 
@@ -496,9 +505,8 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({
             {provisionedData?.records && provisionedData.records.length > 0 ? (
               <div className="space-y-3">
                 <p className="text-sm font-medium">DNS Records to Add:</p>
-                <div className="border rounded-lg divide-y max-h-[240px] overflow-y-auto">
+                <div className="border rounded-lg divide-y">
                   {provisionedData.records.map((record: any, index: number) => {
-                    const recordId = `record-${index}`;
                     const recordType =
                       record.record_type || record.type || "TXT";
                     const recordName = record.name || "@";
@@ -506,52 +514,59 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({
                     const purpose = getRecordPurpose(record);
 
                     return (
-                      <div key={recordId} className="p-3 space-y-2">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <span className="px-2 py-0.5 text-xs font-mono font-medium bg-muted rounded">
-                              {recordType}
-                            </span>
-                            <span className="text-xs text-muted-foreground">
-                              {purpose}
-                            </span>
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 px-2"
-                            onClick={() =>
-                              copyToClipboard(recordValue, recordId)
-                            }
-                          >
-                            {copiedRecordId === recordId ? (
-                              <Check className="h-3.5 w-3.5 text-green-600" />
-                            ) : (
-                              <Copy className="h-3.5 w-3.5" />
-                            )}
-                            <span className="ml-1 text-xs">
-                              {copiedRecordId === recordId ? "Copied" : "Copy"}
-                            </span>
-                          </Button>
+                      <div key={`record-${index}`} className="p-3 space-y-2">
+                        <div className="flex items-center gap-2">
+                          <span className="px-2 py-0.5 text-xs font-mono font-medium bg-muted rounded">
+                            {recordType}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            {purpose}
+                          </span>
                         </div>
-                        <div className="space-y-1">
+                        <div className="space-y-1.5">
                           <div className="flex items-center gap-2 text-xs">
-                            <span className="text-muted-foreground w-12">
+                            <span className="text-muted-foreground w-12 shrink-0">
                               Name:
                             </span>
-                            <code className="font-mono text-foreground bg-muted px-1.5 py-0.5 rounded break-all">
+                            <code className="font-mono text-foreground bg-muted px-1.5 py-0.5 rounded break-all flex-1">
                               {recordName}
                             </code>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 px-2 shrink-0"
+                              onClick={() =>
+                                copyToClipboard(recordName, `name-${index}`)
+                              }
+                            >
+                              {copiedRecordId === `name-${index}` ? (
+                                <Check className="h-3 w-3 text-green-600" />
+                              ) : (
+                                <Copy className="h-3 w-3" />
+                              )}
+                            </Button>
                           </div>
                           <div className="flex items-start gap-2 text-xs">
-                            <span className="text-muted-foreground w-12 shrink-0">
+                            <span className="text-muted-foreground w-12 shrink-0 pt-0.5">
                               Value:
                             </span>
-                            <code className="font-mono text-foreground bg-muted px-1.5 py-0.5 rounded break-all text-[11px] leading-relaxed">
-                              {recordValue.length > 80
-                                ? `${recordValue.substring(0, 80)}...`
-                                : recordValue}
+                            <code className="font-mono text-foreground bg-muted px-1.5 py-0.5 rounded break-all text-[11px] leading-relaxed flex-1">
+                              {recordValue}
                             </code>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 px-2 shrink-0 mt-0.5"
+                              onClick={() =>
+                                copyToClipboard(recordValue, `value-${index}`)
+                              }
+                            >
+                              {copiedRecordId === `value-${index}` ? (
+                                <Check className="h-3 w-3 text-green-600" />
+                              ) : (
+                                <Copy className="h-3 w-3" />
+                              )}
+                            </Button>
                           </div>
                         </div>
                       </div>
@@ -562,7 +577,7 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({
                 {/* Provider Quick Links */}
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-xs text-muted-foreground">
-                    Quick links:
+                    Open your DNS provider:
                   </span>
                   {dnsProviderLinks.map((provider) => (
                     <a
@@ -590,18 +605,26 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({
             )}
 
             <div className="space-y-2 pt-2 border-t">
-              <p className="text-sm font-medium">Next Steps:</p>
+              <p className="text-sm font-medium">What happens next:</p>
               <ol className="text-sm text-muted-foreground space-y-1.5 list-decimal list-inside">
-                <li>Go to your DNS provider</li>
-                <li>Add the records shown above</li>
-                <li>Wait for propagation (up to 48 hours)</li>
-                <li>Click "Check DNS" to verify</li>
+                <li>Add all the DNS records above to your domain provider</li>
+                <li>Close this dialog — your domain is saved</li>
+                <li>Click <span className="font-medium text-foreground">"Check DNS"</span> next to your domain to verify</li>
+                <li>DNS typically propagates in 5–30 minutes (up to 48 hours max)</li>
               </ol>
             </div>
 
-            <p className="text-xs text-muted-foreground">
-              Once verified, your domain will be ready for campaign sending.
-            </p>
+            <Alert className="bg-amber-50 border-amber-200 dark:bg-amber-950/20 dark:border-amber-900">
+              <Info className="h-4 w-4 text-amber-600" />
+              <AlertDescription className="text-amber-800 dark:text-amber-200 text-xs space-y-1">
+                <p className="font-medium">Common mistakes to avoid:</p>
+                <ul className="space-y-0.5 mt-1">
+                  <li>• Copy values <span className="font-medium">exactly</span> — even small typos will fail verification</li>
+                  <li>• Cloudflare users: turn the proxy <span className="font-medium">OFF</span> (grey cloud, not orange)</li>
+                  <li>• Some providers use <span className="font-mono font-medium">@</span> instead of your domain name for the root record</li>
+                </ul>
+              </AlertDescription>
+            </Alert>
           </div>
         )}
 
