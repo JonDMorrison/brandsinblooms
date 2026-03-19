@@ -70,7 +70,7 @@ const CRMCampaignCreator = () => {
       if (error) throw error;
 
       toast.success('Campaign saved as draft');
-      navigate('/crm/campaigns');
+      navigate(`/crm/campaigns/${data.id}`);
     } catch (error) {
       console.error('Error saving campaign:', error);
       toast.error('Failed to save campaign');
