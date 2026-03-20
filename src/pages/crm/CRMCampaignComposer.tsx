@@ -406,7 +406,104 @@ Write a 75-word email using the persona's tone and style: ${aiPrompt}
   };
 
   const sendNow = async () => {
-    await saveCampaign('sent');
+    if (!formData.name.trim() || !formData.subject_line.trim()) {
+      toast({
+        title: "Error",
+        description: "Campaign name and subject line are required",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!formData.segment_id) {
+      toast({
+        title: "Error",
+        description: "Please select a customer segment",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Step 1: Fetch tenant
+      const { data: userData } = await supabase
+        .from('users')
+        .select('tenant_id')
+        .eq('id', user?.id)
+        .single();
+
+      if (!userData?.tenant_id) {
+        throw new Error('No tenant found');
+      }
+
+      // Step 2: Save campaign as draft to get the campaign ID
+      const { data: savedCampaign, error: saveError } = await supabase
+        .from('crm_campaigns')
+        .insert({
+          name: formData.name,
+          subject_line: formData.subject_line,
+          content: formData.content,
+          segment_id: formData.segment_id,
+          status: 'draft',
+          scheduled_at: null,
+          sent_at: null,
+          tenant_id: userData.tenant_id,
+          user_id: user?.id,
+          metrics: { emails_sent: 0, opens: 0, clicks: 0, bounces: 0 }
+        })
+        .select('id')
+        .single();
+
+      if (saveError) throw saveError;
+
+      const campaignId = savedCampaign?.id;
+      if (!campaignId) throw new Error('Campaign saved but no ID returned');
+
+      // Step 3: Invoke the send-email-campaign edge function
+      console.log('🚀 Invoking send-email-campaign for campaign:', campaignId);
+      const { data: sendResult, error: sendError } = await supabase.functions.invoke(
+        'send-email-campaign',
+        { body: { campaignId } }
+      );
+
+      if (sendError) {
+        console.error('❌ Edge function error:', sendError);
+        const { error: rollbackError } = await supabase
+          .from('crm_campaigns')
+          .update({ status: 'failed' })
+          .eq('id', campaignId);
+        if (rollbackError) console.error('⚠️ Failed to mark campaign as failed:', rollbackError);
+        throw new Error(sendError.message || 'Failed to send campaign');
+      }
+
+      if (sendResult?.error) {
+        console.error('❌ Send result error:', sendResult.error);
+        const { error: rollbackError } = await supabase
+          .from('crm_campaigns')
+          .update({ status: 'failed' })
+          .eq('id', campaignId);
+        if (rollbackError) console.error('⚠️ Failed to mark campaign as failed:', rollbackError);
+        throw new Error(sendResult.error);
+      }
+
+      console.log('✅ Campaign sent successfully:', sendResult);
+      toast({
+        title: "Campaign sent!",
+        description: `Campaign "${formData.name}" has been sent successfully.`
+      });
+
+      navigate('/crm/campaigns');
+    } catch (error: any) {
+      console.error('Error sending campaign:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to send campaign",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const scheduleForLater = async () => {

@@ -401,7 +401,7 @@ export const EmailCampaignComposer: React.FC = () => {
       const campaignToSave = {
         ...campaignData,
         content: htmlContent,
-        status: sendNow ? "sent" : scheduled_at ? "scheduled" : "draft",
+        status: sendNow ? "draft" : scheduled_at ? "scheduled" : "draft",
         scheduled_at,
         tenant_id: userData.tenant_id,
         user_id: user?.id,
@@ -412,25 +412,63 @@ export const EmailCampaignComposer: React.FC = () => {
           : null,
       };
 
-      const { error } = await supabase
+      const { data: savedCampaign, error } = await supabase
         .from("crm_campaigns")
-        .insert(campaignToSave);
+        .insert(campaignToSave)
+        .select("id")
+        .single();
 
       if (error) throw error;
 
-      toast({
-        title: sendNow ? "Campaign Sent!" : "Campaign Saved!",
-        description: sendNow
-          ? "Your email campaign has been sent successfully"
-          : "Your campaign has been saved and can be sent later",
-      });
+      if (sendNow) {
+        // Invoke the send-email-campaign edge function to actually deliver emails
+        const campaignId = savedCampaign?.id;
+        if (!campaignId) throw new Error("Campaign saved but no ID returned");
+
+        console.log("🚀 Invoking send-email-campaign for campaign:", campaignId);
+        const { data: sendResult, error: sendError } =
+          await supabase.functions.invoke("send-email-campaign", {
+            body: { campaignId },
+          });
+
+        if (sendError) {
+          console.error("❌ Edge function error:", sendError);
+          const { error: rollbackError } = await supabase
+            .from("crm_campaigns")
+            .update({ status: "failed" })
+            .eq("id", campaignId);
+          if (rollbackError) console.error("⚠️ Failed to mark campaign as failed:", rollbackError);
+          throw new Error(sendError.message || "Failed to send campaign");
+        }
+
+        if (sendResult?.error) {
+          console.error("❌ Send result error:", sendResult.error);
+          const { error: rollbackError } = await supabase
+            .from("crm_campaigns")
+            .update({ status: "failed" })
+            .eq("id", campaignId);
+          if (rollbackError) console.error("⚠️ Failed to mark campaign as failed:", rollbackError);
+          throw new Error(sendResult.error);
+        }
+
+        console.log("✅ Campaign sent successfully:", sendResult);
+        toast({
+          title: "Campaign Sent!",
+          description: "Your email campaign has been sent successfully",
+        });
+      } else {
+        toast({
+          title: "Campaign Saved!",
+          description: "Your campaign has been saved and can be sent later",
+        });
+      }
 
       navigate("/crm/campaigns");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error saving campaign:", error);
       toast({
         title: "Error",
-        description: "Failed to save campaign",
+        description: error.message || "Failed to save campaign",
         variant: "destructive",
       });
     } finally {
