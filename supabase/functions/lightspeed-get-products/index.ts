@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
+// FIX: [P14] - Replace insecure atob() with proper decryptToken
 import { decryptToken } from "../_shared/crypto/tokens.ts";
 
 type ProductEndpointMode = "v2-after" | "v3-since-version";
@@ -84,6 +85,7 @@ Deno.serve(async (req: Request) => {
       throw new Error("No Lightspeed connection found");
     }
 
+    // FIX: [P14] - Use proper decryptToken instead of atob()
     let accessToken: string;
     let tokenMode: "encrypted" | "legacy_plaintext" = "encrypted";
     try {

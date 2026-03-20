@@ -1,8 +1,11 @@
-import React from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import React, { useState, useEffect, useRef } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { ArrowLeft, RefreshCw, Loader2 } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 import mailchimpLogo from "@/assets/logos/mailchimp-new.png";
 import klaviyoLogo from "@/assets/logos/klaviyo.jpeg";
 import constantContactLogo from "@/assets/logos/constant-contact.svg";
@@ -10,6 +13,89 @@ import { MailchimpStatusBadge } from "@/components/integrations/MailchimpStatusB
 
 export default function CRMIntegrationsPage() {
   const navigate = useNavigate();
+  const { toast } = useToast();
+  // IMPROVEMENT: Track provider connection status for Reconnect button
+  const [connectionStatus, setConnectionStatus] = useState<Record<string, { status: string; metadata?: any }>>({});
+  const [reconnecting, setReconnecting] = useState<string | null>(null);
+  const popupRef = useRef<Window | null>(null);
+
+  useEffect(() => {
+    loadConnectionStatus();
+  }, []);
+
+  const loadConnectionStatus = async () => {
+    try {
+      const { data: connections } = await supabase
+        .from('provider_connections')
+        .select('provider, status, metadata')
+        .in('provider', ['mailchimp', 'klaviyo', 'constant_contact']);
+      if (connections) {
+        const map: Record<string, { status: string; metadata?: any }> = {};
+        for (const c of connections) {
+          map[c.provider] = { status: c.status, metadata: c.metadata };
+        }
+        setConnectionStatus(map);
+      }
+    } catch (e) {
+      console.error('Failed to load connection status:', e);
+    }
+  };
+
+  // IMPROVEMENT: Reconnect button triggers OAuth popup directly without full wizard
+  const handleReconnect = async (providerId: string) => {
+    setReconnecting(providerId);
+    try {
+      const { data: { session }, error: sessionError } = await supabase.auth.refreshSession();
+      if (sessionError || !session) throw new Error('Session expired. Please refresh and log in again.');
+
+      const { data, error } = await supabase.functions.invoke('oauth-authorize', {
+        body: { provider: providerId }
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.message || 'OAuth configuration needed');
+
+      const authUrl = data.authUrl;
+      if (!authUrl) throw new Error('Failed to get authorization URL');
+
+      const width = 520, height = 720;
+      const left = window.screenX + (window.outerWidth - width) / 2;
+      const top = window.screenY + (window.outerHeight - height) / 2;
+      popupRef.current = window.open(authUrl, `oauth_${providerId}`, `width=${width},height=${height},left=${left},top=${top}`);
+
+      // Listen for postMessage from popup
+      const onMsg = (e: MessageEvent) => {
+        if (e.origin !== window.location.origin) return;
+        const { type, provider } = e.data || {};
+        if (provider !== providerId) return;
+        window.removeEventListener('message', onMsg);
+        setReconnecting(null);
+        if (type === 'oauth-success') {
+          toast({ title: 'Reconnected!', description: `${providerId} reconnected successfully` });
+          loadConnectionStatus();
+        } else if (type === 'oauth-error') {
+          toast({ title: 'Reconnection Failed', description: e.data?.error || 'Failed', variant: 'destructive' });
+        }
+      };
+      window.addEventListener('message', onMsg);
+
+      // Monitor popup closure
+      const interval = setInterval(() => {
+        if (popupRef.current?.closed) {
+          clearInterval(interval);
+          setTimeout(() => {
+            if (reconnecting === providerId) {
+              setReconnecting(null);
+              loadConnectionStatus();
+            }
+            window.removeEventListener('message', onMsg);
+          }, 1500);
+        }
+      }, 500);
+    } catch (error: any) {
+      toast({ title: 'Reconnect Error', description: error.message, variant: 'destructive' });
+      setReconnecting(null);
+    }
+  };
 
   const providers = [
     {
@@ -90,12 +176,25 @@ export default function CRMIntegrationsPage() {
                     </div>
                   )}
                 </div>
-                <Button
-                  onClick={() => handleStartMigration(provider.id)}
-                  className="flex-shrink-0"
-                >
-                  Import
-                </Button>
+                {/* IMPROVEMENT: Show Reconnect button when provider_connection exists but not connected */}
+                {connectionStatus[provider.id] && connectionStatus[provider.id].status !== 'connected' ? (
+                  <Button
+                    onClick={() => handleReconnect(provider.id)}
+                    disabled={reconnecting === provider.id}
+                    variant="outline"
+                    className="flex-shrink-0"
+                  >
+                    {reconnecting === provider.id && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                    Reconnect
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={() => handleStartMigration(provider.id)}
+                    className="flex-shrink-0"
+                  >
+                    Import
+                  </Button>
+                )}
               </div>
             </CardContent>
           </Card>

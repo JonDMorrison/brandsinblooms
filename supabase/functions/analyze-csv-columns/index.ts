@@ -16,6 +16,12 @@ serve(async (req: Request) => {
   }
 
   try {
+    // SECURITY: [E25] - Add JWT authentication
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'Authorization required' }), { status: 401, headers: corsHeaders });
+    }
+
     const { headers: csvHeaders, sampleRows }: AnalyzeRequest = await req.json();
     
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");

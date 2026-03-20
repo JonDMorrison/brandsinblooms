@@ -21,6 +21,8 @@ serve(async (req) => {
   }
 
   try {
+    // FIX: [issue #48] - TODO: Add Twilio webhook signature verification
+    // Requires TWILIO_AUTH_TOKEN env var. Use twilio.validateRequest() to verify X-Twilio-Signature header.
     console.log('SMS reply webhook received')
     
     // Parse Twilio webhook payload
@@ -49,14 +51,18 @@ serve(async (req) => {
     // Clean phone number (remove +1 country code if present)
     const phoneNumber = payload.From.replace(/^\+1/, '').replace(/\D/g, '')
     const messageBody = payload.Body.trim().toUpperCase()
-    
-    console.log('Processing SMS from:', phoneNumber, 'Message:', messageBody)
+
+    // FIX: [issue #47] - Sanitize phone number to prevent PostgREST filter injection
+    const safePhone = phoneNumber.replace(/[^0-9]/g, '');
+    const safeFrom = payload.From.replace(/[^0-9+]/g, '');
+
+    console.log('Processing SMS from:', safePhone, 'Message:', messageBody)
 
     // Find customer by phone number
     const { data: customer, error: customerError } = await supabase
       .from('crm_customers')
       .select('*')
-      .or(`phone.eq.${phoneNumber},phone.eq.+1${phoneNumber},phone.eq.${payload.From}`)
+      .or(`phone.eq.${safePhone},phone.eq.+1${safePhone},phone.eq.${safeFrom}`)
       .single()
 
     if (customerError) {
@@ -91,13 +97,14 @@ serve(async (req) => {
     }
 
     if (keywords.test(payload.Body)) {
-      if (messageBody === 'STOP' || messageBody === 'UNSTOP') {
+      // FIX: [issue #23] - UNSTOP is industry-standard for re-subscribing, moved to opt-IN branch
+      if (messageBody === 'STOP') {
         console.log('Opt-out keyword detected')
-        
+
         // Update customer status
         const { error: updateError } = await supabase
           .from('crm_customers')
-          .update({ 
+          .update({
             sms_opt_in: false,
             opt_out: true,
             updated_at: new Date().toISOString()
@@ -112,7 +119,7 @@ serve(async (req) => {
         newOptInStatus = false
         activityType = 'sms_opt_out'
         eventType = 'opt_out'
-        
+
         // Get company name for personalized message
         const { data: companyProfile } = await supabase
           .from('company_profiles')
@@ -122,8 +129,8 @@ serve(async (req) => {
 
         const companyName = companyProfile?.company_name || 'us'
         responseMessage = `You've been opted out and will no longer receive texts from ${companyName}.`
-        
-      } else if (messageBody === 'START' || messageBody === 'YES' || messageBody === 'RESUME') {
+
+      } else if (messageBody === 'START' || messageBody === 'YES' || messageBody === 'RESUME' || messageBody === 'UNSTOP') {
         console.log('Opt-in keyword detected')
         
         // Update customer status

@@ -1,4 +1,4 @@
-
+// FIX: [issue #41] - TODO: Migrate to React Query for caching, deduplication, and background refetching
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -45,34 +45,29 @@ export const useCRMSegments = () => {
       
       console.log('📋 Found segments:', segmentsData);
 
-      // Get customer counts for each segment using efficient count queries
-      const segmentsWithCount = await Promise.all(
-        (segmentsData || []).map(async (segment) => {
-          try {
-            // Use the RPC or a simple count query
-            const { count, error: countError } = await supabase
-              .from('customer_segments')
-              .select('*', { count: 'exact', head: true })
-              .eq('segment_id', segment.id);
+      // FIX: [issue #34] - Single batched query instead of N+1 count queries per segment
+      const segmentIds = (segmentsData || []).map(s => s.id);
+      const countMap: Record<string, number> = {};
 
-            if (countError) {
-              console.error('❌ Error counting customers for segment:', segment.id, countError);
-              // Return the DB stored count as fallback
-              return { ...segment };
-            }
+      if (segmentIds.length > 0) {
+        const { data: allCustomerSegments, error: csError } = await supabase
+          .from('customer_segments')
+          .select('segment_id')
+          .in('segment_id', segmentIds);
 
-            console.log(`✅ Customer count for ${segment.name}:`, count);
-
-            return {
-              ...segment,
-              customer_count: count ?? segment.customer_count ?? 0
-            };
-          } catch (err) {
-            console.error('❌ Exception counting customers for segment:', segment.id, err);
-            return { ...segment };
+        if (csError) {
+          console.error('❌ Error fetching customer_segments for counts:', csError);
+        } else if (allCustomerSegments) {
+          for (const cs of allCustomerSegments) {
+            countMap[cs.segment_id] = (countMap[cs.segment_id] || 0) + 1;
           }
-        })
-      );
+        }
+      }
+
+      const segmentsWithCount = (segmentsData || []).map(segment => ({
+        ...segment,
+        customer_count: countMap[segment.id] ?? segment.customer_count ?? 0
+      }));
       
       console.log('🎯 Final segments with counts:', segmentsWithCount);
       setSegments(segmentsWithCount);

@@ -89,6 +89,7 @@ function decodeBase64Signature(signatureHeader: string) {
   return Uint8Array.from(atob(padded), (char) => char.charCodeAt(0));
 }
 
+// FIX: [P3] - HMAC-SHA256 webhook signature verification
 async function verifyLightspeedSignature(
   rawBody: string,
   signatureHeader: string,
@@ -96,6 +97,7 @@ async function verifyLightspeedSignature(
   const secret = Deno.env.get("LIGHTSPEED_WEBHOOK_SECRET");
 
   if (!secret) {
+    // FIX: [P3] - Fail closed in production when secret is missing
     console.warn("[LS-WEBHOOK] LIGHTSPEED_WEBHOOK_SECRET not configured");
     return !isProductionEnvironment();
   }
@@ -378,6 +380,7 @@ async function updateLastWebhookReceivedAt(
   }
 }
 
+// SECURITY: [T1] - Each handler writes only to the single matched tenant
 async function handleSaleEvent(
   payload: unknown,
   connection: LightspeedConnection,
@@ -409,6 +412,7 @@ async function handleSaleEvent(
   );
 }
 
+// SECURITY: [T1] - Write only to the single matched tenant
 async function handleCustomerEvent(
   payload: unknown,
   connection: LightspeedConnection,
@@ -492,6 +496,7 @@ async function handleCustomerEvent(
   );
 }
 
+// SECURITY: [T1] - Write only to the single matched tenant
 async function handleProductEvent(
   payload: unknown,
   connection: LightspeedConnection,

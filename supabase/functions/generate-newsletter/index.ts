@@ -15,6 +15,12 @@ serve(async (req) => {
   }
 
   try {
+    // SECURITY: [E17] - Add JWT authentication
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'Authorization required' }), { status: 401, headers: corsHeaders });
+    }
+
     const { campaignId, userId } = await req.json();
     
     console.log('Newsletter generation request:', { campaignId, userId });

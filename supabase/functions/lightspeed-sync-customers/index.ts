@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
+// FIX: [P14] - Use proper decryptToken
 import { decryptToken, encryptToken } from "../_shared/crypto/tokens.ts";
 import { getAdaptiveCooldown as getAdaptiveCooldownMs } from "../_shared/syncThrottling.ts";
 
@@ -338,6 +339,23 @@ Deno.serve(async (req) => {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         },
+      );
+    }
+
+    // FIX: [P24] - Add sync lock to prevent concurrent syncs
+    const { data: existingLockJob } = await supabaseClient
+      .from('pos_sync_jobs')
+      .select('id, status')
+      .eq('connection_id', connection.id)
+      .eq('sync_type', 'customers')
+      .in('status', ['pending', 'in_progress'])
+      .maybeSingle();
+
+    if (existingLockJob) {
+      console.log('[LS-SYNC-CUSTOMERS] Sync already in progress, returning existing job');
+      return new Response(
+        JSON.stringify({ success: true, jobId: existingLockJob.id, message: 'Sync already in progress' }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 

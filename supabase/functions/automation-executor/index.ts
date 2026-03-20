@@ -137,23 +137,27 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    // Allow calls with apikey header (for pg_cron) or standard Authorization
+    // FIX: [issue #20] - Add auth check to prevent unauthenticated access
     const authHeader = req.headers.get('Authorization');
-    const apiKey = req.headers.get('apikey');
-
-    // If neither auth header nor apikey, check for service role in request
-    if (!authHeader && !apiKey) {
-      // For now, allow unauthenticated calls since this runs via cron
-      // The function uses service role key internally anyway
-      console.log('⚠️ No auth header, proceeding with service role');
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+    if (!authHeader || (authHeader !== `Bearer ${serviceRoleKey}` && !authHeader.startsWith('Bearer '))) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
-
-    console.log('🤖 Automation Executor starting...');
 
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+      serviceRoleKey
     );
+
+    if (authHeader !== `Bearer ${serviceRoleKey}`) {
+      const token = authHeader.replace('Bearer ', '');
+      const { error: authErr } = await supabase.auth.getUser(token);
+      if (authErr) {
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+    }
+
+    console.log('🤖 Automation Executor starting...');
 
     // 1. Query active automations with workflow_steps
     const { data: activeAutomations, error: automationsError } = await supabase
@@ -595,16 +599,26 @@ async function getEligibleCustomers(supabase: any, automation: any) {
       break;
 
     case 'repeat_purchase_90d':
+      // FIX: [A2] - DISABLED: This trigger type is handled exclusively by lapsed-customer-checker to prevent duplicate sends
+      if (false) { // disabled - see comment above
       // Customers who haven't purchased in 90 days
       const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
       query = query.lt('last_purchase_date', ninetyDaysAgo);
+      }
+      return [];
       break;
 
     case 'birthday':
     case 'purchase.anniversary':
+      // FIX: [A2] - DISABLED: This trigger type is handled exclusively by birthday-automation-checker to prevent duplicate sends
+      // FIX: [A12] - Birthday matching via SQL LIKE is inconsistent with birthday-automation-checker's JS date parsing
+      // This block is disabled (see A2) - if re-enabled, replace LIKE with JS date parsing to match birthday-automation-checker
+      if (false) { // disabled - see comment above
       // Customers with birthday/anniversary today
       const today = new Date().toISOString().split('T')[0];
       query = query.like('custom_fields->date_of_birth', `%${today.slice(5)}%`);
+      }
+      return [];
       break;
 
     case 'abandoned_cart':

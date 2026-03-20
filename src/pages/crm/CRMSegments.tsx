@@ -82,6 +82,11 @@ const CRMSegments = () => {
   const [isPersonaModalOpen, setIsPersonaModalOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [activatingId, setActivatingId] = useState<string | null>(null);
+  // FIX: [issue #45] - Loading state to prevent double-submit on segment save/delete
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  // FIX: [issue #40] - Cache tenant_id at component level to avoid redundant lookups
+  const [cachedTenantId, setCachedTenantId] = useState<string | null>(null);
   // Form state
   const [formData, setFormData] = useState({
     name: '',
@@ -110,13 +115,30 @@ const CRMSegments = () => {
     }
   ];
 
+  // FIX: [issue #40] - Single tenant_id lookup cached for all functions
   useEffect(() => {
-    if (user) {
+    const loadTenantId = async () => {
+      if (!user) return;
+      const { data: userData } = await supabase
+        .from('users')
+        .select('tenant_id')
+        .eq('id', user.id)
+        .single();
+      if (userData?.tenant_id) {
+        setCachedTenantId(userData.tenant_id);
+      }
+    };
+    loadTenantId();
+  }, [user]);
+
+  // FIX: [issue #42] - TODO: Migrate to useQuery for automatic cache invalidation and refetching
+  useEffect(() => {
+    if (user && cachedTenantId) {
       loadSegments();
       loadAvailableTags();
       loadPersonas();
     }
-  }, [user]);
+  }, [user, cachedTenantId]);
 
   const loadPersonas = async () => {
     try {
@@ -134,18 +156,14 @@ const CRMSegments = () => {
 
   const loadSegments = async () => {
     try {
-      const { data: userData } = await supabase
-        .from('users')
-        .select('tenant_id')
-        .eq('id', user?.id)
-        .single();
-
-      if (userData?.tenant_id) {
+      if (cachedTenantId) {
         const { data, error } = await supabase
           .from('crm_segments')
           .select('*')
-          .eq('tenant_id', userData.tenant_id)
-          .order('created_at', { ascending: false });
+          .eq('tenant_id', cachedTenantId)
+          .order('created_at', { ascending: false })
+          // FIX: [issue #59] - Add limit to prevent unbounded fetch
+          .limit(100);
 
         if (error) throw error;
         // Parse conditions from JSON and ensure they're arrays
@@ -169,17 +187,11 @@ const CRMSegments = () => {
 
   const loadAvailableTags = async () => {
     try {
-      const { data: userData } = await supabase
-        .from('users')
-        .select('tenant_id')
-        .eq('id', user?.id)
-        .single();
-
-      if (userData?.tenant_id) {
+      if (cachedTenantId) {
         const { data, error } = await supabase
           .from('crm_customers')
           .select('tags')
-          .eq('tenant_id', userData.tenant_id)
+          .eq('tenant_id', cachedTenantId)
           .not('tags', 'is', null);
 
         if (error) throw error;
@@ -201,18 +213,12 @@ const CRMSegments = () => {
   // Enhanced segment count calculation with all new filter types
   const calculateSegmentCount = async (conditions: SegmentCondition[]) => {
     try {
-      const { data: userData } = await supabase
-        .from('users')
-        .select('tenant_id')
-        .eq('id', user?.id)
-        .single();
-
-      if (!userData?.tenant_id) return 0;
+      if (!cachedTenantId) return 0;
 
       let query = supabase
         .from('crm_customers')
         .select('id', { count: 'exact', head: true })
-        .eq('tenant_id', userData.tenant_id);
+        .eq('tenant_id', cachedTenantId);
 
       // Apply conditions with enhanced support
       conditions.forEach(condition => {
@@ -282,18 +288,12 @@ const CRMSegments = () => {
 
     setPreviewLoading(true);
     try {
-      const { data: userData } = await supabase
-        .from('users')
-        .select('tenant_id')
-        .eq('id', user?.id)
-        .single();
-
-      if (!userData?.tenant_id) return;
+      if (!cachedTenantId) return;
 
       let query = supabase
         .from('crm_customers')
         .select('id, first_name, last_name, email, persona, tags')
-        .eq('tenant_id', userData.tenant_id)
+        .eq('tenant_id', cachedTenantId)
         .limit(5);
 
       // Apply same conditions as count
@@ -374,6 +374,8 @@ const CRMSegments = () => {
   }, [formData.conditions]);
 
   const saveSegment = async () => {
+    // FIX: [issue #45] - Guard against double-submit while save is in progress
+    if (isSaving) return;
     if (!formData.name.trim()) {
       toast({
         title: "Error",
@@ -383,14 +385,9 @@ const CRMSegments = () => {
       return;
     }
 
+    setIsSaving(true);
     try {
-      const { data: userData } = await supabase
-        .from('users')
-        .select('tenant_id')
-        .eq('id', user?.id)
-        .single();
-
-      if (!userData?.tenant_id) return;
+      if (!cachedTenantId) return;
 
       const customerCount = await calculateSegmentCount(formData.conditions);
 
@@ -403,7 +400,7 @@ const CRMSegments = () => {
         conditions: formData.conditions as any,
         customer_count: customerCount,
         auto_update: formData.auto_update,
-        tenant_id: userData.tenant_id,
+        tenant_id: cachedTenantId,
         user_id: user?.id,
         persona_id: personaId
       };
@@ -451,6 +448,8 @@ const CRMSegments = () => {
         description: `Failed to ${editingSegment ? 'update' : 'create'} segment`,
         variant: "destructive"
       });
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -464,7 +463,16 @@ const CRMSegments = () => {
 
   const confirmDeleteSegment = async () => {
     if (!deleteTarget) return;
+    // FIX: [issue #45] - Guard against double-submit while delete is in progress
+    if (isDeleting) return;
+    setIsDeleting(true);
     try {
+      // FIX: [issue #44] - Clean up junction table before deleting segment
+      await supabase
+        .from('customer_segments')
+        .delete()
+        .eq('segment_id', deleteTarget.id);
+
       const { error } = await supabase
         .from('crm_segments')
         .delete()
@@ -487,6 +495,7 @@ const CRMSegments = () => {
         variant: "destructive"
       });
     } finally {
+      setIsDeleting(false);
       setDeleteTarget(null);
     }
   };
@@ -849,8 +858,8 @@ const CRMSegments = () => {
                     <Button variant="outline" onClick={() => setShowSegmentForm(false)}>
                       Cancel
                     </Button>
-                    <Button onClick={saveSegment}>
-                      {editingSegment ? 'Update' : 'Create'} Segment
+                    <Button onClick={saveSegment} disabled={isSaving}>
+                      {isSaving ? 'Saving...' : `${editingSegment ? 'Update' : 'Create'} Segment`}
                     </Button>
                   </div>
                 </div>

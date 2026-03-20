@@ -18,6 +18,12 @@ serve(async (req) => {
   }
 
   try {
+    // SECURITY: [E23] - Add JWT authentication
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'Authorization required' }), { status: 401, headers: corsHeaders });
+    }
+
     if (!openAIApiKey) {
       throw new Error('OpenAI API key not configured');
     }

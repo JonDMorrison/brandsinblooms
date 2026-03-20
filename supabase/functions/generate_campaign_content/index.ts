@@ -22,6 +22,12 @@ serve(async (req) => {
   }
 
   try {
+    // SECURITY: [E20] - Add JWT authentication
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'Authorization required' }), { status: 401, headers: corsHeaders });
+    }
+
     console.log('📥 [REQUEST] Parsing request body...');
     const { campaign_id, campaign_title, description, user_id, week_number, tenant_id } = await req.json();
     

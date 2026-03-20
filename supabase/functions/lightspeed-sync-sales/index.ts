@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
+// FIX: [P5] - Decrypt access token before using as Bearer token
 import { decryptToken, encryptToken } from "../_shared/crypto/tokens.ts";
 import { getAdaptiveCooldown as getAdaptiveCooldownMs } from "../_shared/syncThrottling.ts";
 
@@ -305,6 +306,24 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    // FIX: [P24] - Add sync lock to prevent concurrent syncs
+    const { data: existingSalesLockJob } = await supabaseClient
+      .from('pos_sync_jobs')
+      .select('id, status')
+      .eq('connection_id', connection.id)
+      .eq('sync_type', 'sales')
+      .in('status', ['pending', 'in_progress'])
+      .maybeSingle();
+
+    if (existingSalesLockJob) {
+      console.log('[LS-SYNC-SALES] Sync already in progress, returning existing job');
+      return new Response(
+        JSON.stringify({ success: true, jobId: existingSalesLockJob.id, message: 'Sync already in progress' }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log('[LS-SYNC-SALES] Fetching sales from Lightspeed...');
     const { accessToken, needsReEncryption } =
       await getLightspeedAccessToken(connection);
     let reEncrypted = false;

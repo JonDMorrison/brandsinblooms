@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
+// FIX: [P14] - Replace insecure atob() with proper decryptToken
 import { decryptToken } from "../_shared/crypto/tokens.ts";
 
 function parseXSeriesPayload(payload: unknown) {
@@ -26,6 +27,7 @@ function parseXSeriesPayload(payload: unknown) {
     versionMax: Number.isFinite(versionMax as number) ? versionMax : null,
   };
 }
+
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -73,6 +75,7 @@ Deno.serve(async (req) => {
       throw new Error("No Lightspeed connection found");
     }
 
+    // FIX: [P14] - Use proper decryptToken instead of atob()
     let usedLegacyPlaintextFallback = false;
     let accessToken: string;
     try {

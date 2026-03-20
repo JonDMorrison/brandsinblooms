@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { SubscriptionGate } from '@/components/SubscriptionGate';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -79,17 +79,18 @@ const [pageSize] = useState(100); // 100 customers per page
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const customerPersonas = [
-    { name: 'Plant-Killer Pam', count: 0, color: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200' },
-    { name: 'Curb Appeal Ashley', count: 0, color: 'bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200' },
-    { name: 'DIY Dana', count: 0, color: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200' },
-    { name: 'Patio Gardener Gail', count: 0, color: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' },
-    { name: 'Pet-Friendly Hannah', count: 0, color: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200' },
-    { name: 'Pollinator Paula', count: 0, color: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200' },
-    { name: 'Sustainable Susie', count: 0, color: 'bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200' },
-    { name: 'Vegetable Garden Veronica', count: 0, color: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200' },
-    { name: 'Wellness Whitney', count: 0, color: 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200' },
-  ];
+  // FIX: [issue #25] - Fetch personas from DB instead of using hardcoded string names
+  const { data: personaOptions = [] } = useQuery({
+    queryKey: ['crm-persona-options'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('crm_personas')
+        .select('id, persona_name, icon, color_theme')
+        .order('persona_name');
+      if (error) throw error;
+      return data || [];
+    }
+  });
 
   // Fetch customers with pagination
   const { data: customers = [], isLoading } = useQuery({
@@ -110,7 +111,10 @@ const [pageSize] = useState(100); // 100 customers per page
 
       // Apply search filter
       if (searchTerm) {
-        query = query.or(`first_name.ilike.%${searchTerm}%,last_name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%,phone.ilike.%${searchTerm}%`);
+        // FIX: [issue #46] - Sanitize search term to prevent PostgREST filter injection
+        const sanitizeForPostgrest = (input: string) => input.replace(/[,.()"'\\]/g, '');
+        const safeSearch = sanitizeForPostgrest(searchTerm);
+        query = query.or(`first_name.ilike.%${safeSearch}%,last_name.ilike.%${safeSearch}%,email.ilike.%${safeSearch}%,phone.ilike.%${safeSearch}%`);
       }
 
       // Apply persona filter
@@ -137,30 +141,40 @@ const [pageSize] = useState(100); // 100 customers per page
       // Update total count for pagination
       setTotalCount(count || 0);
 
-      // Fetch segments for current page only (optimized)
-      const customersWithSegments = await Promise.all(
-        (customersData || []).map(async (customer) => {
-          const { data: customerSegments } = await supabase
-            .from('customer_segments')
-            .select('segment_id')
-            .eq('customer_id', customer.id);
+      // FIX: [issue #33] - Batched segment lookup instead of N+1 queries per customer
+      const customerIds = (customersData || []).map(c => c.id);
+      let customerSegmentMap: Record<string, { id: string; name: string; description: string | null }[]> = {};
 
-          if (!customerSegments || customerSegments.length === 0) {
-            return { ...customer, segments: [] };
-          }
+      if (customerIds.length > 0) {
+        const { data: allCustomerSegments } = await supabase
+          .from('customer_segments')
+          .select('customer_id, segment_id')
+          .in('customer_id', customerIds);
 
-          const segmentIds = customerSegments.map(cs => cs.segment_id);
-          const { data: segments } = await supabase
+        if (allCustomerSegments && allCustomerSegments.length > 0) {
+          const uniqueSegmentIds = [...new Set(allCustomerSegments.map(cs => cs.segment_id))];
+          const { data: allSegments } = await supabase
             .from('crm_segments')
             .select('id, name, description')
-            .in('id', segmentIds);
+            .in('id', uniqueSegmentIds);
 
-          return {
-            ...customer,
-            segments: segments || []
-          };
-        })
-      );
+          const segmentLookup = new Map((allSegments || []).map(s => [s.id, s]));
+          for (const cs of allCustomerSegments) {
+            if (!customerSegmentMap[cs.customer_id]) {
+              customerSegmentMap[cs.customer_id] = [];
+            }
+            const seg = segmentLookup.get(cs.segment_id);
+            if (seg) {
+              customerSegmentMap[cs.customer_id].push(seg);
+            }
+          }
+        }
+      }
+
+      const customersWithSegments = (customersData || []).map(customer => ({
+        ...customer,
+        segments: customerSegmentMap[customer.id] || []
+      }));
 
       return customersWithSegments as Customer[];
     }
@@ -231,8 +245,7 @@ const [pageSize] = useState(100); // 100 customers per page
   };
 
   const getPersonaColor = (persona: string | null) => {
-    const personaObj = customerPersonas.find(p => p.name.toLowerCase() === persona?.toLowerCase());
-    return personaObj?.color || 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200';
+    return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200';
   };
 
   const openCustomerProfile = (customer: Customer) => {
@@ -240,11 +253,22 @@ const [pageSize] = useState(100); // 100 customers per page
     setIsProfileOpen(true);
   };
 
+  // FIX: [issue #12] - Debounce customer edit mutations to prevent firing on every keystroke
+  const debouncedUpdateRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const updateCustomer = (updates: Partial<Customer>) => {
     if (!selectedCustomer) return;
-    updateCustomerMutation.mutate({ ...updates, id: selectedCustomer.id });
     setSelectedCustomer({ ...selectedCustomer, ...updates });
+    if (debouncedUpdateRef.current) clearTimeout(debouncedUpdateRef.current);
+    debouncedUpdateRef.current = setTimeout(() => {
+      updateCustomerMutation.mutate({ ...updates, id: selectedCustomer.id });
+    }, 800);
   };
+
+  useEffect(() => {
+    return () => {
+      if (debouncedUpdateRef.current) clearTimeout(debouncedUpdateRef.current);
+    };
+  }, []);
 
   return (
     <SubscriptionGate 
@@ -301,15 +325,10 @@ const [pageSize] = useState(100); // 100 customers per page
                   placeholder="Persona"
                   options={[
                     { value: 'all', label: 'All Personas' },
-                    { value: 'plant-killer pam', label: 'Plant-Killer Pam' },
-                    { value: 'curb appeal ashley', label: 'Curb Appeal Ashley' },
-                    { value: 'diy dana', label: 'DIY Dana' },
-                    { value: 'patio gardener gail', label: 'Patio Gardener Gail' },
-                    { value: 'pet-friendly hannah', label: 'Pet-Friendly Hannah' },
-                    { value: 'pollinator paula', label: 'Pollinator Paula' },
-                    { value: 'sustainable susie', label: 'Sustainable Susie' },
-                    { value: 'vegetable garden veronica', label: 'Vegetable Garden Veronica' },
-                    { value: 'wellness whitney', label: 'Wellness Whitney' }
+                    ...personaOptions.map((p) => ({
+                      value: p.id,
+                      label: p.persona_name,
+                    }))
                   ]}
                 />
 

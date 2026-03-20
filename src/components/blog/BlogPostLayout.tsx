@@ -2,6 +2,7 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
 import { MediaSelector } from '@/components/image/MediaSelector';
+import { sanitizeHtml } from '@/utils/htmlSanitizer';
 
 interface BlogPostLayoutProps {
   title?: string;
@@ -96,7 +97,8 @@ export const BlogPostLayout = ({
                      [&>ul]:my-6 [&>ul]:space-y-2 [&>ol]:my-6 [&>ol]:space-y-2
                      [&>blockquote]:border-l-4 [&>blockquote]:border-primary [&>blockquote]:bg-primary/5 
                      [&>blockquote]:pl-6 [&>blockquote]:py-4 [&>blockquote]:my-6 [&>blockquote]:italic"
-          dangerouslySetInnerHTML={{ __html: content }}
+          // SECURITY: X1 - Sanitize HTML to prevent XSS
+          dangerouslySetInnerHTML={{ __html: sanitizeHtml(content) }}
         />
       </article>
     </div>

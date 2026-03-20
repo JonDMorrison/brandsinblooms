@@ -1,6 +1,7 @@
 
 import React, { useMemo } from 'react';
 import { renderMarkdownToMagazineHtml } from '@/utils/renderMarkdown';
+import { sanitizeHtml } from '@/utils/htmlSanitizer';
 
 interface NewsletterPreviewProps {
   content: string;
@@ -15,7 +16,8 @@ export const NewsletterPreview = ({ content, className = '' }: NewsletterPreview
   return (
     <div 
       className={`prose prose-sm max-w-none [&>*]:text-justify text-gray-700 ${className}`}
-      dangerouslySetInnerHTML={{ __html: magazineHtml }}
+      // SECURITY: X3 - Sanitize HTML to prevent XSS
+      dangerouslySetInnerHTML={{ __html: sanitizeHtml(magazineHtml) }}
     />
   );
 };

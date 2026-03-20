@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
+import { sanitizeHtml } from "@/utils/htmlSanitizer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -448,8 +449,9 @@ export default function CRMCampaignDetail() {
                 <div className="mt-1 p-4 bg-muted rounded-lg max-h-48 overflow-y-auto">
                   <div
                     className="prose prose-sm max-w-none"
+                    // SECURITY: X5 - Sanitize HTML to prevent XSS
                     dangerouslySetInnerHTML={{
-                      __html: campaign.content || "No content available",
+                      __html: sanitizeHtml(campaign.content || "No content available"),
                     }}
                   />
                 </div>

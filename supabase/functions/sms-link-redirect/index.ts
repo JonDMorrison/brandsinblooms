@@ -106,6 +106,16 @@ Deno.serve(async (req) => {
 
     console.log('[sms-link-redirect] Redirecting to:', linkRecord.original_url);
 
+    // SECURITY: Validate redirect URL to prevent open redirect attacks
+    try {
+      const redirectUrl = new URL(linkRecord.original_url);
+      if (!['http:', 'https:'].includes(redirectUrl.protocol)) {
+        return new Response('Invalid redirect URL', { status: 400 });
+      }
+    } catch {
+      return new Response('Invalid redirect URL', { status: 400 });
+    }
+
     // Redirect to original URL
     return new Response(null, {
       status: 302,

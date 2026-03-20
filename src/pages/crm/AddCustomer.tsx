@@ -167,7 +167,8 @@ const AddCustomer = () => {
       return data;
     },
     onSuccess: async (createdCustomer) => {
-      queryClient.invalidateQueries({ queryKey: ["customers"] });
+      // FIX: [issue #26] - Invalidate correct query key matching CRMCustomers page
+      queryClient.invalidateQueries({ queryKey: ['crm-customers'] });
       const tenantId = createdCustomer?.tenant_id ?? tenant?.id ?? null;
       if (tenantId) {
         await logActivity({
@@ -286,6 +287,13 @@ const AddCustomer = () => {
         description: "Please enter a valid email address.",
         variant: "destructive",
       });
+      return;
+    }
+
+    // FIX: [issue #58] - Add email format validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email.trim())) {
+      toast({ title: "Error", description: "Please enter a valid email address", variant: "destructive" });
       return;
     }
 
@@ -553,7 +561,8 @@ const AddCustomer = () => {
                     value={newTag}
                     onChange={(e) => setNewTag(e.target.value)}
                     placeholder="Add a tag..."
-                    onKeyPress={(e) =>
+                    // FIX: [issue #60] - Replace deprecated onKeyPress with onKeyDown
+                    onKeyDown={(e) =>
                       e.key === "Enter" && (e.preventDefault(), addTag())
                     }
                   />

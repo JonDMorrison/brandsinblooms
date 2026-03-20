@@ -58,6 +58,8 @@ export const ConnectStep = ({
   const popupRef = useRef<Window | null>(null);
   const popupCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const currentProviderRef = useRef<Provider | null>(null);
+  // IMPROVEMENT: Grace period timeout ref for popup close detection
+  const popupCloseGraceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Check if there are active imports
   const hasActiveMailchimpImport = activeJobs.some(
@@ -82,6 +84,9 @@ export const ConnectStep = ({
       if (popupCheckIntervalRef.current) {
         clearInterval(popupCheckIntervalRef.current);
       }
+      if (popupCloseGraceRef.current) {
+        clearTimeout(popupCloseGraceRef.current);
+      }
       if (popupRef.current && !popupRef.current.closed) {
         popupRef.current.close();
       }
@@ -104,10 +109,15 @@ export const ConnectStep = ({
         error,
       });
 
-      // Clear popup monitoring
+      // Clear popup monitoring and grace period timeout
       if (popupCheckIntervalRef.current) {
         clearInterval(popupCheckIntervalRef.current);
         popupCheckIntervalRef.current = null;
+      }
+      // IMPROVEMENT: Clear grace period timeout if postMessage arrives during the window
+      if (popupCloseGraceRef.current) {
+        clearTimeout(popupCloseGraceRef.current);
+        popupCloseGraceRef.current = null;
       }
 
       const setStatus =
@@ -170,6 +180,9 @@ export const ConnectStep = ({
     return () => window.removeEventListener("message", onMsg);
   }, [toast, onComplete]);
 
+  // IMPROVEMENT: Fallback connection check — query DB to sync UI with actual connection state
+  // Runs on mount and after every OAuth flow, so the UI is always in sync with reality
+  // regardless of whether postMessage fired
   const refreshConnections = async () => {
     try {
       const { data: connections } = await supabase
@@ -187,14 +200,24 @@ export const ConnectStep = ({
       if (mailchimp) {
         setMailchimpStatus("connected");
         setMailchimpAccount(mailchimp.metadata);
+        // If this was the provider we were connecting, clear the ref so grace period doesn't cancel
+        if (currentProviderRef.current === 'mailchimp') {
+          currentProviderRef.current = null;
+        }
       }
       if (klaviyo) {
         setKlaviyoStatus("connected");
         setKlaviyoAccount(klaviyo.metadata);
+        if (currentProviderRef.current === 'klaviyo') {
+          currentProviderRef.current = null;
+        }
       }
       if (constantContact) {
         setConstantContactStatus("connected");
         setConstantContactAccount(constantContact.metadata);
+        if (currentProviderRef.current === 'constant_contact') {
+          currentProviderRef.current = null;
+        }
       }
     } catch (error) {
       console.error("Error refreshing connections:", error);
@@ -263,7 +286,7 @@ export const ConnectStep = ({
       popupRef.current = window.open(
         authUrl,
         `oauth_${provider}`,
-        `width=${width},height=${height},left=${left},top=${top},noopener,noreferrer`,
+        `width=${width},height=${height},left=${left},top=${top}`
       );
 
       if (!popupRef.current || popupRef.current.closed) {
@@ -279,30 +302,40 @@ export const ConnectStep = ({
         clearInterval(popupCheckIntervalRef.current);
       }
 
+      // IMPROVEMENT: Add 1500ms grace period before treating popup close as cancellation
+      // This allows time for the postMessage to arrive after the popup navigates and closes
       popupCheckIntervalRef.current = setInterval(() => {
         if (popupRef.current?.closed) {
-          console.log(`🪟 Popup was closed for ${provider}`);
+          console.log(`🪟 Popup was closed for ${provider}, starting grace period`);
           clearInterval(popupCheckIntervalRef.current!);
           popupCheckIntervalRef.current = null;
 
-          // Only show cancellation if we didn't receive a success/error message
-          if (currentProviderRef.current === provider) {
-            console.log(
-              `⚠️ User closed popup without completing OAuth for ${provider}`,
-            );
-            const providerName =
-              provider === "mailchimp"
-                ? "Mailchimp"
-                : provider === "klaviyo"
-                  ? "Klaviyo"
-                  : "Constant Contact";
-            toast({
-              title: "Connection Cancelled",
-              description: `You closed the ${providerName} authorization window`,
-            });
-            setStatus("idle");
-            currentProviderRef.current = null;
-          }
+          // Wait 1500ms before treating as cancellation — postMessage may still arrive
+          popupCloseGraceRef.current = setTimeout(() => {
+            // Only show cancellation if we didn't receive a success/error message during grace period
+            if (currentProviderRef.current === provider) {
+              console.log(`⚠️ Grace period expired without OAuth message for ${provider}, checking DB`);
+              // IMPROVEMENT: Fallback connection check — query DB before declaring cancellation
+              refreshConnections().then(() => {
+                // Re-check after refresh — if status updated to connected, don't show cancel
+                const statusGetter = provider === 'mailchimp' ? mailchimpStatus
+                  : provider === 'klaviyo' ? klaviyoStatus
+                  : constantContactStatus;
+                if (currentProviderRef.current === provider) {
+                  const providerName = provider === 'mailchimp' ? 'Mailchimp'
+                    : provider === 'klaviyo' ? 'Klaviyo'
+                    : 'Constant Contact';
+                  toast({
+                    title: 'Connection Cancelled',
+                    description: `You closed the ${providerName} authorization window`,
+                  });
+                  setStatus('idle');
+                  currentProviderRef.current = null;
+                }
+              });
+            }
+            popupCloseGraceRef.current = null;
+          }, 1500);
 
           popupRef.current = null;
         }

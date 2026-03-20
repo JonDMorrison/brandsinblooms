@@ -28,64 +28,29 @@ export const useCRMDashboardMetrics = () => {
       const previousMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
       const twoMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 2, 1);
 
-      // Fetch customers data
-      const customersQuery = supabase.from('crm_customers').select('*');
-      const campaignsQuery = supabase.from('crm_campaigns').select('*');
-      
-      // Apply tenant filtering
-      if (tenant?.id) {
-        customersQuery.eq('tenant_id', tenant.id);
-        campaignsQuery.eq('tenant_id', tenant.id);
-      } else {
-        customersQuery.eq('user_id', user.id);
-        campaignsQuery.eq('user_id', user.id);
-      }
+      // FIX: [issue #35] - Parallel queries with select only needed columns instead of sequential select('*')
+      const tenantFilter = (query: any) => {
+        if (tenant?.id) {
+          return query.eq('tenant_id', tenant.id);
+        }
+        return query.eq('user_id', user.id);
+      };
 
-      const { data: allCustomers } = await customersQuery;
-      
-      // Fetch current month customers
-      const currentMonthCustomersQuery = supabase.from('crm_customers').select('*')
-        .gte('created_at', currentMonth.toISOString());
-      if (tenant?.id) {
-        currentMonthCustomersQuery.eq('tenant_id', tenant.id);
-      } else {
-        currentMonthCustomersQuery.eq('user_id', user.id);
-      }
-      const { data: currentMonthCustomers } = await currentMonthCustomersQuery;
-      
-      // Fetch previous month customers
-      const previousMonthCustomersQuery = supabase.from('crm_customers').select('*')
-        .gte('created_at', previousMonth.toISOString())
-        .lt('created_at', currentMonth.toISOString());
-      if (tenant?.id) {
-        previousMonthCustomersQuery.eq('tenant_id', tenant.id);
-      } else {
-        previousMonthCustomersQuery.eq('user_id', user.id);
-      }
-      const { data: previousMonthCustomers } = await previousMonthCustomersQuery;
-
-      const { data: allCampaigns } = await campaignsQuery;
-      
-      // Fetch current month campaigns
-      const currentMonthCampaignsQuery = supabase.from('crm_campaigns').select('*')
-        .gte('created_at', currentMonth.toISOString());
-      if (tenant?.id) {
-        currentMonthCampaignsQuery.eq('tenant_id', tenant.id);
-      } else {
-        currentMonthCampaignsQuery.eq('user_id', user.id);
-      }
-      const { data: currentMonthCampaigns } = await currentMonthCampaignsQuery;
-      
-      // Fetch previous month campaigns
-      const previousMonthCampaignsQuery = supabase.from('crm_campaigns').select('*')
-        .gte('created_at', previousMonth.toISOString())
-        .lt('created_at', currentMonth.toISOString());
-      if (tenant?.id) {
-        previousMonthCampaignsQuery.eq('tenant_id', tenant.id);
-      } else {
-        previousMonthCampaignsQuery.eq('user_id', user.id);
-      }
-      const { data: previousMonthCampaigns } = await previousMonthCampaignsQuery;
+      const [
+        { data: allCustomers, error: allCustomersError },
+        { data: currentMonthCustomers, error: currentMonthCustomersError },
+        { data: previousMonthCustomers, error: previousMonthCustomersError },
+        { data: allCampaigns, error: allCampaignsError },
+        { data: currentMonthCampaigns, error: currentMonthCampaignsError },
+        { data: previousMonthCampaigns, error: previousMonthCampaignsError },
+      ] = await Promise.all([
+        tenantFilter(supabase.from('crm_customers').select('id, total_spent, created_at')),
+        tenantFilter(supabase.from('crm_customers').select('id, created_at').gte('created_at', currentMonth.toISOString())),
+        tenantFilter(supabase.from('crm_customers').select('id, created_at').gte('created_at', previousMonth.toISOString()).lt('created_at', currentMonth.toISOString())),
+        tenantFilter(supabase.from('crm_campaigns').select('id, status, metrics, created_at')),
+        tenantFilter(supabase.from('crm_campaigns').select('id, created_at').gte('created_at', currentMonth.toISOString())),
+        tenantFilter(supabase.from('crm_campaigns').select('id, created_at').gte('created_at', previousMonth.toISOString()).lt('created_at', currentMonth.toISOString())),
+      ]);
 
       // Calculate metrics
       const totalCustomers = allCustomers?.length || 0;
@@ -116,16 +81,19 @@ export const useCRMDashboardMetrics = () => {
       const totalRevenue = customerRevenue + campaignRevenue;
 
       // Calculate previous month revenue for growth
-      const previousRevenueQuery = supabase.from('crm_customers')
-        .select('total_spent')
-        .gte('created_at', twoMonthsAgo.toISOString())
-        .lt('created_at', previousMonth.toISOString());
-      if (tenant?.id) {
-        previousRevenueQuery.eq('tenant_id', tenant.id);
-      } else {
-        previousRevenueQuery.eq('user_id', user.id);
+      const { data: previousMonthCustomersRevenue, error: previousMonthCustomersRevenueError } = await tenantFilter(
+        supabase.from('crm_customers')
+          .select('total_spent')
+          .gte('created_at', twoMonthsAgo.toISOString())
+          .lt('created_at', previousMonth.toISOString())
+      );
+
+      // FIX: [issue #14] - Check for query errors instead of silently ignoring them
+      const queryErrors = [allCustomersError, currentMonthCustomersError, previousMonthCustomersError, allCampaignsError, currentMonthCampaignsError, previousMonthCampaignsError, previousMonthCustomersRevenueError].filter(Boolean);
+      if (queryErrors.length > 0) {
+        console.error('Dashboard metrics query errors:', queryErrors);
+        throw new Error('Failed to load dashboard metrics');
       }
-      const { data: previousMonthCustomersRevenue } = await previousRevenueQuery;
 
       const previousRevenue = previousMonthCustomersRevenue?.reduce((sum, customer) => {
         return sum + (Number(customer.total_spent) || 0);

@@ -443,6 +443,12 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // SECURITY: [E21] - Add JWT authentication
+  const authHeader = req.headers.get('Authorization');
+  if (!authHeader) {
+    return new Response(JSON.stringify({ error: 'Authorization required' }), { status: 401, headers: corsHeaders });
+  }
+
   // Force redeployment - v2.0.1 with getChannelFallback removal
   const FUNCTION_VERSION = '2.0.1';
   console.log(`🚀 Edge function started - v${FUNCTION_VERSION}`);

@@ -201,7 +201,22 @@ serve(async (req: Request): Promise<Response> => {
   }
 
   try {
-    const { campaignId, startDate, endDate, replayStoredDeliveries = true }: BackfillRequest = await req.json();
+    // SECURITY: [E32] - Add service-role-or-JWT authentication
+    const authHeader = req.headers.get('Authorization');
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'Authorization required' }), { status: 401, headers: corsHeaders });
+    }
+    if (authHeader !== `Bearer ${serviceRoleKey}`) {
+      const token = authHeader.replace('Bearer ', '');
+      const supabase = createClient(Deno.env.get('SUPABASE_URL')!, serviceRoleKey!);
+      const { data: { user }, error: authErr } = await supabase.auth.getUser(token);
+      if (authErr || !user) {
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: corsHeaders });
+      }
+    }
+
+    const { campaignId, startDate, endDate, replayStoredDeliveries: replayStoredDeliveriesFlag = true }: BackfillRequest = await req.json();
 
     if (!campaignId) {
       return new Response(
@@ -284,7 +299,7 @@ serve(async (req: Request): Promise<Response> => {
     let replayDuplicates = 0;
     let replayFailures = 0;
 
-    if (replayStoredDeliveries) {
+    if (replayStoredDeliveriesFlag) {
       console.log(`🔁 Replaying stored webhook deliveries for campaign ${campaignId}...`);
 
       const replayResult = await replayStoredDeliveries({

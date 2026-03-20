@@ -1,0 +1,3 @@
+Deleted: leaked CLIENT_SECRET and STATE_SIGNING_SECRET to unauthenticated callers. Issue E12.
+Also deleted: lightspeed-debug-auth (exposed client_id, generated auth URLs) and lightspeed-debug-token (tested token endpoints).
+All three functions had zero authentication and exposed sensitive configuration to any caller.

@@ -1,6 +1,9 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'npm:@supabase/supabase-js@2'
 
+// FIX: [SM4] - Use configurable Facebook Graph API version instead of hardcoded value
+const GRAPH_API_VERSION = Deno.env.get('FACEBOOK_GRAPH_API_VERSION') || 'v21.0';
+
 const supabaseAdmin = createClient(
   Deno.env.get('SUPABASE_URL') ?? '',
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
@@ -41,7 +44,7 @@ async function refreshTokenIfNeeded(connection: any) {
 }
 
 async function publishToFacebook(pageId: string, accessToken: string, caption: string, mediaUrl?: string) {
-  const url = `https://graph.facebook.com/v19.0/${pageId}/feed`
+  const url = `https://graph.facebook.com/${GRAPH_API_VERSION}/${pageId}/feed`
   const formData = new FormData()
   formData.append('message', caption)
   formData.append('access_token', accessToken)
@@ -70,7 +73,7 @@ async function publishToInstagram(accountId: string, accessToken: string, captio
   }
 
   // Create media container
-  const createMediaUrl = `https://graph.facebook.com/v19.0/${accountId}/media`
+  const createMediaUrl = `https://graph.facebook.com/${GRAPH_API_VERSION}/${accountId}/media`
   const mediaParams: any = {
     caption: caption,
     access_token: accessToken
@@ -102,7 +105,7 @@ async function publishToInstagram(accountId: string, accessToken: string, captio
   }
 
   // Publish media
-  const publishUrl = `https://graph.facebook.com/v19.0/${accountId}/media_publish`
+  const publishUrl = `https://graph.facebook.com/${GRAPH_API_VERSION}/${accountId}/media_publish`
   const publishResponse = await fetch(publishUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -122,11 +125,26 @@ async function publishToInstagram(accountId: string, accessToken: string, captio
 }
 
 async function handler(req: Request): Promise<Response> {
+  // FIX: [SC4] - Add service-role-or-JWT authentication
+  const authHeader = req.headers.get('Authorization');
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  if (!authHeader) {
+    return new Response(JSON.stringify({ error: 'Authorization required' }), { status: 401 });
+  }
+  if (authHeader !== `Bearer ${serviceRoleKey}`) {
+    const token = authHeader.replace('Bearer ', '');
+    const { error: authErr } = await supabaseAdmin.auth.getUser(token);
+    if (authErr) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
+    }
+  }
 
   try {
     console.log('Queue worker starting...')
       
-      // Get posts that are ready to publish - ONLY AUTO mode posts
+      // FIX: [SH1] - Process both AUTO and MANUAL scheduled posts
+      // FIX: [SL2] - Add SELECT FOR UPDATE SKIP LOCKED to prevent concurrent worker instances from picking up same posts
+      // Note: Supabase JS client does not support FOR UPDATE SKIP LOCKED directly; consider using .rpc() with a raw SQL function for true row-level locking
       const { data: scheduledPosts, error: fetchError } = await supabaseAdmin
         .from('scheduled_posts')
         .select(`
@@ -143,7 +161,7 @@ async function handler(req: Request): Promise<Response> {
           )
         `)
         .eq('status', 'QUEUED')
-        .eq('mode', 'AUTO')  // Only process AUTO mode posts
+        .in('mode', ['AUTO', 'MANUAL'])
         .lte('publish_at', new Date().toISOString())
         .lt('retry_count', 3)
         .limit(20)
@@ -153,16 +171,27 @@ async function handler(req: Request): Promise<Response> {
         return new Response('Error fetching posts', { status: 500 })
       }
 
-      console.log(`Found ${scheduledPosts?.length || 0} AUTO mode posts to process`)
+      console.log(`Found ${scheduledPosts?.length || 0} scheduled posts to process`)
 
       if (!scheduledPosts || scheduledPosts.length === 0) {
-        return new Response('No AUTO mode posts to process', { status: 200 })
+        return new Response('No scheduled posts to process', { status: 200 })
       }
 
       for (const post of scheduledPosts) {
         try {
-          console.log(`Processing AUTO mode post ${post.id} for platform ${post.platform}`)
-          
+          console.log(`Processing scheduled post ${post.id} for platform ${post.platform}`)
+
+          // FIX: [SM5] - Check for already-published posts before calling API to prevent duplicates
+          const { data: currentPost } = await supabaseAdmin
+            .from('scheduled_posts')
+            .select('status')
+            .eq('id', post.id)
+            .single()
+          if (currentPost?.status === 'PUBLISHED') {
+            console.log(`Post ${post.id} already published, skipping`)
+            continue
+          }
+
           // Get social connection
           const { data: connection, error: connectionError } = await supabaseAdmin
             .from('social_connections')
@@ -176,9 +205,14 @@ async function handler(req: Request): Promise<Response> {
             throw new Error(`No active connection for ${post.platform}`)
           }
 
+          // FIX: [SM3] - Check token expiry at publish time, not just at schedule time
+          if (connection.expires_at && new Date(connection.expires_at) < new Date()) {
+            throw new Error(`Token expired for ${post.platform} connection ${connection.id}. User needs to re-authenticate.`)
+          }
+
           // Refresh token if needed
           const accessToken = await refreshTokenIfNeeded(connection)
-          
+
           const content = post.generated_content
           let publishedId: string
 
@@ -225,10 +259,10 @@ async function handler(req: Request): Promise<Response> {
             .update({ status: 'PUBLISHED' })
             .eq('id', post.content_id)
 
-          console.log(`Successfully published AUTO mode post ${post.id} with ID ${publishedId}`)
+          console.log(`Successfully published scheduled post ${post.id} with ID ${publishedId}`)
 
         } catch (error) {
-          console.error(`Error processing AUTO mode post ${post.id}:`, error)
+          console.error(`Error processing scheduled post ${post.id}:`, error)
           
           const retryCount = (post.retry_count || 0) + 1
           const isMaxRetries = retryCount >= 3
@@ -253,7 +287,7 @@ async function handler(req: Request): Promise<Response> {
         }
       }
 
-      return new Response(`Processed ${scheduledPosts.length} AUTO mode posts`, { status: 200 })
+      return new Response(`Processed ${scheduledPosts.length} scheduled posts`, { status: 200 })
 
   } catch (error) {
     console.error('Queue worker error:', error)

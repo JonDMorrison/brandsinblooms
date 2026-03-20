@@ -2,6 +2,9 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { getFacebookCredentials } from '../_shared/environment.ts'
 
+// FIX: [SM4] - Use configurable Facebook Graph API version instead of hardcoded value
+const GRAPH_API_VERSION = Deno.env.get('FACEBOOK_GRAPH_API_VERSION') || 'v21.0';
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -29,9 +32,25 @@ serve(async (req) => {
     return new Response('ok', { headers: corsHeaders })
   }
 
+  // SECURITY: E3 - Add JWT authentication to prevent unauthenticated access
+  const authHeader = req.headers.get('Authorization');
+  if (!authHeader) {
+    return new Response(JSON.stringify({ error: 'Authorization required' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+  }
+  const token = authHeader.replace('Bearer ', '');
+  const { createClient: createAuthClient } = await import('npm:@supabase/supabase-js@2');
+  const supabaseAuth = createAuthClient(
+    Deno.env.get('SUPABASE_URL') ?? '',
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+  );
+  const { data: { user }, error: authError } = await supabaseAuth.auth.getUser(token);
+  if (authError || !user) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+  }
+
   try {
     const { content_task_id, content, media_url } = await req.json()
-    
+
     // Get the content task and connection info from database
     const { createClient } = await import('npm:@supabase/supabase-js@2')
     const supabaseAdmin = createClient(
@@ -40,6 +59,7 @@ serve(async (req) => {
     )
 
     // Get task and user's Instagram connection
+    // FIX: [SC3] - Add user ownership check to prevent cross-tenant posting
     const { data: task, error: taskError } = await supabaseAdmin
       .from('content_tasks')
       .select(`
@@ -47,6 +67,7 @@ serve(async (req) => {
         social_connections!inner(*)
       `)
       .eq('id', content_task_id)
+      .eq('user_id', user.id)
       .eq('social_connections.platform', 'instagram')
       .single()
 
@@ -64,7 +85,7 @@ serve(async (req) => {
     if (media_url) {
       // Create media object first (strip markdown as Instagram doesn't render it)
       const cleanContent = stripMarkdownForSocial(content);
-      const mediaResponse = await fetch(`https://graph.facebook.com/v19.0/${connection.platform_account_id}/media`, {
+      const mediaResponse = await fetch(`https://graph.facebook.com/${GRAPH_API_VERSION}/${connection.platform_account_id}/media`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -81,7 +102,7 @@ serve(async (req) => {
       }
       
       // Publish the media
-      const publishResponse = await fetch(`https://graph.facebook.com/v19.0/${connection.platform_account_id}/media_publish`, {
+      const publishResponse = await fetch(`https://graph.facebook.com/${GRAPH_API_VERSION}/${connection.platform_account_id}/media_publish`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -107,7 +128,9 @@ serve(async (req) => {
         .update({
           status: 'posted',
           platform_post_id: result.id,
-          platform_post_url: `https://instagram.com/p/${result.id}`,
+          // FIX: [SL1] - Instagram media IDs are not shortcodes; store the ID for API reference
+          platform_post_url: `https://www.instagram.com/`, // Shortcode not available from API; stored as fallback
+          platform_post_id: result.id,
           last_posting_error: null,
           posting_attempts: (task.posting_attempts || 0) + 1
         })
@@ -149,9 +172,10 @@ async function refreshTokenIfNeeded(connection: any, supabaseAdmin: any) {
   if (!connection.expires_at) return
   
   const expiresAt = new Date(connection.expires_at)
-  const twoDaysFromNow = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000)
-  
-  if (expiresAt > twoDaysFromNow) {
+  // FIX: [SH2] - Standardize token refresh threshold to 7 days across all paths
+  const sevenDaysFromNow = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+
+  if (expiresAt > sevenDaysFromNow) {
     return // Token is still valid
   }
 

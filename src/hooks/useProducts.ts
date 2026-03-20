@@ -31,7 +31,10 @@ export function useProducts(options?: UseProductsOptions) {
         .range(from, to);
       
       if (search) {
-        query = query.or(`name.ilike.%${search}%,sku.ilike.%${search}%`);
+        // SECURITY: [PostgREST filter injection] - Sanitize user input before interpolation into .or() filter
+        const sanitizeForPostgrest = (input: string) => input.replace(/[,.()"'\\]/g, '');
+        const safeSearch = sanitizeForPostgrest(search);
+        query = query.or(`name.ilike.%${safeSearch}%,sku.ilike.%${safeSearch}%`);
       }
       
       if (source && source !== 'all') {

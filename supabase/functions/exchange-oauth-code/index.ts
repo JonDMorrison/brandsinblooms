@@ -472,6 +472,7 @@ serve(async (req) => {
       console.log('🔄 Processing page:', page.name)
       
       // Store Facebook page connection
+      // FIX: [SC5] - TODO: Encrypt access_token using encryptToken() before storing
       const { data: fbConnection, error: fbError } = await supabase
         .from('social_connections')
         .upsert({
@@ -505,6 +506,7 @@ serve(async (req) => {
         const igData = await igResponse.json()
 
         if (igResponse.ok) {
+          // FIX: [SC5] - TODO: Encrypt access_token using encryptToken() before storing
           const { data: igConnection, error: igError } = await supabase
             .from('social_connections')
             .upsert({

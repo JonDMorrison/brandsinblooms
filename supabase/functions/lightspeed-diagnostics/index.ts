@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
+// FIX: [P14] - Replace insecure atob() with proper decryptToken
 import { decryptToken, encryptToken } from "../_shared/crypto/tokens.ts";
 
 const CUSTOMER_ENDPOINT_LIMIT = 1;
@@ -190,6 +191,7 @@ function hasActiveStatus(status: string | null | undefined) {
   );
 }
 
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -348,6 +350,7 @@ Deno.serve(async (req) => {
       );
     } else {
       try {
+        // FIX: [P14] - Use proper decryptToken instead of atob()
         accessToken = await decryptToken(connection.encrypted_access_token);
       } catch {
         usedLegacyPlaintextFallback = true;

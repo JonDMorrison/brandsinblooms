@@ -12,6 +12,21 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // SECURITY: E7 - Add JWT authentication to prevent unauthenticated access
+  const authHeader = req.headers.get('Authorization');
+  if (!authHeader) {
+    return new Response(JSON.stringify({ error: 'Authorization required' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+  }
+  const token = authHeader.replace('Bearer ', '');
+  const supabaseAuth = createClient(
+    Deno.env.get('SUPABASE_URL') ?? '',
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+  );
+  const { data: { user }, error: authError } = await supabaseAuth.auth.getUser(token);
+  if (authError || !user) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+  }
+
   try {
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -31,6 +46,23 @@ serve(async (req) => {
     }
 
     console.log('[MEDIA_UPLOAD] Processing upload:', { fileUrl, contentTaskId, canvaDesignId });
+
+    // SECURITY: [X8] - Validate URL to prevent SSRF attacks
+    const parsedUrl = new URL(fileUrl);
+    if (parsedUrl.protocol !== 'https:') {
+      return new Response(JSON.stringify({ error: 'Only HTTPS URLs are allowed' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+    const blockedHosts = ['localhost', '127.0.0.1', '0.0.0.0', '169.254.169.254', 'metadata.google.internal'];
+    const ipMatch = parsedUrl.hostname.match(/^(\d+)\.(\d+)\.(\d+)\.(\d+)$/);
+    if (ipMatch) {
+      const [_, a, b] = ipMatch.map(Number);
+      if (a === 10 || a === 127 || (a === 172 && b >= 16 && b <= 31) || (a === 169 && b === 254) || (a === 192 && b === 168)) {
+        return new Response(JSON.stringify({ error: 'Internal URLs are not allowed' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+    }
+    if (blockedHosts.includes(parsedUrl.hostname)) {
+      return new Response(JSON.stringify({ error: 'Blocked host' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
 
     // Download the image from Canva
     const imageResponse = await fetch(fileUrl);

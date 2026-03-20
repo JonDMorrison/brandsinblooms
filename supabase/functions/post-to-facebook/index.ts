@@ -2,6 +2,9 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { getFacebookCredentials } from '../_shared/environment.ts'
 
+// FIX: [SM4] - Use configurable Facebook Graph API version instead of hardcoded value
+const GRAPH_API_VERSION = Deno.env.get('FACEBOOK_GRAPH_API_VERSION') || 'v21.0';
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -29,9 +32,25 @@ serve(async (req) => {
     return new Response('ok', { headers: corsHeaders })
   }
 
+  // SECURITY: E2 - Add JWT authentication to prevent unauthenticated access
+  const authHeader = req.headers.get('Authorization');
+  if (!authHeader) {
+    return new Response(JSON.stringify({ error: 'Authorization required' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+  }
+  const token = authHeader.replace('Bearer ', '');
+  const { createClient: createAuthClient } = await import('npm:@supabase/supabase-js@2');
+  const supabaseAuth = createAuthClient(
+    Deno.env.get('SUPABASE_URL') ?? '',
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+  );
+  const { data: { user }, error: authError } = await supabaseAuth.auth.getUser(token);
+  if (authError || !user) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+  }
+
   try {
     const { content_task_id, content, platform_post_id } = await req.json()
-    
+
     // Get the content task and connection info from database
     const { createClient } = await import('npm:@supabase/supabase-js@2')
     const supabaseAdmin = createClient(
@@ -40,6 +59,7 @@ serve(async (req) => {
     )
 
     // Get task and user's Facebook connection
+    // FIX: [SC3] - Add user ownership check to prevent cross-tenant posting
     const { data: task, error: taskError } = await supabaseAdmin
       .from('content_tasks')
       .select(`
@@ -47,6 +67,7 @@ serve(async (req) => {
         social_connections!inner(*)
       `)
       .eq('id', content_task_id)
+      .eq('user_id', user.id)
       .eq('social_connections.platform', 'facebook')
       .single()
 
@@ -64,7 +85,7 @@ serve(async (req) => {
     formData.append('message', stripMarkdownForSocial(content))
     formData.append('access_token', connection.access_token)
 
-    const response = await fetch(`https://graph.facebook.com/v19.0/${connection.page_id || connection.platform_account_id}/feed`, {
+    const response = await fetch(`https://graph.facebook.com/${GRAPH_API_VERSION}/${connection.page_id || connection.platform_account_id}/feed`, {
       method: 'POST',
       body: formData
     })
@@ -120,9 +141,10 @@ async function refreshTokenIfNeeded(connection: any, supabaseAdmin: any) {
   if (!connection.expires_at) return
   
   const expiresAt = new Date(connection.expires_at)
-  const twoDaysFromNow = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000)
-  
-  if (expiresAt > twoDaysFromNow) {
+  // FIX: [SH2] - Standardize token refresh threshold to 7 days across all paths
+  const sevenDaysFromNow = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+
+  if (expiresAt > sevenDaysFromNow) {
     return // Token is still valid
   }
 

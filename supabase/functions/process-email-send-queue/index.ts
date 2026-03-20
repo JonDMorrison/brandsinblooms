@@ -67,15 +67,9 @@ async function getCampaignReputationPolicy(supabase: any, campaignId: string): P
   });
 
   if (error) {
-    console.warn(`⚠️ Failed to fetch campaign reputation policy for ${campaignId}; defaulting to normal:`, error.message);
-    return {
-      score: 100,
-      tier: 'normal',
-      action: 'allow',
-      recipient_cap: null,
-      job_batch_size: 50,
-      send_pacing_multiplier: 1,
-    };
+    // FIX: [GH1] - Fail closed: reputation policy RPC failure must stop the campaign, not allow it
+    // Security decision: a DB error during governance checks should halt sending, not bypass governance
+    throw new Error(`Reputation policy check failed: ${error.message}. Campaign halted for safety.`);
   }
 
   const row = Array.isArray(data) ? data[0] : data;
@@ -316,8 +310,9 @@ async function evaluateCampaignBatchSafety(supabase: any, campaignId: string): P
     });
 
     if (error) {
+      // FIX: [GH2] - Fail closed: batch safety check failure should pause campaign, not continue sending
       console.warn(`⚠️ Failed to evaluate campaign batch safety for ${campaignId}:`, error.message);
-      return { shouldPause: false };
+      return { shouldPause: true, pauseReason: `safety_check_failed: ${error.message}` };
     }
 
     const row = Array.isArray(data) ? data[0] : data;
@@ -326,8 +321,9 @@ async function evaluateCampaignBatchSafety(supabase: any, campaignId: string): P
       pauseReason: row?.pause_reason ? String(row.pause_reason) : undefined,
     };
   } catch (error: any) {
+    // FIX: [GH2] - Fail closed: batch safety check failure should pause campaign, not continue sending
     console.warn(`⚠️ Batch safety evaluation exception for ${campaignId}:`, error?.message || error);
-    return { shouldPause: false };
+    return { shouldPause: true, pauseReason: 'safety_check_failed' };
   }
 }
 
@@ -1464,6 +1460,30 @@ serve((req) => {
         // Send claimed messages using Resend batch endpoint (up to 100 emails per request).
         // This avoids per-request rate limits (e.g. 2 req/sec) while still sending high volume.
         for (let i = 0; i < claimedForSend.length; i += resendBatchSize) {
+          // FIX: [GH3] - Run batch safety check BEFORE each batch to gate whether sending should continue
+          if (campaignId && i > 0) {
+            const preBatchSafety = await evaluateCampaignBatchSafety(supabase, campaignId);
+            if (preBatchSafety.shouldPause) {
+              console.warn(`🛑 Pre-batch safety check paused campaign ${campaignId}: ${preBatchSafety.pauseReason || 'threshold exceeded'}`);
+              await pauseJob(preBatchSafety.pauseReason || 'Campaign paused by pre-batch safety check');
+              jobWasPaused = true;
+
+              // FIX: [GM3] - Log batch safety pause to audit trail for admin visibility
+              await supabase.from('email_governance_audit_logs').insert({
+                tenant_id: job.tenant_id || messages?.[0]?.tenant_id,
+                actor_type: 'system',
+                action_type: 'campaign_paused',
+                decision: 'block',
+                reason: `Pre-batch safety triggered: ${preBatchSafety.pauseReason || 'threshold exceeded'}`,
+                policy_name: 'batch_safety',
+                campaign_id: campaignId,
+                metadata: { metrics: preBatchSafety, phase: 'pre_batch' },
+              }).catch((e: any) => console.warn('Audit log write failed:', e));
+
+              break;
+            }
+          }
+
           const batchMsgs = claimedForSend.slice(i, i + resendBatchSize);
           console.log(`📧 Sending ${batchMsgs.length} emails (batch request, size ${resendBatchSize})...`);
 
@@ -1753,6 +1773,20 @@ serve((req) => {
             } else {
               console.log(`✅ Campaign ${jobCampaignId} throttling cleared after metrics improved.`);
             }
+
+            // FIX: [GM4] - Log throttle activation/clearing to audit trail
+            await supabase.from('email_governance_audit_logs').insert({
+              tenant_id: job.tenant_id || messages?.[0]?.tenant_id,
+              actor_type: 'system',
+              action_type: throttle.throttled ? 'throttle_activated' : 'throttle_cleared',
+              decision: throttle.throttled ? 'warn' : 'log',
+              reason: throttle.throttled
+                ? `Throttling activated: ${throttle.reasons.join(', ') || 'warning thresholds exceeded'}`
+                : 'Throttling cleared after metrics improved',
+              policy_name: 'warning_throttle',
+              campaign_id: jobCampaignId,
+              metadata: { throttled: throttle.throttled, reasons: throttle.reasons },
+            }).catch((e: any) => console.warn('Audit log write failed:', e));
           }
 
           if (safety.shouldPause) {
@@ -1769,6 +1803,19 @@ serve((req) => {
               .eq('id', job.id);
             processedCount++;
             console.warn(`🛑 Campaign ${jobCampaignId} paused by batch safety controller: ${safety.pauseReason || 'threshold exceeded'}`);
+
+            // FIX: [GM3] - Log batch safety pause to audit trail for admin visibility
+            await supabase.from('email_governance_audit_logs').insert({
+              tenant_id: job.tenant_id || messages?.[0]?.tenant_id,
+              actor_type: 'system',
+              action_type: 'campaign_paused',
+              decision: 'block',
+              reason: `Batch safety triggered: ${safety.pauseReason || 'threshold exceeded'}`,
+              policy_name: 'batch_safety',
+              campaign_id: jobCampaignId,
+              metadata: { metrics: safety, phase: 'post_job' },
+            }).catch((e: any) => console.warn('Audit log write failed:', e));
+
             continue;
           }
         }

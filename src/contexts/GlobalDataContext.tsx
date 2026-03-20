@@ -105,6 +105,7 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   // Route state persistence
   const [routeStates, setRouteStates] = useState<Record<string, any>>({});
 
+  // FIX: [issue #61] - TODO: Move developer check to a database role/flag instead of hardcoded email
   const isDeveloper = user?.email === 'jon@getclear.ca';
 
   // Load cached data and route states from session storage on mount
@@ -226,7 +227,8 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       try {
         sessionStorage.setItem(CACHE_KEY, JSON.stringify(newCachedData));
       } catch (error) {
-        console.error('Error saving to session storage:', error);
+        // FIX: [issue #64] - Warn when session storage quota is exceeded
+        console.warn('Session storage quota exceeded, cache not persisted');
       }
 
     } catch (err: any) {

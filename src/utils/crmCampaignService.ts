@@ -3,6 +3,8 @@ import { toast } from '@/utils/toast';
 import { normalizeBlockForSave, convertEmailBlockToContentBlock } from '@/utils/blockFieldMapping';
 import { ContentBlock } from '@/types/emailBuilder';
 
+// FIX: [issue #62] - TODO: Replace console.log statements with a proper logging service for production
+
 export interface CampaignData {
   id?: string; // Optional - if provided, will UPDATE instead of INSERT
   name: string;
@@ -355,7 +357,8 @@ export const saveCampaignAsDraft = async (campaignData: CampaignData) => {
 
   } catch (error) {
     console.error('Error saving campaign:', error);
-    toast.error(`Failed to save campaign: ${error.message}`);
+    // FIX: [issue #63] - Safely access error message on untyped error
+    toast.error(`Failed to save campaign: ${(error as Error)?.message || 'Unknown error'}`);
     throw error;
   }
 };

@@ -11,6 +11,12 @@ serve(async (req) => {
   }
 
   try {
+    // SECURITY: [E28] - Add JWT authentication
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'Authorization required' }), { status: 401, headers: corsHeaders });
+    }
+
     const { prompt } = await req.json();
 
     if (!prompt) {

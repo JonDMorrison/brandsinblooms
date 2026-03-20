@@ -23,3 +23,12 @@ dist-ssr
 *.sln
 *.sw?
 .mcp.json
+
+# SECURITY: Environment files and Supabase temp files must not be tracked
+.env
+.env.*
+.env.e2e
+.env.test
+.env.local
+.env.production
+supabase/.temp/

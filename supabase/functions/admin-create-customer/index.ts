@@ -12,13 +12,41 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
+    // FIX: [issue #1] - Add JWT authentication to prevent unauthenticated access
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'No authorization header' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
+    if (authError || !user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
     const body = await req.json();
     const { action } = body;
+
+    // SECURITY: [T2] - Verify authenticated user's tenant matches requested tenant
+    const { data: callerData } = await supabaseAdmin.from('users').select('tenant_id').eq('id', user.id).single();
+    if (!callerData?.tenant_id) {
+      return new Response(JSON.stringify({ error: 'Could not resolve caller tenant' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+    const callerTenantId = callerData.tenant_id;
+
+    // SECURITY: [T2] - Helper to verify a campaign belongs to the caller's tenant
+    async function verifyCampaignTenant(campaignId: string) {
+      const { data: campaign } = await supabaseAdmin.from('crm_campaigns').select('tenant_id').eq('id', campaignId).single();
+      if (!campaign || campaign.tenant_id !== callerTenantId) {
+        throw new Error('Campaign does not belong to your tenant');
+      }
+    }
 
     // Route by action
     if (action === "reset_campaign") {
       const { campaign_id } = body;
       if (!campaign_id) throw new Error("campaign_id is required");
+      // SECURITY: [T2] - Verify campaign belongs to caller's tenant
+      await verifyCampaignTenant(campaign_id);
 
       const { data: updated, error: updErr } = await supabaseAdmin
         .from("crm_campaigns")
@@ -44,6 +72,8 @@ Deno.serve(async (req) => {
     if (action === "clear_and_resend_campaign") {
       const { campaign_id } = body;
       if (!campaign_id) throw new Error("campaign_id is required");
+      // SECURITY: [T2] - Verify campaign belongs to caller's tenant
+      await verifyCampaignTenant(campaign_id);
 
       // Delete old email_send_jobs
       const { error: delJobsErr } = await supabaseAdmin
@@ -95,6 +125,8 @@ Deno.serve(async (req) => {
     if (action === "finalize_campaign") {
       const { campaign_id } = body;
       if (!campaign_id) throw new Error("campaign_id is required");
+      // SECURITY: [T2] - Verify campaign belongs to caller's tenant
+      await verifyCampaignTenant(campaign_id);
 
       // Check if all email_send_jobs are completed
       const { data: pendingJobs } = await supabaseAdmin
@@ -154,6 +186,10 @@ Deno.serve(async (req) => {
 
     if (action === "create_customer") {
       const { email, first_name, last_name, tenant_id, segment_ids } = body;
+      // SECURITY: [T2] - Verify requested tenant_id matches caller's tenant
+      if (tenant_id && tenant_id !== callerTenantId) {
+        return new Response(JSON.stringify({ error: 'Tenant mismatch: you can only create customers in your own tenant' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
       const { data: customer, error: custErr } = await supabaseAdmin
         .from("crm_customers")
         .insert({ email, first_name, last_name, tenant_id })
@@ -181,6 +217,10 @@ Deno.serve(async (req) => {
     // Legacy fallback: if no action specified, assume create_customer
     if (body.email) {
       const { email, first_name, last_name, tenant_id, segment_ids } = body;
+      // SECURITY: [T2] - Verify requested tenant_id matches caller's tenant
+      if (tenant_id && tenant_id !== callerTenantId) {
+        return new Response(JSON.stringify({ error: 'Tenant mismatch: you can only create customers in your own tenant' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
       const { data: customer, error: custErr } = await supabaseAdmin
         .from("crm_customers")
         .insert({ email, first_name, last_name, tenant_id })
@@ -207,6 +247,8 @@ Deno.serve(async (req) => {
     if (action === "update_campaign_sender") {
       const { campaign_id, sender_email, domain_id } = body;
       if (!campaign_id || !sender_email || !domain_id) throw new Error("campaign_id, sender_email, domain_id are required");
+      // SECURITY: [T2] - Verify campaign belongs to caller's tenant
+      await verifyCampaignTenant(campaign_id);
 
       const { data: updated, error: updErr } = await supabaseAdmin
         .from("crm_campaigns")

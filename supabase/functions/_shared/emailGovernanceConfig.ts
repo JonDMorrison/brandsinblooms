@@ -16,7 +16,8 @@ export interface EmailGovernanceRuntimeConfig {
   };
 }
 
-const CACHE_TTL_MS = 15_000;
+// FIX: [GM1] - Reduce cache TTL from 15s to 5s for faster emergency response (tradeoff: slightly more DB queries)
+const CACHE_TTL_MS = 5_000;
 const configCache = new Map<string, { value: EmailGovernanceRuntimeConfig; until: number }>();
 
 type GovernanceConfigClient = {

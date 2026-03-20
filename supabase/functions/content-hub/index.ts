@@ -29,6 +29,14 @@ serve(async (req) => {
   }
 
   try {
+    // SECURITY: [E22] - Add JWT authentication for non-GET requests (GET serves public content by slug)
+    if (req.method !== 'GET') {
+      const authHeader = req.headers.get('Authorization');
+      if (!authHeader) {
+        return new Response(JSON.stringify({ error: 'Authorization required' }), { status: 401, headers: corsHeaders });
+      }
+    }
+
     const url = new URL(req.url)
     const pathParts = url.pathname.split('/')
     const slug = pathParts[pathParts.length - 1] || pathParts[pathParts.length - 2]

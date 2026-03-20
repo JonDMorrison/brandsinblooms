@@ -109,6 +109,7 @@ function calculatePreferredChannel(customer: {
 /**
  * Update a customer's SMS consent status and record the event
  */
+// FIX: [issue #51] - TODO: Wrap SMS consent update in a database transaction (RPC) to ensure atomicity
 export async function updateCustomerSMSConsent(params: {
   tenantId: string;
   customerId: string;

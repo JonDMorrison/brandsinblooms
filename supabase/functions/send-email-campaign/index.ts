@@ -109,15 +109,9 @@ async function getCampaignReputationPolicy(supabase: any, campaignId: string): P
   });
 
   if (error) {
-    console.warn('⚠️ Failed to fetch campaign reputation policy, defaulting to normal:', error.message);
-    return {
-      score: 100,
-      tier: 'normal',
-      action: 'allow',
-      recipient_cap: null,
-      job_batch_size: DEFAULT_BATCH_SIZE_PER_JOB,
-      send_pacing_multiplier: 1,
-    };
+    // FIX: [GH1] - Fail closed: reputation policy RPC failure must stop the campaign, not allow it
+    // Security decision: a DB error during governance checks should halt sending, not bypass governance
+    throw new Error(`Reputation policy check failed: ${error.message}. Campaign halted for safety.`);
   }
 
   const row = Array.isArray(data) ? data[0] : data;
@@ -720,12 +714,14 @@ serve(async (req: Request) => {
       }
     }
 
+    // FIX: [issue #6] - Filter out customers who have not opted in to email (CAN-SPAM/CASL compliance)
     const buildCustomersQuery = () =>
       supabase
         .from('crm_customers')
-        .select('id, first_name, last_name, email, suppressed, suppressed_reason, created_at, last_open_at, last_email_clicked_at')
+        .select('id, first_name, last_name, email, email_opt_in, suppressed, suppressed_reason, created_at, last_open_at, last_email_clicked_at')
         .eq('tenant_id', campaign.tenant_id)
-        .not('email', 'is', null);
+        .not('email', 'is', null)
+        .not('email_opt_in', 'is', false);
 
     if (allowedCustomerIds) {
       console.log(`📧 Final audience after targeting: ${allowedCustomerIds.length} customers`);
@@ -831,11 +827,28 @@ serve(async (req: Request) => {
       });
     }
 
+    // FIX: [FP1] - Skip volume_spike check for new tenants with fewer than 500 historical sends
+    // New tenants have sparse send history, making the 3x-14d-average spike detector trigger false positives.
+    // We pass a skip flag so the abuse RPC can bypass the volume_spike_3x_14d_avg heuristic.
+    let skipVolumeSpikeCheck = false;
+    {
+      const { data: sendCountData, error: sendCountErr } = await supabase
+        .from('email_governance_email_events')
+        .select('id', { count: 'exact', head: true })
+        .eq('tenant_id', campaign.tenant_id)
+        .eq('event_type', 'sent');
+      if (!sendCountErr && typeof sendCountData === 'number' ? sendCountData < 500 : (sendCountData as any)?.length < 500) {
+        skipVolumeSpikeCheck = true;
+        console.log(`ℹ️ New tenant grace period: skipping volume spike check (< 500 historical sends)`);
+      }
+    }
+
     const { data: abuseEnforcementResult, error: abuseEnforcementError } = await supabase.rpc(
       'maybe_enforce_tenant_abuse_under_review',
       {
         p_campaign_id: campaignId,
         p_source: 'send_email_campaign',
+        ...(skipVolumeSpikeCheck ? { p_skip_volume_spike: true } : {}),
       }
     );
 

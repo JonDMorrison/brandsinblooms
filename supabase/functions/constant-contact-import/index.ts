@@ -3,6 +3,8 @@ import {
   decryptToken,
   assertEncryptionKeyConfigured,
 } from "../_shared/crypto/tokens.ts";
+// IMPROVEMENT: Proactive token refresh for Constant Contact
+import { getValidCCAccessToken } from '../_shared/ccTokenRefresh.ts';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -83,7 +85,7 @@ Deno.serve(async (req) => {
     // Get connection
     const { data: connection, error: connectionError } = await supabase
       .from("provider_connections")
-      .select("encrypted_access_token")
+      .select("id, encrypted_access_token, encrypted_refresh_token, token_expires_at")
       .eq("user_id", user.id)
       .eq("provider", "constant_contact")
       .eq("status", "connected")
@@ -93,12 +95,13 @@ Deno.serve(async (req) => {
       throw new Error("Constant Contact not connected");
     }
 
+    // IMPROVEMENT: Proactive token refresh if within 5 min of expiry
     let accessToken: string;
     try {
-      accessToken = await decryptToken(connection.encrypted_access_token);
+      accessToken = await getValidCCAccessToken(supabase, connection);
     } catch (error: any) {
       throw new Error(
-        "Failed to decrypt access token. Please reconnect Constant Contact.",
+        "Failed to get valid access token. Please reconnect Constant Contact.",
       );
     }
 
@@ -146,6 +149,7 @@ Deno.serve(async (req) => {
         for (let i = 0; i < contacts.length; i += batchSize) {
           const batch = contacts.slice(i, i + batchSize);
 
+          // FIX: [issue #65] - TODO: Batch customer upserts instead of processing individually (N+1 pattern)
           for (const contact of batch) {
             const email = contact.email_address?.address?.toLowerCase();
             if (!email) {

@@ -56,7 +56,10 @@ export const useTickets = (options: UseTicketsOptions = {}) => {
         query = query.eq('assigned_to', options.assignedTo);
       }
       if (options.search) {
-        query = query.or(`subject.ilike.%${options.search}%,ticket_number.ilike.%${options.search}%`);
+        // SECURITY: [PostgREST filter injection] - Sanitize user input before interpolation into .or() filter
+        const sanitizeForPostgrest = (input: string) => input.replace(/[,.()"'\\]/g, '');
+        const safeSearch = sanitizeForPostgrest(options.search);
+        query = query.or(`subject.ilike.%${safeSearch}%,ticket_number.ilike.%${safeSearch}%`);
       }
 
       // Pagination

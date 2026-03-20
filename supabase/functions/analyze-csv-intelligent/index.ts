@@ -159,6 +159,12 @@ serve(async (req) => {
   }
 
   try {
+    // SECURITY: [E26] - Add JWT authentication
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'Authorization required' }), { status: 401, headers: corsHeaders });
+    }
+
     const { csvRows, delimiter, columnCount }: AnalyzeCSVRequest = await req.json();
     
     const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');

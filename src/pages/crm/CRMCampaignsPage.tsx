@@ -71,6 +71,18 @@ export const CRMCampaignsPage: React.FC = () => {
   const handleDeleteConfirm = async () => {
     if (!campaignToDelete) return;
 
+    // FIX: [issue #43] - Prevent deleting campaigns that are currently sending
+    if (campaignToDelete.status === 'sending') {
+      toast({
+        title: "Cannot delete",
+        description: "This campaign is currently sending and cannot be deleted.",
+        variant: "destructive",
+      });
+      setDeleteDialogOpen(false);
+      setCampaignToDelete(null);
+      return;
+    }
+
     setIsDeleting(true);
     try {
       const { error } = await supabase

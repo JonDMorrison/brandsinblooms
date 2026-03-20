@@ -13,6 +13,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
+import { sanitizeHtml } from '@/utils/htmlSanitizer';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
@@ -405,8 +406,91 @@ Write a 75-word email using the persona's tone and style: ${aiPrompt}
     }
   };
 
+  // FIX: [issue #13] - Send Now must invoke the send edge function, not just mark status as 'sent'
   const sendNow = async () => {
-    await saveCampaign('sent');
+    if (!formData.name.trim() || !formData.subject_line.trim()) {
+      toast({
+        title: "Error",
+        description: "Campaign name and subject line are required",
+        variant: "destructive"
+      });
+      return;
+    }
+    if (!formData.segment_id) {
+      toast({
+        title: "Error",
+        description: "Please select a customer segment",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { data: userData } = await supabase
+        .from('users')
+        .select('tenant_id')
+        .eq('id', user?.id)
+        .single();
+
+      if (!userData?.tenant_id) {
+        throw new Error('No tenant found');
+      }
+
+      const campaignData = {
+        name: formData.name,
+        subject_line: formData.subject_line,
+        content: formData.content,
+        segment_id: formData.segment_id,
+        status: 'draft' as const,
+        tenant_id: userData.tenant_id,
+        user_id: user?.id,
+        metrics: { emails_sent: 0, opens: 0, clicks: 0, bounces: 0 }
+      };
+
+      const { data: inserted, error: insertError } = await supabase
+        .from('crm_campaigns')
+        .insert(campaignData)
+        .select('id')
+        .single();
+
+      if (insertError || !inserted) throw insertError || new Error('Failed to create campaign');
+
+      const { data: claimData, error: claimError } = await supabase.rpc('claim_campaign_for_send', {
+        campaign_id: inserted.id
+      });
+
+      if (claimError || !claimData?.[0]?.success) {
+        throw new Error(claimData?.[0]?.error_message || claimError?.message || 'Failed to claim campaign for send');
+      }
+
+      const { error: sendError } = await supabase.functions.invoke('send-email-campaign', {
+        body: { campaignId: inserted.id }
+      });
+
+      if (sendError) {
+        await supabase
+          .from('crm_campaigns')
+          .update({ status: 'failed', send_error: sendError.message })
+          .eq('id', inserted.id);
+        throw new Error(sendError.message || 'Failed to send campaign');
+      }
+
+      toast({
+        title: "Success",
+        description: "Campaign is being sent!"
+      });
+      navigate('/crm/campaigns');
+    } catch (error: any) {
+      console.error('Error sending campaign:', error);
+      toast({
+        title: "Error",
+        description: error?.message || "Failed to send campaign",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const scheduleForLater = async () => {
@@ -699,7 +783,8 @@ Write a 75-word email using the persona's tone and style: ${aiPrompt}
                           </div>
                           <div className="prose max-w-none">
                             {formData.content ? (
-                              <div dangerouslySetInnerHTML={{ __html: formData.content.replace(/\n/g, '<br>') }} />
+                              // SECURITY: X4 - Sanitize HTML to prevent XSS
+                              <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(formData.content.replace(/\n/g, '<br>')) }} />
                             ) : (
                               <p className="text-muted-foreground italic">No content yet</p>
                             )}
