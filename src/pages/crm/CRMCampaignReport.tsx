@@ -27,15 +27,24 @@ import {
 import { BouncedEmailsList } from "@/components/crm/BouncedEmailsList";
 import { useCampaignBounces } from "@/hooks/useCampaignBounces";
 import { CampaignGovernanceMetricsCard } from "@/components/crm/CampaignGovernanceMetricsCard";
+import { normalizeDerivedMetrics } from "@/hooks/analytics/useCampaignDerivedMetrics";
 
 interface CampaignMetrics {
   sent: number;
   delivered: number;
+  successfulReach: number;
+  uniqueEngaged: number;
   opened: number;
   clicked: number;
   bounced: number;
+  hardBounces: number;
   unsubscribed: number;
-  revenue: number;
+  reachScore: number;
+  interactionScore: number;
+  deliveryRate: number;
+  openRate: number;
+  clickRate: number;
+  clickToOpenRate: number;
 }
 
 function toNumber(value: unknown, fallback = 0): number {
@@ -45,49 +54,70 @@ function toNumber(value: unknown, fallback = 0): number {
 
 /**
  * Normalizes campaign.metrics which exists in two shapes:
- * - legacy flat: { sent, delivered, opened, clicked, bounced, unsubscribed, revenue }
- * - derived (current): { totals: { sent, delivered, opens, clicks, bounces, unsubscribes }, rates: {...} }
+ * - legacy flat: { sent, delivered, opened, clicked, bounced, unsubscribed }
+ * - derived (current): { totals: {...}, scores: {...}, rates: {...} }
  */
 function normalizeCampaignMetrics(campaign: any): CampaignMetrics {
-  const m = campaign?.metrics;
+  const derived = normalizeDerivedMetrics(campaign?.metrics);
 
-  // Prefer the derived metrics shape
-  const totals = m && typeof m === "object" ? (m as any).totals : null;
-  if (totals && typeof totals === "object") {
+  if (derived) {
     return {
-      sent: toNumber(totals.sent ?? campaign?.total_sent, 0),
-      delivered: toNumber(totals.delivered, 0),
-      opened: toNumber(
-        totals.opens ?? totals.opened ?? campaign?.total_opens,
-        0,
-      ),
-      clicked: toNumber(
-        totals.clicks ?? totals.clicked ?? campaign?.total_clicks,
-        0,
-      ),
-      bounced: toNumber(totals.bounces ?? totals.bounced, 0),
-      unsubscribed: toNumber(totals.unsubscribes ?? totals.unsubscribed, 0),
-      revenue: toNumber((totals as any).revenue ?? (m as any)?.revenue, 0),
+      sent: derived.totals.sent,
+      delivered: derived.totals.delivered,
+      successfulReach: derived.totals.successful_reach,
+      uniqueEngaged: derived.totals.unique_engaged,
+      opened: derived.totals.opens,
+      clicked: derived.totals.clicks,
+      bounced: derived.totals.bounces,
+      hardBounces: derived.totals.hard_bounces,
+      unsubscribed: derived.totals.unsubscribes,
+      reachScore: derived.scores.reach,
+      interactionScore: derived.scores.interaction,
+      deliveryRate: derived.rates.delivery,
+      openRate: derived.rates.open_reported,
+      clickRate: derived.rates.click,
+      clickToOpenRate: derived.rates.click_to_open,
     };
   }
 
-  // Fallback to legacy flat shape + campaign columns
-  // Use campaign-level columns as override when flat metrics show 0 but columns have real values
-  const flat = m && typeof m === "object" ? (m as any) : {};
+  const flat =
+    campaign?.metrics && typeof campaign.metrics === "object"
+      ? (campaign.metrics as any)
+      : {};
+  const sent = toNumber(flat.sent ?? campaign?.total_sent, 0);
+  const delivered = toNumber(flat.delivered, 0);
+  const opened = toNumber(
+    flat.opened || flat.opens || 0 || campaign?.total_opens,
+    0,
+  );
+  const clicked = toNumber(
+    flat.clicked || flat.clicks || 0 || campaign?.total_clicks,
+    0,
+  );
+  const hardBounces = toNumber(
+    flat.hard_bounces ?? flat.bounces ?? flat.bounced,
+    0,
+  );
+  const successfulReach = Math.max(delivered - hardBounces, 0);
+  const uniqueEngaged = Math.max(opened, clicked);
+
   return {
-    sent: toNumber(flat.sent ?? campaign?.total_sent, 0),
-    delivered: toNumber(flat.delivered, 0),
-    opened: toNumber(
-      (flat.opened || flat.opens || 0) || campaign?.total_opens,
-      0,
-    ),
-    clicked: toNumber(
-      (flat.clicked || flat.clicks || 0) || campaign?.total_clicks,
-      0,
-    ),
+    sent,
+    delivered,
+    successfulReach,
+    uniqueEngaged,
+    opened,
+    clicked,
     bounced: toNumber(flat.bounced ?? flat.bounces, 0),
+    hardBounces,
     unsubscribed: toNumber(flat.unsubscribed ?? flat.unsubscribes, 0),
-    revenue: toNumber(flat.revenue, 0),
+    reachScore: sent > 0 ? (successfulReach / sent) * 100 : 0,
+    interactionScore:
+      successfulReach > 0 ? (uniqueEngaged / successfulReach) * 100 : 0,
+    deliveryRate: sent > 0 ? (delivered / sent) * 100 : 0,
+    openRate: successfulReach > 0 ? (opened / successfulReach) * 100 : 0,
+    clickRate: successfulReach > 0 ? (clicked / successfulReach) * 100 : 0,
+    clickToOpenRate: opened > 0 ? (clicked / opened) * 100 : 0,
   };
 }
 
@@ -179,11 +209,6 @@ const CRMCampaignReport: React.FC = () => {
 
   const loading = campaignLoading;
 
-  const calculateRate = (numerator: number, denominator: number) => {
-    if (denominator === 0) return 0;
-    return (numerator / denominator) * 100;
-  };
-
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("en-US", {
       weekday: "long",
@@ -230,11 +255,12 @@ const CRMCampaignReport: React.FC = () => {
   }
 
   const metrics = normalizeCampaignMetrics(campaign);
+  const canViewRecipients = ["sent", "sending", "sent_with_errors"].includes(
+    campaign.status,
+  );
 
-  const openRate = calculateRate(metrics.opened, metrics.delivered);
-  const clickRate = calculateRate(metrics.clicked, metrics.opened);
-  const deliveryRate = calculateRate(metrics.delivered, metrics.sent);
-  const bounceRate = calculateRate(metrics.bounced, metrics.sent);
+  const bounceRate =
+    metrics.sent > 0 ? (metrics.hardBounces / metrics.sent) * 100 : 0;
 
   return (
     <div className="min-h-screen bg-background p-6">
@@ -249,6 +275,18 @@ const CRMCampaignReport: React.FC = () => {
             <p className="text-muted-foreground">{campaign.name}</p>
           </div>
           <div className="flex items-center gap-2">
+            {canViewRecipients && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  navigate(`/dashboard/campaigns/${campaignId}/recipients`)
+                }
+              >
+                <Users className="mr-2 h-4 w-4" />
+                View Recipients
+              </Button>
+            )}
             <Badge
               variant={campaign.status === "sent" ? "secondary" : "default"}
             >
@@ -321,10 +359,10 @@ const CRMCampaignReport: React.FC = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">
-                    Delivered
+                    Successful Reach
                   </p>
                   <p className="text-2xl font-bold">
-                    {metrics.delivered.toLocaleString()}
+                    {metrics.successfulReach.toLocaleString()}
                   </p>
                 </div>
                 <Users className="h-8 w-8 text-primary" />
@@ -337,10 +375,10 @@ const CRMCampaignReport: React.FC = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">
-                    Opened
+                    Reach
                   </p>
                   <p className="text-2xl font-bold">
-                    {metrics.opened.toLocaleString()}
+                    {metrics.reachScore.toFixed(1)}%
                   </p>
                 </div>
                 <Eye className="h-8 w-8 text-primary" />
@@ -353,10 +391,10 @@ const CRMCampaignReport: React.FC = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">
-                    Clicked
+                    Interaction
                   </p>
                   <p className="text-2xl font-bold">
-                    {metrics.clicked.toLocaleString()}
+                    {metrics.interactionScore.toFixed(1)}%
                   </p>
                 </div>
                 <MousePointer className="h-8 w-8 text-primary" />
@@ -402,6 +440,58 @@ const CRMCampaignReport: React.FC = () => {
 
         <CampaignGovernanceMetricsCard campaignId={campaignId} />
 
+        <Card>
+          <CardHeader>
+            <CardTitle>Supporting Diagnostics</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+              <div className="rounded-lg bg-muted p-4 text-center">
+                <p className="text-2xl font-bold">
+                  {metrics.delivered.toLocaleString()}
+                </p>
+                <p className="text-sm text-muted-foreground">Delivered</p>
+                <p className="text-xs text-muted-foreground">
+                  {metrics.deliveryRate.toFixed(1)}% delivery
+                </p>
+              </div>
+              <div className="rounded-lg bg-muted p-4 text-center">
+                <p className="text-2xl font-bold">
+                  {metrics.uniqueEngaged.toLocaleString()}
+                </p>
+                <p className="text-sm text-muted-foreground">Unique Engaged</p>
+              </div>
+              <div className="rounded-lg bg-muted p-4 text-center">
+                <p className="text-2xl font-bold">
+                  {metrics.opened.toLocaleString()}
+                </p>
+                <p className="text-sm text-muted-foreground">Opens</p>
+                <p className="text-xs text-muted-foreground">
+                  {metrics.openRate.toFixed(1)}% open rate
+                </p>
+              </div>
+              <div className="rounded-lg bg-muted p-4 text-center">
+                <p className="text-2xl font-bold">
+                  {metrics.clicked.toLocaleString()}
+                </p>
+                <p className="text-sm text-muted-foreground">Clicks</p>
+                <p className="text-xs text-muted-foreground">
+                  {metrics.clickRate.toFixed(1)}% click rate
+                </p>
+              </div>
+              <div className="rounded-lg bg-muted p-4 text-center">
+                <p className="text-2xl font-bold">
+                  {metrics.hardBounces.toLocaleString()}
+                </p>
+                <p className="text-sm text-muted-foreground">Hard Bounces</p>
+                <p className="text-xs text-muted-foreground">
+                  {bounceRate.toFixed(1)}% bounce rate
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Performance Insights */}
         {campaign.status === "sent" && (
           <Card>
@@ -413,38 +503,38 @@ const CRMCampaignReport: React.FC = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {openRate > 25 ? (
+                {metrics.reachScore > 70 ? (
                   <div className="flex items-center gap-2 text-green-600">
                     <TrendingUp className="h-4 w-4" />
                     <span className="text-sm">
-                      Great open rate! Your subject line resonated well with
-                      your audience.
+                      Reach is strong. Most intended recipients were reached
+                      successfully.
                     </span>
                   </div>
                 ) : (
                   <div className="flex items-center gap-2 text-yellow-600">
                     <AlertTriangle className="h-4 w-4" />
                     <span className="text-sm">
-                      Consider A/B testing different subject lines to improve
-                      open rates.
+                      Reach is below target. Review delivery coverage and
+                      hard-bounce causes before optimizing engagement.
                     </span>
                   </div>
                 )}
 
-                {clickRate > 5 ? (
+                {metrics.interactionScore > 35 ? (
                   <div className="flex items-center gap-2 text-green-600">
                     <MousePointer className="h-4 w-4" />
                     <span className="text-sm">
-                      Excellent click-through rate! Your content is engaging
-                      your audience.
+                      Interaction is strong. The campaign content generated
+                      engagement after delivery.
                     </span>
                   </div>
                 ) : (
                   <div className="flex items-center gap-2 text-yellow-600">
                     <AlertTriangle className="h-4 w-4" />
                     <span className="text-sm">
-                      Try adding clearer call-to-action buttons to increase
-                      engagement.
+                      Interaction is trailing reach. Review content, calls to
+                      action, and audience targeting.
                     </span>
                   </div>
                 )}

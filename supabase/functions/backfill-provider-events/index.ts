@@ -10,6 +10,7 @@ interface BackfillRequest {
   campaignId: string;
   startDate?: string;
   endDate?: string;
+  replayStoredDeliveries?: boolean;
 }
 
 // Hash IP address for privacy
@@ -39,23 +40,23 @@ function sleep(ms: number): Promise<void> {
 
 // Fetch with exponential backoff
 async function fetchWithBackoff(
-  url: string, 
-  options: RequestInit, 
+  url: string,
+  options: RequestInit,
   maxRetries: number = 3
 ): Promise<Response> {
   let lastError: Error | null = null;
-  
+
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
       const response = await fetch(url, options);
-      
+
       if (response.status === 429 || response.status >= 500) {
         const backoffMs = Math.pow(2, attempt) * 1000 + Math.random() * 1000;
         console.log(`⏳ Rate limited or server error (${response.status}), backing off ${backoffMs}ms...`);
         await sleep(backoffMs);
         continue;
       }
-      
+
       return response;
     } catch (error) {
       lastError = error as Error;
@@ -64,11 +65,135 @@ async function fetchWithBackoff(
       await sleep(backoffMs);
     }
   }
-  
+
   throw lastError || new Error('Max retries exceeded');
 }
 
 const MAX_WINDOW_DAYS = 7;
+
+const EMAIL_TRACKING_WEBHOOK_PATH = '/functions/v1/email-tracking-webhook';
+
+function isBackfilledEvent(eventData: any): boolean {
+  return String(eventData?.backfilled || 'false').toLowerCase() === 'true';
+}
+
+function toHeaderRecord(value: unknown): Record<string, string> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+
+  return Object.entries(value as Record<string, unknown>).reduce<Record<string, string>>((accumulator, [key, headerValue]) => {
+    if (typeof headerValue === 'string' && headerValue.trim()) {
+      accumulator[key.toLowerCase()] = headerValue;
+    }
+    return accumulator;
+  }, {});
+}
+
+async function replayStoredDeliveries(options: {
+  campaignId: string;
+  tenantId: string;
+  startDate: string;
+  endDate: string;
+  supabase: any;
+  supabaseUrl: string;
+  serviceRoleKey: string;
+  retryToken?: string | null;
+}) {
+  const { campaignId, tenantId, startDate, endDate, supabase, supabaseUrl, serviceRoleKey, retryToken } = options;
+
+  const webhookUrl = `${supabaseUrl}${EMAIL_TRACKING_WEBHOOK_PATH}`;
+
+  const [{ data: trackedRows, error: trackedError }, { data: deliveryRows, error: deliveryError }] = await Promise.all([
+    supabase
+      .from('email_tracking_events')
+      .select('webhook_delivery_id, event_data')
+      .eq('campaign_id', campaignId),
+    supabase
+      .from('email_governance_webhook_deliveries')
+      .select('delivery_id, event_type, headers, raw_payload, received_at, provider_message_id, processing_status')
+      .eq('tenant_id', tenantId)
+      .eq('campaign_id', campaignId)
+      .eq('provider', 'resend')
+      .gte('received_at', startDate)
+      .lte('received_at', endDate)
+      .order('received_at', { ascending: true }),
+  ]);
+
+  if (trackedError) throw trackedError;
+  if (deliveryError) throw deliveryError;
+
+  const existingDeliveryIds = new Set(
+    (trackedRows || [])
+      .map((row: any) => String(row.webhook_delivery_id || '').trim())
+      .filter(Boolean),
+  );
+
+  let candidates = 0;
+  let replayed = 0;
+  let duplicates = 0;
+  let failed = 0;
+
+  for (const delivery of deliveryRows || []) {
+    const deliveryId = String(delivery.delivery_id || '').trim();
+    const rawPayload = delivery.raw_payload;
+
+    if (!deliveryId || existingDeliveryIds.has(deliveryId)) continue;
+    if (!rawPayload || typeof rawPayload !== 'object' || Array.isArray(rawPayload)) continue;
+
+    candidates++;
+
+    const storedHeaders = toHeaderRecord(delivery.headers);
+    const response = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${serviceRoleKey}`,
+        'apikey': serviceRoleKey,
+        'x-webhook-retry-token': retryToken || '',
+        'x-retry-delivery-id': deliveryId,
+        'x-backfill-replay': 'true',
+        'x-backfill-source': 'email_governance_webhook_deliveries',
+        'svix-id': deliveryId,
+        'user-agent': storedHeaders['user-agent'] || 'campaign-backfill-replay',
+      },
+      body: JSON.stringify(rawPayload),
+    });
+
+    const bodyText = await response.text();
+    let parsedBody: any = null;
+
+    try {
+      parsedBody = bodyText ? JSON.parse(bodyText) : null;
+    } catch {
+      parsedBody = null;
+    }
+
+    if (!response.ok) {
+      failed++;
+      console.error('❌ Failed to replay stored webhook delivery', {
+        campaignId,
+        deliveryId,
+        status: response.status,
+        body: bodyText,
+      });
+      continue;
+    }
+
+    if (parsedBody?.duplicate) {
+      duplicates++;
+      continue;
+    }
+
+    replayed++;
+    existingDeliveryIds.add(deliveryId);
+  }
+
+  return {
+    candidates,
+    replayed,
+    duplicates,
+    failed,
+  };
+}
 
 serve(async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
@@ -76,7 +201,7 @@ serve(async (req: Request): Promise<Response> => {
   }
 
   try {
-    const { campaignId, startDate, endDate }: BackfillRequest = await req.json();
+    const { campaignId, startDate, endDate, replayStoredDeliveries = true }: BackfillRequest = await req.json();
 
     if (!campaignId) {
       return new Response(
@@ -90,7 +215,8 @@ serve(async (req: Request): Promise<Response> => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const resendApiKey = Deno.env.get('RESEND_API_KEY');
-    
+    const webhookRetryToken = Deno.env.get('WEBHOOK_RETRY_TOKEN');
+
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Get campaign details
@@ -109,7 +235,7 @@ serve(async (req: Request): Promise<Response> => {
 
     // Calculate time window: default to [sent_at - 1 hour, now]
     const effectiveStartDate = startDate || (
-      campaign.sent_at 
+      campaign.sent_at
         ? new Date(new Date(campaign.sent_at).getTime() - 60 * 60 * 1000).toISOString()
         : new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
     );
@@ -119,10 +245,10 @@ serve(async (req: Request): Promise<Response> => {
     const startTime = new Date(effectiveStartDate).getTime();
     const endTime = new Date(effectiveEndDate).getTime();
     const windowDays = (endTime - startTime) / (1000 * 60 * 60 * 24);
-    
+
     if (windowDays > MAX_WINDOW_DAYS) {
       return new Response(
-        JSON.stringify({ 
+        JSON.stringify({
           error: `Backfill window exceeds maximum of ${MAX_WINDOW_DAYS} days`,
           windowDays: windowDays.toFixed(1),
           maxDays: MAX_WINDOW_DAYS
@@ -137,8 +263,8 @@ serve(async (req: Request): Promise<Response> => {
     if (campaign.metrics) {
       await supabase
         .from('crm_campaigns')
-        .update({ 
-          metrics_parity_snapshot: campaign.metrics 
+        .update({
+          metrics_parity_snapshot: campaign.metrics
         })
         .eq('id', campaignId);
       console.log(`📸 Stored parity snapshot`);
@@ -153,11 +279,35 @@ serve(async (req: Request): Promise<Response> => {
     let eventsIngested = 0;
     let duplicatesSkipped = 0;
     let eventsFetched = 0;
+    let replayCandidates = 0;
+    let replayedEvents = 0;
+    let replayDuplicates = 0;
+    let replayFailures = 0;
+
+    if (replayStoredDeliveries) {
+      console.log(`🔁 Replaying stored webhook deliveries for campaign ${campaignId}...`);
+
+      const replayResult = await replayStoredDeliveries({
+        campaignId,
+        tenantId: campaign.tenant_id,
+        startDate: effectiveStartDate,
+        endDate: effectiveEndDate,
+        supabase,
+        supabaseUrl,
+        serviceRoleKey: supabaseServiceKey,
+        retryToken: webhookRetryToken,
+      });
+
+      replayCandidates = replayResult.candidates;
+      replayedEvents = replayResult.replayed;
+      replayDuplicates = replayResult.duplicates;
+      replayFailures = replayResult.failed;
+    }
 
     // If Resend API key is available, fetch events from provider
     if (resendApiKey) {
       console.log(`📡 Fetching events from Resend for campaign ${campaignId}...`);
-      
+
       try {
         const response = await fetchWithBackoff('https://api.resend.com/emails', {
           method: 'GET',
@@ -169,15 +319,15 @@ serve(async (req: Request): Promise<Response> => {
 
         if (response.ok) {
           const { data: emails } = await response.json();
-          
+
           if (emails && Array.isArray(emails)) {
             // Filter emails by campaign_id tag and time window
             const campaignEmails = emails.filter((email: any) => {
-              const hasCampaignTag = email.tags?.some((tag: any) => 
+              const hasCampaignTag = email.tags?.some((tag: any) =>
                 tag.name === 'campaign_id' && tag.value === campaignId
               );
               if (!hasCampaignTag) return false;
-              
+
               // Check time window
               const emailTime = new Date(email.created_at).getTime();
               const startTime = new Date(effectiveStartDate).getTime();
@@ -205,7 +355,13 @@ serve(async (req: Request): Promise<Response> => {
                   event_type: 'sent',
                   event_ts_provider: email.created_at,
                   ingested_at: new Date().toISOString(),
-                  event_data: { backfilled: true },
+                  event_data: {
+                    backfilled: true,
+                    backfill: {
+                      source: 'resend_emails_api',
+                      replayed_at: new Date().toISOString(),
+                    },
+                  },
                 }, {
                   onConflict: 'tenant_id,provider_message_id,event_type,event_ts_provider',
                   ignoreDuplicates: true,
@@ -229,7 +385,7 @@ serve(async (req: Request): Promise<Response> => {
 
     // Recompute metrics from existing events
     console.log(`🔄 Recomputing metrics for campaign ${campaignId}...`);
-    
+
     const { data: metricsResult, error: recomputeError } = await supabase
       .rpc('recompute_campaign_metrics', { p_campaign_id: campaignId });
 
@@ -245,8 +401,8 @@ serve(async (req: Request): Promise<Response> => {
 
     // Calculate parity
     const eventsDelta = (afterCount || 0) - (beforeCount || 0);
-    const parityPercentage = beforeCount && beforeCount > 0 
-      ? Math.abs(eventsDelta / beforeCount * 100) 
+    const parityPercentage = beforeCount && beforeCount > 0
+      ? Math.abs(eventsDelta / beforeCount * 100)
       : 0;
     const parityStatus = parityPercentage <= 0.1 ? 'green' : parityPercentage <= 1 ? 'yellow' : 'red';
 
@@ -261,6 +417,10 @@ serve(async (req: Request): Promise<Response> => {
         fetched: eventsFetched,
         inserted: eventsIngested,
         deduped: duplicatesSkipped,
+        replayCandidates,
+        replayed: replayedEvents,
+        replayDuplicates,
+        replayFailures,
         beforeTotal: beforeCount || 0,
         afterTotal: afterCount || 0,
       },

@@ -162,6 +162,71 @@ limit 20;
 
 ---
 
+## Scenario B2 — First open and replay protection
+
+Goal: verify the first `email.opened` event is ingested, and a replay of the same webhook delivery id is treated as a true duplicate.
+
+### Steps
+1) Open the delivered test email once.
+2) Capture the webhook response and the delivery id from logs or the Resend dashboard.
+3) Replay the exact same webhook delivery once using the same `svix-id` or `x-retry-delivery-id`.
+
+### Verify in Supabase (SQL)
+```sql
+select event_type,
+       customer_email,
+       provider_message_id,
+       webhook_delivery_id,
+       event_ts_provider,
+       event_data->>'email_id' as event_data_email_id,
+       ingested_at
+from email_tracking_events
+where customer_email = 'delivered@resend.dev'
+  and event_type = 'opened'
+order by ingested_at desc
+limit 20;
+```
+
+### Expected
+- The first `opened` webhook returns `duplicate: false` and inserts a new row.
+- Replaying the same delivery id returns `duplicate: true`.
+- Structured logs show the duplicate path with `constraint_name = idx_email_tracking_events_webhook_delivery_id`.
+
+---
+
+## Scenario B3 — Click event and unique-engagement policy
+
+Goal: verify the first `email.clicked` event is ingested and a later click for the same message follows first-occurrence-only semantics.
+
+### Steps
+1) Click one tracked link in the delivered test email.
+2) Trigger a second click/open for the same recipient and provider message id using a new webhook delivery id.
+
+### Verify in Supabase (SQL)
+```sql
+select event_type,
+       customer_email,
+       provider_message_id,
+       webhook_delivery_id,
+       event_ts_provider,
+       event_data->>'email_id' as event_data_email_id,
+       event_data->>'click_link' as click_link,
+       ingested_at
+from email_tracking_events
+where customer_email = 'delivered@resend.dev'
+  and event_type in ('opened', 'clicked')
+order by ingested_at desc
+limit 20;
+```
+
+### Expected
+- The first `clicked` webhook returns `duplicate: false` and inserts a new row.
+- A later open/click for the same message with a different delivery id follows Option A: no new unique row for that event type/message combination.
+- Structured logs show a semantic or provider duplicate constraint, not the webhook-delivery constraint.
+- Campaign metrics remain correct because they are recomputed from stored rows.
+
+---
+
 ## Scenario C — Hard bounce (auto-suppress)
 
 Goal: verify a hard bounce causes an event + auto-suppression.
@@ -233,6 +298,37 @@ limit 5;
 ### Expected
 - A `complained` event exists.
 - `suppression_list.suppression_type` is `complaint` (this is the canonical type we write on complaint events).
+
+---
+
+## Scenario D2 — Delivery delayed fallback timestamp
+
+Goal: verify `email.delivery_delayed` is recorded even when the provider timestamp is absent and the webhook must fall back to receipt time.
+
+### Steps
+1) Trigger or replay a delivery-delayed webhook in a test environment.
+2) If the payload omits `created_at`, keep the request otherwise unchanged.
+
+### Verify in Supabase (SQL)
+```sql
+select event_type,
+       customer_email,
+       provider_message_id,
+       webhook_delivery_id,
+       event_ts_provider,
+       event_data->'normalization'->>'event_ts_provider_source' as event_ts_provider_source,
+       ingested_at
+from email_tracking_events
+where customer_email = 'delivered@resend.dev'
+  and event_type = 'deferred'
+order by ingested_at desc
+limit 20;
+```
+
+### Expected
+- A `deferred` row exists in `email_tracking_events`.
+- `event_ts_provider` is populated even when the provider omitted the original timestamp.
+- `event_data.normalization.event_ts_provider_source` reports `receipt` for the fallback case.
 
 ---
 

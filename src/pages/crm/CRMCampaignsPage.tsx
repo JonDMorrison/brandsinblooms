@@ -1,7 +1,15 @@
 import React, { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Mail, Plus, Calendar, BarChart3, Eye, Trash2 } from "lucide-react";
+import {
+  Mail,
+  Plus,
+  Calendar,
+  BarChart3,
+  Eye,
+  Trash2,
+  Users,
+} from "lucide-react";
 import { NavLink } from "@/components/ui/link";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -107,6 +115,9 @@ export const CRMCampaignsPage: React.FC = () => {
   const draftCampaigns = campaigns.filter(
     (c) => c.status === "draft" || !c.status,
   ).length;
+
+  const canViewRecipients = (status: string | null | undefined) =>
+    ["sent", "sending", "sent_with_errors"].includes(status || "");
 
   return (
     <div className="p-6 space-y-6">
@@ -219,6 +230,16 @@ export const CRMCampaignsPage: React.FC = () => {
                             >
                               <BarChart3 className="h-4 w-4 mr-1" />
                               Performance
+                            </NavLink>
+                          </Button>
+                        )}
+                        {canViewRecipients(campaign.status) && (
+                          <Button variant="outline" size="sm" asChild>
+                            <NavLink
+                              to={`/dashboard/campaigns/${campaign.id}/recipients`}
+                            >
+                              <Users className="h-4 w-4 mr-1" />
+                              Recipients
                             </NavLink>
                           </Button>
                         )}

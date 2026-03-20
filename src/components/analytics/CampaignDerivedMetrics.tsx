@@ -1,23 +1,38 @@
-import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Progress } from '@/components/ui/progress';
-import { Skeleton } from '@/components/ui/skeleton';
-import { 
-  RefreshCw, 
-  Info, 
-  Send, 
-  Eye, 
-  MousePointerClick, 
+import React from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Progress } from "@/components/ui/progress";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  RefreshCw,
+  Info,
+  Send,
+  Users,
+  Activity,
+  Eye,
+  MousePointerClick,
   AlertTriangle,
   Link as LinkIcon,
-  Clock
-} from 'lucide-react';
-import { useCampaignDerivedMetrics } from '@/hooks/analytics/useCampaignDerivedMetrics';
-import { formatDistanceToNow } from 'date-fns';
+  Clock,
+  Wrench,
+} from "lucide-react";
+import { useCampaignDerivedMetrics } from "@/hooks/analytics/useCampaignDerivedMetrics";
+import { formatDistanceToNow } from "date-fns";
 
 interface CampaignDerivedMetricsProps {
   campaignId: string;
@@ -30,7 +45,8 @@ export const CampaignDerivedMetrics: React.FC<CampaignDerivedMetricsProps> = ({
   showTopLinks = true,
   compact = false,
 }) => {
-  const { metrics, loading, isStale, lastRefreshed, recompute } = useCampaignDerivedMetrics(campaignId);
+  const { metrics, loading, isStale, lastRefreshed, recompute } =
+    useCampaignDerivedMetrics(campaignId);
 
   if (loading) {
     return (
@@ -59,7 +75,7 @@ export const CampaignDerivedMetrics: React.FC<CampaignDerivedMetricsProps> = ({
     );
   }
 
-  const { totals, rates, links } = metrics;
+  const { totals, rates, scores, links, diagnostics, reconciliation } = metrics;
 
   return (
     <Card>
@@ -73,54 +89,119 @@ export const CampaignDerivedMetrics: React.FC<CampaignDerivedMetricsProps> = ({
                 Stale
               </Badge>
             )}
+            {reconciliation.backfill_applied && (
+              <Badge variant="outline" className="text-xs">
+                <Wrench className="h-3 w-3 mr-1" />
+                Reconciled
+              </Badge>
+            )}
           </CardTitle>
           <div className="flex items-center gap-2">
             {lastRefreshed && (
               <span className="text-xs text-muted-foreground">
-                Updated {formatDistanceToNow(lastRefreshed, { addSuffix: true })}
+                Updated{" "}
+                {formatDistanceToNow(lastRefreshed, { addSuffix: true })}
               </span>
             )}
-            <Button variant="outline" size="sm" onClick={recompute} disabled={loading}>
-              <RefreshCw className={`h-4 w-4 mr-1 ${loading ? 'animate-spin' : ''}`} />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={recompute}
+              disabled={loading}
+            >
+              <RefreshCw
+                className={`h-4 w-4 mr-1 ${loading ? "animate-spin" : ""}`}
+              />
               Recalculate
             </Button>
           </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* Delivery Funnel */}
+        {/* Primary Summary */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <MetricCard
             icon={Send}
-            label="Sent"
+            label="Total Sent"
             value={totals.sent}
             color="text-blue-600"
           />
           <MetricCard
-            icon={Eye}
-            label="Opens"
-            value={totals.opens}
-            rate={rates.open_reported}
-            rateLabel="Open Rate"
+            icon={Users}
+            label="Successful Reach"
+            value={totals.successful_reach}
+            subtitle={`${totals.delivered.toLocaleString()} delivered`}
             color="text-green-600"
           />
           <MetricCard
-            icon={MousePointerClick}
-            label="Clicks"
-            value={totals.clicks}
-            rate={rates.click}
-            rateLabel="Click Rate"
-            color="text-purple-600"
+            icon={Activity}
+            label="Reach"
+            value={scores.reach}
+            suffix="%"
+            subtitle="Successful reach / total sent"
+            color="text-emerald-600"
           />
           <MetricCard
-            icon={AlertTriangle}
-            label="Bounces"
-            value={totals.bounces}
-            rate={rates.bounce}
-            rateLabel="Bounce Rate"
-            color={totals.bounces > 0 ? 'text-orange-600' : 'text-muted-foreground'}
+            icon={MousePointerClick}
+            label="Interaction"
+            value={scores.interaction}
+            suffix="%"
+            subtitle={`${totals.unique_engaged.toLocaleString()} engaged`}
+            color="text-indigo-600"
           />
         </div>
+
+        {!compact && (
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <MetricCard
+              icon={Users}
+              label="Delivered"
+              value={totals.delivered}
+              rate={rates.delivery}
+              rateLabel="Delivery"
+              color="text-sky-600"
+              compact
+            />
+            <MetricCard
+              icon={Eye}
+              label="Opens"
+              value={totals.opens}
+              rate={rates.open_reported}
+              rateLabel="Open Rate"
+              color="text-green-600"
+              compact
+            />
+            <MetricCard
+              icon={MousePointerClick}
+              label="Clicks"
+              value={totals.clicks}
+              rate={rates.click}
+              rateLabel="Click Rate"
+              color="text-violet-600"
+              compact
+            />
+            <MetricCard
+              icon={Users}
+              label="Unique Engaged"
+              value={totals.unique_engaged}
+              color="text-cyan-600"
+              compact
+            />
+            <MetricCard
+              icon={AlertTriangle}
+              label="Hard Bounces"
+              value={totals.hard_bounces}
+              rate={rates.bounce}
+              rateLabel="Bounce Rate"
+              color={
+                totals.hard_bounces > 0
+                  ? "text-orange-600"
+                  : "text-muted-foreground"
+              }
+              compact
+            />
+          </div>
+        )}
 
         {/* Open Rate Comparison (MPP Adjustment) */}
         {!compact && (
@@ -135,10 +216,12 @@ export const CampaignDerivedMetrics: React.FC<CampaignDerivedMetricsProps> = ({
                     </TooltipTrigger>
                     <TooltipContent className="max-w-xs">
                       <p>
-                        <strong>Reported:</strong> All detected opens including Apple Mail Privacy Protection.
+                        <strong>Reported:</strong> All detected opens including
+                        Apple Mail Privacy Protection.
                       </p>
                       <p className="mt-1">
-                        <strong>Adjusted:</strong> Excludes suspected MPP auto-opens for a more accurate engagement picture.
+                        <strong>Adjusted:</strong> Excludes suspected MPP
+                        auto-opens for a more accurate engagement picture.
                       </p>
                     </TooltipContent>
                   </Tooltip>
@@ -148,21 +231,58 @@ export const CampaignDerivedMetrics: React.FC<CampaignDerivedMetricsProps> = ({
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-sm text-muted-foreground">Reported</span>
+                  <span className="text-sm text-muted-foreground">
+                    Reported
+                  </span>
                   <span className="font-bold">{rates.open_reported}%</span>
                 </div>
-                <Progress value={Math.min(rates.open_reported, 100)} className="h-2" />
+                <Progress
+                  value={Math.min(rates.open_reported, 100)}
+                  className="h-2"
+                />
               </div>
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-sm text-muted-foreground">Adjusted (non-MPP)</span>
+                  <span className="text-sm text-muted-foreground">
+                    Adjusted (non-MPP)
+                  </span>
                   <span className="font-bold">{rates.open_adjusted}%</span>
                 </div>
-                <Progress value={Math.min(rates.open_adjusted, 100)} className="h-2 bg-muted [&>div]:bg-primary/70" />
+                <Progress
+                  value={Math.min(rates.open_adjusted, 100)}
+                  className="h-2 bg-muted [&>div]:bg-primary/70"
+                />
               </div>
             </div>
           </div>
         )}
+
+        {!compact &&
+          (diagnostics.opens_without_delivery > 0 ||
+            diagnostics.clicks_without_delivery > 0 ||
+            diagnostics.missing_send_ledger) && (
+            <div className="p-4 bg-muted/50 rounded-lg space-y-2">
+              <div className="font-medium">Diagnostics</div>
+              {diagnostics.opens_without_delivery > 0 && (
+                <div className="text-sm text-muted-foreground">
+                  {diagnostics.opens_without_delivery.toLocaleString()}{" "}
+                  recipients opened without a recorded delivery event.
+                </div>
+              )}
+              {diagnostics.clicks_without_delivery > 0 && (
+                <div className="text-sm text-muted-foreground">
+                  {diagnostics.clicks_without_delivery.toLocaleString()}{" "}
+                  recipients clicked without a recorded delivery event.
+                </div>
+              )}
+              {diagnostics.missing_send_ledger && (
+                <div className="text-sm text-muted-foreground">
+                  Send ledger rows are incomplete for this campaign, so sent
+                  totals are falling back to observed recipients.
+                </div>
+              )}
+            </div>
+          )}
 
         {/* Top Links */}
         {showTopLinks && links && links.length > 0 && (
@@ -181,15 +301,16 @@ export const CampaignDerivedMetrics: React.FC<CampaignDerivedMetricsProps> = ({
               </TableHeader>
               <TableBody>
                 {links.map((link, idx) => {
-                  const ctr = totals.delivered > 0 
-                    ? ((link.clicks / totals.delivered) * 100).toFixed(2)
-                    : '0.00';
+                  const ctr =
+                    totals.delivered > 0
+                      ? ((link.clicks / totals.delivered) * 100).toFixed(2)
+                      : "0.00";
                   return (
                     <TableRow key={link.link_id || idx}>
                       <TableCell className="max-w-[300px] truncate">
-                        <a 
-                          href={link.url} 
-                          target="_blank" 
+                        <a
+                          href={link.url}
+                          target="_blank"
                           rel="noopener noreferrer"
                           className="text-primary hover:underline"
                         >
@@ -222,11 +343,32 @@ const MetricCard: React.FC<{
   rate?: number;
   rateLabel?: string;
   color?: string;
-}> = ({ icon: Icon, label, value, rate, rateLabel, color = 'text-foreground' }) => (
-  <div className="p-4 bg-muted/30 rounded-lg text-center">
+  suffix?: string;
+  subtitle?: string;
+  compact?: boolean;
+}> = ({
+  icon: Icon,
+  label,
+  value,
+  rate,
+  rateLabel,
+  color = "text-foreground",
+  suffix = "",
+  subtitle,
+  compact = false,
+}) => (
+  <div
+    className={`bg-muted/30 rounded-lg text-center ${compact ? "p-3" : "p-4"}`}
+  >
     <Icon className={`h-5 w-5 mx-auto mb-2 ${color}`} />
-    <p className="text-2xl font-bold">{value.toLocaleString()}</p>
+    <p className={`${compact ? "text-xl" : "text-2xl"} font-bold`}>
+      {value.toLocaleString()}
+      {suffix}
+    </p>
     <p className="text-xs text-muted-foreground">{label}</p>
+    {subtitle && (
+      <p className="mt-1 text-xs text-muted-foreground">{subtitle}</p>
+    )}
     {rate !== undefined && (
       <Badge variant="outline" className="mt-2 text-xs">
         {rate}% {rateLabel}

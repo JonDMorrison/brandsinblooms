@@ -246,16 +246,24 @@ serve(async (req: Request) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+    const requestAuthorizationHeader =
+      req.headers.get('authorization') || req.headers.get('Authorization');
+    const requestApiKey = req.headers.get('apikey')?.trim() || null;
+
     const requesterJwt = (() => {
-      const authHeader = req.headers.get('authorization') || req.headers.get('Authorization');
-      if (!authHeader) return null;
-      const trimmed = authHeader.trim();
+      if (!requestAuthorizationHeader) return null;
+      const trimmed = requestAuthorizationHeader.trim();
       if (!trimmed.toLowerCase().startsWith('bearer ')) return null;
       return trimmed.slice(7).trim() || null;
     })();
 
+    const isTrustedServiceInvocation =
+      requesterJwt === supabaseServiceKey ||
+      requestApiKey === supabaseServiceKey;
+
     const getRequesterUserId = async (): Promise<string | null> => {
       if (!requesterJwt) return null;
+      if (isTrustedServiceInvocation) return null;
       try {
         const { data, error } = await supabase.auth.getUser(requesterJwt);
         if (error) return null;
@@ -400,6 +408,19 @@ serve(async (req: Request) => {
     }
 
     const requesterUserId = await getRequesterUserId();
+
+    if (!requesterUserId && !isTrustedServiceInvocation) {
+      console.warn('⚠️ Unauthorized send-email-campaign invocation', {
+        campaignId,
+        hasAuthorizationHeader: Boolean(requestAuthorizationHeader),
+        hasApiKeyHeader: Boolean(requestApiKey),
+      });
+
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     const logCampaignGovernanceDecision = async (params: {
       decision: 'allow' | 'block' | 'warn' | 'log';
@@ -1375,6 +1396,7 @@ serve(async (req: Request) => {
           payload: {},
           status: 'queued',
           resend_id: null,
+          retry_sequence: 0,
           claimed_at: null,
           claimed_by: null,
           claim_token: null,
@@ -1393,7 +1415,7 @@ serve(async (req: Request) => {
         try {
           const resp = await supabase
             .from('email_messages')
-            .upsert(chunk, { onConflict: 'campaign_id,customer_id', ignoreDuplicates: true });
+            .upsert(chunk, { onConflict: 'campaign_id,customer_id,retry_sequence', ignoreDuplicates: true });
 
           if (resp.error) {
             const code = (resp.error as any)?.code;
@@ -1451,6 +1473,7 @@ serve(async (req: Request) => {
           .from('email_messages')
           .select('id, customer_id')
           .eq('campaign_id', campaignId)
+          .eq('retry_sequence', 0)
           .in('customer_id', batchCustomerIds);
 
         if (messageIdsErr) {

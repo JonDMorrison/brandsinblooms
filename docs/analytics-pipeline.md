@@ -12,6 +12,13 @@ The analytics pipeline processes email events from providers (e.g., Resend) and 
 - **Suppression enforcement**: Bounced/complained/unsubscribed contacts are excluded from sends
 - **Derived metrics**: Metrics are computed from events, not mutated counters
 
+## Engagement Policy
+
+- `opened` and `clicked` use first-occurrence-only semantics in `email_tracking_events`.
+- The first unique event for a recipient/message/campaign is recorded and drives campaign aggregates.
+- A replay of the same webhook delivery is treated as a transport duplicate and returns `duplicate: true`.
+- A second open/click for the same message with a different delivery id is treated as a business duplicate. The row insert is skipped, but campaign metric recomputation remains safe because metrics are derived from stored rows.
+
 ## Event Contract
 
 ### email_tracking_events Table
@@ -26,16 +33,28 @@ The analytics pipeline processes email events from providers (e.g., Resend) and 
 | `provider_message_id` | text | Provider's unique message ID |
 | `event_ts_provider` | timestamptz | When event occurred per provider |
 | `ingested_at` | timestamptz | When we received it |
+| `event_data.email_id` | text | Normalized semantic message id used by the recipient-level uniqueness index |
 | `is_mpp_guess` | boolean | True if suspected Apple MPP auto-open |
 | `link_id` | uuid | For click events, the tracked link |
 | `ip_hash` | text | Hashed IP (never raw) |
 | `user_agent` | text | Browser/client user agent |
 
-### Idempotency Key
+### Normalization Rules
 
-The unique constraint is: `(tenant_id, provider_message_id, event_type, event_ts_provider)`
+- `provider_message_id`: extracted from the Resend payload across known shapes such as `data.email_id`, nested `data.email.id`, or nested message ids.
+- `event_ts_provider`: uses the provider timestamp when present; otherwise falls back to the webhook receipt timestamp captured at request start.
+- `event_data.email_id`: never left blank for new webhook rows. If Resend omits the semantic message id, the webhook derives it from `provider_message_id + ':' + event_type`.
+- `webhook_delivery_id`: prefers `x-retry-delivery-id`, then `svix-id`, then `webhook-id`, then `x-request-id`, then a deterministic fallback derived from message id, event type, and provider timestamp.
 
-This ensures the same event from the provider is only stored once, even if the webhook fires multiple times.
+### Idempotency Keys
+
+The pipeline uses three complementary uniqueness layers:
+
+- `(webhook_delivery_id)` for transport-level replay protection
+- `(tenant_id, provider_message_id, event_type, event_ts_provider)` for provider-level duplicate events
+- `(campaign_id, customer_email, event_type, event_data.email_id)` for recipient/message-level unique engagement semantics
+
+This ensures the same event from the provider is only stored once, while still allowing distinct event types for the same message to ingest independently.
 
 ## Webhook Behavior
 
@@ -50,12 +69,18 @@ The webhook verifies the `svix-signature` header against the webhook secret. Inv
 ### Processing Steps
 
 1. Parse incoming webhook payload
-2. Extract event type and metadata
+2. Normalize event type, message id, provider timestamp, and webhook delivery id across Resend payload variants
 3. Detect MPP opens heuristically (Apple Mail + Apple Private Relay IP)
 4. Hash IP address for privacy
-5. Upsert event with idempotency key (ignores duplicates)
+5. Insert event with idempotency protections
 6. For bounces/complaints/unsubscribes: upsert into `suppression_list`
 7. Return 200 OK
+
+### Duplicate Handling
+
+- `webhook_delivery_id` conflict: true delivery replay, return `duplicate: true`, skip downstream work.
+- semantic/provider conflict: business duplicate such as a second open or click for the same message. The insert is skipped, structured logs include the violated constraint, and campaign metrics may be recomputed because that path is idempotent.
+- domain counters are not re-run on business duplicates because they are increment-based, not recomputed.
 
 ### Error Handling
 
@@ -279,16 +304,16 @@ If parity fails, investigate:
 
 ```sql
 -- Idempotency
-CREATE UNIQUE INDEX idx_email_tracking_events_provider_idempotency 
+CREATE UNIQUE INDEX idx_email_tracking_events_provider_idempotency
 ON email_tracking_events (tenant_id, provider_message_id, event_type, event_ts_provider)
 WHERE provider_message_id IS NOT NULL AND event_ts_provider IS NOT NULL;
 
 -- Query performance
-CREATE INDEX idx_email_tracking_events_campaign 
+CREATE INDEX idx_email_tracking_events_campaign
 ON email_tracking_events (tenant_id, campaign_id, event_type, created_at);
 
 -- Tracked links lookup
-CREATE INDEX idx_tracked_links_campaign 
+CREATE INDEX idx_tracked_links_campaign
 ON tracked_links (tenant_id, campaign_id);
 ```
 

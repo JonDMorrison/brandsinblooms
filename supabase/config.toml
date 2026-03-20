@@ -294,7 +294,7 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.send-email-campaign]
-verify_jwt = true
+verify_jwt = false
 
 [functions.get-deliverability-status]
 verify_jwt = true
