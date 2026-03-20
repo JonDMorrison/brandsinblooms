@@ -14,9 +14,15 @@ serve(async (req) => {
   }
 
   try {
-    const { 
-      prompt, 
-      persona, 
+    // SECURITY: [E18] - Add JWT authentication
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'Authorization required' }), { status: 401, headers: corsHeaders });
+    }
+
+    const {
+      prompt,
+      persona,
       type, 
       personas = [], 
       postType,

@@ -245,13 +245,28 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // FIX: [issue #21] - Add auth check to prevent unauthenticated access
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+  const authHeader = req.headers.get('Authorization');
+  if (!authHeader || (authHeader !== `Bearer ${serviceRoleKey}` && !authHeader.startsWith('Bearer '))) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+  }
+
+  const supabase = createClient(
+    Deno.env.get('SUPABASE_URL') ?? '',
+    serviceRoleKey
+  );
+
+  if (authHeader !== `Bearer ${serviceRoleKey}`) {
+    const token = authHeader.replace('Bearer ', '');
+    const { error: authErr } = await supabase.auth.getUser(token);
+    if (authErr) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+  }
+
   try {
     console.log('🎯 Installing starter automation pack...');
-    
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
 
     // Get request body for tenant_id (optional)
     let requestBody: any = {};

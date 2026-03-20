@@ -97,6 +97,13 @@ serve(async (req) => {
       }
     }
 
+    // FIX: [SH4] - Validate media_url exists for Instagram posts
+    for (const platform of body.platforms) {
+      if (platform.toUpperCase().startsWith('IG') && !body.mediaUrl) {
+        return new Response(JSON.stringify({ error: 'Instagram posts require an image. Please add media before scheduling.' }), { status: 400, headers: corsHeaders });
+      }
+    }
+
     // Create scheduled posts
     const scheduledPosts = body.platforms.map(platform => ({
       content_id: body.contentId,

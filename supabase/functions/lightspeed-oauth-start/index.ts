@@ -1,3 +1,4 @@
+// FIX: [P29] - lightspeed-oauth-initiate was a duplicate of this function and has been deleted
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
 import { isValidPrefix } from '../_shared/cookies.ts';

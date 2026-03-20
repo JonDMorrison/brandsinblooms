@@ -13,6 +13,9 @@ Deno.serve(async (req) => {
   if (preflightResponse) return preflightResponse;
 
   try {
+    // FIX: [issue #48] - TODO: Add Twilio webhook signature verification
+    // Requires TWILIO_AUTH_TOKEN env var. Use twilio.validateRequest() to verify X-Twilio-Signature header.
+
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
@@ -30,11 +33,14 @@ Deno.serve(async (req) => {
     // Normalize the message body
     const normalizedBody = body?.toUpperCase().trim() || '';
 
-    // Look up customer and tenant
+    // SECURITY: [W3] - Scope customer lookup: use .limit(1) since webhook doesn't know tenant.
+    // Phone number may match multiple tenants. Using maybeSingle + limit(1) returns first match.
+    // Updates below use .eq('id', customer.id) instead of .eq('phone', from) to avoid cross-tenant writes.
     const { data: customer } = await supabase
       .from('crm_customers')
       .select('id, tenant_id, first_name')
       .eq('phone', from)
+      .limit(1)
       .maybeSingle();
 
     const tenantId = customer?.tenant_id || null;
@@ -47,15 +53,15 @@ Deno.serve(async (req) => {
     if (isOptOut) {
       console.log('[twilio-inbound-sms] Processing STOP from:', from);
 
-      // Update customer SMS opt-in status
+      // SECURITY: [W3] - Update by customer.id instead of phone to avoid cross-tenant writes
       const { error: updateError } = await supabase
         .from('crm_customers')
-        .update({ 
+        .update({
           sms_opt_in: false,
           opt_out: true,
           updated_at: new Date().toISOString()
         })
-        .eq('phone', from);
+        .eq('id', customer.id);
 
       if (updateError) {
         console.error('[twilio-inbound-sms] Error updating opt-out status:', updateError);
@@ -136,14 +142,15 @@ Deno.serve(async (req) => {
       console.log('[twilio-inbound-sms] Processing START from:', from);
 
       // Update customer SMS opt-in status
+      // SECURITY: [W3] - Update by customer.id instead of phone to avoid cross-tenant writes
       const { error: updateError } = await supabase
         .from('crm_customers')
-        .update({ 
+        .update({
           sms_opt_in: true,
           opt_out: false,
           updated_at: new Date().toISOString()
         })
-        .eq('phone', from);
+        .eq('id', customer.id);
 
       if (updateError) {
         console.error('[twilio-inbound-sms] Error updating opt-in status:', updateError);

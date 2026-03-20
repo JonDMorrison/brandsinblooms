@@ -121,7 +121,10 @@ export const SmsPreviewPanel: React.FC<SmsPreviewPanelProps> = ({
         .limit(20);
 
       if (query.trim()) {
-        queryBuilder = queryBuilder.or(`first_name.ilike.%${query}%,last_name.ilike.%${query}%,phone.ilike.%${query}%`);
+        // SECURITY: [PostgREST filter injection] - Sanitize user input before interpolation into .or() filter
+        const sanitizeForPostgrest = (input: string) => input.replace(/[,.()"'\\]/g, '');
+        const safeQuery = sanitizeForPostgrest(query);
+        queryBuilder = queryBuilder.or(`first_name.ilike.%${safeQuery}%,last_name.ilike.%${safeQuery}%,phone.ilike.%${safeQuery}%`);
       }
 
       const { data, error } = await queryBuilder;

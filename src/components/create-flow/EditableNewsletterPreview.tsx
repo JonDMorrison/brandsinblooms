@@ -9,6 +9,7 @@ import { NewsletterContentBlock } from '@/components/content-sidebar/newsletter/
 import { useNewsletterImages } from '@/components/content-sidebar/newsletter/useNewsletterImages';
 import { processNewsletterContent } from '@/utils/newsletterContentProcessor';
 import { sanitizeWeekNumbers } from '@/utils/weekNumberSanitizer';
+import { sanitizeHtml } from '@/utils/htmlSanitizer';
 import { Edit, Save, X, Bold, Italic, Underline as UnderlineIcon, List, ListOrdered, AlignLeft, AlignCenter, AlignRight } from 'lucide-react';
 
 interface EditableNewsletterPreviewProps {
@@ -272,8 +273,9 @@ export const EditableNewsletterPreview: React.FC<EditableNewsletterPreviewProps>
         <div className="prose prose-slate max-w-none">
           <div 
             className="whitespace-pre-wrap text-slate-700 leading-relaxed"
+            // SECURITY: X2 - Sanitize HTML to prevent XSS
             dangerouslySetInnerHTML={{
-              __html: (() => {
+              __html: sanitizeHtml((() => {
                 console.log('🎭 RENDER: Displaying content =', content?.substring(0, 200) + '...');
                 console.log('🎭 RENDER: Content length =', content?.length);
                 console.log('🎭 RENDER: Content type =', typeof content);
@@ -346,7 +348,7 @@ export const EditableNewsletterPreview: React.FC<EditableNewsletterPreviewProps>
                   .trim();
                 
                 return cleaned || "No content available. Click edit to add newsletter content.";
-              })()
+              })())
             }}
           />
         </div>

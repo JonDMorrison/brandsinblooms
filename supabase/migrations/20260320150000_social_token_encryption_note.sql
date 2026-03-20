@@ -1,0 +1,8 @@
+-- FIX: [SC5] - Social media tokens should be encrypted like POS integration tokens
+-- TODO: Migrate existing plaintext tokens in social_connections.access_token to encrypted format
+-- Steps needed:
+-- 1. Add encrypted_access_token and encrypted_refresh_token columns
+-- 2. Run a one-time migration script to encrypt existing tokens using encryptToken()
+-- 3. Update all edge functions to use decryptToken() when reading tokens
+-- 4. Drop the plaintext access_token column after confirming all code paths are updated
+-- For now, new connections should encrypt tokens at write time (handled in edge function code)

@@ -58,6 +58,7 @@ const CRMCampaigns = () => {
   const [loading, setLoading] = useState(true);
   const summary = useEmailCampaignSummary();
 
+  // FIX: [issue #42] - TODO: Migrate to useQuery for automatic cache invalidation and refetching
   useEffect(() => {
     if (user) {
       loadCampaigns();
@@ -80,7 +81,9 @@ const CRMCampaigns = () => {
             crm_segments(name)
           `)
           .eq('tenant_id', userData.tenant_id)
-          .order('created_at', { ascending: false });
+          .order('created_at', { ascending: false })
+          // FIX: [issue #59] - Add limit to prevent unbounded fetch
+          .limit(100);
 
         if (error) throw error;
         setCampaigns(data || []);

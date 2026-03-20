@@ -70,7 +70,10 @@ export function EmailPreviewWithCustomer({
         .limit(20);
       
       if (customerSearch) {
-        query = query.or(`email.ilike.%${customerSearch}%,first_name.ilike.%${customerSearch}%,last_name.ilike.%${customerSearch}%`);
+        // SECURITY: [PostgREST filter injection] - Sanitize user input before interpolation into .or() filter
+        const sanitizeForPostgrest = (input: string) => input.replace(/[,.()"'\\]/g, '');
+        const safeSearch = sanitizeForPostgrest(customerSearch);
+        query = query.or(`email.ilike.%${safeSearch}%,first_name.ilike.%${safeSearch}%,last_name.ilike.%${safeSearch}%`);
       }
       
       const { data, error } = await query;

@@ -76,6 +76,21 @@ serve(async (req: Request): Promise<Response> => {
   }
 
   try {
+    // SECURITY: [E32] - Add service-role-or-JWT authentication
+    const authHeader = req.headers.get('Authorization');
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'Authorization required' }), { status: 401, headers: corsHeaders });
+    }
+    if (authHeader !== `Bearer ${serviceRoleKey}`) {
+      const token = authHeader.replace('Bearer ', '');
+      const supabase = createClient(Deno.env.get('SUPABASE_URL')!, serviceRoleKey!);
+      const { data: { user }, error: authErr } = await supabase.auth.getUser(token);
+      if (authErr || !user) {
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: corsHeaders });
+      }
+    }
+
     const { campaignId, startDate, endDate }: BackfillRequest = await req.json();
 
     if (!campaignId) {

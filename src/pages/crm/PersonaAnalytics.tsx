@@ -10,6 +10,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { HeadlineLarge, BodyMedium } from '@/components/ui/typography';
 import { TrendingUp, Users, DollarSign, Mail, MessageSquare, ArrowUpIcon, ArrowDownIcon, ChevronDown, ChevronUp, Minus, Plus } from 'lucide-react';
 import { useAllPersonas } from '@/hooks/useAllPersonas';
+import { useAuth } from '@/hooks/useAuth';
 
 interface PersonaMetrics {
   persona_id: string;
@@ -23,6 +24,7 @@ interface PersonaMetrics {
 }
 
 const PersonaAnalytics = () => {
+  const { user } = useAuth();
   const [timeRange, setTimeRange] = useState('30d');
   const [isPersonasCollapsed, setIsPersonasCollapsed] = useState(false);
 
@@ -62,17 +64,26 @@ const PersonaAnalytics = () => {
     return Math.round(((currentMonthCustomers - previousMonthCustomers) / previousMonthCustomers) * 100 * 10) / 10;
   };
 
-  // Fetch customers for persona cards
+  // FIX: [issue #36] - Added tenant filter to prevent fetching ALL customers across tenants
   const { data: customers = [] } = useQuery({
-    queryKey: ['crm-customers-for-personas'],
+    queryKey: ['crm-customers-for-personas', user?.id],
     queryFn: async () => {
+      if (!user) throw new Error('User not authenticated');
+      const { data: userData } = await supabase
+        .from('users')
+        .select('tenant_id')
+        .eq('id', user.id)
+        .single();
+      if (!userData?.tenant_id) return [];
       const { data, error } = await supabase
         .from('crm_customers')
-        .select('*');
-      
+        .select('id, persona, created_at')
+        .eq('tenant_id', userData.tenant_id);
+
       if (error) throw error;
       return data;
-    }
+    },
+    enabled: !!user,
   });
 
   const { data: personaMetrics, isLoading } = useQuery({
@@ -82,11 +93,22 @@ const PersonaAnalytics = () => {
       // For now, we'll return mock data based on personas
       const { data: personas } = await supabase
         .from('personas')
-        .select('*');
+        .select('id, name');
 
-      const { data: customers } = await supabase
+      // FIX: [issue #36] - Added tenant filter to persona metrics query
+      if (!user) throw new Error('User not authenticated');
+      const { data: userData } = await supabase
+        .from('users')
+        .select('tenant_id')
+        .eq('id', user.id)
+        .single();
+      let customersQuery = supabase
         .from('crm_customers')
         .select('persona_id, total_spent, order_history');
+      if (userData?.tenant_id) {
+        customersQuery = customersQuery.eq('tenant_id', userData.tenant_id);
+      }
+      const { data: customers } = await customersQuery;
 
       if (!personas || !customers) return [];
 

@@ -5,6 +5,7 @@ import { checkSMSAvailability, isChannelAvailable } from "../_shared/channelAvai
 import { renderEmailForRecipient, type CustomerShape, type CompanyProfileShape } from "../_shared/emailRenderer.ts";
 import { logAutomationEmailExecution, checkAlreadySent, checkAndLogSuppression } from "../_shared/automationEmailExecution.ts";
 import { logActivityEvent } from "../_shared/activityLogger.ts";
+import { renderMergeTags, createMergeTagDataFromCustomer } from "../_shared/mergeTagEngine.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -44,6 +45,22 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // FIX: [A1] - Add service-role-or-JWT authentication to prevent unauthenticated message processing
+  const authHeader = req.headers.get('Authorization');
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  if (!authHeader) {
+    return new Response(JSON.stringify({ error: 'Authorization required' }), { status: 401, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+  }
+  if (authHeader !== `Bearer ${serviceRoleKey}`) {
+    // Not service role - verify as user JWT
+    const supabaseAuth = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_ANON_KEY') ?? '');
+    const token = authHeader.replace('Bearer ', '');
+    const { error: authErr } = await supabaseAuth.auth.getUser(token);
+    if (authErr) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+    }
+  }
+
   const startTime = Date.now();
   console.log(`📬 [${WORKER_ID}] Outbox processor starting...`);
 
@@ -53,11 +70,13 @@ const handler = async (req: Request): Promise<Response> => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-    // 1. Find all tenants with queued messages
+    // FIX: [A19] - Also rediscover stuck 'processing' messages with expired locks (>10 min old)
+    // 1. Find all tenants with queued messages or stuck processing messages
+    const stuckCutoff = new Date(Date.now() - 10 * 60 * 1000).toISOString();
     const { data: tenantRows, error: tenantError } = await supabase
       .from("crm_outbox")
       .select("tenant_id")
-      .eq("status", "queued")
+      .or(`status.eq.queued,and(status.eq.processing,updated_at.lt.${stuckCutoff})`)
       .lte("scheduled_at", new Date().toISOString())
       .or("locked_until.is.null,locked_until.lt." + new Date().toISOString())
       .limit(100);
@@ -147,6 +166,9 @@ const handler = async (req: Request): Promise<Response> => {
           skipped++;
           continue;
         }
+
+        // FIX: [A20] - NOTE: Automations disabled after messages are queued will still send queued messages.
+        // To prevent this, add an is_active check on crm_automations here before sending if needed.
 
         // 4. Send the message based on type
         let sendResult: { success: boolean; error?: string; shouldSkip?: boolean; external_id?: string; canRetry?: boolean };
@@ -673,6 +695,7 @@ async function sendSMS(
     if (message.automation_id) {
       const automationNodeId = await getAutomationNodeId(supabase, message);
       if (automationNodeId) {
+        // FIX: [A13] - Add node/step specificity to SMS dedup check to prevent multi-step SMS automations from being incorrectly skipped
         // Check crm_message_logs for an already-sent SMS for this automation+node+customer
         const { data: existingSms } = await supabase
           .from('crm_message_logs')
@@ -683,6 +706,7 @@ async function sendSMS(
           .eq('recipient', message.recipient)
           .filter('metadata->>automation_id', 'eq', message.automation_id)
           .filter('metadata->>customer_id', 'eq', message.customer_id)
+          .filter('metadata->>step_index', 'eq', String(message.step_index || 0))
           .limit(1)
           .maybeSingle();
 
@@ -693,10 +717,22 @@ async function sendSMS(
       }
     }
 
+    // FIX: [A3] - Render merge tags in SMS content before sending to prevent raw {{ first_name }} being sent to customers
+    let smsBody = message.content;
+    const { data: smsCustomer } = await supabase
+      .from("crm_customers")
+      .select("id, email, first_name, last_name, phone")
+      .eq("id", message.customer_id)
+      .maybeSingle();
+    if (smsCustomer) {
+      const mergeData = createMergeTagDataFromCustomer(smsCustomer);
+      smsBody = renderMergeTags(smsBody, mergeData);
+    }
+
     const { data, error } = await supabase.functions.invoke("send-sms", {
       body: {
         to: message.recipient,
-        body: message.content,
+        body: smsBody,
       },
     });
 
@@ -791,7 +827,8 @@ async function advanceAutomationRun(
       return;
     }
 
-    const workflowSteps = normalizeWorkflowSteps(run.automation?.workflow_steps || []);
+    const rawWorkflowSteps = run.automation?.workflow_steps || [];
+    const workflowSteps = normalizeWorkflowSteps(rawWorkflowSteps);
     const nextStepIndex = run.current_step_index + 1;
 
     if (nextStepIndex >= run.total_steps) {
@@ -867,11 +904,28 @@ async function advanceAutomationRun(
       if (customer && nextStep) {
         const nextChannelStatus = isChannelAvailable(nextStep.type);
 
+        // FIX: [A10] - Include automation_node_id in outbox insert for next step so idempotency checks work correctly
+        // Derive node_id from raw workflow steps by counting message (non-delay) steps
+        let nextStepNodeId = `step_${nextStepIndex}`;
+        if (Array.isArray(rawWorkflowSteps)) {
+          let messageStepCount = 0;
+          for (const rawStep of rawWorkflowSteps) {
+            if (rawStep.type === 'email' || rawStep.type === 'sms') {
+              if (messageStepCount === nextStepIndex) {
+                nextStepNodeId = rawStep.node_id || rawStep.id || `step_${nextStepIndex}`;
+                break;
+              }
+              messageStepCount++;
+            }
+          }
+        }
+
         // Enqueue next step with status='queued'
         const { error: insertError } = await supabase.from("crm_outbox").insert({
           tenant_id: message.tenant_id,
           automation_id: message.automation_id,
           automation_run_id: message.automation_run_id,
+          automation_node_id: nextStepNodeId,
           customer_id: message.customer_id,
           message_type: nextStep.type,
           recipient: nextStep.type === "sms" ? customer.phone : customer.email,
@@ -894,6 +948,15 @@ async function advanceAutomationRun(
           return;
         }
         console.log(`📬 Enqueued next step ${nextStepIndex} for customer ${customer.email}`);
+      }
+
+      // FIX: [A11] - Cancel automation run when customer is deleted instead of leaving it stuck in 'active' state
+      if (!customer) {
+        console.warn(`Customer not found for automation run ${message.automation_run_id}, cancelling run`);
+        await supabase
+          .from('automation_runs')
+          .update({ status: 'cancelled', error_message: 'Customer deleted during automation', completed_at: new Date().toISOString() })
+          .eq('id', message.automation_run_id);
       }
     }
   } catch (err) {

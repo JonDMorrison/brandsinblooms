@@ -47,10 +47,10 @@ export const useSegmentCounts = () => {
       console.log('🚀 Starting fetchSegmentCounts for tenant:', tenant.id);
       setLoading(true);
       try {
-        // Get all customers for the tenant
+        // FIX: [issue #38] - Select only columns needed for categorization instead of select('*')
         const { data: customers, error } = await supabase
           .from('crm_customers')
-          .select('*')
+          .select('id, tags, total_spent, created_at, last_purchase_date, order_history')
           .eq('tenant_id', tenant.id);
 
         if (error) throw error;

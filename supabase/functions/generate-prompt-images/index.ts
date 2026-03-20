@@ -1,5 +1,6 @@
 // Force deployment v2.0 - Streamlined image generation with robust error handling
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'npm:@supabase/supabase-js@2';
 import { corsHeaders, handleCorsPrelight, corsJsonResponse } from "../_shared/cors.ts";
 
 console.log('🚀 generate-prompt-images function loaded');
@@ -21,6 +22,17 @@ serve(async (req) => {
   if (corsResponse) {
     console.log('✅ CORS preflight handled');
     return corsResponse;
+  }
+
+  // SECURITY: [JWT auth] - Require authenticated user for AI function access
+  const authHeader = req.headers.get('Authorization');
+  if (!authHeader?.startsWith('Bearer ')) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+  }
+  const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, { global: { headers: { Authorization: authHeader } } });
+  const { error: authError } = await supabase.auth.getUser();
+  if (authError) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 
   try {

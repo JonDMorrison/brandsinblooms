@@ -30,6 +30,8 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+    // SECURITY: [E40] - TODO: Replace btoa token with HMAC-SHA256 signed token
+    // Current token btoa(email:tenant_id) is trivially forgeable. Should use crypto.subtle.sign() with OAUTH_STATE_SECRET.
     // Simple token validation (email + tenant_id base64 encoded)
     const expectedToken = btoa(`${email}:${tenantId}`);
     if (token !== expectedToken) {

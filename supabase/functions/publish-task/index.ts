@@ -29,6 +29,13 @@ async function handler(req: Request): Promise<Response> {
 
   console.log('[PUBLISH-TASK] Function invoked');
 
+  // FIX: [SC2] - Add JWT authentication to prevent unauthenticated access
+  const authHeader = req.headers.get('Authorization');
+  if (!authHeader) {
+    return new Response(JSON.stringify({ error: 'Authorization required' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+  }
+  const token = authHeader.replace('Bearer ', '');
+
   try {
     const requestBody = await req.json();
     const { taskId, contentId, platforms, accountId, caption, imageUrl, mediaUrls, isCarousel, firstComment, publishAt } = requestBody;
@@ -64,6 +71,12 @@ async function handler(req: Request): Promise<Response> {
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
+
+    // FIX: [SC2] - Verify JWT token against Supabase auth
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    if (authError || !user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
 
     // Get task details to retrieve user_id and tenant_id
     const { data: taskData, error: taskError } = await supabase
@@ -133,22 +146,51 @@ async function handler(req: Request): Promise<Response> {
               }
             }
             
-            // Update task status to published with carousel metadata
-            const updateData: any = { status: 'published' };
+            // FIX: [SC1] - Actually invoke Facebook/Instagram API instead of just updating DB status
+            // Store carousel metadata if applicable
             if (isCarousel && mediaUrls) {
-              updateData.attachments = {
-                ...updateData.attachments,
-                carousel: {
-                  isCarousel: true,
-                  mediaUrls: mediaUrls,
-                  imageCount: mediaUrls.length
-                }
-              };
+              const { error: attachError } = await supabase
+                .from('content_tasks')
+                .update({
+                  attachments: {
+                    carousel: {
+                      isCarousel: true,
+                      mediaUrls: mediaUrls,
+                      imageCount: mediaUrls.length
+                    }
+                  }
+                })
+                .eq('id', taskId);
+              if (attachError) throw attachError;
             }
-            
+
+            // Determine platform from request or look up from content_tasks record
+            const platform = platforms?.[0] || 'facebook';
+            const edgeFunctionName = platform.toLowerCase().includes('instagram')
+              ? 'post-to-instagram'
+              : 'post-to-facebook';
+
+            console.log(`[PUBLISH-TASK] Invoking ${edgeFunctionName} for task ${taskId}`);
+
+            // Invoke the appropriate platform edge function
+            const { data: apiResponse, error: apiError } = await supabase.functions.invoke(edgeFunctionName, {
+              body: { content_task_id: taskId }
+            });
+
+            if (apiError) {
+              console.error(`[PUBLISH-TASK] API call to ${edgeFunctionName} failed:`, apiError);
+              // Set status to 'failed' with error message
+              await supabase
+                .from('content_tasks')
+                .update({ status: 'failed', last_posting_error: apiError.message || 'API call failed' })
+                .eq('id', taskId);
+              throw new Error(`${edgeFunctionName} failed: ${apiError.message}`);
+            }
+
+            // Only mark as published AFTER successful API response
             const { error: publishError } = await supabase
               .from('content_tasks')
-              .update(updateData)
+              .update({ status: 'published' })
               .eq('id', taskId);
 
             if (publishError) throw publishError;
@@ -158,22 +200,23 @@ async function handler(req: Request): Promise<Response> {
               .from('scheduled_posts')
               .insert({
                 content_id: contentId,
-                task_id: taskId,  // NEW: Direct link to content_tasks
+                task_id: taskId,
                 user_id: taskData.user_id,
                 tenant_id: taskData.tenant_id,
-                platform: mapPlatformToEnum(platforms?.[0] || 'facebook'),
+                platform: mapPlatformToEnum(platform),
                 publish_at: new Date().toISOString(),
                 status: 'PUBLISHED',
                 mode: 'MANUAL'
               });
 
             if (scheduleError) throw scheduleError;
-            
-            result = { 
-              status: 'published', 
-              taskId, 
+
+            result = {
+              status: 'published',
+              taskId,
               timestamp: new Date().toISOString(),
-              platform: platforms?.[0] || 'facebook'
+              platform: platform,
+              apiResponse: apiResponse
             };
             break;
 

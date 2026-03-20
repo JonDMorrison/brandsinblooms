@@ -207,7 +207,11 @@ export const SMSCampaignWizard: React.FC = () => {
             .map(p => p.persona_name);
           
           // Use OR condition for persona matching
-          query = query.or(`persona_id.in.(${selectedPersonas.join(',')}),persona.in.("${selectedPersonaNames.join('","')}")`);
+          // SECURITY: [PostgREST filter injection] - Sanitize user input before interpolation into .or() filter
+          const sanitizeForPostgrest = (input: string) => input.replace(/[,.()"'\\]/g, '');
+          const safePersonaIds = selectedPersonas.map(sanitizeForPostgrest).join(',');
+          const safePersonaNames = selectedPersonaNames.map(sanitizeForPostgrest).join('","');
+          query = query.or(`persona_id.in.(${safePersonaIds}),persona.in.("${safePersonaNames}")`);
         }
 
         // If both segments and personas are selected, we need to intersect them

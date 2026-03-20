@@ -2,6 +2,8 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
 import { detectEnvironment, getLightspeedCredentials } from '../_shared/environment.ts';
 import { ensureLightspeedWebhooks } from '../_shared/webhooks/ensureLightspeedWebhooks.ts';
+// FIX: [P2] - Import encryptToken to encrypt tokens before storage
+import { encryptToken } from '../_shared/crypto/tokens.ts';
 
 console.log('[LS-CALLBACK] Edge function starting');
 
@@ -243,12 +245,18 @@ Deno.serve(async (req) => {
 
     console.log('[LS-CALLBACK] Updating connection in database...');
 
+    // FIX: [P2] - Encrypt access token before storage (was storing plaintext)
+    const encryptedAccessToken = await encryptToken(tokenData.access_token);
+    const encryptedRefreshToken = tokenData.refresh_token
+      ? await encryptToken(tokenData.refresh_token)
+      : null;
+
     // Update connection with real tokens
     const { error: updateError } = await supabaseClient
       .from('lightspeed_connections')
       .update({
-        encrypted_access_token: tokenData.access_token,
-        encrypted_refresh_token: tokenData.refresh_token || null,
+        encrypted_access_token: encryptedAccessToken,
+        encrypted_refresh_token: encryptedRefreshToken,
         expires_at: expiresAt.toISOString(),
         retailer_name: retailerName,
         status: 'connected',

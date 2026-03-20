@@ -15,6 +15,19 @@ Deno.serve(async (req) => {
   const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+  // FIX: [issue #17] - Add auth check to prevent unauthenticated access
+  const authHeader = req.headers.get('Authorization');
+  if (!authHeader || (authHeader !== `Bearer ${supabaseServiceKey}` && !authHeader.startsWith('Bearer '))) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+  }
+  if (authHeader !== `Bearer ${supabaseServiceKey}`) {
+    const token = authHeader.replace('Bearer ', '');
+    const { error: authErr } = await supabase.auth.getUser(token);
+    if (authErr) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+  }
+
   console.log('🎂 Birthday Automation Checker started at:', new Date().toISOString());
 
   try {
@@ -162,6 +175,22 @@ Deno.serve(async (req) => {
               continue;
             }
 
+            // FIX: [issue #52] - Add idempotency check to prevent duplicate birthday messages
+            const idempotencyToday = new Date().toISOString().split('T')[0];
+            const { data: existingOutbox } = await supabase
+              .from('crm_outbox')
+              .select('id')
+              .eq('customer_id', customer.id)
+              .eq('automation_id', automation.id)
+              .gte('created_at', idempotencyToday + 'T00:00:00Z')
+              .lte('created_at', idempotencyToday + 'T23:59:59Z')
+              .limit(1);
+
+            if (existingOutbox && existingOutbox.length > 0) {
+              console.log(`Skipping duplicate birthday message for customer ${customer.id}`);
+              continue;
+            }
+
             // Insert into outbox
             const { error: outboxError } = await supabase
               .from('crm_outbox')
@@ -184,7 +213,12 @@ Deno.serve(async (req) => {
                 }
               });
 
+            // FIX: [A6] - Handle unique constraint violations on outbox insert to prevent race condition on concurrent birthday checks
             if (outboxError) {
+              if (outboxError.code === '23505') {
+                console.log(`Skipping duplicate outbox entry for customer ${customer.id} step ${i} (unique constraint violation)`);
+                continue;
+              }
               console.error(`❌ Failed to enqueue message for step ${i}:`, outboxError);
               errorCount++;
             } else {
@@ -194,7 +228,8 @@ Deno.serve(async (req) => {
           }
 
           // Log automation event
-          await supabase
+          // FIX: [A5] - Check automation_events insert return value to prevent silent failures
+          const { error: eventError } = await supabase
             .from('automation_events')
             .insert({
               automation_id: automation.id,
@@ -205,6 +240,9 @@ Deno.serve(async (req) => {
                 triggered_at: new Date().toISOString()
               }
             });
+          if (eventError) {
+            console.error('Failed to insert automation_event:', eventError);
+          }
         }
       } catch (err) {
         console.error(`❌ Error processing customer ${customer.email}:`, err);

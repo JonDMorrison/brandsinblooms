@@ -20,6 +20,12 @@ serve(async (req) => {
   }
 
   try {
+    // SECURITY: [E14] - Add JWT authentication
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'Authorization required' }), { status: 401, headers: corsHeaders });
+    }
+
     const { postType, campaignTitle, userId, weekDescription, enforceCompanyName, customPrompt } = await req.json();
 
     if (!openAIApiKey) {

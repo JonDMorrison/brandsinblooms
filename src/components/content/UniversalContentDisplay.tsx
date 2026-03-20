@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Clock, Eye, Image as ImageIcon, Play, Mail, Calendar } from 'lucide-react';
 import { ContentTask, ContentBlock } from '@/types/content';
 import { MediaSelectorImage } from '@/components/crm/MediaSelectorImage';
+import { sanitizeHtml } from '@/utils/htmlSanitizer';
 
 interface UniversalContentDisplayProps {
   task: ContentTask;
@@ -176,8 +177,9 @@ const ContentBlockDisplay: React.FC<ContentBlockDisplayProps> = ({
         <div className="prose prose-sm max-w-none">
           <div 
             className="text-sm leading-relaxed whitespace-pre-wrap"
-            dangerouslySetInnerHTML={{ 
-              __html: block.body.replace(/\n/g, '<br/>') 
+            // SECURITY: X7 - Sanitize HTML to prevent XSS
+            dangerouslySetInnerHTML={{
+              __html: sanitizeHtml(block.body.replace(/\n/g, '<br/>'))
             }}
           />
         </div>

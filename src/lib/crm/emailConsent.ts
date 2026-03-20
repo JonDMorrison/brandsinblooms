@@ -99,6 +99,8 @@ export async function recordEmailConsentEvent(params: {
 /**
  * Update a customer's consent status and record the event
  */
+// FIX: [issue #50] - TODO: Wrap consent update in a database transaction (RPC) to ensure atomicity
+// Currently: suppression_list update, customer update, and consent event recording are separate calls
 export async function updateCustomerConsent(params: {
   tenantId: string;
   customerId: string;

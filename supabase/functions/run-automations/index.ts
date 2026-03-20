@@ -48,6 +48,20 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // FIX: [issue #19] - Add auth check to prevent unauthenticated access
+  const authHeader = req.headers.get('Authorization');
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  if (!authHeader || (authHeader !== `Bearer ${serviceRoleKey}` && !authHeader.startsWith('Bearer '))) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+  }
+  if (authHeader !== `Bearer ${serviceRoleKey}`) {
+    const token = authHeader.replace('Bearer ', '');
+    const { error: authErr } = await supabase.auth.getUser(token);
+    if (authErr) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+  }
+
   try {
     console.log('🚀 Starting automation runner...');
 
@@ -127,7 +141,7 @@ async function processAutomation(automation: AutomationRule) {
       
       for (const { step, stepIndex } of steps) {
         try {
-          // Check if this step was already sent or skipped
+          // FIX: [A8] - Use maybeSingle() instead of single() to handle potential duplicate log entries gracefully
           const { data: existingLog } = await supabase
             .from('crm_automation_logs')
             .select('id, status')
@@ -135,7 +149,7 @@ async function processAutomation(automation: AutomationRule) {
             .eq('customer_id', customer.id)
             .eq('step_index', stepIndex)
             .in('status', ['sent', 'skipped_no_channel', 'skipped_no_recipient'])
-            .single();
+            .maybeSingle();
 
           if (existingLog) {
             console.log(`Step ${stepIndex} already processed (${existingLog.status}) for customer ${customer.email}`);
@@ -289,8 +303,9 @@ async function getQualifyingCustomers(automation: AutomationRule): Promise<Custo
 
   const { data, error } = await query;
   if (error) {
+    // FIX: [A9] - Rethrow customer query errors instead of returning empty array to surface failures
     console.error('Error fetching qualifying customers:', error);
-    return [];
+    throw error;
   }
 
   return data || [];
@@ -317,6 +332,7 @@ async function getCustomerSteps(automation: AutomationRule, customer: Customer) 
 }
 
 async function sendAutomationEmail(customer: Customer, step: WorkflowStep, automation: AutomationRule) {
+  // FIX: [A17] - TODO: These campaign records should be cleaned up after 30 days - consider a scheduled cleanup job
   // Create a temporary email campaign for this automation step
   const { data: campaign, error: campaignError } = await supabase
     .from('crm_campaigns')
@@ -354,6 +370,7 @@ async function sendAutomationSms(customer: Customer, step: WorkflowStep, automat
     throw new Error(`SMS not configured: ${smsStatus.reason}`);
   }
 
+  // FIX: [A17] - TODO: These campaign records should be cleaned up after 30 days - consider a scheduled cleanup job
   // Create a temporary SMS campaign for this automation step
   const { data: campaign, error: campaignError } = await supabase
     .from('crm_sms_campaigns')

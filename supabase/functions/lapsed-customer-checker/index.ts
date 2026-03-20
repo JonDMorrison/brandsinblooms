@@ -15,6 +15,19 @@ Deno.serve(async (req) => {
   const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+  // FIX: [issue #18] - Add auth check to prevent unauthenticated access
+  const authHeader = req.headers.get('Authorization');
+  if (!authHeader || (authHeader !== `Bearer ${supabaseServiceKey}` && !authHeader.startsWith('Bearer '))) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+  }
+  if (authHeader !== `Bearer ${supabaseServiceKey}`) {
+    const token = authHeader.replace('Bearer ', '');
+    const { error: authErr } = await supabase.auth.getUser(token);
+    if (authErr) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+  }
+
   console.log('⏰ Lapsed Customer Checker started at:', new Date().toISOString());
 
   try {
@@ -82,16 +95,9 @@ Deno.serve(async (req) => {
 
     for (const customer of lapsedCustomers || []) {
       try {
-        // Check if customer was already triggered recently (cooldown)
-        const { data: recentTriggers } = await supabase
-          .from('automation_events')
-          .select('id')
-          .eq('customer_id', customer.id)
-          .eq('event_type', 'triggered')
-          .gte('created_at', cooldownDate.toISOString())
-          .limit(1);
+        // FIX: [A18] - Removed unused recentTriggers query (only recentLapsedTriggers is checked)
 
-        // Also check if metadata contains the trigger type
+        // Check if metadata contains the trigger type
         const { data: recentLapsedTriggers } = await supabase
           .from('automation_events')
           .select('id, metadata')
@@ -165,6 +171,22 @@ Deno.serve(async (req) => {
             continue;
           }
 
+          // FIX: [A7] - Add same-day outbox dedup check matching birthday-automation-checker pattern
+          const today = new Date().toISOString().split('T')[0];
+          const { data: existingOutbox } = await supabase
+            .from('crm_outbox')
+            .select('id')
+            .eq('customer_id', customer.id)
+            .eq('automation_id', tenantAutomation.id)
+            .gte('created_at', today + 'T00:00:00Z')
+            .lte('created_at', today + 'T23:59:59Z')
+            .limit(1);
+
+          if (existingOutbox && existingOutbox.length > 0) {
+            console.log(`Skipping duplicate lapsed message for customer ${customer.id}`);
+            continue;
+          }
+
           // Insert into outbox
           const { error: outboxError } = await supabase
             .from('crm_outbox')
@@ -197,7 +219,8 @@ Deno.serve(async (req) => {
         }
 
         // Log automation event
-        await supabase
+        // FIX: [A5] - Check automation_events insert return value to prevent silent failures
+        const { error: eventError } = await supabase
           .from('automation_events')
           .insert({
             automation_id: tenantAutomation.id,
@@ -209,6 +232,9 @@ Deno.serve(async (req) => {
               triggered_at: new Date().toISOString()
             }
           });
+        if (eventError) {
+          console.error('Failed to insert automation_event:', eventError);
+        }
 
       } catch (err) {
         console.error(`❌ Error processing ${customer.email}:`, err);

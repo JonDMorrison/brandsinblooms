@@ -32,17 +32,17 @@ export function SegmentInsights({ segmentId }: SegmentInsightsProps) {
   const generateInsights = async () => {
     setIsGenerating(true);
     try {
-      // Get segment data first
+      // FIX: [issue #39] - Select only needed columns instead of select('*')
       const { data: segment } = await supabase
         .from('crm_segments')
-        .select('*')
+        .select('name, description, conditions, customer_count')
         .eq('id', segmentId)
         .single();
 
       // Fetch personas data for enhanced insights
       const { data: personas } = await supabase
         .from('personas')
-        .select('*');
+        .select('id, name, description');
 
       const { data, error } = await supabase.functions.invoke('generate-segment-insights', {
         body: { 

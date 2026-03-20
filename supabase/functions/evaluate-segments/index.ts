@@ -36,14 +36,40 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+  const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+  // FIX: [issue #15] - Add auth check to prevent unauthenticated access
+  const authHeader = req.headers.get('Authorization');
+  if (!authHeader || (authHeader !== `Bearer ${supabaseServiceKey}` && !authHeader.startsWith('Bearer '))) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+  }
+  if (authHeader !== `Bearer ${supabaseServiceKey}`) {
+    const token = authHeader.replace('Bearer ', '');
+    const { error: authErr } = await supabase.auth.getUser(token);
+    if (authErr) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+  }
+
+  // SECURITY: [M1] - Verify tenant_id matches authenticated user's tenant
   const startTime = Date.now();
 
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const { tenant_id, segment_id } = await req.json().catch(() => ({}));
+
+    if (tenant_id && authHeader !== `Bearer ${supabaseServiceKey}`) {
+      const token = authHeader!.replace('Bearer ', '');
+      const { data: { user } } = await supabase.auth.getUser(token);
+      if (user) {
+        const { data: userData } = await supabase.from('users').select('tenant_id').eq('id', user.id).single();
+        if (userData?.tenant_id !== tenant_id) {
+          return new Response(JSON.stringify({ error: 'Tenant access denied' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+      }
+    }
 
     console.log(`[evaluate-segments] Starting evaluation for tenant: ${tenant_id || 'all'}, segment: ${segment_id || 'all'}`);
 
@@ -98,10 +124,12 @@ Deno.serve(async (req) => {
         const currentMemberIds = new Set((currentMembers || []).map(m => m.customer_id));
 
         // Fetch all customers for this tenant
+        // FIX: [issue #54] - Limit customer fetch to prevent OOM on large tenants
         const { data: customers, error: customersError } = await supabase
           .from('crm_customers')
           .select('*')
-          .eq('tenant_id', segment.tenant_id);
+          .eq('tenant_id', segment.tenant_id)
+          .limit(10000);
 
         if (customersError) {
           console.error(`[evaluate-segments] Error fetching customers:`, customersError);

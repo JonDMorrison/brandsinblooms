@@ -344,6 +344,16 @@ serve(async (req: Request): Promise<Response> => {
       cleanupRateLimitMaps();
     }
 
+    // SECURITY: Validate redirect URL to prevent open redirect attacks
+    try {
+      const redirectUrl = new URL(destinationUrl);
+      if (!['http:', 'https:'].includes(redirectUrl.protocol)) {
+        return new Response('Invalid redirect URL', { status: 400, headers: corsHeaders });
+      }
+    } catch {
+      return new Response('Invalid redirect URL', { status: 400, headers: corsHeaders });
+    }
+
     // 302 redirect to destination with security headers
     return new Response(null, {
       status: 302,

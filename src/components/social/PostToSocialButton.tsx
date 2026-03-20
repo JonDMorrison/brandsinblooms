@@ -146,49 +146,61 @@ export const PostToSocialButton: React.FC<PostToSocialButtonProps> = ({
       }
 
       const processedContent = processContentForPlatform(task.ai_output, platform);
-      
+
+      // FIX: [SM6] - Save original content and restore on publish failure
+      const originalAiOutput = task.ai_output;
+
       // Update the task with the processed content and ensure it's approved
       await supabase
         .from('content_tasks')
-        .update({ 
+        .update({
           ai_output: processedContent.fullContent,
           status: 'approved' // Ensure task is approved for posting
         })
         .eq('id', task.id);
-      
-      // Call the unified publish-task edge function
-      const functionResponse = await supabase.functions.invoke('publish-task', {
-        headers: {
-          Authorization: `Bearer ${token}`
-        },
-        body: {
-          taskId: task.id,
-          platforms: [platform]
+
+      try {
+        // Call the unified publish-task edge function
+        const functionResponse = await supabase.functions.invoke('publish-task', {
+          headers: {
+            Authorization: `Bearer ${token}`
+          },
+          body: {
+            taskId: task.id,
+            platforms: [platform]
+          }
+        });
+
+        const { data: responseData, error } = functionResponse;
+
+        if (error) {
+          throw new Error(error.message || `Edge function error: ${JSON.stringify(error)}`);
         }
-      });
-        
-      const { data: responseData, error } = functionResponse;
 
-      if (error) {
-        throw new Error(error.message || `Edge function error: ${JSON.stringify(error)}`);
-      }
+        if (responseData?.success) {
+          const result = responseData.results?.[0];
+          if (result?.success) {
+            setPosted(prev => ({ ...prev, [platform]: true }));
+            toast({
+              description: `Successfully posted to ${platform === 'facebook' ? 'Facebook' : 'Instagram'}!`
+            });
 
-      if (responseData?.success) {
-        const result = responseData.results?.[0];
-        if (result?.success) {
-          setPosted(prev => ({ ...prev, [platform]: true }));
-          toast({
-            description: `Successfully posted to ${platform === 'facebook' ? 'Facebook' : 'Instagram'}!`
-          });
-          
-          if (onSuccess) {
-            onSuccess();
+            if (onSuccess) {
+              onSuccess();
+            }
+          } else {
+            throw new Error(result?.error || `Failed to post to ${platform}`);
           }
         } else {
-          throw new Error(result?.error || `Failed to post to ${platform}`);
+          throw new Error(responseData?.message || `Failed to post to ${platform}`);
         }
-      } else {
-        throw new Error(responseData?.message || `Failed to post to ${platform}`);
+      } catch (publishError) {
+        // FIX: [SM6] - Restore original content on publish failure
+        await supabase
+          .from('content_tasks')
+          .update({ ai_output: originalAiOutput })
+          .eq('id', task.id);
+        throw publishError;
       }
     } catch (error: any) {
       console.error(`Error posting to ${platform}:`, error);

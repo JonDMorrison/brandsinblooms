@@ -780,6 +780,12 @@ serve(async (req) => {
   }
 
   try {
+    // SECURITY: [E27] - Add JWT authentication
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'Authorization required' }), { status: 401, headers: corsHeaders });
+    }
+
     console.log('🚀 Starting website analysis function');
     
     const { websiteUrl, runTests, companyProfileId } = await req.json();

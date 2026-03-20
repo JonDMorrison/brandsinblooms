@@ -351,7 +351,7 @@ Deno.serve(async (req) => {
   } catch (error: any) {
     console.error('[migrations-oauth-callback] Error:', error);
     const appOrigin = appOriginFromState || Deno.env.get('APP_ORIGIN') || Deno.env.get('APP_BASE_URL') || 'https://bloomsuite.app';
-    const redirectUrl = `${appOrigin}/oauth/callback?provider=mailchimp&status=error`;
+    const redirectUrl = `${appOrigin}/oauth/callback?provider=${provider}&status=error`;
     return new Response(null, { status: 302, headers: { ...corsHeaders, 'Location': redirectUrl } });
   }
 });

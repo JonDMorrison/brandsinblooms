@@ -1,5 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'npm:@supabase/supabase-js@2';
+// FIX: [P30] - Move dynamic crypto imports to top-level instead of repeated await import() calls
+import { decryptToken } from '../_shared/crypto/tokens.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -24,8 +26,9 @@ interface WorkflowStep {
 async function verifySquareSignature(body: string, signature: string | null, notificationUrl: string): Promise<boolean> {
   const webhookSecret = Deno.env.get('SQUARE_WEBHOOK_SIGNATURE_KEY');
   if (!webhookSecret) {
-    console.log('[WEBHOOK] No SQUARE_WEBHOOK_SIGNATURE_KEY configured - skipping verification');
-    return true;
+    // SECURITY: [W2] - Fail closed on missing secret (was returning true)
+    console.error('[WEBHOOK] No SQUARE_WEBHOOK_SIGNATURE_KEY configured - rejecting webhook for security');
+    return false;
   }
   if (!signature) {
     console.log('[WEBHOOK] No signature provided');
@@ -37,7 +40,19 @@ async function verifySquareSignature(body: string, signature: string | null, not
     const key = await crypto.subtle.importKey('raw', encoder.encode(webhookSecret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
     const signatureBuffer = await crypto.subtle.sign('HMAC', key, encoder.encode(stringToSign));
     const expectedSignature = btoa(String.fromCharCode(...new Uint8Array(signatureBuffer)));
-    const isValid = signature === expectedSignature;
+    // FIX: [P27] - Use constant-time comparison to prevent timing attacks on signature verification
+    const sigEncoder = new TextEncoder();
+    const a = sigEncoder.encode(signature);
+    const b = sigEncoder.encode(expectedSignature);
+    if (a.byteLength !== b.byteLength) {
+      console.log('[WEBHOOK] Signature mismatch - length differs');
+      return false;
+    }
+    let result = 0;
+    for (let i = 0; i < a.length; i++) {
+      result |= a[i] ^ b[i];
+    }
+    const isValid = result === 0;
     if (!isValid) {
       console.log('[WEBHOOK] Signature mismatch - expected:', expectedSignature.substring(0, 20) + '...', 'got:', signature.substring(0, 20) + '...');
     }
@@ -66,7 +81,8 @@ async function fetchSquareOrder(orderId: string, accessToken: string, environmen
     const response = await fetch(baseUrl, { headers: { 'Authorization': `Bearer ${accessToken}`, 'Square-Version': '2024-01-18' } });
     const data = await response.json();
     return response.ok ? data.order : null;
-  } catch { return null; }
+  // FIX: [issue #29] - Log errors instead of silently swallowing
+  } catch (err) { console.error('Square webhook error (fetchSquareOrder):', err); return null; }
 }
 
 async function fetchSquareCustomerGroups(accessToken: string, environment: string): Promise<Map<string, string>> {
@@ -76,7 +92,8 @@ async function fetchSquareCustomerGroups(accessToken: string, environment: strin
     const response = await fetch(baseUrl, { headers: { 'Authorization': `Bearer ${accessToken}`, 'Square-Version': '2024-01-18' } });
     const data = await response.json();
     if (response.ok && data.groups) data.groups.forEach((g: any) => groupMap.set(g.id, g.name));
-  } catch {}
+  // FIX: [issue #29] - Log errors instead of silently swallowing
+  } catch (err) { console.error('Square webhook error (fetchSquareCustomerGroups):', err); }
   return groupMap;
 }
 
@@ -224,6 +241,7 @@ async function fireAutomationTriggers(supabase: any, tenantId: string, customerI
  * payment.created with APPROVED status just records in pos_orders.
  */
 async function processPaymentEvent(supabase: any, tenantId: string, userId: string, paymentObj: any, merchantId: string, connection: any, squareEventType: string) {
+  // FIX: [P22] - TODO: Wrap order upsert + customer update + trigger fire in a database transaction for atomicity
   const paymentData = paymentObj.payment || paymentObj;
   const paymentId = paymentData.id;
   const paymentStatus = (paymentData.status || '').toUpperCase();
@@ -238,10 +256,10 @@ async function processPaymentEvent(supabase: any, tenantId: string, userId: stri
   let productNames: string[] = [], orderData: any = null;
   if (paymentData.order_id && connection?.encrypted_access_token) {
     try {
-      const { decryptToken } = await import('../_shared/crypto/tokens.ts');
       orderData = await fetchSquareOrder(paymentData.order_id, await decryptToken(connection.encrypted_access_token), connection.environment || 'production');
       productNames = extractProductNames(orderData);
-    } catch {}
+    // FIX: [issue #29] - Log errors instead of silently swallowing
+    } catch (err) { console.error('Square webhook error (processPaymentEvent fetch order):', err); }
   }
 
   // Record/update in pos_orders
@@ -290,10 +308,18 @@ async function processPaymentEvent(supabase: any, tenantId: string, userId: stri
       matchedBy = 'email';
       isFirstPurchase = !existing.first_purchase_date;
       const mergedTags = [...new Set([...(existing.product_tags || []), ...productNames])];
+      // FIX: [P16] - Recalculate total_spent from pos_orders instead of read-then-write increment
+      const { data: allOrders } = await supabase
+        .from('pos_orders')
+        .select('total_amount')
+        .eq('customer_external_id', squareCustomerId)
+        .eq('pos_connection_id', posConn?.id)
+        .eq('status', 'COMPLETED');
+      const totalSpent = (allOrders || []).reduce((sum: number, o: any) => sum + (o.total_amount || 0), 0);
       const { data: upserted } = await supabase.from('crm_customers').upsert({
         tenant_id: tenantId, user_id: userId, email: receiptEmail, phone: receiptPhone || existing.phone,
         first_purchase_date: isFirstPurchase ? currentDate : existing.first_purchase_date, last_purchase_date: currentDate,
-        total_spent: (existing.total_spent || 0) + amount, lifetime_value: (existing.lifetime_value || 0) + amount,
+        total_spent: totalSpent, lifetime_value: totalSpent,
         product_tags: mergedTags.length > 0 ? mergedTags : null, pos_source: 'square',
         square_customer_id: squareCustomerId || existing.square_customer_id
       }, { onConflict: 'tenant_id,email' }).select().single();
@@ -309,10 +335,18 @@ async function processPaymentEvent(supabase: any, tenantId: string, userId: stri
       matchedBy = 'square_customer_id';
       isFirstPurchase = !existing.first_purchase_date;
       const mergedTags = [...new Set([...(existing.product_tags || []), ...productNames])];
+      // FIX: [P16] - Recalculate total_spent from pos_orders instead of read-then-write increment
+      const { data: allOrders } = await supabase
+        .from('pos_orders')
+        .select('total_amount')
+        .eq('customer_external_id', squareCustomerId)
+        .eq('pos_connection_id', posConn?.id)
+        .eq('status', 'COMPLETED');
+      const totalSpent = (allOrders || []).reduce((sum: number, o: any) => sum + (o.total_amount || 0), 0);
       await supabase.from('crm_customers').update({
         first_purchase_date: isFirstPurchase ? currentDate : existing.first_purchase_date,
-        last_purchase_date: currentDate, total_spent: (existing.total_spent || 0) + amount,
-        lifetime_value: (existing.lifetime_value || 0) + amount,
+        last_purchase_date: currentDate, total_spent: totalSpent,
+        lifetime_value: totalSpent,
         product_tags: mergedTags.length > 0 ? mergedTags : null,
         phone: receiptPhone || existing.phone, updated_at: new Date().toISOString()
       }).eq('id', existing.id);
@@ -334,7 +368,6 @@ async function processPaymentEvent(supabase: any, tenantId: string, userId: stri
   // Strategy 4: Square API lookup & auto-create
   if (!customer && squareCustomerId && connection?.encrypted_access_token) {
     try {
-      const { decryptToken } = await import('../_shared/crypto/tokens.ts');
       const accessToken = await decryptToken(connection.encrypted_access_token);
       const env = connection.environment || 'production';
       const baseUrl = env === 'sandbox' ? 'https://connect.squareupsandbox.com' : 'https://connect.squareup.com';
@@ -414,6 +447,20 @@ async function processInvoicePaymentMade(supabase: any, tenantId: string, userId
   // Record in pos_orders
   const { data: posConn } = await supabase.from('square_connections').select('id').eq('merchant_id', merchantId).single();
   if (posConn) {
+    // FIX: [P8] - Check triggers_fired BEFORE upsert to prevent idempotency bypass on invoices
+    // The upsert overwrites raw_data, clearing the triggers_fired flag, so we must check first
+    const { data: existingOrder } = await supabase.from('pos_orders')
+      .select('raw_data')
+      .eq('external_id', invoiceId)
+      .eq('pos_connection_id', posConn.id)
+      .maybeSingle();
+
+    if (existingOrder?.raw_data?.triggers_fired) {
+      console.log(`[WEBHOOK] Invoice ${invoiceId} triggers already fired — idempotency skip`);
+      return { success: true, invoiceId, idempotencySkip: true };
+    }
+
+    // THEN do the upsert (after idempotency check)
     await supabase.from('pos_orders').upsert({
       tenant_id: tenantId, pos_connection_id: posConn.id, external_id: invoiceId,
       order_number: invoice.invoice_number || invoiceId, total_amount: totalAmount,
@@ -422,13 +469,6 @@ async function processInvoicePaymentMade(supabase: any, tenantId: string, userId
       order_date: invoice.created_at || new Date().toISOString(), status: invoiceStatus,
       items: [], raw_data: { invoice, square_event_type: 'invoice.payment_made' }
     }, { onConflict: 'external_id,pos_connection_id' });
-
-    // Idempotency check
-    const { data: existingOrder } = await supabase.from('pos_orders').select('raw_data').eq('external_id', invoiceId).eq('pos_connection_id', posConn.id).single();
-    if (existingOrder?.raw_data?.triggers_fired) {
-      console.log(`[WEBHOOK] Invoice ${invoiceId} triggers already fired — idempotency skip`);
-      return { success: true, invoiceId, idempotencySkip: true };
-    }
   }
 
   // Customer matching
@@ -532,10 +572,10 @@ async function processCustomerCreated(supabase: any, tenantId: string, userId: s
   let tags: string[] = [];
   if (customer.group_ids?.length > 0 && connection?.encrypted_access_token) {
     try {
-      const { decryptToken } = await import('../_shared/crypto/tokens.ts');
       const groupMap = await fetchSquareCustomerGroups(await decryptToken(connection.encrypted_access_token), connection.environment || 'production');
       tags = customer.group_ids.map((id: string) => groupMap.get(id)).filter(Boolean);
-    } catch {}
+    // FIX: [issue #29] - Log errors instead of silently swallowing
+    } catch (err) { console.error('Square webhook error (processCustomerCreated fetch groups):', err); }
   }
   await supabase.from('crm_customers').upsert({
     tenant_id: tenantId, user_id: userId, email, phone: customer.phone_number, first_name: customer.given_name, last_name: customer.family_name,
@@ -554,10 +594,10 @@ async function processCustomerUpdated(supabase: any, tenantId: string, userId: s
   let newTags: string[] = [];
   if (customer.group_ids?.length > 0 && connection?.encrypted_access_token) {
     try {
-      const { decryptToken } = await import('../_shared/crypto/tokens.ts');
       const groupMap = await fetchSquareCustomerGroups(await decryptToken(connection.encrypted_access_token), connection.environment || 'production');
       newTags = customer.group_ids.map((id: string) => groupMap.get(id)).filter(Boolean);
-    } catch {}
+    // FIX: [issue #29] - Log errors instead of silently swallowing
+    } catch (err) { console.error('Square webhook error (processCustomerUpdated fetch groups):', err); }
   }
   await supabase.from('crm_customers').update({
     phone: customer.phone_number, first_name: customer.given_name, last_name: customer.family_name,
@@ -575,7 +615,6 @@ async function processLoyaltyAccountCreated(supabase: any, tenantId: string, use
   const { data: connection } = await supabase.from('square_connections').select('encrypted_access_token, environment').eq('merchant_id', merchantId).eq('status', 'connected').single();
   if (!connection?.encrypted_access_token) return { success: false, error: 'No connection' };
 
-  const { decryptToken } = await import('../_shared/crypto/tokens.ts');
   const accessToken = await decryptToken(connection.encrypted_access_token);
   const baseUrl = connection.environment === 'sandbox' ? `https://connect.squareupsandbox.com/v2/customers/${squareCustomerId}` : `https://connect.squareup.com/v2/customers/${squareCustomerId}`;
   const response = await fetch(baseUrl, { headers: { 'Authorization': `Bearer ${accessToken}`, 'Square-Version': '2024-01-18' } });
@@ -687,7 +726,11 @@ async function syncProductToDatabase(supabase: any, tenantId: string, userId: st
     }
     if (itemData.image_ids?.length) await supabase.from('products').update({ has_images: true }).eq('id', product.id);
     return true;
-  } catch { return false; }
+  // FIX: [P26] - Log product sync errors instead of silently swallowing
+  } catch (err) {
+    console.error('[square-webhook] syncProductToDatabase error:', err);
+    return false;
+  }
 }
 
 async function processCatalogVersionUpdated(supabase: any, tenantId: string, userId: string, catalogData: any, merchantId: string) {

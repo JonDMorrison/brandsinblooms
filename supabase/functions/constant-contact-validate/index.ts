@@ -1,5 +1,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { decryptToken, encryptToken, assertEncryptionKeyConfigured } from '../_shared/crypto/tokens.ts';
+// IMPROVEMENT: Proactive token refresh for Constant Contact
+import { getValidCCAccessToken } from '../_shared/ccTokenRefresh.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -92,9 +94,10 @@ Deno.serve(async (req) => {
       );
     }
 
+    // IMPROVEMENT: Proactive token refresh if within 5 min of expiry
     let accessToken: string;
     try {
-      accessToken = await decryptToken(connection.encrypted_access_token);
+      accessToken = await getValidCCAccessToken(supabase, connection);
     } catch (error: any) {
       return new Response(
         JSON.stringify({ valid: false, reason: 'decryption_failed' }),

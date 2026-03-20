@@ -18,7 +18,24 @@ serve(async (req) => {
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
 
+    // FIX: [issue #2] - Add JWT authentication and tenant verification
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'No authorization header' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
+    if (authError || !user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
     const { tenant_id, cleanup_type, batch_size = 200 } = await req.json();
+
+    // FIX: [issue #2] - Verify user belongs to requested tenant
+    const { data: callerData } = await supabaseAdmin.from('users').select('tenant_id').eq('id', user.id).single();
+    if (!callerData || callerData.tenant_id !== tenant_id) {
+      return new Response(JSON.stringify({ error: 'Tenant access denied' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
 
     if (!tenant_id) {
       return new Response(

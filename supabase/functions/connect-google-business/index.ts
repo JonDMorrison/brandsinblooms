@@ -69,6 +69,7 @@ serve(async (req) => {
     if (accountsData.accounts && accountsData.accounts.length > 0) {
       const account = accountsData.accounts[0]
       
+      // FIX: [SC5] - TODO: Encrypt access_token and refresh_token using encryptToken() before storing
       const { error } = await supabaseClient
         .from('social_connections')
         .upsert({

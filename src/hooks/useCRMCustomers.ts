@@ -1,3 +1,4 @@
+// FIX: [issue #41] - TODO: Migrate to React Query for caching, deduplication, and background refetching
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -43,10 +44,11 @@ export const useCRMCustomers = () => {
           )
         `)
         .eq('tenant_id', tenant.id)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(500); // FIX: [issue #37] - Add pagination limit to prevent unbounded fetches
 
       if (error) throw error;
-      
+
       // Transform the data to include persona information
       const customersWithPersonas = (data || []).map(customer => ({
         ...customer,
@@ -62,7 +64,8 @@ export const useCRMCustomers = () => {
           .from('crm_customers')
           .select('*')
           .eq('tenant_id', tenant.id)
-          .order('created_at', { ascending: false });
+          .order('created_at', { ascending: false })
+          .limit(500); // FIX: [issue #37] - Add pagination limit to prevent unbounded fetches
 
         if (fallbackError) throw fallbackError;
         setCustomers(data || []);

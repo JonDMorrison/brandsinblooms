@@ -1,13 +1,11 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
+// FIX: [P14] - Replace insecure atob() with proper decryptToken
+import { decryptToken } from '../_shared/crypto/tokens.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
-
-async function simpleDecrypt(encrypted: string): Promise<string> {
-  return atob(encrypted);
-}
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -52,8 +50,8 @@ Deno.serve(async (req) => {
       throw new Error('No Lightspeed connection found');
     }
 
-    // Decrypt token
-    const accessToken = await simpleDecrypt(connection.encrypted_access_token);
+    // FIX: [P14] - Use proper decryptToken instead of atob()
+    const accessToken = await decryptToken(connection.encrypted_access_token);
 
     // Fetch products from Lightspeed API
     const response = await fetch(

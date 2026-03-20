@@ -1,5 +1,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
+// FIX: [P5] - Decrypt access token before using as Bearer token
+import { decryptToken } from '../_shared/crypto/tokens.ts';
 
 console.log('[LS-SYNC-SALES] Edge function starting');
 
@@ -63,6 +65,23 @@ Deno.serve(async (req) => {
       );
     }
 
+    // FIX: [P24] - Add sync lock to prevent concurrent syncs
+    const { data: existingJob } = await supabaseClient
+      .from('pos_sync_jobs')
+      .select('id, status')
+      .eq('connection_id', connection.id)
+      .eq('sync_type', 'sales')
+      .in('status', ['pending', 'in_progress'])
+      .single();
+
+    if (existingJob) {
+      console.log('[LS-SYNC-SALES] Sync already in progress, returning existing job');
+      return new Response(
+        JSON.stringify({ success: true, jobId: existingJob.id, message: 'Sync already in progress' }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     console.log('[LS-SYNC-SALES] Fetching sales from Lightspeed...');
 
     // Get sales from last 90 days for initial sync, or since last sync
@@ -79,10 +98,12 @@ Deno.serve(async (req) => {
     while (hasMore) {
       const offset = page * limit;
       const salesUrl = `https://${connection.domain_prefix}.retail.lightspeed.app/api/2.0/Sale.json?completeTime=>,${sinceDate}&limit=${limit}&offset=${offset}&load_relations=["SaleLines","Customer"]`;
-      
+
+      // FIX: [P5] - Decrypt access token before using as Bearer token
+      const accessToken = await decryptToken(connection.encrypted_access_token);
       const response = await fetch(salesUrl, {
         headers: {
-          'Authorization': `Bearer ${connection.encrypted_access_token}`,
+          'Authorization': `Bearer ${accessToken}`,
         },
       });
 
@@ -112,6 +133,8 @@ Deno.serve(async (req) => {
     let syncedCount = 0;
     let firstPurchases = 0;
 
+    // FIX: [P23] - TODO: Batch these per-customer DB calls to eliminate N+1 pattern
+    // Approach: collect all records, batch upsert to lightspeed_sales, then batch update customer stats
     for (const sale of allSales) {
       // Extract line items
       const lineItems = Array.isArray(sale.SaleLines?.SaleLine) 

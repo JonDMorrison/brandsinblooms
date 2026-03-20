@@ -87,6 +87,22 @@ Deno.serve(async (req) => {
 
     console.log('[CLOVER-SYNC-SALES] Starting sales sync...');
 
+    // FIX: [P15] - Add sync lock to prevent concurrent sales syncs from corrupting financial data
+    const { data: existingJob } = await supabaseClient
+      .from('pos_sync_jobs')
+      .select('id, status')
+      .eq('connection_id', connection.id)
+      .eq('sync_type', 'sales')
+      .in('status', ['pending', 'in_progress'])
+      .maybeSingle();
+
+    if (existingJob) {
+      return new Response(
+        JSON.stringify({ message: 'Sales sync already in progress', jobId: existingJob.id }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Fetch orders from Clover with pagination
     let offset = 0;
     const limit = 100;
@@ -161,24 +177,32 @@ Deno.serve(async (req) => {
         const cloverCustomerId = order.customers?.elements?.[0]?.id;
         if (cloverCustomerId && customerMap.has(cloverCustomerId)) {
           const customer = customerMap.get(cloverCustomerId)!;
-          
+
           // Extract product names for tags
           const productNames = (order.lineItems?.elements || [])
             .map(item => item.name || item.item?.name)
             .filter(Boolean) as string[];
-          
+
           const existingTags = customer.product_tags || [];
           const mergedTags = [...new Set([...existingTags, ...productNames])];
-          
-          const newLifetimeValue = (customer.lifetime_value || 0) + orderTotal;
+
           const firstPurchase = customer.first_purchase_date || orderDate;
           const lastPurchase = orderDate > (customer.last_purchase_date || '') ? orderDate : customer.last_purchase_date;
+
+          // FIX: [P6] - Compute lifetime_value from pos_orders to prevent double-counting on re-runs
+          // Instead of incrementing, query the source of truth (pos_orders) for an idempotent total
+          const { data: orderTotals } = await supabaseClient
+            .from('pos_orders')
+            .select('total_amount')
+            .eq('customer_id', customer.id)
+            .eq('tenant_id', userData.tenant_id);
+          const computedLifetime = (orderTotals || []).reduce((sum: number, o: any) => sum + (o.total_amount || 0), 0);
 
           const { error: updateError } = await supabaseClient
             .from('crm_customers')
             .update({
               product_tags: mergedTags.length > 0 ? mergedTags : null,
-              lifetime_value: newLifetimeValue,
+              lifetime_value: computedLifetime,
               first_purchase_date: firstPurchase,
               last_purchase_date: lastPurchase,
             })
@@ -188,7 +212,7 @@ Deno.serve(async (req) => {
             if (productNames.length > 0) {
               customersWithProductTags++;
             }
-            
+
             // Trigger purchase metrics recalculation
             const { error: metricsError } = await supabaseClient.rpc('recalculate_purchase_metrics', {
               p_customer_id: customer.id,

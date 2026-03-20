@@ -7,6 +7,9 @@ Deno.serve(async (req) => {
   if (preflightResponse) return preflightResponse;
 
   try {
+    // FIX: [issue #48] - TODO: Add Twilio webhook signature verification
+    // Requires TWILIO_AUTH_TOKEN env var. Use twilio.validateRequest() to verify X-Twilio-Signature header.
+
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);

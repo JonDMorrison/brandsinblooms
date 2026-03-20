@@ -1,5 +1,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
+// FIX: [P5] - Decrypt access token before using as Bearer token
+import { decryptToken } from '../_shared/crypto/tokens.ts';
 
 console.log('[LS-SYNC-PRODUCTS] Edge function starting');
 
@@ -73,10 +75,12 @@ Deno.serve(async (req) => {
     while (hasMore) {
       const offset = page * limit;
       const productsUrl = `https://${connection.domain_prefix}.retail.lightspeed.app/api/3.0/Item.json?limit=${limit}&offset=${offset}`;
-      
+
+      // FIX: [P5] - Decrypt access token before using as Bearer token
+      const accessToken = await decryptToken(connection.encrypted_access_token);
       const response = await fetch(productsUrl, {
         headers: {
-          'Authorization': `Bearer ${connection.encrypted_access_token}`,
+          'Authorization': `Bearer ${accessToken}`,
         },
       });
 

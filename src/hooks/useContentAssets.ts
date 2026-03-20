@@ -210,11 +210,14 @@ export const useContentAssets = () => {
     console.log('[useContentAssets] Searching assets for query:', query);
     
     try {
+      // SECURITY: [PostgREST filter injection] - Sanitize user input before interpolation into .or() filter
+      const sanitizeForPostgrest = (input: string) => input.replace(/[,.()"'\\]/g, '');
+      const sanitized = sanitizeForPostgrest(query);
       const { data, error } = await supabase
         .from('content_assets')
         .select('*')
         .eq('user_id', user.id)
-        .or(`name.ilike.%${query}%,tags.cs.{${query}}`)
+        .or(`name.ilike.%${sanitized}%,tags.cs.{${sanitized}}`)
         .order('created_at', { ascending: false });
 
       if (error) throw error;

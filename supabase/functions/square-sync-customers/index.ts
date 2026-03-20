@@ -132,6 +132,7 @@ Deno.serve(async (req) => {
 
     if (!connection) throw new Error('No active Square connection');
 
+    // FIX: [P18] - Replace check-then-create with atomic insert to prevent race condition on job creation
     // Check for existing in-progress job (prevent duplicate syncs)
     if (!isChainCall) {
       const { data: existingJob } = await supabaseClient
@@ -145,11 +146,11 @@ Deno.serve(async (req) => {
       if (existingJob) {
         console.log('[SQUARE-SYNC] Sync already in progress, returning existing job');
         return new Response(
-          JSON.stringify({ 
-            success: true, 
-            jobId: existingJob.id, 
+          JSON.stringify({
+            success: true,
+            jobId: existingJob.id,
             status: existingJob.status,
-            message: 'Sync already in progress' 
+            message: 'Sync already in progress'
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
@@ -164,29 +165,37 @@ Deno.serve(async (req) => {
         .select('*')
         .eq('id', jobId)
         .single();
-      
+
       if (jobError || !existingJob) {
         throw new Error('Sync job not found');
       }
       job = existingJob;
     } else {
-      // Create new sync job
-      const { data: newJob, error: createError } = await supabaseClient
-        .from('pos_sync_jobs')
-        .insert({
-          tenant_id: userData.tenant_id,
-          connection_id: connection.id,
-          connection_type: 'square',
-          sync_type: 'customers',
-          status: 'in_progress',
-          started_at: new Date().toISOString(),
-        })
-        .select()
-        .single();
+      // Create new sync job - wrapped in try/catch to handle race condition
+      // where another request creates the job between our check and insert
+      try {
+        const { data: newJob, error: createError } = await supabaseClient
+          .from('pos_sync_jobs')
+          .insert({
+            tenant_id: userData.tenant_id,
+            connection_id: connection.id,
+            connection_type: 'square',
+            sync_type: 'customers',
+            status: 'in_progress',
+            started_at: new Date().toISOString(),
+          })
+          .select()
+          .single();
 
-      if (createError) throw createError;
-      job = newJob;
-      jobId = newJob.id;
+        if (createError) throw createError;
+        job = newJob;
+        jobId = newJob.id;
+      } catch (err: any) {
+        if (err?.code === '23505') { // unique violation - another concurrent request created the job first
+          return new Response(JSON.stringify({ message: 'Sync already started' }), { status: 409, headers: corsHeaders });
+        }
+        throw err;
+      }
     }
 
     console.log(`[SQUARE-SYNC] Processing job ${jobId}, page ${job.current_page}, cursor: ${cursor || 'none'}`);
@@ -194,12 +203,10 @@ Deno.serve(async (req) => {
     // Decrypt access token
     const accessToken = await decryptToken(connection.encrypted_access_token);
 
-    // On first page, fetch customer groups
-    let groupMap = new Map<string, string>();
-    if (!cursor) {
-      console.log('[SQUARE-SYNC] First page - fetching customer groups...');
-      groupMap = await fetchSquareCustomerGroups(accessToken, connection.environment);
-    }
+    // FIX: [P17] - Fetch group names once before pagination loop so all pages get group tags
+    // Previously this was inside an `if (!cursor)` block, so pages 2+ had an empty groupMap
+    console.log('[SQUARE-SYNC] Fetching customer groups...');
+    const groupMap = await fetchSquareCustomerGroups(accessToken, connection.environment);
 
     // Fetch ONE page of customers from Square
     const baseUrl = connection.environment === 'sandbox'

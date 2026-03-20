@@ -1,6 +1,9 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'npm:@supabase/supabase-js@2'
 
+// FIX: [SM4] - Use configurable Facebook Graph API version instead of hardcoded value
+const GRAPH_API_VERSION = Deno.env.get('FACEBOOK_GRAPH_API_VERSION') || 'v21.0';
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -14,7 +17,7 @@ interface PublishNowRequest {
 }
 
 async function publishToFacebook(pageId: string, accessToken: string, caption: string, mediaUrl?: string) {
-  const url = `https://graph.facebook.com/v19.0/${pageId}/feed`
+  const url = `https://graph.facebook.com/${GRAPH_API_VERSION}/${pageId}/feed`
   const formData = new FormData()
   formData.append('message', caption)
   formData.append('access_token', accessToken)
@@ -43,7 +46,7 @@ async function publishToInstagram(accountId: string, accessToken: string, captio
   }
 
   // Create media container
-  const createMediaUrl = `https://graph.facebook.com/v19.0/${accountId}/media`
+  const createMediaUrl = `https://graph.facebook.com/${GRAPH_API_VERSION}/${accountId}/media`
   const createResponse = await fetch(createMediaUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -66,7 +69,7 @@ async function publishToInstagram(accountId: string, accessToken: string, captio
   }
 
   // Publish media
-  const publishUrl = `https://graph.facebook.com/v19.0/${accountId}/media_publish`
+  const publishUrl = `https://graph.facebook.com/${GRAPH_API_VERSION}/${accountId}/media_publish`
   const publishResponse = await fetch(publishUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -134,18 +137,29 @@ async function handler(req: Request): Promise<Response> {
       )
     }
 
+    // FIX: [SM2] - Look up tenant_id for the user and scope social_connections query by tenant
+    const { data: profile } = await supabaseClient
+      .from('profiles')
+      .select('tenant_id')
+      .eq('id', user.id)
+      .single()
+    const tenantId = profile?.tenant_id
+
     const results = []
 
     for (const platform of body.platforms) {
       try {
-        // Get social connection
-        const { data: connection, error: connectionError } = await supabaseClient
+        // Get social connection scoped by tenant_id when available
+        const connectionQuery = supabaseClient
           .from('social_connections')
           .select('*')
           .eq('user_id', user.id)
           .eq('platform', platform.toLowerCase())
           .eq('is_active', true)
-          .single()
+        if (tenantId) {
+          connectionQuery.eq('tenant_id', tenantId)
+        }
+        const { data: connection, error: connectionError } = await connectionQuery.single()
 
         if (connectionError || !connection) {
           throw new Error(`No active connection for ${platform}`)
@@ -172,6 +186,7 @@ async function handler(req: Request): Promise<Response> {
         }
 
         // Create scheduled post record with published status
+        // FIX: [SH3] - Set mode to MANUAL for direct publishes to prevent cron double-publish
         await supabaseClient
           .from('scheduled_posts')
           .insert({
@@ -180,7 +195,8 @@ async function handler(req: Request): Promise<Response> {
             platform: platform.toUpperCase(),
             publish_at: new Date().toISOString(),
             status: 'PUBLISHED',
-            published_id: publishedId
+            published_id: publishedId,
+            mode: 'MANUAL'
           })
 
         results.push({ platform, success: true, publishedId })
@@ -189,6 +205,7 @@ async function handler(req: Request): Promise<Response> {
         console.error(`Error publishing to ${platform}:`, error)
         
         // Create scheduled post record with error status
+        // FIX: [SH3] - Set mode to MANUAL for direct publishes to prevent cron double-publish
         await supabaseClient
           .from('scheduled_posts')
           .insert({
@@ -197,7 +214,8 @@ async function handler(req: Request): Promise<Response> {
             platform: platform.toUpperCase(),
             publish_at: new Date().toISOString(),
             status: 'ERROR',
-            error_message: error.message
+            error_message: error.message,
+            mode: 'MANUAL'
           })
 
         results.push({ platform, success: false, error: error.message })

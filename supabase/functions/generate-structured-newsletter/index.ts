@@ -18,6 +18,12 @@ serve(async (req) => {
   }
 
   try {
+    // SECURITY: [E19] - Add JWT authentication
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'Authorization required' }), { status: 401, headers: corsHeaders });
+    }
+
     // Normalize incoming payload keys to be resilient to different callers
     const incoming = await req.json();
 

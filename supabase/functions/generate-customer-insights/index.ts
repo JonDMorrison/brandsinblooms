@@ -59,13 +59,23 @@ serve(async (req) => {
       );
     }
 
-    // Get authorization header
-    const authHeader = req.headers.get('Authorization');
-    
     // Initialize Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // FIX: [issue #22] - Validate auth header instead of just reading it
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader || (authHeader !== `Bearer ${supabaseServiceKey}` && !authHeader.startsWith('Bearer '))) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+    if (authHeader !== `Bearer ${supabaseServiceKey}`) {
+      const token = authHeader.replace('Bearer ', '');
+      const { error: authErr } = await supabase.auth.getUser(token);
+      if (authErr) {
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+    }
 
     // Check cache first (unless force_regenerate is true)
     if (!force_regenerate) {

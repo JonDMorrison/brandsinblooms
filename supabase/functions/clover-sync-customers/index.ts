@@ -92,6 +92,16 @@ Deno.serve(async (req) => {
 
     if (!connection) throw new Error('No active Clover connection');
 
+    // FIX: [P21] - Clean up stuck in_progress jobs older than 30 minutes
+    await supabaseClient
+      .from('pos_sync_jobs')
+      .update({ status: 'failed', error_message: 'Timed out (stuck for >30 minutes)' })
+      .eq('connection_id', connection.id)
+      .eq('sync_type', 'customers')
+      .eq('status', 'in_progress')
+      .lt('created_at', new Date(Date.now() - 30 * 60 * 1000).toISOString());
+
+    // FIX: [P18] - Replace check-then-create with atomic insert to prevent race condition on job creation
     // Check for existing in-progress job (prevent duplicate syncs)
     if (!isChainCall) {
       const { data: existingJob } = await supabaseClient
@@ -105,11 +115,11 @@ Deno.serve(async (req) => {
       if (existingJob) {
         console.log('[CLOVER-SYNC] Sync already in progress, returning existing job');
         return new Response(
-          JSON.stringify({ 
-            success: true, 
-            jobId: existingJob.id, 
+          JSON.stringify({
+            success: true,
+            jobId: existingJob.id,
             status: existingJob.status,
-            message: 'Sync already in progress' 
+            message: 'Sync already in progress'
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
@@ -124,30 +134,38 @@ Deno.serve(async (req) => {
         .select('*')
         .eq('id', jobId)
         .single();
-      
+
       if (jobError || !existingJob) {
         throw new Error('Sync job not found');
       }
       job = existingJob;
     } else {
-      // Create new sync job
-      const { data: newJob, error: createError } = await supabaseClient
-        .from('pos_sync_jobs')
-        .insert({
-          tenant_id: userData.tenant_id,
-          connection_id: connection.id,
-          connection_type: 'clover',
-          sync_type: 'customers',
-          status: 'in_progress',
-          started_at: new Date().toISOString(),
-          page_offset: 0,
-        })
-        .select()
-        .single();
+      // Create new sync job - wrapped in try/catch to handle race condition
+      // where another request creates the job between our check and insert
+      try {
+        const { data: newJob, error: createError } = await supabaseClient
+          .from('pos_sync_jobs')
+          .insert({
+            tenant_id: userData.tenant_id,
+            connection_id: connection.id,
+            connection_type: 'clover',
+            sync_type: 'customers',
+            status: 'in_progress',
+            started_at: new Date().toISOString(),
+            page_offset: 0,
+          })
+          .select()
+          .single();
 
-      if (createError) throw createError;
-      job = newJob;
-      jobId = newJob.id;
+        if (createError) throw createError;
+        job = newJob;
+        jobId = newJob.id;
+      } catch (err: any) {
+        if (err?.code === '23505') { // unique violation - another concurrent request created the job first
+          return new Response(JSON.stringify({ message: 'Sync already started' }), { status: 409, headers: corsHeaders });
+        }
+        throw err;
+      }
     }
 
     console.log(`[CLOVER-SYNC] Processing job ${jobId}, page offset: ${pageOffset}`);

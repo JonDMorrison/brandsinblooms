@@ -66,8 +66,9 @@ async function verifyCloverSignature(body: string, signature: string | null): Pr
   const webhookSecret = Deno.env.get('CLOVER_WEBHOOK_SECRET');
 
   if (!webhookSecret) {
-    console.log('[CLOVER-WEBHOOK] No CLOVER_WEBHOOK_SECRET configured - skipping verification (dev mode)');
-    return true; // Allow in development until secret is provided
+    // SECURITY: [W1] - Fail closed on missing secret (was returning true)
+    console.error('CLOVER_WEBHOOK_SECRET not configured - rejecting webhook for security');
+    return false;
   }
 
   if (!signature) {
@@ -77,8 +78,12 @@ async function verifyCloverSignature(body: string, signature: string | null): Pr
   }
 
   try {
-    // STUB: HMAC-SHA256 verification (common pattern, verify with Clover)
-    // TODO: Confirm actual algorithm and header name with Clover
+    // FIX: [P7] - Clover webhook signature algorithm is UNCONFIRMED
+    // TODO: Verify HMAC-SHA256 with raw body is correct per Clover's documentation
+    // See: https://docs.clover.com/docs/configuring-webhooks
+    // Current implementation: HMAC-SHA256(body, secret) compared base64-encoded
+    // Fail-closed: rejects if secret not set or signature invalid
+    console.warn('[clover-webhook] Signature verification using UNCONFIRMED algorithm');
     const encoder = new TextEncoder();
     const key = await crypto.subtle.importKey(
       'raw',
@@ -91,7 +96,19 @@ async function verifyCloverSignature(body: string, signature: string | null): Pr
     const signatureBuffer = await crypto.subtle.sign('HMAC', key, encoder.encode(body));
     const expectedSignature = btoa(String.fromCharCode(...new Uint8Array(signatureBuffer)));
 
-    const isValid = signature === expectedSignature;
+    // FIX: [P19] - Use constant-time comparison to prevent timing attacks
+    const enc = new TextEncoder();
+    const a = enc.encode(signature);
+    const b = enc.encode(expectedSignature);
+    if (a.byteLength !== b.byteLength) {
+      logSignatureFailed('clover', 'Signature mismatch');
+      return false;
+    }
+    let result = 0;
+    for (let i = 0; i < a.length; i++) {
+      result |= a[i] ^ b[i];
+    }
+    const isValid = result === 0;
 
     if (!isValid) {
       console.log('[CLOVER-WEBHOOK] Signature mismatch');
@@ -358,6 +375,7 @@ async function processPaymentCompleted(
   merchantId: string,
   connection: any
 ) {
+  // FIX: [P22] - TODO: Wrap order upsert + customer update + trigger fire in a database transaction for atomicity
   console.log('[CLOVER-WEBHOOK] Processing payment completed');
 
   // Extract payment details (Clover format - adjust after meeting)
@@ -415,6 +433,15 @@ async function processPaymentCompleted(
       customer = existing;
       isFirstPurchase = !existing.first_purchase_date;
 
+      // FIX: [P10] - Recalculate total_spent and lifetime_value from pos_orders instead of read-then-write increment
+      // This is idempotent and prevents double-counting on webhook redelivery
+      const { data: allOrders } = await supabase
+        .from('pos_orders')
+        .select('total_amount')
+        .eq('customer_id', existing.id)
+        .eq('tenant_id', tenantId);
+      const computedTotalSpent = (allOrders || []).reduce((sum: number, o: any) => sum + (o.total_amount || 0), 0);
+
       const { data: upserted } = await supabase.from('crm_customers').upsert({
         tenant_id: tenantId,
         user_id: userId,
@@ -422,8 +449,8 @@ async function processPaymentCompleted(
         phone: customerPhone || existing.phone,
         first_purchase_date: isFirstPurchase ? currentDate : existing.first_purchase_date,
         last_purchase_date: currentDate,
-        total_spent: (existing.total_spent || 0) + amount,
-        lifetime_value: (existing.lifetime_value || 0) + amount,
+        total_spent: computedTotalSpent,
+        lifetime_value: computedTotalSpent,
         pos_source: 'clover',
         clover_customer_id: cloverCustomerId || existing.clover_customer_id,
       }, { onConflict: 'tenant_id,email' }).select().single();
@@ -446,11 +473,19 @@ async function processPaymentCompleted(
       customer = existingByClover;
       isFirstPurchase = !existingByClover.first_purchase_date;
 
+      // FIX: [P10] - Recalculate total_spent and lifetime_value from pos_orders (clover_customer_id path)
+      const { data: cloverOrders } = await supabase
+        .from('pos_orders')
+        .select('total_amount')
+        .eq('customer_id', existingByClover.id)
+        .eq('tenant_id', tenantId);
+      const cloverComputedTotal = (cloverOrders || []).reduce((sum: number, o: any) => sum + (o.total_amount || 0), 0);
+
       await supabase.from('crm_customers').update({
         first_purchase_date: isFirstPurchase ? currentDate : existingByClover.first_purchase_date,
         last_purchase_date: currentDate,
-        total_spent: (existingByClover.total_spent || 0) + amount,
-        lifetime_value: (existingByClover.lifetime_value || 0) + amount,
+        total_spent: cloverComputedTotal,
+        lifetime_value: cloverComputedTotal,
         phone: customerPhone || existingByClover.phone,
         updated_at: new Date().toISOString(),
       }).eq('id', existingByClover.id);
@@ -493,8 +528,9 @@ async function processCustomerCreated(
 ) {
   console.log('[CLOVER-WEBHOOK] Processing customer created');
 
-  const email = customerData.emailAddresses?.[0]?.emailAddress || customerData.email;
-  if (!email) return { success: false, reason: 'no_email' };
+  const emailAddress = customerData.emailAddresses?.[0]?.emailAddress || customerData.email;
+  // FIX: [P25] - Generate placeholder email for customers without email instead of silently dropping
+  const email = emailAddress || `clover-${customerData.id}@noemail.local`;
 
   const phone = customerData.phoneNumbers?.[0]?.phoneNumber || customerData.phone;
 
@@ -714,10 +750,8 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
-    // Get signature from header (adjust header name after Clover meeting)
-    const signature = req.headers.get('x-clover-signature') ||
-                      req.headers.get('x-clover-hmac-sha256') ||
-                      req.headers.get('authorization');
+    // FIX: [P20] - Remove 'authorization' as webhook signature fallback (could match wrong auth mechanism)
+    const signature = req.headers.get('x-clover-signature') || req.headers.get('x-clover-hmac-sha256');
 
     // SIGNATURE VERIFICATION
     const signatureValid = await verifyCloverSignature(body, signature);
@@ -731,6 +765,21 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const webhookPayload: CloverWebhookPayload = payload as CloverWebhookPayload;
+
+    // FIX: [P11] - TODO: Create pos_webhook_events table and add event deduplication
+    // Schema: pos_webhook_events (id, event_id TEXT, provider TEXT, processed_at TIMESTAMPTZ, UNIQUE(event_id, provider))
+    // INSERT INTO pos_webhook_events (event_id, provider, processed_at) VALUES (...)
+    // Check before processing to prevent double-counting on redelivery:
+    //   const dedupEventId = payload.eventId || payload.event_id || payload.id;
+    //   if (dedupEventId) {
+    //     const { data: existing } = await supabase.from('pos_webhook_events')
+    //       .select('id').eq('event_id', dedupEventId).eq('provider', 'clover').maybeSingle();
+    //     if (existing) {
+    //       console.log(`[clover-webhook] Duplicate event ${dedupEventId}, skipping`);
+    //       return new Response(JSON.stringify({ success: true, duplicate: true }), { headers: corsHeaders });
+    //     }
+    //     await supabase.from('pos_webhook_events').insert({ event_id: dedupEventId, provider: 'clover', processed_at: new Date().toISOString() });
+    //   }
 
     // Normalize payload fields (Clover may use camelCase or snake_case)
     const eventId = payload.eventId || payload.event_id || 'unknown';

@@ -55,6 +55,8 @@ const verifyWebhookSignature = async (request: Request, body: string): Promise<b
 
   if (!webhookSecret) {
     if (allowInsecureWebhooks) {
+      // SECURITY: [M2] - Log critical warning when signature verification is bypassed
+      console.error('CRITICAL SECURITY WARNING: ALLOW_INSECURE_WEBHOOKS is enabled. Webhook signature verification is disabled. Do NOT use in production.');
       console.warn('⚠️ RESEND_WEBHOOK_SECRET not configured - ALLOW_INSECURE_WEBHOOKS=true, allowing request');
       return true;
     }
@@ -154,6 +156,8 @@ const verifyWebhookSignature = async (request: Request, body: string): Promise<b
     }
 
     if (allowInsecureWebhooks) {
+      // SECURITY: [M2] - Log critical warning when signature verification is bypassed
+      console.error('CRITICAL SECURITY WARNING: ALLOW_INSECURE_WEBHOOKS is enabled. Webhook signature verification is disabled. Do NOT use in production.');
       console.warn('⚠️ No signature headers found - ALLOW_INSECURE_WEBHOOKS=true, allowing request');
       return true;
     }

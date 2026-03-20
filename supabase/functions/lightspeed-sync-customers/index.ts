@@ -1,4 +1,5 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { decryptToken } from '../_shared/crypto/tokens.ts';
 import { corsHeaders } from '../_shared/cors.ts';
 
 console.log('[LS-SYNC-CUSTOMERS] Edge function starting');
@@ -76,6 +77,23 @@ Deno.serve(async (req) => {
       );
     }
 
+    // FIX: [P24] - Add sync lock to prevent concurrent syncs
+    const { data: existingJob } = await supabaseClient
+      .from('pos_sync_jobs')
+      .select('id, status')
+      .eq('connection_id', connection.id)
+      .eq('sync_type', 'customers')
+      .in('status', ['pending', 'in_progress'])
+      .single();
+
+    if (existingJob) {
+      console.log('[LS-SYNC-CUSTOMERS] Sync already in progress, returning existing job');
+      return new Response(
+        JSON.stringify({ success: true, jobId: existingJob.id, message: 'Sync already in progress' }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     console.log('[LS-SYNC-CUSTOMERS] Fetching customers from Lightspeed...');
 
     let allCustomers: any[] = [];
@@ -87,9 +105,11 @@ Deno.serve(async (req) => {
       const offset = page * limit;
       const customersUrl = `https://${connection.domain_prefix}.retail.lightspeed.app/api/2.0/Customer.json?limit=${limit}&offset=${offset}`;
       
+      // FIX: [issue #24] - Decrypt access token before using as Bearer token
+      const accessToken = await decryptToken(connection.encrypted_access_token);
       const response = await fetch(customersUrl, {
         headers: {
-          'Authorization': `Bearer ${connection.encrypted_access_token}`,
+          'Authorization': `Bearer ${accessToken}`,
         },
       });
 
@@ -120,6 +140,9 @@ Deno.serve(async (req) => {
     let syncedCount = 0;
     let createdContacts = 0;
 
+    // FIX: [issue #66] - TODO: Batch customer upserts instead of processing individually (N+1 pattern)
+    // FIX: [P23] - TODO: Batch these per-customer DB calls to eliminate N+1 pattern
+    // Approach: collect all records, batch upsert to lightspeed_customers, then batch upsert CRM contacts
     for (const customer of allCustomers) {
       const phone = customer.Contact?.Phones?.Phone?.[0]?.number || null;
       const email = customer.email || null;
@@ -149,24 +172,38 @@ Deno.serve(async (req) => {
 
       // Create or link to CRM contact if email or phone exists
       if (email || phone) {
+        // FIX: [P12] - Build .or() filter conditionally to handle null email/phone correctly
+        const filters: string[] = [];
+        if (email) filters.push(`email.eq.${email}`);
+        if (phone) filters.push(`phone.eq.${phone}`);
+        if (filters.length === 0) {
+          // No identifiers to match - skip CRM link
+          continue;
+        }
         const { data: existingContact } = await supabaseClient
           .from('crm_customers')
           .select('id')
           .eq('tenant_id', tenantId)
-          .or(`email.eq.${email},phone.eq.${phone}`)
-          .single();
+          .or(filters.join(','))
+          .limit(1)
+          .maybeSingle();
 
         if (!existingContact) {
-          // Create new contact
+          // FIX: [P13] - Generate synthetic email for phone-only customers to prevent duplicates
+          const crmEmail = email || `ls-${customer.customerID}@noemail.local`;
+
+          // FIX: [issue #27] - Use upsert instead of insert to prevent duplicate key errors
           const { data: newContact } = await supabaseClient
             .from('crm_customers')
-            .insert({
+            .upsert({
               tenant_id: tenantId,
-              email: email,
+              email: crmEmail,
               phone: phone,
               first_name: customer.firstName || null,
               last_name: customer.lastName || null,
               source: 'lightspeed',
+            }, {
+              onConflict: 'tenant_id,email'
             })
             .select('id')
             .single();

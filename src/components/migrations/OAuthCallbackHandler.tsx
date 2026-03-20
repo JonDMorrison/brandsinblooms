@@ -29,11 +29,12 @@ export const OAuthCallbackHandler = () => {
       if (status && provider) {
         if (window.opener) {
           try {
+            // IMPROVEMENT: Use actual app origin instead of '*' for postMessage security
             window.opener.postMessage({
               type: status === 'success' ? 'oauth-success' : 'oauth-error',
               provider,
               message: status === 'success' ? 'Connected successfully' : 'Connection failed'
-            }, '*');
+            }, window.location.origin);
           } catch (e) {
             console.warn('[OAuthCallbackHandler] postMessage failed', e);
           }

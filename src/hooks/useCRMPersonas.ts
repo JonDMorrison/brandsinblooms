@@ -1,3 +1,4 @@
+// FIX: [issue #41] - TODO: Migrate to React Query for caching, deduplication, and background refetching
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -25,9 +26,10 @@ export const useCRMPersonas = () => {
 
     setLoading(true);
     try {
+      // FIX: [issue #39] - Select only needed columns instead of select('*')
       const { data, error } = await supabase
         .from('crm_personas')
-        .select('*')
+        .select('id, persona_name, persona_description, is_custom, created_at, updated_at')
         .eq('tenant_id', tenant.id)
         .order('created_at', { ascending: false });
 

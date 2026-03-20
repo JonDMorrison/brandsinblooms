@@ -6,6 +6,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { X } from "lucide-react";
+import { sanitizeHtml } from "@/utils/htmlSanitizer";
 
 interface VideoModalProps {
   open: boolean;
@@ -31,7 +32,8 @@ export const VideoModal: React.FC<VideoModalProps> = ({
           <div 
             className="relative w-full bg-muted rounded-lg overflow-hidden"
             style={{ paddingBottom: "56.25%", height: 0 }}
-            dangerouslySetInnerHTML={{ __html: embedCode }}
+            // SECURITY: X6 - Sanitize HTML to prevent XSS
+            dangerouslySetInnerHTML={{ __html: sanitizeHtml(embedCode) }}
           />
         </div>
       </DialogContent>

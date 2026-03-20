@@ -40,16 +40,23 @@ serve(async (req) => {
 
     console.log(`Starting holiday calendar update for year ${targetYear}`)
 
-    // Get the user who triggered this (if authenticated)
+    // SECURITY: [E42] - Add authentication (was falling through as system)
+    const authHeader = req.headers.get('Authorization')
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'Authorization required' }), { status: 401, headers: corsHeaders })
+    }
     let triggeredBy = null
-    try {
-      const authHeader = req.headers.get('Authorization')
-      if (authHeader) {
-        const { data: { user } } = await supabaseClient.auth.getUser(authHeader.replace('Bearer ', ''))
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+    if (authHeader !== `Bearer ${serviceRoleKey}`) {
+      try {
+        const { data: { user }, error: authErr } = await supabaseClient.auth.getUser(authHeader.replace('Bearer ', ''))
+        if (authErr || !user) {
+          return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: corsHeaders })
+        }
         triggeredBy = user?.id
+      } catch (error) {
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: corsHeaders })
       }
-    } catch (error) {
-      console.log('No authenticated user found, proceeding as system')
     }
 
     // Fetch all active holiday templates

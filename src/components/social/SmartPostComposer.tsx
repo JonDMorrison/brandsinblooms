@@ -84,12 +84,10 @@ export const SmartPostComposer: React.FC<SmartPostComposerProps> = ({
         return;
       }
 
-      // Log first 15 characters of JWT for debugging
-      console.log('🔑 JWT Token (first 15 chars):', token.substring(0, 15));
-      console.log('🔐 Auth validation:', { 
+      // SECURITY: [L2] - Removed JWT token logging to prevent credential exposure
+      console.log('Auth validation:', {
         hasSession: !!sessionData.session,
         hasToken: !!token,
-        tokenLength: token.length,
         userId: sessionData.session.user?.id
       });
 
