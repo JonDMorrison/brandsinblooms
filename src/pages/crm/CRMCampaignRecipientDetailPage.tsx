@@ -58,17 +58,11 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import {
   extractBounceReason,
@@ -436,14 +430,6 @@ function DetailStat({
   );
 }
 
-function JsonBlock({ value }: { value: unknown }) {
-  return (
-    <pre className="max-h-[320px] overflow-auto whitespace-pre-wrap break-all rounded-md border bg-muted/30 p-4 text-xs leading-5 text-foreground">
-      {JSON.stringify(value ?? {}, null, 2)}
-    </pre>
-  );
-}
-
 export default function CRMCampaignRecipientDetailPage() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -456,8 +442,6 @@ export default function CRMCampaignRecipientDetailPage() {
   }>();
   const [searchParams] = useSearchParams();
   const filterState = buildRecipientFilterState(searchParams);
-  const [activeTab, setActiveTab] = useState("preview");
-  const [isActivityExpanded, setIsActivityExpanded] = useState(true);
   const [isRetryDialogOpen, setIsRetryDialogOpen] = useState(false);
   const [isRetrying, setIsRetrying] = useState(false);
   const headingRef = useRef<HTMLHeadingElement | null>(null);
@@ -488,9 +472,6 @@ export default function CRMCampaignRecipientDetailPage() {
     [],
   );
   const [highlightedTimelineKeys, setHighlightedTimelineKeys] = useState<
-    Record<string, boolean>
-  >({});
-  const [highlightedActivityKeys, setHighlightedActivityKeys] = useState<
     Record<string, boolean>
   >({});
   const highlightTimersRef = useRef<Record<string, number>>({});
@@ -564,8 +545,7 @@ export default function CRMCampaignRecipientDetailPage() {
 
   const previewSubject =
     payloadSubject || campaign?.subject_line || "No subject line";
-  const rawPreviewHtml = payloadHtml || campaign?.content || "";
-  const previewHtml = activeTab === "preview" ? rawPreviewHtml : "";
+  const previewHtml = payloadHtml || campaign?.content || "";
   const previewSource = payloadHtml
     ? "snapshot"
     : campaign?.content
@@ -761,12 +741,7 @@ export default function CRMCampaignRecipientDetailPage() {
           ...current,
           [timelineKey]: true,
         }));
-        setHighlightedActivityKeys((current) => ({
-          ...current,
-          [activityEntry.id]: true,
-        }));
         window.clearTimeout(highlightTimersRef.current[timelineKey]);
-        window.clearTimeout(highlightTimersRef.current[activityEntry.id]);
         highlightTimersRef.current[timelineKey] = window.setTimeout(() => {
           setHighlightedTimelineKeys((current) => {
             const next = { ...current };
@@ -774,14 +749,6 @@ export default function CRMCampaignRecipientDetailPage() {
             return next;
           });
           delete highlightTimersRef.current[timelineKey];
-        }, 700);
-        highlightTimersRef.current[activityEntry.id] = window.setTimeout(() => {
-          setHighlightedActivityKeys((current) => {
-            const next = { ...current };
-            delete next[activityEntry.id];
-            return next;
-          });
-          delete highlightTimersRef.current[activityEntry.id];
         }, 700);
       }
     },
@@ -1436,339 +1403,49 @@ export default function CRMCampaignRecipientDetailPage() {
 
         <Card>
           <CardContent className="p-6">
-            <Tabs
-              value={activeTab}
-              onValueChange={setActiveTab}
-              className="space-y-6"
-            >
-              <TabsList className="grid w-full grid-cols-3 lg:w-[420px]">
-                <TabsTrigger value="preview">Preview</TabsTrigger>
-                <TabsTrigger value="metadata">Metadata</TabsTrigger>
-                <TabsTrigger value="activity">Activity Log</TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="preview" className="space-y-4">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    <div className="text-sm font-medium text-foreground">
-                      {previewSubject}
-                    </div>
-                    <div className="mt-1 text-sm text-muted-foreground">
-                      {previewSource === "snapshot"
-                        ? "Exact rendered payload snapshot"
-                        : previewSource === "current_campaign"
-                          ? "Current campaign content fallback"
-                          : "No preview content available"}
-                      {activeTab !== "preview"
-                        ? " Preview HTML stays unloaded until this tab is active."
-                        : ""}
-                    </div>
+            <div className="space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <div className="text-sm font-medium text-foreground">
+                    {previewSubject}
                   </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge
-                      variant={
-                        previewSource === "snapshot" ? "secondary" : "outline"
-                      }
-                    >
-                      {previewSource === "snapshot"
-                        ? "Snapshot"
-                        : previewSource === "current_campaign"
-                          ? "Current Campaign"
-                          : "Unavailable"}
-                    </Badge>
-                    {previewHtml ? (
-                      <Button
-                        variant="outline"
-                        onClick={() => handleCopy(previewHtml, "Email HTML")}
-                      >
-                        <Copy className="mr-2 h-4 w-4" />
-                        Copy HTML
-                      </Button>
-                    ) : null}
+                  <div className="mt-1 text-sm text-muted-foreground">
+                    {previewSource === "snapshot"
+                      ? "Exact rendered payload snapshot"
+                      : previewSource === "current_campaign"
+                        ? "Current campaign content fallback"
+                        : "No preview content available"}
                   </div>
                 </div>
-
-                {previewHtml ? (
-                  <div className="space-y-4">
-                    <div className="overflow-hidden rounded-xl border bg-white shadow-sm">
-                      <iframe
-                        className="h-[720px] w-full"
-                        srcDoc={previewHtml}
-                        title="Campaign email preview"
-                      />
-                    </div>
-                    <div>
-                      <div className="mb-2 text-sm font-medium text-foreground">
-                        Rendered HTML
-                      </div>
-                      <pre className="max-h-[320px] overflow-auto whitespace-pre-wrap break-all rounded-md border bg-muted/30 p-4 text-xs leading-5 text-foreground">
-                        {previewHtml}
-                      </pre>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="rounded-lg border border-dashed px-6 py-12 text-center text-sm text-muted-foreground">
-                    No HTML preview is available for this recipient yet.
-                  </div>
-                )}
-              </TabsContent>
-
-              <TabsContent value="metadata" className="space-y-6">
-                <div className="grid gap-6 lg:grid-cols-2">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-lg">
-                        Recipient Metadata
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-3 text-sm">
-                      <div>
-                        <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                          Email
-                        </div>
-                        <div className="mt-1 text-foreground break-all">
-                          {liveRecipient.customer_email}
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                          Phone
-                        </div>
-                        <div className="mt-1 text-foreground">
-                          {liveRecipient.phone || "-"}
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                          Created
-                        </div>
-                        <div className="mt-1 text-foreground">
-                          {formatExactTimestamp(
-                            liveRecipient.created_at,
-                            campaign.tenant_timezone,
-                          )}
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                          Sent
-                        </div>
-                        <div className="mt-1 text-foreground">
-                          {formatExactTimestamp(
-                            liveRecipient.sent_at,
-                            campaign.tenant_timezone,
-                          )}
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                          Last Attempt
-                        </div>
-                        <div className="mt-1 text-foreground">
-                          {formatExactTimestamp(
-                            liveRecipient.last_attempt_at,
-                            campaign.tenant_timezone,
-                          )}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-lg">
-                        Campaign Metadata
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-3 text-sm">
-                      <div>
-                        <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                          Campaign
-                        </div>
-                        <div className="mt-1 text-foreground">
-                          {campaign.name}
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                          Subject
-                        </div>
-                        <div className="mt-1 text-foreground">
-                          {previewSubject}
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                          Segments
-                        </div>
-                        <div className="mt-1 text-foreground">
-                          {campaign.segments.length
-                            ? campaign.segments
-                                .map((segment) => segment.name)
-                                .join(", ")
-                            : "No linked segments"}
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                          Sending Domain
-                        </div>
-                        <div className="mt-1 text-foreground">
-                          {campaign.domain_name || "Platform default"}
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                          Delivery Method
-                        </div>
-                        <div className="mt-1 text-foreground">
-                          {campaign.delivery_method || "-"}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge
+                    variant={
+                      previewSource === "snapshot" ? "secondary" : "outline"
+                    }
+                  >
+                    {previewSource === "snapshot"
+                      ? "Snapshot"
+                      : previewSource === "current_campaign"
+                        ? "Current Campaign"
+                        : "Unavailable"}
+                  </Badge>
                 </div>
+              </div>
 
-                <div className="grid gap-6 lg:grid-cols-2">
-                  <div>
-                    <div className="mb-2 flex items-center justify-between gap-2">
-                      <div className="text-sm font-medium text-foreground">
-                        Payload Snapshot
-                      </div>
-                      <Button
-                        variant="outline"
-                        onClick={() =>
-                          handleCopy(
-                            JSON.stringify(payload, null, 2),
-                            "Payload JSON",
-                          )
-                        }
-                      >
-                        <Copy className="mr-2 h-4 w-4" />
-                        Copy JSON
-                      </Button>
-                    </div>
-                    <JsonBlock value={payload} />
-                  </div>
-                  <div>
-                    <div className="mb-2 text-sm font-medium text-foreground">
-                      Customer Custom Fields
-                    </div>
-                    <JsonBlock value={liveRecipient.custom_fields} />
-                  </div>
+              {previewHtml ? (
+                <div className="overflow-hidden rounded-xl border bg-white shadow-sm">
+                  <iframe
+                    className="h-[720px] w-full"
+                    srcDoc={previewHtml}
+                    title="Campaign email preview"
+                  />
                 </div>
-              </TabsContent>
-
-              <TabsContent value="activity" className="space-y-4">
-                <Collapsible
-                  open={isActivityExpanded}
-                  onOpenChange={setIsActivityExpanded}
-                >
-                  <div className="flex items-center justify-between gap-3 rounded-lg border bg-muted/10 px-4 py-3">
-                    <div>
-                      <div className="font-medium text-foreground">
-                        Activity Log
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        {activityLog.length} tracking{" "}
-                        {activityLog.length === 1 ? "event" : "events"}
-                      </div>
-                    </div>
-                    <CollapsibleTrigger asChild>
-                      <Button variant="outline" size="sm">
-                        {isActivityExpanded ? "Collapse" : "Expand"}
-                      </Button>
-                    </CollapsibleTrigger>
-                  </div>
-                  <CollapsibleContent className="space-y-4 pt-4">
-                    {activityLog.length === 0 ? (
-                      <div className="rounded-lg border border-dashed px-6 py-12 text-center text-sm text-muted-foreground">
-                        No tracking events have been recorded for this message
-                        yet.
-                      </div>
-                    ) : (
-                      <div className="space-y-4">
-                        {activityLog.map((entry) => (
-                          <div
-                            key={entry.id}
-                            className={`rounded-xl border p-4 transition-colors duration-700 ${highlightedActivityKeys[entry.id] ? "bg-emerald-50/70 shadow-[0_0_0_1px_rgba(16,185,129,0.15)]" : ""}`}
-                          >
-                            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                              <div className="space-y-2">
-                                <div className="flex flex-wrap items-center gap-2">
-                                  <Badge
-                                    className={getEventBadgeClass(
-                                      entry.event_type,
-                                    )}
-                                  >
-                                    {getEventLabel(entry.event_type)}
-                                  </Badge>
-                                  {entry.is_mpp_guess ? (
-                                    <Badge variant="secondary">
-                                      MPP guessed
-                                    </Badge>
-                                  ) : null}
-                                </div>
-                                <div className="text-sm text-muted-foreground">
-                                  {formatExactTimestamp(
-                                    entry.event_at,
-                                    campaign.tenant_timezone,
-                                  )}
-                                </div>
-                                {entry.link_url ? (
-                                  <div className="flex items-start gap-2 text-sm text-muted-foreground">
-                                    <MousePointer className="mt-0.5 h-4 w-4 text-primary" />
-                                    <span className="break-all">
-                                      {entry.link_url}
-                                    </span>
-                                  </div>
-                                ) : null}
-                                {entry.user_agent ? (
-                                  <div className="text-xs text-muted-foreground break-all">
-                                    User-Agent: {entry.user_agent}
-                                  </div>
-                                ) : null}
-                                {entry.ip_address ? (
-                                  <div className="text-xs text-muted-foreground">
-                                    IP: {entry.ip_address}
-                                  </div>
-                                ) : null}
-                              </div>
-
-                              <div className="w-full max-w-xl space-y-2">
-                                <div className="flex flex-wrap items-center justify-between gap-2">
-                                  <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                                    Event Data
-                                  </div>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() =>
-                                      handleCopy(
-                                        JSON.stringify(
-                                          entry.event_data ?? {},
-                                          null,
-                                          2,
-                                        ),
-                                        "Event data",
-                                      )
-                                    }
-                                  >
-                                    <Copy className="mr-2 h-4 w-4" />
-                                    Copy
-                                  </Button>
-                                </div>
-                                <JsonBlock value={entry.event_data} />
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </CollapsibleContent>
-                </Collapsible>
-              </TabsContent>
-            </Tabs>
+              ) : (
+                <div className="rounded-lg border border-dashed px-6 py-12 text-center text-sm text-muted-foreground">
+                  No HTML preview is available for this recipient yet.
+                </div>
+              )}
+            </div>
           </CardContent>
         </Card>
       </div>

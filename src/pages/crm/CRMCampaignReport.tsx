@@ -27,7 +27,10 @@ import {
 import { BouncedEmailsList } from "@/components/crm/BouncedEmailsList";
 import { useCampaignBounces } from "@/hooks/useCampaignBounces";
 import { CampaignGovernanceMetricsCard } from "@/components/crm/CampaignGovernanceMetricsCard";
-import { normalizeDerivedMetrics } from "@/hooks/analytics/useCampaignDerivedMetrics";
+import {
+  normalizeDerivedMetrics,
+  type DerivedMetrics,
+} from "@/hooks/analytics/useCampaignDerivedMetrics";
 
 interface CampaignMetrics {
   sent: number;
@@ -121,6 +124,26 @@ function normalizeCampaignMetrics(campaign: any): CampaignMetrics {
   };
 }
 
+function campaignMetricsFromDerived(derived: DerivedMetrics): CampaignMetrics {
+  return {
+    sent: derived.totals.sent,
+    delivered: derived.totals.delivered,
+    successfulReach: derived.totals.successful_reach,
+    uniqueEngaged: derived.totals.unique_engaged,
+    opened: derived.totals.opens,
+    clicked: derived.totals.clicks,
+    bounced: derived.totals.bounces,
+    hardBounces: derived.totals.hard_bounces,
+    unsubscribed: derived.totals.unsubscribes,
+    reachScore: derived.scores.reach,
+    interactionScore: derived.scores.interaction,
+    deliveryRate: derived.rates.delivery,
+    openRate: derived.rates.open_reported,
+    clickRate: derived.rates.click,
+    clickToOpenRate: derived.rates.click_to_open,
+  };
+}
+
 interface Campaign {
   id: string;
   name: string;
@@ -207,6 +230,24 @@ const CRMCampaignReport: React.FC = () => {
     refetchOnMount: "always",
   });
 
+  const { data: liveDerivedMetrics } = useQuery({
+    queryKey: ["campaign-report-derived-metrics", campaignId],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc(
+        "get_campaign_derived_metrics" as any,
+        {
+          p_campaign_id: campaignId,
+        },
+      );
+
+      if (error) throw error;
+      return normalizeDerivedMetrics(data);
+    },
+    enabled: !!campaignId,
+    staleTime: 0,
+    refetchOnMount: "always",
+  });
+
   const loading = campaignLoading;
 
   const formatDate = (dateString: string) => {
@@ -254,7 +295,9 @@ const CRMCampaignReport: React.FC = () => {
     );
   }
 
-  const metrics = normalizeCampaignMetrics(campaign);
+  const metrics = liveDerivedMetrics
+    ? campaignMetricsFromDerived(liveDerivedMetrics)
+    : normalizeCampaignMetrics(campaign);
   const canViewRecipients = ["sent", "sending", "sent_with_errors"].includes(
     campaign.status,
   );
@@ -359,10 +402,10 @@ const CRMCampaignReport: React.FC = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">
-                    Successful Reach
+                    Delivered
                   </p>
                   <p className="text-2xl font-bold">
-                    {metrics.successfulReach.toLocaleString()}
+                    {metrics.delivered.toLocaleString()}
                   </p>
                 </div>
                 <Users className="h-8 w-8 text-primary" />
@@ -375,10 +418,10 @@ const CRMCampaignReport: React.FC = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">
-                    Reach
+                    Opened
                   </p>
                   <p className="text-2xl font-bold">
-                    {metrics.reachScore.toFixed(1)}%
+                    {metrics.opened.toLocaleString()}
                   </p>
                 </div>
                 <Eye className="h-8 w-8 text-primary" />
@@ -391,10 +434,10 @@ const CRMCampaignReport: React.FC = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">
-                    Interaction
+                    Clicked
                   </p>
                   <p className="text-2xl font-bold">
-                    {metrics.interactionScore.toFixed(1)}%
+                    {metrics.clicked.toLocaleString()}
                   </p>
                 </div>
                 <MousePointer className="h-8 w-8 text-primary" />

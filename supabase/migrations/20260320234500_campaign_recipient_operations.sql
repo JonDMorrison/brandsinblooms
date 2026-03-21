@@ -1,5 +1,11 @@
 -- Milestone 4: advanced filtering, bulk actions, and export support for campaign recipients.
 
+DROP FUNCTION IF EXISTS public.get_campaign_recipient_detail(UUID, UUID, TEXT, TEXT, TEXT, TEXT, TEXT[], TEXT, TEXT);
+DROP FUNCTION IF EXISTS public.get_campaign_recipient_detail(UUID, UUID, TEXT, TEXT, TEXT, TEXT);
+DROP FUNCTION IF EXISTS public.get_campaign_recipients_page(UUID, INTEGER, INTEGER, TEXT, TEXT, TEXT, TEXT, TEXT[], TEXT, TEXT);
+DROP FUNCTION IF EXISTS public.get_campaign_recipients_page(UUID, INTEGER, INTEGER, TEXT, TEXT, TEXT, TEXT);
+DROP FUNCTION IF EXISTS public.get_campaign_recipient_matches(UUID, TEXT, TEXT[], TEXT, TEXT, TEXT, UUID[]);
+
 CREATE OR REPLACE FUNCTION public.get_campaign_recipient_matches(
   p_campaign_id UUID,
   p_search TEXT DEFAULT NULL,
