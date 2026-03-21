@@ -20,6 +20,8 @@ import { CRMCampaignCreatorPage } from "@/pages/CRMCampaignCreatorPage";
 import { NavigationTracker } from "@/components/NavigationTracker";
 import { CRMCampaignBuilderPage } from "@/pages/CRMCampaignBuilderPage";
 import CRMCampaignReport from "@/pages/crm/CRMCampaignReport";
+import CRMCampaignRecipientsPage from "@/pages/crm/CRMCampaignRecipientsPage";
+import CRMCampaignRecipientDetailPage from "@/pages/crm/CRMCampaignRecipientDetailPage";
 import { CRMAutomationBuilderPage } from "@/pages/crm/CRMAutomationBuilderPage";
 import { CRMAutomationGuidePage } from "@/pages/crm/CRMAutomationGuidePage";
 import { AutomationWizardLandingPage } from "@/pages/crm/AutomationWizardLandingPage";
@@ -362,6 +364,46 @@ function App() {
                 <ProtectedRoute>
                   <SidebarLayout>
                     <CRMCampaignReport />
+                  </SidebarLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/crm/campaigns/:campaignId/recipients"
+              element={
+                <ProtectedRoute>
+                  <SidebarLayout>
+                    <CRMCampaignRecipientsPage />
+                  </SidebarLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/crm/campaigns/:campaignId/recipients/:recipientId"
+              element={
+                <ProtectedRoute>
+                  <SidebarLayout>
+                    <CRMCampaignRecipientDetailPage />
+                  </SidebarLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard/campaigns/:campaignId/recipients"
+              element={
+                <ProtectedRoute>
+                  <SidebarLayout>
+                    <CRMCampaignRecipientsPage />
+                  </SidebarLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard/campaigns/:campaignId/recipients/:recipientId"
+              element={
+                <ProtectedRoute>
+                  <SidebarLayout>
+                    <CRMCampaignRecipientDetailPage />
                   </SidebarLayout>
                 </ProtectedRoute>
               }

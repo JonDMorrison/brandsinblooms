@@ -1530,6 +1530,7 @@ serve((req) => {
           const msgIds: string[] = [];
           const attemptsByMsgId = new Map<string, number>();
           const missingPayloadErrors: Array<{ msgId: string; attempts: number; error: string }> = [];
+          const snapshotUpdates: Array<{ msgId: string; payload: any }> = [];
 
           for (const msg of batchMsgs) {
             let payload = msg.payload;
@@ -1562,6 +1563,8 @@ serve((req) => {
                 );
                 payload.html = rewriteResult.html;
               }
+
+              snapshotUpdates.push({ msgId: msg.id, payload });
             }
 
             if (!payload || typeof payload !== 'object' || !payload?.html || !payload?.subject || !payload?.to) {
@@ -1572,6 +1575,26 @@ serve((req) => {
             payloads.push(payload);
             msgIds.push(msg.id);
             attemptsByMsgId.set(msg.id, msg.attempts || 1);
+          }
+
+          if (snapshotUpdates.length > 0) {
+            await Promise.all(
+              snapshotUpdates.map(async ({ msgId, payload }) => {
+                const { error: snapshotErr } = await supabase
+                  .from('email_messages')
+                  .update({
+                    payload,
+                    updated_at: new Date().toISOString(),
+                  })
+                  .eq('id', msgId)
+                  .eq('claim_token', claimToken)
+                  .is('resend_id', null);
+
+                if (snapshotErr) {
+                  console.warn(`⚠️ Failed to persist payload snapshot for message ${msgId}:`, snapshotErr.message);
+                }
+              })
+            );
           }
 
           // If everything in the batch is missing payload, just treat as failures.

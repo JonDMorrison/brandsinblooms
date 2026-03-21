@@ -20,9 +20,6 @@ import {
   Calendar,
   Send,
   Mail,
-  Eye,
-  MousePointerClick,
-  UserMinus,
   TrendingUp,
   AlertTriangle,
   Pause,
@@ -33,6 +30,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import { CampaignDerivedMetrics } from "@/components/analytics/CampaignDerivedMetrics";
 
 interface EmailCampaignDetail {
   id: string;
@@ -64,7 +62,7 @@ export default function CRMCampaignDetail() {
 
   useEffect(() => {
     if (id) {
-      fetchCampaign();
+      void fetchCampaign();
     }
   }, [id]);
 
@@ -210,27 +208,6 @@ export default function CRMCampaignDetail() {
         {status.charAt(0).toUpperCase() + status.slice(1)}
       </Badge>
     );
-  };
-
-  const getOpenRate = (metrics: any) => {
-    if (!metrics || !metrics.sent) return "0%";
-    const opens = metrics.opens || 0;
-    const sent = metrics.sent || 0;
-    return `${Math.round((opens / sent) * 100)}%`;
-  };
-
-  const getClickRate = (metrics: any) => {
-    if (!metrics || !metrics.sent) return "0%";
-    const clicks = metrics.clicks || 0;
-    const sent = metrics.sent || 0;
-    return `${Math.round((clicks / sent) * 100)}%`;
-  };
-
-  const getDeliveryRate = (metrics: any) => {
-    if (!metrics || !metrics.sent) return "0%";
-    const delivered = metrics.delivered || 0;
-    const sent = metrics.sent || 0;
-    return `${Math.round((delivered / sent) * 100)}%`;
   };
 
   if (loading) {
@@ -386,6 +363,7 @@ export default function CRMCampaignDetail() {
               </Link>
             </Button>
           )}
+
           <Button variant="outline" asChild>
             <Link to={`/crm/campaigns/new?duplicate=${campaign.id}`}>
               <Copy className="h-4 w-4 mr-2" />
@@ -396,85 +374,9 @@ export default function CRMCampaignDetail() {
       </div>
 
       <div className="grid gap-6">
-        {/* Performance Metrics */}
-        {campaign.metrics && campaign.status === "sent" ? (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <TrendingUp className="h-5 w-5 mr-2" />
-                Campaign Performance
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                <div className="text-center p-4 bg-muted/50 rounded-lg">
-                  <div className="text-3xl font-bold text-primary">
-                    {campaign.metrics.sent || 0}
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    Total Recipients
-                  </div>
-                </div>
-                <div className="text-center p-4 bg-muted/50 rounded-lg">
-                  <div className="text-3xl font-bold text-green-600">
-                    {campaign.metrics.delivered || 0}
-                  </div>
-                  <div className="text-sm text-muted-foreground">Delivered</div>
-                  <div className="text-xs text-muted-foreground">
-                    {getDeliveryRate(campaign.metrics)} delivery rate
-                  </div>
-                </div>
-                <div className="text-center p-4 bg-muted/50 rounded-lg">
-                  <div className="text-3xl font-bold text-blue-600">
-                    {campaign.metrics.opens || 0}
-                  </div>
-                  <div className="text-sm text-muted-foreground">Opens</div>
-                  <div className="text-xs text-muted-foreground">
-                    {getOpenRate(campaign.metrics)} open rate
-                  </div>
-                </div>
-                <div className="text-center p-4 bg-muted/50 rounded-lg">
-                  <div className="text-3xl font-bold text-purple-600">
-                    {campaign.metrics.clicks || 0}
-                  </div>
-                  <div className="text-sm text-muted-foreground">Clicks</div>
-                  <div className="text-xs text-muted-foreground">
-                    {getClickRate(campaign.metrics)} click rate
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="text-center p-4 bg-muted/50 rounded-lg">
-                  <div className="text-2xl font-bold text-red-600">
-                    {campaign.metrics.bounces || 0}
-                  </div>
-                  <div className="text-sm text-muted-foreground">Bounces</div>
-                </div>
-                <div className="text-center p-4 bg-muted/50 rounded-lg">
-                  <div className="text-2xl font-bold text-orange-600">
-                    {campaign.metrics.unsubscribes || 0}
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    Unsubscribes
-                  </div>
-                </div>
-                <div className="text-center p-4 bg-muted/50 rounded-lg">
-                  <div className="text-2xl font-bold text-cyan-600">
-                    {Math.round(
-                      ((campaign.metrics.clicks || 0) /
-                        (campaign.metrics.opens || 1)) *
-                        100,
-                    )}
-                    %
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    Click-to-Open Rate
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+        {campaign.status === "sent" ||
+        campaign.status === "sent_with_errors" ? (
+          <CampaignDerivedMetrics campaignId={campaign.id} />
         ) : (
           <Card>
             <CardHeader>
@@ -491,8 +393,8 @@ export default function CRMCampaignDetail() {
                     Analytics will be available after sending
                   </p>
                   <p>
-                    Send your campaign to see open rates, clicks, and engagement
-                    metrics
+                    Send your campaign to see reach, interaction, and supporting
+                    engagement diagnostics.
                   </p>
                 </div>
               ) : campaign.status === "scheduled" ? (
@@ -502,7 +404,7 @@ export default function CRMCampaignDetail() {
                     Campaign is scheduled
                   </p>
                   <p>
-                    Performance data will appear here once the campaign is sent
+                    Performance data will appear here once the campaign is sent.
                   </p>
                 </div>
               ) : (
@@ -513,7 +415,7 @@ export default function CRMCampaignDetail() {
                   </p>
                   <p>
                     Performance metrics are being collected and will appear
-                    shortly
+                    shortly.
                   </p>
                 </div>
               )}
@@ -522,7 +424,6 @@ export default function CRMCampaignDetail() {
         )}
 
         <div className="grid gap-6 md:grid-cols-2">
-          {/* Campaign Details */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center">
@@ -596,7 +497,6 @@ export default function CRMCampaignDetail() {
             </CardContent>
           </Card>
 
-          {/* Segment Info */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center">
@@ -619,40 +519,14 @@ export default function CRMCampaignDetail() {
                 )}
               </div>
 
-              {campaign.metrics && (
-                <div className="space-y-3">
-                  <label className="text-sm font-medium text-muted-foreground">
-                    Engagement Summary
-                  </label>
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center">
-                      <span className="flex items-center text-sm">
-                        <Eye className="h-4 w-4 mr-2 text-blue-600" />
-                        Open Rate
-                      </span>
-                      <span className="font-medium">
-                        {getOpenRate(campaign.metrics)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="flex items-center text-sm">
-                        <MousePointerClick className="h-4 w-4 mr-2 text-purple-600" />
-                        Click Rate
-                      </span>
-                      <span className="font-medium">
-                        {getClickRate(campaign.metrics)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="flex items-center text-sm">
-                        <UserMinus className="h-4 w-4 mr-2 text-orange-600" />
-                        Unsubscribes
-                      </span>
-                      <span className="font-medium">
-                        {campaign.metrics.unsubscribes || 0}
-                      </span>
-                    </div>
+              {campaign.failure_reason && (
+                <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-4">
+                  <div className="text-sm font-medium text-destructive">
+                    Failure Reason
                   </div>
+                  <p className="mt-1 text-sm text-destructive">
+                    {campaign.failure_reason}
+                  </p>
                 </div>
               )}
             </CardContent>

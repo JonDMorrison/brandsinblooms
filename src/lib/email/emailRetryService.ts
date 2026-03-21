@@ -10,6 +10,12 @@ export interface EnsureQueuedJobsResult {
   jobsCreated: number
 }
 
+export interface RecipientRetryResult {
+  retryMessageId: string | null
+  jobsCreated: number
+  blockedReason: string | null
+}
+
 export async function retryFailedEmailMessages(campaignId: string): Promise<EmailRetryResult> {
   // Prefer the 2-arg signature so we don't depend on PostgREST default-arg handling.
   // Fall back to the 1-arg wrapper if the schema cache is temporarily stale.
@@ -82,4 +88,34 @@ export async function ensureQueuedEmailMessagesHaveJobs(
     queuedCount: Number(row?.queued_count || 0),
     jobsCreated: Number(row?.jobs_created || 0),
   }
+}
+
+export async function retryCampaignRecipientMessage(
+  campaignId: string,
+  recipientId: string,
+): Promise<RecipientRetryResult> {
+  const { data, error } = await supabase.rpc('retry_campaign_recipient_message' as any, {
+    p_campaign_id: campaignId,
+    p_recipient_id: recipientId,
+  })
+
+  if (error) throw new Error(String(error?.message || error))
+
+  const row = (Array.isArray(data) ? data[0] : data) as any
+
+  const result = {
+    retryMessageId: typeof row?.retry_message_id === 'string' ? row.retry_message_id : null,
+    jobsCreated: Number(row?.jobs_created || 0),
+    blockedReason: typeof row?.blocked_reason === 'string' ? row.blocked_reason : null,
+  }
+
+  if (result.jobsCreated > 0) {
+    try {
+      await supabase.functions.invoke('process-email-send-queue', { body: {} })
+    } catch {
+      // Non-fatal; the scheduled worker will pick it up.
+    }
+  }
+
+  return result
 }
