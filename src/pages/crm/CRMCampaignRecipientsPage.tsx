@@ -16,9 +16,6 @@ import { formatDistanceToNow } from "date-fns";
 import { formatInTimeZone } from "date-fns-tz";
 import {
   AlertTriangle,
-  ArrowDown,
-  ArrowUp,
-  ArrowUpDown,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
@@ -26,7 +23,9 @@ import {
   Copy,
   Download,
   Eye,
+  FileDown,
   Filter,
+  Link as LinkIcon,
   Mail,
   MoreHorizontal,
   MousePointer,
@@ -53,19 +52,13 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  ActionDropdown,
+  FilterDropdown,
+} from "@/components/ui/action-dropdown";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/NativeSelect";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -313,6 +306,56 @@ const DELIVERY_FILTER_OPTIONS: Array<{
 
 const PAGE_SIZE_OPTIONS = [25, 50, 100];
 
+const DEFAULT_SORT_COLUMN: SortColumn = "event_time";
+const DEFAULT_SORT_DIRECTION: SortDirection = "desc";
+
+const FILTER_SORT_OPTIONS: Array<{
+  id: string;
+  label: string;
+  column: SortColumn;
+  direction: SortDirection;
+}> = [
+  {
+    id: "event_time_desc",
+    label: "Event Time (newest first)",
+    column: "event_time",
+    direction: "desc",
+  },
+  {
+    id: "event_time_asc",
+    label: "Event Time (oldest first)",
+    column: "event_time",
+    direction: "asc",
+  },
+  {
+    id: "customer_name_asc",
+    label: "Customer Name (A-Z)",
+    column: "customer_name",
+    direction: "asc",
+  },
+  {
+    id: "customer_name_desc",
+    label: "Customer Name (Z-A)",
+    column: "customer_name",
+    direction: "desc",
+  },
+  {
+    id: "email_asc",
+    label: "Email (A-Z)",
+    column: "email",
+    direction: "asc",
+  },
+];
+
+interface FilterPanelDraftState {
+  compositeFilter: RecipientCompositeFilter;
+  selectedEvents: RecipientEventSelection[];
+  timeRange: RecipientTimeRange;
+  deliveryFilter: RecipientDeliveryFilter;
+  sortColumn: SortColumn;
+  sortDirection: SortDirection;
+}
+
 function getCampaignStatusVariant(status: string) {
   switch (status) {
     case "sent":
@@ -463,57 +506,36 @@ function StatCard({
   label,
   value,
   subtitle,
+  icon: Icon,
+  iconClassName,
+  iconWrapClassName,
 }: {
   label: string;
   value: string;
   subtitle?: string;
+  icon: React.ComponentType<{ className?: string }>;
+  iconClassName: string;
+  iconWrapClassName: string;
 }) {
   return (
-    <div className="rounded-lg border bg-card px-4 py-3">
-      <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-        {label}
+    <div className="group rounded-2xl border border-border/70 bg-gradient-to-br from-white via-white to-slate-50/70 px-4 py-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+      <div className="flex items-start justify-between gap-3">
+        <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+          {label}
+        </div>
+        <span
+          className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border ${iconWrapClassName}`}
+        >
+          <Icon className={`h-4.5 w-4.5 ${iconClassName}`} />
+        </span>
       </div>
-      <div className="mt-2 text-2xl font-semibold text-foreground">{value}</div>
+      <div className="mt-4 text-3xl font-semibold tracking-tight text-foreground">
+        {value}
+      </div>
       {subtitle ? (
-        <div className="mt-1 text-sm text-muted-foreground">{subtitle}</div>
+        <div className="mt-1.5 text-sm text-muted-foreground">{subtitle}</div>
       ) : null}
     </div>
-  );
-}
-
-function SortHeader({
-  label,
-  column,
-  sortColumn,
-  sortDirection,
-  onSort,
-}: {
-  label: string;
-  column: SortColumn;
-  sortColumn: SortColumn;
-  sortDirection: SortDirection;
-  onSort: (column: SortColumn) => void;
-}) {
-  const isActive = sortColumn === column;
-
-  return (
-    <Button
-      variant="ghost"
-      size="sm"
-      className="h-auto px-0 py-0 font-semibold text-muted-foreground hover:bg-transparent hover:text-foreground"
-      onClick={() => onSort(column)}
-    >
-      <span>{label}</span>
-      {isActive ? (
-        sortDirection === "asc" ? (
-          <ArrowUp className="ml-2 h-3.5 w-3.5" />
-        ) : (
-          <ArrowDown className="ml-2 h-3.5 w-3.5" />
-        )
-      ) : (
-        <ArrowUpDown className="ml-2 h-3.5 w-3.5" />
-      )}
-    </Button>
   );
 }
 
@@ -559,6 +581,7 @@ export default function CRMCampaignRecipientsPage() {
   const [selectedSegmentId, setSelectedSegmentId] = useState("");
   const [isExporting, setIsExporting] = useState(false);
   const [isBulkActing, setIsBulkActing] = useState(false);
+  const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
 
   const page = Math.max(Number(searchParams.get("page") ?? "1") || 1, 1);
   const pageSize = [25, 50, 100].includes(Number(searchParams.get("pageSize")))
@@ -570,9 +593,18 @@ export default function CRMCampaignRecipientsPage() {
   const timeRange = filterState.timeRange;
   const deliveryFilter = filterState.deliveryFilter;
   const sortColumn =
-    (searchParams.get("sort") as SortColumn | null) ?? "event_time";
+    (searchParams.get("sort") as SortColumn | null) ?? DEFAULT_SORT_COLUMN;
   const sortDirection =
-    (searchParams.get("direction") as SortDirection | null) ?? "desc";
+    (searchParams.get("direction") as SortDirection | null) ??
+    DEFAULT_SORT_DIRECTION;
+  const [filterDraft, setFilterDraft] = useState<FilterPanelDraftState>({
+    compositeFilter: compositeFilter,
+    selectedEvents: selectedEvents,
+    timeRange: timeRange,
+    deliveryFilter: deliveryFilter,
+    sortColumn,
+    sortDirection,
+  });
   const selectionScope = buildRecipientSelectionScope(filterState);
   const detailSearch = searchParams.toString();
   const detailSearchSuffix = detailSearch ? `?${detailSearch}` : "";
@@ -749,13 +781,45 @@ export default function CRMCampaignRecipientsPage() {
   const selectedCount = allMatchingSelected
     ? pagination.total_count
     : selectedRecipientIds.length;
-  const selectionDescription = allMatchingSelected
-    ? `All ${pagination.total_count.toLocaleString()} recipients matching the current filters are selected.`
-    : `${selectedCount.toLocaleString()} recipient${selectedCount === 1 ? "" : "s"} selected.`;
+  const selectionCountLabel = `${selectedCount.toLocaleString()} recipient${selectedCount === 1 ? "" : "s"} selected`;
   const healthSummary = formatCampaignHealthSummary(
     metrics,
     campaign?.recipient_count ?? 0,
   );
+  const isDefaultSort =
+    sortColumn === DEFAULT_SORT_COLUMN &&
+    sortDirection === DEFAULT_SORT_DIRECTION;
+  const appliedFilterCount =
+    (compositeFilter !== "all" || selectedEvents.length > 0 ? 1 : 0) +
+    (timeRange !== "all" ? 1 : 0) +
+    (deliveryFilter !== "all" ? 1 : 0) +
+    (isDefaultSort ? 0 : 1);
+  const activeSortLabel =
+    FILTER_SORT_OPTIONS.find(
+      (option) =>
+        option.column === sortColumn && option.direction === sortDirection,
+    )?.label ??
+    (sortColumn === "latest_event"
+      ? `Latest Event (${sortDirection === "asc" ? "A-Z" : "Z-A"})`
+      : "Custom sort");
+
+  const syncFilterDraftFromApplied = useCallback(() => {
+    setFilterDraft({
+      compositeFilter,
+      selectedEvents,
+      timeRange,
+      deliveryFilter,
+      sortColumn,
+      sortDirection,
+    });
+  }, [
+    compositeFilter,
+    deliveryFilter,
+    selectedEvents,
+    sortColumn,
+    sortDirection,
+    timeRange,
+  ]);
 
   const { data: segments = [] } = useQuery({
     queryKey: ["crm-recipient-bulk-segments", tenant?.id],
@@ -933,14 +997,13 @@ export default function CRMCampaignRecipientsPage() {
     [knownEventBaselineReady],
   );
 
-  const { connectionState, isLive, bannerState, dismissBanner } =
-    useCampaignEventRealtime({
-      campaignId,
-      tenantId: tenant?.id,
-      enabled: Boolean(campaignId && tenant?.id),
-      channelName: `campaign-recipient-events-${campaignId}`,
-      onEvent: handleRealtimeEvent,
-    });
+  useCampaignEventRealtime({
+    campaignId,
+    tenantId: tenant?.id,
+    enabled: Boolean(campaignId && tenant?.id),
+    channelName: `campaign-recipient-events-${campaignId}`,
+    onEvent: handleRealtimeEvent,
+  });
 
   const resolveRecipientRows = useCallback(
     async (recipientIds?: string[] | null) => {
@@ -973,7 +1036,9 @@ export default function CRMCampaignRecipientsPage() {
   const executeCopy = useCallback(async (emails: string[]) => {
     const value = emails.join(", ");
     await navigator.clipboard.writeText(value);
-    toast.success(`${emails.length.toLocaleString()} email addresses copied`);
+    toast.success(
+      `${emails.length.toLocaleString()} emails copied to clipboard.`,
+    );
   }, []);
 
   const handleCopyViewLink = useCallback(async () => {
@@ -1043,13 +1108,6 @@ export default function CRMCampaignRecipientsPage() {
     resolveRecipientRows,
     selectedRecipientIds,
   ]);
-
-  const handleExportCurrentPage = useCallback(() => {
-    const csv = buildRecipientCsv(rowsWithRealtime, campaign?.tenant_timezone);
-    const fileName = `${sanitizeFileNamePart(campaign?.name || "campaign")}-recipients-page-${formatDateStamp()}.csv`;
-    downloadTextFile(csv, fileName, "text/csv;charset=utf-8");
-    toast.success("Current page exported");
-  }, [campaign?.name, campaign?.tenant_timezone, rowsWithRealtime]);
 
   const handleExportSelected = useCallback(async () => {
     if (!campaignId) return;
@@ -1140,6 +1198,48 @@ export default function CRMCampaignRecipientsPage() {
     }
   }, [campaignId]);
 
+  const handleExportFiltered = useCallback(async () => {
+    if (!campaignId || !hasActiveFilters) return;
+
+    try {
+      setIsExporting(true);
+      const { data, error } = await supabase.functions.invoke(
+        "campaign-recipient-export",
+        {
+          body: {
+            campaignId,
+            search: searchQuery || null,
+            eventFilter: compositeFilter,
+            eventFilters: selectedEvents.length ? selectedEvents : null,
+            timeRange,
+            deliveryFilter,
+          },
+        },
+      );
+
+      if (error) throw error;
+      downloadTextFile(
+        data.csvContent,
+        data.fileName,
+        "text/csv;charset=utf-8",
+      );
+      toast.success("Filtered recipients exported");
+    } catch (error) {
+      console.error("Failed to export filtered recipients", error);
+      toast.error("Unable to export filtered recipients");
+    } finally {
+      setIsExporting(false);
+    }
+  }, [
+    campaignId,
+    compositeFilter,
+    deliveryFilter,
+    hasActiveFilters,
+    searchQuery,
+    selectedEvents,
+    timeRange,
+  ]);
+
   const runBulkAction = useCallback(
     async (
       action: "add-tag" | "add-to-segment",
@@ -1207,17 +1307,6 @@ export default function CRMCampaignRecipientsPage() {
     ],
   );
 
-  const handleSort = (column: SortColumn) => {
-    const nextDirection: SortDirection =
-      sortColumn === column && sortDirection === "desc" ? "asc" : "desc";
-
-    updateParams({
-      sort: column,
-      direction: nextDirection,
-      page: "1",
-    });
-  };
-
   const handleCopyEmail = async (email: string) => {
     try {
       await navigator.clipboard.writeText(email);
@@ -1268,20 +1357,404 @@ export default function CRMCampaignRecipientsPage() {
     });
   };
 
-  const eventFilterLabel =
-    compositeFilter !== "all"
-      ? COMPOSITE_FILTER_OPTIONS.find(
-          (option) => option.value === compositeFilter,
-        )?.label || "Event"
-      : selectedEvents.length > 0
-        ? `Event (${selectedEvents.length})`
-        : "Event";
-  const timeFilterLabel =
-    TIME_FILTER_OPTIONS.find((option) => option.value === timeRange)?.label ||
-    "Time";
-  const deliveryFilterLabel =
-    DELIVERY_FILTER_OPTIONS.find((option) => option.value === deliveryFilter)
-      ?.label || "Delivery";
+  const headerActionSections = useMemo(
+    () => [
+      {
+        label: "Data",
+        items: [
+          {
+            label: "Refresh Data",
+            description: isFetching
+              ? "Reloading the current recipients view."
+              : "Reload the latest recipients and realtime metrics.",
+            icon: RefreshCw,
+            disabled: isFetching,
+            onSelect: () => {
+              void handleRefresh();
+            },
+          },
+          {
+            label: "Copy View Link",
+            description: "Copy the current filtered recipients URL.",
+            icon: LinkIcon,
+            onSelect: () => {
+              void handleCopyViewLink();
+            },
+          },
+        ],
+      },
+      {
+        label: "Export",
+        items: [
+          {
+            label: "Export All Recipients",
+            description: "Download a CSV of the full campaign audience.",
+            icon: Download,
+            disabled: isExporting,
+            onSelect: () => {
+              void handleExportAllRecipients();
+            },
+          },
+          {
+            label: "Export Filtered",
+            description: hasActiveFilters
+              ? "Download only the recipients in the current filtered view."
+              : "Apply a filter first.",
+            icon: FileDown,
+            disabled: isExporting || !hasActiveFilters,
+            onSelect: () => {
+              void handleExportFiltered();
+            },
+          },
+        ],
+      },
+    ],
+    [
+      handleCopyViewLink,
+      handleExportAllRecipients,
+      handleExportFiltered,
+      hasActiveFilters,
+      isExporting,
+      isFetching,
+    ],
+  );
+
+  const selectionActionSections = useMemo(
+    () => [
+      {
+        label: "Clipboard",
+        items: [
+          {
+            label: "Copy Emails",
+            description: "Copy the selected recipient email addresses.",
+            icon: Copy,
+            onSelect: () => {
+              void handleCopySelection();
+            },
+          },
+        ],
+      },
+      {
+        label: "Export",
+        items: [
+          {
+            label: "Export Selected",
+            description: "Download the current selected recipients as CSV.",
+            icon: Download,
+            disabled: isExporting,
+            onSelect: () => {
+              void handleExportSelected();
+            },
+          },
+        ],
+      },
+      {
+        label: "Organize",
+        items: [
+          {
+            label: "Add Tag",
+            description: "Assign a CRM tag to the selected recipients.",
+            icon: Tag,
+            disabled: isBulkActing,
+            onSelect: () => {
+              setTagDialogOpen(true);
+            },
+          },
+          {
+            label: "Add to Segment",
+            description: "Add the selected recipients to an existing segment.",
+            icon: Users,
+            disabled: isBulkActing,
+            onSelect: () => {
+              setSegmentDialogOpen(true);
+            },
+          },
+        ],
+      },
+    ],
+    [handleCopySelection, handleExportSelected, isBulkActing, isExporting],
+  );
+
+  const handleFilterPanelOpenChange = useCallback(
+    (open: boolean) => {
+      if (open) {
+        syncFilterDraftFromApplied();
+      }
+      setIsFilterPanelOpen(open);
+    },
+    [syncFilterDraftFromApplied],
+  );
+
+  const handleDraftEventToggle = useCallback(
+    (eventValue: RecipientEventSelection, nextSelected: boolean) => {
+      setFilterDraft((current) => {
+        const nextEvents = nextSelected
+          ? Array.from(new Set([...current.selectedEvents, eventValue]))
+          : current.selectedEvents.filter(
+              (currentValue) => currentValue !== eventValue,
+            );
+
+        return {
+          ...current,
+          compositeFilter: "all",
+          selectedEvents: EVENT_FILTER_OPTIONS.map(
+            (option) => option.value,
+          ).filter((optionValue) => nextEvents.includes(optionValue)),
+        };
+      });
+    },
+    [],
+  );
+
+  const handleApplyFilters = useCallback(() => {
+    const nextEventValue =
+      serializeEventQueryValue(
+        filterDraft.compositeFilter,
+        filterDraft.selectedEvents,
+      ) || null;
+    const currentEventValue =
+      serializeEventQueryValue(compositeFilter, selectedEvents) || null;
+    const nextTimeValue =
+      filterDraft.timeRange === "all" ? null : filterDraft.timeRange;
+    const currentTimeValue = timeRange === "all" ? null : timeRange;
+    const nextDeliveryValue =
+      filterDraft.deliveryFilter === "all" ? null : filterDraft.deliveryFilter;
+    const currentDeliveryValue =
+      deliveryFilter === "all" ? null : deliveryFilter;
+    const nextSortValue =
+      filterDraft.sortColumn === DEFAULT_SORT_COLUMN &&
+      filterDraft.sortDirection === DEFAULT_SORT_DIRECTION
+        ? null
+        : filterDraft.sortColumn;
+    const currentSortValue =
+      sortColumn === DEFAULT_SORT_COLUMN &&
+      sortDirection === DEFAULT_SORT_DIRECTION
+        ? null
+        : sortColumn;
+    const nextDirectionValue =
+      filterDraft.sortColumn === DEFAULT_SORT_COLUMN &&
+      filterDraft.sortDirection === DEFAULT_SORT_DIRECTION
+        ? null
+        : filterDraft.sortDirection;
+    const currentDirectionValue =
+      sortColumn === DEFAULT_SORT_COLUMN &&
+      sortDirection === DEFAULT_SORT_DIRECTION
+        ? null
+        : sortDirection;
+
+    const updates: Record<string, string | null> = {};
+
+    if (nextEventValue !== currentEventValue) {
+      updates.event = nextEventValue;
+    }
+
+    if (nextTimeValue !== currentTimeValue) {
+      updates.time = nextTimeValue;
+    }
+
+    if (nextDeliveryValue !== currentDeliveryValue) {
+      updates.delivery = nextDeliveryValue;
+    }
+
+    if (nextSortValue !== currentSortValue) {
+      updates.sort = nextSortValue;
+    }
+
+    if (nextDirectionValue !== currentDirectionValue) {
+      updates.direction = nextDirectionValue;
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return;
+    }
+
+    requestParamUpdate({
+      ...updates,
+      page: "1",
+    });
+  }, [
+    compositeFilter,
+    deliveryFilter,
+    filterDraft,
+    requestParamUpdate,
+    selectedEvents,
+    sortColumn,
+    sortDirection,
+    timeRange,
+  ]);
+
+  const handleClearFilterDraft = useCallback(() => {
+    setFilterDraft({
+      compositeFilter: "all",
+      selectedEvents: [],
+      timeRange: "all",
+      deliveryFilter: "all",
+      sortColumn: DEFAULT_SORT_COLUMN,
+      sortDirection: DEFAULT_SORT_DIRECTION,
+    });
+  }, []);
+
+  const filterSections = useMemo(
+    () => [
+      {
+        id: "event-type",
+        title: "Event Type",
+        description:
+          filterDraft.compositeFilter !== "all"
+            ? "Quick groups preserve the previous engaged, unengaged, and issues filters."
+            : "Select one or more event types. Sent is not available in the current recipients query.",
+        options: [
+          {
+            id: "event-all",
+            label: "All",
+            selected:
+              filterDraft.compositeFilter === "all" &&
+              filterDraft.selectedEvents.length === 0,
+            onToggle: () => {
+              setFilterDraft((current) => ({
+                ...current,
+                compositeFilter: "all",
+                selectedEvents: [],
+              }));
+            },
+          },
+          {
+            id: "event-sent",
+            label: "Sent",
+            selected: false,
+            disabled: true,
+            onToggle: () => undefined,
+          },
+          ...EVENT_FILTER_OPTIONS.map((option) => ({
+            id: `event-${option.value}`,
+            label: option.label,
+            selected:
+              filterDraft.compositeFilter === "all" &&
+              filterDraft.selectedEvents.includes(option.value),
+            onToggle: (nextSelected: boolean) => {
+              handleDraftEventToggle(option.value, nextSelected);
+            },
+          })),
+        ],
+        content: (
+          <div className="space-y-2">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+              Quick Groups
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {COMPOSITE_FILTER_OPTIONS.map((option) => {
+                const isSelected = filterDraft.compositeFilter === option.value;
+
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    aria-pressed={isSelected}
+                    onClick={() => {
+                      setFilterDraft((current) => ({
+                        ...current,
+                        compositeFilter: isSelected ? "all" : option.value,
+                        selectedEvents: [],
+                      }));
+                    }}
+                    className={`inline-flex items-center gap-2 rounded-full border px-3 py-2 text-sm font-medium transition-all duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-teal focus-visible:ring-offset-2 ${
+                      isSelected
+                        ? "border-brand-teal bg-brand-teal text-white shadow-sm"
+                        : "border-border bg-white text-brand-navy hover:border-brand-teal/30 hover:bg-brand-teal/5"
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ),
+      },
+      {
+        id: "date-range",
+        title: "Date Range",
+        description:
+          "Recipients currently support preset time windows only. Custom dates and 30-day range are not available in the active query.",
+        options: [
+          ...TIME_FILTER_OPTIONS.map((option) => ({
+            id: `time-${option.value}`,
+            label: option.label,
+            selected: filterDraft.timeRange === option.value,
+            onToggle: () => {
+              setFilterDraft((current) => ({
+                ...current,
+                timeRange: option.value,
+              }));
+            },
+          })),
+          {
+            id: "time-30d",
+            label: "Last 30 days",
+            selected: false,
+            disabled: true,
+            onToggle: () => undefined,
+          },
+        ],
+      },
+      {
+        id: "delivery-status",
+        title: "Delivery Status",
+        description: "Choose one delivery status at a time for recipients.",
+        options: DELIVERY_FILTER_OPTIONS.map((option) => ({
+          id: `delivery-${option.value}`,
+          label: option.label,
+          selected: filterDraft.deliveryFilter === option.value,
+          onToggle: () => {
+            setFilterDraft((current) => ({
+              ...current,
+              deliveryFilter: option.value,
+            }));
+          },
+        })),
+      },
+      {
+        id: "sort-by",
+        title: "Sort By",
+        description: "Sorting now lives here instead of the table headers.",
+        content: (
+          <div className="space-y-2">
+            {FILTER_SORT_OPTIONS.map((option) => {
+              const isSelected =
+                filterDraft.sortColumn === option.column &&
+                filterDraft.sortDirection === option.direction;
+
+              return (
+                <button
+                  key={option.id}
+                  type="button"
+                  aria-pressed={isSelected}
+                  onClick={() => {
+                    setFilterDraft((current) => ({
+                      ...current,
+                      sortColumn: option.column,
+                      sortDirection: option.direction,
+                    }));
+                  }}
+                  className={`flex w-full items-center justify-between rounded-xl border px-3 py-3 text-left text-sm font-medium transition-all duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-teal focus-visible:ring-offset-2 ${
+                    isSelected
+                      ? "border-brand-teal bg-brand-teal/10 text-brand-navy"
+                      : "border-border bg-white text-brand-navy hover:border-brand-teal/30 hover:bg-brand-teal/5"
+                  }`}
+                >
+                  <span>{option.label}</span>
+                  {isSelected ? (
+                    <CheckCircle2 className="h-4 w-4 text-brand-teal" />
+                  ) : null}
+                </button>
+              );
+            })}
+          </div>
+        ),
+      },
+    ],
+    [filterDraft, handleDraftEventToggle],
+  );
 
   useEffect(() => {
     return () => {
@@ -1314,193 +1787,161 @@ export default function CRMCampaignRecipientsPage() {
   }
 
   return (
-    <div className="container mx-auto space-y-6 p-6">
+    <div className="container mx-auto space-y-7 p-6">
       <Breadcrumb>
-        <BreadcrumbList>
+        <BreadcrumbList className="flex-wrap gap-2 rounded-full border border-border/70 bg-white/90 px-4 py-2 text-sm shadow-sm shadow-brand-navy/5 backdrop-blur-sm">
           <BreadcrumbItem>
-            <BreadcrumbLink asChild>
+            <BreadcrumbLink
+              asChild
+              className="font-medium text-muted-foreground transition-colors hover:text-brand-navy"
+            >
               <Link to="/dashboard">Dashboard</Link>
             </BreadcrumbLink>
           </BreadcrumbItem>
-          <BreadcrumbSeparator />
+          <BreadcrumbSeparator className="text-muted-foreground/50" />
           <BreadcrumbItem>
-            <BreadcrumbLink asChild>
+            <BreadcrumbLink
+              asChild
+              className="font-medium text-muted-foreground transition-colors hover:text-brand-navy"
+            >
               <Link to="/crm/campaigns">Campaigns</Link>
             </BreadcrumbLink>
           </BreadcrumbItem>
-          <BreadcrumbSeparator />
+          <BreadcrumbSeparator className="text-muted-foreground/50" />
           <BreadcrumbItem>
-            <BreadcrumbLink asChild>
+            <BreadcrumbLink
+              asChild
+              className="font-medium text-muted-foreground transition-colors hover:text-brand-navy"
+            >
               <Link to={`/crm/campaigns/${campaignId}/analytics`}>
                 {campaign?.name ?? "Campaign"}
               </Link>
             </BreadcrumbLink>
           </BreadcrumbItem>
-          <BreadcrumbSeparator />
+          <BreadcrumbSeparator className="text-muted-foreground/50" />
           <BreadcrumbItem>
-            <BreadcrumbPage>Recipients</BreadcrumbPage>
+            <BreadcrumbPage className="font-semibold text-brand-navy">
+              Recipients
+            </BreadcrumbPage>
           </BreadcrumbItem>
         </BreadcrumbList>
       </Breadcrumb>
 
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div className="space-y-3">
-          <div className="flex items-center gap-3">
-            <h1 className="text-3xl font-semibold tracking-tight">
-              {campaign?.name ?? "Campaign Recipients"}
-            </h1>
-            {campaign ? (
-              <Badge variant={getCampaignStatusVariant(campaign.status)}>
-                {campaign.status}
-              </Badge>
-            ) : null}
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div className="max-w-[18rem] truncate rounded-md border bg-card px-3 py-2">
-                    <span className="font-medium text-foreground">
-                      Subject:
-                    </span>{" "}
-                    {campaign?.subject_line || "No subject line"}
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent className="max-w-sm">
-                  {campaign?.subject_line || "No subject line"}
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-
-            <div className="rounded-md border bg-card px-3 py-2">
-              <span className="font-medium text-foreground">Send Time:</span>{" "}
-              {formatCampaignTimestamp(
-                campaignDate,
-                campaign?.tenant_timezone ?? null,
-              )}
-            </div>
-
-            <div className="rounded-md border bg-card px-3 py-2">
-              <span className="font-medium text-foreground">Recipients:</span>{" "}
-              {campaign?.recipient_count ?? 0}
-            </div>
-
-            <div className="rounded-md border bg-card px-3 py-2">
-              <span className="font-medium text-foreground">Segments:</span>{" "}
-              {campaign?.segments?.length ? (
-                campaign.segments.map((segment, index) => (
-                  <React.Fragment key={segment.id}>
-                    {index > 0 ? ", " : ""}
-                    <Link
-                      className="underline-offset-4 hover:underline"
-                      to={`/crm/segments`}
-                    >
-                      {segment.name}
-                    </Link>
-                  </React.Fragment>
-                ))
-              ) : (
-                <span>No linked segments</span>
-              )}
+      <div className="space-y-5 rounded-[1.75rem] border border-border/70 bg-gradient-to-br from-white via-white to-brand-teal/5 p-5 shadow-sm shadow-brand-navy/5 lg:p-6">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center gap-3">
+              <h1 className="text-3xl font-semibold tracking-tight text-brand-navy sm:text-[2.15rem]">
+                {campaign?.name ?? "Campaign Recipients"}
+              </h1>
+              {campaign ? (
+                <Badge
+                  variant={getCampaignStatusVariant(campaign.status)}
+                  className="rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] shadow-sm"
+                >
+                  {campaign.status}
+                </Badge>
+              ) : null}
             </div>
           </div>
+
+          <ActionDropdown
+            label="Actions"
+            variant="outline"
+            align="end"
+            triggerClassName="self-start border-border/80 bg-white/95 shadow-sm"
+            sections={headerActionSections}
+          />
         </div>
 
-        <div className="flex items-center gap-2 self-start">
-          <Button
-            variant="outline"
-            onClick={() => navigate(`/crm/campaigns/${campaignId}/analytics`)}
-          >
-            Back to Campaign
-          </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" disabled={isExporting}>
-                <Download className="mr-2 h-4 w-4" />
-                Export
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={handleExportCurrentPage}>
-                Export current page
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={handleExportAllRecipients}
-                disabled={isExporting}
-              >
-                Export all recipients
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <div className="inline-flex items-center gap-2 rounded-md border bg-card px-3 py-2 text-sm text-muted-foreground">
-            <span
-              className={`inline-block h-2.5 w-2.5 rounded-full ${
-                isLive
-                  ? "bg-emerald-500"
-                  : connectionState === "connecting"
-                    ? "bg-amber-500"
-                    : "bg-slate-400"
-              }`}
-            />
-            <span>
-              {isLive
-                ? "Live"
-                : connectionState === "connecting"
-                  ? "Connecting..."
-                  : "Paused - Refresh to sync"}
-            </span>
+        <div className="flex flex-wrap items-stretch gap-3 text-sm text-muted-foreground">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="max-w-[22rem] truncate rounded-2xl border border-border/70 bg-white/90 px-4 py-3 shadow-sm shadow-brand-navy/5">
+                  <span className="font-medium text-foreground">Subject:</span>{" "}
+                  {campaign?.subject_line || "No subject line"}
+                </div>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-sm">
+                {campaign?.subject_line || "No subject line"}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
+          <div className="rounded-2xl border border-border/70 bg-white/90 px-4 py-3 shadow-sm shadow-brand-navy/5">
+            <span className="font-medium text-foreground">Send Time:</span>{" "}
+            {formatCampaignTimestamp(
+              campaignDate,
+              campaign?.tenant_timezone ?? null,
+            )}
           </div>
-          <Button
-            variant="outline"
-            onClick={handleRefresh}
-            disabled={isFetching}
-          >
-            <RefreshCw
-              className={`mr-2 h-4 w-4 ${isFetching ? "animate-spin" : ""}`}
-            />
-            Refresh
-          </Button>
+
+          <div className="rounded-2xl border border-border/70 bg-white/90 px-4 py-3 shadow-sm shadow-brand-navy/5">
+            <span className="font-medium text-foreground">Recipients:</span>{" "}
+            {campaign?.recipient_count ?? 0}
+          </div>
+
+          <div className="rounded-2xl border border-border/70 bg-white/90 px-4 py-3 shadow-sm shadow-brand-navy/5">
+            <span className="font-medium text-foreground">Segments:</span>{" "}
+            {campaign?.segments?.length ? (
+              campaign.segments.map((segment, index) => (
+                <React.Fragment key={segment.id}>
+                  {index > 0 ? ", " : ""}
+                  <Link
+                    className="underline-offset-4 hover:underline"
+                    to={`/crm/segments`}
+                  >
+                    {segment.name}
+                  </Link>
+                </React.Fragment>
+              ))
+            ) : (
+              <span>No linked segments</span>
+            )}
+          </div>
         </div>
       </div>
 
-      {bannerState === "paused" ? (
-        <Alert className="border-orange-200 bg-orange-50 text-orange-900">
-          <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
-            <span>Live updates paused. Click Refresh to load latest data.</span>
-            <div className="flex items-center gap-2">
-              <Button size="sm" variant="outline" onClick={handleRefresh}>
-                Refresh
-              </Button>
-              <Button size="sm" variant="ghost" onClick={dismissBanner}>
-                Dismiss
-              </Button>
-            </div>
-          </AlertDescription>
-        </Alert>
-      ) : null}
-
       <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
-        <StatCard label="Sent" value={String(metrics.totals.sent)} />
+        <StatCard
+          label="Sent"
+          value={String(metrics.totals.sent)}
+          icon={Mail}
+          iconClassName="text-brand-navy"
+          iconWrapClassName="border-brand-navy/10 bg-brand-navy/5"
+        />
         <StatCard
           label="Delivered"
           value={String(metrics.totals.delivered)}
           subtitle={`${metrics.rates.delivery.toFixed(1)}% rate`}
+          icon={CheckCircle2}
+          iconClassName="text-emerald-700"
+          iconWrapClassName="border-emerald-200 bg-emerald-50"
         />
         <StatCard
           label="Opened"
           value={String(metrics.totals.opens)}
           subtitle={`${metrics.rates.open_reported.toFixed(1)}% rate`}
+          icon={Eye}
+          iconClassName="text-sky-700"
+          iconWrapClassName="border-sky-200 bg-sky-50"
         />
         <StatCard
           label="Clicked"
           value={String(metrics.totals.clicks)}
           subtitle={`${metrics.rates.click.toFixed(1)}% rate`}
+          icon={MousePointer}
+          iconClassName="text-indigo-700"
+          iconWrapClassName="border-indigo-200 bg-indigo-50"
         />
         <StatCard
           label="Bounced"
           value={String(metrics.totals.hard_bounces)}
           subtitle={`${metrics.rates.bounce.toFixed(1)}% rate`}
+          icon={AlertTriangle}
+          iconClassName="text-red-700"
+          iconWrapClassName="border-red-200 bg-red-50"
         />
         <StatCard
           label="Complained"
@@ -1510,192 +1951,159 @@ export default function CRMCampaignRecipientsPage() {
               ? `${metrics.rates.complaint.toFixed(1)}% rate`
               : "No complaints"
           }
+          icon={AlertTriangle}
+          iconClassName="text-orange-700"
+          iconWrapClassName="border-orange-200 bg-orange-50"
         />
       </div>
 
-      <div className="rounded-lg border bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
-        {healthSummary}
+      <div className="flex items-start gap-3 rounded-2xl border border-brand-teal/15 bg-gradient-to-r from-brand-teal/10 via-white to-mint/40 px-5 py-4 text-sm text-muted-foreground shadow-sm shadow-brand-navy/5">
+        <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-brand-teal/15 bg-white/90 text-brand-teal shadow-sm">
+          <CheckCircle2 className="h-4.5 w-4.5" />
+        </span>
+        <div className="space-y-1">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-brand-navy/75">
+            Campaign Health
+          </div>
+          <div>{healthSummary}</div>
+        </div>
       </div>
 
-      <Card>
-        <CardHeader className="space-y-4">
+      <Card className="overflow-visible rounded-[1.75rem] border border-border/70 shadow-sm shadow-brand-navy/5">
+        <CardHeader className="relative z-[60] space-y-4 border-b border-border/60 bg-gradient-to-b from-slate-50/80 to-white pb-5">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <CardTitle className="flex items-center gap-2 text-xl">
               <Users className="h-5 w-5 text-primary" />
               Recipients
             </CardTitle>
             <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-              <span>
+              <span className="rounded-full border border-border/70 bg-white/90 px-3 py-1.5 shadow-sm">
                 Showing {pagination.total_count.toLocaleString()} filtered of{" "}
                 {(campaign?.recipient_count ?? 0).toLocaleString()} recipients
               </span>
-              <Button size="sm" variant="outline" onClick={handleCopyViewLink}>
-                <Copy className="mr-2 h-4 w-4" />
-                Copy View Link
-              </Button>
             </div>
           </div>
 
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-            <div className="relative flex-1">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                className="pl-9 pr-10"
-                placeholder="Search recipients by name or email..."
-                value={searchInput}
-                onChange={(event) => setSearchInput(event.target.value)}
-              />
-              {searchInput ? (
-                <button
-                  aria-label="Clear search"
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  onClick={() => setSearchInput("")}
-                  type="button"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              ) : null}
+          <div className="relative min-h-[5.75rem] overflow-visible lg:min-h-[4.5rem]">
+            <div
+              className={`absolute inset-0 z-[70] transition-all duration-300 ease-out ${
+                selectedCount > 0
+                  ? "pointer-events-none translate-y-2 scale-[0.98] opacity-0"
+                  : "pointer-events-auto translate-y-0 scale-100 opacity-100"
+              }`}
+              aria-hidden={selectedCount > 0}
+            >
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+                <div className="relative min-w-0 flex-1">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    className="h-10 rounded-xl border-border bg-white pl-10 pr-10 shadow-sm focus-visible:ring-brand-teal"
+                    placeholder="Search recipients by name or email..."
+                    value={searchInput}
+                    onChange={(event) => setSearchInput(event.target.value)}
+                  />
+                  {searchInput ? (
+                    <button
+                      aria-label="Clear search"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      onClick={() => setSearchInput("")}
+                      type="button"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  ) : null}
+                </div>
+
+                <div className="flex flex-wrap gap-3 sm:flex-row sm:items-center">
+                  <FilterDropdown
+                    label="Filter"
+                    triggerIcon={Filter}
+                    variant="outline"
+                    align="end"
+                    open={isFilterPanelOpen}
+                    onOpenChange={handleFilterPanelOpenChange}
+                    badge={
+                      appliedFilterCount > 0 ? appliedFilterCount : undefined
+                    }
+                    sections={filterSections}
+                    clearLabel="Clear All"
+                    onClear={handleClearFilterDraft}
+                    onApply={handleApplyFilters}
+                    triggerClassName={`min-w-[118px] justify-between border-border/80 bg-white shadow-sm ${
+                      isFilterPanelOpen
+                        ? "border-brand-teal bg-brand-teal/5 text-brand-navy ring-2 ring-brand-teal/15"
+                        : ""
+                    }`}
+                  />
+
+                  <NativeSelect
+                    aria-label="Rows per page"
+                    className="w-full sm:w-[120px]"
+                    onChange={(event) =>
+                      updateParams({ pageSize: event.target.value, page: "1" })
+                    }
+                    options={PAGE_SIZE_OPTIONS.map((option) => ({
+                      value: String(option),
+                      label: `${option} rows`,
+                    }))}
+                    value={String(pageSize)}
+                  />
+                </div>
+              </div>
             </div>
 
-            <div className="flex flex-wrap gap-3 sm:flex-row sm:items-center">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="justify-between">
-                    <Filter className="mr-2 h-4 w-4" />
-                    {eventFilterLabel}
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-64">
-                  <DropdownMenuLabel>Event filters</DropdownMenuLabel>
-                  {COMPOSITE_FILTER_OPTIONS.map((option) => (
-                    <DropdownMenuItem
-                      key={option.value}
-                      onClick={() =>
-                        requestParamUpdate({
-                          event: option.value,
-                          page: "1",
-                        })
-                      }
+            <div
+              className={`absolute inset-0 z-[65] transition-all duration-300 ease-out ${
+                selectedCount > 0
+                  ? "pointer-events-auto translate-y-0 scale-100 opacity-100"
+                  : "pointer-events-none -translate-y-2 scale-[0.98] opacity-0"
+              }`}
+              aria-hidden={selectedCount === 0}
+            >
+              <div className="flex h-full flex-col justify-center rounded-2xl border border-emerald-200 bg-emerald-50/90 px-4 py-3 shadow-sm shadow-emerald-100/60 ring-1 ring-emerald-100/80 backdrop-blur-sm lg:flex-row lg:items-center lg:justify-between lg:gap-4 lg:border-l-4 lg:border-l-brand-teal">
+                <div className="min-w-0 space-y-1.5">
+                  <div className="flex items-center gap-2 text-sm text-emerald-950">
+                    <span className="inline-flex h-2.5 w-2.5 rounded-full bg-brand-teal" />
+                    <span className="font-semibold">{selectionCountLabel}</span>
+                  </div>
+                  {!allMatchingSelected &&
+                  selectedCount < pagination.total_count ? (
+                    <button
+                      className="text-sm font-medium text-emerald-700 underline-offset-4 hover:text-emerald-800 hover:underline"
+                      onClick={() => setAllMatchingSelected(true)}
+                      type="button"
                     >
-                      {option.label}
-                    </DropdownMenuItem>
-                  ))}
-                  <DropdownMenuSeparator />
-                  {EVENT_FILTER_OPTIONS.map((option) => {
-                    const checked =
-                      compositeFilter === "all" &&
-                      selectedEvents.includes(option.value);
+                      Select all {pagination.total_count.toLocaleString()}{" "}
+                      matching recipients
+                    </button>
+                  ) : allMatchingSelected ? (
+                    <div className="text-sm text-emerald-700">
+                      All {pagination.total_count.toLocaleString()} recipients
+                      selected
+                    </div>
+                  ) : null}
+                </div>
 
-                    return (
-                      <DropdownMenuCheckboxItem
-                        key={option.value}
-                        checked={checked}
-                        onCheckedChange={(checkedValue) => {
-                          const nextEvents = checkedValue
-                            ? [...selectedEvents, option.value]
-                            : selectedEvents.filter(
-                                (eventValue) => eventValue !== option.value,
-                              );
-
-                          requestParamUpdate({
-                            event:
-                              serializeEventQueryValue("all", nextEvents) ||
-                              null,
-                            page: "1",
-                          });
-                        }}
-                      >
-                        {option.label}
-                      </DropdownMenuCheckboxItem>
-                    );
-                  })}
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={() =>
-                      requestParamUpdate({ event: null, page: "1" })
-                    }
+                <div className="mt-3 flex items-center gap-2 lg:mt-0">
+                  <ActionDropdown
+                    label="Bulk Actions"
+                    variant="outline"
+                    align="end"
+                    sections={selectionActionSections}
+                    triggerClassName="border-emerald-200 bg-white/90 text-emerald-950 hover:border-emerald-300 hover:bg-white"
+                    contentClassName="min-w-[22rem]"
+                  />
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={clearSelection}
+                    className="text-emerald-800 hover:bg-emerald-100 hover:text-emerald-950"
                   >
-                    Clear event filters
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="justify-between">
-                    {timeFilterLabel}
+                    <X className="h-4 w-4" />
+                    <span className="sr-only">Clear selection</span>
                   </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  {TIME_FILTER_OPTIONS.map((option) => (
-                    <DropdownMenuItem
-                      key={option.value}
-                      onClick={() =>
-                        requestParamUpdate({
-                          time: option.value === "all" ? null : option.value,
-                          page: "1",
-                        })
-                      }
-                    >
-                      {option.label}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="justify-between">
-                    {deliveryFilterLabel}
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  {DELIVERY_FILTER_OPTIONS.map((option) => (
-                    <DropdownMenuItem
-                      key={option.value}
-                      onClick={() =>
-                        requestParamUpdate({
-                          delivery:
-                            option.value === "all" ? null : option.value,
-                          page: "1",
-                        })
-                      }
-                    >
-                      {option.label}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-
-              <NativeSelect
-                aria-label="Rows per page"
-                className="w-full sm:w-[120px]"
-                onChange={(event) =>
-                  updateParams({ pageSize: event.target.value, page: "1" })
-                }
-                options={PAGE_SIZE_OPTIONS.map((option) => ({
-                  value: String(option),
-                  label: `${option} rows`,
-                }))}
-                value={String(pageSize)}
-              />
-
-              {hasActiveFilters ? (
-                <Button
-                  variant="ghost"
-                  onClick={() =>
-                    requestParamUpdate({
-                      q: null,
-                      event: null,
-                      time: null,
-                      delivery: null,
-                      page: "1",
-                    })
-                  }
-                >
-                  Clear filters
-                </Button>
-              ) : null}
+                </div>
+              </div>
             </div>
           </div>
 
@@ -1705,12 +2113,12 @@ export default function CRMCampaignRecipientsPage() {
                 <Badge
                   key={chip.key}
                   variant="secondary"
-                  className="gap-1 pr-1"
+                  className="gap-1 rounded-full border border-brand-navy/10 bg-brand-navy/[0.06] px-3 py-1 pr-1 text-brand-navy hover:bg-brand-navy/[0.06]"
                 >
                   {chip.label}
                   <button
                     aria-label={`Remove ${chip.label}`}
-                    className="rounded-full p-0.5 hover:bg-background/60"
+                    className="rounded-full p-0.5 text-brand-navy/70 transition-colors hover:bg-background/80 hover:text-brand-navy"
                     onClick={() => {
                       if (chip.key === "q") {
                         setSearchInput("");
@@ -1731,78 +2139,40 @@ export default function CRMCampaignRecipientsPage() {
               ))}
             </div>
           ) : null}
-        </CardHeader>
 
-        <CardContent className="space-y-4">
-          {selectedCount > 0 ? (
-            <div className="flex flex-col gap-3 rounded-lg border border-primary/20 bg-primary/5 p-4 lg:flex-row lg:items-center lg:justify-between">
-              <div className="space-y-1">
-                <div className="text-sm font-medium text-foreground">
-                  {selectionDescription}
-                </div>
-                {allVisibleSelected &&
-                !allMatchingSelected &&
-                pagination.total_count > rowsWithRealtime.length ? (
-                  <button
-                    className="text-sm font-medium text-primary underline-offset-4 hover:underline"
-                    onClick={() => setAllMatchingSelected(true)}
-                    type="button"
-                  >
-                    Select all {pagination.total_count.toLocaleString()}{" "}
-                    matching recipients
-                  </button>
-                ) : null}
-              </div>
-
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={handleCopySelection}
+          {!isDefaultSort ? (
+            <div className="flex flex-wrap gap-2">
+              <Badge
+                variant="secondary"
+                className="gap-1 rounded-full border border-brand-teal/25 bg-brand-teal/10 px-3 py-1 text-brand-navy shadow-sm"
+              >
+                <span>Sorted by: {activeSortLabel}</span>
+                <button
+                  aria-label="Clear sort"
+                  className="rounded-full p-0.5 hover:bg-brand-teal/15"
+                  onClick={() =>
+                    requestParamUpdate({
+                      sort: null,
+                      direction: null,
+                      page: "1",
+                    })
+                  }
+                  type="button"
                 >
-                  <Copy className="mr-2 h-4 w-4" />
-                  Copy Emails
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={handleExportSelected}
-                  disabled={isExporting}
-                >
-                  <Download className="mr-2 h-4 w-4" />
-                  Export Selected
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setTagDialogOpen(true)}
-                  disabled={isBulkActing}
-                >
-                  <Tag className="mr-2 h-4 w-4" />
-                  Add Tag
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setSegmentDialogOpen(true)}
-                  disabled={isBulkActing}
-                >
-                  <Users className="mr-2 h-4 w-4" />
-                  Add to Segment
-                </Button>
-                <Button size="sm" variant="ghost" onClick={clearSelection}>
-                  Clear selection
-                </Button>
-              </div>
+                  <X className="h-3 w-3" />
+                </button>
+              </Badge>
             </div>
           ) : null}
+        </CardHeader>
 
+        <CardContent className="relative z-0 space-y-5 bg-white pt-5">
           {isLoading ? (
             <div className="space-y-3">
               {Array.from({ length: 5 }).map((_, index) => (
                 <div
                   key={index}
-                  className="grid grid-cols-12 gap-3 rounded-lg border p-4"
+                  className="grid grid-cols-12 gap-3 rounded-2xl border border-border/60 bg-slate-50/70 p-4 shadow-sm"
                 >
                   <Skeleton className="col-span-4 h-5" />
                   <Skeleton className="col-span-3 h-5" />
@@ -1813,9 +2183,11 @@ export default function CRMCampaignRecipientsPage() {
               ))}
             </div>
           ) : !canShowRecipients || rowsWithRealtime.length === 0 ? (
-            <div className="rounded-lg border border-dashed px-6 py-12 text-center">
-              <Mail className="mx-auto mb-4 h-10 w-10 text-muted-foreground" />
-              <h2 className="text-lg font-semibold">
+            <div className="rounded-2xl border border-dashed border-border/80 bg-slate-50/60 px-6 py-14 text-center shadow-sm">
+              <span className="mx-auto mb-4 inline-flex h-14 w-14 items-center justify-center rounded-2xl border border-border/70 bg-white text-muted-foreground shadow-sm">
+                <Mail className="h-6 w-6" />
+              </span>
+              <h2 className="text-lg font-semibold text-brand-navy">
                 No recipients for this campaign
               </h2>
               <p className="mt-2 text-sm text-muted-foreground">
@@ -1845,13 +2217,15 @@ export default function CRMCampaignRecipientsPage() {
                         isHighlighted
                           ? "bg-emerald-50/70 transition-colors duration-700"
                           : "",
-                        isSelected ? "border-primary/40 bg-primary/5" : "",
+                        isSelected
+                          ? "border-primary/30 bg-primary/[0.045] shadow-sm"
+                          : "border-border/70 shadow-sm shadow-brand-navy/5",
                       ]
                         .filter(Boolean)
                         .join(" ") || undefined
                     }
                   >
-                    <CardContent className="space-y-3 p-4">
+                    <CardContent className="space-y-4 p-5">
                       <div className="flex items-center justify-between">
                         <Checkbox
                           checked={isSelected}
@@ -1881,7 +2255,7 @@ export default function CRMCampaignRecipientsPage() {
                           ) : null}
                         </div>
                         <Badge
-                          className={`${getEventBadgeClass(row.latest_event)} ${isHighlighted ? "animate-pulse ring-2 ring-emerald-200" : ""}`}
+                          className={`${getEventBadgeClass(row.latest_event)} rounded-full px-2.5 py-1 font-medium shadow-sm ${isHighlighted ? "animate-pulse ring-2 ring-emerald-200" : ""}`}
                         >
                           {getEventLabel(row.latest_event)}
                         </Badge>
@@ -1959,11 +2333,11 @@ export default function CRMCampaignRecipientsPage() {
               })}
             </div>
           ) : (
-            <div className="rounded-lg border">
+            <div className="overflow-visible rounded-2xl border border-border/70 bg-white shadow-sm shadow-brand-navy/5">
               <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-12">
+                <TableHeader className="bg-slate-50/85">
+                  <TableRow className="border-border/70 hover:bg-slate-50/85">
+                    <TableHead className="w-12 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/90">
                       <Checkbox
                         checked={
                           allVisibleSelected
@@ -1977,44 +2351,22 @@ export default function CRMCampaignRecipientsPage() {
                         }
                       />
                     </TableHead>
-                    <TableHead>
-                      <SortHeader
-                        label="Customer Name"
-                        column="customer_name"
-                        sortColumn={sortColumn}
-                        sortDirection={sortDirection}
-                        onSort={handleSort}
-                      />
+                    <TableHead className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/90">
+                      Customer Name
                     </TableHead>
-                    <TableHead>
-                      <SortHeader
-                        label="Email"
-                        column="email"
-                        sortColumn={sortColumn}
-                        sortDirection={sortDirection}
-                        onSort={handleSort}
-                      />
+                    <TableHead className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/90">
+                      Email
                     </TableHead>
-                    <TableHead>
-                      <SortHeader
-                        label="Latest Event"
-                        column="latest_event"
-                        sortColumn={sortColumn}
-                        sortDirection={sortDirection}
-                        onSort={handleSort}
-                      />
+                    <TableHead className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/90">
+                      Latest Event
                     </TableHead>
-                    <TableHead>
-                      <SortHeader
-                        label="Event Time"
-                        column="event_time"
-                        sortColumn={sortColumn}
-                        sortDirection={sortDirection}
-                        onSort={handleSort}
-                      />
+                    <TableHead className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/90">
+                      Event Time
                     </TableHead>
-                    <TableHead>Delivery Status</TableHead>
-                    <TableHead className="hidden lg:table-cell text-right">
+                    <TableHead className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/90">
+                      Delivery Status
+                    </TableHead>
+                    <TableHead className="hidden text-right text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/90 lg:table-cell">
                       Actions
                     </TableHead>
                   </TableRow>
@@ -2036,10 +2388,10 @@ export default function CRMCampaignRecipientsPage() {
                           [
                             isHighlighted
                               ? "bg-emerald-50/70 transition-colors duration-700"
-                              : "",
+                              : "hover:bg-slate-50/70",
                             allMatchingSelected ||
                             selectedRecipientSet.has(row.recipient_id)
-                              ? "bg-primary/5"
+                              ? "bg-primary/[0.045]"
                               : "",
                           ]
                             .filter(Boolean)
@@ -2081,7 +2433,7 @@ export default function CRMCampaignRecipientsPage() {
                         </TableCell>
                         <TableCell className="align-top">
                           <Link
-                            className="font-medium text-foreground underline-offset-4 hover:underline"
+                            className="font-medium text-foreground underline-offset-4 transition-colors hover:text-brand-navy hover:underline"
                             onClick={() =>
                               rememberRecipientFocus(row.recipient_id)
                             }
@@ -2096,9 +2448,9 @@ export default function CRMCampaignRecipientsPage() {
                           ) : null}
                           <div className="mt-2 flex flex-wrap items-center gap-2">
                             <Badge
-                              className={getEngagementBadgeClass(
+                              className={`${getEngagementBadgeClass(
                                 row.engagement_score ?? 0,
-                              )}
+                              )} rounded-full px-2.5 py-1 font-medium shadow-sm`}
                               variant="outline"
                             >
                               {getEngagementLabel(row.engagement_score ?? 0)} ·{" "}
@@ -2114,7 +2466,7 @@ export default function CRMCampaignRecipientsPage() {
                         </TableCell>
                         <TableCell className="align-top">
                           <Badge
-                            className={`${getEventBadgeClass(row.latest_event)} ${isHighlighted ? "animate-pulse ring-2 ring-emerald-200" : ""}`}
+                            className={`${getEventBadgeClass(row.latest_event)} rounded-full px-2.5 py-1 font-medium shadow-sm ${isHighlighted ? "animate-pulse ring-2 ring-emerald-200" : ""}`}
                           >
                             {getEventLabel(row.latest_event)}
                           </Badge>
@@ -2159,50 +2511,59 @@ export default function CRMCampaignRecipientsPage() {
                           </TooltipProvider>
                         </TableCell>
                         <TableCell className="hidden lg:table-cell align-top text-right">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button size="icon" variant="ghost">
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem
-                                onClick={() => {
-                                  rememberRecipientFocus(row.recipient_id);
-                                  navigate(
-                                    buildRecipientDetailPath(row.recipient_id),
-                                  );
-                                }}
-                              >
-                                View Email Details
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() =>
-                                  handleCopyEmail(row.customer_email)
-                                }
-                              >
-                                Copy Email Address
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() =>
-                                  handleCopyRecipientLink(row.recipient_id)
-                                }
-                              >
-                                Copy Recipient Link
-                              </DropdownMenuItem>
-                              {row.customer_id ? (
-                                <DropdownMenuItem
-                                  onClick={() =>
-                                    navigate(
-                                      `/crm/customers/${row.customer_id}`,
-                                    )
-                                  }
-                                >
-                                  View Customer Profile
-                                </DropdownMenuItem>
-                              ) : null}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                          <ActionDropdown
+                            label="Recipient actions"
+                            ariaLabel={`Actions for ${primaryLabel}`}
+                            triggerIcon={MoreHorizontal}
+                            variant="ghost"
+                            iconOnly
+                            align="end"
+                            triggerClassName="rounded-full text-muted-foreground hover:bg-brand-navy/5 hover:text-brand-navy"
+                            contentClassName="min-w-[15rem]"
+                            sections={[
+                              {
+                                items: [
+                                  {
+                                    label: "View Email Details",
+                                    onSelect: () => {
+                                      rememberRecipientFocus(row.recipient_id);
+                                      navigate(
+                                        buildRecipientDetailPath(
+                                          row.recipient_id,
+                                        ),
+                                      );
+                                    },
+                                  },
+                                  {
+                                    label: "Copy Email Address",
+                                    onSelect: () => {
+                                      void handleCopyEmail(row.customer_email);
+                                    },
+                                  },
+                                  {
+                                    label: "Copy Recipient Link",
+                                    onSelect: () => {
+                                      void handleCopyRecipientLink(
+                                        row.recipient_id,
+                                      );
+                                    },
+                                  },
+                                  ...(row.customer_id
+                                    ? [
+                                        {
+                                          label: "View Customer Profile",
+                                          onSelect: () => {
+                                            navigate(
+                                              `/crm/customers/${row.customer_id}`,
+                                            );
+                                          },
+                                        },
+                                      ]
+                                    : []),
+                                ],
+                              },
+                            ]}
+                          />
                         </TableCell>
                       </TableRow>
                     );
@@ -2212,7 +2573,7 @@ export default function CRMCampaignRecipientsPage() {
             </div>
           )}
 
-          <div className="flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-3 border-t border-border/60 pt-5 sm:flex-row sm:items-center sm:justify-between">
             <div className="text-sm text-muted-foreground">
               Showing {rowsWithRealtime.length} of {pagination.total_count}{" "}
               filtered recipients
@@ -2224,11 +2585,12 @@ export default function CRMCampaignRecipientsPage() {
                 size="sm"
                 disabled={page <= 1}
                 onClick={() => updateParams({ page: String(page - 1) })}
+                className="rounded-full border-border/80 bg-white px-4 shadow-sm"
               >
                 <ChevronLeft className="mr-1 h-4 w-4" />
                 Previous
               </Button>
-              <div className="min-w-[110px] text-center text-sm text-muted-foreground">
+              <div className="min-w-[130px] rounded-full border border-border/70 bg-slate-50 px-4 py-2 text-center text-sm text-muted-foreground shadow-sm">
                 Page {pagination.total_pages === 0 ? 0 : pagination.page} of{" "}
                 {pagination.total_pages}
               </div>
@@ -2239,6 +2601,7 @@ export default function CRMCampaignRecipientsPage() {
                   pagination.total_pages === 0 || page >= pagination.total_pages
                 }
                 onClick={() => updateParams({ page: String(page + 1) })}
+                className="rounded-full border-border/80 bg-white px-4 shadow-sm"
               >
                 Next
                 <ChevronRight className="ml-1 h-4 w-4" />
@@ -2394,7 +2757,7 @@ export default function CRMCampaignRecipientsPage() {
                 try {
                   await navigator.clipboard.writeText(pendingCopyValue);
                   toast.success(
-                    `${pendingCopyCount.toLocaleString()} email addresses copied`,
+                    `${pendingCopyCount.toLocaleString()} emails copied to clipboard.`,
                   );
                 } catch (error) {
                   console.error("Failed to copy pending email list", error);
