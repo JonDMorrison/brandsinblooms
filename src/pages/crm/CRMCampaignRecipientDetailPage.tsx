@@ -17,24 +17,29 @@ import { formatDistanceStrict, formatDistanceToNow } from "date-fns";
 import { formatInTimeZone } from "date-fns-tz";
 import {
   AlertTriangle,
-  ArrowLeft,
+  CheckCircle,
   ChevronLeft,
   ChevronRight,
   Clock3,
   Copy,
   Download,
+  Eye,
   ExternalLink,
+  FileText,
+  Info,
   Mail,
-  MoreHorizontal,
   MousePointer,
+  MousePointerClick,
   RefreshCw,
   Send,
   User,
+  XCircle,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/hooks/useTenant";
 import { useCampaignEventRealtime } from "@/hooks/useCampaignEventRealtime";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { CRMMetricCard } from "@/components/crm/CRMMetricCard";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -57,12 +62,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { ActionDropdown } from "@/components/ui/action-dropdown";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import {
   extractBounceReason,
@@ -79,6 +85,7 @@ import {
   sanitizeFileNamePart,
 } from "@/lib/crm/campaignRecipientOperations";
 import { retryCampaignRecipientMessage } from "@/lib/email/emailRetryService";
+import { cn } from "@/lib/utils";
 
 interface CampaignSegment {
   id: string;
@@ -333,6 +340,109 @@ function formatDurationBetween(startAt: string | null, endAt: string | null) {
   return formatDistanceStrict(new Date(startAt), new Date(endAt));
 }
 
+function formatDisplayValue(value: string | null | undefined) {
+  return value && value.trim().length > 0 ? value : "—";
+}
+
+function formatTimestampDisplay(
+  timestamp: string | null,
+  timezone?: string | null,
+) {
+  return timestamp ? formatExactTimestamp(timestamp, timezone) : "—";
+}
+
+function formatDurationDisplay(startAt: string | null, endAt: string | null) {
+  return startAt && endAt ? formatDurationBetween(startAt, endAt) : "—";
+}
+
+function formatCurrencyDisplay(value: number | null) {
+  return value === null || Number.isNaN(value) ? "—" : formatCurrency(value);
+}
+
+function getTimelineNodeClass(eventType: string) {
+  switch (eventType) {
+    case "queued":
+      return "bg-gray-400 ring-gray-200";
+    case "attempted":
+      return "bg-amber-400 ring-amber-100";
+    case "sent":
+      return "bg-blue-400 ring-blue-100";
+    case "delivered":
+    case "opened":
+    case "open":
+      return "bg-emerald-500 ring-emerald-100";
+    case "clicked":
+      return "bg-teal-500 ring-teal-100";
+    case "bounced":
+    case "bounce":
+    case "failed":
+      return "bg-red-500 ring-red-100";
+    case "complained":
+    case "complaint":
+      return "bg-orange-500 ring-orange-100";
+    default:
+      return "bg-slate-400 ring-slate-100";
+  }
+}
+
+function getTimelineBadgeClass(eventType: string) {
+  switch (eventType) {
+    case "queued":
+      return "border-gray-200 bg-gray-100 text-gray-700 hover:bg-gray-100";
+    case "attempted":
+      return "border-amber-200 bg-amber-100 text-amber-800 hover:bg-amber-100";
+    case "sent":
+      return "border-blue-200 bg-blue-100 text-blue-800 hover:bg-blue-100";
+    case "delivered":
+    case "opened":
+    case "open":
+      return "border-emerald-200 bg-emerald-100 text-emerald-800 hover:bg-emerald-100";
+    case "clicked":
+      return "border-teal-200 bg-teal-100 text-teal-800 hover:bg-teal-100";
+    case "bounced":
+    case "bounce":
+    case "failed":
+      return "border-red-200 bg-red-100 text-red-800 hover:bg-red-100";
+    case "complained":
+    case "complaint":
+      return "border-orange-200 bg-orange-100 text-orange-800 hover:bg-orange-100";
+    default:
+      return "border-slate-200 bg-slate-100 text-slate-700 hover:bg-slate-100";
+  }
+}
+
+function DetailField({
+  label,
+  value,
+  muted = false,
+  truncate = false,
+  mono = false,
+}: {
+  label: string;
+  value: React.ReactNode;
+  muted?: boolean;
+  truncate?: boolean;
+  mono?: boolean;
+}) {
+  return (
+    <div className="min-w-0 rounded-xl border border-border/70 bg-slate-50/70 p-3.5">
+      <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+        {label}
+      </div>
+      <div
+        className={cn(
+          "mt-2 text-sm font-medium text-foreground",
+          muted && "text-muted-foreground",
+          truncate && "truncate",
+          mono && "font-mono text-xs",
+        )}
+      >
+        {value}
+      </div>
+    </div>
+  );
+}
+
 function createTimelineEntryFromEvent(
   event: EmailTrackingEventRow,
 ): TimelineEntry {
@@ -408,26 +518,93 @@ function appendActivityEntry(
   });
 }
 
-function DetailStat({
-  label,
-  value,
-  subtitle,
-}: {
-  label: string;
-  value: string;
-  subtitle?: string;
-}) {
-  return (
-    <div className="rounded-lg border bg-card px-4 py-3">
-      <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-        {label}
-      </div>
-      <div className="mt-2 text-2xl font-semibold text-foreground">{value}</div>
-      {subtitle ? (
-        <div className="mt-1 text-sm text-muted-foreground">{subtitle}</div>
-      ) : null}
-    </div>
-  );
+function getDeliveryStatusPresentation(status: string) {
+  switch (status) {
+    case "delivered":
+      return {
+        icon: CheckCircle,
+        iconClassName: "text-emerald-700",
+        iconWrapClassName: "border-emerald-200 bg-emerald-50",
+        valueClassName: "text-xl text-emerald-600",
+      };
+    case "bounced":
+    case "failed":
+      return {
+        icon: XCircle,
+        iconClassName: "text-red-700",
+        iconWrapClassName: "border-red-200 bg-red-50",
+        valueClassName: "text-xl text-red-600",
+      };
+    case "complained":
+      return {
+        icon: AlertTriangle,
+        iconClassName: "text-orange-700",
+        iconWrapClassName: "border-orange-200 bg-orange-50",
+        valueClassName: "text-xl text-orange-600",
+      };
+    case "queued":
+    case "sent":
+    case "delayed":
+    default:
+      return {
+        icon: Clock3,
+        iconClassName: "text-amber-700",
+        iconWrapClassName: "border-amber-200 bg-amber-50",
+        valueClassName: "text-xl text-amber-600",
+      };
+  }
+}
+
+function getLatestActivityPresentation(event: string) {
+  switch (event) {
+    case "opened":
+    case "open":
+      return {
+        icon: Eye,
+        iconClassName: "text-sky-700",
+        iconWrapClassName: "border-sky-200 bg-sky-50",
+        valueClassName: "text-xl text-sky-900",
+      };
+    case "clicked":
+      return {
+        icon: MousePointerClick,
+        iconClassName: "text-indigo-700",
+        iconWrapClassName: "border-indigo-200 bg-indigo-50",
+        valueClassName: "text-xl text-indigo-900",
+      };
+    case "delivered":
+    case "sent":
+      return {
+        icon: Mail,
+        iconClassName: "text-emerald-700",
+        iconWrapClassName: "border-emerald-200 bg-emerald-50",
+        valueClassName: "text-xl text-emerald-900",
+      };
+    case "bounced":
+    case "bounce":
+    case "failed":
+      return {
+        icon: XCircle,
+        iconClassName: "text-red-700",
+        iconWrapClassName: "border-red-200 bg-red-50",
+        valueClassName: "text-xl text-red-900",
+      };
+    case "complained":
+    case "complaint":
+      return {
+        icon: AlertTriangle,
+        iconClassName: "text-orange-700",
+        iconWrapClassName: "border-orange-200 bg-orange-50",
+        valueClassName: "text-xl text-orange-900",
+      };
+    default:
+      return {
+        icon: Mail,
+        iconClassName: "text-brand-navy",
+        iconWrapClassName: "border-brand-navy/10 bg-brand-navy/5",
+        valueClassName: "text-xl text-foreground",
+      };
+  }
 }
 
 export default function CRMCampaignRecipientDetailPage() {
@@ -444,7 +621,10 @@ export default function CRMCampaignRecipientDetailPage() {
   const filterState = buildRecipientFilterState(searchParams);
   const [isRetryDialogOpen, setIsRetryDialogOpen] = useState(false);
   const [isRetrying, setIsRetrying] = useState(false);
+  const [isPreviewExpanded, setIsPreviewExpanded] = useState(false);
+  const [previewFrameHeight, setPreviewFrameHeight] = useState(720);
   const headingRef = useRef<HTMLHeadingElement | null>(null);
+  const previewFrameRef = useRef<HTMLIFrameElement | null>(null);
   const search = filterState.searchQuery || null;
   const filter = filterState.compositeFilter;
   const eventFilters = filterState.selectedEvents;
@@ -456,6 +636,9 @@ export default function CRMCampaignRecipientDetailPage() {
 
   const recipientsPath = campaignId
     ? `/dashboard/campaigns/${campaignId}/recipients${searchSuffix}`
+    : "/crm/campaigns";
+  const campaignAnalyticsPath = campaignId
+    ? `/crm/campaigns/${campaignId}/analytics`
     : "/crm/campaigns";
 
   const buildRecipientPath = (id: string | null) =>
@@ -546,11 +729,51 @@ export default function CRMCampaignRecipientDetailPage() {
   const previewSubject =
     payloadSubject || campaign?.subject_line || "No subject line";
   const previewHtml = payloadHtml || campaign?.content || "";
-  const previewSource = payloadHtml
-    ? "snapshot"
-    : campaign?.content
-      ? "current_campaign"
-      : "unavailable";
+  const hasTemplateTokens = useMemo(
+    () => /\{\{[^}]+\}\}/.test(previewHtml),
+    [previewHtml],
+  );
+
+  const syncPreviewFrameHeight = useCallback(() => {
+    const iframe = previewFrameRef.current;
+    if (!iframe) return;
+
+    try {
+      const documentElement = iframe.contentDocument?.documentElement;
+      const body = iframe.contentDocument?.body;
+      const nextHeight = Math.max(
+        documentElement?.scrollHeight ?? 0,
+        body?.scrollHeight ?? 0,
+        720,
+      );
+
+      if (nextHeight > 0) {
+        setPreviewFrameHeight(nextHeight);
+      }
+    } catch (error) {
+      console.error("Unable to measure preview iframe height", error);
+      setPreviewFrameHeight(720);
+    }
+  }, []);
+
+  useEffect(() => {
+    setIsPreviewExpanded(false);
+    setPreviewFrameHeight(720);
+  }, [previewHtml]);
+
+  useEffect(() => {
+    if (!previewHtml) return;
+
+    const timeouts = [
+      window.setTimeout(syncPreviewFrameHeight, 0),
+      window.setTimeout(syncPreviewFrameHeight, 250),
+      window.setTimeout(syncPreviewFrameHeight, 1000),
+    ];
+
+    return () => {
+      timeouts.forEach((timeoutId) => window.clearTimeout(timeoutId));
+    };
+  }, [previewHtml, syncPreviewFrameHeight]);
 
   const handleMarkdownExport = useCallback(() => {
     if (!campaign || !liveRecipient) return;
@@ -663,6 +886,176 @@ export default function CRMCampaignRecipientDetailPage() {
     await refetch();
   }, [refetch]);
 
+  const headerActionSections = useMemo(() => {
+    const sections = [] as Array<{
+      label: string;
+      items: Array<{
+        label: string;
+        description?: string;
+        icon?: typeof ExternalLink;
+        disabled?: boolean;
+        onSelect?: () => void;
+      }>;
+    }>;
+
+    if (liveRecipient?.customer_id) {
+      sections.push({
+        label: "Navigate",
+        items: [
+          {
+            label: "View Customer",
+            description: "Open this recipient's linked customer profile.",
+            icon: ExternalLink,
+            onSelect: () => {
+              navigate(`/crm/customers/${liveRecipient.customer_id}`);
+            },
+          },
+        ],
+      });
+    }
+
+    sections.push({
+      label: "Data",
+      items: [
+        {
+          label: "Refresh Data",
+          description: isFetching
+            ? "Reloading the latest recipient activity."
+            : "Reload the latest recipient events and delivery data.",
+          icon: RefreshCw,
+          disabled: isFetching,
+          onSelect: () => {
+            void handleRefresh();
+          },
+        },
+        {
+          label: "Copy Link",
+          description: "Copy the current recipient detail URL.",
+          icon: Copy,
+          onSelect: () => {
+            void handleCopyLink();
+          },
+        },
+      ],
+    });
+
+    const advancedItems: Array<{
+      label: string;
+      description?: string;
+      icon?: typeof ExternalLink;
+      disabled?: boolean;
+      onSelect?: () => void;
+    }> = [];
+
+    if (liveRecipient?.can_retry) {
+      advancedItems.push({
+        label: "Retry Send",
+        description: "Open the retry confirmation flow for this recipient.",
+        icon: RefreshCw,
+        onSelect: () => {
+          setIsRetryDialogOpen(true);
+        },
+      });
+    }
+
+    advancedItems.push({
+      label: "Export Markdown",
+      description:
+        "Download a markdown snapshot of this recipient detail view.",
+      icon: Download,
+      onSelect: handleMarkdownExport,
+    });
+
+    sections.push({
+      label: "Advanced",
+      items: advancedItems,
+    });
+
+    return sections;
+  }, [
+    handleCopyLink,
+    handleMarkdownExport,
+    handleRefresh,
+    isFetching,
+    liveRecipient?.can_retry,
+    liveRecipient?.customer_id,
+    liveRecipient?.resend_id,
+    navigate,
+  ]);
+
+  const deliveryStatusTimestamp = useMemo(() => {
+    if (!liveRecipient) return null;
+
+    const eventTypes =
+      liveRecipient.delivery_status === "delivered"
+        ? ["delivered"]
+        : liveRecipient.delivery_status === "bounced"
+          ? ["bounced", "bounce"]
+          : liveRecipient.delivery_status === "failed"
+            ? ["failed", "bounced", "bounce"]
+            : liveRecipient.delivery_status === "complained"
+              ? ["complained", "complaint"]
+              : liveRecipient.delivery_status === "queued"
+                ? ["queued"]
+                : liveRecipient.delivery_status === "sent"
+                  ? ["sent", "attempted"]
+                  : liveRecipient.delivery_status === "delayed"
+                    ? ["delayed", "queued", "sent", "attempted"]
+                    : [];
+
+    const matchingEvent = [...timeline]
+      .reverse()
+      .find((entry) => eventTypes.includes(entry.event_type));
+
+    return (
+      matchingEvent?.event_at ||
+      liveRecipient.last_attempt_at ||
+      liveRecipient.sent_at ||
+      liveRecipient.latest_event_at ||
+      campaign?.sent_at ||
+      campaign?.scheduled_at ||
+      campaign?.created_at ||
+      null
+    );
+  }, [
+    campaign?.created_at,
+    campaign?.scheduled_at,
+    campaign?.sent_at,
+    liveRecipient,
+    timeline,
+  ]);
+
+  const deliveryStatusCard = useMemo(
+    () =>
+      getDeliveryStatusPresentation(
+        liveRecipient?.delivery_status ?? "unknown",
+      ),
+    [liveRecipient?.delivery_status],
+  );
+
+  const latestActivityCard = useMemo(
+    () =>
+      getLatestActivityPresentation(liveRecipient?.latest_event ?? "unknown"),
+    [liveRecipient?.latest_event],
+  );
+
+  const deliveredTimelineEventAt = useMemo(
+    () =>
+      [...liveTimeline]
+        .reverse()
+        .find((entry) => entry.event_type === "delivered")?.event_at ?? null,
+    [liveTimeline],
+  );
+
+  const latestClickedUrl = useMemo(
+    () =>
+      activityLog
+        .slice()
+        .reverse()
+        .find((entry) => entry.link_url)?.link_url ?? null,
+    [activityLog],
+  );
+
   const handleRealtimeEvent = useCallback(
     (event: EmailTrackingEventRow, options: { animate: boolean }) => {
       const normalizedType = normalizeTrackingEventType(event.event_type);
@@ -755,17 +1148,14 @@ export default function CRMCampaignRecipientDetailPage() {
     [],
   );
 
-  const { connectionState, isLive, bannerState, dismissBanner } =
-    useCampaignEventRealtime({
-      campaignId,
-      tenantId: tenant?.id,
-      recipientEmail: liveRecipient?.customer_email,
-      enabled: Boolean(
-        campaignId && tenant?.id && liveRecipient?.customer_email,
-      ),
-      channelName: `campaign-recipient-detail-events-${campaignId}-${recipientId}`,
-      onEvent: handleRealtimeEvent,
-    });
+  useCampaignEventRealtime({
+    campaignId,
+    tenantId: tenant?.id,
+    recipientEmail: liveRecipient?.customer_email,
+    enabled: Boolean(campaignId && tenant?.id && liveRecipient?.customer_email),
+    channelName: `campaign-recipient-detail-events-${campaignId}-${recipientId}`,
+    onEvent: handleRealtimeEvent,
+  });
 
   useEffect(() => {
     return () => {
@@ -833,7 +1223,7 @@ export default function CRMCampaignRecipientDetailPage() {
 
   return (
     <>
-      <div className="container mx-auto space-y-6 p-6">
+      <div className="container mx-auto px-6 pb-8 pt-6">
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
@@ -850,7 +1240,13 @@ export default function CRMCampaignRecipientDetailPage() {
             <BreadcrumbSeparator />
             <BreadcrumbItem>
               <BreadcrumbLink asChild>
-                <Link to={recipientsPath}>{campaign.name}</Link>
+                <Link to={campaignAnalyticsPath}>{campaign.name}</Link>
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbLink asChild>
+                <Link to={recipientsPath}>Recipients</Link>
               </BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator />
@@ -862,187 +1258,138 @@ export default function CRMCampaignRecipientDetailPage() {
           </BreadcrumbList>
         </Breadcrumb>
 
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div className="space-y-3">
-            <div className="flex flex-wrap items-center gap-3">
-              <h1
-                className="text-3xl font-semibold tracking-tight"
-                ref={headingRef}
-                tabIndex={-1}
-              >
-                {liveRecipient.customer_name || liveRecipient.customer_email}
-              </h1>
-              <Badge className={getEventBadgeClass(liveRecipient.latest_event)}>
-                {getEventLabel(liveRecipient.latest_event)}
-              </Badge>
-              <Badge variant="outline">{campaign.status}</Badge>
-              <Badge variant="outline">
-                Engagement {liveRecipient.engagement_score ?? 0}
-              </Badge>
-              {liveRecipient.retry_count ? (
-                <Badge variant="outline">Retry used</Badge>
-              ) : null}
+        <div className="mt-4 rounded-2xl border border-border/70 bg-white p-5 shadow-sm">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="min-w-0 space-y-2">
+              <div className="flex flex-wrap items-center gap-3">
+                <h1
+                  className="text-2xl font-bold tracking-tight text-foreground"
+                  ref={headingRef}
+                  tabIndex={-1}
+                >
+                  {liveRecipient.customer_name || liveRecipient.customer_email}
+                </h1>
+                <Badge variant="outline">
+                  {getDeliveryLabel(liveRecipient.delivery_status)}
+                </Badge>
+                <Badge
+                  className={getEventBadgeClass(liveRecipient.latest_event)}
+                >
+                  {getEventLabel(liveRecipient.latest_event)}
+                </Badge>
+              </div>
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
+                <span>
+                  <span className="font-medium text-foreground">Campaign:</span>{" "}
+                  {campaign.name}
+                </span>
+                <span className="text-border">&middot;</span>
+                <span>
+                  <span className="font-medium text-foreground">Email:</span>{" "}
+                  {liveRecipient.customer_email}
+                </span>
+                <span className="text-border">&middot;</span>
+                <span>
+                  <span className="font-medium text-foreground">Sent:</span>{" "}
+                  {formatExactTimestamp(
+                    campaign.sent_at ||
+                      campaign.scheduled_at ||
+                      campaign.created_at,
+                    campaign.tenant_timezone,
+                  )}
+                </span>
+                {navigation ? (
+                  <>
+                    <span className="text-border">&middot;</span>
+                    <span>
+                      <span className="font-medium text-foreground">
+                        Position:
+                      </span>{" "}
+                      {navigation.position} of {navigation.total_filtered_count}
+                    </span>
+                  </>
+                ) : null}
+              </div>
             </div>
-            <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-              <div className="rounded-md border bg-card px-3 py-2">
-                <span className="font-medium text-foreground">Campaign:</span>{" "}
-                {campaign.name}
-              </div>
-              <div className="rounded-md border bg-card px-3 py-2">
-                <span className="font-medium text-foreground">Recipient:</span>{" "}
-                {liveRecipient.customer_email}
-              </div>
-              <div className="rounded-md border bg-card px-3 py-2">
-                <span className="font-medium text-foreground">Send Time:</span>{" "}
-                {formatExactTimestamp(
-                  campaign.sent_at ||
-                    campaign.scheduled_at ||
-                    campaign.created_at,
-                  campaign.tenant_timezone,
-                )}
-              </div>
-              {navigation ? (
-                <div className="rounded-md border bg-card px-3 py-2">
-                  <span className="font-medium text-foreground">
-                    List Position:
-                  </span>{" "}
-                  {navigation.position} of {navigation.total_filtered_count}
-                </div>
-              ) : null}
-            </div>
-          </div>
 
-          <div className="flex flex-wrap items-center gap-2 self-start">
-            <Button variant="outline" asChild>
-              <Link to={recipientsPath}>
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Back to Recipients
-              </Link>
-            </Button>
-            {liveRecipient.customer_id ? (
-              <Button variant="outline" asChild>
-                <Link to={`/crm/customers/${liveRecipient.customer_id}`}>
-                  <ExternalLink className="mr-2 h-4 w-4" />
-                  View Customer
-                </Link>
-              </Button>
-            ) : null}
-            {liveRecipient.can_retry ? (
-              <Button
-                variant="outline"
-                onClick={() => setIsRetryDialogOpen(true)}
-              >
-                <RefreshCw className="mr-2 h-4 w-4" />
-                Retry Send
-              </Button>
-            ) : null}
-            <Button variant="outline" onClick={handleCopyLink}>
-              <Copy className="mr-2 h-4 w-4" />
-              Copy Link
-            </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline">
-                  <MoreHorizontal className="mr-2 h-4 w-4" />
-                  Actions
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={handleCopyLink}>
-                  <Copy className="mr-2 h-4 w-4" />
-                  Copy recipient link
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleMarkdownExport}>
-                  <Download className="mr-2 h-4 w-4" />
-                  Export markdown
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <div className="inline-flex items-center gap-2 rounded-md border bg-card px-3 py-2 text-sm text-muted-foreground">
-              <span
-                className={`inline-block h-2.5 w-2.5 rounded-full ${
-                  isLive
-                    ? "bg-emerald-500"
-                    : connectionState === "connecting"
-                      ? "bg-amber-500"
-                      : "bg-slate-400"
-                }`}
+            <div className="flex items-center gap-2 self-start">
+              <ActionDropdown
+                label="Actions"
+                align="end"
+                sections={headerActionSections}
+                triggerClassName="min-w-[9rem] justify-between"
               />
-              <span>
-                {isLive
-                  ? "Live"
-                  : connectionState === "connecting"
-                    ? "Connecting..."
-                    : "Paused - Refresh to sync"}
-              </span>
             </div>
-            <Button
-              variant="outline"
-              onClick={handleRefresh}
-              disabled={isFetching}
-            >
-              <RefreshCw
-                className={`mr-2 h-4 w-4 ${isFetching ? "animate-spin" : ""}`}
-              />
-              Refresh
-            </Button>
           </div>
         </div>
 
-        {bannerState === "paused" ? (
-          <Alert className="border-orange-200 bg-orange-50 text-orange-900">
-            <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
-              <span>
-                Live updates paused. Click Refresh to load latest data.
-              </span>
-              <div className="flex items-center gap-2">
-                <Button size="sm" variant="outline" onClick={handleRefresh}>
-                  Refresh
-                </Button>
-                <Button size="sm" variant="ghost" onClick={dismissBanner}>
-                  Dismiss
-                </Button>
-              </div>
-            </AlertDescription>
-          </Alert>
-        ) : null}
-
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          <DetailStat
-            label="Latest Event"
+        <div className="mt-6 grid gap-4 sm:grid-cols-1 md:grid-cols-2 xl:grid-cols-4">
+          <CRMMetricCard
+            label="Delivery Status"
+            value={getDeliveryLabel(liveRecipient.delivery_status)}
+            subtitle={formatRelativeTimestamp(deliveryStatusTimestamp)}
+            icon={deliveryStatusCard.icon}
+            iconClassName={deliveryStatusCard.iconClassName}
+            iconWrapClassName={deliveryStatusCard.iconWrapClassName}
+            appearance="flat"
+            valueClassName={deliveryStatusCard.valueClassName}
+          />
+          <CRMMetricCard
+            label="Latest Activity"
             value={getEventLabel(liveRecipient.latest_event)}
             subtitle={formatRelativeTimestamp(liveRecipient.latest_event_at)}
+            icon={latestActivityCard.icon}
+            iconClassName={latestActivityCard.iconClassName}
+            iconWrapClassName={latestActivityCard.iconWrapClassName}
+            appearance="flat"
+            valueClassName={latestActivityCard.valueClassName}
           />
-          <DetailStat
+          <CRMMetricCard
             label="Opens"
             value={String(insights?.open_count ?? 0)}
             subtitle={
-              insights?.has_mpp_open
-                ? "Includes privacy-proxy opens"
-                : "Unique activity captured"
+              insights?.first_open_at
+                ? `First open: ${formatRelativeTimestamp(insights.first_open_at)}`
+                : "No opens recorded"
+            }
+            icon={Eye}
+            iconClassName="text-sky-700"
+            iconWrapClassName="border-sky-200 bg-sky-50"
+            appearance="flat"
+            valueClassName={
+              (insights?.open_count ?? 0) > 0
+                ? undefined
+                : "text-3xl text-slate-400"
+            }
+            subtitleClassName={
+              (insights?.open_count ?? 0) > 0 ? undefined : "text-slate-400"
             }
           />
-          <DetailStat
+          <CRMMetricCard
             label="Clicks"
             value={String(insights?.click_count ?? 0)}
             subtitle={
-              insights?.last_click_at
-                ? formatRelativeTimestamp(insights.last_click_at)
-                : "No click events"
+              insights?.first_click_at
+                ? `First click: ${formatRelativeTimestamp(insights.first_click_at)}`
+                : "No clicks recorded"
             }
-          />
-          <DetailStat
-            label="Attempts"
-            value={String(liveRecipient.attempts ?? 0)}
-            subtitle={
-              liveRecipient.error_message ||
-              getDeliveryLabel(liveRecipient.delivery_status)
+            icon={MousePointerClick}
+            iconClassName="text-indigo-700"
+            iconWrapClassName="border-indigo-200 bg-indigo-50"
+            appearance="flat"
+            valueClassName={
+              (insights?.click_count ?? 0) > 0
+                ? undefined
+                : "text-3xl text-slate-400"
+            }
+            subtitleClassName={
+              (insights?.click_count ?? 0) > 0 ? undefined : "text-slate-400"
             }
           />
         </div>
 
         {liveRecipient.has_hard_bounce ? (
-          <Alert className="border-amber-300 bg-amber-50 text-amber-950">
+          <Alert className="mt-6 border-amber-300 bg-amber-50 text-amber-950">
             <AlertDescription>
               This address has a hard-bounce signal.
               {liveRecipient.hard_bounce_reason
@@ -1052,21 +1399,21 @@ export default function CRMCampaignRecipientDetailPage() {
           </Alert>
         ) : null}
 
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,0.9fr)]">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-xl">
-                <Clock3 className="h-5 w-5 text-primary" />
+        <div className="mt-6 grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(340px,1fr)]">
+          <Card className="min-h-[34rem] rounded-2xl border border-border/70 bg-white shadow-sm">
+            <CardHeader className="border-b border-border/60 pb-4">
+              <CardTitle className="flex items-center gap-2 text-base font-semibold text-foreground">
+                <Clock3 className="h-4.5 w-4.5 text-brand-teal" />
                 Delivery Timeline
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-6">
               {timeline.length === 0 ? (
                 <div className="rounded-lg border border-dashed px-6 py-8 text-center text-sm text-muted-foreground">
                   No lifecycle events have been recorded for this recipient yet.
                 </div>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-1">
                   {timeline.map((entry, index) =>
                     (() => {
                       const entryKey = `${entry.event_type}-${entry.event_at}-${entry.metadata?.provider_message_id || index}`;
@@ -1082,22 +1429,35 @@ export default function CRMCampaignRecipientDetailPage() {
                       return (
                         <div
                           key={entryKey}
-                          className={`flex gap-4 rounded-lg transition-colors duration-700 ${isHighlighted ? "bg-emerald-50/70 shadow-[0_0_0_1px_rgba(16,185,129,0.15)]" : ""} ${timelineAnimation}`}
+                          className={cn(
+                            "flex gap-4 rounded-xl px-2 py-2 transition-colors duration-700",
+                            isHighlighted &&
+                              "bg-emerald-50/70 shadow-[0_0_0_1px_rgba(16,185,129,0.15)]",
+                            timelineAnimation,
+                          )}
                         >
-                          <div className="mt-1 flex flex-col items-center">
+                          <div className="relative flex w-6 shrink-0 justify-center">
                             <span
-                              className={`inline-block h-3 w-3 rounded-full ${getDeliveryDotClass(entry.event_type === "attempted" ? "sent" : entry.event_type === "queued" ? "queued" : liveRecipient.delivery_status)}`}
+                              className={cn(
+                                "relative top-2 inline-block h-3 w-3 rounded-full ring-4",
+                                getTimelineNodeClass(entry.event_type),
+                              )}
                             />
                             {index < timeline.length - 1 ? (
-                              <span className="mt-2 h-full min-h-8 w-px bg-border" />
+                              <span className="absolute left-1/2 top-5 bottom-[-1.5rem] w-px -translate-x-1/2 bg-gray-200" />
                             ) : null}
                           </div>
-                          <div className="min-w-0 flex-1 pb-4">
+                          <div className="min-w-0 flex-1 pb-5">
                             <div className="flex flex-wrap items-center gap-2">
-                              <div className="font-medium text-foreground">
+                              <div className="font-semibold text-foreground">
                                 {entry.label}
                               </div>
-                              <Badge variant="outline">
+                              <Badge
+                                className={cn(
+                                  "border text-[11px] font-medium",
+                                  getTimelineBadgeClass(entry.event_type),
+                                )}
+                              >
                                 {getEventLabel(entry.event_type)}
                               </Badge>
                               {entry.metadata?.is_mpp_guess ? (
@@ -1112,7 +1472,7 @@ export default function CRMCampaignRecipientDetailPage() {
                             </div>
                             {entry.metadata?.link_url ? (
                               <div className="mt-2 flex items-start gap-2 text-sm text-muted-foreground">
-                                <MousePointer className="mt-0.5 h-4 w-4 text-primary" />
+                                <MousePointer className="mt-0.5 h-4 w-4 text-brand-teal" />
                                 <span className="break-all">
                                   {entry.metadata.link_url}
                                 </span>
@@ -1128,233 +1488,158 @@ export default function CRMCampaignRecipientDetailPage() {
             </CardContent>
           </Card>
 
-          <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-xl">
-                  <Send className="h-5 w-5 text-primary" />
+          <div className="space-y-5">
+            <Card className="rounded-2xl border border-border/70 bg-white shadow-sm">
+              <CardHeader className="border-b border-border/60 pb-4">
+                <CardTitle className="flex items-center gap-2 text-base font-semibold text-foreground">
+                  <Send className="h-4.5 w-4.5 text-brand-teal" />
                   Message Routing
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4 text-sm">
-                <div>
-                  <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    From
-                  </div>
-                  <div className="mt-1 font-medium text-foreground">
-                    {payloadFrom ||
-                      `${campaign.from_name || "Unknown sender"}${campaign.from_email ? ` <${campaign.from_email}>` : ""}`}
-                  </div>
+              <CardContent className="pt-6 text-sm">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <DetailField
+                    label="From"
+                    value={
+                      payloadFrom ||
+                      `${campaign.from_name || "Unknown sender"}${campaign.from_email ? ` <${campaign.from_email}>` : ""}`
+                    }
+                    truncate
+                  />
+                  <DetailField
+                    label="Reply-To"
+                    value={formatDisplayValue(
+                      payloadReplyTo || campaign.reply_to,
+                    )}
+                    truncate
+                    muted={!(payloadReplyTo || campaign.reply_to)}
+                  />
+                  <DetailField
+                    label="To"
+                    value={formatDisplayValue(payloadTo)}
+                    truncate
+                  />
+                  <DetailField
+                    label="Delivery Status"
+                    value={
+                      <span className="inline-flex items-center gap-2">
+                        <span
+                          className={`inline-block h-2.5 w-2.5 rounded-full ${getDeliveryDotClass(liveRecipient.delivery_status)}`}
+                        />
+                        {getDeliveryLabel(liveRecipient.delivery_status)}
+                      </span>
+                    }
+                  />
                 </div>
-                <div>
-                  <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    Reply-To
-                  </div>
-                  <div className="mt-1 text-foreground">
-                    {payloadReplyTo || campaign.reply_to || "Not set"}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    To
-                  </div>
-                  <div className="mt-1 text-foreground break-all">
-                    {payloadTo}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    Delivery Status
-                  </div>
-                  <div className="mt-1 inline-flex items-center gap-2 text-foreground">
-                    <span
-                      className={`inline-block h-2.5 w-2.5 rounded-full ${getDeliveryDotClass(liveRecipient.delivery_status)}`}
-                    />
-                    {getDeliveryLabel(liveRecipient.delivery_status)}
-                  </div>
-                </div>
-                {liveRecipient.resend_id ? (
-                  <div>
-                    <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                      Provider Message ID
-                    </div>
-                    <div className="mt-1 flex items-center gap-2 break-all text-foreground">
-                      <span>{liveRecipient.resend_id}</span>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() =>
-                          handleCopy(
-                            liveRecipient.resend_id as string,
-                            "Provider message ID",
-                          )
-                        }
-                      >
-                        <Copy className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ) : null}
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-xl">
-                  <Mail className="h-5 w-5 text-primary" />
+            <Card className="rounded-2xl border border-border/70 bg-white shadow-sm">
+              <CardHeader className="border-b border-border/60 pb-4">
+                <CardTitle className="flex items-center gap-2 text-base font-semibold text-foreground">
+                  <Mail className="h-4.5 w-4.5 text-brand-teal" />
                   Delivery Metadata
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4 text-sm">
+              <CardContent className="pt-6 text-sm">
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <div className="rounded-lg border bg-muted/20 p-3">
-                    <div className="text-xs uppercase tracking-wide text-muted-foreground">
-                      Delivery Timestamp
-                    </div>
-                    <div className="mt-1 font-medium text-foreground">
-                      {formatExactTimestamp(
-                        liveTimeline.find(
-                          (entry) => entry.event_type === "delivered",
-                        )?.event_at ?? null,
-                        campaign.tenant_timezone,
-                      )}
-                    </div>
-                  </div>
-                  <div className="rounded-lg border bg-muted/20 p-3">
-                    <div className="text-xs uppercase tracking-wide text-muted-foreground">
-                      Time to Deliver
-                    </div>
-                    <div className="mt-1 font-medium text-foreground">
-                      {formatDurationBetween(
-                        liveRecipient.sent_at,
-                        liveTimeline.find(
-                          (entry) => entry.event_type === "delivered",
-                        )?.event_at ?? null,
-                      )}
-                    </div>
-                  </div>
-                  <div className="rounded-lg border bg-muted/20 p-3">
-                    <div className="text-xs uppercase tracking-wide text-muted-foreground">
-                      Bounce Reason
-                    </div>
-                    <div className="mt-1 font-medium text-foreground">
-                      {liveRecipient.error_message || "No bounce recorded"}
-                    </div>
-                  </div>
-                  <div className="rounded-lg border bg-muted/20 p-3">
-                    <div className="text-xs uppercase tracking-wide text-muted-foreground">
-                      Link Click Detail
-                    </div>
-                    <div className="mt-1 break-all font-medium text-foreground">
-                      {activityLog
-                        .slice()
-                        .reverse()
-                        .find((entry) => entry.link_url)?.link_url ||
-                        "No click URL recorded"}
-                    </div>
-                  </div>
+                  <DetailField
+                    label="Delivery Timestamp"
+                    value={formatTimestampDisplay(
+                      deliveredTimelineEventAt,
+                      campaign.tenant_timezone,
+                    )}
+                    muted={!deliveredTimelineEventAt}
+                  />
+                  <DetailField
+                    label="Time to Deliver"
+                    value={formatDurationDisplay(
+                      liveRecipient.sent_at,
+                      deliveredTimelineEventAt,
+                    )}
+                    muted={!(liveRecipient.sent_at && deliveredTimelineEventAt)}
+                  />
+                  <DetailField
+                    label="Bounce Reason"
+                    value={formatDisplayValue(liveRecipient.error_message)}
+                    muted={!liveRecipient.error_message}
+                  />
+                  <DetailField
+                    label="Link Click Detail"
+                    value={formatDisplayValue(latestClickedUrl)}
+                    muted={!latestClickedUrl}
+                    truncate
+                  />
                 </div>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-xl">
-                  <User className="h-5 w-5 text-primary" />
+            <Card className="rounded-2xl border border-border/70 bg-white shadow-sm">
+              <CardHeader className="border-b border-border/60 pb-4">
+                <CardTitle className="flex items-center gap-2 text-base font-semibold text-foreground">
+                  <User className="h-4.5 w-4.5 text-brand-teal" />
                   Recipient Insights
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4 text-sm">
+              <CardContent className="space-y-4 pt-6 text-sm">
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <div className="rounded-lg border bg-muted/20 p-3">
-                    <div className="text-xs uppercase tracking-wide text-muted-foreground">
-                      First Open
-                    </div>
-                    <div className="mt-1 font-medium text-foreground">
-                      {formatExactTimestamp(
-                        insights?.first_open_at ?? null,
-                        campaign.tenant_timezone,
-                      )}
-                    </div>
-                  </div>
-                  <div className="rounded-lg border bg-muted/20 p-3">
-                    <div className="text-xs uppercase tracking-wide text-muted-foreground">
-                      First Click
-                    </div>
-                    <div className="mt-1 font-medium text-foreground">
-                      {formatExactTimestamp(
-                        insights?.first_click_at ?? null,
-                        campaign.tenant_timezone,
-                      )}
-                    </div>
-                  </div>
-                  <div className="rounded-lg border bg-muted/20 p-3">
-                    <div className="text-xs uppercase tracking-wide text-muted-foreground">
-                      Lifetime Value
-                    </div>
-                    <div className="mt-1 font-medium text-foreground">
-                      {formatCurrency(liveRecipient.lifetime_value)}
-                    </div>
-                  </div>
-                  <div className="rounded-lg border bg-muted/20 p-3">
-                    <div className="text-xs uppercase tracking-wide text-muted-foreground">
-                      Total Spent
-                    </div>
-                    <div className="mt-1 font-medium text-foreground">
-                      {formatCurrency(liveRecipient.total_spent)}
-                    </div>
-                  </div>
-                  <div className="rounded-lg border bg-muted/20 p-3">
-                    <div className="text-xs uppercase tracking-wide text-muted-foreground">
-                      Time to Open
-                    </div>
-                    <div className="mt-1 font-medium text-foreground">
-                      {formatDurationBetween(
-                        liveTimeline.find(
-                          (entry) => entry.event_type === "delivered",
-                        )?.event_at ?? liveRecipient.sent_at,
-                        insights?.first_open_at ?? null,
-                      )}
-                    </div>
-                  </div>
-                  <div className="rounded-lg border bg-muted/20 p-3">
-                    <div className="text-xs uppercase tracking-wide text-muted-foreground">
-                      Time to Click
-                    </div>
-                    <div className="mt-1 font-medium text-foreground">
-                      {formatDurationBetween(
-                        liveTimeline.find(
-                          (entry) => entry.event_type === "delivered",
-                        )?.event_at ?? liveRecipient.sent_at,
-                        insights?.first_click_at ?? null,
-                      )}
-                    </div>
-                  </div>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {insights?.opened ? (
-                    <Badge variant="secondary">Opened</Badge>
-                  ) : null}
-                  {insights?.clicked ? (
-                    <Badge variant="secondary">Clicked</Badge>
-                  ) : null}
-                  {insights?.bounced ? (
-                    <Badge variant="secondary">Bounced</Badge>
-                  ) : null}
-                  {insights?.complained ? (
-                    <Badge variant="secondary">Complained</Badge>
-                  ) : null}
-                  {insights?.unsubscribed ? (
-                    <Badge variant="secondary">Unsubscribed</Badge>
-                  ) : null}
-                  {insights?.has_mpp_open ? (
-                    <Badge variant="outline">
-                      Privacy-proxy opens detected
-                    </Badge>
-                  ) : null}
+                  <DetailField
+                    label="First Open"
+                    value={formatTimestampDisplay(
+                      insights?.first_open_at ?? null,
+                      campaign.tenant_timezone,
+                    )}
+                    muted={!insights?.first_open_at}
+                  />
+                  <DetailField
+                    label="First Click"
+                    value={formatTimestampDisplay(
+                      insights?.first_click_at ?? null,
+                      campaign.tenant_timezone,
+                    )}
+                    muted={!insights?.first_click_at}
+                  />
+                  <DetailField
+                    label="Lifetime Value"
+                    value={formatCurrencyDisplay(liveRecipient.lifetime_value)}
+                    muted={
+                      liveRecipient.lifetime_value === null ||
+                      liveRecipient.lifetime_value === 0
+                    }
+                  />
+                  <DetailField
+                    label="Total Spent"
+                    value={formatCurrencyDisplay(liveRecipient.total_spent)}
+                    muted={
+                      liveRecipient.total_spent === null ||
+                      liveRecipient.total_spent === 0
+                    }
+                  />
+                  <DetailField
+                    label="Time to Open"
+                    value={formatDurationDisplay(
+                      deliveredTimelineEventAt ?? liveRecipient.sent_at,
+                      insights?.first_open_at ?? null,
+                    )}
+                    muted={
+                      !(deliveredTimelineEventAt ?? liveRecipient.sent_at) ||
+                      !insights?.first_open_at
+                    }
+                  />
+                  <DetailField
+                    label="Time to Click"
+                    value={formatDurationDisplay(
+                      deliveredTimelineEventAt ?? liveRecipient.sent_at,
+                      insights?.first_click_at ?? null,
+                    )}
+                    muted={
+                      !(deliveredTimelineEventAt ?? liveRecipient.sent_at) ||
+                      !insights?.first_click_at
+                    }
+                  />
                 </div>
                 {liveRecipient.error_message ? (
-                  <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-900">
+                  <div className="rounded-xl border border-red-200 bg-red-50 p-3.5 text-sm text-red-900">
                     <div className="flex items-center gap-2 font-medium">
                       <AlertTriangle className="h-4 w-4" />
                       Latest error
@@ -1363,89 +1648,177 @@ export default function CRMCampaignRecipientDetailPage() {
                   </div>
                 ) : null}
                 {liveRecipient.retry_status ? (
-                  <div className="rounded-lg border bg-muted/20 p-3 text-sm text-foreground">
+                  <div className="rounded-xl border border-border/70 bg-slate-50/70 p-3.5 text-sm text-foreground">
                     Latest retry status: {liveRecipient.retry_status}
                   </div>
                 ) : null}
               </CardContent>
             </Card>
-
-            <div className="flex items-center justify-between gap-2 rounded-lg border bg-card p-4">
-              <Button
-                asChild
-                disabled={!navigation?.previous_recipient_id}
-                variant="outline"
-              >
-                <Link
-                  to={buildRecipientPath(
-                    navigation?.previous_recipient_id ?? null,
-                  )}
-                >
-                  <ChevronLeft className="mr-2 h-4 w-4" />
-                  {navigation?.previous_label || "Previous"}
-                </Link>
-              </Button>
-              <Button
-                asChild
-                disabled={!navigation?.next_recipient_id}
-                variant="outline"
-              >
-                <Link
-                  to={buildRecipientPath(navigation?.next_recipient_id ?? null)}
-                >
-                  {navigation?.next_label || "Next"}
-                  <ChevronRight className="ml-2 h-4 w-4" />
-                </Link>
-              </Button>
-            </div>
           </div>
         </div>
 
-        <Card>
-          <CardContent className="p-6">
-            <div className="space-y-4">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <div className="text-sm font-medium text-foreground">
-                    {previewSubject}
-                  </div>
-                  <div className="mt-1 text-sm text-muted-foreground">
-                    {previewSource === "snapshot"
-                      ? "Exact rendered payload snapshot"
-                      : previewSource === "current_campaign"
-                        ? "Current campaign content fallback"
-                        : "No preview content available"}
-                  </div>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge
-                    variant={
-                      previewSource === "snapshot" ? "secondary" : "outline"
-                    }
+        <TooltipProvider>
+          <div className="mt-6 flex items-center justify-between gap-4 border-t border-border/70 px-1 pt-5">
+            {navigation?.previous_label ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-flex">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-10 min-w-[8.5rem] justify-start rounded-xl px-4 hover:border-brand-teal/30 hover:bg-brand-teal/5 focus-visible:ring-2 focus-visible:ring-brand-teal focus-visible:ring-offset-2"
+                      onClick={() =>
+                        navigate(
+                          buildRecipientPath(
+                            navigation.previous_recipient_id ?? null,
+                          ),
+                        )
+                      }
+                      disabled={!navigation?.previous_recipient_id}
+                    >
+                      <ChevronLeft className="mr-2 h-4 w-4" />
+                      Previous
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="top">
+                  {navigation.previous_label}
+                </TooltipContent>
+              </Tooltip>
+            ) : (
+              <span className="inline-flex">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-10 min-w-[8.5rem] justify-start rounded-xl px-4"
+                  disabled
+                >
+                  <ChevronLeft className="mr-2 h-4 w-4" />
+                  Previous
+                </Button>
+              </span>
+            )}
+
+            <div className="text-sm font-medium text-muted-foreground">
+              {navigation
+                ? `${navigation.position} of ${navigation.total_filtered_count}`
+                : "—"}
+            </div>
+
+            {navigation?.next_label ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-flex">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-10 min-w-[8.5rem] justify-end rounded-xl px-4 hover:border-brand-teal/30 hover:bg-brand-teal/5 focus-visible:ring-2 focus-visible:ring-brand-teal focus-visible:ring-offset-2"
+                      onClick={() =>
+                        navigate(
+                          buildRecipientPath(
+                            navigation.next_recipient_id ?? null,
+                          ),
+                        )
+                      }
+                      disabled={!navigation?.next_recipient_id}
+                    >
+                      Next
+                      <ChevronRight className="ml-2 h-4 w-4" />
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="top">
+                  {navigation.next_label}
+                </TooltipContent>
+              </Tooltip>
+            ) : (
+              <span className="inline-flex">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-10 min-w-[8.5rem] justify-end rounded-xl px-4"
+                  disabled
+                >
+                  Next
+                  <ChevronRight className="ml-2 h-4 w-4" />
+                </Button>
+              </span>
+            )}
+          </div>
+        </TooltipProvider>
+
+        <Card className="mt-6 rounded-2xl border border-border/70 bg-white shadow-sm">
+          <CardHeader className="border-b border-border/60 pb-4">
+            <CardTitle className="flex items-center gap-2 text-base font-semibold text-foreground">
+              <FileText className="h-4.5 w-4.5 text-brand-teal" />
+              Email Preview
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4 p-6">
+            <div className="rounded-xl border border-border/70 bg-slate-50/80 px-4 py-3">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                Campaign content
+              </div>
+              <div className="mt-1.5 text-sm font-medium text-foreground">
+                {previewSubject}
+              </div>
+            </div>
+
+            <div className="flex items-start gap-3 rounded-xl border border-border/70 bg-slate-50/70 px-4 py-3 text-sm text-muted-foreground">
+              <Info className="mt-0.5 h-4 w-4 shrink-0 text-brand-teal" />
+              <div>
+                Showing campaign template. Personalized content may differ per
+                recipient.
+                {hasTemplateTokens
+                  ? " Some template variables appear unresolved in this preview."
+                  : ""}
+              </div>
+            </div>
+
+            {previewHtml ? (
+              <div className="space-y-3">
+                <div className="relative overflow-hidden rounded-xl border border-border/70 bg-white">
+                  <div
+                    className="overflow-hidden transition-[max-height] duration-300 ease-out"
+                    style={{
+                      maxHeight: isPreviewExpanded
+                        ? `${Math.max(previewFrameHeight, 720)}px`
+                        : "460px",
+                    }}
                   >
-                    {previewSource === "snapshot"
-                      ? "Snapshot"
-                      : previewSource === "current_campaign"
-                        ? "Current Campaign"
-                        : "Unavailable"}
-                  </Badge>
+                    <iframe
+                      ref={previewFrameRef}
+                      className="w-full border-0 bg-white"
+                      style={{
+                        height: `${Math.max(previewFrameHeight, 720)}px`,
+                      }}
+                      srcDoc={previewHtml}
+                      title="Campaign email preview"
+                      sandbox="allow-same-origin"
+                      onLoad={syncPreviewFrameHeight}
+                    />
+                  </div>
+                  {!isPreviewExpanded ? (
+                    <div className="pointer-events-none absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-white via-white/95 to-white/0" />
+                  ) : null}
+                </div>
+
+                <div className="flex justify-center">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="min-w-[10rem] rounded-xl px-4 hover:border-brand-teal/30 hover:bg-brand-teal/5 focus-visible:ring-2 focus-visible:ring-brand-teal focus-visible:ring-offset-2"
+                    onClick={() => setIsPreviewExpanded((current) => !current)}
+                  >
+                    {isPreviewExpanded ? "Collapse" : "Show full email"}
+                  </Button>
                 </div>
               </div>
-
-              {previewHtml ? (
-                <div className="overflow-hidden rounded-xl border bg-white shadow-sm">
-                  <iframe
-                    className="h-[720px] w-full"
-                    srcDoc={previewHtml}
-                    title="Campaign email preview"
-                  />
-                </div>
-              ) : (
-                <div className="rounded-lg border border-dashed px-6 py-12 text-center text-sm text-muted-foreground">
-                  No HTML preview is available for this recipient yet.
-                </div>
-              )}
-            </div>
+            ) : (
+              <div className="rounded-xl border border-dashed border-border/70 px-6 py-12 text-center text-sm text-muted-foreground">
+                No HTML preview is available for this recipient yet.
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

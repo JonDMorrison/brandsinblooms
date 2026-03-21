@@ -55,6 +55,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CRMMetricCard } from "@/components/crm/CRMMetricCard";
 import {
   ActionDropdown,
   FilterDropdown,
@@ -499,43 +500,6 @@ function formatCampaignTimestamp(
     new Date(timestamp),
     zone,
     timezone ? "PPpp zzz" : "PPpp 'UTC'",
-  );
-}
-
-function StatCard({
-  label,
-  value,
-  subtitle,
-  icon: Icon,
-  iconClassName,
-  iconWrapClassName,
-}: {
-  label: string;
-  value: string;
-  subtitle?: string;
-  icon: React.ComponentType<{ className?: string }>;
-  iconClassName: string;
-  iconWrapClassName: string;
-}) {
-  return (
-    <div className="group rounded-2xl border border-border/70 bg-gradient-to-br from-white via-white to-slate-50/70 px-4 py-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
-      <div className="flex items-start justify-between gap-3">
-        <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-          {label}
-        </div>
-        <span
-          className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border ${iconWrapClassName}`}
-        >
-          <Icon className={`h-4.5 w-4.5 ${iconClassName}`} />
-        </span>
-      </div>
-      <div className="mt-4 text-3xl font-semibold tracking-tight text-foreground">
-        {value}
-      </div>
-      {subtitle ? (
-        <div className="mt-1.5 text-sm text-muted-foreground">{subtitle}</div>
-      ) : null}
-    </div>
   );
 }
 
@@ -1904,14 +1868,14 @@ export default function CRMCampaignRecipientsPage() {
       </div>
 
       <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
-        <StatCard
+        <CRMMetricCard
           label="Sent"
           value={String(metrics.totals.sent)}
           icon={Mail}
           iconClassName="text-brand-navy"
           iconWrapClassName="border-brand-navy/10 bg-brand-navy/5"
         />
-        <StatCard
+        <CRMMetricCard
           label="Delivered"
           value={String(metrics.totals.delivered)}
           subtitle={`${metrics.rates.delivery.toFixed(1)}% rate`}
@@ -1919,7 +1883,7 @@ export default function CRMCampaignRecipientsPage() {
           iconClassName="text-emerald-700"
           iconWrapClassName="border-emerald-200 bg-emerald-50"
         />
-        <StatCard
+        <CRMMetricCard
           label="Opened"
           value={String(metrics.totals.opens)}
           subtitle={`${metrics.rates.open_reported.toFixed(1)}% rate`}
@@ -1927,7 +1891,7 @@ export default function CRMCampaignRecipientsPage() {
           iconClassName="text-sky-700"
           iconWrapClassName="border-sky-200 bg-sky-50"
         />
-        <StatCard
+        <CRMMetricCard
           label="Clicked"
           value={String(metrics.totals.clicks)}
           subtitle={`${metrics.rates.click.toFixed(1)}% rate`}
@@ -1935,7 +1899,7 @@ export default function CRMCampaignRecipientsPage() {
           iconClassName="text-indigo-700"
           iconWrapClassName="border-indigo-200 bg-indigo-50"
         />
-        <StatCard
+        <CRMMetricCard
           label="Bounced"
           value={String(metrics.totals.hard_bounces)}
           subtitle={`${metrics.rates.bounce.toFixed(1)}% rate`}
@@ -1943,7 +1907,7 @@ export default function CRMCampaignRecipientsPage() {
           iconClassName="text-red-700"
           iconWrapClassName="border-red-200 bg-red-50"
         />
-        <StatCard
+        <CRMMetricCard
           label="Complained"
           value={String(metrics.totals.complaints)}
           subtitle={
