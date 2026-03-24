@@ -1,5 +1,6 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
+import { encryptToken } from '../_shared/crypto/tokens.ts';
 import { detectEnvironment, getLightspeedCredentials } from '../_shared/environment.ts';
 import { ensureLightspeedWebhooks } from '../_shared/webhooks/ensureLightspeedWebhooks.ts';
 
@@ -240,6 +241,10 @@ Deno.serve(async (req) => {
 
     // Calculate expiry
     const expiresAt = new Date(Date.now() + (tokenData.expires_in * 1000));
+    const encryptedAccessToken = await encryptToken(tokenData.access_token);
+    const encryptedRefreshToken = tokenData.refresh_token
+      ? await encryptToken(tokenData.refresh_token)
+      : null;
 
     console.log('[LS-CALLBACK] Updating connection in database...');
 
@@ -247,8 +252,8 @@ Deno.serve(async (req) => {
     const { error: updateError } = await supabaseClient
       .from('lightspeed_connections')
       .update({
-        encrypted_access_token: tokenData.access_token,
-        encrypted_refresh_token: tokenData.refresh_token || null,
+        encrypted_access_token: encryptedAccessToken,
+        encrypted_refresh_token: encryptedRefreshToken,
         expires_at: expiresAt.toISOString(),
         retailer_name: retailerName,
         status: 'connected',

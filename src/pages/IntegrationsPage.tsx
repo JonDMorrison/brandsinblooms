@@ -1,11 +1,7 @@
-import { IntegrationCategoryLanding } from "@/components/integrations/IntegrationCategoryLanding";
+import { IntegrationsHubIndex } from "@/components/integrations/IntegrationsHubIndex";
 
 const IntegrationsPage = () => {
-  return (
-    <div className="p-6">
-      <IntegrationCategoryLanding />
-    </div>
-  );
+  return <IntegrationsHubIndex />;
 };
 
 export default IntegrationsPage;

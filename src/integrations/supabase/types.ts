@@ -9214,6 +9214,51 @@ export type Database = {
           },
         ]
       }
+      integration_interest: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          integration_slug: string
+          requested_on: string
+          tenant_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          integration_slug: string
+          requested_on?: string
+          tenant_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          integration_slug?: string
+          requested_on?: string
+          tenant_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "integration_interest_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "integration_interest_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       incentive_tracking: {
         Row: {
           automation_id: string | null
@@ -10802,29 +10847,38 @@ export type Database = {
           completed_at: string | null
           consecutive_failures: number | null
           created_at: string
+          current_page: number
           current_batch: number
           current_cursor: string | null
           customers_synced: number
           error_count: number
           estimated_rows: number | null
+          failed_rows: number
+          fetched_rows: number
           id: string
+          inserted_rows: number
           is_delta: boolean
           last_error: string | null
           last_failure_at: string | null
+          last_progress_at: string | null
           last_sync_cursor: string | null
           max_retries: number
           metadata: Json | null
           next_retry_at: string | null
           orders_synced: number
           processed_rows: number
+          progress_message: string | null
           products_synced: number
           provider: Database["public"]["Enums"]["pos_provider"]
+          provider_job_id: string | null
           scheduled_at: string
+          skipped_rows: number
           started_at: string | null
           status: Database["public"]["Enums"]["pos_job_status"]
           sync_type: Database["public"]["Enums"]["pos_sync_type"]
           tenant_id: string
           total_batches: number | null
+          total_pages_est: number | null
           triggered_by: string | null
           updated_at: string
         }
@@ -10835,29 +10889,38 @@ export type Database = {
           completed_at?: string | null
           consecutive_failures?: number | null
           created_at?: string
+          current_page?: number
           current_batch?: number
           current_cursor?: string | null
           customers_synced?: number
           error_count?: number
           estimated_rows?: number | null
+          failed_rows?: number
+          fetched_rows?: number
           id?: string
+          inserted_rows?: number
           is_delta?: boolean
           last_error?: string | null
           last_failure_at?: string | null
+          last_progress_at?: string | null
           last_sync_cursor?: string | null
           max_retries?: number
           metadata?: Json | null
           next_retry_at?: string | null
           orders_synced?: number
           processed_rows?: number
+          progress_message?: string | null
           products_synced?: number
           provider: Database["public"]["Enums"]["pos_provider"]
+          provider_job_id?: string | null
           scheduled_at?: string
+          skipped_rows?: number
           started_at?: string | null
           status?: Database["public"]["Enums"]["pos_job_status"]
           sync_type?: Database["public"]["Enums"]["pos_sync_type"]
           tenant_id: string
           total_batches?: number | null
+          total_pages_est?: number | null
           triggered_by?: string | null
           updated_at?: string
         }
@@ -10868,29 +10931,38 @@ export type Database = {
           completed_at?: string | null
           consecutive_failures?: number | null
           created_at?: string
+          current_page?: number
           current_batch?: number
           current_cursor?: string | null
           customers_synced?: number
           error_count?: number
           estimated_rows?: number | null
+          failed_rows?: number
+          fetched_rows?: number
           id?: string
+          inserted_rows?: number
           is_delta?: boolean
           last_error?: string | null
           last_failure_at?: string | null
+          last_progress_at?: string | null
           last_sync_cursor?: string | null
           max_retries?: number
           metadata?: Json | null
           next_retry_at?: string | null
           orders_synced?: number
           processed_rows?: number
+          progress_message?: string | null
           products_synced?: number
           provider?: Database["public"]["Enums"]["pos_provider"]
+          provider_job_id?: string | null
           scheduled_at?: string
+          skipped_rows?: number
           started_at?: string | null
           status?: Database["public"]["Enums"]["pos_job_status"]
           sync_type?: Database["public"]["Enums"]["pos_sync_type"]
           tenant_id?: string
           total_batches?: number | null
+          total_pages_est?: number | null
           triggered_by?: string | null
           updated_at?: string
         }
@@ -15906,7 +15978,7 @@ export const Constants = {
         "delayed",
       ],
       pos_provider: ["square", "clover", "lightspeed"],
-      pos_sync_type: ["customers", "orders", "products", "full"],
+      pos_sync_type: ["customers", "orders", "sales", "products", "full"],
       post_mode: ["AUTO", "MANUAL"],
       post_status: ["QUEUED", "PUBLISHED", "ERROR"],
       subscription_plan: ["free_trial", "sprout", "bloom", "expired"],

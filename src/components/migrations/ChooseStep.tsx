@@ -1,12 +1,13 @@
-import { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox';
-import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
-import { Loader2 } from 'lucide-react';
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { Loader2 } from "lucide-react";
 
 interface ChooseStepProps {
+  provider?: "mailchimp" | "klaviyo" | "constant_contact" | null;
   onComplete: (selection: { listIds: string[]; segmentIds: string[] }) => void;
   onBack: () => void;
 }
@@ -22,74 +23,95 @@ interface List {
   }>;
 }
 
-export const ChooseStep = ({ onComplete, onBack }: ChooseStepProps) => {
+export const ChooseStep = ({
+  provider,
+  onComplete,
+  onBack,
+}: ChooseStepProps) => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [lists, setLists] = useState<List[]>([]);
   const [selectedLists, setSelectedLists] = useState<Set<string>>(new Set());
-  const [selectedSegments, setSelectedSegments] = useState<Set<string>>(new Set());
+  const [selectedSegments, setSelectedSegments] = useState<Set<string>>(
+    new Set(),
+  );
 
   useEffect(() => {
     fetchLists();
-  }, []);
+  }, [provider]);
 
   const fetchLists = async () => {
     try {
       // Check which provider is connected
-      const { data: connections } = await supabase
-        .from('provider_connections')
-        .select('provider')
-        .eq('status', 'connected')
-        .in('provider', ['mailchimp', 'klaviyo', 'constant_contact']);
+      const connectionQuery = supabase
+        .from("provider_connections")
+        .select("provider")
+        .eq("status", "connected");
+
+      const { data: connections } = provider
+        ? await connectionQuery.eq("provider", provider)
+        : await connectionQuery.in("provider", [
+            "mailchimp",
+            "klaviyo",
+            "constant_contact",
+          ]);
 
       if (!connections?.length) {
         toast({
-          title: 'No Connection',
-          description: 'Please connect a provider first',
-          variant: 'destructive'
+          title: "No Connection",
+          description: provider
+            ? "Please connect the selected provider first"
+            : "Please connect a provider first",
+          variant: "destructive",
         });
         return;
       }
 
-      const provider = connections[0].provider;
+      const connectedProvider = provider ?? connections[0].provider;
 
       // Fetch lists based on provider
-      if (provider === 'mailchimp') {
-        const { data, error } = await supabase.functions.invoke('mailchimp-fetch-lists');
-        
-        console.log('Mailchimp response:', { data, error });
-        
+      if (connectedProvider === "mailchimp") {
+        const { data, error } = await supabase.functions.invoke(
+          "mailchimp-fetch-lists",
+        );
+
+        console.log("Mailchimp response:", { data, error });
+
         if (error) {
-          console.error('Mailchimp invoke error:', error);
+          console.error("Mailchimp invoke error:", error);
           throw error;
         }
-        
+
         if (data?.error) {
           throw new Error(data.error);
         }
-        
+
         setLists(data?.lists || []);
-      } else if (provider === 'klaviyo') {
-        const { data, error } = await supabase.functions.invoke('klaviyo-fetch-lists');
+      } else if (connectedProvider === "klaviyo") {
+        const { data, error } = await supabase.functions.invoke(
+          "klaviyo-fetch-lists",
+        );
         if (error) throw error;
         setLists(data.lists || []);
-      } else if (provider === 'constant_contact') {
-        const { data, error } = await supabase.functions.invoke('constant-contact-fetch-lists');
+      } else if (connectedProvider === "constant_contact") {
+        const { data, error } = await supabase.functions.invoke(
+          "constant-contact-fetch-lists",
+        );
         if (error) throw error;
         if (data?.error) throw new Error(data.error);
         // Constant Contact lists don't have segments, so we normalize the structure
         const listsWithSegments = (data?.lists || []).map((list: any) => ({
           ...list,
-          segments: [] // Constant Contact doesn't have list-level segments
+          segments: [], // Constant Contact doesn't have list-level segments
         }));
         setLists(listsWithSegments);
       }
     } catch (error: any) {
-      console.error('Fetch lists error:', error);
+      console.error("Fetch lists error:", error);
       toast({
-        title: 'Error',
+        title: "Error",
         description: error.message,
-        variant: 'destructive'
+        variant: "destructive",
       });
     } finally {
       setLoading(false);
@@ -120,7 +142,7 @@ export const ChooseStep = ({ onComplete, onBack }: ChooseStepProps) => {
   const handleContinue = () => {
     onComplete({
       listIds: Array.from(selectedLists),
-      segmentIds: Array.from(selectedSegments)
+      segmentIds: Array.from(selectedSegments),
     });
   };
 
@@ -139,7 +161,8 @@ export const ChooseStep = ({ onComplete, onBack }: ChooseStepProps) => {
       <div>
         <h2 className="text-2xl font-semibold mb-2">Choose What to Import</h2>
         <p className="text-muted-foreground">
-          Select the lists and segments you want to import from your connected provider.
+          Select the lists and segments you want to import from your connected
+          provider.
         </p>
       </div>
 
@@ -161,12 +184,18 @@ export const ChooseStep = ({ onComplete, onBack }: ChooseStepProps) => {
 
                 {list.segments?.length > 0 && (
                   <div className="mt-3 pl-4 border-l-2 border-border space-y-2">
-                    <p className="text-sm font-medium text-muted-foreground mb-2">Segments:</p>
+                    <p className="text-sm font-medium text-muted-foreground mb-2">
+                      Segments:
+                    </p>
                     {list.segments.map((segment) => (
                       <div key={segment.id} className="flex items-center gap-3">
                         <Checkbox
-                          checked={selectedSegments.has(`${list.id}:${segment.id}`)}
-                          onCheckedChange={() => handleSegmentToggle(list.id, segment.id)}
+                          checked={selectedSegments.has(
+                            `${list.id}:${segment.id}`,
+                          )}
+                          onCheckedChange={() =>
+                            handleSegmentToggle(list.id, segment.id)
+                          }
                         />
                         <span className="text-sm flex-1">{segment.name}</span>
                         <span className="text-xs text-muted-foreground">
@@ -184,7 +213,9 @@ export const ChooseStep = ({ onComplete, onBack }: ChooseStepProps) => {
 
       {lists.length === 0 && (
         <Card className="p-8 text-center">
-          <p className="text-muted-foreground">No lists found in your connected account.</p>
+          <p className="text-muted-foreground">
+            No lists found in your connected account.
+          </p>
         </Card>
       )}
 
