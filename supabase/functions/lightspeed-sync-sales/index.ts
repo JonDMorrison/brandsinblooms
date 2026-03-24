@@ -1,7 +1,84 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
+import { decryptToken, encryptToken } from '../_shared/crypto/tokens.ts';
+import { getAdaptiveCooldown as getAdaptiveCooldownMs } from '../_shared/syncThrottling.ts';
 
 console.log('[LS-SYNC-SALES] Edge function starting');
+
+const LIGHTSPEED_PAGE_SIZE = 100;
+
+function toFiniteNumber(value: unknown, fallback = 0) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+}
+
+function getResumePage(job: any) {
+  if (typeof job?.current_page === 'number' && Number.isFinite(job.current_page) && job.current_page >= 0) {
+    return job.current_page;
+  }
+
+  const parsedCursor = job?.current_cursor ? Number.parseInt(job.current_cursor, 10) : Number.NaN;
+  if (!Number.isFinite(parsedCursor) || parsedCursor < 0) {
+    return 0;
+  }
+
+  if (parsedCursor >= LIGHTSPEED_PAGE_SIZE && parsedCursor % LIGHTSPEED_PAGE_SIZE === 0) {
+    return Math.floor(parsedCursor / LIGHTSPEED_PAGE_SIZE);
+  }
+
+  return parsedCursor;
+}
+
+function parseCompleted(value: unknown) {
+  return value === true || value === 'true' || value === '1' || value === 1;
+}
+
+async function sleep(ms: number) {
+  if (ms <= 0) {
+    return;
+  }
+
+  await new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function writeJobProgress(supabaseAdmin: any, jobId: string | null, updates: Record<string, unknown>) {
+  if (!jobId) {
+    return;
+  }
+
+  const now = new Date().toISOString();
+  const { error } = await supabaseAdmin
+    .from('pos_sync_jobs_v2')
+    .update({
+      ...updates,
+      updated_at: now,
+      last_progress_at: updates.last_progress_at ?? now,
+    })
+    .eq('id', jobId);
+
+  if (error) {
+    console.error('[LS-SYNC-SALES] Failed to write queue progress:', error.message);
+  }
+}
+
+async function getLightspeedAccessToken(connection: {
+  id: string;
+  encrypted_access_token: string;
+}) {
+  try {
+    return {
+      accessToken: await decryptToken(connection.encrypted_access_token),
+      needsReEncryption: false,
+    };
+  } catch {
+    console.warn(
+      `[LS] Token for connection ${connection.id} appears unencrypted. Re-encryption required.`,
+    );
+    return {
+      accessToken: connection.encrypted_access_token,
+      needsReEncryption: true,
+    };
+  }
+}
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -10,6 +87,9 @@ Deno.serve(async (req) => {
 
   try {
     console.log('[LS-SYNC-SALES] Processing sync request');
+
+    const requestBody = await req.json().catch(() => ({}));
+    const jobId = typeof requestBody?.job_id === 'string' ? requestBody.job_id : null;
 
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
@@ -23,6 +103,16 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
       { global: { headers: { Authorization: authHeader } } }
+    );
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
+        },
+      }
     );
 
     const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
@@ -64,25 +154,56 @@ Deno.serve(async (req) => {
     }
 
     console.log('[LS-SYNC-SALES] Fetching sales from Lightspeed...');
+  const { accessToken, needsReEncryption } = await getLightspeedAccessToken(connection);
+  let reEncrypted = false;
+
+    let syncJob: any = null;
+    if (jobId) {
+      const { data: jobData, error: jobError } = await supabaseAdmin
+        .from('pos_sync_jobs_v2')
+        .select('current_page,current_cursor,fetched_rows,inserted_rows,skipped_rows,failed_rows,total_pages_est')
+        .eq('id', jobId)
+        .single();
+
+      if (jobError) {
+        console.error('[LS-SYNC-SALES] Failed to load sync job state:', jobError.message);
+      } else {
+        syncJob = jobData;
+      }
+    }
 
     // Get sales from last 90 days for initial sync, or since last sync
     const lastSync = connection.last_sales_sync;
-    const sinceDate = lastSync 
+    const sinceDate = lastSync
       ? new Date(lastSync).toISOString().split('T')[0]
       : new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
-    let allSales: any[] = [];
-    let page = 0;
-    const limit = 100;
+    let totalFetched = toFiniteNumber(syncJob?.fetched_rows, 0);
+    let totalInserted = toFiniteNumber(syncJob?.inserted_rows, 0);
+    let totalSkipped = toFiniteNumber(syncJob?.skipped_rows, 0);
+    let totalFailed = toFiniteNumber(syncJob?.failed_rows, 0);
+    let page = getResumePage(syncJob);
     let hasMore = true;
+    let firstPurchases = 0;
 
     while (hasMore) {
-      const offset = page * limit;
-      const salesUrl = `https://${connection.domain_prefix}.retail.lightspeed.app/api/2.0/Sale.json?completeTime=>,${sinceDate}&limit=${limit}&offset=${offset}&load_relations=["SaleLines","Customer"]`;
-      
+      const offset = page * LIGHTSPEED_PAGE_SIZE;
+      const salesUrl = `https://${connection.domain_prefix}.retail.lightspeed.app/api/2.0/Sale.json?completeTime=>,${sinceDate}&limit=${LIGHTSPEED_PAGE_SIZE}&offset=${offset}&load_relations=["SaleLines","Customer"]`;
+
+      await writeJobProgress(supabaseAdmin, jobId, {
+        status: 'in_progress',
+        current_page: page,
+        current_cursor: String(page),
+        fetched_rows: totalFetched,
+        inserted_rows: totalInserted,
+        skipped_rows: totalSkipped,
+        failed_rows: totalFailed,
+        progress_message: `Fetching sales — page ${page + 1} · ${totalFetched.toLocaleString()} retrieved${page === 0 ? ` (since ${new Date(sinceDate).toLocaleDateString()})` : ''}`,
+      });
+
       const response = await fetch(salesUrl, {
         headers: {
-          'Authorization': `Bearer ${connection.encrypted_access_token}`,
+          'Authorization': `Bearer ${accessToken}`,
         },
       });
 
@@ -91,31 +212,49 @@ Deno.serve(async (req) => {
         break;
       }
 
+      if (needsReEncryption && !reEncrypted) {
+        const reEncryptedToken = await encryptToken(accessToken);
+        const { error: reEncryptError } = await supabaseAdmin
+          .from('lightspeed_connections')
+          .update({ encrypted_access_token: reEncryptedToken })
+          .eq('id', connection.id);
+
+        if (reEncryptError) {
+          console.error('[LS-SYNC-SALES] Failed to re-encrypt access token:', reEncryptError);
+        } else {
+          reEncrypted = true;
+        }
+      }
+
       const data = await response.json();
       const sales = Array.isArray(data.Sale) ? data.Sale : [data.Sale].filter(Boolean);
-      
+      totalFetched += sales.length;
+
       if (sales.length === 0) {
         hasMore = false;
-      } else {
-        allSales = allSales.concat(sales);
-        page++;
-        console.log(`[LS-SYNC-SALES] Fetched page ${page}, total: ${allSales.length}`);
+        await writeJobProgress(supabaseAdmin, jobId, {
+          status: 'completed',
+          current_page: page,
+          current_cursor: String(page),
+          fetched_rows: totalFetched,
+          inserted_rows: totalInserted,
+          skipped_rows: totalSkipped,
+          failed_rows: totalFailed,
+          progress_message: `Complete — ${totalInserted.toLocaleString()} sales imported`,
+        });
+        break;
       }
 
-      if (sales.length < limit) {
-        hasMore = false;
-      }
-    }
+      console.log(`[LS-SYNC-SALES] Fetched page ${page + 1}, batch: ${sales.length}, total fetched: ${totalFetched}`);
 
-    console.log(`[LS-SYNC-SALES] Total sales fetched: ${allSales.length}`);
+      let syncedCount = 0;
+      let pageFailed = 0;
+      const affectedCustomerIds = new Set<string>();
 
-    let syncedCount = 0;
-    let firstPurchases = 0;
-
-    for (const sale of allSales) {
+      for (const sale of sales) {
       // Extract line items
-      const lineItems = Array.isArray(sale.SaleLines?.SaleLine) 
-        ? sale.SaleLines.SaleLine 
+      const lineItems = Array.isArray(sale.SaleLines?.SaleLine)
+        ? sale.SaleLines.SaleLine
         : sale.SaleLines?.SaleLine ? [sale.SaleLines.SaleLine] : [];
 
       // Get linked contact if exists
@@ -127,7 +266,7 @@ Deno.serve(async (req) => {
           .eq('tenant_id', tenantId)
           .eq('lightspeed_customer_id', sale.customerID)
           .single();
-        
+
         contactId = lsCustomer?.contact_id || null;
       }
 
@@ -140,10 +279,10 @@ Deno.serve(async (req) => {
           lightspeed_customer_id: sale.customerID || null,
           contact_id: contactId,
           sale_date: sale.completeTime || sale.createTime,
-          total_amount: parseFloat(sale.total || 0),
-          status: sale.completed === 'true' ? 'CLOSED' : 'OPEN',
+          total_amount: parseFloat(sale.calcTotal || sale.total || 0),
+          status: parseCompleted(sale.completed) ? 'completed' : 'open',
           line_items: lineItems,
-          payment_method: sale.SalePayments?.SalePayment?.[0]?.paymentType?.name || null,
+          payment_method: sale.SalePayments?.SalePayment?.[0]?.PaymentType?.name || sale.SalePayments?.SalePayment?.[0]?.paymentType?.name || null,
           note: sale.note || null,
           raw_data: sale,
           synced_at: new Date().toISOString(),
@@ -153,17 +292,24 @@ Deno.serve(async (req) => {
 
       if (upsertError) {
         console.error('[LS-SYNC-SALES] Upsert error:', upsertError);
+        pageFailed++;
         continue;
       }
 
-      // Update customer purchase stats
-      if (sale.customerID && sale.completed === 'true') {
+      if (sale.customerID && parseCompleted(sale.completed)) {
+        affectedCustomerIds.add(String(sale.customerID));
+      }
+
+      syncedCount++;
+    }
+
+      for (const customerId of affectedCustomerIds) {
         const { data: customerSales } = await supabaseClient
           .from('lightspeed_sales')
           .select('total_amount, sale_date')
           .eq('tenant_id', tenantId)
-          .eq('lightspeed_customer_id', sale.customerID)
-          .eq('status', 'CLOSED')
+          .eq('lightspeed_customer_id', customerId)
+          .in('status', ['completed', 'CLOSED'])
           .order('sale_date', { ascending: true });
 
         if (customerSales) {
@@ -181,7 +327,7 @@ Deno.serve(async (req) => {
               last_purchase_date: lastPurchaseDate,
             })
             .eq('tenant_id', tenantId)
-            .eq('lightspeed_customer_id', sale.customerID);
+            .eq('lightspeed_customer_id', customerId);
 
           // Track first purchases for trigger
           if (purchaseCount === 1) {
@@ -190,7 +336,31 @@ Deno.serve(async (req) => {
         }
       }
 
-      syncedCount++;
+      const pageSkipped = Math.max(0, sales.length - syncedCount - pageFailed);
+      totalInserted += syncedCount;
+      totalSkipped += pageSkipped;
+      totalFailed += pageFailed;
+      page++;
+
+      await writeJobProgress(supabaseAdmin, jobId, {
+        status: sales.length < LIGHTSPEED_PAGE_SIZE ? 'completed' : 'in_progress',
+        current_page: page,
+        current_cursor: String(page),
+        fetched_rows: totalFetched,
+        inserted_rows: totalInserted,
+        skipped_rows: totalSkipped,
+        failed_rows: totalFailed,
+        progress_message:
+          sales.length < LIGHTSPEED_PAGE_SIZE
+            ? `Complete — ${totalInserted.toLocaleString()} sales imported`
+            : `Fetched sales — page ${page} complete · ${totalFetched.toLocaleString()} retrieved so far`,
+      });
+
+      if (sales.length < LIGHTSPEED_PAGE_SIZE) {
+        hasMore = false;
+      } else {
+        await sleep(getAdaptiveCooldownMs(totalFetched));
+      }
     }
 
     // Update connection stats
@@ -198,18 +368,18 @@ Deno.serve(async (req) => {
       .from('lightspeed_connections')
       .update({
         last_sales_sync: new Date().toISOString(),
-        sales_synced: syncedCount,
+        sales_synced: totalInserted,
       })
       .eq('tenant_id', tenantId);
 
-    console.log(`[LS-SYNC-SALES] Sync complete: ${syncedCount} sales, ${firstPurchases} first purchases`);
+    console.log(`[LS-SYNC-SALES] Sync complete: ${totalInserted} sales, ${firstPurchases} first purchases`);
 
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         success: true,
-        salesSynced: syncedCount,
+        salesSynced: totalInserted,
         firstPurchases: firstPurchases,
-        message: `Synced ${syncedCount} sales`
+        message: `Synced ${totalInserted} sales`
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

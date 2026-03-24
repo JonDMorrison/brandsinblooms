@@ -390,7 +390,7 @@ export function ActionDropdown({
       }
     >
       {sections.map((section, sectionIndex) => (
-        <React.Fragment key={section.id || `section-${sectionIndex}`}>
+        <div key={section.id || `section-${sectionIndex}`} className="contents">
           {sectionIndex > 0 ? (
             <div className="mx-1 my-2 h-px bg-brand-navy/8" />
           ) : null}
@@ -423,7 +423,7 @@ export function ActionDropdown({
               </button>
             ))}
           </div>
-        </React.Fragment>
+        </div>
       ))}
     </DropdownShell>
   );
@@ -580,10 +580,13 @@ export function FilterDropdown({
 
       <div className="max-h-[28rem] space-y-5 overflow-y-auto bg-white px-5 py-4">
         {sections.map((section, index) => (
-          <React.Fragment key={section.id || `filter-section-${index}`}>
+          <div
+            key={section.id || `filter-section-${index}`}
+            className="contents"
+          >
             {index > 0 ? <div className="h-px bg-brand-navy/8" /> : null}
             <FilterSectionBody section={section} />
-          </React.Fragment>
+          </div>
         ))}
       </div>
 

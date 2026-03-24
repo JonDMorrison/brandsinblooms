@@ -62,6 +62,8 @@ import CRMIntegrationsPage from "@/pages/integrations/CRMIntegrationsPage";
 import SocialIntegrationsPage from "@/pages/integrations/SocialIntegrationsPage";
 import AutomationsIntegrationsPage from "@/pages/integrations/AutomationsIntegrationsPage";
 import WebsiteIntegrationsPage from "@/pages/integrations/WebsiteIntegrationsPage";
+import IntegrationDetailPage from "@/pages/integrations/IntegrationDetailPage";
+import IntegrationDocumentationPage from "@/pages/integrations/IntegrationDocumentationPage";
 import MigrationsPage from "@/pages/MigrationsPage";
 import { OAuthCallbackHandler } from "@/components/migrations/OAuthCallbackHandler";
 import ReportedProblemsPage from "@/pages/admin/ReportedProblemsPage";
@@ -709,6 +711,38 @@ function App() {
               }
             />
             <Route
+              path="/integrations/facebook"
+              element={
+                <ProtectedRoute>
+                  <RedirectWithQuery to="/integrations/meta" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/integrations/instagram"
+              element={
+                <ProtectedRoute>
+                  <RedirectWithQuery to="/integrations/meta" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/integrations/google-analytics"
+              element={
+                <ProtectedRoute>
+                  <RedirectWithQuery to="/integrations/google-analytics-4" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/integrations/email-domain-dns"
+              element={
+                <ProtectedRoute>
+                  <RedirectWithQuery to="/integrations/email-infrastructure" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/integrations/automations"
               element={
                 <ProtectedRoute>
@@ -724,6 +758,26 @@ function App() {
                 <ProtectedRoute>
                   <SidebarLayout>
                     <WebsiteIntegrationsPage />
+                  </SidebarLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/integrations/:slug/documentation"
+              element={
+                <ProtectedRoute>
+                  <SidebarLayout>
+                    <IntegrationDocumentationPage />
+                  </SidebarLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/integrations/:slug"
+              element={
+                <ProtectedRoute>
+                  <SidebarLayout>
+                    <IntegrationDetailPage />
                   </SidebarLayout>
                 </ProtectedRoute>
               }

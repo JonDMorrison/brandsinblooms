@@ -1,9 +1,9 @@
 /**
  * ensureLightspeedWebhooks - Idempotent webhook subscription manager for Lightspeed
- * 
+ *
  * IMPORTANT: Lightspeed X-Series has webhook support via the API.
  * R-Series (legacy) does NOT support webhooks - sync-only.
- * 
+ *
  * This function handles both cases appropriately.
  */
 
@@ -12,10 +12,11 @@ import { decryptToken } from '../crypto/tokens.ts';
 
 const REQUIRED_EVENTS = [
   'sale.completed',
-  'sale.updated', 
+  'sale.updated',
   'customer.created',
   'customer.updated',
   'product.updated',
+  'item.updated',
   'loyalty.updated',
 ];
 
@@ -83,7 +84,9 @@ export async function ensureLightspeedWebhooks(
     }
 
     const baseUrl = `https://${domainPrefix}.retail.lightspeed.app/api/2.0`;
-    const webhookUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/lightspeed-webhook-handler`;
+    const handlerBaseUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/lightspeed-webhook-handler`;
+    const webhookUrl = `${handlerBaseUrl}/${domainPrefix}`;
+    const legacyWebhookUrl = handlerBaseUrl;
 
     // 3. List existing webhooks
     console.log('[ENSURE-LIGHTSPEED-WEBHOOKS] Fetching existing webhooks...');
@@ -98,7 +101,7 @@ export async function ensureLightspeedWebhooks(
     // Lightspeed may not support webhooks for all account types
     if (listResponse.status === 404 || listResponse.status === 403) {
       console.warn('[ENSURE-LIGHTSPEED-WEBHOOKS] Webhook API not available - sync-only mode');
-      
+
       await supabase
         .from('lightspeed_connections')
         .update({
@@ -136,7 +139,7 @@ export async function ensureLightspeedWebhooks(
 
     // 4. Find our webhook
     const existingWebhook = webhooks.find((w: any) =>
-      w.url === webhookUrl || w.url?.includes('lightspeed-webhook-handler')
+      w.url === webhookUrl || w.url === legacyWebhookUrl
     );
 
     let subscriptionId: string | null = null;
@@ -145,11 +148,11 @@ export async function ensureLightspeedWebhooks(
     if (existingWebhook) {
       // Webhook exists - check if it's enabled
       subscriptionId = existingWebhook.webhookID?.toString() || existingWebhook.id?.toString();
-      
-      if (!existingWebhook.enabled) {
-        // Enable the webhook
-        console.log('[ENSURE-LIGHTSPEED-WEBHOOKS] Enabling disabled webhook:', subscriptionId);
-        
+
+      if (!existingWebhook.enabled || existingWebhook.url !== webhookUrl) {
+        // Enable the webhook and migrate legacy generic URLs to the store-specific path.
+        console.log('[ENSURE-LIGHTSPEED-WEBHOOKS] Updating webhook:', subscriptionId, '=>', webhookUrl);
+
         await fetch(`${baseUrl}/Webhook/${subscriptionId}.json`, {
           method: 'PUT',
           headers: {
@@ -157,18 +160,21 @@ export async function ensureLightspeedWebhooks(
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            Webhook: { enabled: true }
+            Webhook: {
+              enabled: true,
+              url: webhookUrl,
+            }
           }),
         });
-        
+
         action = 'updated';
       }
-      
+
       console.log('[ENSURE-LIGHTSPEED-WEBHOOKS] Webhook exists:', subscriptionId);
     } else {
       // Create new webhook
       console.log('[ENSURE-LIGHTSPEED-WEBHOOKS] Creating webhook to:', webhookUrl);
-      
+
       const createResponse = await fetch(`${baseUrl}/Webhook.json`, {
         method: 'POST',
         headers: {
@@ -218,11 +224,11 @@ export async function ensureLightspeedWebhooks(
     if (verifyResponse.ok) {
       const verifyData = await verifyResponse.json();
       const confirmedWebhook = (verifyData.Webhook || []).find((w: any) =>
-        w.webhookID?.toString() === subscriptionId || 
+        w.webhookID?.toString() === subscriptionId ||
         w.id?.toString() === subscriptionId ||
-        w.url?.includes('lightspeed-webhook-handler')
+        w.url === webhookUrl
       );
-      
+
       if (confirmedWebhook && confirmedWebhook.enabled) {
         verified = true;
         subscriptionId = confirmedWebhook.webhookID?.toString() || confirmedWebhook.id?.toString();

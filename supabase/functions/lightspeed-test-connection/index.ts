@@ -1,13 +1,6 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
-
-async function simpleDecrypt(encrypted: string): Promise<string> {
-  return atob(encrypted);
-}
+import { corsHeaders } from '../_shared/cors.ts';
+import { decryptToken } from '../_shared/crypto/tokens.ts';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -52,30 +45,50 @@ Deno.serve(async (req) => {
       throw new Error('No Lightspeed connection found');
     }
 
-    // Decrypt token
-    const accessToken = await simpleDecrypt(connection.encrypted_access_token);
+    let usedLegacyPlaintextFallback = false;
+    let accessToken: string;
+    try {
+      accessToken = await decryptToken(connection.encrypted_access_token);
+    } catch {
+      usedLegacyPlaintextFallback = true;
+      console.warn(
+        `[LS] Token for connection ${connection.id} appears unencrypted. Re-encryption required.`,
+      );
+      accessToken = connection.encrypted_access_token;
+    }
 
-    // Test API call
+    // Test the same customer endpoint contract used by the real sync worker.
     const response = await fetch(
-      `https://${connection.domain_prefix}.retail.lightspeed.app/api/2.0/retailer`,
+      `https://${connection.domain_prefix}.retail.lightspeed.app/api/2.0/Customer.json?limit=1&offset=0`,
       { headers: { Authorization: `Bearer ${accessToken}` } }
     );
 
     if (!response.ok) {
-      throw new Error('Connection test failed');
+      throw new Error(`Connection probe failed with HTTP ${response.status}`);
     }
 
-    const retailer = await response.json();
+    const payload = await response.json();
+    const customerCount = Array.isArray(payload?.Customer)
+      ? payload.Customer.length
+      : payload?.Customer
+        ? 1
+        : 0;
 
-    console.log('Connection test successful for retailer:', retailer.id);
+    console.log('Connection probe successful for Lightspeed customer endpoint');
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
-        retailer: {
-          id: retailer.id,
-          name: retailer.name || 'Unknown',
-        }
+      JSON.stringify({
+        success: true,
+        probeType: 'customer-api-lite',
+        isFullHealthCheck: false,
+        message: 'Customer endpoint is reachable. Use Lightspeed Diagnostics for full sync-path health.',
+        tokenMode: usedLegacyPlaintextFallback ? 'legacy_plaintext' : 'encrypted',
+        connection: {
+          retailerName: connection.retailer_name || 'Unknown',
+          domainPrefix: connection.domain_prefix,
+          expiresAt: connection.expires_at,
+        },
+        sampleCount: customerCount,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
