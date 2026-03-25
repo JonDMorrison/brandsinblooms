@@ -1,12 +1,15 @@
-import { useDeferredValue, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { format, formatDistanceToNow } from "date-fns";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   Activity,
   AlertTriangle,
   ArrowRight,
+  BarChart2,
+  Bell,
   Bot,
   BookOpen,
+  Check,
   CheckCircle2,
   ChevronDown,
   ChevronUp,
@@ -14,25 +17,60 @@ import {
   Copy,
   Database,
   ExternalLink,
+  Facebook,
   FlaskConical,
   Globe,
+  Instagram,
+  Key,
   MailPlus,
   MapPin,
   PlugZap,
   RefreshCcw,
   Receipt,
   ShieldAlert,
+  Share2,
   Store,
+  TrendingUp,
   Users,
   Webhook,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 
 import { CRMMetricCard } from "@/components/crm/CRMMetricCard";
-import type {
-  IntegrationDetailRow,
-  IntegrationDetailTimelineEntry,
-  IntegrationDetailTone,
+import {
+  ComingSoonCard,
+  DataFeedRow,
+  DetailFieldRows,
+  DetailHealthRows,
+  DetailStatusBadge,
+  DetailTimeline,
+  FieldRow,
+  HealthFieldRow,
+  KeyValueGrid,
+  LoadingShell,
+  OverviewPanel,
+  SectionCard,
+  SyncTypeRow,
+} from "@/components/integrations/shared/detailPrimitives";
+import { useDebouncedValue } from "@/components/integrations/shared/dataTabPrimitives";
+import { getIntegrationToneClasses as getToneClasses } from "@/components/integrations/shared/tokens";
+import { CustomersTabView } from "@/components/integrations/lightspeed/CustomersTabView";
+import { ProductsTabView } from "@/components/integrations/lightspeed/ProductsTabView";
+import { SalesTabView } from "@/components/integrations/lightspeed/SalesTabView";
+import { SyncLogsTabView } from "@/components/integrations/lightspeed/SyncLogsTabView";
+import { ConnectionTestTabView as CloverConnectionTestTabView } from "@/components/integrations/clover/ConnectionTestTabView";
+import { CustomersTabView as CloverCustomersTabView } from "@/components/integrations/clover/CustomersTabView";
+import { ProductsTabView as CloverProductsTabView } from "@/components/integrations/clover/ProductsTabView";
+import { SalesTabView as CloverSalesTabView } from "@/components/integrations/clover/SalesTabView";
+import { SyncLogsTabView as CloverSyncLogsTabView } from "@/components/integrations/clover/SyncLogsTabView";
+import { CustomersTabView as SquareCustomersTabView } from "@/components/integrations/square/CustomersTabView";
+import { ProductsTabView as SquareProductsTabView } from "@/components/integrations/square/ProductsTabView";
+import { SalesTabView as SquareSalesTabView } from "@/components/integrations/square/SalesTabView";
+import { SyncLogsTabView as SquareSyncLogsTabView } from "@/components/integrations/square/SyncLogsTabView";
+import {
+  getUserFacingIntegrationError,
+  type IntegrationDetailTone,
 } from "@/components/integrations/integrationDetailModel";
 import { getIntegrationSeed } from "@/components/integrations/integrationsHubConfig";
 import {
@@ -61,7 +99,6 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { Input } from "@/components/ui/input";
 import {
   Pagination,
   PaginationContent,
@@ -69,14 +106,6 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import { Separator } from "@/components/ui/separator";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
 import {
   Table,
   TableBody,
@@ -85,22 +114,26 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import {
+  type CloverCustomerTableRow,
   type LightspeedCustomerSortField,
   type LightspeedCustomerTableRow,
   type LightspeedPagination,
   type LightspeedProductsSortField,
   type LightspeedProductTableRow,
+  type LightspeedSaleRow,
   type LightspeedSalesSortField,
   type LightspeedSortDirection,
   type LightspeedSyncLogRow,
+  type CloverSaleRow,
+  type SquareCustomerSortField,
+  type SquareCustomerTableRow,
+  type SquareProductsSortField,
+  type SquareProductTableRow,
+  type SquareSaleRow,
+  type SquareSalesSortField,
   useIntegrationDetailData,
 } from "@/hooks/useIntegrationDetailData";
 import { cn } from "@/lib/utils";
@@ -169,562 +202,12 @@ function formatInfrastructureTrendLabel(trend: "up" | "down" | "flat" | null) {
   }
 }
 
-function getToneClasses(tone: IntegrationDetailTone) {
-  switch (tone) {
-    case "success":
-      return {
-        badge: "border-emerald-200 bg-emerald-50 text-emerald-700",
-        icon: "text-emerald-700",
-        iconWrap: "border-emerald-200 bg-emerald-50/80",
-        dot: "bg-emerald-500",
-      };
-    case "warning":
-      return {
-        badge: "border-amber-200 bg-amber-50 text-amber-700",
-        icon: "text-amber-700",
-        iconWrap: "border-amber-200 bg-amber-50/80",
-        dot: "bg-amber-500",
-      };
-    case "danger":
-      return {
-        badge: "border-rose-200 bg-rose-50 text-rose-700",
-        icon: "text-rose-700",
-        iconWrap: "border-rose-200 bg-rose-50/80",
-        dot: "bg-rose-500",
-      };
-    default:
-      return {
-        badge: "border-slate-200 bg-slate-50 text-slate-700",
-        icon: "text-slate-700",
-        iconWrap: "border-slate-200 bg-slate-50/90",
-        dot: "bg-slate-400",
-      };
-  }
-}
-
-function DetailStatusBadge({
-  label,
-  tone,
-}: {
-  label: string;
-  tone: IntegrationDetailTone;
-}) {
-  const classes = getToneClasses(tone);
-
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em]",
-        classes.badge,
-      )}
-    >
-      {label}
-    </span>
-  );
-}
-
-function DetailHealthRows({ rows }: { rows: IntegrationDetailRow[] }) {
-  return (
-    <div className="space-y-3">
-      {rows.map((row) => {
-        const classes = getToneClasses(row.tone ?? "neutral");
-        const timestampLabel = row.timestamp
-          ? formatRelativeTimestamp(row.timestamp)
-          : null;
-        const exactLabel = row.timestamp
-          ? formatExactTimestamp(row.timestamp)
-          : null;
-
-        return (
-          <div
-            key={`${row.label}-${row.value}-${row.timestamp ?? "none"}`}
-            className="flex items-start justify-between gap-4 rounded-2xl border border-border/70 bg-white/70 px-4 py-3"
-          >
-            <div className="min-w-0">
-              <div className="text-sm font-medium text-foreground">
-                {row.label}
-              </div>
-              {row.tooltip ? (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div className="mt-1 cursor-help truncate text-xs text-muted-foreground">
-                      {row.tooltip}
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent className="max-w-sm text-xs leading-5">
-                    {row.tooltip}
-                  </TooltipContent>
-                </Tooltip>
-              ) : null}
-            </div>
-            <div className="min-w-0 text-right">
-              <div className={cn("text-sm font-semibold", classes.icon)}>
-                {timestampLabel ?? row.value}
-              </div>
-              {exactLabel ? (
-                <div className="mt-1 text-xs text-muted-foreground">
-                  {exactLabel}
-                </div>
-              ) : null}
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-function DetailTimeline({
-  entries,
-}: {
-  entries: IntegrationDetailTimelineEntry[];
-}) {
-  return (
-    <div className="space-y-4">
-      {entries.map((entry, index) => {
-        const classes = getToneClasses(entry.tone);
-        const exactTimestamp = formatExactTimestamp(entry.timestamp);
-
-        return (
-          <div key={entry.key} className="flex gap-4">
-            <div className="flex w-5 flex-col items-center">
-              <span
-                className={cn("mt-1 h-2.5 w-2.5 rounded-full", classes.dot)}
-              />
-              {index < entries.length - 1 ? (
-                <span className="mt-2 h-full min-h-8 w-px bg-border/80" />
-              ) : null}
-            </div>
-            <div className="pb-4">
-              <div className="text-sm font-semibold text-foreground">
-                {entry.label}
-              </div>
-              <div className="mt-1 text-sm text-muted-foreground">
-                {entry.timestamp
-                  ? formatRelativeTimestamp(entry.timestamp)
-                  : "Waiting for provider data"}
-              </div>
-              {exactTimestamp ? (
-                <div className="mt-1 text-xs text-muted-foreground/80">
-                  {exactTimestamp}
-                </div>
-              ) : null}
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-function SectionCard({
-  title,
-  description,
-  children,
-}: {
-  title: string;
-  description: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="rounded-[1.5rem] border border-border/70 bg-white/90 p-5 shadow-sm shadow-brand-navy/5">
-      <div className="mb-4">
-        <h2 className="text-lg font-semibold text-slate-950">{title}</h2>
-        <p className="mt-1 text-sm text-muted-foreground">{description}</p>
-      </div>
-      {children}
-    </section>
-  );
-}
-
-function formatLightspeedSyncTypeLabel(
-  syncType: "customers" | "sales" | "products" | "full",
-) {
-  switch (syncType) {
-    case "customers":
-      return "Customers";
-    case "sales":
-      return "Sales";
-    case "products":
-      return "Products";
-    default:
-      return "Full Sync";
-  }
-}
-
-function formatLightspeedSyncStatus(jobStatus: string, isStale: boolean) {
-  if (isStale) {
-    return {
-      label: "Stalled",
-      className: "border-amber-200 bg-amber-50 text-amber-700",
-    };
-  }
-
-  switch (jobStatus) {
-    case "completed":
-      return {
-        label: "Completed",
-        className: "border-emerald-200 bg-emerald-50 text-emerald-700",
-      };
-    case "failed":
-      return {
-        label: "Failed",
-        className: "border-rose-200 bg-rose-50 text-rose-700",
-      };
-    case "cancelled":
-      return {
-        label: "Cancelled",
-        className: "border-slate-200 bg-slate-100 text-slate-700",
-      };
-    case "delayed":
-      return {
-        label: "Delayed",
-        className: "border-amber-200 bg-amber-50 text-amber-700",
-      };
-    case "in_progress":
-      return {
-        label: "Syncing",
-        className: "border-brand-teal/20 bg-brand-teal/10 text-brand-teal",
-      };
-    default:
-      return {
-        label: "Queued",
-        className: "border-slate-200 bg-slate-50 text-slate-700",
-      };
-  }
-}
-
-function LightspeedSyncProgressPanel({
-  jobs,
-  syncState,
-  hasStaleJobs,
-}: {
-  jobs: Array<{
-    id: string;
-    normalizedSyncType: "customers" | "sales" | "products" | "full";
-    status: string;
-    progressPercent: number;
-    progress_message: string | null;
-    last_progress_at: string | null;
-    current_page: number;
-    total_pages_est: number | null;
-    fetched_rows: number;
-    inserted_rows: number;
-    skipped_rows: number;
-    failed_rows: number;
-    isStale: boolean;
-  }>;
-  syncState: "idle" | "triggering" | "syncing";
-  hasStaleJobs: boolean;
-}) {
-  const activeJobs = jobs.filter(
-    (job) =>
-      job.status !== "completed" &&
-      job.status !== "failed" &&
-      job.status !== "cancelled",
-  );
-  const completedJobs = jobs.filter((job) => job.status === "completed");
-  const failedJobs = jobs.filter(
-    (job) => job.status === "failed" || job.status === "cancelled",
-  );
-  const totalInsertedRows = jobs.reduce(
-    (sum, job) => sum + (job.inserted_rows ?? 0),
-    0,
-  );
-  const aggregateProgress = jobs.length
-    ? Math.round(
-        jobs.reduce((sum, job) => sum + job.progressPercent, 0) / jobs.length,
-      )
-    : syncState === "triggering"
-      ? 5
-      : 0;
-
-  return (
-    <SectionCard
-      title="Sync Progress"
-      description="Live queue progress for the current Lightspeed sync jobs."
-    >
-      <div className="space-y-4">
-        <div className="flex flex-col gap-3 rounded-[1.25rem] border border-border/70 bg-slate-50/80 p-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <div className="text-sm font-semibold text-slate-950">
-              {syncState === "triggering"
-                ? "Creating Lightspeed sync jobs..."
-                : activeJobs.length > 0
-                  ? `${activeJobs.length} active sync ${activeJobs.length === 1 ? "job" : "jobs"}`
-                  : jobs.length > 0
-                    ? "Latest Lightspeed sync summary"
-                    : "No active Lightspeed sync jobs"}
-            </div>
-            <div className="mt-1 text-sm text-muted-foreground">
-              {syncState === "triggering"
-                ? "Queue records are being created now."
-                : jobs.length > 0
-                  ? `${completedJobs.length} completed, ${failedJobs.length} failed, ${totalInsertedRows.toLocaleString()} rows inserted.`
-                  : "Trigger a manual sync to watch per-job progress here."}
-            </div>
-          </div>
-          <div className="min-w-[12rem]">
-            <div className="mb-2 flex items-center justify-between text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
-              <span>Overall progress</span>
-              <span>{aggregateProgress}%</span>
-            </div>
-            <div className="h-2 overflow-hidden rounded-full bg-slate-200">
-              <div
-                className="h-full rounded-full bg-brand-teal transition-all duration-300"
-                style={{ width: `${aggregateProgress}%` }}
-              />
-            </div>
-          </div>
-        </div>
-
-        {hasStaleJobs ? (
-          <div className="flex items-start gap-3 rounded-[1.15rem] border border-amber-200 bg-amber-50/90 p-4 text-sm text-amber-900">
-            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-            <div>
-              <div className="font-semibold">Progress looks stale</div>
-              <p className="mt-1 leading-6 text-amber-800/90">
-                One or more Lightspeed jobs have not reported progress for over
-                five minutes.
-              </p>
-            </div>
-          </div>
-        ) : null}
-
-        {jobs.length > 0 ? (
-          <div className="space-y-3">
-            {jobs.map((job) => {
-              const status = formatLightspeedSyncStatus(
-                job.status,
-                job.isStale,
-              );
-
-              return (
-                <div
-                  key={job.id}
-                  className="rounded-[1.25rem] border border-border/70 bg-white/90 p-4"
-                >
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div>
-                      <div className="text-sm font-semibold text-slate-950">
-                        {formatLightspeedSyncTypeLabel(job.normalizedSyncType)}{" "}
-                        sync
-                      </div>
-                      <div className="mt-1 text-sm text-muted-foreground">
-                        {job.progress_message ||
-                          "Waiting for the next worker update."}
-                      </div>
-                    </div>
-                    <span
-                      className={cn(
-                        "inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em]",
-                        status.className,
-                      )}
-                    >
-                      {status.label}
-                    </span>
-                  </div>
-
-                  <div className="mt-4">
-                    <div className="mb-2 flex items-center justify-between text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
-                      <span>
-                        {job.total_pages_est
-                          ? `Page ${Math.max(job.current_page, 0)} of ${job.total_pages_est}`
-                          : `Page ${Math.max(job.current_page, 0)}`}
-                      </span>
-                      <span>{job.progressPercent}%</span>
-                    </div>
-                    <div className="h-2 overflow-hidden rounded-full bg-slate-200">
-                      <div
-                        className={cn(
-                          "h-full rounded-full transition-all duration-300",
-                          job.status === "failed" || job.status === "cancelled"
-                            ? "bg-rose-500"
-                            : job.isStale
-                              ? "bg-amber-500"
-                              : "bg-brand-teal",
-                        )}
-                        style={{ width: `${job.progressPercent}%` }}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="mt-4 grid gap-3 sm:grid-cols-4">
-                    <div className="rounded-xl border border-border/60 bg-slate-50/80 px-3 py-2">
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                        Fetched
-                      </div>
-                      <div className="mt-1 text-sm font-semibold text-slate-950">
-                        {formatCount(job.fetched_rows)}
-                      </div>
-                    </div>
-                    <div className="rounded-xl border border-border/60 bg-slate-50/80 px-3 py-2">
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                        Inserted
-                      </div>
-                      <div className="mt-1 text-sm font-semibold text-slate-950">
-                        {formatCount(job.inserted_rows)}
-                      </div>
-                    </div>
-                    <div className="rounded-xl border border-border/60 bg-slate-50/80 px-3 py-2">
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                        Skipped
-                      </div>
-                      <div className="mt-1 text-sm font-semibold text-slate-950">
-                        {formatCount(job.skipped_rows)}
-                      </div>
-                    </div>
-                    <div className="rounded-xl border border-border/60 bg-slate-50/80 px-3 py-2">
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                        Failed
-                      </div>
-                      <div className="mt-1 text-sm font-semibold text-slate-950">
-                        {formatCount(job.failed_rows)}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
-                    <Clock3 className="h-3.5 w-3.5" />
-                    <span>
-                      Last progress{" "}
-                      {formatRelativeTimestamp(job.last_progress_at)}
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        ) : null}
-      </div>
-    </SectionCard>
-  );
-}
-
 function MetricAppearance({ tone }: { tone: IntegrationDetailTone }) {
   const classes = getToneClasses(tone);
   return {
     iconClassName: classes.icon,
     iconWrapClassName: classes.iconWrap,
   };
-}
-
-function ComingSoonCard({
-  title,
-  description,
-  capabilities,
-  availabilityLabel,
-  previewCallout,
-  notifyEmail,
-  isSubmitted,
-  isSubmitting,
-  onSubmit,
-  requestPath,
-}: {
-  title: string;
-  description: string;
-  capabilities: string[];
-  availabilityLabel: string;
-  previewCallout?: {
-    title: string;
-    description: string;
-  };
-  notifyEmail: string | null;
-  isSubmitted: boolean;
-  isSubmitting: boolean;
-  onSubmit: () => void;
-  requestPath: string;
-}) {
-  return (
-    <section className="mx-auto max-w-3xl rounded-[1.75rem] border border-border/70 bg-white/95 p-6 shadow-sm shadow-brand-navy/5 sm:p-8">
-      <div className="mx-auto max-w-2xl text-center">
-        <div className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-          {availabilityLabel}
-        </div>
-        <h2 className="mt-3 text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">
-          {title}
-        </h2>
-        <p className="mt-3 text-sm leading-6 text-muted-foreground sm:text-base">
-          {description}
-        </p>
-      </div>
-
-      {previewCallout ? (
-        <div className="mt-6 rounded-[1.25rem] border border-amber-200 bg-amber-50/90 p-4 text-sm text-amber-900">
-          <div className="font-semibold">{previewCallout.title}</div>
-          <p className="mt-1 leading-6 text-amber-800/90">
-            {previewCallout.description}
-          </p>
-        </div>
-      ) : null}
-
-      <div className="mt-8 rounded-[1.5rem] border border-border/70 bg-slate-50/70 p-5 sm:p-6">
-        <div className="text-sm font-semibold uppercase tracking-[0.14em] text-slate-700">
-          Planned capabilities
-        </div>
-        <div className="mt-4 space-y-3">
-          {capabilities.map((capability) => (
-            <div
-              key={capability}
-              className="flex items-start gap-3 text-sm text-slate-700"
-            >
-              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
-              <span className="leading-6">{capability}</span>
-            </div>
-          ))}
-        </div>
-
-        <Separator className="my-6 bg-border/80" />
-
-        {!isSubmitted ? (
-          <div className="space-y-4">
-            <div>
-              <div className="text-sm font-semibold text-slate-950">
-                Notify me when access opens
-              </div>
-              <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                We'll send the first rollout update to your signed-in account
-                email.
-              </p>
-            </div>
-            <Input
-              type="email"
-              value={notifyEmail ?? ""}
-              readOnly
-              aria-label="Notification email"
-              placeholder="Sign in to request updates"
-              className="bg-white"
-              disabled={!notifyEmail || isSubmitting}
-            />
-            <Button
-              type="button"
-              onClick={onSubmit}
-              disabled={!notifyEmail || isSubmitting}
-            >
-              {isSubmitting ? "Saving request..." : "Notify me"}
-            </Button>
-          </div>
-        ) : (
-          <div className="rounded-[1.25rem] border border-emerald-200 bg-emerald-50/90 p-4 text-sm text-emerald-900">
-            <div className="font-semibold">You're on the list</div>
-            <p className="mt-1 leading-6 text-emerald-800/90">
-              We'll send rollout updates to{" "}
-              {notifyEmail ?? "your account email"} when access opens.
-            </p>
-          </div>
-        )}
-
-        <div className="mt-5 text-center">
-          <a
-            href={requestPath}
-            className="text-sm font-medium text-muted-foreground underline-offset-4 transition-colors hover:text-slate-900 hover:underline"
-          >
-            Request this integration →
-          </a>
-        </div>
-      </div>
-    </section>
-  );
 }
 
 function formatCount(value?: number | null) {
@@ -765,6 +248,29 @@ function formatRegionLabel(region?: string | null) {
   return region.toUpperCase();
 }
 
+function renderCloverRegionBadge(region?: string | null) {
+  const label = formatRegionLabel(region);
+
+  if (label === "Not available") {
+    return label;
+  }
+
+  const className =
+    label === "US"
+      ? "border-sky-200 bg-sky-50 text-sky-800"
+      : label === "EU"
+        ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+        : label === "LA"
+          ? "border-amber-200 bg-amber-50 text-amber-800"
+          : "border-slate-200 bg-slate-50 text-slate-700";
+
+  return (
+    <Badge className={cn("rounded-full border px-2.5 py-0.5", className)}>
+      {label}
+    </Badge>
+  );
+}
+
 function formatTimestampOrFallback(
   timestamp?: string | null,
   fallback = "Not available",
@@ -791,6 +297,48 @@ function formatRelativePlusAbsolute(
     value: formatRelativeTimestamp(timestamp),
     description: formatExactTimestamp(timestamp) ?? undefined,
   };
+}
+
+function isExpiringWithinDays(timestamp?: string | null, days = 7) {
+  if (!timestamp) {
+    return false;
+  }
+
+  const targetTime = new Date(timestamp).getTime();
+
+  if (Number.isNaN(targetTime) || targetTime <= Date.now()) {
+    return false;
+  }
+
+  return targetTime - Date.now() <= days * 24 * 60 * 60 * 1000;
+}
+
+function getLatestTimestamp(
+  timestamps: Array<string | null | undefined>,
+): string | null {
+  return timestamps
+    .filter((value): value is string => Boolean(value))
+    .reduce<string | null>((currentLatest, value) => {
+      const nextTime = new Date(value).getTime();
+
+      if (Number.isNaN(nextTime)) {
+        return currentLatest;
+      }
+
+      if (!currentLatest) {
+        return value;
+      }
+
+      return nextTime > new Date(currentLatest).getTime()
+        ? value
+        : currentLatest;
+    }, null);
+}
+
+function isLightspeedJobActive(status: string) {
+  return (
+    status !== "completed" && status !== "failed" && status !== "cancelled"
+  );
 }
 
 function formatLightspeedWebhookMode(
@@ -822,6 +370,93 @@ function formatLightspeedWebhookMode(
   };
 }
 
+function isLightspeedConnectedStatus(status?: string | null) {
+  if (!status) {
+    return false;
+  }
+
+  const normalizedStatus = status.trim().toLowerCase();
+  return (
+    normalizedStatus === "connected" ||
+    normalizedStatus === "active" ||
+    normalizedStatus === "authorized"
+  );
+}
+
+function looksLikeLightspeedReconnectIssue(message?: string | null) {
+  if (!message) {
+    return false;
+  }
+
+  return /(reauthoriz|re-authoriz|reconnect|oauth|token|credential|auth)/i.test(
+    message,
+  );
+}
+
+function getLightspeedPageStatus({
+  connectionStatus,
+  syncState,
+  webhookMode,
+  webhookLastError,
+}: {
+  connectionStatus?: string | null;
+  syncState: "idle" | "triggering" | "syncing";
+  webhookMode?: "real-time" | "sync-only" | "unavailable" | null;
+  webhookLastError?: string | null;
+}) {
+  if (!isLightspeedConnectedStatus(connectionStatus)) {
+    return {
+      label: "Reconnect required",
+      tone: "danger" as const,
+      summary:
+        "The stored Lightspeed connection needs repair before BloomSuite can verify sync health.",
+    };
+  }
+
+  if (syncState === "triggering" || syncState === "syncing") {
+    return {
+      label: "Syncing",
+      tone: "neutral" as const,
+      summary:
+        "BloomSuite is currently processing Lightspeed sync jobs for this tenant.",
+    };
+  }
+
+  if (webhookLastError && webhookMode !== "unavailable") {
+    return {
+      label: "Attention needed",
+      tone: "warning" as const,
+      summary:
+        "The connection is live, but webhook delivery needs operator attention.",
+    };
+  }
+
+  if (webhookMode === "real-time") {
+    return {
+      label: "Healthy",
+      tone: "success" as const,
+      summary:
+        "Connection, sync readiness, and webhook delivery are all in a healthy state.",
+    };
+  }
+
+  if (webhookMode === "sync-only") {
+    return {
+      label: "Sync only",
+      tone: "warning" as const,
+      summary:
+        "The connection is operational, but this account is not using verified real-time webhook delivery.",
+    };
+  }
+
+  return {
+    label: "Connected",
+    tone: "neutral" as const,
+    summary:
+      "The Lightspeed connection is present, but some capabilities are limited by account support.",
+  };
+}
+
 function formatMetaAuthorizationState(
   status?: "authorized" | "expired" | "not-connected" | null,
 ) {
@@ -836,10 +471,10 @@ function formatMetaAuthorizationState(
 
   if (status === "expired") {
     return {
-      label: "Expired",
+      label: "Reconnect required",
       subtitle: "Stored assets need Meta reauthorization before publishing",
-      tone: "warning" as const,
-      valueClassName: "text-amber-600",
+      tone: "danger" as const,
+      valueClassName: "text-rose-600",
     };
   }
 
@@ -871,10 +506,10 @@ function formatGa4ConnectionState(
 
   if (status === "error") {
     return {
-      label: "Attention needed",
+      label: "Reconnect required",
       subtitle: "Stored settings exist, but the connection needs review",
-      tone: "warning" as const,
-      valueClassName: "text-amber-600",
+      tone: "danger" as const,
+      valueClassName: "text-rose-600",
     };
   }
 
@@ -896,134 +531,15 @@ function formatGa4ConnectionState(
   };
 }
 
-function formatMarketingImportState(status?: string | null) {
-  if (status === "connected") {
-    return {
-      label: "Connected",
-      subtitle: "Ready for one-time imports",
-      tone: "success" as const,
-      valueClassName: "text-emerald-600",
-    };
-  }
-
-  return {
-    label: "Not connected",
-    subtitle: "Connect this provider to preview lists and import contacts",
-    tone: "neutral" as const,
-    valueClassName: "text-slate-600",
-  };
-}
-
-function KeyValueGrid({
-  entries,
-}: {
-  entries: Array<{ label: string; value: string; description?: string }>;
-}) {
-  return (
-    <div className="grid gap-3 sm:grid-cols-2">
-      {entries.map((entry) => (
-        <div
-          key={`${entry.label}-${entry.value}`}
-          className="rounded-2xl border border-border/70 bg-slate-50/70 p-4"
-        >
-          <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-            {entry.label}
-          </div>
-          <div className="mt-2 break-words text-sm font-semibold text-slate-950">
-            {entry.value}
-          </div>
-          {entry.description ? (
-            <div className="mt-1 text-xs leading-5 text-muted-foreground">
-              {entry.description}
-            </div>
-          ) : null}
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function DetailFieldRows({
-  rows,
-  onCopy,
-}: {
-  rows: Array<{
-    label: string;
-    value: React.ReactNode;
-    description?: React.ReactNode;
-    tone?: IntegrationDetailTone;
-    valueClassName?: string;
-    copyValue?: string | null;
-    copyLabel?: string;
-  }>;
-  onCopy?: (value: string | null | undefined, label: string) => void;
-}) {
-  return (
-    <div className="space-y-3">
-      {rows.map((row) => {
-        const classes = row.tone ? getToneClasses(row.tone) : null;
-
-        return (
-          <div
-            key={row.label}
-            className="rounded-2xl border border-border/70 bg-slate-50/70 p-4"
-          >
-            <div className="flex items-start justify-between gap-4">
-              <div className="min-w-0 flex-1">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                  {row.label}
-                </div>
-                <div className="mt-2 flex items-start gap-2">
-                  {classes ? (
-                    <span
-                      className={cn(
-                        "mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full",
-                        classes.dot,
-                      )}
-                    />
-                  ) : null}
-                  <div
-                    className={cn(
-                      "min-w-0 break-words text-sm font-semibold text-slate-950",
-                      classes?.icon,
-                      row.valueClassName,
-                    )}
-                  >
-                    {row.value}
-                  </div>
-                </div>
-                {row.description ? (
-                  <div className="mt-1 text-xs leading-5 text-muted-foreground">
-                    {row.description}
-                  </div>
-                ) : null}
-              </div>
-              {row.copyValue && onCopy && row.copyLabel ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => onCopy(row.copyValue, row.copyLabel!)}
-                  className="shrink-0"
-                >
-                  <Copy className="h-4 w-4" />
-                  Copy
-                </Button>
-              ) : null}
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
 type LightspeedTabValue =
   | "overview"
   | "customers"
   | "sales"
   | "products"
-  | "sync-logs";
+  | "sync-logs"
+  | "connection-test";
+
+type EmailInfrastructureTabValue = "overview" | "dns-records";
 
 function formatCurrency(value?: number | null) {
   if (typeof value !== "number" || Number.isNaN(value)) {
@@ -1049,244 +565,6 @@ function formatDateValue(
   return formatExactTimestamp(timestamp) ?? fallback;
 }
 
-function formatJsonValue(value: unknown) {
-  try {
-    return JSON.stringify(value ?? {}, null, 2);
-  } catch {
-    return "{}";
-  }
-}
-
-function getNextSortDirection(
-  currentField: string,
-  nextField: string,
-  currentDirection: LightspeedSortDirection,
-): LightspeedSortDirection {
-  if (currentField !== nextField) {
-    return "asc";
-  }
-
-  return currentDirection === "asc" ? "desc" : "asc";
-}
-
-function getSortLabel(
-  activeField: string,
-  field: string,
-  direction: LightspeedSortDirection,
-) {
-  if (activeField !== field) {
-    return null;
-  }
-
-  return direction === "asc" ? "asc" : "desc";
-}
-
-function LightspeedTableEmptyState({
-  title,
-  description,
-}: {
-  title: string;
-  description: string;
-}) {
-  return (
-    <div className="rounded-2xl border border-dashed border-border/80 bg-slate-50/80 p-6 text-sm text-muted-foreground">
-      <div className="font-semibold text-slate-950">{title}</div>
-      <p className="mt-2 leading-6">{description}</p>
-    </div>
-  );
-}
-
-function LightspeedPaginationBar({
-  pagination,
-  onPageChange,
-}: {
-  pagination: LightspeedPagination;
-  onPageChange: (page: number) => void;
-}) {
-  const canGoPrevious = pagination.page > 1;
-  const canGoNext = pagination.page < pagination.totalPages;
-
-  return (
-    <div className="mt-4 flex flex-col gap-3 border-t border-border/70 pt-4 sm:flex-row sm:items-center sm:justify-between">
-      <div className="text-sm text-muted-foreground">
-        Page {pagination.page} of {pagination.totalPages} ·{" "}
-        {formatCount(pagination.totalCount)} total rows
-      </div>
-      <Pagination className="mx-0 w-auto justify-start sm:justify-end">
-        <PaginationContent>
-          <PaginationItem>
-            <PaginationPrevious
-              href="#"
-              aria-disabled={!canGoPrevious}
-              className={cn(!canGoPrevious && "pointer-events-none opacity-50")}
-              onClick={(event) => {
-                event.preventDefault();
-                if (canGoPrevious) {
-                  onPageChange(pagination.page - 1);
-                }
-              }}
-            />
-          </PaginationItem>
-          <PaginationItem>
-            <PaginationNext
-              href="#"
-              aria-disabled={!canGoNext}
-              className={cn(!canGoNext && "pointer-events-none opacity-50")}
-              onClick={(event) => {
-                event.preventDefault();
-                if (canGoNext) {
-                  onPageChange(pagination.page + 1);
-                }
-              }}
-            />
-          </PaginationItem>
-        </PaginationContent>
-      </Pagination>
-    </div>
-  );
-}
-
-function LightspeedJsonCollapsible({
-  title,
-  value,
-}: {
-  title: string;
-  value: unknown;
-}) {
-  return (
-    <Collapsible className="rounded-2xl border border-border/70 bg-slate-50/80">
-      <CollapsibleTrigger className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-sm font-semibold text-slate-950">
-        <span>{title}</span>
-        <ChevronDown className="h-4 w-4 text-muted-foreground" />
-      </CollapsibleTrigger>
-      <CollapsibleContent>
-        <div className="border-t border-border/70 px-4 py-4">
-          <pre className="overflow-x-auto rounded-xl bg-slate-950 p-4 text-xs leading-6 text-slate-100">
-            {formatJsonValue(value)}
-          </pre>
-        </div>
-      </CollapsibleContent>
-    </Collapsible>
-  );
-}
-
-function LightspeedSortButton({
-  label,
-  field,
-  activeField,
-  direction,
-  onToggle,
-}: {
-  label: string;
-  field: string;
-  activeField: string;
-  direction: LightspeedSortDirection;
-  onToggle: (field: string) => void;
-}) {
-  const sortLabel = getSortLabel(activeField, field, direction);
-
-  return (
-    <button
-      type="button"
-      onClick={() => onToggle(field)}
-      className="inline-flex items-center gap-2 text-left text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground transition-colors hover:text-slate-950"
-    >
-      <span>{label}</span>
-      {sortLabel ? (
-        <span className="rounded-full border border-border/70 px-2 py-0.5 text-[10px] text-slate-700">
-          {sortLabel}
-        </span>
-      ) : null}
-    </button>
-  );
-}
-
-function LightspeedCustomerQualityBadges({
-  customer,
-}: {
-  customer: LightspeedCustomerTableRow;
-}) {
-  const badges = [
-    customer.quality.missingEmail
-      ? {
-          label: "Missing email",
-          className: "border-amber-200 bg-amber-50 text-amber-700",
-        }
-      : null,
-    customer.quality.missingPhone
-      ? {
-          label: "Missing phone",
-          className: "border-amber-200 bg-amber-50 text-amber-700",
-        }
-      : null,
-    customer.quality.zeroPurchaseCount
-      ? {
-          label: "No purchases",
-          className: "border-slate-200 bg-slate-50 text-slate-700",
-        }
-      : null,
-    customer.quality.staleSync
-      ? {
-          label: "Stale sync",
-          className: "border-rose-200 bg-rose-50 text-rose-700",
-        }
-      : null,
-    customer.quality.missingCrmLink
-      ? {
-          label: "No CRM link",
-          className: "border-slate-200 bg-slate-50 text-slate-700",
-        }
-      : null,
-  ].filter(Boolean) as Array<{ label: string; className: string }>;
-
-  if (badges.length === 0) {
-    return (
-      <Badge className="border-emerald-200 bg-emerald-50 text-emerald-700">
-        Healthy
-      </Badge>
-    );
-  }
-
-  return (
-    <div className="flex flex-wrap gap-2">
-      {badges.map((badge) => (
-        <Badge key={badge.label} className={badge.className}>
-          {badge.label}
-        </Badge>
-      ))}
-    </div>
-  );
-}
-
-function LightspeedProductStockBadge({
-  product,
-}: {
-  product: LightspeedProductTableRow;
-}) {
-  const config =
-    product.stockState === "out"
-      ? {
-          label: "Out of stock",
-          className: "border-rose-200 bg-rose-50 text-rose-700",
-        }
-      : product.stockState === "low"
-        ? {
-            label: "Low stock",
-            className: "border-amber-200 bg-amber-50 text-amber-700",
-          }
-        : product.stockState === "healthy"
-          ? {
-              label: "In stock",
-              className: "border-emerald-200 bg-emerald-50 text-emerald-700",
-            }
-          : {
-              label: "Unknown",
-              className: "border-slate-200 bg-slate-50 text-slate-700",
-            };
-
-  return <Badge className={config.className}>{config.label}</Badge>;
-}
-
 function MetaAssetList({
   assets,
   emptyMessage,
@@ -1300,6 +578,8 @@ function MetaAssetList({
     secondaryLabel: string;
     connectedAt: string | null;
     lastActivityAt: string | null;
+    active: boolean;
+    platform: "facebook" | "instagram";
   }>;
   emptyMessage: string;
   onCopy: (value: string | null | undefined, label: string) => void;
@@ -1307,96 +587,74 @@ function MetaAssetList({
 }) {
   if (assets.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-border/80 bg-slate-50/70 p-4 text-sm text-muted-foreground">
+      <p className="ml-4 mt-1 text-xs italic text-muted-foreground">
         {emptyMessage}
-      </div>
+      </p>
     );
   }
 
   return (
-    <div className="space-y-3">
+    <div className="divide-y divide-gray-50">
       {assets.map((asset) => (
         <div
           key={asset.id}
-          className="flex items-center gap-3 rounded-2xl border border-border/70 bg-slate-50/70 p-3 transition-colors hover:border-slate-300 hover:bg-white"
+          className="flex items-center justify-between gap-4 py-3"
         >
           <button
             type="button"
             onClick={onOpen}
-            className="min-w-0 flex-1 text-left"
+            className="flex min-w-0 flex-1 items-center gap-2.5 text-left"
           >
-            <div className="text-sm font-semibold text-slate-950">
-              {asset.name}
+            <div
+              className={cn(
+                "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg",
+                asset.platform === "facebook" ? "bg-blue-50" : "bg-rose-50",
+              )}
+            >
+              {asset.platform === "facebook" ? (
+                <Facebook className="h-4 w-4 text-[#1877F2]" />
+              ) : (
+                <Instagram className="h-4 w-4 text-[#E4405F]" />
+              )}
             </div>
-            <div className="mt-1 text-xs leading-5 text-muted-foreground">
-              {asset.secondaryLabel}
-            </div>
-            <div className="mt-1 text-xs leading-5 text-muted-foreground">
-              {asset.lastActivityAt
-                ? `Last refreshed ${formatRelativeTimestamp(asset.lastActivityAt)}`
-                : asset.connectedAt
-                  ? `Connected ${formatRelativeTimestamp(asset.connectedAt)}`
-                  : "Stored asset"}
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-foreground">
+                {asset.name}
+              </p>
+              <p className="text-xs font-mono text-muted-foreground">
+                {asset.externalId ?? "—"}
+              </p>
             </div>
           </button>
-          {asset.externalId ? (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => onCopy(asset.externalId, "Asset ID")}
-              className="shrink-0"
+          <div className="flex shrink-0 items-center gap-2">
+            <span
+              className={cn(
+                "h-1.5 w-1.5 rounded-full",
+                asset.active ? "bg-emerald-500" : "bg-gray-300",
+              )}
+            />
+            <span
+              className={cn(
+                "text-xs",
+                asset.active ? "text-emerald-700" : "text-muted-foreground",
+              )}
             >
-              <Copy className="h-4 w-4" />
-              Copy ID
-            </Button>
-          ) : null}
+              {asset.active ? "Active" : "Inactive"}
+            </span>
+            {asset.externalId ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => onCopy(asset.externalId, "Asset ID")}
+                className="h-7 px-2 text-xs"
+              >
+                <Copy className="h-3.5 w-3.5" />
+              </Button>
+            ) : null}
+          </div>
         </div>
       ))}
-    </div>
-  );
-}
-
-function LoadingShell() {
-  return (
-    <div className="container mx-auto space-y-6 p-6">
-      <div className="h-10 w-80 animate-pulse rounded-full bg-slate-100" />
-      <div className="rounded-[1.75rem] border border-border/70 bg-white/90 p-6 shadow-sm shadow-brand-navy/5">
-        <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
-          <div className="space-y-4">
-            <div className="h-6 w-24 animate-pulse rounded-full bg-slate-100" />
-            <div className="h-10 w-72 animate-pulse rounded-2xl bg-slate-100" />
-            <div className="h-5 w-96 animate-pulse rounded-xl bg-slate-100" />
-          </div>
-          <div className="h-10 w-36 animate-pulse rounded-xl bg-slate-100" />
-        </div>
-        <div className="mt-6 grid gap-4 md:grid-cols-3">
-          {Array.from({ length: 3 }).map((_, index) => (
-            <div
-              key={index}
-              className="h-36 animate-pulse rounded-2xl bg-slate-100"
-            />
-          ))}
-        </div>
-      </div>
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(320px,1fr)]">
-        <div className="space-y-6">
-          {Array.from({ length: 3 }).map((_, index) => (
-            <div
-              key={index}
-              className="h-56 animate-pulse rounded-[1.5rem] bg-slate-100"
-            />
-          ))}
-        </div>
-        <div className="space-y-6">
-          {Array.from({ length: 3 }).map((_, index) => (
-            <div
-              key={index}
-              className="h-48 animate-pulse rounded-[1.5rem] bg-slate-100"
-            />
-          ))}
-        </div>
-      </div>
     </div>
   );
 }
@@ -1405,8 +663,11 @@ export default function IntegrationDetailPage() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const [disconnectOpen, setDisconnectOpen] = useState(false);
+  const [copiedLabel, setCopiedLabel] = useState<string | null>(null);
   const [lightspeedTab, setLightspeedTab] =
     useState<LightspeedTabValue>("overview");
+  const [emailInfrastructureTab, setEmailInfrastructureTab] =
+    useState<EmailInfrastructureTabValue>("overview");
   const [customerSearchInput, setCustomerSearchInput] = useState("");
   const [customerPage, setCustomerPage] = useState(1);
   const [customerSortField, setCustomerSortField] =
@@ -1415,6 +676,13 @@ export default function IntegrationDetailPage() {
     useState<LightspeedSortDirection>("desc");
   const [selectedCustomer, setSelectedCustomer] =
     useState<LightspeedCustomerTableRow | null>(null);
+  const [squareCustomerSortField, setSquareCustomerSortField] =
+    useState<SquareCustomerSortField>("updated_at");
+  const [selectedSquareCustomer, setSelectedSquareCustomer] =
+    useState<SquareCustomerTableRow | null>(null);
+  const [selectedCloverCustomer, setSelectedCloverCustomer] =
+    useState<CloverCustomerTableRow | null>(null);
+  const [salesSearchInput, setSalesSearchInput] = useState("");
   const [salesPage, setSalesPage] = useState(1);
   const [salesStatus, setSalesStatus] = useState("all");
   const [salesStartDate, setSalesStartDate] = useState("");
@@ -1423,24 +691,36 @@ export default function IntegrationDetailPage() {
     useState<LightspeedSalesSortField>("sale_date");
   const [salesSortDirection, setSalesSortDirection] =
     useState<LightspeedSortDirection>("desc");
-  const [selectedSale, setSelectedSale] = useState<
-    | NonNullable<
-        ReturnType<typeof useIntegrationDetailData>["lightspeedDashboard"]
-      >["sales"]["rows"][number]
-    | null
-  >(null);
+  const [selectedSale, setSelectedSale] = useState<LightspeedSaleRow | null>(
+    null,
+  );
+  const [squareSalesSortField, setSquareSalesSortField] =
+    useState<SquareSalesSortField>("order_date");
+  const [selectedSquareSale, setSelectedSquareSale] =
+    useState<SquareSaleRow | null>(null);
+  const [selectedCloverSale, setSelectedCloverSale] =
+    useState<CloverSaleRow | null>(null);
+  const [productsSearchInput, setProductsSearchInput] = useState("");
   const [productsPage, setProductsPage] = useState(1);
-  const [productsCategory, setProductsCategory] = useState("all");
+  const [productsCategories, setProductsCategories] = useState<string[]>([]);
   const [productsInStockOnly, setProductsInStockOnly] = useState(false);
   const [productsSortField, setProductsSortField] =
     useState<LightspeedProductsSortField>("name");
   const [productsSortDirection, setProductsSortDirection] =
     useState<LightspeedSortDirection>("asc");
+  const [squareProductsSortField, setSquareProductsSortField] =
+    useState<SquareProductsSortField>("name");
   const [syncLogsPage, setSyncLogsPage] = useState(1);
-  const [expandedSyncLogId, setExpandedSyncLogId] = useState<string | null>(
-    null,
+  const [syncLogsStatus, setSyncLogsStatus] = useState("all");
+  const deferredCustomerSearch = useDebouncedValue(
+    customerSearchInput.trim(),
+    300,
   );
-  const deferredCustomerSearch = useDeferredValue(customerSearchInput.trim());
+  const deferredSalesSearch = useDebouncedValue(salesSearchInput.trim(), 300);
+  const deferredProductsSearch = useDebouncedValue(
+    productsSearchInput.trim(),
+    300,
+  );
   const detail = useIntegrationDetailData(
     slug,
     slug === "lightspeed"
@@ -1453,6 +733,7 @@ export default function IntegrationDetailPage() {
           },
           sales: {
             page: salesPage,
+            search: deferredSalesSearch,
             status: salesStatus,
             startDate: salesStartDate || null,
             endDate: salesEndDate || null,
@@ -1461,26 +742,92 @@ export default function IntegrationDetailPage() {
           },
           products: {
             page: productsPage,
-            category: productsCategory,
+            search: deferredProductsSearch,
+            categories: productsCategories,
             inStockOnly: productsInStockOnly,
             sortField: productsSortField,
             sortDirection: productsSortDirection,
           },
           syncLogs: {
             page: syncLogsPage,
+            status: syncLogsStatus,
           },
         }
-      : undefined,
+      : slug === "square"
+        ? {
+            customers: {
+              page: customerPage,
+              search: deferredCustomerSearch,
+              sortField: squareCustomerSortField,
+              sortDirection: customerSortDirection,
+            },
+            sales: {
+              page: salesPage,
+              search: deferredSalesSearch,
+              status: salesStatus,
+              startDate: salesStartDate || null,
+              endDate: salesEndDate || null,
+              sortField: squareSalesSortField,
+              sortDirection: salesSortDirection,
+            },
+            products: {
+              page: productsPage,
+              search: deferredProductsSearch,
+              categories: productsCategories,
+              inStockOnly: productsInStockOnly,
+              sortField: squareProductsSortField,
+              sortDirection: productsSortDirection,
+            },
+            syncLogs: {
+              page: syncLogsPage,
+              status: syncLogsStatus,
+            },
+          }
+        : slug === "clover"
+          ? {
+              customers: {
+                page: customerPage,
+                search: deferredCustomerSearch,
+                sortField: squareCustomerSortField,
+                sortDirection: customerSortDirection,
+              },
+              sales: {
+                page: salesPage,
+                search: deferredSalesSearch,
+                status: salesStatus,
+                startDate: salesStartDate || null,
+                endDate: salesEndDate || null,
+                sortField: squareSalesSortField,
+                sortDirection: salesSortDirection,
+              },
+              products: {
+                page: productsPage,
+                search: deferredProductsSearch,
+                categories: productsCategories,
+                inStockOnly: productsInStockOnly,
+                sortField: squareProductsSortField,
+                sortDirection: productsSortDirection,
+              },
+              syncLogs: {
+                page: syncLogsPage,
+                status: syncLogsStatus,
+              },
+            }
+          : undefined,
   );
 
   const seed = useMemo(() => (slug ? getIntegrationSeed(slug) : null), [slug]);
 
-  if (!seed || !detail.isValidSlug || !detail.item || !detail.model) {
+  if (!seed || !detail.isValidSlug) {
     return <NotFound />;
   }
 
   if (detail.isLoading) {
     return <LoadingShell />;
+  }
+
+  if (!detail.item || !detail.model) {
+    return <NotFound />;
   }
 
   const item = detail.item;
@@ -1490,14 +837,16 @@ export default function IntegrationDetailPage() {
   const isClover = item.slug === "clover";
   const isLightspeed = item.slug === "lightspeed";
   const isMeta = item.slug === "meta";
-  const isGa4 = item.slug === "google-analytics-4";
+  const isGa4 = item.slug === "google-analytics";
   const isEmailInfrastructure = item.slug === "email-infrastructure";
   const isMarketingImport =
     item.slug === "mailchimp" ||
     item.slug === "klaviyo" ||
     item.slug === "constant-contact";
   const squareDetail = detail.squareDetail;
+  const squareDashboard = detail.squareDashboard;
   const cloverDetail = detail.cloverDetail;
+  const cloverDashboard = detail.cloverDashboard;
   const lightspeedDetail = detail.lightspeedDetail;
   const lightspeedDashboard = detail.lightspeedDashboard;
   const metaDetail = detail.metaDetail;
@@ -1515,9 +864,967 @@ export default function IntegrationDetailPage() {
   const ga4ConnectionState = formatGa4ConnectionState(
     ga4Detail?.connectionStatus,
   );
-  const marketingImportState = formatMarketingImportState(
-    marketingImportDetail?.connectionStatus,
+  const lightspeedSyncLogRows = lightspeedDashboard?.syncLogs.rows ?? [];
+  const lightspeedConnectionHealthy = isLightspeedConnectedStatus(
+    lightspeedDetail?.connectionStatus ?? item.status,
   );
+  const squareConnectionHealthy = isLightspeedConnectedStatus(
+    squareDetail?.connectionStatus ?? item.status,
+  );
+  const squareNeedsWebhookAttention =
+    isSquare &&
+    Boolean(squareDetail) &&
+    Boolean(squareDetail?.webhookLastError) &&
+    ((squareDetail?.webhookRetryCount ?? 0) > 0 ||
+      !squareDetail?.webhooksSubscribed);
+  const squarePageStatus =
+    isSquare && squareDetail
+      ? !squareConnectionHealthy
+        ? {
+            label: "Reconnect required",
+            tone: "danger" as const,
+            summary:
+              "The stored Square connection needs attention before sync and webhook health can be trusted.",
+          }
+        : detail.isSquareSyncing
+          ? {
+              label: "Syncing",
+              tone: "neutral" as const,
+              summary:
+                "BloomSuite is currently running a Square sync for this tenant.",
+            }
+          : squareNeedsWebhookAttention
+            ? {
+                label: "Attention needed",
+                tone: "warning" as const,
+                summary:
+                  "The Square connection is live, but webhook delivery or verification needs operator review.",
+              }
+            : {
+                label: "Healthy",
+                tone: "success" as const,
+                summary:
+                  "Connection, sync readiness, and Square webhook coverage are in a healthy state.",
+              }
+      : null;
+  const squareStatusBanner =
+    isSquare && squareDetail && squareNeedsWebhookAttention
+      ? {
+          tone: "warning" as const,
+          title: "Verify Square webhook coverage",
+          description: getUserFacingIntegrationError(
+            squareDetail.webhookLastError,
+            "BloomSuite needs to verify the current Square webhook subscription before relying on real-time event delivery.",
+          ),
+          actionLabel: detail.isVerifyingSquareWebhooks
+            ? "Verifying..."
+            : "Verify now",
+          onAction: () => {
+            void detail.verifySquareWebhooks();
+          },
+        }
+      : null;
+  const squarePrimaryAction =
+    isSquare && squareDetail
+      ? {
+          label: detail.isSquareSyncing ? "Syncing..." : "Sync Now",
+          disabled: !squareConnectionHealthy || detail.isSquareSyncing,
+          onClick: () => {
+            void detail.triggerSquareSync();
+          },
+        }
+      : null;
+  const squareTabItems =
+    isSquare && squareDetail
+      ? [
+          { value: "overview" as const, label: "Overview" },
+          {
+            value: "customers" as const,
+            label: "Customers",
+            count: squareDetail.customersSynced ?? 0,
+          },
+          {
+            value: "sales" as const,
+            label: "Sales",
+            count: squareDetail.salesSynced ?? 0,
+          },
+          {
+            value: "products" as const,
+            label: "Products",
+            count: squareDetail.productsSynced ?? 0,
+          },
+          {
+            value: "sync-logs" as const,
+            label: "Sync Logs",
+            isActive: detail.isSquareSyncing,
+          },
+        ]
+      : [];
+  const squareHeaderActions =
+    isSquare && squareDetail
+      ? [
+          {
+            id: "square-actions",
+            items: [
+              {
+                label: detail.isFetching ? "Refreshing…" : "Refresh status",
+                icon: RefreshCcw,
+                disabled: detail.isFetching,
+                onSelect: () => {
+                  void detail.refetch();
+                },
+              },
+              {
+                label: detail.isVerifyingSquareWebhooks
+                  ? "Verifying webhooks…"
+                  : "Verify webhooks",
+                icon: Webhook,
+                disabled:
+                  item.status !== "connected" ||
+                  detail.isVerifyingSquareWebhooks,
+                onSelect: () => {
+                  void detail.verifySquareWebhooks();
+                },
+              },
+              {
+                label: "View sync logs",
+                icon: Activity,
+                onSelect: () => navigate(squareDetail.syncLogsPath),
+              },
+              {
+                label: "View automation logs",
+                icon: Bot,
+                onSelect: () => navigate(squareDetail.automationLogsPath),
+              },
+              {
+                label: "Disconnect Square",
+                icon: ShieldAlert,
+                disabled: !detail.canDisconnect,
+                onSelect: () => setDisconnectOpen(true),
+              },
+            ],
+          },
+        ]
+      : [];
+  const squareLatestActivityAt = getLatestTimestamp([
+    squareDetail?.lastWebhookReceivedAt,
+    squareDetail?.lastCustomerSync,
+    squareDetail?.lastSalesSync,
+    squareDetail?.lastProductSync,
+    squareDetail?.lastSyncedAt,
+    squareDetail?.connectedAt,
+  ]);
+  const cloverConnectionHealthy = isLightspeedConnectedStatus(
+    cloverDetail?.connectionStatus ?? item.status,
+  );
+  const cloverRealtimeEnabled = Boolean(
+    cloverDetail?.appIdConfigured && cloverDetail?.webhooksSubscribed,
+  );
+  const cloverNeedsWebhookSetup =
+    isClover &&
+    Boolean(cloverDetail) &&
+    cloverConnectionHealthy &&
+    !cloverRealtimeEnabled;
+  const cloverHasWebhookIssue =
+    isClover &&
+    Boolean(cloverDetail) &&
+    cloverConnectionHealthy &&
+    Boolean(cloverDetail?.webhookLastError);
+  const cloverPageStatus =
+    isClover && cloverDetail
+      ? !cloverConnectionHealthy
+        ? {
+            label: "Reconnect required",
+            tone: "danger" as const,
+            summary:
+              "The stored Clover connection needs repair before BloomSuite can trust sync or app-level event delivery.",
+          }
+        : cloverNeedsWebhookSetup
+          ? {
+              label: "Sync only",
+              tone: "warning" as const,
+              summary:
+                "BloomSuite can sync Clover data for this merchant, but real-time events remain app-level and are not fully configured yet.",
+            }
+          : {
+              label: "Connected",
+              tone: "success" as const,
+              summary:
+                "The Clover connection is active and BloomSuite has the required app-level webhook prerequisites for real-time event intake.",
+            }
+      : null;
+  const cloverStatusBanner =
+    isClover && cloverDetail
+      ? !cloverConnectionHealthy
+        ? {
+            tone: "danger" as const,
+            title: "Reconnect Clover to resume sync health checks",
+            description:
+              "The stored Clover authorization is no longer in a usable state. Reconnect the integration before relying on sync or real-time status.",
+            actionLabel: "Reconnect",
+            onAction: () => {
+              if (detail.targetPath) {
+                navigate(detail.targetPath);
+              }
+            },
+          }
+        : cloverHasWebhookIssue
+          ? {
+              tone: "warning" as const,
+              title: "Clover webhook health needs review",
+              description: getUserFacingIntegrationError(
+                cloverDetail.webhookLastError,
+                "BloomSuite is seeing an issue with Clover app-level webhook traffic. Review the latest delivery status and connection diagnostics.",
+              ),
+              actionLabel: detail.isCloverConnectionTesting
+                ? "Running test..."
+                : "Run connection test",
+              onAction: () => {
+                void detail.runCloverConnectionTest();
+              },
+            }
+          : cloverNeedsWebhookSetup
+            ? {
+                tone: "warning" as const,
+                title: "Configure app-level Clover webhooks for real-time mode",
+                description:
+                  "Clover webhook provisioning is handled at the app level, not per merchant. Until the app ID and event flow are in place, this merchant stays in sync-only mode.",
+                actionLabel: detail.targetPath
+                  ? "Configure webhooks"
+                  : undefined,
+                onAction: () => {
+                  if (detail.targetPath) {
+                    navigate(detail.targetPath);
+                  }
+                },
+              }
+            : null
+      : null;
+  const cloverPrimaryAction =
+    isClover && cloverDetail
+      ? !cloverConnectionHealthy
+        ? {
+            label: "Reconnect",
+            disabled: !detail.targetPath,
+            onClick: () => {
+              if (detail.targetPath) {
+                navigate(detail.targetPath);
+              }
+            },
+          }
+        : cloverNeedsWebhookSetup
+          ? {
+              label: "Configure Webhooks",
+              disabled: !detail.targetPath,
+              onClick: () => {
+                if (detail.targetPath) {
+                  navigate(detail.targetPath);
+                }
+              },
+            }
+          : {
+              label: detail.isCloverSyncing ? "Syncing..." : "Sync Now",
+              disabled: detail.isCloverSyncing,
+              onClick: () => {
+                void detail.triggerCloverSync();
+              },
+            }
+      : null;
+  const cloverTabItems =
+    isClover && cloverDetail
+      ? [
+          { value: "overview" as const, label: "Overview" },
+          {
+            value: "customers" as const,
+            label: "Customers",
+            count: cloverDetail.customersSynced ?? 0,
+          },
+          {
+            value: "sales" as const,
+            label: "Sales",
+            count: cloverDetail.salesSynced ?? 0,
+          },
+          {
+            value: "products" as const,
+            label: "Products",
+            count: cloverDetail.productsSynced ?? 0,
+          },
+          {
+            value: "sync-logs" as const,
+            label: "Sync Logs",
+            isActive: detail.isCloverSyncing,
+          },
+          {
+            value: "connection-test" as const,
+            label: "Connection Test",
+            isActive: detail.isCloverConnectionTesting,
+          },
+        ]
+      : [];
+  const cloverHeaderActions =
+    isClover && cloverDetail
+      ? [
+          {
+            id: "clover-actions",
+            items: [
+              {
+                label: detail.isFetching ? "Refreshing…" : "Refresh status",
+                icon: RefreshCcw,
+                disabled: detail.isFetching,
+                onSelect: () => {
+                  void detail.refetch();
+                },
+              },
+              {
+                label: detail.isCloverSyncing
+                  ? "Syncing…"
+                  : "Trigger manual sync",
+                icon: RefreshCcw,
+                disabled: !cloverConnectionHealthy || detail.isCloverSyncing,
+                onSelect: () => {
+                  void detail.triggerCloverSync();
+                },
+              },
+              {
+                label: detail.isCloverConnectionTesting
+                  ? "Running connection test…"
+                  : "Run connection test",
+                icon: FlaskConical,
+                disabled:
+                  !cloverConnectionHealthy || detail.isCloverConnectionTesting,
+                onSelect: () => {
+                  void detail.runCloverConnectionTest();
+                },
+              },
+              {
+                label: "View sync logs",
+                icon: Activity,
+                onSelect: () => navigate(cloverDetail.syncLogsPath),
+              },
+              {
+                label: "View automation logs",
+                icon: Bot,
+                onSelect: () => navigate(cloverDetail.automationLogsPath),
+              },
+              {
+                label: "Disconnect Clover",
+                icon: ShieldAlert,
+                disabled: !detail.canDisconnect,
+                onSelect: () => setDisconnectOpen(true),
+              },
+            ],
+          },
+        ]
+      : [];
+  const cloverLatestActivityAt = getLatestTimestamp([
+    cloverDetail?.lastWebhookReceivedAt,
+    cloverDetail?.lastCustomerSync,
+    cloverDetail?.lastSalesSync,
+    cloverDetail?.lastProductSync,
+    cloverDetail?.lastSyncedAt,
+    cloverDetail?.lastTestedAt,
+    cloverDetail?.connectedAt,
+  ]);
+  const lightspeedRecentFailureCount = (() => {
+    let count = 0;
+
+    for (const row of lightspeedSyncLogRows) {
+      if (row.status === "failed" || row.status === "cancelled") {
+        count += 1;
+        continue;
+      }
+
+      break;
+    }
+
+    return count;
+  })();
+  const lightspeedLatestFailedLog = lightspeedSyncLogRows.find(
+    (row) => row.status === "failed" || row.status === "cancelled",
+  );
+  const lightspeedNeedsReconnect =
+    isLightspeed &&
+    Boolean(lightspeedDetail) &&
+    (!lightspeedConnectionHealthy ||
+      looksLikeLightspeedReconnectIssue(lightspeedDetail?.webhookLastError));
+  const lightspeedHasWebhookIssue =
+    isLightspeed &&
+    Boolean(lightspeedDetail) &&
+    !lightspeedNeedsReconnect &&
+    lightspeedDetail?.webhookMode !== "unavailable" &&
+    Boolean(lightspeedDetail?.webhookLastError) &&
+    ((lightspeedDetail?.webhookRetryCount ?? 0) >= 3 ||
+      Boolean(lightspeedDetail?.webhookNextRetryAt));
+  const lightspeedPageStatus = getLightspeedPageStatus({
+    connectionStatus: lightspeedDetail?.connectionStatus ?? item.status,
+    syncState: detail.lightspeedSyncState,
+    webhookMode: lightspeedDetail?.webhookMode,
+    webhookLastError: lightspeedDetail?.webhookLastError,
+  });
+  const lightspeedStatusBanner =
+    isLightspeed && lightspeedDetail
+      ? lightspeedNeedsReconnect
+        ? {
+            tone: "danger" as const,
+            title: "Reconnect Lightspeed to restore sync access",
+            description: getUserFacingIntegrationError(
+              lightspeedDetail.webhookLastError,
+              "The stored Lightspeed authorization is no longer in a usable state. Reconnect the integration to resume verification and sync operations.",
+            ),
+            actionLabel: "Reconnect",
+            onAction: () => {
+              if (detail.targetPath) {
+                navigate(detail.targetPath);
+              }
+            },
+          }
+        : lightspeedHasWebhookIssue
+          ? {
+              tone: "warning" as const,
+              title: "Webhook delivery needs attention",
+              description: getUserFacingIntegrationError(
+                lightspeedDetail.webhookLastError,
+                "BloomSuite is seeing repeated webhook delivery problems for this Lightspeed account. Run diagnostics to confirm the current delivery state.",
+              ),
+              ...(detail.canAccessLightspeedAdminFeatures
+                ? {
+                    actionLabel: "Run diagnostics",
+                    onAction: () => navigate(lightspeedDetail.diagnosticsPath),
+                  }
+                : {}),
+            }
+          : lightspeedRecentFailureCount >= 2
+            ? {
+                tone: "warning" as const,
+                title: `${lightspeedRecentFailureCount} recent sync jobs failed`,
+                description: getUserFacingIntegrationError(
+                  lightspeedLatestFailedLog?.last_error,
+                  "Recent Lightspeed sync jobs have failed. Review the latest sync logs before retrying.",
+                ),
+                actionLabel: "View sync logs",
+                onAction: () => navigate(lightspeedDetail.syncLogsPath),
+              }
+            : model.errorBanner
+              ? {
+                  tone: "warning" as const,
+                  title: model.errorBanner.title,
+                  description: model.errorBanner.description,
+                }
+              : null
+      : null;
+  const lightspeedPrimaryAction =
+    isLightspeed && lightspeedDetail
+      ? lightspeedNeedsReconnect
+        ? {
+            label: "Reconnect",
+            disabled: !detail.targetPath,
+            onClick: () => {
+              if (detail.targetPath) {
+                navigate(detail.targetPath);
+              }
+            },
+          }
+        : {
+            label:
+              detail.lightspeedSyncState === "triggering"
+                ? "Starting sync..."
+                : detail.lightspeedSyncState === "syncing"
+                  ? "Syncing..."
+                  : "Sync Now",
+            disabled:
+              !lightspeedConnectionHealthy ||
+              detail.lightspeedSyncState !== "idle",
+            onClick: () => {
+              void detail.triggerLightspeedSync();
+            },
+          }
+      : null;
+  const lightspeedTabItems =
+    isLightspeed && lightspeedDetail
+      ? [
+          { value: "overview" as const, label: "Overview" },
+          {
+            value: "customers" as const,
+            label: "Customers",
+            count: lightspeedDetail.customersSynced ?? 0,
+          },
+          {
+            value: "sales" as const,
+            label: "Sales",
+            count: lightspeedDetail.salesSynced ?? 0,
+          },
+          {
+            value: "products" as const,
+            label: "Products",
+            count: lightspeedDetail.productsSynced ?? 0,
+          },
+          {
+            value: "sync-logs" as const,
+            label: "Sync Logs",
+            isActive:
+              detail.lightspeedSyncState !== "idle" ||
+              detail.lightspeedActiveJobIds.length > 0,
+          },
+        ]
+      : [];
+  const lightspeedHeaderActions =
+    isLightspeed && lightspeedDetail
+      ? [
+          {
+            id: "lightspeed-actions",
+            items: [
+              {
+                label: detail.isFetching ? "Refreshing…" : "Refresh status",
+                icon: RefreshCcw,
+                disabled: detail.isFetching,
+                onSelect: () => {
+                  void detail.refetch();
+                },
+              },
+              ...(detail.canAccessLightspeedAdminFeatures
+                ? [
+                    {
+                      label: "Run diagnostics",
+                      icon: FlaskConical,
+                      onSelect: () =>
+                        navigate(lightspeedDetail.diagnosticsPath),
+                    },
+                  ]
+                : []),
+              {
+                label: "View sync logs",
+                icon: Activity,
+                onSelect: () => navigate(lightspeedDetail.syncLogsPath),
+              },
+              {
+                label: "Open store URL",
+                icon: ExternalLink,
+                disabled: !lightspeedDetail.storeUrl,
+                onSelect: () => {
+                  if (lightspeedDetail.storeUrl) {
+                    window.open(
+                      lightspeedDetail.storeUrl,
+                      "_blank",
+                      "noopener,noreferrer",
+                    );
+                  }
+                },
+              },
+              ...(detail.canAccessLightspeedAdminFeatures
+                ? [
+                    {
+                      label: "Disconnect Lightspeed",
+                      icon: ShieldAlert,
+                      disabled: !detail.canDisconnect,
+                      onSelect: () => setDisconnectOpen(true),
+                    },
+                  ]
+                : []),
+            ],
+          },
+        ]
+      : [];
+  const lightspeedSanitizedWebhookError = lightspeedDetail?.webhookLastError
+    ? getUserFacingIntegrationError(
+        lightspeedDetail.webhookLastError,
+        "BloomSuite needs operator attention to keep Lightspeed webhook delivery healthy.",
+      )
+    : null;
+  const lightspeedLatestSyncFailureMessage =
+    lightspeedLatestFailedLog?.last_error
+      ? getUserFacingIntegrationError(
+          lightspeedLatestFailedLog.last_error,
+          "Recent Lightspeed sync work needs attention before the next retry.",
+        )
+      : null;
+  const lightspeedLatestSuccessfulActivityAt = getLatestTimestamp([
+    lightspeedDetail?.lastWebhookReceivedAt,
+    lightspeedDetail?.lastCustomerSync,
+    lightspeedDetail?.lastSalesSync,
+    lightspeedDetail?.lastProductSync,
+    lightspeedDetail?.lastSyncedAt,
+    lightspeedDetail?.connectedAt,
+  ]);
+  const lightspeedActiveSyncJobs = detail.lightspeedSyncJobs.filter((job) =>
+    isLightspeedJobActive(job.status),
+  );
+  const hasActiveLightspeedSyncType = (
+    syncType: "customers" | "sales" | "products",
+  ) =>
+    lightspeedActiveSyncJobs.some(
+      (job) =>
+        job.normalizedSyncType === syncType ||
+        job.normalizedSyncType === "full",
+    );
+  const lightspeedSyncHealth = lightspeedNeedsReconnect
+    ? {
+        value: "Reconnect required",
+        tone: "danger" as const,
+        description:
+          "The stored authorization must be repaired before sync health can be trusted.",
+      }
+    : detail.lightspeedSyncState === "triggering" ||
+        detail.lightspeedSyncState === "syncing"
+      ? {
+          value: "Syncing",
+          tone: "neutral" as const,
+          description:
+            lightspeedActiveSyncJobs.length > 0
+              ? `${lightspeedActiveSyncJobs.length} active job${lightspeedActiveSyncJobs.length === 1 ? "" : "s"} in progress.`
+              : "Queue records are being created now.",
+        }
+      : detail.lightspeedHasStaleJobs
+        ? {
+            value: "Stalled",
+            tone: "warning" as const,
+            description:
+              "One or more Lightspeed jobs have stopped reporting progress.",
+          }
+        : lightspeedRecentFailureCount > 0
+          ? {
+              value: "Attention needed",
+              tone: "warning" as const,
+              description:
+                lightspeedLatestSyncFailureMessage ??
+                "A recent Lightspeed sync attempt needs review.",
+            }
+          : lightspeedDetail?.lastSyncedAt ||
+              lightspeedLatestSuccessfulActivityAt
+            ? {
+                value: "Healthy",
+                tone: "success" as const,
+                description: `Last successful activity ${formatRelativeTimestamp(
+                  lightspeedDetail?.lastSyncedAt ??
+                    lightspeedLatestSuccessfulActivityAt,
+                )}.`,
+              }
+            : {
+                value: null,
+                tone: "neutral" as const,
+                description: "No successful sync has been recorded yet.",
+              };
+  const lightspeedWebhookHealth = lightspeedNeedsReconnect
+    ? {
+        value: "Reconnect required",
+        tone: "danger" as const,
+        description:
+          "Webhook status cannot be trusted until the connection is repaired.",
+      }
+    : lightspeedDetail?.webhookMode === "unavailable"
+      ? {
+          value: "Unavailable",
+          tone: "neutral" as const,
+          description:
+            "This Lightspeed account does not expose the webhook APIs BloomSuite expects.",
+        }
+      : lightspeedHasWebhookIssue
+        ? {
+            value: "Attention needed",
+            tone: "warning" as const,
+            description:
+              lightspeedSanitizedWebhookError ??
+              "Webhook delivery needs operator review.",
+          }
+        : lightspeedDetail?.webhookMode === "real-time" &&
+            lightspeedDetail.webhookRegistered
+          ? {
+              value: "Healthy",
+              tone: "success" as const,
+              description: lightspeedDetail.lastWebhookReceivedAt
+                ? `Last event ${formatRelativeTimestamp(
+                    lightspeedDetail.lastWebhookReceivedAt,
+                  )}.`
+                : "Registration is in place and waiting for the next event.",
+            }
+          : {
+              value: lightspeedWebhookMode.label,
+              tone: lightspeedWebhookMode.tone,
+              description: lightspeedWebhookMode.subtitle,
+            };
+  const lightspeedHealthNote = lightspeedNeedsReconnect
+    ? (lightspeedSanitizedWebhookError ??
+      "Reconnect Lightspeed before relying on sync or webhook health signals.")
+    : detail.lightspeedHasStaleJobs
+      ? "At least one sync job has stopped reporting progress. Check Sync Logs before retrying."
+      : lightspeedHasWebhookIssue
+        ? lightspeedSanitizedWebhookError
+        : lightspeedRecentFailureCount > 0
+          ? lightspeedLatestSyncFailureMessage
+          : lightspeedDetail?.webhookMode === "sync-only"
+            ? "This account is connected in sync-only mode without verified real-time webhook delivery."
+            : null;
+  const lightspeedApiSetupUrl = lightspeedDetail?.domainPrefix
+    ? `https://${lightspeedDetail.domainPrefix}.retail.lightspeed.app/setup/api`
+    : null;
+  const metaTokenExpired = Boolean(
+    isMeta && metaDetail?.authorizationStatus === "expired",
+  );
+  const metaTokenExpiringSoon = Boolean(
+    isMeta &&
+    metaDetail?.authorizationStatus === "authorized" &&
+    isExpiringWithinDays(metaDetail.expiresAt, 7),
+  );
+  const metaHasAssets = Boolean((metaDetail?.connectedAssetCount ?? 0) > 0);
+  const metaPageStatus =
+    isMeta && metaDetail
+      ? metaTokenExpired
+        ? {
+            label: "Reconnect required",
+            tone: "danger" as const,
+            summary:
+              "Your Meta authorization has expired. Re-authorize to restore publishing and analytics access.",
+          }
+        : metaTokenExpiringSoon
+          ? {
+              label: "Token expiring",
+              tone: "warning" as const,
+              summary:
+                "Your Meta authorization is still active, but it will expire soon unless you re-authorize it.",
+            }
+          : metaDetail.authorizationStatus === "authorized" && metaHasAssets
+            ? {
+                label: "Connected",
+                tone: "success" as const,
+                summary:
+                  "Facebook Pages and Instagram accounts are authorized and available for BloomSuite publishing and analytics workflows.",
+              }
+            : {
+                label: "Not connected",
+                tone: "neutral" as const,
+                summary:
+                  "Authorize Meta and select your Facebook Pages and Instagram accounts to enable publishing and analytics.",
+              }
+      : null;
+  const metaStatusBanner =
+    isMeta && metaDetail
+      ? metaTokenExpired
+        ? {
+            tone: "danger" as const,
+            title: "Meta authorization expired",
+            description: `Your Meta access token has expired${formatDateValue(metaDetail.expiresAt, "") !== "" ? ` on ${formatDateValue(metaDetail.expiresAt)}` : ""}. Re-authorize to restore publishing and analytics.`,
+            actionLabel: "Re-authorize",
+            onAction: () => {
+              void detail.triggerMetaReauthorization();
+            },
+          }
+        : metaTokenExpiringSoon
+          ? {
+              tone: "warning" as const,
+              title: "Meta token expiring soon",
+              description: `Your access token expires on ${formatDateValue(metaDetail.expiresAt)}. Re-authorize now to avoid interruption.`,
+              actionLabel: "Re-authorize",
+              onAction: () => {
+                void detail.triggerMetaReauthorization();
+              },
+            }
+          : !metaHasAssets
+            ? {
+                tone: "warning" as const,
+                title: "No Facebook or Instagram assets connected",
+                description:
+                  "Authorize Meta and select your Pages and accounts to enable publishing.",
+                actionLabel: "Connect",
+                onAction: () => {
+                  void detail.triggerMetaReauthorization();
+                },
+              }
+            : null
+      : null;
+  const metaPrimaryAction =
+    isMeta && metaDetail
+      ? metaDetail.authorizationStatus === "not-connected"
+        ? {
+            label: "Connect",
+            variant: "default" as const,
+            className: undefined,
+            icon: PlugZap,
+            onClick: () => {
+              void detail.triggerMetaReauthorization();
+            },
+            disabled: detail.isMetaReauthorizing,
+          }
+        : {
+            label: detail.isMetaReauthorizing
+              ? "Opening authorization..."
+              : "Re-authorize",
+            variant: "outline" as const,
+            className: metaTokenExpired
+              ? "border-rose-200 text-rose-700 hover:border-rose-300 hover:bg-rose-50"
+              : metaTokenExpiringSoon
+                ? "border-amber-200 text-amber-700 hover:border-amber-300 hover:bg-amber-50"
+                : undefined,
+            icon: PlugZap,
+            onClick: () => {
+              void detail.triggerMetaReauthorization();
+            },
+            disabled: detail.isMetaReauthorizing,
+          }
+      : null;
+  const metaHeaderActions =
+    isMeta && metaDetail
+      ? [
+          {
+            id: "meta-actions",
+            items: [
+              {
+                label: detail.isMetaReauthorizing
+                  ? "Opening authorization..."
+                  : "Re-authorize Meta",
+                icon: PlugZap,
+                disabled: detail.isMetaReauthorizing,
+                onSelect: () => {
+                  void detail.triggerMetaReauthorization();
+                },
+              },
+              {
+                label: detail.isRefreshingMetaAssets
+                  ? "Refreshing asset list..."
+                  : "Refresh Asset List",
+                icon: RefreshCcw,
+                disabled: detail.isRefreshingMetaAssets,
+                onSelect: () => {
+                  void detail.refreshMetaAssets();
+                },
+              },
+              {
+                label: "View Publishing Logs",
+                icon: Activity,
+                onSelect: () => navigate(metaDetail.syncLogsPath),
+              },
+              {
+                label: "Disconnect Meta",
+                icon: ShieldAlert,
+                destructive: true,
+                disabled: !detail.canDisconnect,
+                onSelect: () => setDisconnectOpen(true),
+              },
+            ],
+          },
+        ]
+      : [];
+  const metaLatestActivityAt = getLatestTimestamp([
+    metaDetail?.lastActivityAt,
+    metaDetail?.connectedAt,
+  ]);
+  const ga4ConnectionHealthy = Boolean(
+    isGa4 && ga4Detail?.connectionStatus === "connected",
+  );
+  const ga4NeedsReconnect = Boolean(
+    isGa4 && ga4Detail?.connectionStatus === "error",
+  );
+  const ga4PageStatus =
+    isGa4 && ga4Detail
+      ? ga4NeedsReconnect
+        ? {
+            label: "Reconnect required",
+            tone: "danger" as const,
+            summary:
+              "The stored Google Analytics authorization needs attention before BloomSuite can trust reporting access.",
+          }
+        : ga4ConnectionHealthy
+          ? {
+              label: "Connected",
+              tone: "success" as const,
+              summary:
+                "The GA4 property is connected and available for BloomSuite reporting on a daily pull cadence.",
+            }
+          : {
+              label: "Not connected",
+              tone: "neutral" as const,
+              summary:
+                "Connect a Google Analytics property to enable BloomSuite reporting and attribution views.",
+            }
+      : null;
+  const ga4PrimaryAction =
+    isGa4 && ga4Detail
+      ? ga4NeedsReconnect
+        ? {
+            label: detail.isGa4Reauthorizing
+              ? "Opening Google authorization..."
+              : "Re-authorize",
+            variant: "outline" as const,
+            className:
+              "border-rose-200 text-rose-700 hover:border-rose-300 hover:bg-rose-50",
+            icon: PlugZap,
+            onClick: () => {
+              void detail.triggerGa4Reauthorization();
+            },
+            disabled: !ga4Detail.propertyId || detail.isGa4Reauthorizing,
+          }
+        : ga4ConnectionHealthy
+          ? {
+              label: detail.isGa4ConnectionTesting
+                ? "Testing connection..."
+                : "Test Connection",
+              variant: "outline" as const,
+              className: undefined,
+              icon: FlaskConical,
+              onClick: () => {
+                void detail.triggerGa4ConnectionTest();
+              },
+              disabled: !ga4Detail.propertyId || detail.isGa4ConnectionTesting,
+            }
+          : {
+              label: "Connect",
+              variant: "default" as const,
+              className: undefined,
+              icon: PlugZap,
+              onClick: () => {
+                void detail.triggerGa4Reauthorization();
+              },
+              disabled: detail.isGa4Reauthorizing,
+            }
+      : null;
+  const ga4HeaderActions =
+    isGa4 && ga4Detail
+      ? [
+          {
+            id: "ga4-actions",
+            items: [
+              {
+                label: detail.isGa4ConnectionTesting
+                  ? "Testing connection..."
+                  : "Test Connection",
+                icon: FlaskConical,
+                disabled:
+                  !ga4Detail.propertyId ||
+                  !ga4ConnectionHealthy ||
+                  detail.isGa4ConnectionTesting,
+                onSelect: () => {
+                  void detail.triggerGa4ConnectionTest();
+                },
+              },
+              {
+                label: detail.isGa4Reauthorizing
+                  ? "Opening Google authorization..."
+                  : "Re-authorize",
+                icon: PlugZap,
+                disabled: detail.isGa4Reauthorizing || !ga4Detail.propertyId,
+                onSelect: () => {
+                  void detail.triggerGa4Reauthorization();
+                },
+              },
+              {
+                label: "View Reporting Dashboard",
+                icon: Activity,
+                onSelect: () => navigate(ga4Detail.reportingPath),
+              },
+              {
+                label: "Disconnect Google Analytics",
+                icon: ShieldAlert,
+                destructive: true,
+                disabled: !detail.canDisconnect,
+                onSelect: () => setDisconnectOpen(true),
+              },
+            ],
+          },
+        ]
+      : [];
+  const ga4LatestActivityAt = getLatestTimestamp([
+    ga4Detail?.lastPullAt,
+    ga4Detail?.lastTestAt,
+    ga4Detail?.connectedAt,
+  ]);
 
   const metadataEntries =
     isComingSoonPage && comingSoonDetail
@@ -1553,20 +1860,21 @@ export default function IntegrationDetailPage() {
               : isMeta && metaDetail
                 ? [
                     `Category: ${item.categoryLabel}`,
-                    `Provider: ${metaDetail.providerLabel}`,
-                    `Authorization: ${metaDetail.authorizationLabel}`,
-                    `Connected since: ${formatTimestampOrFallback(metaDetail.connectedAt, "Not connected")}`,
+                    `Assets: ${formatCount(metaDetail.totalAssetCount)}`,
+                    `Authorization: ${metaPageStatus?.label ?? metaDetail.authorizationLabel}`,
+                    `Last activity: ${formatTimestampOrFallback(metaLatestActivityAt, "—")}`,
                   ]
                 : isGa4 && ga4Detail
                   ? [
                       `Category: ${item.categoryLabel}`,
-                      `Property: ${ga4Detail.propertyId ?? "Not configured"}`,
-                      `Status: ${ga4Detail.connectionLabel}`,
-                      `Last tested: ${formatTimestampOrFallback(ga4Detail.lastTestAt, "Not tested yet")}`,
+                      `Property: ${ga4Detail.propertyName ?? ga4Detail.propertyId ?? "—"}`,
+                      `Status: ${ga4PageStatus?.label ?? ga4Detail.connectionLabel}`,
+                      `Last pull: ${formatTimestampOrFallback(ga4Detail.lastPullAt, "—")}`,
                     ]
                   : isMarketingImport && marketingImportDetail
                     ? [
                         `Category: ${item.categoryLabel}`,
+                        `Mode: ${marketingImportDetail.importOnlyLabel}`,
                         `Provider: ${marketingImportDetail.providerLabel}`,
                         `Account: ${marketingImportDetail.accountName ?? "Connection pending"}`,
                       ]
@@ -1679,7 +1987,7 @@ export default function IntegrationDetailPage() {
             value: formatCount(lightspeedDetail.customersSynced),
             subtitle: lightspeedDetail.lastCustomerSync
               ? `Last synced ${formatRelativeTimestamp(lightspeedDetail.lastCustomerSync)}`
-              : "Last synced Not available",
+              : "Last synced —",
             icon: Users,
             tone: lightspeedDetail.lastCustomerSync ? "success" : "neutral",
           },
@@ -1689,7 +1997,7 @@ export default function IntegrationDetailPage() {
             value: formatCount(lightspeedDetail.salesSynced),
             subtitle: lightspeedDetail.lastSalesSync
               ? `Last sync: ${formatRelativeTimestamp(lightspeedDetail.lastSalesSync)}`
-              : "Last sync: Not available",
+              : "Last sync: —",
             icon: Receipt,
             tone: lightspeedDetail.lastSalesSync ? "success" : "neutral",
           },
@@ -1699,7 +2007,7 @@ export default function IntegrationDetailPage() {
             value: formatCount(lightspeedDetail.productsSynced),
             subtitle: lightspeedDetail.lastProductSync
               ? `Last sync: ${formatRelativeTimestamp(lightspeedDetail.lastProductSync)}`
-              : "Last sync: Not available",
+              : "Last sync: —",
             icon: Store,
             tone: lightspeedDetail.lastProductSync ? "success" : "neutral",
           },
@@ -1719,25 +2027,14 @@ export default function IntegrationDetailPage() {
     isMeta && metaDetail
       ? [
           {
-            key: "meta-authorization",
-            label: "Authorization",
-            value: metaAuthorizationState.label,
-            subtitle: metaDetail.expiresAt
-              ? `Expires ${formatRelativeTimestamp(metaDetail.expiresAt)}`
-              : metaAuthorizationState.subtitle,
-            icon: CheckCircle2,
-            tone: metaAuthorizationState.tone,
-            valueClassName: metaAuthorizationState.valueClassName,
-          },
-          {
             key: "meta-facebook-pages",
             label: "Facebook Pages",
             value: formatCount(metaDetail.facebookPageCount),
             subtitle:
               metaDetail.facebookPageCount > 0
-                ? `${metaDetail.facebookPageCount} stored page${metaDetail.facebookPageCount === 1 ? "" : "s"}`
-                : "No Facebook Pages connected",
-            icon: Store,
+                ? `${metaDetail.facebookPageCount} page${metaDetail.facebookPageCount === 1 ? "" : "s"} connected`
+                : "—",
+            icon: Facebook,
             tone: metaDetail.facebookPageCount > 0 ? "success" : "neutral",
           },
           {
@@ -1746,22 +2043,37 @@ export default function IntegrationDetailPage() {
             value: formatCount(metaDetail.instagramAccountCount),
             subtitle:
               metaDetail.instagramAccountCount > 0
-                ? `${metaDetail.instagramAccountCount} stored account${metaDetail.instagramAccountCount === 1 ? "" : "s"}`
-                : "No Instagram accounts connected",
-            icon: Users,
+                ? `${metaDetail.instagramAccountCount} account${metaDetail.instagramAccountCount === 1 ? "" : "s"} connected`
+                : "—",
+            icon: Instagram,
             tone: metaDetail.instagramAccountCount > 0 ? "success" : "neutral",
           },
           {
-            key: "meta-last-refresh",
-            label: "Last Asset Refresh",
-            value: metaDetail.lastActivityAt
-              ? formatRelativeTimestamp(metaDetail.lastActivityAt)
-              : "Not available",
+            key: "meta-total-assets",
+            label: "Total Assets",
+            value: formatCount(metaDetail.totalAssetCount),
             subtitle:
-              formatExactTimestamp(metaDetail.lastActivityAt) ??
-              "Asset refresh history will appear after Meta activity is recorded",
-            icon: Activity,
-            tone: metaDetail.lastActivityAt ? "neutral" : "warning",
+              metaDetail.totalAssetCount > 0 ? metaDetail.platformSummary : "—",
+            icon: Share2,
+            tone: metaDetail.totalAssetCount > 0 ? "success" : "neutral",
+          },
+          {
+            key: "meta-authorization",
+            label: "Authorization",
+            value: metaPageStatus?.label ?? metaAuthorizationState.label,
+            subtitle: metaDetail.expiresAt
+              ? `Expires ${formatRelativeTimestamp(metaDetail.expiresAt)}`
+              : "—",
+            icon: Key,
+            tone: metaPageStatus?.tone ?? metaAuthorizationState.tone,
+            valueClassName:
+              metaPageStatus?.tone === "danger"
+                ? "text-rose-600"
+                : metaPageStatus?.tone === "warning"
+                  ? "text-amber-600"
+                  : metaPageStatus?.tone === "success"
+                    ? "text-emerald-600"
+                    : metaAuthorizationState.valueClassName,
           },
         ]
       : [];
@@ -1770,37 +2082,39 @@ export default function IntegrationDetailPage() {
     isGa4 && ga4Detail
       ? [
           {
+            key: "ga4-property-name",
+            label: "Property",
+            value: ga4Detail.propertyName ?? "—",
+            subtitle: ga4Detail.propertyId ?? "—",
+            icon: BarChart2,
+            tone: ga4Detail.propertyName ? "success" : "neutral",
+          },
+          {
             key: "ga4-connection-status",
             label: "Connection Status",
-            value: ga4ConnectionState.label,
-            subtitle: ga4ConnectionState.subtitle,
-            icon: PlugZap,
-            tone: ga4ConnectionState.tone,
+            value: ga4PageStatus?.label ?? ga4ConnectionState.label,
+            subtitle: ga4PageStatus?.summary ?? ga4ConnectionState.subtitle,
+            icon: CheckCircle2,
+            tone: ga4PageStatus?.tone ?? ga4ConnectionState.tone,
             valueClassName: ga4ConnectionState.valueClassName,
           },
           {
-            key: "ga4-property-id",
-            label: "Property ID",
-            value: ga4Detail.propertyId ?? "Not configured",
-            subtitle: ga4Detail.propertyId
-              ? ga4Detail.propertyLabel
-              : "Configure a numeric GA4 property ID on the Website integrations page",
-            icon: Globe,
-            tone: ga4Detail.propertyId ? "success" : "neutral",
+            key: "ga4-reporting-status",
+            label: "Reporting",
+            value: ga4Detail.reportingStatus,
+            subtitle: ga4Detail.reportingSummary,
+            icon: TrendingUp,
+            tone: ga4ConnectionHealthy ? "success" : "neutral",
           },
           {
-            key: "ga4-last-test",
-            label: "Last Connection Test",
-            value: ga4Detail.lastTestAt
-              ? formatRelativeTimestamp(ga4Detail.lastTestAt)
-              : "Not tested",
-            subtitle:
-              formatExactTimestamp(ga4Detail.lastTestAt) ??
-              (ga4Detail.serviceAccountConfigured
-                ? "Service account is configured"
-                : "Service account configuration is still required"),
-            icon: FlaskConical,
-            tone: ga4Detail.lastTestAt ? "neutral" : "warning",
+            key: "ga4-last-pull",
+            label: "Last Data Pull",
+            value: ga4Detail.lastPullAt
+              ? formatRelativeTimestamp(ga4Detail.lastPullAt)
+              : "—",
+            subtitle: formatExactTimestamp(ga4Detail.lastPullAt) ?? "—",
+            icon: Clock3,
+            tone: ga4Detail.lastPullAt ? "neutral" : "warning",
           },
         ]
       : [];
@@ -1808,15 +2122,6 @@ export default function IntegrationDetailPage() {
   const marketingImportMetricCards =
     isMarketingImport && marketingImportDetail
       ? [
-          {
-            key: "marketing-import-status",
-            label: "Connection Status",
-            value: marketingImportState.label,
-            subtitle: marketingImportState.subtitle,
-            icon: PlugZap,
-            tone: marketingImportState.tone,
-            valueClassName: marketingImportState.valueClassName,
-          },
           {
             key: "marketing-import-lists",
             label: "Lists Available",
@@ -1827,6 +2132,17 @@ export default function IntegrationDetailPage() {
                 : "Preview lists to cache provider artifacts",
             icon: Store,
             tone: marketingImportDetail.listCount > 0 ? "success" : "neutral",
+          },
+          {
+            key: "marketing-import-contacts",
+            label: "Contacts Imported",
+            value: formatCount(marketingImportDetail.contactsImportedAllTime),
+            subtitle: `All-time across ${formatCount(marketingImportDetail.importJobCount)} import job${marketingImportDetail.importJobCount === 1 ? "" : "s"}`,
+            icon: Users,
+            tone:
+              marketingImportDetail.contactsImportedAllTime > 0
+                ? "success"
+                : "neutral",
           },
           {
             key: "marketing-import-latest",
@@ -1840,9 +2156,23 @@ export default function IntegrationDetailPage() {
                     marketingImportDetail.latestImportStartedAt,
                   )
                 : "Not started",
-            subtitle: marketingImportDetail.latestImportSummary,
+            subtitle: marketingImportDetail.latestImportId
+              ? marketingImportDetail.latestImportSummary
+              : marketingImportDetail.latestImportLabel,
             icon: Activity,
-            tone: marketingImportDetail.latestImportId ? "neutral" : "warning",
+            tone: marketingImportDetail.latestImportId
+              ? marketingImportDetail.latestImportTone
+              : "warning",
+          },
+          {
+            key: "marketing-import-status",
+            label: "Authorization",
+            value: marketingImportDetail.connectionState.label,
+            subtitle: marketingImportDetail.connectionState.subtitle,
+            icon: PlugZap,
+            tone: marketingImportDetail.connectionState.tone,
+            valueClassName:
+              marketingImportDetail.connectionState.valueClassName,
           },
         ]
       : [];
@@ -1907,6 +2237,17 @@ export default function IntegrationDetailPage() {
           },
         ]
       : [];
+  const emailInfrastructureTabItems =
+    isEmailInfrastructure && emailInfrastructureDetail
+      ? [
+          { value: "overview" as const, label: "Overview" },
+          {
+            value: "dns-records" as const,
+            label: "DNS Records",
+            count: emailInfrastructureDetail.dnsRecords.length,
+          },
+        ]
+      : [];
 
   const copyToClipboard = async (
     value: string | null | undefined,
@@ -1919,6 +2260,12 @@ export default function IntegrationDetailPage() {
 
     try {
       await navigator.clipboard.writeText(value);
+      setCopiedLabel(label);
+      window.setTimeout(() => {
+        setCopiedLabel((currentLabel) =>
+          currentLabel === label ? null : currentLabel,
+        );
+      }, 1200);
       toast.success(`${label} copied.`);
     } catch {
       toast.error(`Unable to copy ${label.toLowerCase()}.`);
@@ -2000,7 +2347,6 @@ export default function IntegrationDetailPage() {
                   ],
                 },
                 {
-                  id: "square-identifiers",
                   label: "Square IDs",
                   items: [
                     {
@@ -2224,7 +2570,7 @@ export default function IntegrationDetailPage() {
                   label: `${marketingImportDetail.providerLabel} Import Actions`,
                   items: [
                     {
-                      label: "Open Import Flow",
+                      label: "Start Import",
                       icon: ArrowRight,
                       onSelect: () =>
                         navigate(marketingImportDetail.importFlowPath),
@@ -2235,6 +2581,22 @@ export default function IntegrationDetailPage() {
                       onSelect: () =>
                         navigate(marketingImportDetail.previewListsPath),
                     },
+                    ...(marketingImportDetail.supportsValidateConnection
+                      ? [
+                          {
+                            label: detail.isValidatingMarketingImportConnection
+                              ? "Validating connection..."
+                              : "Validate Connection",
+                            icon: FlaskConical,
+                            disabled:
+                              !marketingImportDetail.connectionId ||
+                              detail.isValidatingMarketingImportConnection,
+                            onSelect: () => {
+                              void detail.validateMarketingImportConnection();
+                            },
+                          },
+                        ]
+                      : []),
                   ],
                 },
               ]
@@ -2247,15 +2609,17 @@ export default function IntegrationDetailPage() {
                     {
                       label: isMeta
                         ? "Disconnect Meta"
-                        : isClover
-                          ? "Disconnect Clover"
-                          : isLightspeed
-                            ? "Disconnect Lightspeed"
-                            : isGa4
-                              ? "Disconnect Google Analytics"
-                              : isMarketingImport && marketingImportDetail
-                                ? `Disconnect ${marketingImportDetail.providerLabel}`
-                                : "Disconnect integration",
+                        : isSquare
+                          ? "Disconnect Square"
+                          : isClover
+                            ? "Disconnect Clover"
+                            : isLightspeed
+                              ? "Disconnect Lightspeed"
+                              : isGa4
+                                ? "Disconnect Google Analytics"
+                                : isMarketingImport && marketingImportDetail
+                                  ? `Disconnect ${marketingImportDetail.providerLabel}`
+                                  : "Disconnect integration",
                       icon: ShieldAlert,
                       destructive: true,
                       onSelect: () => setDisconnectOpen(true),
@@ -2268,47 +2632,97 @@ export default function IntegrationDetailPage() {
       : [];
 
   const displayedActionSections =
-    isEmailInfrastructure && emailInfrastructureDetail
+    isComingSoonPage && comingSoonDetail
       ? [
           {
-            id: "email-infrastructure-actions",
-            label: "Infrastructure Actions",
+            id: "coming-soon-actions",
+            label: "Coming Soon Actions",
             items: [
               {
-                label: detail.isRunningEmailInfrastructureHealthCheck
-                  ? "Running health check..."
-                  : "Run Health Check",
-                icon: FlaskConical,
-                disabled:
-                  !emailInfrastructureDetail.canRunHealthCheck ||
-                  detail.isRunningEmailInfrastructureHealthCheck,
-                onSelect: () => {
-                  void detail.runEmailInfrastructureHealthCheck();
-                },
-              },
-              {
-                label: "View DNS Records",
-                icon: Webhook,
+                label: "View Documentation",
+                icon: BookOpen,
                 onSelect: () =>
-                  navigate(emailInfrastructureDetail.dnsRecordsPath),
-              },
-              {
-                label: "View Sending Logs",
-                icon: Activity,
-                onSelect: () =>
-                  navigate(emailInfrastructureDetail.sendingLogsPath),
-              },
-              {
-                label: "Contact Support",
-                icon: MailPlus,
-                onSelect: () => {
-                  window.location.href = emailInfrastructureDetail.supportPath;
-                },
+                  navigate(`/integrations/${seed.slug}/documentation`),
               },
             ],
           },
         ]
-      : headerActionSections;
+      : isEmailInfrastructure && emailInfrastructureDetail
+        ? [
+            {
+              id: "email-infrastructure-actions",
+              label: "Infrastructure Actions",
+              items: [
+                {
+                  label: detail.isRunningEmailInfrastructureHealthCheck
+                    ? "Running DNS Check..."
+                    : "Run DNS Check",
+                  icon: FlaskConical,
+                  disabled:
+                    !emailInfrastructureDetail.canRunHealthCheck ||
+                    detail.isRunningEmailInfrastructureHealthCheck,
+                  onSelect: () => {
+                    void detail.runEmailInfrastructureHealthCheck();
+                  },
+                },
+                {
+                  label: "View DNS Records",
+                  icon: Webhook,
+                  onSelect: () => setEmailInfrastructureTab("dns-records"),
+                },
+                {
+                  label: "View Sending Logs",
+                  icon: Activity,
+                  onSelect: () =>
+                    navigate(emailInfrastructureDetail.sendingLogsPath),
+                },
+                {
+                  label: "Contact Support",
+                  icon: MailPlus,
+                  onSelect: () => {
+                    window.location.href =
+                      emailInfrastructureDetail.supportPath;
+                  },
+                },
+              ],
+            },
+          ]
+        : isMeta && metaDetail
+          ? metaHeaderActions
+          : isGa4 && ga4Detail
+            ? ga4HeaderActions
+            : headerActionSections;
+  const emailInfrastructurePrimaryAction =
+    isEmailInfrastructure && emailInfrastructureDetail
+      ? {
+          label: detail.isRunningEmailInfrastructureHealthCheck
+            ? "Running DNS Check..."
+            : "Run DNS Check",
+          disabled:
+            !emailInfrastructureDetail.canRunHealthCheck ||
+            detail.isRunningEmailInfrastructureHealthCheck,
+          onClick: () => {
+            void detail.runEmailInfrastructureHealthCheck();
+          },
+        }
+      : null;
+  const comingSoonPrimaryAction =
+    isComingSoonPage && comingSoonDetail
+      ? {
+          label: comingSoonDetail.isSubmitted
+            ? "You're on the list"
+            : "Notify me",
+          variant: "outline" as const,
+          disabled:
+            comingSoonDetail.isSubmitted ||
+            !comingSoonDetail.notifyEmail ||
+            detail.isSubmittingComingSoonInterest,
+          icon: Bell,
+          onClick: () => {
+            void detail.submitComingSoonInterest();
+          },
+        }
+      : null;
 
   return (
     <TooltipProvider>
@@ -2341,199 +2755,1002 @@ export default function IntegrationDetailPage() {
           </BreadcrumbList>
         </Breadcrumb>
 
-        <section className="rounded-[1.75rem] border border-border/70 bg-gradient-to-br from-white via-white to-brand-teal/5 p-6 shadow-sm shadow-brand-navy/5">
-          <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
-            <div className="space-y-4">
-              <div className="flex flex-wrap items-start gap-4">
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-border/70 bg-white shadow-sm">
-                  <Icon className="h-6 w-6 text-slate-700" />
-                </div>
-                <div className="space-y-3">
-                  <div className="flex flex-wrap items-center gap-3">
-                    <h1 className="text-3xl font-semibold tracking-tight text-slate-950">
-                      {item.name}
-                    </h1>
-                    <DetailStatusBadge
-                      label={
-                        comingSoonDetail?.statusLabel ??
-                        emailInfrastructureDetail?.badgeLabel ??
-                        model.statusLabel
-                      }
-                      tone={
-                        comingSoonDetail?.statusTone ??
-                        emailInfrastructureDetail?.badgeTone ??
-                        model.statusTone
-                      }
-                    />
-                    {detail.isFetching ? (
-                      <span className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-white px-3 py-1 text-xs font-medium text-muted-foreground">
-                        <RefreshCcw className="h-3.5 w-3.5" />
-                        Refreshing
+        {isSquare && squareDetail && squarePageStatus ? (
+          <section className="space-y-5 rounded-[1.75rem] border border-border/70 bg-white/95 p-6 shadow-sm shadow-brand-navy/5">
+            <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
+              <div className="space-y-4">
+                <div className="flex flex-wrap items-start gap-4">
+                  <div className="flex h-16 w-16 items-center justify-center rounded-[1.35rem] border border-border/70 bg-slate-50 shadow-sm">
+                    <Icon className="h-7 w-7 text-slate-700" />
+                  </div>
+                  <div className="space-y-3">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <h1 className="text-xl font-semibold text-foreground sm:text-2xl">
+                        {item.name}
+                      </h1>
+                      <DetailStatusBadge
+                        label={squarePageStatus.label}
+                        tone={squarePageStatus.tone}
+                      />
+                      {detail.isFetching ? (
+                        <span className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-slate-50 px-3 py-1 text-xs font-medium text-muted-foreground">
+                          <RefreshCcw className="h-3.5 w-3.5" />
+                          Refreshing
+                        </span>
+                      ) : null}
+                    </div>
+
+                    <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
+                      {squarePageStatus.summary}
+                    </p>
+
+                    <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted-foreground">
+                      <span>
+                        Merchant {squareDetail.merchantName?.trim() || "—"}
                       </span>
+                      <span>
+                        Location {squareDetail.locationId?.trim() || "—"}
+                      </span>
+                      <span>
+                        Connected{" "}
+                        {squareDetail.connectedAt
+                          ? formatRelativeTimestamp(squareDetail.connectedAt)
+                          : "—"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 self-start">
+                {squarePrimaryAction ? (
+                  <Button
+                    type="button"
+                    onClick={squarePrimaryAction.onClick}
+                    disabled={squarePrimaryAction.disabled}
+                  >
+                    {detail.isSquareSyncing ? (
+                      <RefreshCcw className="mr-2 h-4 w-4" />
+                    ) : null}
+                    {squarePrimaryAction.label}
+                  </Button>
+                ) : null}
+                <Button variant="outline" size="sm" asChild>
+                  <Link to={`/integrations/${seed.slug}/documentation`}>
+                    <BookOpen className="mr-1.5 h-3.5 w-3.5" />
+                    Documentation
+                  </Link>
+                </Button>
+                {squareHeaderActions.length > 0 ? (
+                  <ActionDropdown
+                    label="Actions"
+                    align="end"
+                    sections={squareHeaderActions}
+                    triggerClassName="min-w-[10rem] justify-between"
+                  />
+                ) : null}
+              </div>
+            </div>
+
+            {detail.isError ? (
+              <div className="flex flex-col gap-3 rounded-2xl border border-rose-200 bg-rose-50/80 px-4 py-4 text-sm text-rose-800 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                  <div>
+                    <div className="font-semibold">
+                      Unable to refresh integration details
+                    </div>
+                    <div className="mt-1 text-rose-700/90">
+                      {getUserFacingIntegrationError(
+                        detail.error,
+                        "An unexpected error occurred while loading this integration.",
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => void detail.refetch()}
+                >
+                  Retry
+                </Button>
+              </div>
+            ) : null}
+
+            {squareStatusBanner ? (
+              <div className="flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50/90 px-4 py-4 text-sm text-amber-900 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                  <div>
+                    <div className="font-semibold">
+                      {squareStatusBanner.title}
+                    </div>
+                    <div className="mt-1 leading-6">
+                      {squareStatusBanner.description}
+                    </div>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={squareStatusBanner.onAction}
+                >
+                  {squareStatusBanner.actionLabel}
+                </Button>
+              </div>
+            ) : null}
+
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              {squareMetricCards.map((card) => (
+                <div
+                  key={card.key}
+                  className="rounded-[1.35rem] border border-border/70 bg-slate-50/60 p-5"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <div className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                        {card.label}
+                      </div>
+                      <div
+                        className={cn(
+                          "mt-3 text-3xl font-semibold tracking-tight text-slate-950",
+                          card.valueClassName,
+                        )}
+                      >
+                        {card.value}
+                      </div>
+                    </div>
+                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-border/70 bg-white">
+                      <card.icon className="h-5 w-5 text-slate-700" />
+                    </div>
+                  </div>
+                  <p className="mt-3 text-sm leading-6 text-muted-foreground">
+                    {card.subtitle}
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            <div className="overflow-x-auto rounded-[1.35rem] border border-border/70 bg-slate-50/60 p-2">
+              <div className="flex min-w-max items-center gap-2">
+                {squareTabItems.map((tab) => {
+                  const isActive = lightspeedTab === tab.value;
+
+                  return (
+                    <button
+                      key={tab.value}
+                      type="button"
+                      onClick={() => setLightspeedTab(tab.value)}
+                      className={cn(
+                        "inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-colors",
+                        isActive
+                          ? "bg-white text-slate-950 shadow-sm"
+                          : "text-muted-foreground hover:bg-white/70 hover:text-slate-900",
+                      )}
+                    >
+                      <span>{tab.label}</span>
+                      {"count" in tab &&
+                      typeof tab.count === "number" &&
+                      tab.count > 0 ? (
+                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700">
+                          {formatCount(tab.count)}
+                        </span>
+                      ) : null}
+                      {"isActive" in tab && tab.isActive ? (
+                        <span className="relative flex h-2.5 w-2.5">
+                          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-brand-teal/50" />
+                          <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-brand-teal" />
+                        </span>
+                      ) : null}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </section>
+        ) : null}
+
+        {isClover && cloverDetail && cloverPageStatus ? (
+          <section className="space-y-5 rounded-[1.75rem] border border-border/70 bg-white/95 p-6 shadow-sm shadow-brand-navy/5">
+            <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
+              <div className="space-y-4">
+                <div className="flex flex-wrap items-start gap-4">
+                  <div className="flex h-16 w-16 items-center justify-center rounded-[1.35rem] border border-border/70 bg-slate-50 shadow-sm">
+                    <Icon className="h-7 w-7 text-slate-700" />
+                  </div>
+                  <div className="space-y-3">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <h1 className="text-xl font-semibold text-foreground sm:text-2xl">
+                        {item.name}
+                      </h1>
+                      <DetailStatusBadge
+                        label={cloverPageStatus.label}
+                        tone={cloverPageStatus.tone}
+                      />
+                      {detail.isFetching ? (
+                        <span className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-slate-50 px-3 py-1 text-xs font-medium text-muted-foreground">
+                          <RefreshCcw className="h-3.5 w-3.5" />
+                          Refreshing
+                        </span>
+                      ) : null}
+                    </div>
+
+                    <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
+                      {cloverPageStatus.summary}
+                    </p>
+
+                    <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted-foreground">
+                      <span>
+                        Merchant {cloverDetail.merchantName?.trim() || "—"}
+                      </span>
+                      <span>
+                        Region {formatRegionLabel(cloverDetail.region)}
+                      </span>
+                      <span>
+                        Connected{" "}
+                        {cloverDetail.connectedAt
+                          ? formatRelativeTimestamp(cloverDetail.connectedAt)
+                          : "—"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 self-start">
+                {cloverPrimaryAction ? (
+                  <Button
+                    type="button"
+                    onClick={cloverPrimaryAction.onClick}
+                    disabled={cloverPrimaryAction.disabled}
+                  >
+                    {detail.isCloverSyncing && !cloverNeedsWebhookSetup ? (
+                      <RefreshCcw className="mr-2 h-4 w-4" />
+                    ) : null}
+                    {cloverPrimaryAction.label}
+                  </Button>
+                ) : null}
+                <Button variant="outline" size="sm" asChild>
+                  <Link to={`/integrations/${seed.slug}/documentation`}>
+                    <BookOpen className="mr-1.5 h-3.5 w-3.5" />
+                    Documentation
+                  </Link>
+                </Button>
+                {cloverHeaderActions.length > 0 ? (
+                  <ActionDropdown
+                    label="Actions"
+                    align="end"
+                    sections={cloverHeaderActions}
+                    triggerClassName="min-w-[10rem] justify-between"
+                  />
+                ) : null}
+              </div>
+            </div>
+
+            {detail.isError ? (
+              <div className="flex flex-col gap-3 rounded-2xl border border-rose-200 bg-rose-50/80 px-4 py-4 text-sm text-rose-800 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                  <div>
+                    <div className="font-semibold">
+                      Unable to refresh integration details
+                    </div>
+                    <div className="mt-1 text-rose-700/90">
+                      {getUserFacingIntegrationError(
+                        detail.error,
+                        "An unexpected error occurred while loading this integration.",
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => void detail.refetch()}
+                >
+                  Retry
+                </Button>
+              </div>
+            ) : null}
+
+            {cloverStatusBanner ? (
+              <div
+                className={cn(
+                  "flex flex-col gap-3 rounded-2xl px-4 py-4 text-sm sm:flex-row sm:items-center sm:justify-between",
+                  cloverStatusBanner.tone === "danger"
+                    ? "border border-rose-200 bg-rose-50/90 text-rose-900"
+                    : "border border-amber-200 bg-amber-50/90 text-amber-900",
+                )}
+              >
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                  <div>
+                    <div className="font-semibold">
+                      {cloverStatusBanner.title}
+                    </div>
+                    <div className="mt-1 leading-6">
+                      {cloverStatusBanner.description}
+                    </div>
+                  </div>
+                </div>
+                {cloverStatusBanner.actionLabel ? (
+                  <Button
+                    type="button"
+                    variant={
+                      cloverStatusBanner.tone === "danger"
+                        ? "destructive"
+                        : "outline"
+                    }
+                    onClick={cloverStatusBanner.onAction}
+                  >
+                    {cloverStatusBanner.actionLabel}
+                  </Button>
+                ) : null}
+              </div>
+            ) : null}
+
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              {cloverMetricCards.map((card) => (
+                <div
+                  key={card.key}
+                  className="rounded-[1.35rem] border border-border/70 bg-slate-50/60 p-5"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <div className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                        {card.label}
+                      </div>
+                      <div
+                        className={cn(
+                          "mt-3 text-3xl font-semibold tracking-tight text-slate-950",
+                          card.valueClassName,
+                        )}
+                      >
+                        {card.value}
+                      </div>
+                    </div>
+                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-border/70 bg-white">
+                      <card.icon className="h-5 w-5 text-slate-700" />
+                    </div>
+                  </div>
+                  <p className="mt-3 text-sm leading-6 text-muted-foreground">
+                    {card.subtitle}
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            <div className="overflow-x-auto rounded-[1.35rem] border border-border/70 bg-slate-50/60 p-2">
+              <div className="flex min-w-max items-center gap-2">
+                {cloverTabItems.map((tab) => {
+                  const isActive = lightspeedTab === tab.value;
+
+                  return (
+                    <button
+                      key={tab.value}
+                      type="button"
+                      onClick={() => setLightspeedTab(tab.value)}
+                      className={cn(
+                        "inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-colors",
+                        isActive
+                          ? "bg-white text-slate-950 shadow-sm"
+                          : "text-muted-foreground hover:bg-white/70 hover:text-slate-900",
+                      )}
+                    >
+                      <span>{tab.label}</span>
+                      {"count" in tab &&
+                      typeof tab.count === "number" &&
+                      tab.count > 0 ? (
+                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700">
+                          {formatCount(tab.count)}
+                        </span>
+                      ) : null}
+                      {"isActive" in tab && tab.isActive ? (
+                        <span className="relative flex h-2.5 w-2.5">
+                          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-brand-teal/50" />
+                          <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-brand-teal" />
+                        </span>
+                      ) : null}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </section>
+        ) : null}
+
+        {isLightspeed && lightspeedDetail ? (
+          <section className="space-y-5 rounded-[1.75rem] border border-border/70 bg-white/95 p-6 shadow-sm shadow-brand-navy/5">
+            <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
+              <div className="space-y-4">
+                <div className="flex flex-wrap items-start gap-4">
+                  <div className="flex h-16 w-16 items-center justify-center rounded-[1.35rem] border border-border/70 bg-slate-50 shadow-sm">
+                    <Icon className="h-7 w-7 text-slate-700" />
+                  </div>
+                  <div className="space-y-3">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <h1 className="text-xl font-semibold text-foreground sm:text-2xl">
+                        {item.name}
+                      </h1>
+                      <DetailStatusBadge
+                        label={lightspeedPageStatus.label}
+                        tone={lightspeedPageStatus.tone}
+                      />
+                      {detail.isFetching ? (
+                        <span className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-slate-50 px-3 py-1 text-xs font-medium text-muted-foreground">
+                          <RefreshCcw className="h-3.5 w-3.5" />
+                          Refreshing
+                        </span>
+                      ) : null}
+                    </div>
+
+                    <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
+                      {lightspeedPageStatus.summary}
+                    </p>
+
+                    <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted-foreground">
+                      <span>
+                        Retailer {lightspeedDetail.retailerName?.trim() || "—"}
+                      </span>
+                      <span>
+                        Domain {lightspeedDetail.domainPrefix?.trim() || "—"}
+                      </span>
+                      <span>
+                        Connected{" "}
+                        {lightspeedDetail.connectedAt
+                          ? formatRelativeTimestamp(
+                              lightspeedDetail.connectedAt,
+                            )
+                          : "—"}
+                      </span>
+                    </div>
+
+                    {lightspeedDetail.storeUrl ? (
+                      <div className="flex flex-wrap items-center gap-2 text-sm">
+                        <a
+                          href={lightspeedDetail.storeUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-brand-navy underline-offset-4 hover:underline"
+                        >
+                          {lightspeedDetail.storeUrl.replace("https://", "")}
+                          <ExternalLink className="h-3.5 w-3.5" />
+                        </a>
+                      </div>
                     ) : null}
                   </div>
-                  <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
-                    {item.detailSummary ?? item.description}
-                  </p>
-                  <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                    {metadataEntries.map((entry, index) => (
-                      <div
-                        key={`${entry}-${index}`}
-                        className="inline-flex items-center gap-2"
-                      >
-                        {index > 0 ? (
-                          <span className="text-border">&middot;</span>
-                        ) : null}
-                        <span>{entry}</span>
-                      </div>
-                    ))}
-                  </div>
-                  {isMarketingImport && marketingImportDetail ? (
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Badge className="border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-50">
-                        Purpose: {marketingImportDetail.purposeLabel}
-                      </Badge>
-                      <Badge
-                        variant="outline"
-                        className="border-slate-200 text-slate-600"
-                      >
-                        Live Sync: {marketingImportDetail.liveSyncLabel}
-                      </Badge>
-                    </div>
-                  ) : null}
                 </div>
               </div>
-            </div>
 
-            <div className="flex items-center gap-2 self-start">
-              <Button variant="outline" size="sm" asChild>
-                <Link to={`/integrations/${seed.slug}/documentation`}>
-                  <BookOpen className="mr-1.5 h-3.5 w-3.5" />
-                  Documentation
-                </Link>
-              </Button>
-              {displayedActionSections.length > 0 ? (
-                <ActionDropdown
-                  label="Actions"
-                  align="end"
-                  sections={displayedActionSections}
-                  triggerClassName="min-w-[10rem] justify-between"
-                />
-              ) : null}
-            </div>
-          </div>
-
-          {detail.isError ? (
-            <div className="mt-6 flex flex-col gap-3 rounded-2xl border border-rose-200 bg-rose-50/80 px-4 py-4 text-sm text-rose-800 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-start gap-3">
-                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-                <div>
-                  <div className="font-semibold">
-                    Unable to refresh integration details
-                  </div>
-                  <div className="mt-1 text-rose-700/90">
-                    {detail.error instanceof Error
-                      ? detail.error.message
-                      : "An unexpected error occurred while loading this integration."}
-                  </div>
-                </div>
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => void detail.refetch()}
-              >
-                Retry
-              </Button>
-            </div>
-          ) : null}
-
-          {model.errorBanner ? (
-            <div className="mt-6 flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50/90 px-4 py-4 text-sm text-amber-900">
-              <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" />
-              <div>
-                <div className="font-semibold">{model.errorBanner.title}</div>
-                <div className="mt-1 text-amber-800/90">
-                  {model.errorBanner.description}
-                </div>
-              </div>
-            </div>
-          ) : null}
-
-          {!isComingSoonPage ? (
-            <div
-              className={cn(
-                "mt-6 grid gap-4",
-                isSquare ||
-                  isClover ||
-                  isLightspeed ||
-                  isMeta ||
-                  isGa4 ||
-                  isEmailInfrastructure ||
-                  isMarketingImport
-                  ? "md:grid-cols-2 xl:grid-cols-4"
-                  : "md:grid-cols-3",
-              )}
-            >
-              {(isSquare
-                ? squareMetricCards
-                : isClover
-                  ? cloverMetricCards
-                  : isLightspeed
-                    ? lightspeedMetricCards
-                    : isMeta
-                      ? metaMetricCards
-                      : isGa4
-                        ? ga4MetricCards
-                        : isEmailInfrastructure
-                          ? emailInfrastructureMetricCards
-                          : isMarketingImport
-                            ? marketingImportMetricCards
-                            : model.metrics
-              ).map((metric) => {
-                const appearance = MetricAppearance({ tone: metric.tone });
-
-                return (
-                  <CRMMetricCard
-                    key={metric.key}
-                    label={metric.label}
-                    value={metric.value}
-                    subtitle={
-                      "timestamp" in metric && metric.timestamp
-                        ? `${formatRelativeTimestamp(metric.timestamp)}${formatExactTimestamp(metric.timestamp) ? ` • ${formatExactTimestamp(metric.timestamp)}` : ""}`
-                        : metric.subtitle
-                    }
-                    icon={
-                      "icon" in metric
-                        ? metric.icon
-                        : metric.key === "connection"
-                          ? PlugZap
-                          : metric.key === "latest-signal"
-                            ? Clock3
-                            : Activity
-                    }
-                    iconClassName={appearance.iconClassName}
-                    iconWrapClassName={appearance.iconWrapClassName}
-                    valueClassName={
-                      "valueClassName" in metric
-                        ? metric.valueClassName
-                        : undefined
-                    }
-                    appearance="flat"
+              <div className="flex flex-wrap items-center gap-2 self-start">
+                {lightspeedPrimaryAction ? (
+                  <Button
+                    type="button"
+                    onClick={lightspeedPrimaryAction.onClick}
+                    disabled={lightspeedPrimaryAction.disabled}
+                  >
+                    {detail.lightspeedSyncState !== "idle" &&
+                    !lightspeedNeedsReconnect ? (
+                      <RefreshCcw className="mr-2 h-4 w-4" />
+                    ) : null}
+                    {lightspeedPrimaryAction.label}
+                  </Button>
+                ) : null}
+                <Button variant="outline" size="sm" asChild>
+                  <Link to={`/integrations/${seed.slug}/documentation`}>
+                    <BookOpen className="mr-1.5 h-3.5 w-3.5" />
+                    Documentation
+                  </Link>
+                </Button>
+                {lightspeedHeaderActions.length > 0 ? (
+                  <ActionDropdown
+                    label="Actions"
+                    align="end"
+                    sections={lightspeedHeaderActions}
+                    triggerClassName="min-w-[10rem] justify-between"
                   />
-                );
-              })}
+                ) : null}
+              </div>
             </div>
-          ) : null}
-        </section>
+
+            {detail.isError ? (
+              <div className="flex flex-col gap-3 rounded-2xl border border-rose-200 bg-rose-50/80 px-4 py-4 text-sm text-rose-800 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                  <div>
+                    <div className="font-semibold">
+                      Unable to refresh integration details
+                    </div>
+                    <div className="mt-1 text-rose-700/90">
+                      {getUserFacingIntegrationError(
+                        detail.error,
+                        "An unexpected error occurred while loading this integration.",
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => void detail.refetch()}
+                >
+                  Retry
+                </Button>
+              </div>
+            ) : null}
+
+            {lightspeedStatusBanner ? (
+              <div
+                className={cn(
+                  "flex flex-col gap-3 rounded-2xl px-4 py-4 text-sm sm:flex-row sm:items-center sm:justify-between",
+                  lightspeedStatusBanner.tone === "danger"
+                    ? "border border-rose-200 bg-rose-50/90 text-rose-900"
+                    : "border border-amber-200 bg-amber-50/90 text-amber-900",
+                )}
+              >
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                  <div>
+                    <div className="font-semibold">
+                      {lightspeedStatusBanner.title}
+                    </div>
+                    <div className="mt-1 leading-6">
+                      {lightspeedStatusBanner.description}
+                    </div>
+                  </div>
+                </div>
+                {"actionLabel" in lightspeedStatusBanner &&
+                lightspeedStatusBanner.actionLabel ? (
+                  <Button
+                    type="button"
+                    variant={
+                      lightspeedStatusBanner.tone === "danger"
+                        ? "destructive"
+                        : "outline"
+                    }
+                    onClick={lightspeedStatusBanner.onAction}
+                  >
+                    {lightspeedStatusBanner.actionLabel}
+                  </Button>
+                ) : null}
+              </div>
+            ) : null}
+
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              {[
+                {
+                  key: "customers",
+                  label: "Customers",
+                  value: formatCount(lightspeedDetail.customersSynced),
+                  description: lightspeedDetail.lastCustomerSync
+                    ? `Last synced ${formatRelativeTimestamp(lightspeedDetail.lastCustomerSync)}`
+                    : "No customer sync recorded yet",
+                  icon: Users,
+                },
+                {
+                  key: "sales",
+                  label: "Sales",
+                  value: formatCount(lightspeedDetail.salesSynced),
+                  description: lightspeedDetail.lastSalesSync
+                    ? `Last synced ${formatRelativeTimestamp(lightspeedDetail.lastSalesSync)}`
+                    : "No sales sync recorded yet",
+                  icon: Receipt,
+                },
+                {
+                  key: "products",
+                  label: "Products",
+                  value: formatCount(lightspeedDetail.productsSynced),
+                  description: lightspeedDetail.lastProductSync
+                    ? `Last synced ${formatRelativeTimestamp(lightspeedDetail.lastProductSync)}`
+                    : "No product sync recorded yet",
+                  icon: Store,
+                },
+                {
+                  key: "webhooks",
+                  label: "Webhook Mode",
+                  value: lightspeedWebhookMode.label,
+                  description: lightspeedWebhookMode.subtitle,
+                  icon: Webhook,
+                  valueClassName: lightspeedWebhookMode.valueClassName,
+                },
+              ].map((card) => (
+                <div
+                  key={card.key}
+                  className="rounded-[1.35rem] border border-border/70 bg-slate-50/60 p-5"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <div className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                        {card.label}
+                      </div>
+                      <div
+                        className={cn(
+                          "mt-3 text-3xl font-semibold tracking-tight text-slate-950",
+                          card.valueClassName,
+                        )}
+                      >
+                        {card.value}
+                      </div>
+                    </div>
+                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-border/70 bg-white">
+                      <card.icon className="h-5 w-5 text-slate-700" />
+                    </div>
+                  </div>
+                  <p className="mt-3 text-sm leading-6 text-muted-foreground">
+                    {card.description}
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            <div className="overflow-x-auto rounded-[1.35rem] border border-border/70 bg-slate-50/60 p-2">
+              <div className="flex min-w-max items-center gap-2">
+                {lightspeedTabItems.map((tab) => {
+                  const isActive = lightspeedTab === tab.value;
+
+                  return (
+                    <button
+                      key={tab.value}
+                      type="button"
+                      onClick={() => setLightspeedTab(tab.value)}
+                      className={cn(
+                        "inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-colors",
+                        isActive
+                          ? "bg-white text-slate-950 shadow-sm"
+                          : "text-muted-foreground hover:bg-white/70 hover:text-slate-900",
+                      )}
+                    >
+                      <span>{tab.label}</span>
+                      {"count" in tab &&
+                      typeof tab.count === "number" &&
+                      tab.count > 0 ? (
+                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700">
+                          {formatCount(tab.count)}
+                        </span>
+                      ) : null}
+                      {"isActive" in tab && tab.isActive ? (
+                        <span className="relative flex h-2.5 w-2.5">
+                          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-brand-teal/50" />
+                          <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-brand-teal" />
+                        </span>
+                      ) : null}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </section>
+        ) : null}
+
+        {!(
+          (isLightspeed && lightspeedDetail) ||
+          (isSquare && squareDetail) ||
+          (isClover && cloverDetail)
+        ) ? (
+          <section className="rounded-[1.75rem] border border-border/70 bg-gradient-to-br from-white via-white to-brand-teal/5 p-6 shadow-sm shadow-brand-navy/5">
+            <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
+              <div className="space-y-4">
+                <div className="flex flex-wrap items-start gap-4">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-border/70 bg-white shadow-sm">
+                    <Icon className="h-6 w-6 text-slate-700" />
+                  </div>
+                  <div className="space-y-3">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <h1 className="text-3xl font-semibold tracking-tight text-slate-950">
+                        {item.name}
+                      </h1>
+                      <DetailStatusBadge
+                        label={
+                          comingSoonDetail?.statusLabel ??
+                          emailInfrastructureDetail?.badgeLabel ??
+                          (isMeta
+                            ? (metaPageStatus?.label ?? model.statusLabel)
+                            : isGa4
+                              ? (ga4PageStatus?.label ?? model.statusLabel)
+                              : model.statusLabel)
+                        }
+                        tone={
+                          comingSoonDetail?.statusTone ??
+                          emailInfrastructureDetail?.badgeTone ??
+                          (isMeta
+                            ? (metaPageStatus?.tone ?? model.statusTone)
+                            : isGa4
+                              ? (ga4PageStatus?.tone ?? model.statusTone)
+                              : model.statusTone)
+                        }
+                      />
+                      {detail.isFetching ? (
+                        <span className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-white px-3 py-1 text-xs font-medium text-muted-foreground">
+                          <RefreshCcw className="h-3.5 w-3.5" />
+                          Refreshing
+                        </span>
+                      ) : null}
+                    </div>
+                    <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
+                      {isMeta
+                        ? (metaPageStatus?.summary ??
+                          item.detailSummary ??
+                          item.description)
+                        : isGa4
+                          ? (ga4PageStatus?.summary ??
+                            item.detailSummary ??
+                            item.description)
+                          : (item.detailSummary ?? item.description)}
+                    </p>
+                    <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                      {metadataEntries.map((entry, index) => (
+                        <div
+                          key={`${entry}-${index}`}
+                          className="inline-flex items-center gap-2"
+                        >
+                          {index > 0 ? (
+                            <span className="text-border">&middot;</span>
+                          ) : null}
+                          <span>{entry}</span>
+                        </div>
+                      ))}
+                    </div>
+                    {isMarketingImport && marketingImportDetail ? (
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge className="border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-50">
+                          {marketingImportDetail.importOnlyLabel}
+                        </Badge>
+                        <Badge
+                          variant="outline"
+                          className="border-slate-200 text-slate-600"
+                        >
+                          Live Sync: {marketingImportDetail.liveSyncLabel}
+                        </Badge>
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 self-start">
+                {(isComingSoonPage && comingSoonPrimaryAction) ||
+                (isEmailInfrastructure && emailInfrastructurePrimaryAction) ||
+                (isMeta && metaPrimaryAction) ||
+                (isGa4 && ga4PrimaryAction) ? (
+                  <Button
+                    type="button"
+                    variant={
+                      isComingSoonPage && comingSoonPrimaryAction
+                        ? comingSoonPrimaryAction.variant
+                        : isMeta && metaPrimaryAction
+                          ? metaPrimaryAction.variant
+                          : ga4PrimaryAction?.variant
+                    }
+                    className={cn(
+                      isMeta && metaPrimaryAction
+                        ? metaPrimaryAction.className
+                        : ga4PrimaryAction?.className,
+                    )}
+                    disabled={
+                      isComingSoonPage && comingSoonPrimaryAction
+                        ? comingSoonPrimaryAction.disabled
+                        : isEmailInfrastructure &&
+                            emailInfrastructurePrimaryAction
+                          ? emailInfrastructurePrimaryAction.disabled
+                          : isMeta && metaPrimaryAction
+                            ? metaPrimaryAction.disabled
+                            : ga4PrimaryAction?.disabled
+                    }
+                    onClick={() => {
+                      if (isComingSoonPage && comingSoonPrimaryAction) {
+                        comingSoonPrimaryAction.onClick();
+                        return;
+                      }
+
+                      if (
+                        isEmailInfrastructure &&
+                        emailInfrastructurePrimaryAction
+                      ) {
+                        emailInfrastructurePrimaryAction.onClick();
+                        return;
+                      }
+
+                      if (isMeta && metaPrimaryAction) {
+                        metaPrimaryAction.onClick();
+                        return;
+                      }
+
+                      ga4PrimaryAction?.onClick();
+                    }}
+                  >
+                    {(isComingSoonPage && comingSoonPrimaryAction?.icon) ||
+                    (isMeta && metaPrimaryAction?.icon) ||
+                    (isGa4 && ga4PrimaryAction?.icon) ? (
+                      (() => {
+                        const ActionIcon = isComingSoonPage
+                          ? comingSoonPrimaryAction?.icon
+                          : isMeta
+                            ? metaPrimaryAction?.icon
+                            : ga4PrimaryAction?.icon;
+
+                        return ActionIcon ? (
+                          <ActionIcon className="mr-2 h-4 w-4" />
+                        ) : null;
+                      })()
+                    ) : isEmailInfrastructure &&
+                      emailInfrastructurePrimaryAction ? (
+                      <FlaskConical className="mr-2 h-4 w-4" />
+                    ) : null}
+                    {isComingSoonPage && comingSoonPrimaryAction
+                      ? comingSoonPrimaryAction.label
+                      : isEmailInfrastructure &&
+                          emailInfrastructurePrimaryAction
+                        ? emailInfrastructurePrimaryAction.label
+                        : isMeta && metaPrimaryAction
+                          ? metaPrimaryAction.label
+                          : ga4PrimaryAction?.label}
+                  </Button>
+                ) : null}
+                {!isComingSoonPage ? (
+                  <Button variant="outline" size="sm" asChild>
+                    <Link to={`/integrations/${seed.slug}/documentation`}>
+                      <BookOpen className="mr-1.5 h-3.5 w-3.5" />
+                      Documentation
+                    </Link>
+                  </Button>
+                ) : null}
+                {displayedActionSections.length > 0 ? (
+                  <ActionDropdown
+                    label="Actions"
+                    align="end"
+                    sections={displayedActionSections}
+                    triggerClassName="min-w-[10rem] justify-between"
+                  />
+                ) : null}
+              </div>
+            </div>
+
+            {detail.isError ? (
+              <div className="mt-6 flex flex-col gap-3 rounded-2xl border border-rose-200 bg-rose-50/80 px-4 py-4 text-sm text-rose-800 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                  <div>
+                    <div className="font-semibold">
+                      Unable to refresh integration details
+                    </div>
+                    <div className="mt-1 text-rose-700/90">
+                      {getUserFacingIntegrationError(
+                        detail.error,
+                        "An unexpected error occurred while loading this integration.",
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => void detail.refetch()}
+                >
+                  Retry
+                </Button>
+              </div>
+            ) : null}
+
+            {model.errorBanner ? (
+              <div className="mt-6 flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50/90 px-4 py-4 text-sm text-amber-900">
+                <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" />
+                <div>
+                  <div className="font-semibold">{model.errorBanner.title}</div>
+                  <div className="mt-1 text-amber-800/90">
+                    {model.errorBanner.description}
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            {isMeta && metaStatusBanner ? (
+              <div
+                className={cn(
+                  "mt-6 flex flex-col gap-3 rounded-2xl px-4 py-4 text-sm sm:flex-row sm:items-center sm:justify-between",
+                  metaStatusBanner.tone === "danger"
+                    ? "border border-rose-200 bg-rose-50/90 text-rose-900"
+                    : "border border-amber-200 bg-amber-50/90 text-amber-900",
+                )}
+              >
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                  <div>
+                    <div className="font-semibold">
+                      {metaStatusBanner.title}
+                    </div>
+                    <div className="mt-1 leading-6">
+                      {metaStatusBanner.description}
+                    </div>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  variant={
+                    metaStatusBanner.tone === "danger"
+                      ? "destructive"
+                      : "outline"
+                  }
+                  onClick={metaStatusBanner.onAction}
+                >
+                  {metaStatusBanner.actionLabel}
+                </Button>
+              </div>
+            ) : null}
+
+            {!isComingSoonPage ? (
+              <div
+                className={cn(
+                  "mt-6 grid gap-4",
+                  isSquare ||
+                    isClover ||
+                    isLightspeed ||
+                    isMeta ||
+                    isGa4 ||
+                    isEmailInfrastructure ||
+                    isMarketingImport
+                    ? "md:grid-cols-2 xl:grid-cols-4"
+                    : "md:grid-cols-3",
+                )}
+              >
+                {(isSquare
+                  ? squareMetricCards
+                  : isClover
+                    ? cloverMetricCards
+                    : isLightspeed
+                      ? lightspeedMetricCards
+                      : isMeta
+                        ? metaMetricCards
+                        : isGa4
+                          ? ga4MetricCards
+                          : isEmailInfrastructure
+                            ? emailInfrastructureMetricCards
+                            : isMarketingImport
+                              ? marketingImportMetricCards
+                              : model.metrics
+                ).map((metric) => {
+                  const appearance = MetricAppearance({ tone: metric.tone });
+
+                  return (
+                    <CRMMetricCard
+                      key={metric.key}
+                      label={metric.label}
+                      value={metric.value}
+                      subtitle={
+                        "timestamp" in metric && metric.timestamp
+                          ? `${formatRelativeTimestamp(metric.timestamp)}${formatExactTimestamp(metric.timestamp) ? ` • ${formatExactTimestamp(metric.timestamp)}` : ""}`
+                          : metric.subtitle
+                      }
+                      icon={
+                        "icon" in metric
+                          ? metric.icon
+                          : metric.key === "connection"
+                            ? PlugZap
+                            : metric.key === "latest-signal"
+                              ? Clock3
+                              : Activity
+                      }
+                      iconClassName={appearance.iconClassName}
+                      iconWrapClassName={appearance.iconWrapClassName}
+                      valueClassName={
+                        "valueClassName" in metric
+                          ? metric.valueClassName
+                          : undefined
+                      }
+                      appearance="flat"
+                    />
+                  );
+                })}
+              </div>
+            ) : null}
+          </section>
+        ) : null}
 
         {isComingSoonPage && comingSoonDetail ? (
           <ComingSoonCard
-            title={comingSoonDetail.cardTitle}
-            description={comingSoonDetail.description}
             capabilities={comingSoonDetail.capabilities}
-            availabilityLabel={comingSoonDetail.availabilityLabel}
-            previewCallout={comingSoonDetail.previewCallout}
+            callout={comingSoonDetail.callout}
+            integrationName={comingSoonDetail.integrationName}
             notifyEmail={comingSoonDetail.notifyEmail}
             isSubmitted={comingSoonDetail.isSubmitted}
             isSubmitting={detail.isSubmittingComingSoonInterest}
@@ -2541,319 +3758,1423 @@ export default function IntegrationDetailPage() {
               void detail.submitComingSoonInterest();
             }}
             requestPath={comingSoonDetail.requestPath}
+            notifyLabel={comingSoonDetail.notifyLabel}
+            notifyConfirmation={comingSoonDetail.notifyConfirmation}
+            requestLabel={comingSoonDetail.requestLabel}
+            payloadPreview={comingSoonDetail.payloadPreview}
           />
         ) : isEmailInfrastructure && emailInfrastructureDetail ? (
-          <div className="grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(360px,1fr)]">
-            <div className="space-y-6">
-              <SectionCard
-                title="Infrastructure Timeline"
-                description="Recent verification and infrastructure lifecycle events for your primary sending domain."
-              >
-                <DetailTimeline entries={model.timeline} />
-              </SectionCard>
+          <div className="space-y-6">
+            <div className="overflow-x-auto rounded-[1.35rem] border border-border/70 bg-slate-50/60 p-2">
+              <div className="flex min-w-max items-center gap-2">
+                {emailInfrastructureTabItems.map((tab) => {
+                  const isActive = emailInfrastructureTab === tab.value;
 
-              <SectionCard
-                title="Operational Overview"
-                description="A concise summary of current readiness, tenant email activity, and the shared monitoring state available today."
-              >
-                <div className="space-y-4 rounded-2xl border border-border/70 bg-slate-50/70 p-4">
-                  <div>
-                    <div className="text-sm font-semibold text-slate-950">
-                      Readiness summary
-                    </div>
-                    <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                      {emailInfrastructureDetail.readinessSummary}
-                    </p>
-                  </div>
-                  <div>
-                    <div className="text-sm font-semibold text-slate-950">
-                      Health summary
-                    </div>
-                    <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                      {emailInfrastructureDetail.healthSummary}
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap gap-3">
-                    <Button
+                  return (
+                    <button
+                      key={tab.value}
                       type="button"
-                      disabled={
-                        !emailInfrastructureDetail.canRunHealthCheck ||
-                        detail.isRunningEmailInfrastructureHealthCheck
-                      }
-                      onClick={() => {
-                        void detail.runEmailInfrastructureHealthCheck();
-                      }}
+                      onClick={() => setEmailInfrastructureTab(tab.value)}
+                      className={cn(
+                        "inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-colors",
+                        isActive
+                          ? "bg-white text-slate-950 shadow-sm"
+                          : "text-muted-foreground hover:bg-white/70 hover:text-slate-900",
+                      )}
                     >
-                      {detail.isRunningEmailInfrastructureHealthCheck
-                        ? "Running health check..."
-                        : "Run Health Check"}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() =>
-                        navigate(emailInfrastructureDetail.sendingLogsPath)
-                      }
-                    >
-                      View Sending Logs
-                    </Button>
-                  </div>
-                </div>
-              </SectionCard>
+                      <span>{tab.label}</span>
+                      {"count" in tab && typeof tab.count === "number" ? (
+                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700">
+                          {formatCount(tab.count)}
+                        </span>
+                      ) : null}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
-            <div className="space-y-6">
-              <SectionCard
-                title="Domain Configuration"
-                description="Primary sending-domain state and the provider controls BloomSuite currently knows about."
-              >
-                <DetailFieldRows
-                  rows={[
-                    {
-                      label: "Primary Domain",
-                      value:
-                        emailInfrastructureDetail.primaryDomain ??
-                        "No sending domain configured",
-                    },
-                    {
-                      label: "Status",
-                      value: emailInfrastructureDetail.primaryStatusLabel,
-                      tone: emailInfrastructureDetail.primaryDomain
-                        ? "success"
-                        : "warning",
-                    },
-                    {
-                      label: "Provider",
-                      value: emailInfrastructureDetail.providerLabel,
-                      description: emailInfrastructureDetail.providerModeLabel,
-                    },
-                    {
-                      label: "Domains on File",
-                      value: formatCount(emailInfrastructureDetail.domainCount),
-                      description: `${formatCount(emailInfrastructureDetail.verifiedDomainCount)} verified`,
-                      tone:
-                        emailInfrastructureDetail.verifiedDomainCount > 0
-                          ? "success"
-                          : "neutral",
-                    },
-                    {
-                      label: "Verified At",
-                      value: formatRelativePlusAbsolute(
-                        emailInfrastructureDetail.verifiedAt,
-                        "Not verified yet",
-                      ).value,
-                      description: formatRelativePlusAbsolute(
-                        emailInfrastructureDetail.verifiedAt,
-                        "Not verified yet",
-                      ).description,
-                      tone: emailInfrastructureDetail.verifiedAt
-                        ? "success"
-                        : "warning",
-                    },
-                    {
-                      label: "Warmup Stage",
-                      value:
-                        emailInfrastructureDetail.warmupStage !== null
-                          ? String(emailInfrastructureDetail.warmupStage)
-                          : "Not warming",
-                      description:
-                        emailInfrastructureDetail.healthyDaysCounter !== null
-                          ? `${emailInfrastructureDetail.healthyDaysCounter} healthy days tracked`
-                          : undefined,
-                    },
-                  ]}
-                />
-              </SectionCard>
+            {emailInfrastructureTab === "overview" ? (
+              <div className="grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(360px,1fr)]">
+                <div className="space-y-6">
+                  <SectionCard
+                    title="Domain"
+                    description="Current primary-domain state, environment, and setup readiness for BloomSuite email sending."
+                  >
+                    <OverviewPanel
+                      title="Domain Status"
+                      description={emailInfrastructureDetail.readinessSummary}
+                      contextNote={
+                        emailInfrastructureDetail.banner
+                          ? {
+                              tone: emailInfrastructureDetail.banner.tone,
+                              content: (
+                                <>
+                                  <span className="font-semibold">
+                                    {emailInfrastructureDetail.banner.title}
+                                  </span>
+                                  <span className="ml-2">
+                                    {
+                                      emailInfrastructureDetail.banner
+                                        .description
+                                    }
+                                  </span>
+                                </>
+                              ),
+                            }
+                          : undefined
+                      }
+                    >
+                      <DetailHealthRows
+                        rows={emailInfrastructureDetail.healthRows.domain}
+                      />
+                    </OverviewPanel>
+                  </SectionCard>
 
+                  <SectionCard
+                    title="DNS Health"
+                    description="Public DNS verification state for the required records BloomSuite expects on the primary sending domain."
+                  >
+                    <OverviewPanel
+                      title="Record Verification"
+                      description="SPF, DKIM, and DMARC are evaluated from the currently stored DNS evidence for the primary domain."
+                    >
+                      <DetailHealthRows
+                        rows={emailInfrastructureDetail.healthRows.dnsHealth}
+                      />
+                    </OverviewPanel>
+                  </SectionCard>
+
+                  <SectionCard
+                    title="Sending Health"
+                    description="Tenant-level deliverability and reputation signals already available from BloomSuite’s email health surfaces."
+                  >
+                    <OverviewPanel
+                      title="Sending Overview"
+                      description={emailInfrastructureDetail.healthSummary}
+                    >
+                      <DetailHealthRows
+                        rows={
+                          emailInfrastructureDetail.healthRows.sendingHealth
+                        }
+                      />
+                    </OverviewPanel>
+                  </SectionCard>
+                </div>
+
+                <div className="space-y-6">
+                  <SectionCard
+                    title="Domain Configuration"
+                    description="Current provider mode, environment, and verification state for the primary sending domain."
+                  >
+                    <DetailFieldRows
+                      rows={emailInfrastructureDetail.configurationRows}
+                      onCopy={copyToClipboard}
+                    />
+                  </SectionCard>
+
+                  <SectionCard
+                    title="SPF, DKIM, DMARC Status"
+                    description="Protocol-specific status for the records BloomSuite expects to see on the primary domain."
+                  >
+                    <DetailFieldRows
+                      rows={emailInfrastructureDetail.protocolRows}
+                    />
+                  </SectionCard>
+
+                  <SectionCard
+                    title="Setup Tools"
+                    description="Open the existing setup and troubleshooting flows already used by BloomSuite’s email infrastructure surfaces."
+                  >
+                    <div className="space-y-3">
+                      {emailInfrastructureDetail.setupToolRows.map((tool) => (
+                        <div
+                          key={tool.label}
+                          className="rounded-2xl border border-border/70 bg-slate-50/70 p-4"
+                        >
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="min-w-0 flex-1">
+                              <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                                {tool.label}
+                              </div>
+                              <div className="mt-2 text-sm text-muted-foreground">
+                                {tool.description}
+                              </div>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => navigate(tool.path)}
+                            >
+                              Open
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                      <div className="flex flex-wrap gap-3 pt-1">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => {
+                            window.location.href =
+                              emailInfrastructureDetail.supportPath;
+                          }}
+                        >
+                          Contact Support
+                        </Button>
+                      </div>
+                    </div>
+                  </SectionCard>
+                </div>
+              </div>
+            ) : (
               <SectionCard
-                title="DNS Record Status"
-                description="Current DNS evidence for the primary sending domain using the records BloomSuite already stores."
+                title="DNS Records"
+                description="The full set of DNS records currently stored for the primary sending domain, with copy actions for host names and values."
               >
                 {emailInfrastructureDetail.dnsRecords.length > 0 ? (
-                  <DetailFieldRows
-                    rows={emailInfrastructureDetail.dnsRecords.map(
-                      (record) => ({
-                        label: `${record.type} • ${record.purpose}`,
-                        value: record.verified ? "Verified" : "Pending",
-                        description: `${record.name} • ${record.value}`,
-                        tone: record.verified ? "success" : "warning",
-                      }),
-                    )}
-                  />
+                  <div className="overflow-hidden rounded-[1.25rem] border border-border/70 bg-white">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Purpose</TableHead>
+                          <TableHead>Type</TableHead>
+                          <TableHead>Host</TableHead>
+                          <TableHead>Value</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Last Checked</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {emailInfrastructureDetail.dnsRecords.map((record) => {
+                          const statusClasses = getToneClasses(
+                            record.statusTone,
+                          );
+                          const hostCopyLabel = `DNS host ${record.id}`;
+                          const valueCopyLabel = `DNS value ${record.id}`;
+
+                          return (
+                            <TableRow key={record.id}>
+                              <TableCell className="font-medium text-slate-900">
+                                {record.purpose.toUpperCase()}
+                              </TableCell>
+                              <TableCell>{record.type}</TableCell>
+                              <TableCell>
+                                <div className="flex items-start justify-between gap-2">
+                                  <span className="min-w-0 break-all text-sm text-slate-900">
+                                    {record.name}
+                                  </span>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-8 px-2"
+                                    onClick={() =>
+                                      copyToClipboard(
+                                        record.name,
+                                        hostCopyLabel,
+                                      )
+                                    }
+                                    aria-label={
+                                      copiedLabel === hostCopyLabel
+                                        ? `${hostCopyLabel} copied`
+                                        : `Copy ${hostCopyLabel}`
+                                    }
+                                  >
+                                    {copiedLabel === hostCopyLabel ? (
+                                      <Check className="h-3.5 w-3.5 text-emerald-600" />
+                                    ) : (
+                                      <Copy className="h-3.5 w-3.5" />
+                                    )}
+                                  </Button>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-start justify-between gap-2">
+                                  <span className="min-w-0 break-all text-sm text-slate-900">
+                                    {record.value}
+                                  </span>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-8 px-2"
+                                    onClick={() =>
+                                      copyToClipboard(
+                                        record.value,
+                                        valueCopyLabel,
+                                      )
+                                    }
+                                    aria-label={
+                                      copiedLabel === valueCopyLabel
+                                        ? `${valueCopyLabel} copied`
+                                        : `Copy ${valueCopyLabel}`
+                                    }
+                                  >
+                                    {copiedLabel === valueCopyLabel ? (
+                                      <Check className="h-3.5 w-3.5 text-emerald-600" />
+                                    ) : (
+                                      <Copy className="h-3.5 w-3.5" />
+                                    )}
+                                  </Button>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <div className="space-y-1">
+                                  <span
+                                    className={cn(
+                                      "inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.14em]",
+                                      statusClasses.badge,
+                                    )}
+                                  >
+                                    {record.statusLabel}
+                                  </span>
+                                  <div className="text-xs text-muted-foreground">
+                                    {record.statusReason}
+                                  </div>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                {formatTimestampOrFallback(
+                                  record.lastCheckedAt,
+                                  "No check recorded",
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
                 ) : (
                   <div className="rounded-2xl border border-dashed border-border/80 bg-slate-50/70 p-4 text-sm leading-6 text-muted-foreground">
-                    No DNS records are available yet for the current
-                    infrastructure view. Open Domain settings to add a sending
-                    domain or inspect the existing DNS configuration.
+                    No DNS records are available yet for the current primary
+                    domain. Add a sending domain first, then rerun the DNS check
+                    to populate this table.
                   </div>
                 )}
-                <div className="mt-4 flex flex-wrap gap-3">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() =>
-                      navigate(emailInfrastructureDetail.dnsRecordsPath)
-                    }
-                  >
-                    View DNS Records
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() =>
-                      navigate(emailInfrastructureDetail.domainSettingsPath)
-                    }
-                  >
-                    Open Domain Settings
-                  </Button>
-                </div>
               </SectionCard>
-
-              <SectionCard
-                title="Sending Infrastructure Health"
-                description="Tenant-level reputation and delivery health already available from BloomSuite’s email dashboards."
-              >
-                <DetailFieldRows
-                  rows={[
-                    {
-                      label: "Health Check",
-                      value: emailInfrastructureDetail.healthCheckLabel,
-                      description: formatRelativePlusAbsolute(
-                        emailInfrastructureDetail.latestHealthCheckAt,
-                        "No checks recorded",
-                      ).description,
-                      tone: formatInfrastructureHealthTone(
-                        emailInfrastructureDetail.healthCheckStatus,
-                      ),
-                    },
-                    {
-                      label: "Reputation Score",
-                      value:
-                        emailInfrastructureDetail.reputationScore !== null
-                          ? String(
-                              Math.round(
-                                emailInfrastructureDetail.reputationScore,
-                              ),
-                            )
-                          : "Unavailable",
-                      description:
-                        emailInfrastructureDetail.reputationTier ??
-                        formatInfrastructureTrendLabel(
-                          emailInfrastructureDetail.trendDirection,
-                        ),
-                      tone:
-                        emailInfrastructureDetail.reputationScore !== null
-                          ? "success"
-                          : "neutral",
-                    },
-                    {
-                      label: "Sent Last 24h",
-                      value: formatCount(emailInfrastructureDetail.sent24h),
-                      description: `${formatCount(emailInfrastructureDetail.delivered24h)} delivered`,
-                      tone:
-                        emailInfrastructureDetail.sent24h > 0
-                          ? "success"
-                          : "neutral",
-                    },
-                    {
-                      label: "30d Delivery Rate",
-                      value: formatRate(
-                        emailInfrastructureDetail.deliveryRate30d,
-                      ),
-                      description: `${formatRate(emailInfrastructureDetail.bounceRate30d)} bounce rate`,
-                      tone:
-                        emailInfrastructureDetail.deliveryRate30d >= 95
-                          ? "success"
-                          : "warning",
-                    },
-                    {
-                      label: "24h Bounce Rate",
-                      value: formatRate(
-                        emailInfrastructureDetail.bounceRate24h,
-                      ),
-                      description: `${formatRate(emailInfrastructureDetail.complaintRate24h)} complaint rate`,
-                      tone:
-                        emailInfrastructureDetail.bounceRate24h <= 2
-                          ? "success"
-                          : "warning",
-                    },
-                  ]}
-                />
-              </SectionCard>
-
-              <SectionCard
-                title="Domain Connect & Setup Tools"
-                description="Existing setup destinations for Domain Connect, manual DNS changes, sending preferences, and support."
-              >
-                <div className="space-y-4 rounded-2xl border border-border/70 bg-slate-50/70 p-4">
-                  <p className="text-sm leading-6 text-muted-foreground">
-                    {emailInfrastructureDetail.domainConnectSummary}
-                  </p>
-                  <div className="flex flex-wrap gap-3">
-                    <Button
-                      type="button"
-                      onClick={() =>
-                        navigate(emailInfrastructureDetail.domainSettingsPath)
-                      }
-                    >
-                      Open Domain Settings
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() =>
-                        navigate(emailInfrastructureDetail.emailSettingsPath)
-                      }
-                    >
-                      Email Sending Settings
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() =>
-                        navigate(emailInfrastructureDetail.sendingLogsPath)
-                      }
-                    >
-                      View Sending Logs
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => {
-                        window.location.href =
-                          emailInfrastructureDetail.supportPath;
-                      }}
-                    >
-                      Contact Support
-                    </Button>
-                  </div>
-                </div>
-              </SectionCard>
-            </div>
+            )}
           </div>
         ) : (
-          <div className="grid gap-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(320px,1fr)]">
+          <div
+            className={cn(
+              "grid gap-6",
+              isLightspeed && lightspeedDetail
+                ? "lg:grid-cols-[380px_minmax(0,1fr)]"
+                : "xl:grid-cols-[minmax(0,1.5fr)_minmax(320px,1fr)]",
+            )}
+          >
             <div className="space-y-6">
-              <SectionCard
-                title="Connection Health"
-                description="Connection lifecycle and provider events for this integration."
-              >
-                <DetailTimeline entries={model.timeline} />
-              </SectionCard>
+              {isLightspeed && lightspeedDetail ? (
+                <OverviewPanel
+                  title="Integration Health"
+                  description="A single operator view of connection, sync, and webhook readiness for this Lightspeed account."
+                  action={
+                    <DetailStatusBadge
+                      label={lightspeedPageStatus.label}
+                      tone={lightspeedPageStatus.tone}
+                    />
+                  }
+                >
+                  <div>
+                    <HealthFieldRow
+                      label="Connection"
+                      value={
+                        lightspeedNeedsReconnect
+                          ? "Reconnect required"
+                          : lightspeedConnectionHealthy
+                            ? "Connected"
+                            : (lightspeedDetail.connectionStatus ?? null)
+                      }
+                      tone={
+                        lightspeedNeedsReconnect
+                          ? "danger"
+                          : lightspeedConnectionHealthy
+                            ? "success"
+                            : "neutral"
+                      }
+                      description={
+                        lightspeedDetail.connectedAt
+                          ? `Connected ${formatRelativeTimestamp(lightspeedDetail.connectedAt)}.`
+                          : "No connection timestamp is available yet."
+                      }
+                    />
+                    <HealthFieldRow
+                      label="Sync status"
+                      value={lightspeedSyncHealth.value}
+                      tone={lightspeedSyncHealth.tone}
+                      description={lightspeedSyncHealth.description}
+                    />
+                    <HealthFieldRow
+                      label="Webhook mode"
+                      value={lightspeedWebhookHealth.value}
+                      tone={lightspeedWebhookHealth.tone}
+                      description={lightspeedWebhookHealth.description}
+                    />
+                    <HealthFieldRow
+                      label="Latest activity"
+                      value={
+                        lightspeedLatestSuccessfulActivityAt
+                          ? formatRelativeTimestamp(
+                              lightspeedLatestSuccessfulActivityAt,
+                            )
+                          : null
+                      }
+                      tone={
+                        lightspeedLatestSuccessfulActivityAt
+                          ? "success"
+                          : "neutral"
+                      }
+                      description={
+                        formatExactTimestamp(
+                          lightspeedLatestSuccessfulActivityAt,
+                        ) ??
+                        "BloomSuite has not recorded a successful Lightspeed event yet."
+                      }
+                    />
+                  </div>
 
-              <SectionCard
-                title="Webhook Health"
-                description="Subscription, retry, and delivery state based on existing provider telemetry."
-              >
-                <DetailHealthRows rows={model.webhookRows} />
-              </SectionCard>
+                  {lightspeedHealthNote ? (
+                    <div className="mt-4 rounded-lg border border-amber-100 bg-amber-50/70 p-3 text-sm leading-6 text-amber-900">
+                      {lightspeedHealthNote}
+                    </div>
+                  ) : null}
+                </OverviewPanel>
+              ) : isSquare && squareDetail ? (
+                <>
+                  <Tabs
+                    value={lightspeedTab}
+                    onValueChange={(value) =>
+                      setLightspeedTab(value as LightspeedTabValue)
+                    }
+                    className="space-y-6"
+                  >
+                    <TabsContent value="overview" className="space-y-5">
+                      <OverviewPanel
+                        title="Integration Health"
+                        description="A single operator view of connection, sync, webhook coverage, and automation readiness for this Square account."
+                        action={
+                          <DetailStatusBadge
+                            label={squarePageStatus?.label ?? "Connected"}
+                            tone={squarePageStatus?.tone ?? "neutral"}
+                          />
+                        }
+                      >
+                        <div>
+                          <FieldRow
+                            label="Connection"
+                            value={
+                              squareConnectionHealthy
+                                ? "Connected"
+                                : (squareDetail.connectionStatus ?? null)
+                            }
+                            tone={
+                              squareConnectionHealthy ? "success" : "warning"
+                            }
+                            description={
+                              squareDetail.connectedAt
+                                ? `Connected ${formatRelativeTimestamp(squareDetail.connectedAt)}.`
+                                : "No connection timestamp is available yet."
+                            }
+                          />
+                          <FieldRow
+                            label="Webhook subscription"
+                            value={
+                              squareDetail.webhooksSubscribed
+                                ? "Verified"
+                                : "Needs verification"
+                            }
+                            tone={
+                              squareDetail.webhooksSubscribed
+                                ? "success"
+                                : "warning"
+                            }
+                            description={
+                              squareDetail.webhooksLastCheckedAt
+                                ? `Last checked ${formatRelativeTimestamp(squareDetail.webhooksLastCheckedAt)}.`
+                                : "Square webhook coverage has not been verified yet."
+                            }
+                          />
+                          <FieldRow
+                            label="Latest activity"
+                            value={
+                              squareLatestActivityAt
+                                ? formatRelativeTimestamp(
+                                    squareLatestActivityAt,
+                                  )
+                                : null
+                            }
+                            description={
+                              formatExactTimestamp(squareLatestActivityAt) ??
+                              "BloomSuite has not recorded Square activity yet."
+                            }
+                            tone={
+                              squareLatestActivityAt ? "success" : "neutral"
+                            }
+                          />
+                          <FieldRow
+                            label="Automation pipeline"
+                            value="Active"
+                            tone="success"
+                            description="Square order and customer activity can flow into existing BloomSuite automations and activity logs."
+                          />
+                        </div>
 
-              <SectionCard
-                title="Sync Health"
-                description="Last sync or verification state and the display-safe counters available today."
-              >
-                <DetailHealthRows rows={model.syncRows} />
-              </SectionCard>
+                        {squareDetail.webhookLastError ? (
+                          <div className="mt-4 rounded-lg border border-amber-100 bg-amber-50/70 p-3 text-sm leading-6 text-amber-900">
+                            {getUserFacingIntegrationError(
+                              squareDetail.webhookLastError,
+                              "Square webhook verification needs operator review.",
+                            )}
+                          </div>
+                        ) : null}
+                      </OverviewPanel>
+
+                      <OverviewPanel
+                        title="Data Feeds"
+                        description="BloomSuite currently reads synced Square customer, order, and catalog records from the shared POS storage layer."
+                        action={
+                          <div className="flex items-center gap-1">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 px-2 text-muted-foreground hover:bg-gray-50 hover:text-slate-900"
+                              onClick={() =>
+                                navigate(squareDetail.automationLogsPath)
+                              }
+                            >
+                              Automation Logs
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 px-2 text-muted-foreground hover:bg-gray-50 hover:text-slate-900"
+                              onClick={() => setLightspeedTab("sync-logs")}
+                            >
+                              Sync Logs
+                            </Button>
+                          </div>
+                        }
+                      >
+                        <div>
+                          <DataFeedRow
+                            label="Customer feed"
+                            status={
+                              squareDetail.lastCustomerSync
+                                ? "Active"
+                                : "Pending"
+                            }
+                            tone={
+                              squareDetail.lastCustomerSync
+                                ? "success"
+                                : "warning"
+                            }
+                            description={
+                              squareDetail.lastCustomerSync
+                                ? `Last synced ${formatRelativeTimestamp(squareDetail.lastCustomerSync)} • ${formatCount(squareDetail.customersSynced)} records`
+                                : `${formatCount(squareDetail.customersSynced)} records available`
+                            }
+                          />
+                          <DataFeedRow
+                            label="Order feed"
+                            status={
+                              squareDetail.lastSalesSync ? "Active" : "Pending"
+                            }
+                            tone={
+                              squareDetail.lastSalesSync ? "success" : "warning"
+                            }
+                            description={
+                              squareDetail.lastSalesSync
+                                ? `Last synced ${formatRelativeTimestamp(squareDetail.lastSalesSync)} • ${formatCount(squareDetail.salesSynced)} orders`
+                                : `${formatCount(squareDetail.salesSynced)} orders available`
+                            }
+                          />
+                          <DataFeedRow
+                            label="Catalog feed"
+                            status={
+                              squareDetail.lastProductSync
+                                ? "Active"
+                                : "Pending"
+                            }
+                            tone={
+                              squareDetail.lastProductSync
+                                ? "success"
+                                : "warning"
+                            }
+                            description={
+                              squareDetail.lastProductSync
+                                ? `Last synced ${formatRelativeTimestamp(squareDetail.lastProductSync)} • ${formatCount(squareDetail.productsSynced)} products`
+                                : `${formatCount(squareDetail.productsSynced)} products available`
+                            }
+                          />
+                        </div>
+                      </OverviewPanel>
+                    </TabsContent>
+
+                    <TabsContent value="customers" className="mt-0">
+                      <SquareCustomersTabView
+                        connectionId={squareDetail.connectionId}
+                        rows={squareDashboard?.customers.rows ?? []}
+                        pagination={
+                          squareDashboard?.customers.pagination ?? {
+                            page: 1,
+                            pageSize: 50,
+                            totalCount: 0,
+                            totalPages: 1,
+                          }
+                        }
+                        isLoading={Boolean(
+                          squareDashboard?.customers.isLoading,
+                        )}
+                        isFetching={Boolean(
+                          squareDashboard?.customers.isFetching,
+                        )}
+                        customersSynced={squareDetail.customersSynced ?? 0}
+                        searchQuery={customerSearchInput}
+                        onSearchQueryChange={(value) => {
+                          setCustomerSearchInput(value);
+                          setCustomerPage(1);
+                        }}
+                        sortField={squareCustomerSortField}
+                        sortDirection={customerSortDirection}
+                        onSortChange={(field, direction) => {
+                          setSquareCustomerSortField(field);
+                          setCustomerSortDirection(direction);
+                          setCustomerPage(1);
+                        }}
+                        selectedCustomer={selectedSquareCustomer}
+                        onSelectedCustomerChange={setSelectedSquareCustomer}
+                        onPageChange={setCustomerPage}
+                        onTriggerSync={() => {
+                          void detail.triggerSquareSync();
+                        }}
+                      />
+                    </TabsContent>
+
+                    <TabsContent value="sales" className="mt-0">
+                      <SquareSalesTabView
+                        connectionId={squareDetail.connectionId}
+                        rows={squareDashboard?.sales.rows ?? []}
+                        pagination={
+                          squareDashboard?.sales.pagination ?? {
+                            page: 1,
+                            pageSize: 50,
+                            totalCount: 0,
+                            totalPages: 1,
+                          }
+                        }
+                        summary={
+                          squareDashboard?.sales.summary ?? {
+                            revenue: 0,
+                            averageOrderValue: 0,
+                            saleCount: 0,
+                          }
+                        }
+                        isLoading={Boolean(squareDashboard?.sales.isLoading)}
+                        isFetching={Boolean(squareDashboard?.sales.isFetching)}
+                        searchQuery={salesSearchInput}
+                        onSearchQueryChange={(value) => {
+                          setSalesSearchInput(value);
+                          setSalesPage(1);
+                        }}
+                        status={salesStatus as "all" | "completed" | "open"}
+                        onStatusChange={(value) => {
+                          setSalesStatus(value);
+                          setSalesPage(1);
+                        }}
+                        startDate={salesStartDate}
+                        endDate={salesEndDate}
+                        onDateRangeChange={(startDate, endDate) => {
+                          setSalesStartDate(startDate);
+                          setSalesEndDate(endDate);
+                          setSalesPage(1);
+                        }}
+                        sortField={squareSalesSortField}
+                        sortDirection={salesSortDirection}
+                        onSortChange={(field, direction) => {
+                          setSquareSalesSortField(field);
+                          setSalesSortDirection(direction);
+                          setSalesPage(1);
+                        }}
+                        selectedSale={selectedSquareSale}
+                        onSelectedSaleChange={setSelectedSquareSale}
+                        onPageChange={setSalesPage}
+                      />
+                    </TabsContent>
+
+                    <TabsContent value="products" className="mt-0">
+                      <SquareProductsTabView
+                        connectionId={squareDetail.connectionId}
+                        rows={squareDashboard?.products.rows ?? []}
+                        pagination={
+                          squareDashboard?.products.pagination ?? {
+                            page: 1,
+                            pageSize: 50,
+                            totalCount: 0,
+                            totalPages: 1,
+                          }
+                        }
+                        categories={squareDashboard?.products.categories ?? []}
+                        isLoading={Boolean(squareDashboard?.products.isLoading)}
+                        isFetching={Boolean(
+                          squareDashboard?.products.isFetching,
+                        )}
+                        searchQuery={productsSearchInput}
+                        onSearchQueryChange={(value) => {
+                          setProductsSearchInput(value);
+                          setProductsPage(1);
+                        }}
+                        selectedCategories={productsCategories}
+                        onSelectedCategoriesChange={(value) => {
+                          setProductsCategories(value);
+                          setProductsPage(1);
+                        }}
+                        inStockOnly={productsInStockOnly}
+                        onInStockOnlyChange={(value) => {
+                          setProductsInStockOnly(value);
+                          setProductsPage(1);
+                        }}
+                        sortField={squareProductsSortField}
+                        sortDirection={productsSortDirection}
+                        onSortChange={(field, direction) => {
+                          setSquareProductsSortField(field);
+                          setProductsSortDirection(direction);
+                          setProductsPage(1);
+                        }}
+                        onPageChange={setProductsPage}
+                      />
+                    </TabsContent>
+
+                    <TabsContent value="sync-logs" className="mt-0">
+                      <SquareSyncLogsTabView
+                        connectionId={squareDetail.connectionId}
+                        rows={squareDashboard?.syncLogs.rows ?? []}
+                        pagination={
+                          squareDashboard?.syncLogs.pagination ?? {
+                            page: 1,
+                            pageSize: 50,
+                            totalCount: 0,
+                            totalPages: 1,
+                          }
+                        }
+                        isLoading={Boolean(squareDashboard?.syncLogs.isLoading)}
+                        isFetching={Boolean(
+                          squareDashboard?.syncLogs.isFetching,
+                        )}
+                        statusFilter={
+                          syncLogsStatus as
+                            | "all"
+                            | "completed"
+                            | "failed"
+                            | "in_progress"
+                        }
+                        onStatusFilterChange={(value) => {
+                          setSyncLogsStatus(value);
+                          setSyncLogsPage(1);
+                        }}
+                        onPageChange={setSyncLogsPage}
+                        onRetrySync={() => {
+                          void detail.triggerSquareSync();
+                        }}
+                        onRefresh={() => {
+                          void detail.refetch();
+                        }}
+                      />
+                    </TabsContent>
+                  </Tabs>
+                </>
+              ) : isClover && cloverDetail ? (
+                <>
+                  <Tabs
+                    value={lightspeedTab}
+                    onValueChange={(value) =>
+                      setLightspeedTab(value as LightspeedTabValue)
+                    }
+                    className="space-y-6"
+                  >
+                    <TabsContent value="overview" className="space-y-5">
+                      <OverviewPanel
+                        title="Integration Health"
+                        description="A single operator view of connection, sync coverage, app-level webhook readiness, and automation maturity for this Clover merchant."
+                        action={
+                          <DetailStatusBadge
+                            label={cloverPageStatus?.label ?? "Connected"}
+                            tone={cloverPageStatus?.tone ?? "neutral"}
+                          />
+                        }
+                        contextNote={{
+                          tone: cloverNeedsWebhookSetup ? "warning" : "info",
+                          content:
+                            "Clover webhook delivery is configured at the app level, not per merchant. BloomSuite reports real-time readiness based on app-level setup and observed event traffic.",
+                        }}
+                      >
+                        <div>
+                          <FieldRow
+                            label="Connection"
+                            value={
+                              cloverConnectionHealthy
+                                ? "Connected"
+                                : (cloverDetail.connectionStatus ?? null)
+                            }
+                            tone={
+                              cloverConnectionHealthy ? "success" : "warning"
+                            }
+                            description={
+                              cloverDetail.connectedAt
+                                ? `Connected ${formatRelativeTimestamp(cloverDetail.connectedAt)}.`
+                                : "No connection timestamp is available yet."
+                            }
+                          />
+                          <FieldRow
+                            label="Webhook mode"
+                            value={
+                              cloverRealtimeEnabled ? "Real-time" : "Sync only"
+                            }
+                            tone={cloverRealtimeEnabled ? "success" : "warning"}
+                            description={
+                              cloverRealtimeEnabled
+                                ? cloverDetail.lastWebhookReceivedAt
+                                  ? `Last Clover webhook received ${formatRelativeTimestamp(cloverDetail.lastWebhookReceivedAt)}.`
+                                  : "App-level webhook setup is present, but no recent Clover event has been recorded yet."
+                                : "This merchant remains in sync-only mode until the shared Clover app webhook setup is complete."
+                            }
+                          />
+                          <FieldRow
+                            label="Latest activity"
+                            value={
+                              cloverLatestActivityAt
+                                ? formatRelativeTimestamp(
+                                    cloverLatestActivityAt,
+                                  )
+                                : null
+                            }
+                            description={
+                              formatExactTimestamp(cloverLatestActivityAt) ??
+                              "BloomSuite has not recorded Clover activity yet."
+                            }
+                            tone={
+                              cloverLatestActivityAt ? "success" : "neutral"
+                            }
+                          />
+                          <FieldRow
+                            label="Automation pipeline"
+                            value="Partial"
+                            tone="warning"
+                            description="Customer and messaging paths are active, while some Clover order and refund workflows remain partially implemented."
+                          />
+                        </div>
+
+                        {cloverDetail.webhookLastError ? (
+                          <div className="mt-4 rounded-lg border border-amber-100 bg-amber-50/70 p-3 text-sm leading-6 text-amber-900">
+                            {getUserFacingIntegrationError(
+                              cloverDetail.webhookLastError,
+                              "Clover webhook monitoring needs operator review.",
+                            )}
+                          </div>
+                        ) : null}
+                      </OverviewPanel>
+
+                      <OverviewPanel
+                        title="Data Feeds"
+                        description="BloomSuite reads synced Clover customers, orders, products, and sync jobs from the shared POS storage layer."
+                        action={
+                          <div className="flex items-center gap-1">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 px-2 text-muted-foreground hover:bg-gray-50 hover:text-slate-900"
+                              onClick={() =>
+                                navigate(cloverDetail.automationLogsPath)
+                              }
+                            >
+                              Automation Logs
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 px-2 text-muted-foreground hover:bg-gray-50 hover:text-slate-900"
+                              onClick={() => setLightspeedTab("sync-logs")}
+                            >
+                              Sync Logs
+                            </Button>
+                          </div>
+                        }
+                      >
+                        <div>
+                          <DataFeedRow
+                            label="Customer feed"
+                            status={
+                              cloverDetail.lastCustomerSync
+                                ? "Active"
+                                : "Pending"
+                            }
+                            tone={
+                              cloverDetail.lastCustomerSync
+                                ? "success"
+                                : "warning"
+                            }
+                            description={
+                              cloverDetail.lastCustomerSync
+                                ? `Last synced ${formatRelativeTimestamp(cloverDetail.lastCustomerSync)} • ${formatCount(cloverDetail.customersSynced)} records`
+                                : `${formatCount(cloverDetail.customersSynced)} records available`
+                            }
+                          />
+                          <DataFeedRow
+                            label="Order feed"
+                            status={
+                              cloverDetail.lastSalesSync ? "Active" : "Pending"
+                            }
+                            tone={
+                              cloverDetail.lastSalesSync ? "success" : "warning"
+                            }
+                            description={
+                              cloverDetail.lastSalesSync
+                                ? `Last synced ${formatRelativeTimestamp(cloverDetail.lastSalesSync)} • ${formatCount(cloverDetail.salesSynced)} orders`
+                                : `${formatCount(cloverDetail.salesSynced)} orders available`
+                            }
+                          />
+                          <DataFeedRow
+                            label="Catalog feed"
+                            status={
+                              cloverDetail.lastProductSync
+                                ? "Active"
+                                : "Pending"
+                            }
+                            tone={
+                              cloverDetail.lastProductSync
+                                ? "success"
+                                : "warning"
+                            }
+                            description={
+                              cloverDetail.lastProductSync
+                                ? `Last synced ${formatRelativeTimestamp(cloverDetail.lastProductSync)} • ${formatCount(cloverDetail.productsSynced)} products`
+                                : `${formatCount(cloverDetail.productsSynced)} products available`
+                            }
+                          />
+                        </div>
+                      </OverviewPanel>
+                    </TabsContent>
+
+                    <TabsContent value="customers" className="mt-0">
+                      <CloverCustomersTabView
+                        connectionId={cloverDetail.connectionId}
+                        rows={cloverDashboard?.customers.rows ?? []}
+                        pagination={
+                          cloverDashboard?.customers.pagination ?? {
+                            page: 1,
+                            pageSize: 50,
+                            totalCount: 0,
+                            totalPages: 1,
+                          }
+                        }
+                        isLoading={Boolean(
+                          cloverDashboard?.customers.isLoading,
+                        )}
+                        isFetching={Boolean(
+                          cloverDashboard?.customers.isFetching,
+                        )}
+                        customersSynced={cloverDetail.customersSynced ?? 0}
+                        searchQuery={customerSearchInput}
+                        onSearchQueryChange={(value) => {
+                          setCustomerSearchInput(value);
+                          setCustomerPage(1);
+                        }}
+                        sortField={squareCustomerSortField}
+                        sortDirection={customerSortDirection}
+                        onSortChange={(field, direction) => {
+                          setSquareCustomerSortField(field);
+                          setCustomerSortDirection(direction);
+                          setCustomerPage(1);
+                        }}
+                        selectedCustomer={selectedCloverCustomer}
+                        onSelectedCustomerChange={setSelectedCloverCustomer}
+                        onPageChange={setCustomerPage}
+                        onTriggerSync={() => {
+                          void detail.triggerCloverSync();
+                        }}
+                      />
+                    </TabsContent>
+
+                    <TabsContent value="sales" className="mt-0">
+                      <CloverSalesTabView
+                        connectionId={cloverDetail.connectionId}
+                        rows={cloverDashboard?.sales.rows ?? []}
+                        pagination={
+                          cloverDashboard?.sales.pagination ?? {
+                            page: 1,
+                            pageSize: 50,
+                            totalCount: 0,
+                            totalPages: 1,
+                          }
+                        }
+                        summary={
+                          cloverDashboard?.sales.summary ?? {
+                            revenue: 0,
+                            averageOrderValue: 0,
+                            saleCount: 0,
+                          }
+                        }
+                        isLoading={Boolean(cloverDashboard?.sales.isLoading)}
+                        isFetching={Boolean(cloverDashboard?.sales.isFetching)}
+                        searchQuery={salesSearchInput}
+                        onSearchQueryChange={(value) => {
+                          setSalesSearchInput(value);
+                          setSalesPage(1);
+                        }}
+                        status={salesStatus as "all" | "completed" | "open"}
+                        onStatusChange={(value) => {
+                          setSalesStatus(value);
+                          setSalesPage(1);
+                        }}
+                        startDate={salesStartDate}
+                        endDate={salesEndDate}
+                        onDateRangeChange={(startDate, endDate) => {
+                          setSalesStartDate(startDate);
+                          setSalesEndDate(endDate);
+                          setSalesPage(1);
+                        }}
+                        sortField={squareSalesSortField}
+                        sortDirection={salesSortDirection}
+                        onSortChange={(field, direction) => {
+                          setSquareSalesSortField(field);
+                          setSalesSortDirection(direction);
+                          setSalesPage(1);
+                        }}
+                        selectedSale={selectedCloverSale}
+                        onSelectedSaleChange={setSelectedCloverSale}
+                        onPageChange={setSalesPage}
+                      />
+                    </TabsContent>
+
+                    <TabsContent value="products" className="mt-0">
+                      <CloverProductsTabView
+                        connectionId={cloverDetail.connectionId}
+                        rows={cloverDashboard?.products.rows ?? []}
+                        pagination={
+                          cloverDashboard?.products.pagination ?? {
+                            page: 1,
+                            pageSize: 50,
+                            totalCount: 0,
+                            totalPages: 1,
+                          }
+                        }
+                        categories={cloverDashboard?.products.categories ?? []}
+                        isLoading={Boolean(cloverDashboard?.products.isLoading)}
+                        isFetching={Boolean(
+                          cloverDashboard?.products.isFetching,
+                        )}
+                        searchQuery={productsSearchInput}
+                        onSearchQueryChange={(value) => {
+                          setProductsSearchInput(value);
+                          setProductsPage(1);
+                        }}
+                        selectedCategories={productsCategories}
+                        onSelectedCategoriesChange={(value) => {
+                          setProductsCategories(value);
+                          setProductsPage(1);
+                        }}
+                        inStockOnly={productsInStockOnly}
+                        onInStockOnlyChange={(value) => {
+                          setProductsInStockOnly(value);
+                          setProductsPage(1);
+                        }}
+                        sortField={squareProductsSortField}
+                        sortDirection={productsSortDirection}
+                        onSortChange={(field, direction) => {
+                          setSquareProductsSortField(field);
+                          setProductsSortDirection(direction);
+                          setProductsPage(1);
+                        }}
+                        onPageChange={setProductsPage}
+                      />
+                    </TabsContent>
+
+                    <TabsContent value="sync-logs" className="mt-0">
+                      <CloverSyncLogsTabView
+                        connectionId={cloverDetail.connectionId}
+                        rows={cloverDashboard?.syncLogs.rows ?? []}
+                        pagination={
+                          cloverDashboard?.syncLogs.pagination ?? {
+                            page: 1,
+                            pageSize: 50,
+                            totalCount: 0,
+                            totalPages: 1,
+                          }
+                        }
+                        isLoading={Boolean(cloverDashboard?.syncLogs.isLoading)}
+                        isFetching={Boolean(
+                          cloverDashboard?.syncLogs.isFetching,
+                        )}
+                        statusFilter={
+                          syncLogsStatus as
+                            | "all"
+                            | "completed"
+                            | "failed"
+                            | "in_progress"
+                        }
+                        onStatusFilterChange={(value) => {
+                          setSyncLogsStatus(value);
+                          setSyncLogsPage(1);
+                        }}
+                        onPageChange={setSyncLogsPage}
+                        onRetrySync={() => {
+                          void detail.triggerCloverSync();
+                        }}
+                        onRefresh={() => {
+                          void detail.refetch();
+                        }}
+                      />
+                    </TabsContent>
+
+                    <TabsContent value="connection-test" className="mt-0">
+                      <CloverConnectionTestTabView
+                        rows={cloverDashboard?.connectionTests.rows ?? []}
+                        latestReport={
+                          cloverDashboard?.connectionTests.latestReport ?? null
+                        }
+                        latestTestedAt={
+                          cloverDashboard?.connectionTests.latestTestedAt ??
+                          null
+                        }
+                        pagination={
+                          cloverDashboard?.connectionTests.pagination ?? {
+                            page: 1,
+                            pageSize: 50,
+                            totalCount: 0,
+                            totalPages: 1,
+                          }
+                        }
+                        isLoading={Boolean(
+                          cloverDashboard?.connectionTests.isLoading,
+                        )}
+                        isFetching={Boolean(
+                          cloverDashboard?.connectionTests.isFetching,
+                        )}
+                        isRunning={detail.isCloverConnectionTesting}
+                        onRunTest={() => {
+                          void detail.runCloverConnectionTest();
+                        }}
+                        onPageChange={setSyncLogsPage}
+                      />
+                    </TabsContent>
+                  </Tabs>
+                </>
+              ) : isMeta && metaDetail ? (
+                <OverviewPanel
+                  title="Integration Health"
+                  description="Authorization, connected social assets, and publishing readiness for the shared Meta connection."
+                  action={
+                    <DetailStatusBadge
+                      label={metaPageStatus?.label ?? "Not connected"}
+                      tone={metaPageStatus?.tone ?? "neutral"}
+                    />
+                  }
+                >
+                  <div className="space-y-5">
+                    <div className="space-y-3">
+                      <div className="text-sm font-semibold text-slate-950">
+                        Authorization
+                      </div>
+                      <div>
+                        <FieldRow
+                          label="Status"
+                          value={
+                            metaTokenExpired
+                              ? "Expired"
+                              : metaTokenExpiringSoon
+                                ? "Expiring soon"
+                                : metaDetail.authorizationStatus ===
+                                    "authorized"
+                                  ? "Authorized"
+                                  : "Not connected"
+                          }
+                          tone={
+                            metaTokenExpired
+                              ? "danger"
+                              : metaTokenExpiringSoon
+                                ? "warning"
+                                : metaDetail.authorizationStatus ===
+                                    "authorized"
+                                  ? "success"
+                                  : "neutral"
+                          }
+                        />
+                        <FieldRow
+                          label="Token expires"
+                          value={
+                            formatRelativePlusAbsolute(
+                              metaDetail.expiresAt,
+                              "—",
+                            ).value
+                          }
+                          description={
+                            formatRelativePlusAbsolute(
+                              metaDetail.expiresAt,
+                              "—",
+                            ).description
+                          }
+                          tone={
+                            metaTokenExpired
+                              ? "danger"
+                              : metaTokenExpiringSoon
+                                ? "warning"
+                                : "neutral"
+                          }
+                        />
+                        <FieldRow
+                          label="Connected since"
+                          value={
+                            formatRelativePlusAbsolute(
+                              metaDetail.connectedAt,
+                              "—",
+                            ).value
+                          }
+                          description={
+                            formatRelativePlusAbsolute(
+                              metaDetail.connectedAt,
+                              "—",
+                            ).description
+                          }
+                        />
+                      </div>
+                      {metaTokenExpired ? (
+                        <div className="rounded-lg border border-rose-200 bg-rose-50/80 p-3 text-sm leading-6 text-rose-900">
+                          Access token expired on{" "}
+                          {formatDateValue(metaDetail.expiresAt)}. Re-authorize
+                          to restore access.
+                        </div>
+                      ) : null}
+                    </div>
+
+                    <div className="space-y-3 border-t border-border/60 pt-4">
+                      <div className="text-sm font-semibold text-slate-950">
+                        Facebook Pages
+                      </div>
+                      <FieldRow
+                        label="Status"
+                        value={`${metaDetail.facebookPages.filter((asset) => asset.active).length} pages connected`}
+                        tone={
+                          metaDetail.facebookPageCount > 0
+                            ? "success"
+                            : "neutral"
+                        }
+                      />
+                      <MetaAssetList
+                        assets={metaDetail.facebookPages}
+                        emptyMessage="No pages connected"
+                        onCopy={copyToClipboard}
+                        onOpen={() => navigate(metaDetail.managementPath)}
+                      />
+                    </div>
+
+                    <div className="space-y-3 border-t border-border/60 pt-4">
+                      <div className="text-sm font-semibold text-slate-950">
+                        Instagram Accounts
+                      </div>
+                      <FieldRow
+                        label="Status"
+                        value={`${metaDetail.instagramAccounts.filter((asset) => asset.active).length} accounts connected`}
+                        tone={
+                          metaDetail.instagramAccountCount > 0
+                            ? "success"
+                            : "neutral"
+                        }
+                      />
+                      <MetaAssetList
+                        assets={metaDetail.instagramAccounts}
+                        emptyMessage="No accounts connected"
+                        onCopy={copyToClipboard}
+                        onOpen={() => navigate(metaDetail.managementPath)}
+                      />
+                    </div>
+                  </div>
+                </OverviewPanel>
+              ) : isGa4 && ga4Detail ? (
+                <OverviewPanel
+                  title="Integration Health"
+                  description="Authorization, property access, and reporting readiness for the connected GA4 property."
+                  action={
+                    <DetailStatusBadge
+                      label={ga4PageStatus?.label ?? "Not connected"}
+                      tone={ga4PageStatus?.tone ?? "neutral"}
+                    />
+                  }
+                >
+                  <div className="space-y-5">
+                    <div className="space-y-3">
+                      <div className="text-sm font-semibold text-slate-950">
+                        Authorization
+                      </div>
+                      <div>
+                        <FieldRow
+                          label="Status"
+                          value={
+                            ga4ConnectionHealthy
+                              ? "Authorized"
+                              : ga4NeedsReconnect
+                                ? "Reconnect required"
+                                : "Not connected"
+                          }
+                          tone={
+                            ga4ConnectionHealthy
+                              ? "success"
+                              : ga4NeedsReconnect
+                                ? "danger"
+                                : "neutral"
+                          }
+                        />
+                        <FieldRow
+                          label="Connected since"
+                          value={
+                            formatRelativePlusAbsolute(
+                              ga4Detail.connectedAt,
+                              "—",
+                            ).value
+                          }
+                          description={
+                            formatRelativePlusAbsolute(
+                              ga4Detail.connectedAt,
+                              "—",
+                            ).description
+                          }
+                        />
+                        <FieldRow
+                          label="Google account"
+                          value={ga4Detail.googleAccountEmail ?? "—"}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-3 border-t border-border/60 pt-4">
+                      <div className="text-sm font-semibold text-slate-950">
+                        Property
+                      </div>
+                      <div>
+                        <FieldRow
+                          label="Property name"
+                          value={ga4Detail.propertyName ?? "—"}
+                        />
+                        <FieldRow
+                          label="Measurement ID"
+                          value={ga4Detail.measurementId ?? "—"}
+                          copyValue={ga4Detail.measurementId ?? undefined}
+                          copyLabel="Measurement ID"
+                          copiedLabel={copiedLabel}
+                          onCopy={copyToClipboard}
+                        />
+                        <FieldRow
+                          label="Last data pull"
+                          value={
+                            formatRelativePlusAbsolute(
+                              ga4Detail.lastPullAt,
+                              "—",
+                            ).value
+                          }
+                          description={
+                            formatRelativePlusAbsolute(
+                              ga4Detail.lastPullAt,
+                              "—",
+                            ).description
+                          }
+                        />
+                        <FieldRow label="Pull cadence" value="Daily" />
+                      </div>
+                    </div>
+
+                    <div className="space-y-3 border-t border-border/60 pt-4">
+                      <div className="text-sm font-semibold text-slate-950">
+                        Data Access
+                      </div>
+                      <div>
+                        <FieldRow
+                          label="Status"
+                          value={
+                            ga4ConnectionHealthy ? "Active" : "Unavailable"
+                          }
+                          tone={ga4ConnectionHealthy ? "success" : "neutral"}
+                        />
+                        <FieldRow
+                          label="Historical data"
+                          value="Last 90 days on connection"
+                        />
+                        <FieldRow
+                          label="Read permissions"
+                          value={
+                            ga4Detail.readPermissionsConfirmed
+                              ? "Confirmed"
+                              : "Not confirmed"
+                          }
+                          tone={
+                            ga4Detail.readPermissionsConfirmed
+                              ? "success"
+                              : "warning"
+                          }
+                          description={
+                            ga4Detail.readPermissionsConfirmed
+                              ? "analytics.readonly access is available for reporting pulls."
+                              : "Re-authorize to confirm the GA4 reporting permission set."
+                          }
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </OverviewPanel>
+              ) : isMarketingImport && marketingImportDetail ? (
+                <>
+                  <SectionCard
+                    title="Authorization"
+                    description="Current provider authorization state and the last recorded connection update for this tenant."
+                  >
+                    <DetailHealthRows
+                      rows={marketingImportDetail.healthRows.authorization}
+                    />
+                  </SectionCard>
+
+                  <SectionCard
+                    title="Import History"
+                    description="Latest import activity and all-time import volume recorded for this provider."
+                  >
+                    <DetailHealthRows
+                      rows={marketingImportDetail.healthRows.importHistory}
+                    />
+                  </SectionCard>
+
+                  <SectionCard
+                    title="Import Timeline"
+                    description="Connection and recent import milestones recorded for this provider."
+                  >
+                    <DetailTimeline entries={marketingImportDetail.timeline} />
+                  </SectionCard>
+                </>
+              ) : (
+                <>
+                  <SectionCard
+                    title="Connection Health"
+                    description="Connection lifecycle and provider events for this integration."
+                  >
+                    <DetailTimeline entries={model.timeline} />
+                  </SectionCard>
+
+                  <SectionCard
+                    title="Webhook Health"
+                    description="Subscription, retry, and delivery state based on existing provider telemetry."
+                  >
+                    <DetailHealthRows rows={model.webhookRows} />
+                  </SectionCard>
+
+                  <SectionCard
+                    title="Sync Health"
+                    description="Last sync or verification state and the display-safe counters available today."
+                  >
+                    <DetailHealthRows rows={model.syncRows} />
+                  </SectionCard>
+                </>
+              )}
             </div>
 
             <div className="space-y-6">
@@ -2994,7 +5315,10 @@ export default function IntegrationDetailPage() {
                       <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50/80 p-4 text-sm text-amber-900">
                         <div className="font-semibold">Last webhook error</div>
                         <div className="mt-1 leading-6 text-amber-800/90">
-                          {squareDetail.webhookLastError}
+                          {getUserFacingIntegrationError(
+                            squareDetail.webhookLastError,
+                            "This integration needs attention. Please try again or reconnect the integration.",
+                          )}
                         </div>
                       </div>
                     ) : null}
@@ -3063,260 +5387,228 @@ export default function IntegrationDetailPage() {
                     title="Merchant Details"
                     description="Merchant identifiers and Clover connection metadata stored for this tenant."
                   >
-                    <DetailFieldRows
-                      onCopy={copyToClipboard}
-                      rows={[
-                        {
-                          label: "Merchant Name",
-                          value: cloverDetail.merchantName ?? "Not available",
-                        },
-                        {
-                          label: "Merchant ID",
-                          value: cloverDetail.merchantId ?? "Not available",
-                          copyValue: cloverDetail.merchantId,
-                          copyLabel: "Merchant ID",
-                        },
-                        {
-                          label: "Employee ID",
-                          value: cloverDetail.employeeId ?? "Not available",
-                          copyValue: cloverDetail.employeeId,
-                          copyLabel: "Employee ID",
-                        },
-                        {
-                          label: "Region",
-                          value: formatRegionLabel(cloverDetail.region),
-                        },
-                        {
-                          label: "Environment",
-                          value: formatEnvironmentLabel(
-                            cloverDetail.environment,
-                          ),
-                        },
-                        {
-                          label: "Connected Since",
-                          value: formatTimestampOrFallback(
-                            cloverDetail.connectedAt,
-                          ),
-                        },
-                        {
-                          label: "Setup Wizard Completed",
-                          value: formatTimestampOrFallback(
-                            cloverDetail.setupWizardCompletedAt,
-                            "Not completed",
-                          ),
-                        },
-                      ]}
-                    />
-                  </SectionCard>
-
-                  <SectionCard
-                    title="Sync Configuration"
-                    description="Actual Clover sync telemetry per domain, without assuming all sync paths are active."
-                  >
-                    <DetailFieldRows
-                      rows={[
-                        {
-                          label: "Customers",
-                          value: cloverDetail.lastCustomerSync
-                            ? `Last synced ${formatRelativeTimestamp(cloverDetail.lastCustomerSync)}`
-                            : "Not synced yet",
-                          description: `${formatCount(cloverDetail.customersSynced)} records`,
-                          tone: cloverDetail.lastCustomerSync
-                            ? "success"
-                            : "neutral",
-                        },
-                        {
-                          label: "Sales",
-                          value: cloverDetail.lastSalesSync
-                            ? `Last synced ${formatRelativeTimestamp(cloverDetail.lastSalesSync)}`
-                            : "Not synced yet",
-                          description: `${formatCount(cloverDetail.salesSynced)} records`,
-                          tone: cloverDetail.lastSalesSync
-                            ? "success"
-                            : "neutral",
-                        },
-                        {
-                          label: "Products",
-                          value: cloverDetail.lastProductSync
-                            ? `Last synced ${formatRelativeTimestamp(cloverDetail.lastProductSync)}`
-                            : "Not synced yet",
-                          description: `${formatCount(cloverDetail.productsSynced)} records`,
-                          tone: cloverDetail.lastProductSync
-                            ? "success"
-                            : "neutral",
-                        },
-                      ]}
-                    />
-                    <div className="mt-4">
-                      <Button
-                        type="button"
-                        onClick={() => {
-                          void detail.triggerCloverSync();
-                        }}
-                        disabled={
-                          item.status !== "connected" || detail.isCloverSyncing
+                    <div>
+                      <FieldRow
+                        label="Merchant name"
+                        value={cloverDetail.merchantName}
+                      />
+                      <FieldRow
+                        label="Merchant ID"
+                        value={cloverDetail.merchantId}
+                        copyValue={cloverDetail.merchantId}
+                        copyLabel="Merchant ID"
+                        copiedLabel={copiedLabel}
+                        onCopy={copyToClipboard}
+                      />
+                      <FieldRow
+                        label="Employee ID"
+                        value={cloverDetail.employeeId}
+                        copyValue={cloverDetail.employeeId}
+                        copyLabel="Employee ID"
+                        copiedLabel={copiedLabel}
+                        onCopy={copyToClipboard}
+                      />
+                      <FieldRow
+                        label="Region"
+                        value={renderCloverRegionBadge(cloverDetail.region)}
+                      />
+                      <FieldRow
+                        label="Environment"
+                        value={formatEnvironmentLabel(cloverDetail.environment)}
+                      />
+                      <FieldRow
+                        label="Connected"
+                        value={
+                          cloverDetail.connectedAt
+                            ? formatRelativeTimestamp(cloverDetail.connectedAt)
+                            : null
                         }
-                      >
-                        {detail.isCloverSyncing
-                          ? "Starting sync..."
-                          : "Trigger Manual Sync"}
-                      </Button>
-                    </div>
-                  </SectionCard>
-
-                  <SectionCard
-                    title="Webhook Configuration"
-                    description="Clover webhook state as tracked from the existing app-level monitoring flow."
-                  >
-                    <div className="bg-amber-50 border border-amber-100 rounded-lg p-3 text-sm text-amber-800">
-                      Clover webhooks are configured at the app level, not per
-                      merchant. BloomSuite monitors webhook readiness by
-                      observing recent traffic rather than directly provisioning
-                      merchant subscriptions.
-                    </div>
-                    <div className="mt-4">
-                      <DetailFieldRows
-                        rows={[
-                          {
-                            label: "App Webhook Status",
-                            value: cloverDetail.webhooksSubscribed
-                              ? "Enabled"
-                              : "Not configured",
-                            tone: cloverDetail.webhooksSubscribed
-                              ? "success"
-                              : "warning",
-                          },
-                          {
-                            label: "App ID on File",
-                            value: cloverDetail.appIdConfigured
-                              ? "Configured"
-                              : "Not set",
-                            tone: cloverDetail.appIdConfigured
-                              ? "success"
-                              : "warning",
-                          },
-                          {
-                            label: "Last Webhook Received",
-                            value: formatRelativePlusAbsolute(
-                              cloverDetail.lastWebhookReceivedAt,
-                              "Never",
-                            ).value,
-                            description: formatRelativePlusAbsolute(
-                              cloverDetail.lastWebhookReceivedAt,
-                              "Never",
-                            ).description,
-                            tone: cloverDetail.lastWebhookReceivedAt
-                              ? "success"
-                              : "neutral",
-                          },
-                          {
-                            label: "Last Health Check",
-                            value: formatRelativePlusAbsolute(
-                              cloverDetail.webhooksLastCheckedAt,
-                              "Never",
-                            ).value,
-                            description: formatRelativePlusAbsolute(
-                              cloverDetail.webhooksLastCheckedAt,
-                              "Never",
-                            ).description,
-                            tone: cloverDetail.webhooksLastCheckedAt
-                              ? "neutral"
-                              : "warning",
-                          },
-                          {
-                            label: "Last Error",
-                            value: cloverDetail.webhookLastError ?? "—",
-                            tone: cloverDetail.webhookLastError
-                              ? "danger"
-                              : "neutral",
-                            valueClassName: cloverDetail.webhookLastError
-                              ? "text-rose-700"
-                              : "text-slate-500",
-                          },
-                          {
-                            label: "Retry Count",
-                            value: String(cloverDetail.webhookRetryCount ?? 0),
-                            tone:
-                              (cloverDetail.webhookRetryCount ?? 0) > 0
-                                ? "warning"
-                                : "neutral",
-                          },
-                          {
-                            label: "Next Retry",
-                            value: formatRelativePlusAbsolute(
-                              cloverDetail.webhookNextRetryAt,
-                              "—",
-                            ).value,
-                            description: formatRelativePlusAbsolute(
-                              cloverDetail.webhookNextRetryAt,
-                              "—",
-                            ).description,
-                            tone: cloverDetail.webhookNextRetryAt
-                              ? "warning"
-                              : "neutral",
-                          },
-                        ]}
+                        description={formatExactTimestamp(
+                          cloverDetail.connectedAt,
+                        )}
+                      />
+                      <FieldRow
+                        label="Setup wizard"
+                        value={
+                          cloverDetail.setupWizardCompletedAt
+                            ? formatRelativeTimestamp(
+                                cloverDetail.setupWizardCompletedAt,
+                              )
+                            : "Not completed"
+                        }
+                        description={
+                          formatExactTimestamp(
+                            cloverDetail.setupWizardCompletedAt,
+                          ) ?? "Setup has not been completed yet."
+                        }
+                        tone={
+                          cloverDetail.setupWizardCompletedAt
+                            ? "success"
+                            : "warning"
+                        }
                       />
                     </div>
-                    <div className="mt-4 text-xs text-muted-foreground">
-                      If Clover App ID is not configured, this integration will
-                      operate in sync-only mode. Real-time event processing
-                      requires app-level webhook setup.
+                  </SectionCard>
+
+                  <SectionCard
+                    title="Sync Status"
+                    description="Current Clover sync coverage and last known telemetry per domain."
+                  >
+                    <div>
+                      <SyncTypeRow
+                        label="Customers"
+                        lastSyncedAt={cloverDetail.lastCustomerSync}
+                        syncedCount={cloverDetail.customersSynced}
+                        isSyncing={detail.isCloverSyncing}
+                      />
+                      <SyncTypeRow
+                        label="Sales"
+                        lastSyncedAt={cloverDetail.lastSalesSync}
+                        syncedCount={cloverDetail.salesSynced}
+                        isSyncing={detail.isCloverSyncing}
+                      />
+                      <SyncTypeRow
+                        label="Products"
+                        lastSyncedAt={cloverDetail.lastProductSync}
+                        syncedCount={cloverDetail.productsSynced}
+                        isSyncing={detail.isCloverSyncing}
+                      />
                     </div>
                   </SectionCard>
 
                   <SectionCard
-                    title="Automation Integration"
-                    description="Current Clover automation maturity based on the existing CRM and webhook pipeline implementation."
+                    title="Webhook Mode"
+                    description="App-level Clover webhook readiness and the latest delivery telemetry available to BloomSuite."
                   >
-                    <DetailFieldRows
-                      rows={[
-                        {
-                          label: "CRM Customer Writes",
-                          value: "Active",
-                          tone: "success",
-                        },
-                        {
-                          label: "Order Pipeline",
-                          value: "Partial",
-                          tone: "warning",
-                        },
-                        {
-                          label: "Automation Triggers",
-                          value: "Active",
-                          tone: "success",
-                        },
-                        {
-                          label: "Outbox Messaging",
-                          value: "Active",
-                          tone: "success",
-                        },
-                        {
-                          label: "Loyalty Events",
-                          value: "Not available",
-                          tone: "neutral",
-                          valueClassName: "text-slate-500",
-                        },
-                        {
-                          label: "Refund Handling",
-                          value: "Partial",
-                          tone: "warning",
-                        },
-                      ]}
-                    />
-                    <div className="mt-4 flex items-center justify-between gap-3">
-                      <Button
-                        type="button"
-                        variant="link"
-                        className="h-auto px-0"
-                        onClick={() =>
-                          navigate(cloverDetail.automationLogsPath)
-                        }
-                      >
-                        View Automation Logs
-                      </Button>
+                    <div className="space-y-4">
+                      <div className="rounded-2xl border border-border/70 bg-slate-50/70 p-4 text-sm leading-6 text-muted-foreground">
+                        {cloverRealtimeEnabled
+                          ? "Clover is operating in real-time mode for this tenant because the shared app-level webhook configuration is present and BloomSuite has recorded Clover event traffic."
+                          : "Clover is operating in sync-only mode for this tenant. Merchant-level webhook provisioning is not supported here; real-time events depend on shared app-level setup."}
+                      </div>
+                      <div>
+                        <FieldRow
+                          label="App ID"
+                          value={
+                            cloverDetail.appIdConfigured
+                              ? "Configured"
+                              : "Not configured"
+                          }
+                          tone={
+                            cloverDetail.appIdConfigured ? "success" : "warning"
+                          }
+                        />
+                        <FieldRow
+                          label="Webhook status"
+                          value={
+                            cloverRealtimeEnabled
+                              ? "Receiving events"
+                              : "Sync only"
+                          }
+                          tone={cloverRealtimeEnabled ? "success" : "warning"}
+                        />
+                        <FieldRow
+                          label="Last webhook"
+                          value={
+                            cloverDetail.lastWebhookReceivedAt
+                              ? formatRelativeTimestamp(
+                                  cloverDetail.lastWebhookReceivedAt,
+                                )
+                              : null
+                          }
+                          description={
+                            formatExactTimestamp(
+                              cloverDetail.lastWebhookReceivedAt,
+                            ) ??
+                            "No Clover webhook event has been recorded yet."
+                          }
+                          tone={
+                            cloverDetail.lastWebhookReceivedAt
+                              ? "success"
+                              : "neutral"
+                          }
+                        />
+                        <FieldRow
+                          label="Last health check"
+                          value={
+                            cloverDetail.webhooksLastCheckedAt
+                              ? formatRelativeTimestamp(
+                                  cloverDetail.webhooksLastCheckedAt,
+                                )
+                              : null
+                          }
+                          description={
+                            formatExactTimestamp(
+                              cloverDetail.webhooksLastCheckedAt,
+                            ) ??
+                            "No Clover webhook health check has been recorded yet."
+                          }
+                          tone={
+                            cloverDetail.webhooksLastCheckedAt
+                              ? "neutral"
+                              : "warning"
+                          }
+                        />
+                        <FieldRow
+                          label="Last error"
+                          value={
+                            cloverDetail.webhookLastError
+                              ? getUserFacingIntegrationError(
+                                  cloverDetail.webhookLastError,
+                                  "Clover webhook health needs review.",
+                                )
+                              : "None"
+                          }
+                          tone={
+                            cloverDetail.webhookLastError ? "danger" : "success"
+                          }
+                          valueClassName={
+                            cloverDetail.webhookLastError
+                              ? "text-rose-700"
+                              : undefined
+                          }
+                        />
+                      </div>
                     </div>
-                    <div className="mt-2 text-xs text-muted-foreground">
+                  </SectionCard>
+
+                  <SectionCard
+                    title="Automation Pipeline"
+                    description="Current Clover automation maturity based on the existing CRM and event routing implementation."
+                  >
+                    <div>
+                      <HealthFieldRow
+                        label="CRM customer writes"
+                        value="Active"
+                        tone="success"
+                        description="Clover customers can flow into the existing BloomSuite CRM pipeline."
+                      />
+                      <HealthFieldRow
+                        label="Order pipeline"
+                        value="Partial"
+                        tone="warning"
+                        description="Clover order-driven automations are available, but parity is still below Square and Lightspeed."
+                      />
+                      <HealthFieldRow
+                        label="Automation triggers"
+                        value="Active"
+                        tone="success"
+                        description="Existing Clover activity can trigger BloomSuite automation and logging flows."
+                      />
+                      <HealthFieldRow
+                        label="Loyalty events"
+                        value="Not available"
+                        tone="neutral"
+                        description="Clover loyalty events are not currently part of the supported integration contract."
+                      />
+                      <HealthFieldRow
+                        label="Refund handling"
+                        value="Partial"
+                        tone="warning"
+                        description="Refund-related Clover automation is available in limited form and still needs hardening."
+                      />
+                    </div>
+                    <div className="mt-4 rounded-2xl border border-border/70 bg-slate-50/70 p-4 text-sm leading-6 text-muted-foreground">
                       Some Clover automation behaviors are provisionally
                       implemented. Order and refund pipeline maturity is lower
                       than Square.
@@ -3332,53 +5624,32 @@ export default function IntegrationDetailPage() {
                     }
                     className="space-y-6"
                   >
-                    <div className="overflow-x-auto">
-                      <TabsList className="inline-flex h-auto min-w-full justify-start rounded-2xl border border-border/70 bg-white/80 p-1">
-                        <TabsTrigger value="overview">Overview</TabsTrigger>
-                        <TabsTrigger value="customers">
-                          Customers (
-                          {formatCount(lightspeedDetail.customersSynced)})
-                        </TabsTrigger>
-                        <TabsTrigger value="sales">
-                          Sales ({formatCount(lightspeedDetail.salesSynced)})
-                        </TabsTrigger>
-                        <TabsTrigger value="products">
-                          Products (
-                          {formatCount(lightspeedDetail.productsSynced)})
-                        </TabsTrigger>
-                        <TabsTrigger value="sync-logs">Sync Logs</TabsTrigger>
-                      </TabsList>
-                    </div>
-
-                    <TabsContent value="overview" className="space-y-6">
-                      <SectionCard
+                    <TabsContent value="overview" className="space-y-5">
+                      <OverviewPanel
                         title="Store Details"
                         description="Domain-based store identity and connection metadata stored for this Lightspeed account."
                       >
-                        <DetailFieldRows
-                          onCopy={copyToClipboard}
-                          rows={[
-                            {
-                              label: "Retailer Name",
-                              value:
-                                lightspeedDetail.retailerName ??
-                                "Not available",
-                            },
-                            {
-                              label: "Domain Prefix",
-                              value:
-                                lightspeedDetail.domainPrefix ??
-                                "Not available",
-                              copyValue: lightspeedDetail.domainPrefix,
-                              copyLabel: "Domain prefix",
-                            },
-                            {
-                              label: "Store URL",
-                              value: lightspeedDetail.storeUrl ? (
+                        <div>
+                          <FieldRow
+                            label="Retailer"
+                            value={lightspeedDetail.retailerName}
+                          />
+                          <FieldRow
+                            label="Domain"
+                            value={lightspeedDetail.domainPrefix}
+                            copyValue={lightspeedDetail.domainPrefix}
+                            copyLabel="Domain prefix"
+                            copiedLabel={copiedLabel}
+                            onCopy={copyToClipboard}
+                          />
+                          <FieldRow
+                            label="Store URL"
+                            value={
+                              lightspeedDetail.storeUrl ? (
                                 <a
                                   href={lightspeedDetail.storeUrl}
                                   target="_blank"
-                                  rel="noreferrer"
+                                  rel="noopener noreferrer"
                                   className="inline-flex items-center gap-1 text-brand-navy underline-offset-4 hover:underline"
                                 >
                                   {lightspeedDetail.storeUrl.replace(
@@ -3387,77 +5658,33 @@ export default function IntegrationDetailPage() {
                                   )}
                                   <ExternalLink className="h-3.5 w-3.5" />
                                 </a>
-                              ) : (
-                                "Not available"
-                              ),
-                            },
-                            {
-                              label: "Connection Status",
-                              value:
-                                lightspeedDetail.connectionStatus ??
-                                "Not available",
-                              tone:
-                                item.status === "connected"
-                                  ? "success"
-                                  : "neutral",
-                            },
-                            {
-                              label: "Connected Since",
-                              value: formatTimestampOrFallback(
-                                lightspeedDetail.connectedAt,
-                              ),
-                            },
-                          ]}
-                        />
-                      </SectionCard>
+                              ) : null
+                            }
+                          />
+                          <FieldRow
+                            label="Connected"
+                            value={
+                              lightspeedDetail.connectedAt
+                                ? formatRelativeTimestamp(
+                                    lightspeedDetail.connectedAt,
+                                  )
+                                : null
+                            }
+                            description={formatExactTimestamp(
+                              lightspeedDetail.connectedAt,
+                            )}
+                          />
+                        </div>
+                      </OverviewPanel>
 
-                      <LightspeedSyncProgressPanel
-                        jobs={detail.lightspeedSyncJobs}
-                        syncState={detail.lightspeedSyncState}
-                        hasStaleJobs={detail.lightspeedHasStaleJobs}
-                      />
-
-                      <SectionCard
+                      <OverviewPanel
                         title="Sync Configuration"
                         description="Actual Lightspeed sync telemetry per domain, using the connection timestamps already stored today."
-                      >
-                        <DetailFieldRows
-                          rows={[
-                            {
-                              label: "Customers",
-                              value: lightspeedDetail.lastCustomerSync
-                                ? `Last synced ${formatRelativeTimestamp(lightspeedDetail.lastCustomerSync)}`
-                                : "Not synced yet",
-                              description: `${formatCount(lightspeedDetail.customersSynced)} records`,
-                              tone: lightspeedDetail.lastCustomerSync
-                                ? "success"
-                                : "neutral",
-                            },
-                            {
-                              label: "Sales",
-                              value: lightspeedDetail.lastSalesSync
-                                ? `Last synced ${formatRelativeTimestamp(lightspeedDetail.lastSalesSync)}`
-                                : "Not synced yet",
-                              description: `${formatCount(lightspeedDetail.salesSynced)} records`,
-                              tone: lightspeedDetail.lastSalesSync
-                                ? "success"
-                                : "neutral",
-                            },
-                            {
-                              label: "Products",
-                              value: lightspeedDetail.lastProductSync
-                                ? `Last synced ${formatRelativeTimestamp(lightspeedDetail.lastProductSync)}`
-                                : "Not synced yet",
-                              description: `${formatCount(lightspeedDetail.productsSynced)} records`,
-                              tone: lightspeedDetail.lastProductSync
-                                ? "success"
-                                : "neutral",
-                            },
-                          ]}
-                        />
-                        <div className="mt-4">
+                        action={
                           <Button
                             type="button"
+                            size="sm"
+                            variant="outline"
                             onClick={() => {
                               void detail.triggerLightspeedSync();
                             }}
@@ -3469,1205 +5696,465 @@ export default function IntegrationDetailPage() {
                             {detail.lightspeedSyncState === "triggering"
                               ? "Starting sync..."
                               : detail.lightspeedSyncState === "syncing"
-                                ? "Sync in progress..."
-                                : "Trigger Manual Sync"}
+                                ? "Syncing..."
+                                : "Sync now"}
                           </Button>
+                        }
+                      >
+                        <div>
+                          <SyncTypeRow
+                            label="Customers"
+                            lastSyncedAt={lightspeedDetail.lastCustomerSync}
+                            syncedCount={lightspeedDetail.customersSynced}
+                            isSyncing={hasActiveLightspeedSyncType("customers")}
+                          />
+                          <SyncTypeRow
+                            label="Sales"
+                            lastSyncedAt={lightspeedDetail.lastSalesSync}
+                            syncedCount={lightspeedDetail.salesSynced}
+                            isSyncing={hasActiveLightspeedSyncType("sales")}
+                          />
+                          <SyncTypeRow
+                            label="Products"
+                            lastSyncedAt={lightspeedDetail.lastProductSync}
+                            syncedCount={lightspeedDetail.productsSynced}
+                            isSyncing={hasActiveLightspeedSyncType("products")}
+                          />
+                          <FieldRow
+                            label="Queue state"
+                            value={
+                              detail.lightspeedSyncState === "triggering"
+                                ? "Creating jobs"
+                                : detail.lightspeedSyncState === "syncing"
+                                  ? "In progress"
+                                  : null
+                            }
+                            description={
+                              detail.lightspeedSyncState === "idle"
+                                ? "No active Lightspeed sync jobs."
+                                : `${lightspeedActiveSyncJobs.length} active job${lightspeedActiveSyncJobs.length === 1 ? "" : "s"} currently running.`
+                            }
+                            tone={
+                              detail.lightspeedSyncState === "idle"
+                                ? "neutral"
+                                : "success"
+                            }
+                          />
                         </div>
-                      </SectionCard>
+                      </OverviewPanel>
 
-                      <SectionCard
+                      <OverviewPanel
                         title="Webhook Configuration"
                         description="Lightspeed webhook state as observed from the current account capabilities and delivery telemetry."
                       >
-                        <div className="rounded-lg border border-amber-100 bg-amber-50 p-3 text-sm text-amber-800">
-                          Lightspeed webhook support varies by account.
-                          BloomSuite treats unsupported webhook APIs as an
-                          account capability constraint and continues operating
-                          in sync-only mode where needed.
-                        </div>
-                        <div className="mt-4">
-                          <DetailFieldRows
-                            rows={[
-                              {
-                                label: "Webhook Mode",
-                                value: lightspeedWebhookMode.label,
-                                tone: lightspeedWebhookMode.tone,
-                                valueClassName:
-                                  lightspeedWebhookMode.valueClassName,
-                              },
-                              {
-                                label: "Registration State",
-                                value: lightspeedDetail.webhookRegistered
-                                  ? "Registered"
-                                  : "Not registered",
-                                tone: lightspeedDetail.webhookRegistered
-                                  ? "success"
-                                  : lightspeedDetail.webhookMode ===
-                                      "unavailable"
-                                    ? "neutral"
-                                    : "warning",
-                              },
-                              {
-                                label: "Last Webhook Received",
-                                value: formatRelativePlusAbsolute(
-                                  lightspeedDetail.lastWebhookReceivedAt,
-                                  "Never",
-                                ).value,
-                                description: formatRelativePlusAbsolute(
-                                  lightspeedDetail.lastWebhookReceivedAt,
-                                  "Never",
-                                ).description,
-                                tone: lightspeedDetail.lastWebhookReceivedAt
-                                  ? "success"
-                                  : "neutral",
-                              },
-                              {
-                                label: "Last Health Check",
-                                value: formatRelativePlusAbsolute(
-                                  lightspeedDetail.webhooksLastCheckedAt,
-                                  "Never",
-                                ).value,
-                                description: formatRelativePlusAbsolute(
-                                  lightspeedDetail.webhooksLastCheckedAt,
-                                  "Never",
-                                ).description,
-                                tone: lightspeedDetail.webhooksLastCheckedAt
-                                  ? "neutral"
-                                  : "warning",
-                              },
-                              {
-                                label: "Retry Count",
-                                value: String(
-                                  lightspeedDetail.webhookRetryCount ?? 0,
-                                ),
-                                tone:
-                                  (lightspeedDetail.webhookRetryCount ?? 0) > 0
-                                    ? "warning"
-                                    : "neutral",
-                              },
-                              {
-                                label: "Next Retry",
-                                value: formatRelativePlusAbsolute(
-                                  lightspeedDetail.webhookNextRetryAt,
-                                  "—",
-                                ).value,
-                                description: formatRelativePlusAbsolute(
-                                  lightspeedDetail.webhookNextRetryAt,
-                                  "—",
-                                ).description,
-                                tone: lightspeedDetail.webhookNextRetryAt
-                                  ? "warning"
-                                  : "neutral",
-                              },
-                              {
-                                label: "Last Error",
-                                value: lightspeedDetail.webhookLastError ?? "—",
-                                tone: lightspeedDetail.webhookLastError
-                                  ? lightspeedDetail.webhookMode ===
-                                    "unavailable"
-                                    ? "neutral"
-                                    : "danger"
-                                  : "neutral",
-                                valueClassName:
-                                  lightspeedDetail.webhookLastError
-                                    ? lightspeedDetail.webhookMode ===
-                                      "unavailable"
-                                      ? "text-slate-600"
-                                      : "text-rose-700"
-                                    : "text-slate-500",
-                              },
-                            ]}
-                          />
-                        </div>
-                      </SectionCard>
-
-                      <SectionCard
-                        title="Data Pipeline"
-                        description="BloomSuite uses the Lightspeed customer, sales, and product feeds that are available for this account today."
-                      >
-                        <DetailFieldRows
-                          rows={[
-                            {
-                              label: "Customer Feed",
-                              value: lightspeedDetail.lastCustomerSync
-                                ? "Active"
-                                : "Pending",
-                              tone: lightspeedDetail.lastCustomerSync
-                                ? "success"
-                                : "warning",
-                            },
-                            {
-                              label: "Sales Feed",
-                              value: lightspeedDetail.lastSalesSync
-                                ? "Active"
-                                : "Pending",
-                              tone: lightspeedDetail.lastSalesSync
-                                ? "success"
-                                : "warning",
-                            },
-                            {
-                              label: "Product Feed",
-                              value: lightspeedDetail.lastProductSync
-                                ? "Active"
-                                : "Pending",
-                              tone: lightspeedDetail.lastProductSync
-                                ? "success"
-                                : "warning",
-                            },
-                            {
-                              label: "Diagnostics",
-                              value: "Available",
-                              tone: "success",
-                            },
-                          ]}
-                        />
-                        <div className="mt-4 flex flex-wrap gap-3">
-                          <Button
-                            type="button"
-                            onClick={() =>
-                              navigate(lightspeedDetail.diagnosticsPath)
+                        <div>
+                          <FieldRow
+                            label="Webhook mode"
+                            value={lightspeedWebhookMode.label}
+                            tone={lightspeedWebhookMode.tone}
+                            valueClassName={
+                              lightspeedWebhookMode.valueClassName
                             }
-                          >
-                            Run Diagnostics
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => setLightspeedTab("sync-logs")}
-                          >
-                            Open Sync Logs
-                          </Button>
+                            description={lightspeedWebhookMode.subtitle}
+                          />
+                          <FieldRow
+                            label="Registration"
+                            value={
+                              lightspeedDetail.webhookRegistered
+                                ? "Registered"
+                                : lightspeedDetail.webhookMode === "unavailable"
+                                  ? null
+                                  : "Not registered"
+                            }
+                            tone={
+                              lightspeedDetail.webhookRegistered
+                                ? "success"
+                                : lightspeedDetail.webhookMode === "unavailable"
+                                  ? "neutral"
+                                  : "warning"
+                            }
+                          />
+                          <FieldRow
+                            label="Last event"
+                            value={
+                              lightspeedDetail.lastWebhookReceivedAt
+                                ? formatRelativeTimestamp(
+                                    lightspeedDetail.lastWebhookReceivedAt,
+                                  )
+                                : null
+                            }
+                            description={formatExactTimestamp(
+                              lightspeedDetail.lastWebhookReceivedAt,
+                            )}
+                            tone={
+                              lightspeedDetail.lastWebhookReceivedAt
+                                ? "success"
+                                : "neutral"
+                            }
+                          />
+                          <FieldRow
+                            label="Last check"
+                            value={
+                              lightspeedDetail.webhooksLastCheckedAt
+                                ? formatRelativeTimestamp(
+                                    lightspeedDetail.webhooksLastCheckedAt,
+                                  )
+                                : null
+                            }
+                            description={formatExactTimestamp(
+                              lightspeedDetail.webhooksLastCheckedAt,
+                            )}
+                            tone={
+                              lightspeedDetail.webhooksLastCheckedAt
+                                ? "neutral"
+                                : "warning"
+                            }
+                          />
+                          <FieldRow
+                            label="Retry count"
+                            value={
+                              (lightspeedDetail.webhookRetryCount ?? 0) > 0
+                                ? String(
+                                    lightspeedDetail.webhookRetryCount ?? 0,
+                                  )
+                                : null
+                            }
+                            description={
+                              (lightspeedDetail.webhookRetryCount ?? 0) > 0
+                                ? "Pending webhook retries are waiting for delivery recovery."
+                                : undefined
+                            }
+                            tone={
+                              (lightspeedDetail.webhookRetryCount ?? 0) > 0
+                                ? "warning"
+                                : "neutral"
+                            }
+                          />
+                          <FieldRow
+                            label="Next retry"
+                            value={
+                              lightspeedDetail.webhookNextRetryAt
+                                ? formatRelativeTimestamp(
+                                    lightspeedDetail.webhookNextRetryAt,
+                                  )
+                                : null
+                            }
+                            description={formatExactTimestamp(
+                              lightspeedDetail.webhookNextRetryAt,
+                            )}
+                            tone={
+                              lightspeedDetail.webhookNextRetryAt
+                                ? "warning"
+                                : "neutral"
+                            }
+                          />
                         </div>
-                        <div className="mt-2 text-xs text-muted-foreground">
-                          Lightspeed is the least normalized POS integration in
-                          the current shell. Diagnostics and sync visibility are
-                          real, while webhook behavior depends on account
-                          capabilities.
-                        </div>
-                      </SectionCard>
-                    </TabsContent>
 
-                    <TabsContent value="customers" className="space-y-6">
-                      <SectionCard
-                        title="Customers"
-                        description="Tenant-scoped Lightspeed customer rows with search, sorting, quality signals, and CRM linkage."
-                      >
-                        <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                          <Input
-                            value={customerSearchInput}
-                            onChange={(event) => {
-                              setCustomerSearchInput(event.target.value);
-                              setCustomerPage(1);
-                            }}
-                            placeholder="Search by name, email, phone, or customer ID"
-                            className="max-w-xl bg-white"
-                          />
-                          <div className="text-sm text-muted-foreground">
-                            Showing{" "}
-                            {formatCount(
-                              lightspeedDashboard?.customers.pagination
-                                .totalCount,
-                            )}{" "}
-                            synced customers
-                          </div>
-                        </div>
-
-                        {lightspeedDashboard?.customers.rows.length ? (
-                          <>
-                            <Table>
-                              <TableHeader>
-                                <TableRow>
-                                  <TableHead>
-                                    <LightspeedSortButton
-                                      label="Customer"
-                                      field="name"
-                                      activeField={customerSortField}
-                                      direction={customerSortDirection}
-                                      onToggle={(field) => {
-                                        const nextDirection =
-                                          getNextSortDirection(
-                                            customerSortField,
-                                            field,
-                                            customerSortDirection,
-                                          );
-                                        setCustomerSortField(
-                                          field as LightspeedCustomerSortField,
-                                        );
-                                        setCustomerSortDirection(nextDirection);
-                                        setCustomerPage(1);
-                                      }}
-                                    />
-                                  </TableHead>
-                                  <TableHead>Contact</TableHead>
-                                  <TableHead>
-                                    <LightspeedSortButton
-                                      label="Total spend"
-                                      field="total_spend"
-                                      activeField={customerSortField}
-                                      direction={customerSortDirection}
-                                      onToggle={(field) => {
-                                        const nextDirection =
-                                          getNextSortDirection(
-                                            customerSortField,
-                                            field,
-                                            customerSortDirection,
-                                          );
-                                        setCustomerSortField(
-                                          field as LightspeedCustomerSortField,
-                                        );
-                                        setCustomerSortDirection(nextDirection);
-                                        setCustomerPage(1);
-                                      }}
-                                    />
-                                  </TableHead>
-                                  <TableHead>
-                                    <LightspeedSortButton
-                                      label="Purchases"
-                                      field="purchase_count"
-                                      activeField={customerSortField}
-                                      direction={customerSortDirection}
-                                      onToggle={(field) => {
-                                        const nextDirection =
-                                          getNextSortDirection(
-                                            customerSortField,
-                                            field,
-                                            customerSortDirection,
-                                          );
-                                        setCustomerSortField(
-                                          field as LightspeedCustomerSortField,
-                                        );
-                                        setCustomerSortDirection(nextDirection);
-                                        setCustomerPage(1);
-                                      }}
-                                    />
-                                  </TableHead>
-                                  <TableHead>
-                                    <LightspeedSortButton
-                                      label="Last purchase"
-                                      field="last_purchase_date"
-                                      activeField={customerSortField}
-                                      direction={customerSortDirection}
-                                      onToggle={(field) => {
-                                        const nextDirection =
-                                          getNextSortDirection(
-                                            customerSortField,
-                                            field,
-                                            customerSortDirection,
-                                          );
-                                        setCustomerSortField(
-                                          field as LightspeedCustomerSortField,
-                                        );
-                                        setCustomerSortDirection(nextDirection);
-                                        setCustomerPage(1);
-                                      }}
-                                    />
-                                  </TableHead>
-                                  <TableHead>Data quality</TableHead>
-                                </TableRow>
-                              </TableHeader>
-                              <TableBody>
-                                {lightspeedDashboard.customers.rows.map(
-                                  (customer) => (
-                                    <TableRow
-                                      key={customer.id}
-                                      className="cursor-pointer"
-                                      onClick={() =>
-                                        setSelectedCustomer(customer)
-                                      }
-                                    >
-                                      <TableCell>
-                                        <div className="font-semibold text-slate-950">
-                                          {customer.displayName}
-                                        </div>
-                                        <div className="mt-1 text-xs text-muted-foreground">
-                                          Lightspeed ID{" "}
-                                          {customer.lightspeed_customer_id}
-                                        </div>
-                                      </TableCell>
-                                      <TableCell>
-                                        <div>
-                                          {customer.email ?? "No email"}
-                                        </div>
-                                        <div className="mt-1 text-xs text-muted-foreground">
-                                          {customer.phone ?? "No phone"}
-                                        </div>
-                                      </TableCell>
-                                      <TableCell>
-                                        {formatCurrency(customer.total_spend)}
-                                      </TableCell>
-                                      <TableCell>
-                                        {formatCount(customer.purchase_count)}
-                                      </TableCell>
-                                      <TableCell>
-                                        {formatDateValue(
-                                          customer.last_purchase_date,
-                                          "No purchases yet",
-                                        )}
-                                      </TableCell>
-                                      <TableCell>
-                                        <LightspeedCustomerQualityBadges
-                                          customer={customer}
-                                        />
-                                      </TableCell>
-                                    </TableRow>
-                                  ),
-                                )}
-                              </TableBody>
-                            </Table>
-                            <LightspeedPaginationBar
-                              pagination={
-                                lightspeedDashboard.customers.pagination
-                              }
-                              onPageChange={setCustomerPage}
-                            />
-                          </>
-                        ) : lightspeedDashboard?.customers.isLoading ||
-                          lightspeedDashboard?.customers.isFetching ? (
-                          <LightspeedTableEmptyState
-                            title="Loading customer rows"
-                            description="BloomSuite is fetching the latest tenant-scoped Lightspeed customers."
-                          />
-                        ) : (
-                          <LightspeedTableEmptyState
-                            title="No customers match this view"
-                            description="Adjust the search term or run a manual sync to populate customer records."
-                          />
-                        )}
-                      </SectionCard>
-
-                      <Sheet
-                        open={Boolean(selectedCustomer)}
-                        onOpenChange={(open) => {
-                          if (!open) {
-                            setSelectedCustomer(null);
-                          }
-                        }}
-                      >
-                        <SheetContent className="w-full overflow-y-auto sm:max-w-2xl">
-                          {selectedCustomer ? (
-                            <div className="space-y-5">
-                              <SheetHeader>
-                                <SheetTitle>
-                                  {selectedCustomer.displayName}
-                                </SheetTitle>
-                                <SheetDescription>
-                                  Lightspeed customer detail with BloomSuite CRM
-                                  linkage.
-                                </SheetDescription>
-                              </SheetHeader>
-
-                              <KeyValueGrid
-                                entries={[
-                                  {
-                                    label: "Email",
-                                    value:
-                                      selectedCustomer.email ?? "Not available",
-                                  },
-                                  {
-                                    label: "Phone",
-                                    value:
-                                      selectedCustomer.phone ?? "Not available",
-                                  },
-                                  {
-                                    label: "Total spend",
-                                    value: formatCurrency(
-                                      selectedCustomer.total_spend,
-                                    ),
-                                  },
-                                  {
-                                    label: "Purchase count",
-                                    value: formatCount(
-                                      selectedCustomer.purchase_count,
-                                    ),
-                                  },
-                                  {
-                                    label: "First purchase",
-                                    value: formatDateValue(
-                                      selectedCustomer.first_purchase_date,
-                                      "Not available",
-                                    ),
-                                  },
-                                  {
-                                    label: "Last purchase",
-                                    value: formatDateValue(
-                                      selectedCustomer.last_purchase_date,
-                                      "Not available",
-                                    ),
-                                  },
-                                  {
-                                    label: "Synced at",
-                                    value: formatDateValue(
-                                      selectedCustomer.synced_at,
-                                    ),
-                                  },
-                                  {
-                                    label: "Lightspeed ID",
-                                    value:
-                                      selectedCustomer.lightspeed_customer_id,
-                                  },
-                                ]}
-                              />
-
-                              <div>
-                                <div className="mb-2 text-sm font-semibold text-slate-950">
-                                  Data quality
-                                </div>
-                                <LightspeedCustomerQualityBadges
-                                  customer={selectedCustomer}
-                                />
-                              </div>
-
-                              <div className="flex flex-wrap gap-3">
-                                {selectedCustomer.contact_id ? (
-                                  <Button asChild type="button">
-                                    <Link
-                                      to={`/crm/customers/${selectedCustomer.contact_id}`}
-                                    >
-                                      Open CRM Customer
-                                    </Link>
-                                  </Button>
-                                ) : null}
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  onClick={() =>
-                                    copyToClipboard(
-                                      selectedCustomer.lightspeed_customer_id,
-                                      "Lightspeed customer ID",
-                                    )
-                                  }
-                                >
-                                  Copy Customer ID
-                                </Button>
-                              </div>
-
-                              <LightspeedJsonCollapsible
-                                title="Raw Lightspeed payload"
-                                value={selectedCustomer.raw_data}
-                              />
-                            </div>
-                          ) : null}
-                        </SheetContent>
-                      </Sheet>
-                    </TabsContent>
-
-                    <TabsContent value="sales" className="space-y-6">
-                      <SectionCard
-                        title="Sales"
-                        description="Tenant-scoped Lightspeed sales with filter-aware summary metrics and sale detail."
-                      >
-                        <div className="grid gap-3 lg:grid-cols-[180px_180px_180px_auto]">
-                          <select
-                            value={salesStatus}
-                            onChange={(event) => {
-                              setSalesStatus(event.target.value);
-                              setSalesPage(1);
-                            }}
-                            className="h-10 rounded-xl border border-border/70 bg-white px-3 text-sm"
-                          >
-                            <option value="all">All statuses</option>
-                            <option value="completed">Completed</option>
-                            <option value="open">Open</option>
-                            <option value="cancelled">Cancelled</option>
-                            <option value="refunded">Refunded</option>
-                          </select>
-                          <Input
-                            type="date"
-                            value={salesStartDate}
-                            onChange={(event) => {
-                              setSalesStartDate(event.target.value);
-                              setSalesPage(1);
-                            }}
-                          />
-                          <Input
-                            type="date"
-                            value={salesEndDate}
-                            onChange={(event) => {
-                              setSalesEndDate(event.target.value);
-                              setSalesPage(1);
-                            }}
-                          />
-                          <div className="flex justify-start lg:justify-end">
-                            <Button
-                              type="button"
-                              variant="outline"
-                              onClick={() => {
-                                setSalesStatus("all");
-                                setSalesStartDate("");
-                                setSalesEndDate("");
-                                setSalesPage(1);
-                              }}
+                        {lightspeedDetail.webhookMode === "sync-only" &&
+                        lightspeedApiSetupUrl ? (
+                          <div className="mt-4 rounded-lg border border-amber-100 bg-amber-50/70 p-3 text-sm leading-6 text-amber-900">
+                            This account is running in sync-only mode. To check
+                            Lightspeed API access, open{" "}
+                            <a
+                              href={lightspeedApiSetupUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="font-medium underline underline-offset-4"
                             >
-                              Clear filters
-                            </Button>
+                              API setup
+                            </a>
+                            .
                           </div>
-                        </div>
+                        ) : null}
+                      </OverviewPanel>
 
-                        <div className="mt-4 grid gap-3 md:grid-cols-3">
-                          <div className="rounded-2xl border border-border/70 bg-slate-50/80 p-4">
-                            <div className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                              Revenue
-                            </div>
-                            <div className="mt-2 text-2xl font-semibold text-slate-950">
-                              {formatCurrency(
-                                lightspeedDashboard?.sales.summary.revenue,
-                              )}
-                            </div>
-                          </div>
-                          <div className="rounded-2xl border border-border/70 bg-slate-50/80 p-4">
-                            <div className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                              Average order value
-                            </div>
-                            <div className="mt-2 text-2xl font-semibold text-slate-950">
-                              {formatCurrency(
-                                lightspeedDashboard?.sales.summary
-                                  .averageOrderValue,
-                              )}
-                            </div>
-                          </div>
-                          <div className="rounded-2xl border border-border/70 bg-slate-50/80 p-4">
-                            <div className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                              Sale count
-                            </div>
-                            <div className="mt-2 text-2xl font-semibold text-slate-950">
-                              {formatCount(
-                                lightspeedDashboard?.sales.summary.saleCount,
-                              )}
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="mt-4">
-                          {lightspeedDashboard?.sales.rows.length ? (
-                            <>
-                              <Table>
-                                <TableHeader>
-                                  <TableRow>
-                                    <TableHead>
-                                      <LightspeedSortButton
-                                        label="Sale date"
-                                        field="sale_date"
-                                        activeField={salesSortField}
-                                        direction={salesSortDirection}
-                                        onToggle={(field) => {
-                                          const nextDirection =
-                                            getNextSortDirection(
-                                              salesSortField,
-                                              field,
-                                              salesSortDirection,
-                                            );
-                                          setSalesSortField(
-                                            field as LightspeedSalesSortField,
-                                          );
-                                          setSalesSortDirection(nextDirection);
-                                          setSalesPage(1);
-                                        }}
-                                      />
-                                    </TableHead>
-                                    <TableHead>Status</TableHead>
-                                    <TableHead>
-                                      <LightspeedSortButton
-                                        label="Total"
-                                        field="total_amount"
-                                        activeField={salesSortField}
-                                        direction={salesSortDirection}
-                                        onToggle={(field) => {
-                                          const nextDirection =
-                                            getNextSortDirection(
-                                              salesSortField,
-                                              field,
-                                              salesSortDirection,
-                                            );
-                                          setSalesSortField(
-                                            field as LightspeedSalesSortField,
-                                          );
-                                          setSalesSortDirection(nextDirection);
-                                          setSalesPage(1);
-                                        }}
-                                      />
-                                    </TableHead>
-                                    <TableHead>Payment</TableHead>
-                                    <TableHead>Line items</TableHead>
-                                  </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                  {lightspeedDashboard.sales.rows.map(
-                                    (sale) => (
-                                      <TableRow
-                                        key={sale.id}
-                                        className="cursor-pointer"
-                                        onClick={() => setSelectedSale(sale)}
-                                      >
-                                        <TableCell>
-                                          <div className="font-semibold text-slate-950">
-                                            {formatDateValue(sale.sale_date)}
-                                          </div>
-                                          <div className="mt-1 text-xs text-muted-foreground">
-                                            Sale ID {sale.lightspeed_sale_id}
-                                          </div>
-                                        </TableCell>
-                                        <TableCell>
-                                          <Badge className="border-slate-200 bg-slate-50 text-slate-700">
-                                            {sale.status}
-                                          </Badge>
-                                        </TableCell>
-                                        <TableCell>
-                                          {formatCurrency(sale.total_amount)}
-                                        </TableCell>
-                                        <TableCell>
-                                          {sale.payment_method ??
-                                            "Not available"}
-                                        </TableCell>
-                                        <TableCell>
-                                          {Array.isArray(sale.line_items)
-                                            ? sale.line_items.length
-                                            : 0}
-                                        </TableCell>
-                                      </TableRow>
-                                    ),
-                                  )}
-                                </TableBody>
-                              </Table>
-                              <LightspeedPaginationBar
-                                pagination={
-                                  lightspeedDashboard.sales.pagination
+                      <OverviewPanel
+                        title="Data Feeds"
+                        description="BloomSuite uses the Lightspeed customer, sales, and product feeds that are available for this account today."
+                        action={
+                          <div className="flex items-center gap-1">
+                            {detail.canAccessLightspeedAdminFeatures ? (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 px-2 text-muted-foreground hover:bg-gray-50 hover:text-slate-900"
+                                onClick={() =>
+                                  navigate(lightspeedDetail.diagnosticsPath)
                                 }
-                                onPageChange={setSalesPage}
-                              />
-                            </>
-                          ) : lightspeedDashboard?.sales.isLoading ||
-                            lightspeedDashboard?.sales.isFetching ? (
-                            <LightspeedTableEmptyState
-                              title="Loading sales rows"
-                              description="BloomSuite is fetching tenant-scoped Lightspeed sales for the current filters."
-                            />
-                          ) : (
-                            <LightspeedTableEmptyState
-                              title="No sales match this filter set"
-                              description="Adjust the status or date range filters, or run a manual sync to populate sales data."
-                            />
-                          )}
-                        </div>
-                      </SectionCard>
-
-                      <Sheet
-                        open={Boolean(selectedSale)}
-                        onOpenChange={(open) => {
-                          if (!open) {
-                            setSelectedSale(null);
-                          }
-                        }}
-                      >
-                        <SheetContent className="w-full overflow-y-auto sm:max-w-2xl">
-                          {selectedSale ? (
-                            <div className="space-y-5">
-                              <SheetHeader>
-                                <SheetTitle>
-                                  Sale {selectedSale.lightspeed_sale_id}
-                                </SheetTitle>
-                                <SheetDescription>
-                                  Filtered sale detail for the current
-                                  Lightspeed tenant.
-                                </SheetDescription>
-                              </SheetHeader>
-                              <KeyValueGrid
-                                entries={[
-                                  {
-                                    label: "Sale date",
-                                    value: formatDateValue(
-                                      selectedSale.sale_date,
-                                    ),
-                                  },
-                                  {
-                                    label: "Status",
-                                    value: selectedSale.status,
-                                  },
-                                  {
-                                    label: "Total amount",
-                                    value: formatCurrency(
-                                      selectedSale.total_amount,
-                                    ),
-                                  },
-                                  {
-                                    label: "Payment method",
-                                    value:
-                                      selectedSale.payment_method ??
-                                      "Not available",
-                                  },
-                                  {
-                                    label: "Line items",
-                                    value: String(
-                                      Array.isArray(selectedSale.line_items)
-                                        ? selectedSale.line_items.length
-                                        : 0,
-                                    ),
-                                  },
-                                  {
-                                    label: "Synced at",
-                                    value: formatDateValue(
-                                      selectedSale.synced_at,
-                                    ),
-                                  },
-                                ]}
-                              />
-                              <div className="flex flex-wrap gap-3">
-                                {selectedSale.contact_id ? (
-                                  <Button asChild type="button">
-                                    <Link
-                                      to={`/crm/customers/${selectedSale.contact_id}`}
-                                    >
-                                      Open CRM Customer
-                                    </Link>
-                                  </Button>
-                                ) : null}
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  onClick={() =>
-                                    copyToClipboard(
-                                      selectedSale.lightspeed_sale_id,
-                                      "Lightspeed sale ID",
-                                    )
-                                  }
-                                >
-                                  Copy Sale ID
-                                </Button>
-                              </div>
-                              {selectedSale.note ? (
-                                <div className="rounded-2xl border border-border/70 bg-slate-50/80 p-4 text-sm text-slate-700">
-                                  <div className="mb-2 font-semibold text-slate-950">
-                                    Note
-                                  </div>
-                                  <p className="leading-6">
-                                    {selectedSale.note}
-                                  </p>
-                                </div>
-                              ) : null}
-                              <LightspeedJsonCollapsible
-                                title="Line items"
-                                value={selectedSale.line_items}
-                              />
-                              <LightspeedJsonCollapsible
-                                title="Raw sale payload"
-                                value={selectedSale.raw_data}
-                              />
-                            </div>
-                          ) : null}
-                        </SheetContent>
-                      </Sheet>
-                    </TabsContent>
-
-                    <TabsContent value="products" className="space-y-6">
-                      <SectionCard
-                        title="Products"
-                        description="Tenant-scoped Lightspeed catalog data with stock-aware filtering and inventory cues."
-                      >
-                        <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                            <select
-                              value={productsCategory}
-                              onChange={(event) => {
-                                setProductsCategory(event.target.value);
-                                setProductsPage(1);
-                              }}
-                              className="h-10 rounded-xl border border-border/70 bg-white px-3 text-sm"
-                            >
-                              <option value="all">All categories</option>
-                              {(
-                                lightspeedDashboard?.products.categories ?? []
-                              ).map((category) => (
-                                <option key={category} value={category}>
-                                  {category}
-                                </option>
-                              ))}
-                            </select>
+                              >
+                                Diagnostics
+                              </Button>
+                            ) : null}
                             <Button
                               type="button"
-                              variant={
-                                productsInStockOnly ? "default" : "outline"
-                              }
-                              onClick={() => {
-                                setProductsInStockOnly((current) => !current);
-                                setProductsPage(1);
-                              }}
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 px-2 text-muted-foreground hover:bg-gray-50 hover:text-slate-900"
+                              onClick={() => setLightspeedTab("sync-logs")}
                             >
-                              {productsInStockOnly
-                                ? "Showing in-stock only"
-                                : "Filter to in-stock"}
+                              Sync Logs
                             </Button>
                           </div>
-                          <div className="text-sm text-muted-foreground">
-                            {formatCount(
-                              lightspeedDashboard?.products.pagination
-                                .totalCount,
-                            )}{" "}
-                            products in view
-                          </div>
+                        }
+                      >
+                        <div>
+                          <DataFeedRow
+                            label="Customer feed"
+                            status={
+                              hasActiveLightspeedSyncType("customers")
+                                ? "Syncing"
+                                : lightspeedDetail.lastCustomerSync
+                                  ? "Active"
+                                  : "Pending"
+                            }
+                            tone={
+                              hasActiveLightspeedSyncType("customers") ||
+                              lightspeedDetail.lastCustomerSync
+                                ? "success"
+                                : "warning"
+                            }
+                            description={
+                              lightspeedDetail.lastCustomerSync
+                                ? `Last synced ${formatRelativeTimestamp(lightspeedDetail.lastCustomerSync)} • ${formatCount(lightspeedDetail.customersSynced)} records`
+                                : `${formatCount(lightspeedDetail.customersSynced)} records available`
+                            }
+                          />
+                          <DataFeedRow
+                            label="Sales feed"
+                            status={
+                              hasActiveLightspeedSyncType("sales")
+                                ? "Syncing"
+                                : lightspeedDetail.lastSalesSync
+                                  ? "Active"
+                                  : "Pending"
+                            }
+                            tone={
+                              hasActiveLightspeedSyncType("sales") ||
+                              lightspeedDetail.lastSalesSync
+                                ? "success"
+                                : "warning"
+                            }
+                            description={
+                              lightspeedDetail.lastSalesSync
+                                ? `Last synced ${formatRelativeTimestamp(lightspeedDetail.lastSalesSync)} • ${formatCount(lightspeedDetail.salesSynced)} records`
+                                : `${formatCount(lightspeedDetail.salesSynced)} records available`
+                            }
+                          />
+                          <DataFeedRow
+                            label="Product feed"
+                            status={
+                              hasActiveLightspeedSyncType("products")
+                                ? "Syncing"
+                                : lightspeedDetail.lastProductSync
+                                  ? "Active"
+                                  : "Pending"
+                            }
+                            tone={
+                              hasActiveLightspeedSyncType("products") ||
+                              lightspeedDetail.lastProductSync
+                                ? "success"
+                                : "warning"
+                            }
+                            description={
+                              lightspeedDetail.lastProductSync
+                                ? `Last synced ${formatRelativeTimestamp(lightspeedDetail.lastProductSync)} • ${formatCount(lightspeedDetail.productsSynced)} records`
+                                : `${formatCount(lightspeedDetail.productsSynced)} records available`
+                            }
+                          />
                         </div>
 
-                        {lightspeedDashboard?.products.rows.length ? (
-                          <>
-                            <Table>
-                              <TableHeader>
-                                <TableRow>
-                                  <TableHead>
-                                    <LightspeedSortButton
-                                      label="Product"
-                                      field="name"
-                                      activeField={productsSortField}
-                                      direction={productsSortDirection}
-                                      onToggle={(field) => {
-                                        const nextDirection =
-                                          getNextSortDirection(
-                                            productsSortField,
-                                            field,
-                                            productsSortDirection,
-                                          );
-                                        setProductsSortField(
-                                          field as LightspeedProductsSortField,
-                                        );
-                                        setProductsSortDirection(nextDirection);
-                                        setProductsPage(1);
-                                      }}
-                                    />
-                                  </TableHead>
-                                  <TableHead>
-                                    <LightspeedSortButton
-                                      label="Category"
-                                      field="category"
-                                      activeField={productsSortField}
-                                      direction={productsSortDirection}
-                                      onToggle={(field) => {
-                                        const nextDirection =
-                                          getNextSortDirection(
-                                            productsSortField,
-                                            field,
-                                            productsSortDirection,
-                                          );
-                                        setProductsSortField(
-                                          field as LightspeedProductsSortField,
-                                        );
-                                        setProductsSortDirection(nextDirection);
-                                        setProductsPage(1);
-                                      }}
-                                    />
-                                  </TableHead>
-                                  <TableHead>
-                                    <LightspeedSortButton
-                                      label="Inventory"
-                                      field="inventory_count"
-                                      activeField={productsSortField}
-                                      direction={productsSortDirection}
-                                      onToggle={(field) => {
-                                        const nextDirection =
-                                          getNextSortDirection(
-                                            productsSortField,
-                                            field,
-                                            productsSortDirection,
-                                          );
-                                        setProductsSortField(
-                                          field as LightspeedProductsSortField,
-                                        );
-                                        setProductsSortDirection(nextDirection);
-                                        setProductsPage(1);
-                                      }}
-                                    />
-                                  </TableHead>
-                                  <TableHead>
-                                    <LightspeedSortButton
-                                      label="Price"
-                                      field="price"
-                                      activeField={productsSortField}
-                                      direction={productsSortDirection}
-                                      onToggle={(field) => {
-                                        const nextDirection =
-                                          getNextSortDirection(
-                                            productsSortField,
-                                            field,
-                                            productsSortDirection,
-                                          );
-                                        setProductsSortField(
-                                          field as LightspeedProductsSortField,
-                                        );
-                                        setProductsSortDirection(nextDirection);
-                                        setProductsPage(1);
-                                      }}
-                                    />
-                                  </TableHead>
-                                  <TableHead>Stock state</TableHead>
-                                </TableRow>
-                              </TableHeader>
-                              <TableBody>
-                                {lightspeedDashboard.products.rows.map(
-                                  (product) => (
-                                    <TableRow key={product.id}>
-                                      <TableCell>
-                                        <div className="font-semibold text-slate-950">
-                                          {product.name}
-                                        </div>
-                                        <div className="mt-1 text-xs text-muted-foreground">
-                                          {product.sku ?? "No SKU"}
-                                        </div>
-                                      </TableCell>
-                                      <TableCell>
-                                        {product.category ?? "Uncategorized"}
-                                      </TableCell>
-                                      <TableCell>
-                                        {formatCount(product.inventory_count)}
-                                      </TableCell>
-                                      <TableCell>
-                                        {formatCurrency(product.price)}
-                                      </TableCell>
-                                      <TableCell>
-                                        <LightspeedProductStockBadge
-                                          product={product}
-                                        />
-                                      </TableCell>
-                                    </TableRow>
-                                  ),
-                                )}
-                              </TableBody>
-                            </Table>
-                            <LightspeedPaginationBar
-                              pagination={
-                                lightspeedDashboard.products.pagination
-                              }
-                              onPageChange={setProductsPage}
-                            />
-                          </>
-                        ) : lightspeedDashboard?.products.isLoading ||
-                          lightspeedDashboard?.products.isFetching ? (
-                          <LightspeedTableEmptyState
-                            title="Loading products"
-                            description="BloomSuite is fetching Lightspeed catalog rows for the active tenant."
-                          />
-                        ) : (
-                          <LightspeedTableEmptyState
-                            title="No products match this view"
-                            description="Adjust the category or in-stock filter, or run a manual sync to refresh catalog rows."
-                          />
-                        )}
-                      </SectionCard>
+                        <div className="mt-4 rounded-lg border border-gray-100 bg-slate-50/70 p-3 text-sm leading-6 text-muted-foreground">
+                          Diagnostics and Sync Logs remain the operator tools
+                          for verifying feed health when Lightspeed account
+                          capabilities or recent job failures need review.
+                        </div>
+                      </OverviewPanel>
                     </TabsContent>
 
-                    <TabsContent value="sync-logs" className="space-y-6">
-                      <SectionCard
-                        title="Sync Logs"
-                        description="Historical Lightspeed sync jobs, with live updates for in-progress work and expanded failure detail."
-                      >
-                        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                          <div className="text-sm text-muted-foreground">
-                            {formatCount(
-                              lightspeedDashboard?.syncLogs.pagination
-                                .totalCount,
-                            )}{" "}
-                            job rows available for this tenant.
-                          </div>
-                          <Button
-                            type="button"
-                            onClick={() => {
-                              void detail.triggerLightspeedSync();
-                            }}
-                            disabled={detail.isLightspeedSyncing}
-                          >
-                            {detail.isLightspeedSyncing
-                              ? "Sync in progress..."
-                              : "Trigger Manual Sync"}
-                          </Button>
-                        </div>
-
-                        {lightspeedDashboard?.syncLogs.rows.length ? (
-                          <div className="space-y-3">
-                            {lightspeedDashboard.syncLogs.rows.map((job) => {
-                              const isExpanded = expandedSyncLogId === job.id;
-                              const statusLabel = formatLightspeedSyncStatus(
-                                job.status,
-                                job.isStale,
-                              );
-
-                              return (
-                                <div
-                                  key={job.id}
-                                  className="rounded-2xl border border-border/70 bg-white/90 p-4"
-                                >
-                                  <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                                    <div className="space-y-2">
-                                      <div className="flex flex-wrap items-center gap-2">
-                                        <Badge
-                                          className={statusLabel.className}
-                                        >
-                                          {statusLabel.label}
-                                        </Badge>
-                                        <Badge className="border-slate-200 bg-slate-50 text-slate-700">
-                                          {formatLightspeedSyncTypeLabel(
-                                            job.normalizedSyncType,
-                                          )}
-                                        </Badge>
-                                        {job.isStale ? (
-                                          <Badge className="border-amber-200 bg-amber-50 text-amber-700">
-                                            No recent worker update
-                                          </Badge>
-                                        ) : null}
-                                      </div>
-                                      <div className="text-sm font-semibold text-slate-950">
-                                        {job.progress_message ||
-                                          "No progress message recorded."}
-                                      </div>
-                                      <div className="text-xs text-muted-foreground">
-                                        Created{" "}
-                                        {formatRelativeTimestamp(
-                                          job.created_at,
-                                        )}{" "}
-                                        · Updated{" "}
-                                        {formatRelativeTimestamp(
-                                          job.updated_at,
-                                        )}
-                                      </div>
-                                    </div>
-                                    <div className="grid gap-2 text-sm text-slate-700 sm:grid-cols-2 lg:min-w-[20rem]">
-                                      <div>Progress {job.progressPercent}%</div>
-                                      <div>
-                                        Processed{" "}
-                                        {formatCount(job.processed_rows)}
-                                      </div>
-                                      <div>
-                                        Inserted{" "}
-                                        {formatCount(job.inserted_rows)}
-                                      </div>
-                                      <div>
-                                        Failed {formatCount(job.failed_rows)}
-                                      </div>
-                                    </div>
-                                  </div>
-
-                                  <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-200">
-                                    <div
-                                      className={cn(
-                                        "h-full rounded-full transition-all duration-300",
-                                        job.status === "failed" ||
-                                          job.status === "cancelled"
-                                          ? "bg-rose-500"
-                                          : job.isStale
-                                            ? "bg-amber-500"
-                                            : "bg-brand-teal",
-                                      )}
-                                      style={{
-                                        width: `${job.progressPercent}%`,
-                                      }}
-                                    />
-                                  </div>
-
-                                  <div className="mt-4 flex flex-wrap items-center gap-3">
-                                    <Button
-                                      type="button"
-                                      variant="outline"
-                                      onClick={() =>
-                                        setExpandedSyncLogId((current) =>
-                                          current === job.id ? null : job.id,
-                                        )
-                                      }
-                                    >
-                                      {isExpanded ? (
-                                        <ChevronUp className="h-4 w-4" />
-                                      ) : (
-                                        <ChevronDown className="h-4 w-4" />
-                                      )}
-                                      {isExpanded
-                                        ? "Hide details"
-                                        : "Show details"}
-                                    </Button>
-                                    {(job.status === "failed" ||
-                                      job.status === "cancelled") && (
-                                      <Button
-                                        type="button"
-                                        onClick={() => {
-                                          void detail.triggerLightspeedSync();
-                                        }}
-                                        disabled={detail.isLightspeedSyncing}
-                                      >
-                                        Retry via Manual Sync
-                                      </Button>
-                                    )}
-                                  </div>
-
-                                  {isExpanded ? (
-                                    <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_1fr]">
-                                      <KeyValueGrid
-                                        entries={[
-                                          {
-                                            label: "Attempts",
-                                            value: String(job.attempts),
-                                          },
-                                          {
-                                            label: "Error count",
-                                            value: String(job.error_count),
-                                          },
-                                          {
-                                            label: "Next retry",
-                                            value: formatDateValue(
-                                              job.next_retry_at,
-                                              "No retry scheduled",
-                                            ),
-                                          },
-                                          {
-                                            label: "Last failure",
-                                            value: formatDateValue(
-                                              job.last_failure_at,
-                                              "No failure timestamp",
-                                            ),
-                                          },
-                                          {
-                                            label: "Current page",
-                                            value: String(job.current_page),
-                                          },
-                                          {
-                                            label: "Estimated pages",
-                                            value: String(
-                                              job.total_pages_est ?? 0,
-                                            ),
-                                          },
-                                        ]}
-                                      />
-                                      <div className="space-y-4">
-                                        <div className="rounded-2xl border border-border/70 bg-slate-50/80 p-4 text-sm text-slate-700">
-                                          <div className="mb-2 font-semibold text-slate-950">
-                                            Failure context
-                                          </div>
-                                          <p className="leading-6">
-                                            {job.last_error ??
-                                              "No error message stored for this job."}
-                                          </p>
-                                        </div>
-                                        <LightspeedJsonCollapsible
-                                          title="Job metadata"
-                                          value={job.metadata}
-                                        />
-                                      </div>
-                                    </div>
-                                  ) : null}
-                                </div>
-                              );
-                            })}
-                            <LightspeedPaginationBar
-                              pagination={
-                                lightspeedDashboard.syncLogs.pagination
-                              }
-                              onPageChange={setSyncLogsPage}
-                            />
-                          </div>
-                        ) : lightspeedDashboard?.syncLogs.isLoading ||
-                          lightspeedDashboard?.syncLogs.isFetching ? (
-                          <LightspeedTableEmptyState
-                            title="Loading sync logs"
-                            description="BloomSuite is fetching Lightspeed sync history and merging live worker updates."
-                          />
-                        ) : (
-                          <LightspeedTableEmptyState
-                            title="No sync jobs yet"
-                            description="Trigger a manual sync to populate Lightspeed job history for this tenant."
-                          />
+                    <TabsContent value="customers" className="mt-0">
+                      <CustomersTabView
+                        connectionId={lightspeedDetail.connectionId}
+                        rows={lightspeedDashboard?.customers.rows ?? []}
+                        pagination={
+                          lightspeedDashboard?.customers.pagination ?? {
+                            page: 1,
+                            pageSize: 50,
+                            totalCount: 0,
+                            totalPages: 1,
+                          }
+                        }
+                        isLoading={Boolean(
+                          lightspeedDashboard?.customers.isLoading,
                         )}
-                      </SectionCard>
+                        isFetching={Boolean(
+                          lightspeedDashboard?.customers.isFetching,
+                        )}
+                        customersSynced={lightspeedDetail.customersSynced ?? 0}
+                        searchQuery={customerSearchInput}
+                        onSearchQueryChange={(value) => {
+                          setCustomerSearchInput(value);
+                          setCustomerPage(1);
+                        }}
+                        sortField={customerSortField}
+                        sortDirection={customerSortDirection}
+                        onSortChange={(field, direction) => {
+                          setCustomerSortField(field);
+                          setCustomerSortDirection(direction);
+                          setCustomerPage(1);
+                        }}
+                        selectedCustomer={selectedCustomer}
+                        onSelectedCustomerChange={setSelectedCustomer}
+                        onPageChange={setCustomerPage}
+                        onTriggerSync={() => {
+                          void detail.triggerLightspeedSync();
+                        }}
+                      />
+                    </TabsContent>
+
+                    <TabsContent value="sales" className="mt-0">
+                      <SalesTabView
+                        connectionId={lightspeedDetail.connectionId}
+                        rows={lightspeedDashboard?.sales.rows ?? []}
+                        pagination={
+                          lightspeedDashboard?.sales.pagination ?? {
+                            page: 1,
+                            pageSize: 50,
+                            totalCount: 0,
+                            totalPages: 1,
+                          }
+                        }
+                        summary={
+                          lightspeedDashboard?.sales.summary ?? {
+                            revenue: 0,
+                            averageOrderValue: 0,
+                            saleCount: 0,
+                          }
+                        }
+                        isLoading={Boolean(
+                          lightspeedDashboard?.sales.isLoading,
+                        )}
+                        isFetching={Boolean(
+                          lightspeedDashboard?.sales.isFetching,
+                        )}
+                        searchQuery={salesSearchInput}
+                        onSearchQueryChange={(value) => {
+                          setSalesSearchInput(value);
+                          setSalesPage(1);
+                        }}
+                        status={salesStatus as "all" | "completed" | "open"}
+                        onStatusChange={(value) => {
+                          setSalesStatus(value);
+                          setSalesPage(1);
+                        }}
+                        startDate={salesStartDate}
+                        endDate={salesEndDate}
+                        onDateRangeChange={(startDate, endDate) => {
+                          setSalesStartDate(startDate);
+                          setSalesEndDate(endDate);
+                          setSalesPage(1);
+                        }}
+                        sortField={salesSortField}
+                        sortDirection={salesSortDirection}
+                        onSortChange={(field, direction) => {
+                          setSalesSortField(field);
+                          setSalesSortDirection(direction);
+                          setSalesPage(1);
+                        }}
+                        selectedSale={selectedSale}
+                        onSelectedSaleChange={setSelectedSale}
+                        onPageChange={setSalesPage}
+                      />
+                    </TabsContent>
+
+                    <TabsContent value="products" className="mt-0">
+                      <ProductsTabView
+                        connectionId={lightspeedDetail.connectionId}
+                        rows={lightspeedDashboard?.products.rows ?? []}
+                        pagination={
+                          lightspeedDashboard?.products.pagination ?? {
+                            page: 1,
+                            pageSize: 50,
+                            totalCount: 0,
+                            totalPages: 1,
+                          }
+                        }
+                        categories={
+                          lightspeedDashboard?.products.categories ?? []
+                        }
+                        isLoading={Boolean(
+                          lightspeedDashboard?.products.isLoading,
+                        )}
+                        isFetching={Boolean(
+                          lightspeedDashboard?.products.isFetching,
+                        )}
+                        searchQuery={productsSearchInput}
+                        onSearchQueryChange={(value) => {
+                          setProductsSearchInput(value);
+                          setProductsPage(1);
+                        }}
+                        selectedCategories={productsCategories}
+                        onSelectedCategoriesChange={(value) => {
+                          setProductsCategories(value);
+                          setProductsPage(1);
+                        }}
+                        inStockOnly={productsInStockOnly}
+                        onInStockOnlyChange={(value) => {
+                          setProductsInStockOnly(value);
+                          setProductsPage(1);
+                        }}
+                        sortField={productsSortField}
+                        sortDirection={productsSortDirection}
+                        onSortChange={(field, direction) => {
+                          setProductsSortField(field);
+                          setProductsSortDirection(direction);
+                          setProductsPage(1);
+                        }}
+                        onPageChange={setProductsPage}
+                      />
+                    </TabsContent>
+
+                    <TabsContent value="sync-logs" className="mt-0">
+                      <SyncLogsTabView
+                        connectionId={lightspeedDetail.connectionId}
+                        rows={lightspeedDashboard?.syncLogs.rows ?? []}
+                        pagination={
+                          lightspeedDashboard?.syncLogs.pagination ?? {
+                            page: 1,
+                            pageSize: 50,
+                            totalCount: 0,
+                            totalPages: 1,
+                          }
+                        }
+                        isLoading={Boolean(
+                          lightspeedDashboard?.syncLogs.isLoading,
+                        )}
+                        isFetching={Boolean(
+                          lightspeedDashboard?.syncLogs.isFetching,
+                        )}
+                        statusFilter={
+                          syncLogsStatus as
+                            | "all"
+                            | "completed"
+                            | "failed"
+                            | "in_progress"
+                        }
+                        onStatusFilterChange={(value) => {
+                          setSyncLogsStatus(value);
+                          setSyncLogsPage(1);
+                        }}
+                        onPageChange={setSyncLogsPage}
+                        onRetrySync={() => {
+                          void detail.triggerLightspeedSync();
+                        }}
+                        onRefresh={() => {
+                          void detail.refetch();
+                        }}
+                        trackedJobIds={detail.lightspeedTrackedJobIds ?? []}
+                        realtimeActive={Boolean(
+                          detail.lightspeedRealtimeActive,
+                        )}
+                      />
                     </TabsContent>
                   </Tabs>
                 </>
@@ -4675,86 +6162,17 @@ export default function IntegrationDetailPage() {
                 <>
                   <SectionCard
                     title="Meta Authorization"
-                    description="Authorization state and connected asset summary for the shared Meta OAuth flow."
+                    description="Shared Meta OAuth status, scopes, and account-level readiness for publishing and insights access."
                   >
-                    <DetailFieldRows
-                      rows={[
-                        {
-                          label: "Authorization Status",
-                          value: metaDetail.authorizationLabel,
-                          tone: metaAuthorizationState.tone,
-                          valueClassName: metaAuthorizationState.valueClassName,
-                        },
-                        {
-                          label: "Connected Assets",
-                          value: String(metaDetail.connectedAssetCount),
-                          description: metaDetail.platformSummary,
-                          tone:
-                            metaDetail.connectedAssetCount > 0
-                              ? "success"
-                              : "neutral",
-                        },
-                        {
-                          label: "Connected Platforms",
-                          value:
-                            metaDetail.connectedPlatforms.length > 0
-                              ? metaDetail.connectedPlatforms
-                                  .map(
-                                    (platform) =>
-                                      platform.charAt(0).toUpperCase() +
-                                      platform.slice(1),
-                                  )
-                                  .join(" + ")
-                              : "None",
-                        },
-                        {
-                          label: "Connected Since",
-                          value: formatTimestampOrFallback(
-                            metaDetail.connectedAt,
-                            "Not connected",
-                          ),
-                        },
-                        {
-                          label: "Authorization Expires",
-                          value: formatRelativePlusAbsolute(
-                            metaDetail.expiresAt,
-                            metaDetail.authorizationStatus === "not-connected"
-                              ? "Authorization required"
-                              : "No expiry reported",
-                          ).value,
-                          description: formatRelativePlusAbsolute(
-                            metaDetail.expiresAt,
-                            metaDetail.authorizationStatus === "not-connected"
-                              ? "Authorization required"
-                              : "No expiry reported",
-                          ).description,
-                          tone:
-                            metaDetail.authorizationStatus === "authorized"
-                              ? "success"
-                              : metaDetail.authorizationStatus === "expired"
-                                ? "warning"
-                                : "neutral",
-                        },
-                      ]}
-                    />
-                    <div className="mt-4 rounded-2xl border border-border/70 bg-slate-50/70 p-4">
-                      <div className="text-sm font-semibold text-slate-950">
-                        Authorization summary
-                      </div>
-                      <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                        {metaDetail.authorizationSummary}
-                      </p>
-                      <div className="mt-4 flex flex-wrap gap-2">
-                        {metaDetail.scopes.map((scope) => (
-                          <span
-                            key={scope}
-                            className="inline-flex items-center rounded-full border border-border/70 bg-white px-3 py-1 text-xs font-medium text-slate-700"
-                          >
-                            {scope}
-                          </span>
-                        ))}
-                      </div>
-                      <div className="mt-4 flex flex-wrap gap-3">
+                    <div className="space-y-4">
+                      <div className="flex flex-wrap justify-end gap-3">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => navigate(metaDetail.managementPath)}
+                        >
+                          Open Social Accounts
+                        </Button>
                         <Button
                           type="button"
                           onClick={() => {
@@ -4768,24 +6186,87 @@ export default function IntegrationDetailPage() {
                               ? "Authorize Meta"
                               : "Re-authorize Meta"}
                         </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => navigate(metaDetail.managementPath)}
-                        >
-                          Open Social Accounts
-                        </Button>
+                      </div>
+                      <div>
+                        <FieldRow
+                          label="Status"
+                          value={metaDetail.authorizationLabel}
+                          tone={metaAuthorizationState.tone}
+                          valueClassName={metaAuthorizationState.valueClassName}
+                        />
+                        <FieldRow
+                          label="Connected assets"
+                          value={String(metaDetail.totalAssetCount)}
+                          description={`${metaDetail.facebookPageCount} Facebook Pages • ${metaDetail.instagramAccountCount} Instagram accounts`}
+                          tone={
+                            metaDetail.totalAssetCount > 0
+                              ? "success"
+                              : "neutral"
+                          }
+                        />
+                        <FieldRow
+                          label="Connected since"
+                          value={
+                            formatRelativePlusAbsolute(
+                              metaDetail.connectedAt,
+                              "—",
+                            ).value
+                          }
+                          description={
+                            formatRelativePlusAbsolute(
+                              metaDetail.connectedAt,
+                              "—",
+                            ).description
+                          }
+                        />
+                        <FieldRow
+                          label="Token expires"
+                          value={
+                            formatRelativePlusAbsolute(
+                              metaDetail.expiresAt,
+                              "—",
+                            ).value
+                          }
+                          description={
+                            formatRelativePlusAbsolute(
+                              metaDetail.expiresAt,
+                              "—",
+                            ).description
+                          }
+                          tone={
+                            metaTokenExpired
+                              ? "danger"
+                              : metaTokenExpiringSoon
+                                ? "warning"
+                                : "neutral"
+                          }
+                        />
+                      </div>
+                      <div className="rounded-2xl border border-border/70 bg-slate-50/70 p-4">
+                        <div className="text-sm font-semibold text-slate-950">
+                          Granted scopes
+                        </div>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {metaDetail.scopes.map((scope) => (
+                            <span
+                              key={scope}
+                              className="inline-flex items-center rounded-full border border-border/70 bg-white px-3 py-1 text-xs font-medium text-slate-700"
+                            >
+                              {scope}
+                            </span>
+                          ))}
+                        </div>
                       </div>
                     </div>
                   </SectionCard>
 
                   <SectionCard
                     title="Facebook Pages"
-                    description="Stored Facebook Page assets connected through the current Meta authorization."
+                    description="Connected Facebook Pages available through the shared Meta authorization."
                   >
                     <MetaAssetList
                       assets={metaDetail.facebookPages}
-                      emptyMessage="No Facebook Pages are connected for this account yet."
+                      emptyMessage="No Facebook Pages connected"
                       onCopy={copyToClipboard}
                       onOpen={() => navigate(metaDetail.managementPath)}
                     />
@@ -4793,11 +6274,11 @@ export default function IntegrationDetailPage() {
 
                   <SectionCard
                     title="Instagram Accounts"
-                    description="Stored Instagram Business assets available from the current Meta authorization."
+                    description="Connected Instagram business accounts available through the shared Meta authorization."
                   >
                     <MetaAssetList
                       assets={metaDetail.instagramAccounts}
-                      emptyMessage="No Instagram Business accounts are connected for this account yet."
+                      emptyMessage="No Instagram accounts connected"
                       onCopy={copyToClipboard}
                       onOpen={() => navigate(metaDetail.managementPath)}
                     />
@@ -4805,56 +6286,47 @@ export default function IntegrationDetailPage() {
 
                   <SectionCard
                     title="Publishing & Analytics Capabilities"
-                    description="Capability summary based on the current Meta OAuth flow and existing activity surfaces in the repo."
+                    description="Operational surfaces available today through the current Meta connection and BloomSuite activity tooling."
                   >
-                    <DetailFieldRows
-                      rows={[
-                        {
-                          label: "Publishing Access",
-                          value:
-                            metaDetail.authorizationStatus === "authorized"
-                              ? "Available"
-                              : metaDetail.authorizationStatus === "expired"
-                                ? "Reauthorization required"
-                                : "Not connected",
-                          tone:
-                            metaDetail.authorizationStatus === "authorized"
-                              ? "success"
-                              : metaDetail.authorizationStatus === "expired"
-                                ? "warning"
-                                : "neutral",
-                        },
-                        {
-                          label: "Facebook Page Discovery",
-                          value:
-                            metaDetail.facebookPageCount > 0
-                              ? "Available"
-                              : "Pending",
-                          tone:
-                            metaDetail.facebookPageCount > 0
-                              ? "success"
-                              : "neutral",
-                        },
-                        {
-                          label: "Instagram Account Discovery",
-                          value:
-                            metaDetail.instagramAccountCount > 0
-                              ? "Available"
-                              : "Pending",
-                          tone:
-                            metaDetail.instagramAccountCount > 0
-                              ? "success"
-                              : "neutral",
-                        },
-                        {
-                          label: "Publishing Logs",
-                          value: "Activity Center",
-                          description:
-                            "Meta publishing activity is routed through the shared Activity Center filters available in this repo today.",
-                          tone: "success",
-                        },
-                      ]}
-                    />
+                    <div>
+                      <FieldRow
+                        label="Publishing access"
+                        value={
+                          metaDetail.authorizationStatus === "authorized"
+                            ? "Available"
+                            : metaDetail.authorizationStatus === "expired"
+                              ? "Reconnect required"
+                              : "Not connected"
+                        }
+                        tone={
+                          metaDetail.authorizationStatus === "authorized"
+                            ? "success"
+                            : metaDetail.authorizationStatus === "expired"
+                              ? "danger"
+                              : "neutral"
+                        }
+                      />
+                      <FieldRow
+                        label="Insights access"
+                        value={
+                          metaDetail.authorizationStatus === "authorized"
+                            ? "Available"
+                            : "Unavailable"
+                        }
+                        description="Meta insights require active authorization with the stored read_insights scope."
+                        tone={
+                          metaDetail.authorizationStatus === "authorized"
+                            ? "success"
+                            : "warning"
+                        }
+                      />
+                      <FieldRow
+                        label="Publishing logs"
+                        value="Activity Center"
+                        description="Review publishing and social activity history through the shared BloomSuite activity surfaces."
+                        tone="success"
+                      />
+                    </div>
                     <div className="mt-4 flex flex-wrap gap-3">
                       <Button
                         type="button"
@@ -4870,103 +6342,115 @@ export default function IntegrationDetailPage() {
                         Manage Social Accounts
                       </Button>
                     </div>
-                    <div className="mt-2 text-xs text-muted-foreground">
-                      BloomSuite currently stores Meta-connected assets and
-                      routes publishing visibility through shared activity
-                      tooling. This page does not expose token values or hidden
-                      provider credentials.
-                    </div>
                   </SectionCard>
                 </>
               ) : isGa4 && ga4Detail ? (
                 <>
                   <SectionCard
                     title="Property Details"
-                    description="Stored GA4 property settings and the current connection state available in BloomSuite today."
+                    description="Stored GA4 property metadata and the current tenant-scoped connection state."
                   >
-                    <DetailFieldRows
-                      onCopy={copyToClipboard}
-                      rows={[
-                        {
-                          label: "Property ID",
-                          value: ga4Detail.propertyId ?? "Not configured",
-                          copyValue: ga4Detail.propertyId,
-                          copyLabel: "Property ID",
-                        },
-                        {
-                          label: "Connection Status",
-                          value: ga4ConnectionState.label,
-                          description: ga4ConnectionState.subtitle,
-                          tone: ga4ConnectionState.tone,
-                          valueClassName: ga4ConnectionState.valueClassName,
-                        },
-                        {
-                          label: "Connected Since",
-                          value: formatTimestampOrFallback(
-                            ga4Detail.connectedAt,
-                            "Not connected",
-                          ),
-                        },
-                        {
-                          label: "Last Tested",
-                          value: formatRelativePlusAbsolute(
-                            ga4Detail.lastTestAt,
-                            "Not tested",
-                          ).value,
-                          description: formatRelativePlusAbsolute(
-                            ga4Detail.lastTestAt,
-                            "Not tested",
-                          ).description,
-                          tone: ga4Detail.lastTestAt ? "neutral" : "warning",
-                        },
-                        {
-                          label: "Service Account",
-                          value: ga4Detail.serviceAccountConfigured
-                            ? "Configured"
-                            : "Not configured",
-                          description: ga4Detail.serviceAccountConfigured
-                            ? "Reporting calls can use the existing configured service account path."
-                            : "The repo still flags service-account setup as incomplete for this property.",
-                          tone: ga4Detail.serviceAccountConfigured
-                            ? "success"
-                            : "warning",
-                        },
-                      ]}
-                    />
+                    <div className="space-y-4">
+                      <div className="flex flex-wrap justify-end gap-3">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          disabled={
+                            !ga4Detail.propertyId || detail.isGa4Reauthorizing
+                          }
+                          onClick={() => {
+                            void detail.triggerGa4Reauthorization();
+                          }}
+                        >
+                          {detail.isGa4Reauthorizing
+                            ? "Opening authorization..."
+                            : "Re-authorize"}
+                        </Button>
+                      </div>
+                      <div>
+                        <FieldRow
+                          label="Property name"
+                          value={ga4Detail.propertyName ?? "—"}
+                        />
+                        <FieldRow
+                          label="Property ID"
+                          value={ga4Detail.propertyId ?? "—"}
+                          copyValue={ga4Detail.propertyId ?? undefined}
+                          copyLabel="Property ID"
+                          copiedLabel={copiedLabel}
+                          onCopy={copyToClipboard}
+                        />
+                        <FieldRow
+                          label="Measurement ID"
+                          value={ga4Detail.measurementId ?? "—"}
+                          copyValue={ga4Detail.measurementId ?? undefined}
+                          copyLabel="Measurement ID"
+                          copiedLabel={copiedLabel}
+                          onCopy={copyToClipboard}
+                        />
+                        <FieldRow
+                          label="Google account"
+                          value={ga4Detail.googleAccountEmail ?? "—"}
+                        />
+                        <FieldRow
+                          label="Connected since"
+                          value={
+                            formatRelativePlusAbsolute(
+                              ga4Detail.connectedAt,
+                              "—",
+                            ).value
+                          }
+                          description={
+                            formatRelativePlusAbsolute(
+                              ga4Detail.connectedAt,
+                              "—",
+                            ).description
+                          }
+                        />
+                      </div>
+                    </div>
                   </SectionCard>
 
                   <SectionCard
                     title="Reporting Capabilities"
-                    description="Current reporting surfaces already implemented for the Website integrations area."
+                    description="Reporting surfaces and access guarantees available through the connected GA4 property."
                   >
-                    <DetailFieldRows
-                      rows={[
-                        {
-                          label: "Website Reporting Dashboard",
-                          value: ga4Detail.propertyId
-                            ? "Available"
-                            : "Setup required",
-                          description: ga4Detail.reportingSummary,
-                          tone: ga4Detail.propertyId ? "success" : "warning",
-                        },
-                        {
-                          label: "Traffic Metrics",
-                          value: ga4Detail.propertyId
-                            ? "Available"
-                            : "Unavailable",
-                          description:
-                            "The existing dashboard already reports users, page views, sessions, countries, and device types.",
-                          tone: ga4Detail.propertyId ? "success" : "neutral",
-                        },
-                        {
-                          label: "Live Sync",
-                          value: "Not applicable",
-                          description:
-                            "Google Analytics detail pages expose reporting access rather than a CRM sync pipeline.",
-                          tone: "neutral",
-                        },
-                      ]}
-                    />
+                    <div>
+                      <FieldRow
+                        label="Website dashboard"
+                        value={
+                          ga4Detail.propertyId ? "Available" : "Setup required"
+                        }
+                        description={ga4Detail.reportingStatus}
+                        tone={ga4Detail.propertyId ? "success" : "warning"}
+                      />
+                      <FieldRow
+                        label="Traffic metrics"
+                        value={
+                          ga4ConnectionHealthy ? "Available" : "Unavailable"
+                        }
+                        description="Sessions, users, page views, countries, and device types are exposed through the existing reporting dashboard."
+                        tone={ga4ConnectionHealthy ? "success" : "neutral"}
+                      />
+                      <FieldRow
+                        label="Read permissions"
+                        value={
+                          ga4Detail.readPermissionsConfirmed
+                            ? "Confirmed"
+                            : "Needs review"
+                        }
+                        description={
+                          ga4Detail.readPermissionsConfirmed
+                            ? "analytics.readonly access has been confirmed during connection or testing."
+                            : "Re-authorize if reporting access has changed or the connection test fails."
+                        }
+                        tone={
+                          ga4Detail.readPermissionsConfirmed
+                            ? "success"
+                            : "warning"
+                        }
+                      />
+                    </div>
                     <div className="mt-4 flex flex-wrap gap-3">
                       <Button
                         type="button"
@@ -4981,56 +6465,98 @@ export default function IntegrationDetailPage() {
                       >
                         Open Website Integrations
                       </Button>
+                      {ga4Detail.analyticsUrl ? (
+                        <Button type="button" variant="outline" asChild>
+                          <a
+                            href={ga4Detail.analyticsUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            Open Google Analytics
+                            <ExternalLink className="ml-2 h-4 w-4" />
+                          </a>
+                        </Button>
+                      ) : null}
                     </div>
                   </SectionCard>
 
                   <SectionCard
-                    title="Connection Actions"
-                    description="Use the existing repo-supported GA4 flows instead of introducing new endpoints or token handling."
+                    title="Connection Test"
+                    description="Run the existing GA4 verification flow and review the latest recorded result for this property."
                   >
-                    <div className="space-y-3 rounded-2xl border border-border/70 bg-slate-50/70 p-4">
-                      <Button
-                        type="button"
-                        className="w-full justify-between"
-                        disabled={
-                          !ga4Detail.propertyId ||
-                          ga4Detail.connectionStatus !== "connected" ||
-                          detail.isGa4ConnectionTesting
-                        }
-                        onClick={() => {
-                          void detail.triggerGa4ConnectionTest();
-                        }}
-                      >
-                        {detail.isGa4ConnectionTesting
-                          ? "Testing connection..."
-                          : "Test Connection"}
-                        <FlaskConical className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="w-full justify-between"
-                        disabled={
-                          !ga4Detail.propertyId || detail.isGa4Reauthorizing
-                        }
-                        onClick={() => {
-                          void detail.triggerGa4Reauthorization();
-                        }}
-                      >
-                        {detail.isGa4Reauthorizing
-                          ? "Opening Google authorization..."
-                          : "Re-authorize Google Analytics"}
-                        <PlugZap className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="w-full justify-between"
-                        onClick={() => navigate(ga4Detail.reportingPath)}
-                      >
-                        View Reporting Dashboard
-                        <ArrowRight className="h-4 w-4" />
-                      </Button>
+                    <div className="space-y-4">
+                      <div className="flex flex-wrap justify-end gap-3">
+                        <Button
+                          type="button"
+                          disabled={
+                            !ga4Detail.propertyId ||
+                            ga4Detail.connectionStatus !== "connected" ||
+                            detail.isGa4ConnectionTesting
+                          }
+                          onClick={() => {
+                            void detail.triggerGa4ConnectionTest();
+                          }}
+                        >
+                          {detail.isGa4ConnectionTesting
+                            ? "Running connection test..."
+                            : "Run connection test"}
+                          <FlaskConical className="ml-2 h-4 w-4" />
+                        </Button>
+                      </div>
+                      <div>
+                        <FieldRow
+                          label="Latest result"
+                          value={
+                            ga4Detail.lastTestStatus === "success"
+                              ? "Passed"
+                              : ga4Detail.lastTestStatus === "error"
+                                ? "Failed"
+                                : "Not run"
+                          }
+                          tone={
+                            ga4Detail.lastTestStatus === "success"
+                              ? "success"
+                              : ga4Detail.lastTestStatus === "error"
+                                ? "danger"
+                                : "neutral"
+                          }
+                        />
+                        <FieldRow
+                          label="Last tested"
+                          value={
+                            formatRelativePlusAbsolute(
+                              ga4Detail.lastTestAt,
+                              "Not tested",
+                            ).value
+                          }
+                          description={
+                            formatRelativePlusAbsolute(
+                              ga4Detail.lastTestAt,
+                              "Not tested",
+                            ).description
+                          }
+                          tone={ga4Detail.lastTestAt ? "neutral" : "warning"}
+                        />
+                        <FieldRow
+                          label="Last data pull"
+                          value={
+                            formatRelativePlusAbsolute(
+                              ga4Detail.lastPullAt,
+                              "Not pulled yet",
+                            ).value
+                          }
+                          description={
+                            formatRelativePlusAbsolute(
+                              ga4Detail.lastPullAt,
+                              "Not pulled yet",
+                            ).description
+                          }
+                        />
+                      </div>
+                      <div className="rounded-2xl border border-border/70 bg-slate-50/70 p-4 text-sm leading-6 text-muted-foreground">
+                        {ga4Detail.lastTestMessage ??
+                          "Run a connection test to verify that this GA4 property is still accessible from BloomSuite."}
+                      </div>
                     </div>
                   </SectionCard>
                 </>
@@ -5042,60 +6568,56 @@ export default function IntegrationDetailPage() {
                   >
                     <DetailFieldRows
                       onCopy={copyToClipboard}
-                      rows={[
-                        {
-                          label: "Provider",
-                          value: marketingImportDetail.providerLabel,
+                      rows={marketingImportDetail.connectionDetailsRows.map(
+                        (row) => {
+                          if (row.label === "Connected Since") {
+                            return {
+                              ...row,
+                              value: formatRelativePlusAbsolute(
+                                marketingImportDetail.connectedAt,
+                                "Not connected",
+                              ).value,
+                              description: formatRelativePlusAbsolute(
+                                marketingImportDetail.connectedAt,
+                                "Not connected",
+                              ).description,
+                            };
+                          }
+
+                          if (row.label === "Token Expiry") {
+                            return {
+                              ...row,
+                              value: formatRelativePlusAbsolute(
+                                marketingImportDetail.tokenExpiresAt,
+                                "No expiry reported",
+                              ).value,
+                              description: formatRelativePlusAbsolute(
+                                marketingImportDetail.tokenExpiresAt,
+                                "No expiry reported",
+                              ).description,
+                            };
+                          }
+
+                          return row;
                         },
-                        {
-                          label: "Connection Status",
-                          value: marketingImportState.label,
-                          description: marketingImportState.subtitle,
-                          tone: marketingImportState.tone,
-                          valueClassName: marketingImportState.valueClassName,
-                        },
-                        {
-                          label: "Account Name",
-                          value:
-                            marketingImportDetail.accountName ??
-                            "Not connected yet",
-                        },
-                        {
-                          label: "Account ID",
-                          value:
-                            marketingImportDetail.accountId ?? "Not available",
-                          copyValue: marketingImportDetail.accountId,
-                          copyLabel: "Account ID",
-                        },
-                        {
-                          label: "Contact Email",
-                          value:
-                            marketingImportDetail.contactEmail ??
-                            "Not available",
-                        },
-                        {
-                          label: "Connected Since",
-                          value: formatTimestampOrFallback(
-                            marketingImportDetail.connectedAt,
-                            "Not connected",
-                          ),
-                        },
-                        {
-                          label: "Token Expiry",
-                          value: formatRelativePlusAbsolute(
-                            marketingImportDetail.tokenExpiresAt,
-                            "No expiry reported",
-                          ).value,
-                          description: formatRelativePlusAbsolute(
-                            marketingImportDetail.tokenExpiresAt,
-                            "No expiry reported",
-                          ).description,
-                          tone: marketingImportDetail.tokenExpiresAt
-                            ? "neutral"
-                            : "warning",
-                        },
-                      ]}
+                      )}
                     />
+                    {marketingImportDetail.supportsRevokeToken ? (
+                      <div className="mt-4 flex justify-end">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          disabled={
+                            !detail.canDisconnect || detail.isDisconnecting
+                          }
+                          onClick={() => setDisconnectOpen(true)}
+                        >
+                          {detail.isDisconnecting
+                            ? "Revoking token..."
+                            : "Revoke Token"}
+                        </Button>
+                      </div>
+                    ) : null}
                   </SectionCard>
 
                   <SectionCard
@@ -5103,57 +6625,7 @@ export default function IntegrationDetailPage() {
                     description="This integration supports one-time contact imports and intentionally does not enable live CRM sync."
                   >
                     <DetailFieldRows
-                      rows={[
-                        {
-                          label: "Purpose",
-                          value: marketingImportDetail.purposeLabel,
-                          tone: "warning",
-                          valueClassName: "text-amber-700",
-                        },
-                        {
-                          label: "Live Sync",
-                          value: marketingImportDetail.liveSyncLabel,
-                          tone: "neutral",
-                          valueClassName: "text-slate-600",
-                        },
-                        {
-                          label: "Lists Discovered",
-                          value: formatCount(marketingImportDetail.listCount),
-                          description:
-                            marketingImportDetail.listCount > 0
-                              ? "Provider artifacts from prior previews are stored for reuse."
-                              : "Preview lists to cache provider list metadata.",
-                          tone:
-                            marketingImportDetail.listCount > 0
-                              ? "success"
-                              : "neutral",
-                        },
-                        {
-                          label: "Segments Discovered",
-                          value: formatCount(
-                            marketingImportDetail.segmentCount,
-                          ),
-                          description:
-                            marketingImportDetail.segmentCount > 0
-                              ? "Saved segment artifacts are available for import review."
-                              : "Some providers will only expose segments after list preview.",
-                          tone:
-                            marketingImportDetail.segmentCount > 0
-                              ? "success"
-                              : "neutral",
-                        },
-                        {
-                          label: "Latest Import",
-                          value:
-                            marketingImportDetail.latestImportStatus ??
-                            "No import job yet",
-                          description:
-                            marketingImportDetail.latestImportSummary,
-                          tone: marketingImportDetail.latestImportId
-                            ? "neutral"
-                            : "warning",
-                        },
-                      ]}
+                      rows={marketingImportDetail.capabilityRows}
                     />
                     <div className="mt-4 rounded-2xl border border-border/70 bg-slate-50/70 p-4">
                       <div className="text-sm font-semibold text-slate-950">
@@ -5187,7 +6659,7 @@ export default function IntegrationDetailPage() {
                           navigate(marketingImportDetail.importFlowPath)
                         }
                       >
-                        Open Import Flow
+                        Start Import
                         <ArrowRight className="h-4 w-4" />
                       </Button>
                       <Button
@@ -5201,6 +6673,25 @@ export default function IntegrationDetailPage() {
                         Preview Lists
                         <ExternalLink className="h-4 w-4" />
                       </Button>
+                      {marketingImportDetail.supportsValidateConnection ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="w-full justify-between"
+                          disabled={
+                            !marketingImportDetail.connectionId ||
+                            detail.isValidatingMarketingImportConnection
+                          }
+                          onClick={() => {
+                            void detail.validateMarketingImportConnection();
+                          }}
+                        >
+                          {detail.isValidatingMarketingImportConnection
+                            ? "Validating connection..."
+                            : "Validate Connection"}
+                          <FlaskConical className="h-4 w-4" />
+                        </Button>
+                      ) : null}
                     </div>
                   </SectionCard>
                 </>
@@ -5258,127 +6749,250 @@ export default function IntegrationDetailPage() {
                 </>
               )}
 
-              <SectionCard
-                title="Danger Zone"
-                description={
-                  isSquare
-                    ? "Disconnect Square using the current repo-supported flow for removing the stored connection."
-                    : isMeta
-                      ? "Disconnect Meta by removing the stored Facebook and Instagram connections for this account."
-                      : isClover
-                        ? "Disconnect Clover using the existing repo-supported flow for removing the stored connection."
-                        : isLightspeed
-                          ? "Disconnect Lightspeed using the existing repo-supported flow for removing the stored connection."
+              {isLightspeed ? (
+                detail.canAccessLightspeedAdminFeatures ? (
+                  <section className="mt-12 border-t border-gray-100 pt-8">
+                    <div className="space-y-3">
+                      <p className="text-xs font-semibold uppercase tracking-wider text-red-600">
+                        Danger Zone
+                      </p>
+                      <div className="rounded-xl border border-red-100 bg-white p-5">
+                        <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+                          <div className="max-w-2xl space-y-2">
+                            <h3 className="text-sm font-semibold text-foreground">
+                              Disconnect Lightspeed X-Series
+                            </h3>
+                            <p className="text-sm leading-6 text-muted-foreground">
+                              Remove the stored Lightspeed connection from
+                              BloomSuite, stop customer, sales, and product
+                              sync, and clear the credentials used for this
+                              account.
+                            </p>
+                            <p className="text-sm leading-6 text-muted-foreground">
+                              {detail.canDisconnect
+                                ? "Imported CRM data is not deleted. You can reconnect this Lightspeed account later if syncing needs to be restored."
+                                : "Only site admins can remove the stored Lightspeed connection from this page."}
+                            </p>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800 disabled:border-red-100 disabled:text-red-300"
+                            disabled={!detail.canDisconnect}
+                            onClick={() => setDisconnectOpen(true)}
+                          >
+                            Disconnect Lightspeed
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </section>
+                ) : null
+              ) : (
+                <SectionCard
+                  title="Danger Zone"
+                  description={
+                    isSquare
+                      ? "Disconnect Square using the current repo-supported flow for removing the stored connection."
+                      : isMeta
+                        ? "Remove the shared Meta authorization and disconnect the stored Facebook Page and Instagram account access for this tenant."
+                        : isClover
+                          ? "Disconnect Clover using the existing repo-supported flow for removing the stored connection."
                           : isGa4
-                            ? "Disconnect Google Analytics by removing the stored property connection for this user."
+                            ? "Remove the stored GA4 property connection for this tenant and stop future reporting pulls until the property is connected again."
                             : isMarketingImport && marketingImportDetail
-                              ? `Disconnect ${marketingImportDetail.providerLabel} by revoking the stored import connection for this user.`
+                              ? marketingImportDetail.dangerZone.description
                               : "Destructive actions are gated until provider-specific controls are available."
-                }
-              >
-                <div className="rounded-2xl border border-rose-200 bg-rose-50/70 p-4">
-                  <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                    <div>
-                      <div className="text-sm font-semibold text-rose-900">
-                        {isMeta
-                          ? "Disconnect Meta"
-                          : isClover
-                            ? "Disconnect Clover"
-                            : isLightspeed
-                              ? "Disconnect Lightspeed"
+                  }
+                >
+                  <div className="rounded-2xl border border-rose-200 bg-rose-50/70 p-4">
+                    <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                      <div>
+                        <div className="text-sm font-semibold text-rose-900">
+                          {isMeta
+                            ? "Disconnect Meta"
+                            : isClover
+                              ? "Disconnect Clover"
                               : isGa4
                                 ? "Disconnect Google Analytics"
                                 : isMarketingImport && marketingImportDetail
-                                  ? `Disconnect ${marketingImportDetail.providerLabel}`
+                                  ? marketingImportDetail.dangerZone.title
                                   : (model.disconnectTitle ??
                                     "No destructive action available")}
-                      </div>
-                      <p className="mt-1 text-sm leading-6 text-rose-800/80">
-                        {isMeta
-                          ? detail.canDisconnect
-                            ? "Disconnecting Meta will remove the stored Facebook Page and Instagram account connections from BloomSuite. Existing CRM data is not deleted, and Meta can be re-authorized later."
-                            : "No stored Meta connections are currently available to remove from this page."
-                          : isClover
-                            ? "Disconnecting Clover will stop all sync and real-time event processing and remove your Clover credentials from BloomSuite. Your existing CRM data is not deleted."
-                            : isLightspeed
-                              ? "Disconnecting Lightspeed will stop sync and any available webhook processing and remove your Lightspeed credentials from BloomSuite. Your existing CRM data is not deleted."
+                        </div>
+                        <p className="mt-1 text-sm leading-6 text-rose-800/80">
+                          {isMeta
+                            ? detail.canDisconnect
+                              ? "Disconnecting Meta removes the shared authorization for this tenant, clears the stored Facebook Page and Instagram account links, and stops publishing or analytics access until Meta is authorized again. Existing CRM data is not deleted."
+                              : "No stored Meta authorization is currently available to remove from this page."
+                            : isClover
+                              ? "Disconnecting Clover will stop all sync and real-time event processing and remove your Clover credentials from BloomSuite. Your existing CRM data is not deleted."
                               : isGa4
-                                ? "Disconnecting Google Analytics will remove the stored GA4 property settings from BloomSuite. Existing reporting views remain available after you reconnect."
+                                ? "Disconnecting Google Analytics removes the stored GA4 property settings for this tenant and stops future reporting pulls until the property is connected again. Historical CRM data is not deleted."
                                 : isMarketingImport && marketingImportDetail
-                                  ? `Disconnecting ${marketingImportDetail.providerLabel} will revoke the stored import connection and stop future list previews or contact imports until it is connected again.`
+                                  ? marketingImportDetail.dangerZone
+                                      .confirmDescription
                                   : model.canDisconnect
                                     ? model.disconnectDescription
                                     : isSquare
                                       ? "Only site admins can remove the stored Square connection from this page."
-                                      : isLightspeed
-                                        ? "Only site admins can remove the stored Lightspeed connection from this page."
-                                        : item.isManagedInfrastructure
-                                          ? "This integration is managed through settings and cannot be disconnected from the shell."
-                                          : "Disconnect actions will appear here when this integration supports them."}
-                      </p>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      disabled={!detail.canDisconnect}
-                      onClick={() => setDisconnectOpen(true)}
-                    >
-                      {isMeta
-                        ? "Disconnect Meta"
-                        : isClover
-                          ? "Disconnect Clover"
-                          : isLightspeed
-                            ? "Disconnect Lightspeed"
+                                      : item.isManagedInfrastructure
+                                        ? "This integration is managed through settings and cannot be disconnected from the shell."
+                                        : "Disconnect actions will appear here when this integration supports them."}
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        disabled={!detail.canDisconnect}
+                        onClick={() => setDisconnectOpen(true)}
+                      >
+                        {isMeta
+                          ? "Disconnect Meta"
+                          : isClover
+                            ? "Disconnect Clover"
                             : isGa4
                               ? "Disconnect Google Analytics"
                               : isMarketingImport && marketingImportDetail
-                                ? `Disconnect ${marketingImportDetail.providerLabel}`
+                                ? marketingImportDetail.dangerZone.title
                                 : "Disconnect"}
-                    </Button>
+                      </Button>
+                    </div>
+                    {isMarketingImport && marketingImportDetail ? (
+                      <ul className="mt-4 space-y-2 rounded-xl border border-red-100 bg-red-50/40 p-4 text-sm text-slate-900">
+                        {marketingImportDetail.dangerZone.bullets.map(
+                          (bullet) => (
+                            <li key={bullet} className="flex items-start gap-3">
+                              <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-700">
+                                <X className="h-3.5 w-3.5" />
+                              </span>
+                              <span>{bullet}</span>
+                            </li>
+                          ),
+                        )}
+                      </ul>
+                    ) : null}
                   </div>
-                </div>
-              </SectionCard>
+                </SectionCard>
+              )}
             </div>
           </div>
         )}
 
         <AlertDialog open={disconnectOpen} onOpenChange={setDisconnectOpen}>
-          <AlertDialogContent>
+          <AlertDialogContent
+            className={isLightspeed ? "sm:max-w-lg" : undefined}
+          >
             <AlertDialogHeader>
               <AlertDialogTitle>
                 {isMeta
                   ? "Disconnect Meta?"
-                  : isClover
-                    ? "Disconnect Clover?"
-                    : isLightspeed
-                      ? "Disconnect Lightspeed?"
-                      : isGa4
-                        ? "Disconnect Google Analytics?"
-                        : isMarketingImport && marketingImportDetail
-                          ? `Disconnect ${marketingImportDetail.providerLabel}?`
-                          : (model.disconnectTitle ??
-                            "Disconnect integration?")}
+                  : isSquare
+                    ? "Disconnect Square?"
+                    : isClover
+                      ? "Disconnect Clover?"
+                      : isLightspeed
+                        ? "Disconnect Lightspeed X-Series?"
+                        : isGa4
+                          ? "Disconnect Google Analytics?"
+                          : isMarketingImport && marketingImportDetail
+                            ? `Disconnect ${marketingImportDetail.providerLabel}?`
+                            : (model.disconnectTitle ??
+                              "Disconnect integration?")}
               </AlertDialogTitle>
               <AlertDialogDescription>
-                {isMeta
-                  ? "Disconnecting Meta will remove the stored Facebook Page and Instagram account connections from BloomSuite. Existing CRM data is not deleted, and Meta can be re-authorized later."
-                  : isClover
-                    ? "Disconnecting Clover will stop all sync and real-time event processing and remove your Clover credentials from BloomSuite. Your existing CRM data is not deleted."
-                    : isLightspeed
-                      ? "Disconnecting Lightspeed will stop sync and any available webhook processing and remove your Lightspeed credentials from BloomSuite. Your existing CRM data is not deleted."
-                      : isGa4
-                        ? "Disconnecting Google Analytics will remove the stored GA4 property settings from BloomSuite. Existing reporting views remain available after you reconnect."
-                        : isMarketingImport && marketingImportDetail
-                          ? `Disconnecting ${marketingImportDetail.providerLabel} will revoke the stored import connection and stop future list previews or contact imports until it is connected again.`
-                          : (model.disconnectDescription ??
-                            `Disconnecting ${item.name} will stop future syncing until it is connected again.`)}
+                {isLightspeed
+                  ? "This removes the current Lightspeed X-Series connection from BloomSuite and immediately stops its active integration workflows."
+                  : isSquare
+                    ? "Disconnecting Square removes the stored merchant connection from BloomSuite and stops future Square syncs, webhook processing, and automation-trigger intake until the integration is connected again."
+                    : isMeta
+                      ? "Disconnecting Meta removes the shared authorization for this tenant, clears the stored Facebook Page and Instagram account links, and stops publishing or analytics access until Meta is authorized again. Existing CRM data is not deleted."
+                      : isClover
+                        ? "Disconnecting Clover will stop all sync and real-time event processing and remove your Clover credentials from BloomSuite. Your existing CRM data is not deleted."
+                        : isGa4
+                          ? "Disconnecting Google Analytics removes the stored GA4 property settings for this tenant and stops future reporting pulls until the property is connected again. Historical CRM data is not deleted."
+                          : isMarketingImport && marketingImportDetail
+                            ? marketingImportDetail.dangerZone
+                                .confirmDescription
+                            : (model.disconnectDescription ??
+                              `Disconnecting ${item.name} will stop future syncing until it is connected again.`)}
               </AlertDialogDescription>
             </AlertDialogHeader>
+            {isLightspeed || isSquare || isClover ? (
+              <div className="space-y-4">
+                <ul className="space-y-3 rounded-xl border border-red-100 bg-red-50/40 p-4 text-sm text-slate-900">
+                  <li className="flex items-start gap-3">
+                    <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-700">
+                      <X className="h-3.5 w-3.5" />
+                    </span>
+                    <span>
+                      {isSquare
+                        ? "Customer, sales, and product sync will stop until Square is connected again."
+                        : isClover
+                          ? "Customer, sales, and product sync will stop until Clover is connected again."
+                          : "Customer, sales, and product sync will stop until Lightspeed is connected again."}
+                    </span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-700">
+                      <X className="h-3.5 w-3.5" />
+                    </span>
+                    <span>
+                      {isSquare
+                        ? "Stored Square merchant credentials and webhook subscription references will be removed from this BloomSuite account."
+                        : isClover
+                          ? "Stored Clover merchant credentials and app-level webhook health references will be removed from this BloomSuite account."
+                          : "Stored Lightspeed credentials will be removed from this BloomSuite account."}
+                    </span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-700">
+                      <X className="h-3.5 w-3.5" />
+                    </span>
+                    <span>
+                      {isSquare
+                        ? "Webhook-driven automation intake will pause, and any new Square events will be ignored until the connection is restored."
+                        : isClover
+                          ? "Any new Clover events and connection-test diagnostics will be ignored until the connection is restored and app-level webhook health can be verified again."
+                          : "Any active sync jobs for this connection will be canceled and need to be restarted after reconnection."}
+                    </span>
+                  </li>
+                </ul>
+                <p className="text-sm leading-6 text-muted-foreground">
+                  Imported CRM data is not deleted. You can reconnect{" "}
+                  {isSquare ? "Square" : isClover ? "Clover" : "Lightspeed"}{" "}
+                  later to restore syncing.
+                </p>
+              </div>
+            ) : isMarketingImport && marketingImportDetail ? (
+              <div className="space-y-4">
+                <ul className="space-y-3 rounded-xl border border-red-100 bg-red-50/40 p-4 text-sm text-slate-900">
+                  {marketingImportDetail.dangerZone.bullets.map((bullet) => (
+                    <li key={bullet} className="flex items-start gap-3">
+                      <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-700">
+                        <X className="h-3.5 w-3.5" />
+                      </span>
+                      <span>{bullet}</span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-sm leading-6 text-muted-foreground">
+                  Imported CRM data is not deleted. You can reconnect{" "}
+                  {marketingImportDetail.providerLabel} later to restore
+                  previews and imports.
+                </p>
+              </div>
+            ) : null}
             <AlertDialogFooter>
               <AlertDialogCancel disabled={detail.isDisconnecting}>
                 Cancel
               </AlertDialogCancel>
               <AlertDialogAction
+                className={
+                  isLightspeed || isSquare || isClover
+                    ? "bg-red-600 text-white hover:bg-red-700 focus-visible:ring-red-500"
+                    : undefined
+                }
                 onClick={(event) => {
                   event.preventDefault();
                   void detail.disconnect().then(() => setDisconnectOpen(false));
@@ -5394,7 +7008,7 @@ export default function IntegrationDetailPage() {
                       : isClover
                         ? "Remove Clover connection"
                         : isLightspeed
-                          ? "Remove Lightspeed connection"
+                          ? "Disconnect Lightspeed"
                           : isGa4
                             ? "Remove Google Analytics connection"
                             : isMarketingImport && marketingImportDetail

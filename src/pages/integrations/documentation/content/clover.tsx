@@ -6,6 +6,7 @@ import { DocInlineCode } from "@/components/docs/DocInlineCode";
 import { DocStep } from "@/components/docs/DocStep";
 import type { DocContent } from "@/components/docs/types";
 import { getIntegrationSeed } from "@/components/integrations/integrationsHubConfig";
+import { documentationLogoAssets } from "@/pages/integrations/documentation/content/logoAssets";
 
 const cloverSeed = getIntegrationSeed("clover");
 
@@ -103,6 +104,8 @@ export const cloverDocumentation: DocContent = {
   lastUpdated: "Mar 23, 2026",
   branding: {
     icon: cloverSeed.icon,
+    logoSrc: documentationLogoAssets.clover,
+    logoAlt: "Clover logo",
   },
   sections: [
     {

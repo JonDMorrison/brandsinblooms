@@ -1,21 +1,39 @@
-import { useState, useEffect, useRef } from 'react';
-import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
-import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Loader2, CheckCircle, XCircle, Plug, Clock, BookOpen, Sparkles, RefreshCw, Users, AlertTriangle, Shield, Heart, Webhook, Activity } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
-import { Link } from 'react-router-dom';
-import { detectEnvironment } from '@/utils/environmentUtils';
-import { SquareSetupWizard } from './square/SquareSetupWizard';
-import { SquareReauthorizationGuide } from './square/SquareReauthorizationGuide';
-import { usePOSSyncJob } from '@/hooks/usePOSSyncJob';
+import { useState, useEffect, useRef } from "react";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  Loader2,
+  CheckCircle,
+  XCircle,
+  Plug,
+  Clock,
+  BookOpen,
+  Sparkles,
+  RefreshCw,
+  Users,
+  AlertTriangle,
+  Shield,
+  Heart,
+  Webhook,
+  Activity,
+} from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+import { Link } from "react-router-dom";
+import { detectEnvironment } from "@/utils/environmentUtils";
+import { getUserFacingIntegrationError } from "@/components/integrations/integrationDetailModel";
+import { SquareSetupWizard } from "./square/SquareSetupWizard";
+import { SquareReauthorizationGuide } from "./square/SquareReauthorizationGuide";
+import { usePOSSyncJob } from "@/hooks/usePOSSyncJob";
 
 export const SquareIntegration = () => {
   const [loading, setLoading] = useState(false);
-  const [loadingStep, setLoadingStep] = useState<'preparing' | 'redirecting' | 'completing'>('preparing');
+  const [loadingStep, setLoadingStep] = useState<
+    "preparing" | "redirecting" | "completing"
+  >("preparing");
   const [showSetupWizard, setShowSetupWizard] = useState(false);
   const [showReauthGuide, setShowReauthGuide] = useState(false);
   const [loyaltySyncing, setLoyaltySyncing] = useState(false);
@@ -24,23 +42,23 @@ export const SquareIntegration = () => {
   const queryClient = useQueryClient();
 
   const { data: connection, isLoading } = useQuery({
-    queryKey: ['square-connection'],
+    queryKey: ["square-connection"],
     queryFn: async () => {
       const { data: userData } = await supabase.auth.getUser();
-      if (!userData.user) throw new Error('Not authenticated');
+      if (!userData.user) throw new Error("Not authenticated");
 
       const { data: user } = await supabase
-        .from('users')
-        .select('tenant_id')
-        .eq('id', userData.user.id)
+        .from("users")
+        .select("tenant_id")
+        .eq("id", userData.user.id)
         .single();
 
       if (!user?.tenant_id) return null;
 
       const { data, error } = await supabase
-        .from('square_connections')
-        .select('*')
-        .eq('tenant_id', user.tenant_id)
+        .from("square_connections")
+        .select("*")
+        .eq("tenant_id", user.tenant_id)
         .maybeSingle();
 
       if (error) throw error;
@@ -49,18 +67,18 @@ export const SquareIntegration = () => {
   });
 
   // Use the sync job hook
-  const { 
-    activeJob, 
-    isSyncing, 
-    isCompleted, 
+  const {
+    activeJob,
+    isSyncing,
+    isCompleted,
     isStuck,
     startSync,
     resetStuckJob,
-    progress 
+    progress,
   } = usePOSSyncJob({
     connectionId: connection?.id,
-    connectionType: 'square',
-    syncType: 'customers',
+    connectionType: "square",
+    syncType: "customers",
   });
 
   // Listen for OAuth completion
@@ -68,69 +86,79 @@ export const SquareIntegration = () => {
     const handleOAuthResult = (data: any) => {
       if (Date.now() - data.timestamp < 30000) {
         setLoading(false);
-        localStorage.removeItem('square_oauth_result');
-        
-        if (data.status === 'success') {
-          queryClient.invalidateQueries({ queryKey: ['square-connection'] });
+        localStorage.removeItem("square_oauth_result");
+
+        if (data.status === "success") {
+          queryClient.invalidateQueries({ queryKey: ["square-connection"] });
           if (data.showSetupWizard) {
             setShowSetupWizard(true);
           } else {
-            toast({ 
+            toast({
               title: "✓ Square connected successfully",
-              description: data.merchantName ? `Connected to ${data.merchantName}` : undefined
+              description: data.merchantName
+                ? `Connected to ${data.merchantName}`
+                : undefined,
             });
           }
-        } else if (data.status === 'error') {
-          toast({ 
-            title: 'Connection failed', 
-            description: data.message || 'Please try again',
-            variant: 'destructive' 
+        } else if (data.status === "error") {
+          toast({
+            title: "Connection failed",
+            description: getUserFacingIntegrationError(
+              data.message,
+              "The connection could not be completed. Please try again.",
+            ),
+            variant: "destructive",
           });
         }
       }
     };
 
     const checkLocalStorage = () => {
-      const result = localStorage.getItem('square_oauth_result');
+      const result = localStorage.getItem("square_oauth_result");
       if (result) {
         try {
           const data = JSON.parse(result);
           handleOAuthResult(data);
         } catch (error) {
-          console.error('[SQUARE-Integration] Error processing OAuth result:', error);
+          console.error(
+            "[SQUARE-Integration] Error processing OAuth result:",
+            error,
+          );
         }
       }
     };
 
     let channel: BroadcastChannel | null = null;
     try {
-      channel = new BroadcastChannel('square_oauth');
+      channel = new BroadcastChannel("square_oauth");
       channel.onmessage = (event) => {
         handleOAuthResult(event.data);
       };
     } catch (e) {
-      console.log('[SQUARE-Integration] BroadcastChannel not supported');
+      console.log("[SQUARE-Integration] BroadcastChannel not supported");
     }
 
     const handleMessage = (event: MessageEvent) => {
-      if (event.origin === window.location.origin && 
-          event.data?.type === 'square_oauth_result') {
+      if (
+        event.origin === window.location.origin &&
+        event.data?.type === "square_oauth_result"
+      ) {
         handleOAuthResult(event.data.data);
       }
     };
-    window.addEventListener('message', handleMessage);
+    window.addEventListener("message", handleMessage);
 
     checkLocalStorage();
-    window.addEventListener('storage', checkLocalStorage);
-    
+    window.addEventListener("storage", checkLocalStorage);
+
     let interval: NodeJS.Timeout | null = null;
     if (loading) {
       interval = setInterval(checkLocalStorage, 500);
     }
-    
+
     return () => {
-      window.removeEventListener('storage', checkLocalStorage);
-      window.removeEventListener('message', handleMessage);
+      window.removeEventListener("storage", checkLocalStorage);
+      window.removeEventListener("message", handleMessage);
       if (channel) channel.close();
       if (interval) clearInterval(interval);
     };
@@ -139,7 +167,7 @@ export const SquareIntegration = () => {
   useEffect(() => {
     if (!loading) return;
     const interval = setInterval(() => {
-      queryClient.invalidateQueries({ queryKey: ['square-connection'] });
+      queryClient.invalidateQueries({ queryKey: ["square-connection"] });
     }, 1500);
     return () => clearInterval(interval);
   }, [loading, queryClient]);
@@ -148,31 +176,34 @@ export const SquareIntegration = () => {
   useEffect(() => {
     const prev = previousConnectionRef.current;
     const curr = connection;
-    
-    const wasNotConnected = !prev || prev.encrypted_access_token === 'pending';
-    const isNowConnected = curr && curr.encrypted_access_token && curr.encrypted_access_token !== 'pending';
+
+    const wasNotConnected = !prev || prev.encrypted_access_token === "pending";
+    const isNowConnected =
+      curr &&
+      curr.encrypted_access_token &&
+      curr.encrypted_access_token !== "pending";
     const wizardNotCompleted = !curr?.setup_wizard_completed_at;
-    
+
     if (wasNotConnected && isNowConnected && wizardNotCompleted && loading) {
       setLoading(false);
       setShowSetupWizard(true);
-      queryClient.invalidateQueries({ queryKey: ['square-connection-status'] });
+      queryClient.invalidateQueries({ queryKey: ["square-connection-status"] });
     } else if (loading && isNowConnected && !wizardNotCompleted) {
       setLoading(false);
-      toast({ title: '✓ Square connected successfully' });
-      queryClient.invalidateQueries({ queryKey: ['square-connection-status'] });
+      toast({ title: "✓ Square connected successfully" });
+      queryClient.invalidateQueries({ queryKey: ["square-connection-status"] });
     }
-    
+
     previousConnectionRef.current = curr;
   }, [loading, connection, toast, queryClient]);
 
   // Show toast when sync completes
   useEffect(() => {
     if (isCompleted && activeJob) {
-      queryClient.invalidateQueries({ queryKey: ['square-connection'] });
-      toast({ 
-        title: 'Sync completed', 
-        description: `Synced ${activeJob.total_synced.toLocaleString()} customers`
+      queryClient.invalidateQueries({ queryKey: ["square-connection"] });
+      toast({
+        title: "Sync completed",
+        description: `Synced ${activeJob.total_synced.toLocaleString()} customers`,
       });
     }
   }, [isCompleted, activeJob, toast, queryClient]);
@@ -182,64 +213,81 @@ export const SquareIntegration = () => {
       await startSync();
     },
     onError: (error: Error) => {
-      toast({ title: 'Sync failed', description: error.message, variant: 'destructive' });
+      toast({
+        title: "Sync failed",
+        description: getUserFacingIntegrationError(
+          error,
+          "Square sync could not be started.",
+        ),
+        variant: "destructive",
+      });
     },
   });
 
   const initiateOAuthFlow = async () => {
     setLoading(true);
-    setLoadingStep('preparing');
+    setLoadingStep("preparing");
 
     try {
       const appEnv = detectEnvironment();
-      const squareEnv = appEnv === 'development' ? 'sandbox' : 'production';
-      
-      console.log('[OAuth] Auto-detected environment:', appEnv, '→ Square:', squareEnv);
+      const squareEnv = appEnv === "development" ? "sandbox" : "production";
+
+      console.log(
+        "[OAuth] Auto-detected environment:",
+        appEnv,
+        "→ Square:",
+        squareEnv,
+      );
 
       const { data: userData } = await supabase.auth.getUser();
       if (userData.user) {
         const { data: user } = await supabase
-          .from('users')
-          .select('tenant_id')
-          .eq('id', userData.user.id)
+          .from("users")
+          .select("tenant_id")
+          .eq("id", userData.user.id)
           .single();
 
         if (user?.tenant_id) {
           await supabase
-            .from('square_connections')
+            .from("square_connections")
             .delete()
-            .eq('tenant_id', user.tenant_id)
-            .eq('encrypted_access_token', 'pending');
+            .eq("tenant_id", user.tenant_id)
+            .eq("encrypted_access_token", "pending");
         }
       }
 
       const state = crypto.randomUUID();
-      const { data, error } = await supabase.functions.invoke('square-oauth-start', {
-        body: { state },
-      });
+      const { data, error } = await supabase.functions.invoke(
+        "square-oauth-start",
+        {
+          body: { state },
+        },
+      );
 
       if (error || !data?.authUrl) {
-        throw new Error(error?.message || 'Failed to initiate OAuth');
+        throw new Error(error?.message || "Failed to initiate OAuth");
       }
 
-      setLoadingStep('redirecting');
-      localStorage.removeItem('square_oauth_result');
+      setLoadingStep("redirecting");
+      localStorage.removeItem("square_oauth_result");
 
-      const link = document.createElement('a');
+      const link = document.createElement("a");
       link.href = data.authUrl;
-      link.target = '_blank';
-      link.rel = 'noopener noreferrer';
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
 
-      setLoadingStep('completing');
-
+      setLoadingStep("completing");
     } catch (error: any) {
-      toast({ 
-        title: 'Connection failed', 
-        description: error.message,
-        variant: 'destructive' 
+      toast({
+        title: "Connection failed",
+        description: getUserFacingIntegrationError(
+          error,
+          "The connection could not be started. Please try again.",
+        ),
+        variant: "destructive",
       });
       setLoading(false);
     }
@@ -247,55 +295,81 @@ export const SquareIntegration = () => {
 
   const testMutation = useMutation({
     mutationFn: async () => {
-      const { data, error } = await supabase.functions.invoke('square-test-connection');
+      const { data, error } = await supabase.functions.invoke(
+        "square-test-connection",
+      );
       if (error) throw error;
       return data;
     },
     onSuccess: (data) => {
-      toast({ title: 'Connection test successful', description: `Connected to ${data.merchant.name}` });
+      toast({
+        title: "Connection test successful",
+        description: `Connected to ${data.merchant.name}`,
+      });
     },
     onError: (error: Error) => {
-      toast({ title: 'Connection test failed', description: error.message, variant: 'destructive' });
+      toast({
+        title: "Connection test failed",
+        description: getUserFacingIntegrationError(
+          error,
+          "Square connection test could not be completed.",
+        ),
+        variant: "destructive",
+      });
     },
   });
 
   const disconnectMutation = useMutation({
     mutationFn: async () => {
-      if (!connection) throw new Error('No connection found');
+      if (!connection) throw new Error("No connection found");
       const { error } = await supabase
-        .from('square_connections')
+        .from("square_connections")
         .delete()
-        .eq('id', connection.id);
+        .eq("id", connection.id);
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['square-connection'] });
-      toast({ title: 'Square disconnected' });
+      queryClient.invalidateQueries({ queryKey: ["square-connection"] });
+      toast({ title: "Square disconnected" });
     },
     onError: (error: Error) => {
-      toast({ title: 'Disconnect failed', description: error.message, variant: 'destructive' });
+      toast({
+        title: "Disconnect failed",
+        description: getUserFacingIntegrationError(
+          error,
+          "Square could not be disconnected.",
+        ),
+        variant: "destructive",
+      });
     },
   });
 
   if (isLoading) {
-    return <Card className="p-6"><Loader2 className="h-6 w-6 animate-spin" /></Card>;
+    return (
+      <Card className="p-6">
+        <Loader2 className="h-6 w-6 animate-spin" />
+      </Card>
+    );
   }
 
-  const isConnected = connection && connection.encrypted_access_token !== 'pending';
+  const isConnected =
+    connection && connection.encrypted_access_token !== "pending";
 
   const getTokenExpiryInfo = () => {
     if (!connection?.expires_at) return null;
     const expiresAt = new Date(connection.expires_at);
     const now = new Date();
-    const daysRemaining = Math.floor((expiresAt.getTime() - now.getTime()) / (24 * 60 * 60 * 1000));
-    
-    let color = 'text-green-600';
-    if (daysRemaining < 7) color = 'text-red-600';
-    else if (daysRemaining < 14) color = 'text-yellow-600';
-    
+    const daysRemaining = Math.floor(
+      (expiresAt.getTime() - now.getTime()) / (24 * 60 * 60 * 1000),
+    );
+
+    let color = "text-green-600";
+    if (daysRemaining < 7) color = "text-red-600";
+    else if (daysRemaining < 14) color = "text-yellow-600";
+
     return { text: `${daysRemaining} days`, color, expired: daysRemaining < 0 };
   };
-  
+
   const tokenExpiry = getTokenExpiryInfo();
 
   return (
@@ -308,12 +382,17 @@ export const SquareIntegration = () => {
               <div className="text-center">
                 <h3 className="font-semibold mb-2">Connecting to Square</h3>
                 <p className="text-sm text-muted-foreground">
-                  {loadingStep === 'preparing' && 'Preparing connection...'}
-                  {loadingStep === 'redirecting' && 'Opening Square authorization...'}
-                  {loadingStep === 'completing' && 'Completing connection...'}
+                  {loadingStep === "preparing" && "Preparing connection..."}
+                  {loadingStep === "redirecting" &&
+                    "Opening Square authorization..."}
+                  {loadingStep === "completing" && "Completing connection..."}
                 </p>
               </div>
-              <Button variant="ghost" size="sm" onClick={() => setLoading(false)}>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setLoading(false)}
+              >
                 Cancel
               </Button>
             </div>
@@ -346,7 +425,9 @@ export const SquareIntegration = () => {
               </div>
               <div>
                 <p className="text-muted-foreground">Environment</p>
-                <p className="font-medium capitalize">{connection.environment}</p>
+                <p className="font-medium capitalize">
+                  {connection.environment}
+                </p>
               </div>
               <div>
                 <p className="text-muted-foreground">Status</p>
@@ -354,7 +435,9 @@ export const SquareIntegration = () => {
               </div>
               {tokenExpiry && (
                 <div>
-                  <p className="text-muted-foreground">Connection Valid Until</p>
+                  <p className="text-muted-foreground">
+                    Connection Valid Until
+                  </p>
                   <p className={`font-medium ${tokenExpiry.color}`}>
                     <Clock className="h-3 w-3 inline mr-1" />
                     {tokenExpiry.text}
@@ -365,7 +448,9 @@ export const SquareIntegration = () => {
                 <div>
                   <p className="text-muted-foreground">Last Synced</p>
                   <p className="font-medium">
-                    {formatDistanceToNow(new Date(connection.last_synced_at), { addSuffix: true })}
+                    {formatDistanceToNow(new Date(connection.last_synced_at), {
+                      addSuffix: true,
+                    })}
                   </p>
                 </div>
               )}
@@ -373,44 +458,70 @@ export const SquareIntegration = () => {
               <div className="col-span-full border-t pt-3 mt-1">
                 <div className="flex items-center gap-2 mb-2">
                   <Activity className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm font-medium">Real-time Sync Status</span>
+                  <span className="text-sm font-medium">
+                    Real-time Sync Status
+                  </span>
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                   <div>
                     <p className="text-muted-foreground">Status</p>
-                    <p className={`font-medium flex items-center gap-1 ${
-                      connection.webhooks_subscribed ? 'text-green-600' : 
-                      (connection as any).webhook_last_error ? 'text-amber-600' : 'text-muted-foreground'
-                    }`}>
+                    <p
+                      className={`font-medium flex items-center gap-1 ${
+                        connection.webhooks_subscribed
+                          ? "text-green-600"
+                          : (connection as any).webhook_last_error
+                            ? "text-amber-600"
+                            : "text-muted-foreground"
+                      }`}
+                    >
                       {connection.webhooks_subscribed ? (
-                        <><CheckCircle className="h-3 w-3" /> Active</>
+                        <>
+                          <CheckCircle className="h-3 w-3" /> Active
+                        </>
                       ) : (connection as any).webhook_last_error ? (
-                        <><AlertTriangle className="h-3 w-3" /> Issue detected</>
+                        <>
+                          <AlertTriangle className="h-3 w-3" /> Issue detected
+                        </>
                       ) : (
-                        <><Clock className="h-3 w-3" /> Configuring...</>
+                        <>
+                          <Clock className="h-3 w-3" /> Configuring...
+                        </>
                       )}
                     </p>
                   </div>
                   <div>
                     <p className="text-muted-foreground">Last Event</p>
                     <p className="font-medium">
-                      {(connection as any).last_webhook_received_at 
-                        ? formatDistanceToNow(new Date((connection as any).last_webhook_received_at), { addSuffix: true })
-                        : 'Never'}
+                      {(connection as any).last_webhook_received_at
+                        ? formatDistanceToNow(
+                            new Date(
+                              (connection as any).last_webhook_received_at,
+                            ),
+                            { addSuffix: true },
+                          )
+                        : "Never"}
                     </p>
                   </div>
                   {connection.webhooks_last_checked_at && (
                     <div>
                       <p className="text-muted-foreground">Last Health Check</p>
                       <p className="font-medium">
-                        {formatDistanceToNow(new Date(connection.webhooks_last_checked_at), { addSuffix: true })}
+                        {formatDistanceToNow(
+                          new Date(connection.webhooks_last_checked_at),
+                          { addSuffix: true },
+                        )}
                       </p>
                     </div>
                   )}
                   {(connection as any).webhook_last_error && (
                     <div className="col-span-full">
                       <p className="text-muted-foreground">Error</p>
-                      <p className="font-medium text-amber-600 text-xs">{(connection as any).webhook_last_error}</p>
+                      <p className="font-medium text-amber-600 text-xs">
+                        {getUserFacingIntegrationError(
+                          (connection as any).webhook_last_error,
+                          "Square webhook delivery needs attention.",
+                        )}
+                      </p>
                     </div>
                   )}
                 </div>
@@ -419,10 +530,13 @@ export const SquareIntegration = () => {
 
             {/* Sync Progress Indicator */}
             {isSyncing && activeJob && (
-              <div className={`border rounded-lg p-4 ${isStuck 
-                ? 'bg-yellow-50 dark:bg-yellow-950/30 border-yellow-200 dark:border-yellow-800' 
-                : 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800'
-              }`}>
+              <div
+                className={`border rounded-lg p-4 ${
+                  isStuck
+                    ? "bg-yellow-50 dark:bg-yellow-950/30 border-yellow-200 dark:border-yellow-800"
+                    : "bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800"
+                }`}
+              >
                 <div className="flex items-center gap-2 mb-2">
                   {isStuck ? (
                     <>
@@ -442,23 +556,39 @@ export const SquareIntegration = () => {
                 </div>
                 <Progress value={progress} className="h-2 mb-2" />
                 <div className="flex items-center justify-between text-xs">
-                  <span className={`flex items-center gap-1 ${isStuck ? 'text-yellow-600 dark:text-yellow-300' : 'text-blue-600 dark:text-blue-300'}`}>
+                  <span
+                    className={`flex items-center gap-1 ${isStuck ? "text-yellow-600 dark:text-yellow-300" : "text-blue-600 dark:text-blue-300"}`}
+                  >
                     <Users className="h-3 w-3" />
                     {activeJob.total_synced.toLocaleString()} synced
                     {activeJob.total_failed > 0 && (
-                      <span className="text-red-500"> • {activeJob.total_failed.toLocaleString()} failed</span>
+                      <span className="text-red-500">
+                        {" "}
+                        • {activeJob.total_failed.toLocaleString()} failed
+                      </span>
                     )}
                   </span>
-                  <span className={isStuck ? 'text-yellow-600 dark:text-yellow-300' : 'text-blue-600 dark:text-blue-300'}>Page {activeJob.current_page}</span>
+                  <span
+                    className={
+                      isStuck
+                        ? "text-yellow-600 dark:text-yellow-300"
+                        : "text-blue-600 dark:text-blue-300"
+                    }
+                  >
+                    Page {activeJob.current_page}
+                  </span>
                 </div>
                 {isStuck && (
-                  <Button 
+                  <Button
                     onClick={async () => {
                       await resetStuckJob();
-                      toast({ title: 'Sync reset', description: 'You can now retry the sync.' });
-                    }} 
-                    size="sm" 
-                    variant="outline" 
+                      toast({
+                        title: "Sync reset",
+                        description: "You can now retry the sync.",
+                      });
+                    }}
+                    size="sm"
+                    variant="outline"
                     className="mt-3 w-full border-yellow-300 text-yellow-700 hover:bg-yellow-100"
                   >
                     <AlertTriangle className="h-4 w-4 mr-2" />
@@ -467,12 +597,12 @@ export const SquareIntegration = () => {
                 )}
               </div>
             )}
-            
+
             <div className="flex gap-2 flex-wrap">
-              <Button 
-                onClick={() => syncMutation.mutate()} 
-                disabled={syncMutation.isPending || loading || isSyncing} 
-                size="sm" 
+              <Button
+                onClick={() => syncMutation.mutate()}
+                disabled={syncMutation.isPending || loading || isSyncing}
+                size="sm"
                 variant="default"
               >
                 {isSyncing ? (
@@ -481,11 +611,18 @@ export const SquareIntegration = () => {
                     Syncing...
                   </>
                 ) : (
-                  'Sync Now'
+                  "Sync Now"
                 )}
               </Button>
-              <Button onClick={() => testMutation.mutate()} disabled={testMutation.isPending || loading || isSyncing} size="sm" variant="outline">
-                {testMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              <Button
+                onClick={() => testMutation.mutate()}
+                disabled={testMutation.isPending || loading || isSyncing}
+                size="sm"
+                variant="outline"
+              >
+                {testMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : null}
                 Test Connection
               </Button>
               <Button variant="ghost" size="sm" asChild>
@@ -495,39 +632,75 @@ export const SquareIntegration = () => {
                 </Link>
               </Button>
               {!connection.setup_wizard_completed_at && (
-                <Button onClick={() => setShowSetupWizard(true)} size="sm" variant="secondary">
+                <Button
+                  onClick={() => setShowSetupWizard(true)}
+                  size="sm"
+                  variant="secondary"
+                >
                   <Sparkles className="h-4 w-4 mr-2" />
                   Run Setup Wizard
                 </Button>
               )}
-              <Button 
+              <Button
                 onClick={async () => {
                   setLoyaltySyncing(true);
                   try {
-                    toast({ title: 'Starting loyalty sync...', description: 'Fetching loyalty members from Square.' });
-                    const { data, error } = await supabase.functions.invoke('square-loyalty-backfill');
+                    toast({
+                      title: "Starting loyalty sync...",
+                      description: "Fetching loyalty members from Square.",
+                    });
+                    const { data, error } = await supabase.functions.invoke(
+                      "square-loyalty-backfill",
+                    );
                     if (error) throw error;
-                    toast({ title: '✓ Loyalty sync complete', description: `Synced ${data?.synced || 0} loyalty members.` });
-                    queryClient.invalidateQueries({ queryKey: ['square-connection'] });
+                    toast({
+                      title: "✓ Loyalty sync complete",
+                      description: `Synced ${data?.synced || 0} loyalty members.`,
+                    });
+                    queryClient.invalidateQueries({
+                      queryKey: ["square-connection"],
+                    });
                   } catch (error: any) {
-                    toast({ title: 'Loyalty sync failed', description: error.message, variant: 'destructive' });
+                    toast({
+                      title: "Loyalty sync failed",
+                      description: getUserFacingIntegrationError(
+                        error,
+                        "Square loyalty sync could not be completed.",
+                      ),
+                      variant: "destructive",
+                    });
                   } finally {
                     setLoyaltySyncing(false);
                   }
-                }} 
-                disabled={loyaltySyncing || isSyncing} 
-                size="sm" 
+                }}
+                disabled={loyaltySyncing || isSyncing}
+                size="sm"
                 variant="outline"
               >
-                {loyaltySyncing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Heart className="h-4 w-4 mr-2" />}
-                {loyaltySyncing ? 'Syncing Loyalty...' : 'Sync Loyalty'}
+                {loyaltySyncing ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <Heart className="h-4 w-4 mr-2" />
+                )}
+                {loyaltySyncing ? "Syncing Loyalty..." : "Sync Loyalty"}
               </Button>
-              <Button onClick={() => setShowReauthGuide(true)} size="sm" variant="outline">
+              <Button
+                onClick={() => setShowReauthGuide(true)}
+                size="sm"
+                variant="outline"
+              >
                 <Shield className="h-4 w-4 mr-2" />
                 Update Permissions
               </Button>
-              <Button onClick={() => disconnectMutation.mutate()} disabled={disconnectMutation.isPending || loading || isSyncing} size="sm" variant="destructive">
-                {disconnectMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              <Button
+                onClick={() => disconnectMutation.mutate()}
+                disabled={disconnectMutation.isPending || loading || isSyncing}
+                size="sm"
+                variant="destructive"
+              >
+                {disconnectMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : null}
                 Disconnect
               </Button>
             </div>
@@ -539,7 +712,7 @@ export const SquareIntegration = () => {
           </Button>
         )}
       </Card>
-      
+
       {/* Setup Wizard */}
       <SquareSetupWizard
         open={showSetupWizard}
@@ -554,7 +727,7 @@ export const SquareIntegration = () => {
         onOpenChange={setShowReauthGuide}
         connectionId={connection?.id}
         onSuccess={() => {
-          queryClient.invalidateQueries({ queryKey: ['square-connection'] });
+          queryClient.invalidateQueries({ queryKey: ["square-connection"] });
         }}
       />
     </>

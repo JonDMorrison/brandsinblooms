@@ -2,6 +2,7 @@ import { DocCallout } from "@/components/docs/DocCallout";
 import { DocCodeBlock } from "@/components/docs/DocCodeBlock";
 import type { DocContent } from "@/components/docs/types";
 import { getIntegrationSeed } from "@/components/integrations/integrationsHubConfig";
+import { documentationLogoAssets } from "@/pages/integrations/documentation/content/logoAssets";
 
 const zapierSeed = getIntegrationSeed("zapier");
 
@@ -33,6 +34,8 @@ export const zapierDocumentation: DocContent = {
   lastUpdated: "2026-01-15",
   branding: {
     icon: zapierSeed.icon,
+    logoSrc: documentationLogoAssets.zapier,
+    logoAlt: "Zapier logo",
   },
   sections: [
     {

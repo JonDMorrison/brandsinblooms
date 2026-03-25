@@ -78,6 +78,57 @@ export interface TruncatedIntegrationError {
   isTruncated: boolean;
 }
 
+const DEFAULT_INTEGRATION_ERROR_MESSAGE =
+  "Something went wrong with this integration. Please try again.";
+
+const SAFE_USER_MESSAGE_PATTERNS = [
+  "connect square before",
+  "connect clover before",
+  "connect lightspeed before",
+  "connect google analytics before",
+  "add a sending domain before",
+  "you must be signed in",
+  "please sign in again",
+  "only site admins can disconnect",
+  "property id is required before reauthorizing",
+  "no active connection was found",
+] as const;
+
+const TECHNICAL_INTEGRATION_PATTERNS = [
+  "token decryption",
+  "token encryption",
+  "decrypt",
+  "encrypt",
+  "encrypted token",
+  "legacy plain-text",
+  "legacy plaintext",
+  "base64(",
+  "ciphertext",
+  "authorization code",
+  "oauth",
+  "invalid_grant",
+  "invalid oauth",
+  "state parameter",
+  "edge function",
+  "supabase",
+  "postgres",
+  "database",
+  "schema",
+  "column",
+  "relation",
+  "sql",
+  "row-level security",
+  "permission denied for table",
+  "json",
+  "request failed",
+  "failed to fetch",
+  "network error",
+  "err_internet_disconnected",
+  "internal server error",
+  "unexpected token",
+  "function",
+] as const;
+
 function isEmailInfrastructureSlug(slug: string) {
   return slug === "email-infrastructure" || slug === "email-domain-dns";
 }
@@ -122,6 +173,174 @@ export function truncateIntegrationError(
     fullMessage: normalized,
     isTruncated: true,
   };
+}
+
+function extractIntegrationErrorMessage(error: unknown): string {
+  if (typeof error === "string") {
+    return error;
+  }
+
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  if (error && typeof error === "object") {
+    const candidate = error as Record<string, unknown>;
+
+    for (const key of ["message", "error", "details", "hint"]) {
+      const value = candidate[key];
+      if (typeof value === "string" && value.trim()) {
+        return value;
+      }
+    }
+  }
+
+  return "";
+}
+
+function normalizeIntegrationMessage(message: string): string {
+  return message.replace(/\s+/g, " ").trim();
+}
+
+function looksLikeTechnicalIntegrationMessage(message: string): boolean {
+  return TECHNICAL_INTEGRATION_PATTERNS.some((pattern) =>
+    message.includes(pattern),
+  );
+}
+
+export function getUserFacingIntegrationError(
+  error: unknown,
+  fallback = DEFAULT_INTEGRATION_ERROR_MESSAGE,
+): string {
+  const normalized = normalizeIntegrationMessage(
+    extractIntegrationErrorMessage(error),
+  );
+
+  if (!normalized) {
+    return fallback;
+  }
+
+  const lowerMessage = normalized.toLowerCase();
+
+  if (
+    SAFE_USER_MESSAGE_PATTERNS.some((pattern) => lowerMessage.includes(pattern))
+  ) {
+    return normalized;
+  }
+
+  if (
+    lowerMessage.includes("not authenticated") ||
+    lowerMessage.includes("must be signed in") ||
+    lowerMessage.includes("session expired")
+  ) {
+    return "Please sign in again and try once more.";
+  }
+
+  if (
+    lowerMessage.includes("only site admins") ||
+    lowerMessage.includes("do not have permission") ||
+    lowerMessage.includes("unauthorized") ||
+    lowerMessage.includes("forbidden")
+  ) {
+    return "You do not have permission to manage this integration.";
+  }
+
+  if (
+    lowerMessage.includes("timeout") ||
+    lowerMessage.includes("timed out")
+  ) {
+    return "The request took too long to complete. Please try again.";
+  }
+
+  if (
+    lowerMessage.includes("failed to fetch") ||
+    lowerMessage.includes("network error") ||
+    lowerMessage.includes("err_internet_disconnected") ||
+    lowerMessage.includes("networkrequestfailed")
+  ) {
+    return "We could not reach the integration service. Please try again.";
+  }
+
+  if (
+    lowerMessage.includes("token decryption") ||
+    lowerMessage.includes("token encryption") ||
+    lowerMessage.includes("decrypt") ||
+    lowerMessage.includes("encrypt") ||
+    lowerMessage.includes("encrypted token") ||
+    lowerMessage.includes("ciphertext") ||
+    lowerMessage.includes("base64(") ||
+    lowerMessage.includes("legacy plain-text") ||
+    lowerMessage.includes("legacy plaintext")
+  ) {
+    return "We could not verify the saved integration connection. Reconnect the integration and try again.";
+  }
+
+  if (
+    lowerMessage.includes("oauth") ||
+    lowerMessage.includes("authorization failed") ||
+    lowerMessage.includes("authorization code") ||
+    lowerMessage.includes("invalid_grant") ||
+    lowerMessage.includes("invalid oauth") ||
+    lowerMessage.includes("state parameter") ||
+    lowerMessage.includes("access_denied") ||
+    lowerMessage.includes("callback")
+  ) {
+    return "The connection could not be completed. Please try connecting again.";
+  }
+
+  if (
+    lowerMessage.includes("no connection found") ||
+    lowerMessage.includes("connection not found")
+  ) {
+    return "No active connection was found. Reconnect the integration and try again.";
+  }
+
+  if (
+    lowerMessage.includes("schema") ||
+    lowerMessage.includes("column") ||
+    lowerMessage.includes("relation") ||
+    lowerMessage.includes("postgres") ||
+    lowerMessage.includes("database") ||
+    lowerMessage.includes("supabase") ||
+    lowerMessage.includes("request failed") ||
+    lowerMessage.includes("internal server error") ||
+    lowerMessage.includes("permission denied for table")
+  ) {
+    return fallback;
+  }
+
+  if (!looksLikeTechnicalIntegrationMessage(lowerMessage) && normalized.length <= 180) {
+    return normalized;
+  }
+
+  return fallback;
+}
+
+export function summarizeUserFacingIntegrationWarnings(
+  warnings: unknown[] | null | undefined,
+  fallback = "This action completed with warnings. Some records may need attention.",
+): string {
+  if (!Array.isArray(warnings) || warnings.length === 0) {
+    return fallback;
+  }
+
+  const messages = Array.from(
+    new Set(
+      warnings
+        .map((warning) => getUserFacingIntegrationError(warning, fallback))
+        .filter((message) => Boolean(message)),
+    ),
+  );
+
+  if (messages.length === 0) {
+    return fallback;
+  }
+
+  if (messages.length === 1) {
+    return messages[0];
+  }
+
+  return fallback;
 }
 
 function buildMetadata(input: IntegrationDetailModelInput): string[] {
@@ -203,7 +422,13 @@ function buildTimeline(input: IntegrationDetailModelInput) {
 
 function buildWebhookRows(input: IntegrationDetailModelInput) {
   const rows: IntegrationDetailRow[] = [];
-  const truncatedError = truncateIntegrationError(input.lastError);
+  const sanitizedLastError = input.lastError
+    ? getUserFacingIntegrationError(
+        input.lastError,
+        "This integration needs attention. Please try again or reconnect the integration.",
+      )
+    : null;
+  const truncatedError = truncateIntegrationError(sanitizedLastError);
 
   if (!input.hasWebhookMonitoring) {
     return [
@@ -367,7 +592,15 @@ export function buildIntegrationDetailModel(
     errorBanner: input.lastError
       ? {
           title: "Integration attention required",
-          description: truncateIntegrationError(input.lastError, 180)?.fullMessage ?? input.lastError,
+          description:
+            truncateIntegrationError(
+              getUserFacingIntegrationError(
+                input.lastError,
+                "This integration needs attention. Please try again or reconnect the integration.",
+              ),
+              180,
+            )?.fullMessage ??
+            "This integration needs attention. Please try again or reconnect the integration.",
         }
       : null,
     configurationHint:

@@ -35,7 +35,7 @@ function renderPage(pathname: string) {
 
 describe("IntegrationDocumentationPage", () => {
   it("renders the static documentation shell for a supported slug", () => {
-    renderPage("/integrations/square/documentation");
+    const { container } = renderPage("/integrations/square/documentation");
 
     expect(
       screen.getByRole("heading", { name: "Square Integration Guide" }),
@@ -58,6 +58,9 @@ describe("IntegrationDocumentationPage", () => {
       screen.getByRole("link", { name: /back to square/i }),
     ).toHaveAttribute("href", "/integrations/square");
     expect(screen.getByLabelText("Documentation sections")).toBeInTheDocument();
+    expect(
+      container.querySelector('img[src*="square.svg"]'),
+    ).toBeInTheDocument();
     expect(mockedToast.error).not.toHaveBeenCalled();
   });
 
@@ -83,7 +86,9 @@ describe("IntegrationDocumentationPage", () => {
   });
 
   it("supports slug aliases through canonical integration lookup", () => {
-    renderPage("/integrations/lightspeed-x-series/documentation");
+    const { container } = renderPage(
+      "/integrations/lightspeed-x-series/documentation",
+    );
 
     expect(
       screen.getByRole("heading", {
@@ -99,6 +104,9 @@ describe("IntegrationDocumentationPage", () => {
       screen.getByRole("heading", {
         name: "Webhook Modes and Verification",
       }),
+    ).toBeInTheDocument();
+    expect(
+      container.querySelector('img[src*="lightspeed-x-series.svg"]'),
     ).toBeInTheDocument();
   });
 
@@ -143,7 +151,7 @@ describe("IntegrationDocumentationPage", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: /back to google analytics 4/i }),
-    ).toHaveAttribute("href", "/integrations/google-analytics-4");
+    ).toHaveAttribute("href", "/integrations/google-analytics");
   });
 
   it("renders provider-specific Mailchimp documentation content", () => {

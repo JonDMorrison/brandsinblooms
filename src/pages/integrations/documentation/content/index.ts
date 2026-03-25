@@ -20,6 +20,7 @@ const documentationRegistry: Record<string, DocContent> = {
   clover: cloverDocumentation,
   lightspeed: lightspeedDocumentation,
   meta: metaDocumentation,
+  "google-analytics": googleAnalytics4Documentation,
   "google-analytics-4": googleAnalytics4Documentation,
   mailchimp: mailchimpDocumentation,
   klaviyo: klaviyoDocumentation,

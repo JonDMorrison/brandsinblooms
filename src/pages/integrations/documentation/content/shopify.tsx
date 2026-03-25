@@ -1,6 +1,7 @@
 import { DocCallout } from "@/components/docs/DocCallout";
 import type { DocContent } from "@/components/docs/types";
 import { getIntegrationSeed } from "@/components/integrations/integrationsHubConfig";
+import { documentationLogoAssets } from "@/pages/integrations/documentation/content/logoAssets";
 
 const shopifySeed = getIntegrationSeed("shopify");
 
@@ -21,6 +22,8 @@ export const shopifyDocumentation: DocContent = {
   lastUpdated: "2026-01-15",
   branding: {
     icon: shopifySeed.icon,
+    logoSrc: documentationLogoAssets.shopify,
+    logoAlt: "Shopify logo",
   },
   sections: [
     {

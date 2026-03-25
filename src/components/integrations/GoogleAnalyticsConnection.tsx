@@ -1,15 +1,28 @@
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { AlertCircle, CheckCircle, ExternalLink, RefreshCw } from "lucide-react";
+import { useTenant } from "@/hooks/useTenant";
+import {
+  AlertCircle,
+  CheckCircle,
+  ExternalLink,
+  RefreshCw,
+} from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface GoogleAnalyticsSettings {
   id: string;
+  tenant_id: string;
   property_id: string;
   connection_status: string;
   service_account_configured: boolean;
@@ -18,8 +31,11 @@ interface GoogleAnalyticsSettings {
 
 export const GoogleAnalyticsConnection = () => {
   const { user } = useAuth();
+  const { tenant } = useTenant();
   const [propertyId, setPropertyId] = useState("");
-  const [settings, setSettings] = useState<GoogleAnalyticsSettings | null>(null);
+  const [settings, setSettings] = useState<GoogleAnalyticsSettings | null>(
+    null,
+  );
   const [loading, setLoading] = useState(false);
   const [testLoading, setTestLoading] = useState(false);
   const [error, setError] = useState("");
@@ -27,25 +43,25 @@ export const GoogleAnalyticsConnection = () => {
 
   useEffect(() => {
     loadSettings();
-    
+
     // Check for OAuth callback results
     const urlParams = new URLSearchParams(window.location.search);
-    const gaSuccess = urlParams.get('ga_success');
-    const gaError = urlParams.get('ga_error');
-    
+    const gaSuccess = urlParams.get("ga_success");
+    const gaError = urlParams.get("ga_error");
+
     if (gaSuccess) {
       setSuccess("Google Analytics connected successfully!");
       loadSettings();
       // Clean up URL
       window.history.replaceState({}, document.title, window.location.pathname);
     }
-    
+
     if (gaError) {
       const errorMessages: Record<string, string> = {
-        'invalid_callback': 'Invalid OAuth callback',
-        'invalid_state': 'Invalid OAuth state',
-        'token_exchange_failed': 'Failed to exchange authorization code',
-        'callback_failed': 'OAuth callback failed'
+        invalid_callback: "Invalid OAuth callback",
+        invalid_state: "Invalid OAuth state",
+        token_exchange_failed: "Failed to exchange authorization code",
+        callback_failed: "OAuth callback failed",
       };
       setError(errorMessages[gaError] || `OAuth error: ${gaError}`);
       // Clean up URL
@@ -54,23 +70,24 @@ export const GoogleAnalyticsConnection = () => {
   }, []);
 
   const loadSettings = async () => {
-    if (!user) return;
+    if (!user || !tenant?.id) return;
 
     try {
       const { data, error } = await supabase
-        .from('google_analytics_settings')
-        .select('*')
-        .eq('user_id', user.id)
+        .from("google_analytics_settings")
+        .select("*")
+        .eq("tenant_id", tenant.id)
+        .eq("user_id", user.id)
         .maybeSingle();
 
       if (error) throw error;
-      
+
       if (data) {
         setSettings(data);
         setPropertyId(data.property_id);
       }
     } catch (err) {
-      console.error('Error loading GA settings:', err);
+      console.error("Error loading GA settings:", err);
     }
   };
 
@@ -85,9 +102,12 @@ export const GoogleAnalyticsConnection = () => {
     setSuccess("");
 
     try {
-      const { data, error } = await supabase.functions.invoke('oauth-initiate', {
-        body: { propertyId: propertyId.trim() }
-      });
+      const { data, error } = await supabase.functions.invoke(
+        "oauth-initiate",
+        {
+          body: { propertyId: propertyId.trim() },
+        },
+      );
 
       if (error) throw error;
 
@@ -95,11 +115,11 @@ export const GoogleAnalyticsConnection = () => {
         // Redirect to Google OAuth
         window.location.href = data.authUrl;
       } else {
-        throw new Error('Invalid response from OAuth initiation');
+        throw new Error("Invalid response from OAuth initiation");
       }
     } catch (err: any) {
-      console.error('OAuth initiation error:', err);
-      setError(err.message || 'Failed to initiate Google Analytics connection');
+      console.error("OAuth initiation error:", err);
+      setError(err.message || "Failed to initiate Google Analytics connection");
     } finally {
       setLoading(false);
     }
@@ -113,12 +133,15 @@ export const GoogleAnalyticsConnection = () => {
     setSuccess("");
 
     try {
-      const { data, error } = await supabase.functions.invoke('ga-report-data', {
-        body: { 
-          propertyId: settings.property_id,
-          dateRange: 7 
-        }
-      });
+      const { data, error } = await supabase.functions.invoke(
+        "ga-report-data",
+        {
+          body: {
+            propertyId: settings.property_id,
+            dateRange: 7,
+          },
+        },
+      );
 
       if (error) throw error;
 
@@ -126,17 +149,18 @@ export const GoogleAnalyticsConnection = () => {
         setSuccess("Connection test successful!");
         // Update last test time
         await supabase
-          .from('google_analytics_settings')
+          .from("google_analytics_settings")
           .update({ last_test_at: new Date().toISOString() })
-          .eq('id', settings.id);
-        
+          .eq("id", settings.id)
+          .eq("tenant_id", tenant?.id ?? "");
+
         loadSettings();
       } else {
-        throw new Error('Connection test failed');
+        throw new Error("Connection test failed");
       }
     } catch (err: any) {
-      console.error('Connection test error:', err);
-      setError(err.message || 'Connection test failed');
+      console.error("Connection test error:", err);
+      setError(err.message || "Connection test failed");
     } finally {
       setTestLoading(false);
     }
@@ -151,9 +175,10 @@ export const GoogleAnalyticsConnection = () => {
 
     try {
       const { error } = await supabase
-        .from('google_analytics_settings')
+        .from("google_analytics_settings")
         .delete()
-        .eq('id', settings.id);
+        .eq("id", settings.id)
+        .eq("tenant_id", tenant?.id ?? "");
 
       if (error) throw error;
 
@@ -161,8 +186,8 @@ export const GoogleAnalyticsConnection = () => {
       setPropertyId("");
       setSuccess("Google Analytics disconnected successfully");
     } catch (err: any) {
-      console.error('Disconnect error:', err);
-      setError(err.message || 'Failed to disconnect Google Analytics');
+      console.error("Disconnect error:", err);
+      setError(err.message || "Failed to disconnect Google Analytics");
     } finally {
       setLoading(false);
     }
@@ -170,18 +195,25 @@ export const GoogleAnalyticsConnection = () => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'connected': return 'text-green-600';
-      case 'error': return 'text-red-600';
-      case 'authorizing': return 'text-yellow-600';
-      default: return 'text-gray-600';
+      case "connected":
+        return "text-green-600";
+      case "error":
+        return "text-red-600";
+      case "authorizing":
+        return "text-yellow-600";
+      default:
+        return "text-gray-600";
     }
   };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'connected': return <CheckCircle className="w-4 h-4 text-green-600" />;
-      case 'error': return <AlertCircle className="w-4 h-4 text-red-600" />;
-      default: return <AlertCircle className="w-4 h-4 text-gray-600" />;
+      case "connected":
+        return <CheckCircle className="w-4 h-4 text-green-600" />;
+      case "error":
+        return <AlertCircle className="w-4 h-4 text-red-600" />;
+      default:
+        return <AlertCircle className="w-4 h-4 text-gray-600" />;
     }
   };
 
@@ -193,7 +225,8 @@ export const GoogleAnalyticsConnection = () => {
           {settings && getStatusIcon(settings.connection_status)}
         </CardTitle>
         <CardDescription>
-          Connect your Google Analytics 4 property to display website analytics data
+          Connect your Google Analytics 4 property to display website analytics
+          data
         </CardDescription>
       </CardHeader>
 
@@ -231,13 +264,18 @@ export const GoogleAnalyticsConnection = () => {
             <div className="space-y-4">
               <div className="flex items-center justify-between p-4 border rounded-lg">
                 <div>
-                  <p className="font-medium">Property ID: {settings.property_id}</p>
-                  <p className={`text-sm ${getStatusColor(settings.connection_status)}`}>
+                  <p className="font-medium">
+                    Property ID: {settings.property_id}
+                  </p>
+                  <p
+                    className={`text-sm ${getStatusColor(settings.connection_status)}`}
+                  >
                     Status: {settings.connection_status}
                   </p>
                   {settings.last_test_at && (
                     <p className="text-xs text-muted-foreground">
-                      Last tested: {new Date(settings.last_test_at).toLocaleString()}
+                      Last tested:{" "}
+                      {new Date(settings.last_test_at).toLocaleString()}
                     </p>
                   )}
                 </div>
@@ -246,12 +284,14 @@ export const GoogleAnalyticsConnection = () => {
                     variant="outline"
                     size="sm"
                     onClick={testConnection}
-                    disabled={testLoading || settings.connection_status !== 'connected'}
+                    disabled={
+                      testLoading || settings.connection_status !== "connected"
+                    }
                   >
                     {testLoading ? (
                       <RefreshCw className="w-4 h-4 animate-spin" />
                     ) : (
-                      'Test'
+                      "Test"
                     )}
                   </Button>
                   <Button
@@ -282,7 +322,9 @@ export const GoogleAnalyticsConnection = () => {
         </div>
 
         <div className="text-sm text-muted-foreground space-y-2">
-          <p><strong>Setup Instructions:</strong></p>
+          <p>
+            <strong>Setup Instructions:</strong>
+          </p>
           <ol className="list-decimal list-inside space-y-1 ml-4">
             <li>Go to your Google Analytics 4 property</li>
             <li>Navigate to Admin → Property Settings</li>

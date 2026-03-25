@@ -13,7 +13,7 @@ Deno.serve(async (req) => {
 
   try {
     const { propertyId } = await req.json();
-    
+
     if (!propertyId) {
       return corsJsonResponse({ error: 'Property ID is required' }, { status: 400 });
     }
@@ -33,32 +33,45 @@ Deno.serve(async (req) => {
       return corsJsonResponse({ error: 'Invalid authorization' }, { status: 401 });
     }
 
+    const { data: userRecord, error: userRecordError } = await supabase
+      .from('users')
+      .select('tenant_id')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    if (userRecordError || !userRecord?.tenant_id) {
+      return corsJsonResponse({ error: 'Tenant context is required' }, { status: 400 });
+    }
+
     // Check for required environment variables
     const clientId = Deno.env.get('GA_CLIENT_ID');
     const clientSecret = Deno.env.get('GA_CLIENT_SECRET');
     const baseUrl = Deno.env.get('APP_BASE_URL');
 
     if (!clientId || !clientSecret || !baseUrl) {
-      console.error('Missing OAuth credentials:', { 
-        hasClientId: !!clientId, 
-        hasClientSecret: !!clientSecret, 
-        hasBaseUrl: !!baseUrl 
+      console.error('Missing OAuth credentials:', {
+        hasClientId: !!clientId,
+        hasClientSecret: !!clientSecret,
+        hasBaseUrl: !!baseUrl
       });
-      return corsJsonResponse({ 
-        error: 'OAuth credentials not configured. Please contact support.' 
+      return corsJsonResponse({
+        error: 'OAuth credentials not configured. Please contact support.'
       }, { status: 500 });
     }
 
     // Generate state parameter for security
     const state = crypto.randomUUID();
-    
+
     // Store state and property ID in database for verification
     const { error: stateError } = await supabase
       .from('google_analytics_settings')
       .upsert({
+        tenant_id: userRecord.tenant_id,
         user_id: user.id,
         property_id: propertyId,
         connection_status: 'authorizing'
+      }, {
+        onConflict: 'tenant_id,user_id'
       });
 
     if (stateError) {
@@ -78,16 +91,16 @@ Deno.serve(async (req) => {
 
     console.log('✅ OAuth initiation successful for user:', user.id);
 
-    return corsJsonResponse({ 
-      success: true, 
-      authUrl: oauthUrl.toString() 
+    return corsJsonResponse({
+      success: true,
+      authUrl: oauthUrl.toString()
     });
 
   } catch (error) {
     console.error('❌ OAuth initiation error:', error);
-    return corsJsonResponse({ 
+    return corsJsonResponse({
       error: 'Failed to initiate OAuth flow',
-      details: error.message 
+      details: error.message
     }, { status: 500 });
   }
 });

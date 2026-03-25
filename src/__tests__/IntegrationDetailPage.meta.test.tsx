@@ -101,6 +101,7 @@ function buildMetaDetailState(options?: {
             {
               id: "facebook-1",
               platform: "facebook" as const,
+              active: true,
               name: "Bloom Main Page",
               externalId: "1234567890",
               secondaryLabel: "Facebook Page",
@@ -114,6 +115,7 @@ function buildMetaDetailState(options?: {
             {
               id: "instagram-1",
               platform: "instagram" as const,
+              active: true,
               name: "Bloom Flowers",
               externalId: "9988776655",
               secondaryLabel: "Username @bloomflowers",
@@ -125,6 +127,7 @@ function buildMetaDetailState(options?: {
       facebookPageCount: hasAssets ? 1 : 0,
       instagramAccountCount: hasAssets ? 1 : 0,
       connectedAssetCount: hasAssets ? 2 : 0,
+      totalAssetCount: hasAssets ? 2 : 0,
       connectedPlatforms: hasAssets ? ["facebook", "instagram"] : [],
       platformSummary: hasAssets
         ? "1 Facebook page • 1 Instagram account"
@@ -132,7 +135,12 @@ function buildMetaDetailState(options?: {
       authorizationSummary: hasAssets
         ? "Meta authorization is active for the connected Facebook Pages and Instagram Business accounts."
         : "Authorize Meta to connect Facebook Pages and Instagram Business accounts for publishing and analytics.",
-      scopes: ["pages_read_engagement", "pages_show_list", "instagram_basic"],
+      scopes: [
+        "pages_read_engagement",
+        "pages_show_list",
+        "instagram_basic",
+        "read_insights",
+      ],
       syncLogsPath: "/activity?type=publishing&q=meta",
       managementPath: "/social-accounts",
       canDisconnect: options?.canDisconnect ?? hasAssets,
@@ -161,6 +169,11 @@ function buildMetaDetailState(options?: {
     isCloverConnectionTesting: false,
     triggerLightspeedSync: vi.fn(),
     isLightspeedSyncing: false,
+    lightspeedSyncJobs: [],
+    lightspeedSyncState: "idle",
+    lightspeedTrackedJobIds: [],
+    lightspeedRealtimeActive: false,
+    canAccessLightspeedAdminFeatures: false,
     triggerMetaReauthorization: vi.fn().mockResolvedValue(undefined),
     isMetaReauthorizing: false,
     refreshMetaAssets: vi.fn().mockResolvedValue(undefined),
@@ -215,10 +228,14 @@ describe("IntegrationDetailPage Meta branch", () => {
       screen.getByText("Publishing & Analytics Capabilities"),
     ).toBeTruthy();
     expect(screen.getAllByText("Authorized").length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText("Bloom Main Page")).toBeTruthy();
-    expect(screen.getByText("Bloom Flowers")).toBeTruthy();
-    expect(screen.queryByText("1234567890")).toBeNull();
-    expect(screen.queryByText("9988776655")).toBeNull();
+    expect(
+      screen.getAllByText("Bloom Main Page").length,
+    ).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("Bloom Flowers").length).toBeGreaterThanOrEqual(
+      1,
+    );
+    expect(screen.getAllByText("1234567890").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("9988776655").length).toBeGreaterThanOrEqual(1);
   });
 
   it("shows Meta actions and navigates to publishing logs", async () => {
@@ -232,8 +249,10 @@ describe("IntegrationDetailPage Meta branch", () => {
     expect(
       screen.getAllByText("Re-authorize Meta").length,
     ).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText("Refresh asset list")).toBeTruthy();
-    expect(screen.getByText("View publishing logs")).toBeTruthy();
+    expect(screen.getByText("Refresh Asset List")).toBeTruthy();
+    expect(
+      screen.getAllByText("View Publishing Logs").length,
+    ).toBeGreaterThanOrEqual(1);
     expect(
       screen.getAllByText("Disconnect Meta").length,
     ).toBeGreaterThanOrEqual(1);
@@ -242,7 +261,7 @@ describe("IntegrationDetailPage Meta branch", () => {
     expect(state.triggerMetaReauthorization).toHaveBeenCalledTimes(1);
 
     fireEvent.click(screen.getByRole("button", { name: /actions/i }));
-    fireEvent.click(screen.getByText("View publishing logs"));
+    fireEvent.click(screen.getAllByText("View Publishing Logs")[0]);
 
     await waitFor(() => {
       expect(screen.getByText("Activity Route")).toBeTruthy();
@@ -264,7 +283,7 @@ describe("IntegrationDetailPage Meta branch", () => {
     expect(screen.getByText("Disconnect Meta?")).toBeTruthy();
     expect(
       screen.getAllByText(
-        /Disconnecting Meta will remove the stored Facebook Page and Instagram account connections from BloomSuite/i,
+        /Disconnecting Meta removes the shared authorization for this tenant/i,
       ).length,
     ).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("Remove Meta connection")).toBeTruthy();
@@ -282,14 +301,8 @@ describe("IntegrationDetailPage Meta branch", () => {
     expect(screen.getAllByText("Not connected").length).toBeGreaterThanOrEqual(
       1,
     );
-    expect(
-      screen.getByText("No Facebook Pages are connected for this account yet."),
-    ).toBeTruthy();
-    expect(
-      screen.getByText(
-        "No Instagram Business accounts are connected for this account yet.",
-      ),
-    ).toBeTruthy();
+    expect(screen.getByText("No Facebook Pages connected")).toBeTruthy();
+    expect(screen.getByText("No Instagram accounts connected")).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: /actions/i }));
     fireEvent.click(screen.getAllByText("Authorize Meta")[0]);

@@ -6,6 +6,7 @@ import { DocInlineCode } from "@/components/docs/DocInlineCode";
 import { DocStep } from "@/components/docs/DocStep";
 import type { DocContent } from "@/components/docs/types";
 import { getIntegrationSeed } from "@/components/integrations/integrationsHubConfig";
+import { documentationLogoAssets } from "@/pages/integrations/documentation/content/logoAssets";
 
 const lightspeedSeed = getIntegrationSeed("lightspeed");
 
@@ -118,6 +119,8 @@ export const lightspeedDocumentation: DocContent = {
   lastUpdated: "Mar 23, 2026",
   branding: {
     icon: lightspeedSeed.icon,
+    logoSrc: documentationLogoAssets.lightspeed,
+    logoAlt: "Lightspeed X-Series logo",
   },
   sections: [
     {

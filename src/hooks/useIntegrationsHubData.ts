@@ -105,10 +105,11 @@ export function useIntegrationsHubData() {
               .eq("is_active", true)
               .is("deleted_at", null)
           : Promise.resolve({ data: [], error: null }),
-        user?.id
+        tenant?.id && user?.id
           ? supabase
               .from("google_analytics_settings")
-              .select("id, property_id, connection_status, last_test_at, service_account_configured, user_id")
+              .select("id, property_id, connection_status, last_test_at, service_account_configured, user_id, tenant_id")
+              .eq("tenant_id", tenant.id)
               .eq("user_id", user.id)
               .maybeSingle()
           : Promise.resolve({ data: null, error: null }),
@@ -232,7 +233,7 @@ export function useIntegrationsHubData() {
       });
 
       if (googleAnalyticsConnection?.connection_status === "connected") {
-        items = withPatchedItem(items, "google-analytics-4", {
+        items = withPatchedItem(items, "google-analytics", {
           status: "connected",
           connectedSince: googleAnalyticsConnection.last_test_at,
           metaLabel: `Property ${googleAnalyticsConnection.property_id}`,

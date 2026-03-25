@@ -2,7 +2,6 @@ import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   BarChart3,
-  BookOpen,
   Clover,
   Download,
   ExternalLink,
@@ -10,6 +9,7 @@ import {
   Globe,
   Hash,
   Hexagon,
+  Info,
   Instagram,
   Mail,
   MailPlus,
@@ -34,16 +34,11 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import {
   ActionDropdown,
   type ActionDropdownSection,
 } from "@/components/ui/action-dropdown";
+import { providerLogoAssets } from "@/components/integrations/providerLogoAssets";
 import { cn } from "@/lib/utils";
 import { useIntegrationsHubData } from "@/hooks/useIntegrationsHubData";
 import {
@@ -106,7 +101,7 @@ const PROVIDER_DOMAIN_CONFIG: Record<
     href: "https://www.lightspeedhq.com",
   },
   meta: { label: "meta.com", href: "https://meta.com" },
-  "google-analytics-4": {
+  "google-analytics": {
     label: "analytics.google.com",
     href: "https://analytics.google.com",
   },
@@ -126,43 +121,52 @@ const PROVIDER_DOMAIN_CONFIG: Record<
 const PROVIDER_ICON_CONFIG: Record<
   string,
   {
-    icon: IntegrationDefinition["icon"];
-    iconClassName: string;
+    icon?: IntegrationDefinition["icon"];
+    iconClassName?: string;
+    logoSrc?: string;
+    logoClassName?: string;
     tileClassName?: string;
   }
 > = {
   square: {
     icon: SquareIcon,
     iconClassName: "h-6 w-6 text-black",
+    logoSrc: providerLogoAssets.square,
   },
   clover: {
     icon: Clover,
     iconClassName: "h-6 w-6 text-[#00A859]",
+    logoSrc: providerLogoAssets.clover,
   },
   lightspeed: {
     icon: Zap,
     iconClassName: "h-6 w-6 text-[#FF6B35]",
+    logoSrc: providerLogoAssets.lightspeed,
   },
   meta: {
     icon: Share2,
     iconClassName: "h-6 w-6 text-[#0082FB]",
   },
-  "google-analytics-4": {
+  "google-analytics": {
     icon: BarChart3,
     iconClassName: "h-6 w-6 text-[#E37400]",
+    logoSrc: providerLogoAssets["google-analytics"],
   },
   mailchimp: {
     icon: Mail,
     iconClassName: "h-6 w-6 text-[#FFE01B]",
-    tileClassName: "bg-black",
+    logoSrc: providerLogoAssets.mailchimp,
+    logoClassName: "max-h-[80%] max-w-[80%] object-contain",
   },
   klaviyo: {
     icon: Mail,
     iconClassName: "h-6 w-6 text-[#1B1B1B]",
+    logoSrc: providerLogoAssets.klaviyo,
   },
   "constant-contact": {
     icon: Mail,
     iconClassName: "h-6 w-6 text-[#005594]",
+    logoSrc: providerLogoAssets["constant-contact"],
   },
   "email-infrastructure": {
     icon: Globe,
@@ -171,18 +175,25 @@ const PROVIDER_ICON_CONFIG: Record<
   shopify: {
     icon: ShoppingBag,
     iconClassName: "h-6 w-6 text-[#96BF48]",
+    logoSrc: providerLogoAssets.shopify,
+    logoClassName: "max-h-[70%] max-w-[70%] object-contain",
   },
   hubspot: {
     icon: Hexagon,
     iconClassName: "h-6 w-6 text-[#FF7A59]",
+    logoSrc: providerLogoAssets.hubspot,
   },
   zapier: {
     icon: Zap,
     iconClassName: "h-6 w-6 text-[#FF4A00]",
+    logoSrc: providerLogoAssets.zapier,
+    logoClassName: "max-h-full max-w-full object-cover",
   },
   slack: {
     icon: Hash,
     iconClassName: "h-6 w-6 text-[#4A154B]",
+    logoSrc: providerLogoAssets.slack,
+    logoClassName: "max-h-full max-w-full object-cover",
   },
   "custom-webhooks": {
     icon: Webhook,
@@ -239,7 +250,13 @@ function IntegrationCard({
   item: IntegrationDefinition;
   onPrimaryAction: (item: IntegrationDefinition) => void;
 }) {
-  const { icon: Icon, iconClassName, tileClassName } = getCardIconConfig(item);
+  const {
+    icon: Icon,
+    iconClassName,
+    logoSrc,
+    logoClassName,
+    tileClassName,
+  } = getCardIconConfig(item);
   const isConnected = item.status === "connected";
   const isComingSoon = item.status === "coming-soon";
   const isInfrastructure = item.slug === "email-infrastructure";
@@ -262,7 +279,18 @@ function IntegrationCard({
             tileClassName,
           )}
         >
-          <Icon className={iconClassName} />
+          {logoSrc ? (
+            <img
+              src={logoSrc}
+              alt=""
+              className={cn(
+                "max-h-[72%] max-w-[72%] object-contain",
+                logoClassName,
+              )}
+            />
+          ) : Icon ? (
+            <Icon className={iconClassName} />
+          ) : null}
         </div>
         {providerLink ? (
           <a
@@ -331,9 +359,13 @@ function IntegrationCard({
             variant="ghost"
             className="h-8 rounded-lg px-2 text-sm font-medium text-muted-foreground hover:bg-gray-50 hover:text-slate-900"
           >
-            <Link to={`/integrations/${item.slug}/documentation`}>
-              <BookOpen className="h-3.5 w-3.5" />
-              <span>Documentation</span>
+            <Link
+              to={`/integrations/${item.slug}/documentation`}
+              aria-label="Documentation"
+              title="Documentation"
+            >
+              <Info className="h-4 w-4" />
+              <span>Read more</span>
             </Link>
           </Button>
 
@@ -350,23 +382,22 @@ function IntegrationCard({
               type="button"
               size="sm"
               variant="ghost"
-              aria-label={isInfrastructure ? actionLabel : undefined}
+              aria-label={
+                isInfrastructure || isConnected ? actionLabel : undefined
+              }
               className={cn(
                 "h-8 text-sm font-medium",
                 isInfrastructure || isConnected
                   ? cn(
                       "rounded-lg text-muted-foreground hover:bg-gray-50 hover:text-slate-900",
-                      isInfrastructure ? "w-8 px-0" : "px-2",
+                      "w-8 px-0",
                     )
                   : "rounded-md border border-gray-300 bg-white px-2 text-slate-900 shadow-sm hover:border-gray-300 hover:bg-brand-teal hover:text-white",
               )}
               onClick={() => onPrimaryAction(item)}
             >
               {isInfrastructure || isConnected ? (
-                <>
-                  <Settings className="h-3.5 w-3.5" />
-                  {isInfrastructure ? null : <span>{actionLabel}</span>}
-                </>
+                <Settings className="h-3.5 w-3.5" />
               ) : (
                 <>
                   <span>Add</span>
@@ -374,26 +405,6 @@ function IntegrationCard({
                 </>
               )}
             </Button>
-          ) : null}
-
-          {isConnected && !isInfrastructure ? (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span
-                  aria-label={`${item.name} sync management`}
-                  className="inline-flex items-center"
-                >
-                  <Switch
-                    checked
-                    disabled
-                    aria-label={`${item.name} sync toggle`}
-                  />
-                </span>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Sync management coming soon</p>
-              </TooltipContent>
-            </Tooltip>
           ) : null}
         </div>
       </div>

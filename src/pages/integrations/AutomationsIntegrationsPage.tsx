@@ -1,24 +1,41 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
-import { ArrowLeft, Zap, Webhook, Smartphone, Plus } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { useToast } from '@/hooks/use-toast';
+import React from "react";
+import { Link } from "react-router-dom";
+import { ArrowLeft, Bell, Webhook, Zap } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+
+const automationIntegrations = [
+  {
+    name: "Zapier",
+    description: "Connect to 6000+ apps with automated workflows",
+    path: "/integrations/zapier",
+    cta: "Open integration",
+    icon: <Zap className="h-5 w-5 text-brand-navy" />,
+    iconWrapClassName: "bg-brand-teal/10 text-brand-navy",
+  },
+  {
+    name: "Custom Webhooks",
+    description: "Create custom webhook endpoints for any integration",
+    path: "/integrations/custom-webhooks",
+    cta: "Open integration",
+    icon: <Webhook className="h-5 w-5 text-brand-navy" />,
+    iconWrapClassName: "bg-brand-teal/10 text-brand-navy",
+  },
+  {
+    name: "Slack",
+    description: "Get notifications and manage content in Slack",
+    path: "/integrations/slack",
+    cta: "Open integration",
+    icon: <Bell className="h-5 w-5 text-brand-navy" />,
+    iconWrapClassName: "bg-brand-teal/10 text-brand-navy",
+  },
+];
 
 export default function AutomationsIntegrationsPage() {
-  const { toast } = useToast();
-
-  const handleComingSoon = (name: string) => {
-    toast({
-      title: "Coming Soon",
-      description: `${name} integration coming soon!`,
-    });
-  };
-
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6">
-      <Link 
-        to="/integrations" 
+      <Link
+        to="/integrations"
         className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
       >
         <ArrowLeft className="w-4 h-4" />
@@ -37,63 +54,36 @@ export default function AutomationsIntegrationsPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {/* Zapier */}
-        <Card className="bg-card border border-border rounded-xl">
-          <CardHeader className="pb-2">
-            <div className="flex items-start gap-3">
-              <Zap className="w-6 h-6 text-orange-600" />
-              <CardTitle className="text-base">Zapier</CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <p className="text-sm text-muted-foreground">
-              Connect to 6000+ apps with automated workflows
-            </p>
-            <Button variant="outline" className="w-full" onClick={() => handleComingSoon('Zapier')}>
-              <Plus className="w-4 h-4 mr-2" />
-              Connect
-            </Button>
-          </CardContent>
-        </Card>
-
-        {/* Custom Webhooks */}
-        <Card className="bg-card border border-border rounded-xl">
-          <CardHeader className="pb-2">
-            <div className="flex items-start gap-3">
-              <Webhook className="w-6 h-6 text-purple-600" />
-              <CardTitle className="text-base">Custom Webhooks</CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <p className="text-sm text-muted-foreground">
-              Create custom webhook endpoints for any integration
-            </p>
-            <Button variant="outline" className="w-full" onClick={() => handleComingSoon('Custom Webhooks')}>
-              <Plus className="w-4 h-4 mr-2" />
-              Connect
-            </Button>
-          </CardContent>
-        </Card>
-
-        {/* Slack */}
-        <Card className="bg-card border border-border rounded-xl">
-          <CardHeader className="pb-2">
-            <div className="flex items-start gap-3">
-              <Smartphone className="w-6 h-6 text-purple-500" />
-              <CardTitle className="text-base">Slack</CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <p className="text-sm text-muted-foreground">
-              Get notifications and manage content in Slack
-            </p>
-            <Button variant="outline" className="w-full" onClick={() => handleComingSoon('Slack')}>
-              <Plus className="w-4 h-4 mr-2" />
-              Connect
-            </Button>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {automationIntegrations.map((integration) => (
+          <Card
+            key={integration.name}
+            className="rounded-2xl border border-border/70 bg-card shadow-sm transition-colors hover:border-brand-teal/40"
+          >
+            <CardHeader className="pb-2">
+              <div className="flex items-start gap-3">
+                <div
+                  className={`rounded-xl p-2 ${integration.iconWrapClassName}`}
+                >
+                  {integration.icon}
+                </div>
+                <div>
+                  <CardTitle className="text-base text-brand-navy">
+                    {integration.name}
+                  </CardTitle>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {integration.description}
+                  </p>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <Button asChild variant="outline" className="w-full">
+                <Link to={integration.path}>{integration.cta}</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        ))}
       </div>
     </div>
   );

@@ -63,6 +63,10 @@ import { useIntegrationDetailData } from "@/hooks/useIntegrationDetailData";
 function EmailInfrastructureHookProbe() {
   const detail = useIntegrationDetailData("email-infrastructure");
 
+  if (detail.isError) {
+    return <div data-testid="error-state">{String(detail.error)}</div>;
+  }
+
   if (!detail.emailInfrastructureDetail) {
     return <div>loading</div>;
   }
@@ -72,8 +76,32 @@ function EmailInfrastructureHookProbe() {
       <div data-testid="primary-domain">
         {detail.emailInfrastructureDetail.primaryDomain}
       </div>
+      <div data-testid="environment-label">
+        {detail.emailInfrastructureDetail.environmentLabel}
+      </div>
       <div data-testid="dns-coverage">
         {`${detail.emailInfrastructureDetail.dnsVerifiedCount}/${detail.emailInfrastructureDetail.dnsRecordCount}`}
+      </div>
+      <div data-testid="spf-status">
+        {
+          detail.emailInfrastructureDetail.protocolRows.find(
+            (row) => row.label === "SPF",
+          )?.value
+        }
+      </div>
+      <div data-testid="dkim-status">
+        {
+          detail.emailInfrastructureDetail.protocolRows.find(
+            (row) => row.label === "DKIM",
+          )?.value
+        }
+      </div>
+      <div data-testid="dmarc-status">
+        {
+          detail.emailInfrastructureDetail.protocolRows.find(
+            (row) => row.label === "DMARC",
+          )?.value
+        }
       </div>
       <div data-testid="logs-path">
         {detail.emailInfrastructureDetail.sendingLogsPath}
@@ -123,6 +151,8 @@ describe("useIntegrationDetailData email infrastructure flow", () => {
                       status: "active",
                       created_at: "2026-03-20T10:00:00.000Z",
                       updated_at: "2026-03-22T10:00:00.000Z",
+                      env: "prod",
+                      is_sandbox: false,
                       verified_at: "2026-03-21T11:00:00.000Z",
                       last_verify_attempt_at: "2026-03-22T09:00:00.000Z",
                       last_verify_error: null,
@@ -134,6 +164,40 @@ describe("useIntegrationDetailData email infrastructure flow", () => {
                       is_entri_managed: true,
                       healthy_days_counter: 12,
                       resend_status: {
+                        direct_dns: {
+                          checks: [
+                            {
+                              record_type: "TXT",
+                              fqdn: "bloomflowers.co",
+                              expected: "v=spf1 include:resend.email ~all",
+                              found: true,
+                              verified: true,
+                              actual_values: [
+                                "v=spf1 include:resend.email ~all",
+                              ],
+                              last_checked_at: "2026-03-22T14:00:00.000Z",
+                            },
+                            {
+                              record_type: "CNAME",
+                              fqdn: "selector1._domainkey.bloomflowers.co",
+                              expected: "selector1.domainkey.resend.email",
+                              found: false,
+                              verified: false,
+                              actual_values: [],
+                              last_checked_at: "2026-03-22T14:00:00.000Z",
+                            },
+                            {
+                              record_type: "TXT",
+                              fqdn: "_dmarc.bloomflowers.co",
+                              expected:
+                                "v=DMARC1; p=none; rua=mailto:dmarc@bloomsuite.app",
+                              found: true,
+                              verified: false,
+                              actual_values: ["v=DMARC1; p=reject"],
+                              last_checked_at: "2026-03-22T14:00:00.000Z",
+                            },
+                          ],
+                        },
                         records: [
                           {
                             type: "TXT",
@@ -177,6 +241,15 @@ describe("useIntegrationDetailData email infrastructure flow", () => {
                       type: "CNAME",
                       value: "selector1.domainkey.resend.email",
                       purpose: "dkim",
+                      required: true,
+                    },
+                    {
+                      id: "dns-3",
+                      name: "_dmarc.bloomflowers.co",
+                      type: "TXT",
+                      value:
+                        "v=DMARC1; p=none; rua=mailto:dmarc@bloomsuite.app",
+                      purpose: "dmarc",
                       required: true,
                     },
                   ],
@@ -260,7 +333,13 @@ describe("useIntegrationDetailData email infrastructure flow", () => {
       );
     });
 
-    expect(screen.getByTestId("dns-coverage").textContent).toBe("1/2");
+    expect(screen.getByTestId("environment-label").textContent).toBe(
+      "Production",
+    );
+    expect(screen.getByTestId("dns-coverage").textContent).toBe("1/3");
+    expect(screen.getByTestId("spf-status").textContent).toBe("Verified");
+    expect(screen.getByTestId("dkim-status").textContent).toBe("Missing");
+    expect(screen.getByTestId("dmarc-status").textContent).toBe("Incorrect");
     expect(screen.getByTestId("logs-path").textContent).toBe(
       "/activity?q=email",
     );

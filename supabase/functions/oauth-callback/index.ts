@@ -26,12 +26,12 @@ function htmlClose(type: 'oauth-success' | 'oauth-error', payload: any) {
         ${type === 'oauth-success' ? '✓ Successfully connected Mailchimp!' : '✗ Connection failed'}
       </p>
     </body></html>`,
-    { 
+    {
       status: 200,
-      headers: { 
+      headers: {
         'Content-Type': 'text/html',
         ...corsHeaders
-      } 
+      }
     }
   );
 }
@@ -39,11 +39,11 @@ function htmlClose(type: 'oauth-success' | 'oauth-error', payload: any) {
 async function encryptToken(token: string): Promise<string> {
   const key = Deno.env.get('TOKEN_ENCRYPTION_KEY');
   if (!key) throw new Error('Encryption key not configured');
-  
+
   const encoder = new TextEncoder();
   const keyBytes = encoder.encode(key.padEnd(32, '0').slice(0, 32));
   const tokenBytes = encoder.encode(token);
-  
+
   const cryptoKey = await crypto.subtle.importKey(
     'raw',
     keyBytes,
@@ -51,18 +51,18 @@ async function encryptToken(token: string): Promise<string> {
     false,
     ['encrypt']
   );
-  
+
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const encrypted = await crypto.subtle.encrypt(
     { name: 'AES-GCM', iv },
     cryptoKey,
     tokenBytes
   );
-  
+
   const combined = new Uint8Array(iv.length + encrypted.byteLength);
   combined.set(iv);
   combined.set(new Uint8Array(encrypted), iv.length);
-  
+
   return btoa(String.fromCharCode(...combined));
 }
 
@@ -89,7 +89,7 @@ Deno.serve(async (req) => {
 
     // Parse state parameter
     const [stateId, userId, propertyId] = state.split(':');
-    
+
     if (!userId || !propertyId) {
       console.error('Invalid state parameter');
       return htmlClose('oauth-error', { error: 'invalid_state' });
@@ -117,7 +117,7 @@ Deno.serve(async (req) => {
     }
 
     const tokens = await tokenResponse.json();
-    
+
     // Encrypt and store tokens
     const encryptedAccessToken = await encryptToken(tokens.access_token);
     const encryptedRefreshToken = tokens.refresh_token ? await encryptToken(tokens.refresh_token) : null;
@@ -139,16 +139,29 @@ Deno.serve(async (req) => {
     );
 
     const connectionStatus = testResponse.ok ? 'connected' : 'error';
-    
+
+    const { data: userRecord } = await supabase
+      .from('users')
+      .select('tenant_id')
+      .eq('id', userId)
+      .maybeSingle();
+
     // Update GA settings with encrypted tokens
     const { error: updateError } = await supabase
       .from('google_analytics_settings')
       .upsert({
+        tenant_id: userRecord?.tenant_id,
         user_id: userId,
         property_id: propertyId,
         connection_status: connectionStatus,
         service_account_configured: true,
         last_test_at: new Date().toISOString(),
+        last_test_status: testResponse.ok ? 'success' : 'error',
+        last_test_message: testResponse.ok
+          ? 'Property accessible · Sessions data available'
+          : 'Google Analytics authorization succeeded, but the property test failed.',
+      }, {
+        onConflict: 'tenant_id,user_id'
       });
 
     if (updateError) {

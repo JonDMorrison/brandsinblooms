@@ -6,8 +6,9 @@ import { DocInlineCode } from "@/components/docs/DocInlineCode";
 import { DocStep } from "@/components/docs/DocStep";
 import type { DocContent } from "@/components/docs/types";
 import { getIntegrationSeed } from "@/components/integrations/integrationsHubConfig";
+import { documentationLogoAssets } from "@/pages/integrations/documentation/content/logoAssets";
 
-const ga4Seed = getIntegrationSeed("google-analytics-4");
+const ga4Seed = getIntegrationSeed("google-analytics");
 
 if (!ga4Seed) {
   throw new Error("Google Analytics 4 integration seed is missing.");
@@ -49,6 +50,8 @@ export const googleAnalytics4Documentation: DocContent = {
   lastUpdated: "2026-03-23",
   branding: {
     icon: ga4Seed.icon,
+    logoSrc: documentationLogoAssets["google-analytics"],
+    logoAlt: "Google Analytics 4 logo",
   },
   sections: [
     {

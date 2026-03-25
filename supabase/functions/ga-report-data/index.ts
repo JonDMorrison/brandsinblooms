@@ -9,18 +9,18 @@ const supabase = createClient(
 async function decryptToken(encryptedToken: string): Promise<string> {
   const key = Deno.env.get('TOKEN_ENCRYPTION_KEY');
   if (!key) throw new Error('Encryption key not configured');
-  
+
   const encoder = new TextEncoder();
   const decoder = new TextDecoder();
   const keyBytes = encoder.encode(key.padEnd(32, '0').slice(0, 32));
-  
+
   const combined = new Uint8Array(
     atob(encryptedToken).split('').map(char => char.charCodeAt(0))
   );
-  
+
   const iv = combined.slice(0, 12);
   const encrypted = combined.slice(12);
-  
+
   const cryptoKey = await crypto.subtle.importKey(
     'raw',
     keyBytes,
@@ -28,13 +28,13 @@ async function decryptToken(encryptedToken: string): Promise<string> {
     false,
     ['decrypt']
   );
-  
+
   const decrypted = await crypto.subtle.decrypt(
     { name: 'AES-GCM', iv },
     cryptoKey,
     encrypted
   );
-  
+
   return decoder.decode(decrypted);
 }
 
@@ -210,31 +210,42 @@ Deno.serve(async (req) => {
       return corsJsonResponse({ error: 'Invalid authorization' }, { status: 401 });
     }
 
+    const { data: userRecord, error: userRecordError } = await supabase
+      .from('users')
+      .select('tenant_id')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    if (userRecordError || !userRecord?.tenant_id) {
+      return corsJsonResponse({ error: 'Tenant context is required' }, { status: 400 });
+    }
+
     // Get GA settings for this user
     const { data: gaSettings, error: settingsError } = await supabase
       .from('google_analytics_settings')
       .select('*')
+      .eq('tenant_id', userRecord.tenant_id)
       .eq('user_id', user.id)
       .eq('property_id', propertyId)
       .single();
 
     if (settingsError || !gaSettings) {
-      return corsJsonResponse({ 
-        error: 'Google Analytics not configured for this property' 
+      return corsJsonResponse({
+        error: 'Google Analytics not configured for this property'
       }, { status: 404 });
     }
 
     if (gaSettings.connection_status !== 'connected') {
-      return corsJsonResponse({ 
+      return corsJsonResponse({
         error: 'Google Analytics connection not active',
-        connectionStatus: gaSettings.connection_status 
+        connectionStatus: gaSettings.connection_status
       }, { status: 400 });
     }
 
     // For now, return mock data since we need the token storage implemented
     // TODO: Implement token storage and retrieval
     console.log('⚠️ Using mock data - token storage not yet implemented');
-    
+
     const mockData = {
       overview: {
         totalUsers: Math.floor(Math.random() * 10000) + 1000,
@@ -266,16 +277,25 @@ Deno.serve(async (req) => {
       lastUpdated: new Date().toISOString()
     };
 
-    return corsJsonResponse({ 
-      success: true, 
-      data: mockData 
+    await supabase
+      .from('google_analytics_settings')
+      .update({
+        last_pull_at: new Date().toISOString(),
+      })
+      .eq('id', gaSettings.id)
+      .eq('tenant_id', userRecord.tenant_id)
+      .eq('user_id', user.id);
+
+    return corsJsonResponse({
+      success: true,
+      data: mockData
     });
 
   } catch (error) {
     console.error('❌ GA report data error:', error);
-    return corsJsonResponse({ 
+    return corsJsonResponse({
       error: 'Failed to fetch analytics data',
-      details: error.message 
+      details: error.message
     }, { status: 500 });
   }
 });

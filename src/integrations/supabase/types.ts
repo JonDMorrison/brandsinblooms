@@ -8614,30 +8614,51 @@ export type Database = {
         Row: {
           connection_status: string
           created_at: string
+          google_account_email: string | null
           id: string
+          last_pull_at: string | null
+          last_test_message: string | null
+          last_test_status: string | null
           last_test_at: string | null
+          measurement_id: string | null
+          property_name: string | null
           property_id: string
           service_account_configured: boolean
+          tenant_id: string
           updated_at: string
           user_id: string
         }
         Insert: {
           connection_status?: string
           created_at?: string
+          google_account_email?: string | null
           id?: string
+          last_pull_at?: string | null
+          last_test_message?: string | null
+          last_test_status?: string | null
           last_test_at?: string | null
+          measurement_id?: string | null
+          property_name?: string | null
           property_id: string
           service_account_configured?: boolean
+          tenant_id: string
           updated_at?: string
           user_id: string
         }
         Update: {
           connection_status?: string
           created_at?: string
+          google_account_email?: string | null
           id?: string
+          last_pull_at?: string | null
+          last_test_message?: string | null
+          last_test_status?: string | null
           last_test_at?: string | null
+          measurement_id?: string | null
+          property_name?: string | null
           property_id?: string
           service_account_configured?: boolean
+          tenant_id?: string
           updated_at?: string
           user_id?: string
         }

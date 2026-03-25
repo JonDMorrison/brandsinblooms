@@ -1,5 +1,6 @@
 import type { DocContent } from "@/components/docs/types";
 import { getIntegrationSeed } from "@/components/integrations/integrationsHubConfig";
+import { documentationLogoAssets } from "@/pages/integrations/documentation/content/logoAssets";
 
 const slackSeed = getIntegrationSeed("slack");
 
@@ -20,6 +21,8 @@ export const slackDocumentation: DocContent = {
   lastUpdated: "2026-01-15",
   branding: {
     icon: slackSeed.icon,
+    logoSrc: documentationLogoAssets.slack,
+    logoAlt: "Slack logo",
   },
   sections: [
     {

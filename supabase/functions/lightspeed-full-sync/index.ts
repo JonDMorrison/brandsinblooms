@@ -8,18 +8,46 @@ const SYNC_JOB_CONFIG = [
   { queueSyncType: 'products', label: 'products', estimatedRows: 5000 },
 ] as const;
 
-function getJobId(payload: unknown) {
+type SyncJobLabel = (typeof SYNC_JOB_CONFIG)[number]['label'];
+
+type EnqueueOutcome = {
+  jobId: string | null;
+  status: string | null;
+  message: string | null;
+  success: boolean | null;
+  raw: unknown;
+};
+
+function parseEnqueueOutcome(payload: unknown): EnqueueOutcome {
   if (typeof payload === 'string') {
-    return payload;
+    return {
+      jobId: payload,
+      status: 'allow',
+      message: null,
+      success: true,
+      raw: payload,
+    };
   }
 
   if (payload && typeof payload === 'object') {
     const record = payload as Record<string, unknown>;
     const candidate = record.id ?? record.jobId ?? record.job_id;
-    return typeof candidate === 'string' ? candidate : null;
+    return {
+      jobId: typeof candidate === 'string' ? candidate : null,
+      status: typeof record.status === 'string' ? record.status : null,
+      message: typeof record.message === 'string' ? record.message : null,
+      success: typeof record.success === 'boolean' ? record.success : null,
+      raw: payload,
+    };
   }
 
-  return null;
+  return {
+    jobId: null,
+    status: null,
+    message: null,
+    success: null,
+    raw: payload,
+  };
 }
 
 const corsHeaders = {
@@ -72,6 +100,11 @@ Deno.serve(async (req) => {
       estimated_rows: number;
       total_pages_est: number;
     }> = [];
+    const jobResults: Record<SyncJobLabel, Record<string, unknown>> = {
+      customers: {},
+      sales: {},
+      products: {},
+    };
     const enqueueErrors: string[] = [];
 
     for (const syncJob of SYNC_JOB_CONFIG) {
@@ -87,13 +120,29 @@ Deno.serve(async (req) => {
 
       if (enqueueError) {
         console.error(`[LIGHTSPEED-FULL-SYNC] Failed to enqueue ${syncJob.label}:`, enqueueError.message);
+        jobResults[syncJob.label] = { error: enqueueError.message };
         enqueueErrors.push(`${syncJob.label}: ${enqueueError.message}`);
         continue;
       }
 
-      const jobId = getJobId(enqueueResult);
+      const enqueueOutcome = parseEnqueueOutcome(enqueueResult);
+      const jobId = enqueueOutcome.jobId;
+
+      if (enqueueOutcome.success === false || enqueueOutcome.status === 'denied') {
+        const denialMessage = enqueueOutcome.message ?? 'Sync could not be queued.';
+        console.warn(`[LIGHTSPEED-FULL-SYNC] ${syncJob.label} denied:`, denialMessage);
+        jobResults[syncJob.label] = {
+          status: enqueueOutcome.status ?? 'denied',
+          message: denialMessage,
+          success: false,
+        };
+        enqueueErrors.push(`${syncJob.label}: ${denialMessage}`);
+        continue;
+      }
+
       if (!jobId) {
         console.error(`[LIGHTSPEED-FULL-SYNC] Missing job id for ${syncJob.label}:`, enqueueResult);
+        jobResults[syncJob.label] = { error: 'missing job id' };
         enqueueErrors.push(`${syncJob.label}: missing job id`);
         continue;
       }
@@ -129,6 +178,12 @@ Deno.serve(async (req) => {
         estimated_rows: syncJob.estimatedRows,
         total_pages_est: totalPagesEstimate,
       });
+      jobResults[syncJob.label] = {
+        jobId,
+        status: enqueueOutcome.status ?? 'allow',
+        message: enqueueOutcome.message ?? 'Job queued successfully.',
+        success: true,
+      };
       console.log(`[LIGHTSPEED-FULL-SYNC] ${syncJob.label} job enqueued: ${jobId}`);
     }
 
@@ -149,7 +204,11 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: true,
+        message: enqueueErrors.length > 0
+          ? 'Sync jobs queued with warnings'
+          : 'Sync jobs enqueued successfully',
         jobs: queuedJobs,
+        jobResults,
         errors: enqueueErrors,
         workerStarted: !workerError,
       }),

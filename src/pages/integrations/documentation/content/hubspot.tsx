@@ -1,5 +1,6 @@
 import type { DocContent } from "@/components/docs/types";
 import { getIntegrationSeed } from "@/components/integrations/integrationsHubConfig";
+import { documentationLogoAssets } from "@/pages/integrations/documentation/content/logoAssets";
 
 const hubspotSeed = getIntegrationSeed("hubspot");
 
@@ -20,6 +21,8 @@ export const hubspotDocumentation: DocContent = {
   lastUpdated: "2026-01-15",
   branding: {
     icon: hubspotSeed.icon,
+    logoSrc: documentationLogoAssets.hubspot,
+    logoAlt: "HubSpot logo",
   },
   sections: [
     {

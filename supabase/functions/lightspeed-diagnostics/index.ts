@@ -94,6 +94,14 @@ function parseResponseItemCount(data: unknown, collectionKey: string) {
   }
 
   const record = data as Record<string, unknown>;
+  if (Array.isArray(record.data)) {
+    return record.data.length;
+  }
+
+  if (record.data && typeof record.data === 'object') {
+    return 1;
+  }
+
   const collection = record[collectionKey];
   if (Array.isArray(collection)) {
     return collection.length;
@@ -421,21 +429,21 @@ Deno.serve(async (req) => {
 
     await runApiCheck(
       CHECK_NAMES.customersApi,
-      `/api/2.0/Customer.json?limit=${CUSTOMER_ENDPOINT_LIMIT}&offset=0`,
+      `/api/2.0/customers`,
       'Customer API',
       'Customer',
     );
 
     await runApiCheck(
       CHECK_NAMES.salesApi,
-      `/api/2.0/Sale.json?completeTime=>,${getSalesSinceDate(connection)}&limit=1&offset=0&load_relations=["SaleLines","Customer"]`,
+      `/api/2.0/sales`,
       'Sales API',
       'Sale',
     );
 
     await runApiCheck(
       CHECK_NAMES.productsApi,
-      `/api/3.0/Item.json?limit=${PRODUCT_ENDPOINT_LIMIT}&offset=0`,
+      `/api/2.0/products`,
       'Products API',
       'Item',
     );

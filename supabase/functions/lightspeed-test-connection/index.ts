@@ -59,7 +59,7 @@ Deno.serve(async (req) => {
 
     // Test the same customer endpoint contract used by the real sync worker.
     const response = await fetch(
-      `https://${connection.domain_prefix}.retail.lightspeed.app/api/2.0/Customer.json?limit=1&offset=0`,
+      `https://${connection.domain_prefix}.retail.lightspeed.app/api/2.0/customers`,
       { headers: { Authorization: `Bearer ${accessToken}` } }
     );
 
@@ -68,9 +68,9 @@ Deno.serve(async (req) => {
     }
 
     const payload = await response.json();
-    const customerCount = Array.isArray(payload?.Customer)
-      ? payload.Customer.length
-      : payload?.Customer
+    const customerCount = Array.isArray(payload?.data)
+      ? payload.data.length
+      : payload?.data
         ? 1
         : 0;
 

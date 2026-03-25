@@ -1,5 +1,5 @@
 import React from "react";
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Outlet } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
 import { Toaster } from "sonner";
 import { Toaster as ShadcnToaster } from "@/components/ui/toaster";
@@ -118,6 +118,16 @@ import ActivityDetailsPage from "@/pages/ActivityDetailsPage";
 import { SmsPage } from "@/pages/public/SmsPage";
 import { PrivacyPage } from "@/pages/public/PrivacyPage";
 import { TermsPage } from "@/pages/public/TermsPage";
+
+function IntegrationsRouteLayout() {
+  return (
+    <ProtectedRoute>
+      <SidebarLayout>
+        <Outlet />
+      </SidebarLayout>
+    </ProtectedRoute>
+  );
+}
 import { PlatformAgreementPage } from "@/pages/public/PlatformAgreementPage";
 import { EcommPage } from "@/pages/public/EcommPage";
 import { TwilioCopyPage } from "@/pages/admin/TwilioCopyPage";
@@ -670,128 +680,51 @@ function App() {
                 </ProtectedRoute>
               }
             />
-            <Route
-              path="/integrations"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <IntegrationsPage />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/integrations/pos"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <POSIntegrationsPage />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/integrations/crm"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <CRMIntegrationsPage />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/integrations/social"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <SocialIntegrationsPage />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/integrations/facebook"
-              element={
-                <ProtectedRoute>
-                  <RedirectWithQuery to="/integrations/meta" />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/integrations/instagram"
-              element={
-                <ProtectedRoute>
-                  <RedirectWithQuery to="/integrations/meta" />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/integrations/google-analytics"
-              element={
-                <ProtectedRoute>
-                  <RedirectWithQuery to="/integrations/google-analytics-4" />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/integrations/email-domain-dns"
-              element={
-                <ProtectedRoute>
+            <Route path="/integrations" element={<IntegrationsRouteLayout />}>
+              <Route index element={<IntegrationsPage />} />
+              <Route path="pos" element={<POSIntegrationsPage />} />
+              <Route path="crm" element={<CRMIntegrationsPage />} />
+              <Route path="social" element={<SocialIntegrationsPage />} />
+              <Route
+                path="facebook"
+                element={<RedirectWithQuery to="/integrations/meta" />}
+              />
+              <Route
+                path="instagram"
+                element={<RedirectWithQuery to="/integrations/meta" />}
+              />
+              <Route
+                path="google-analytics-4"
+                element={
+                  <RedirectWithQuery to="/integrations/google-analytics" />
+                }
+              />
+              <Route
+                path="email-domain-dns"
+                element={
                   <RedirectWithQuery to="/integrations/email-infrastructure" />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/integrations/automations"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <AutomationsIntegrationsPage />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/integrations/website"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <WebsiteIntegrationsPage />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/integrations/:slug/documentation"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <IntegrationDocumentationPage />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/integrations/:slug"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <IntegrationDetailPage />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/integrations/migrations"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <MigrationsPage />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
-            />
+                }
+              />
+              <Route
+                path="automations"
+                element={<AutomationsIntegrationsPage />}
+              />
+              <Route path="website" element={<WebsiteIntegrationsPage />} />
+              <Route path="migrations" element={<MigrationsPage />} />
+              <Route
+                path="lightspeed/connect"
+                element={<LightspeedConnectPage />}
+              />
+              <Route path="lightspeed/guide" element={<GuidePage />} />
+              <Route path="lightspeed/debug" element={<DebugPage />} />
+              <Route path="square/guide" element={<SquareGuidePage />} />
+              <Route path="clover/guide" element={<CloverGuidePage />} />
+              <Route
+                path=":slug/documentation"
+                element={<IntegrationDocumentationPage />}
+              />
+              <Route path=":slug" element={<IntegrationDetailPage />} />
+            </Route>
             <Route path="/oauth/callback" element={<OAuthCallbackHandler />} />
             <Route path="/auth/callback" element={<AuthCallbackPage />} />
             <Route
@@ -799,62 +732,12 @@ function App() {
               element={<CallbackPage />}
             />
             <Route
-              path="/integrations/lightspeed/connect"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <LightspeedConnectPage />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/integrations/lightspeed/guide"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <GuidePage />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/integrations/lightspeed/debug"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <DebugPage />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
               path="/integrations/square/callback"
               element={<SquareCallbackPage />}
             />
             <Route
-              path="/integrations/square/guide"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <SquareGuidePage />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
               path="/integrations/clover/callback"
               element={<CloverCallbackPage />}
-            />
-            <Route
-              path="/integrations/clover/guide"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <CloverGuidePage />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
             />
             <Route
               path="/crm/pos"

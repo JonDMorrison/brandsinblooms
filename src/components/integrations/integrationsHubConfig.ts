@@ -6,7 +6,6 @@ import {
   Network,
   ShoppingBag,
   ShoppingCart,
-  Slack,
   Store,
   Webhook,
   Zap,
@@ -184,7 +183,7 @@ const INTEGRATION_SEEDS: IntegrationSeed[] = [
     ],
   },
   {
-    slug: "google-analytics-4",
+    slug: "google-analytics",
     name: "Google Analytics 4",
     description:
       "Pull website traffic, conversions, and attribution data into BloomSuite reporting.",
@@ -256,57 +255,6 @@ const INTEGRATION_SEEDS: IntegrationSeed[] = [
       "Constant Contact import brings list structure and contact records into BloomSuite.",
   },
   {
-    slug: "hubspot",
-    name: "HubSpot",
-    description:
-      "Connect HubSpot contacts and deals with BloomSuite CRM automation.",
-    category: "automation",
-    categoryLabel: "Automation",
-    defaultStatus: "coming-soon",
-    icon: Zap,
-    keywords: ["hubspot", "automation", "crm"],
-    syncScopeLabel: "CRM sync + workflow handoff",
-    disablePrimaryAction: true,
-    actionLabel: "Notify me",
-    detailActionLabel: "Request HubSpot access",
-    detailSummary:
-      "HubSpot support is planned for future CRM sync and automation handoff workflows.",
-  },
-  {
-    slug: "zapier",
-    name: "Zapier",
-    description:
-      "Trigger Zapier workflows from BloomSuite events and connect 5,000+ apps.",
-    category: "automation",
-    categoryLabel: "Automation",
-    defaultStatus: "coming-soon",
-    icon: Zap,
-    keywords: ["zapier", "automation", "workflows"],
-    syncScopeLabel: "Triggers + actions",
-    disablePrimaryAction: true,
-    actionLabel: "Notify me",
-    detailActionLabel: "Request Zapier access",
-    detailSummary:
-      "Zapier is in progress and will unlock no-code triggers and actions for BloomSuite when public access opens.",
-  },
-  {
-    slug: "slack",
-    name: "Slack",
-    description:
-      "Send BloomSuite CRM notifications and automation alerts to Slack channels.",
-    category: "automation",
-    categoryLabel: "Automation",
-    defaultStatus: "coming-soon",
-    icon: Slack,
-    keywords: ["slack", "automation", "notifications"],
-    syncScopeLabel: "Alerts + workflow notifications",
-    disablePrimaryAction: true,
-    actionLabel: "Notify me",
-    detailActionLabel: "Request Slack access",
-    detailSummary:
-      "Slack support is planned for team alerts, workflow notifications, and collaboration handoffs.",
-  },
-  {
     slug: "custom-webhooks",
     name: "Custom Webhooks",
     description:
@@ -349,9 +297,9 @@ export function getIntegrationSeed(slug: string) {
     return INTEGRATION_SEEDS.find((seed) => seed.slug === "lightspeed") ?? null;
   }
 
-  if (slug === "google-analytics") {
+  if (slug === "google-analytics-4") {
     return (
-      INTEGRATION_SEEDS.find((seed) => seed.slug === "google-analytics-4") ??
+      INTEGRATION_SEEDS.find((seed) => seed.slug === "google-analytics") ??
       null
     );
   }

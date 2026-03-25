@@ -81,6 +81,26 @@ describe("IntegrationsHubIndex", () => {
     mockHubData();
   });
 
+  it("renders the Lightspeed X-Series logo from the shared local asset", () => {
+    mockHubData({
+      items: [buildItem("lightspeed", { status: "available" })],
+    });
+
+    renderPage();
+
+    const lightspeedCard = screen
+      .getByRole("heading", { name: "Lightspeed X-Series" })
+      .closest("article");
+
+    if (!lightspeedCard) {
+      throw new Error("Expected the Lightspeed X-Series card to render.");
+    }
+
+    expect(
+      lightspeedCard.querySelector('img[src*="lightspeed-x-series.svg"]'),
+    ).toBeInTheDocument();
+  });
+
   it("renders the dedicated skeleton loader during the initial load", () => {
     mockHubData({
       items: [],
@@ -199,17 +219,16 @@ describe("IntegrationsHubIndex", () => {
     expect(within(metaCard).getByText("Instagram")).toBeInTheDocument();
     expect(within(metaCard).getByText("Connected")).toBeInTheDocument();
     expect(within(metaCard).getByText("Not connected")).toBeInTheDocument();
-
-    const squareSwitch = within(squareCard).getByRole("switch", {
-      name: "Square sync toggle",
-    });
-    expect(squareSwitch).toBeDisabled();
-
-    await user.hover(screen.getByLabelText("Square sync management"));
     expect(
-      (await screen.findAllByText("Sync management coming soon")).length,
-    ).toBeGreaterThan(0);
-    await user.unhover(screen.getByLabelText("Square sync management"));
+      squareCard.querySelector('img[src*="square.svg"]'),
+    ).toBeInTheDocument();
+    expect(
+      cloverCard.querySelector('img[src*="clover.svg"]'),
+    ).toBeInTheDocument();
+    expect(
+      slackCard.querySelector('img[src*="slack.jpeg"]'),
+    ).toBeInTheDocument();
+    expect(infrastructureCard.querySelector("img")).toBeNull();
 
     await user.click(
       within(squareCard).getByRole("link", { name: /^documentation$/i }),

@@ -6,6 +6,7 @@ import { DocInlineCode } from "@/components/docs/DocInlineCode";
 import { DocStep } from "@/components/docs/DocStep";
 import type { DocContent } from "@/components/docs/types";
 import { getIntegrationSeed } from "@/components/integrations/integrationsHubConfig";
+import { documentationLogoAssets } from "@/pages/integrations/documentation/content/logoAssets";
 
 const squareSeed = getIntegrationSeed("square");
 
@@ -117,6 +118,8 @@ export const squareDocumentation: DocContent = {
   lastUpdated: "2026-01-15",
   branding: {
     icon: squareSeed.icon,
+    logoSrc: documentationLogoAssets.square,
+    logoAlt: "Square logo",
   },
   sections: [
     {

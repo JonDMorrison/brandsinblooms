@@ -12,7 +12,7 @@ import {
 import { useNavigate } from "react-router-dom";
 
 const plannedBadgeClassName =
-  "rounded-full border border-amber-300 bg-amber-100 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-amber-800";
+  "rounded-full border border-brand-teal/20 bg-brand-teal/10 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-brand-navy";
 
 const GuidePage = () => {
   const navigate = useNavigate();
@@ -39,15 +39,15 @@ const GuidePage = () => {
         </p>
       </div>
 
-      <Card className="border-amber-300 bg-amber-50 p-6">
+      <Card className="border-border/70 bg-slate-50 p-6 shadow-sm shadow-brand-navy/5">
         <div className="space-y-3">
           <div className="flex items-center gap-2">
             <span className={plannedBadgeClassName}>Planning Update</span>
-            <span className="text-sm font-medium text-amber-900">
+            <span className="text-sm font-medium text-slate-900">
               This page is preserved for bookmarked users.
             </span>
           </div>
-          <p className="text-sm text-amber-900">
+          <p className="text-sm text-slate-700">
             Lightspeed connection, sync visibility, and diagnostics now live in
             the main integration shell. The automation examples below are
             planning references, not shipped trigger guarantees.

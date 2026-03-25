@@ -1,14 +1,14 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
-import { 
-  Zap, 
-  Plus, 
-  Settings, 
+import React, { useState, useEffect, useRef } from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import {
+  Zap,
+  Plus,
+  Settings,
   Webhook,
   Mail,
   Users,
@@ -19,18 +19,19 @@ import {
   Facebook,
   Instagram,
   Store,
-  Download
-} from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import { GoogleAnalyticsConnection } from './GoogleAnalyticsConnection';
-import { LightspeedIntegration } from './LightspeedIntegration';
-import { LightspeedDebug } from './LightspeedDebug';
-import { SquareIntegration } from './SquareIntegration';
-import { useQuery } from '@tanstack/react-query';
-import { MigrationStatusIndicator } from '@/components/migrations/MigrationStatusIndicator';
-import { IntegrationSection } from './IntegrationSection';
-import { IntegrationCard } from './IntegrationCard';
-import { FeaturedCard } from './FeaturedCard';
+  Download,
+} from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { getUserFacingIntegrationError } from "@/components/integrations/integrationDetailModel";
+import { GoogleAnalyticsConnection } from "./GoogleAnalyticsConnection";
+import { LightspeedIntegration } from "./LightspeedIntegration";
+import { LightspeedDebug } from "./LightspeedDebug";
+import { SquareIntegration } from "./SquareIntegration";
+import { useQuery } from "@tanstack/react-query";
+import { MigrationStatusIndicator } from "@/components/migrations/MigrationStatusIndicator";
+import { IntegrationSection } from "./IntegrationSection";
+import { IntegrationCard } from "./IntegrationCard";
+import { FeaturedCard } from "./FeaturedCard";
 
 const APP_ORIGIN = window.location.origin;
 
@@ -38,7 +39,7 @@ interface Integration {
   id: string;
   name: string;
   description: string;
-  category: 'social' | 'automation' | 'email' | 'crm' | 'analytics';
+  category: "social" | "automation" | "email" | "crm" | "analytics";
   icon: React.ReactNode;
   isConnected: boolean;
   provider: string;
@@ -62,31 +63,33 @@ interface UserIntegration {
 export const IntegrationHub = () => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [userIntegrations, setUserIntegrations] = useState<UserIntegration[]>([]);
+  const [userIntegrations, setUserIntegrations] = useState<UserIntegration[]>(
+    [],
+  );
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('marketplace');
+  const [activeTab, setActiveTab] = useState("marketplace");
   const [providerConnections, setProviderConnections] = useState<any[]>([]);
   const oauthPopupRef = useRef<Window | null>(null);
 
   // Check for Lightspeed connection status
   const { data: lightspeedConnection } = useQuery({
-    queryKey: ['lightspeed-connection-status'],
+    queryKey: ["lightspeed-connection-status"],
     queryFn: async () => {
       const { data: userData } = await supabase.auth.getUser();
       if (!userData.user) return null;
 
       const { data: userRecord } = await supabase
-        .from('users')
-        .select('tenant_id')
-        .eq('id', userData.user.id)
+        .from("users")
+        .select("tenant_id")
+        .eq("id", userData.user.id)
         .single();
 
       if (!userRecord?.tenant_id) return null;
 
       const { data, error } = await supabase
-        .from('lightspeed_connections')
-        .select('*')
-        .eq('tenant_id', userRecord.tenant_id)
+        .from("lightspeed_connections")
+        .select("*")
+        .eq("tenant_id", userRecord.tenant_id)
         .maybeSingle();
 
       if (error) return null;
@@ -95,93 +98,96 @@ export const IntegrationHub = () => {
     enabled: !!user,
   });
 
-  const hasValidLightspeedConnection = lightspeedConnection && lightspeedConnection.encrypted_access_token !== 'pending';
+  const hasValidLightspeedConnection =
+    lightspeedConnection &&
+    lightspeedConnection.encrypted_access_token !== "pending";
 
   // Available integrations marketplace
   const availableIntegrations: Integration[] = [
     {
-      id: 'facebook',
-      name: 'Facebook',
-      description: 'Publish posts and manage your Facebook Pages',
-      category: 'social',
+      id: "facebook",
+      name: "Facebook",
+      description: "Publish posts and manage your Facebook Pages",
+      category: "social",
       icon: <Facebook className="w-6 h-6 text-blue-600" />,
       isConnected: false,
-      provider: 'facebook',
-      setupUrl: '/social-accounts',
-      isActive: true
+      provider: "facebook",
+      setupUrl: "/social-accounts",
+      isActive: true,
     },
     {
-      id: 'instagram',
-      name: 'Instagram',
-      description: 'Share photos and stories to your Instagram Business account',
-      category: 'social',
+      id: "instagram",
+      name: "Instagram",
+      description:
+        "Share photos and stories to your Instagram Business account",
+      category: "social",
       icon: <Instagram className="w-6 h-6 text-pink-600" />,
       isConnected: false,
-      provider: 'instagram',
-      setupUrl: '/social-accounts',
-      isActive: true
+      provider: "instagram",
+      setupUrl: "/social-accounts",
+      isActive: true,
     },
     {
-      id: 'zapier',
-      name: 'Zapier',
-      description: 'Connect to 6000+ apps with automated workflows',
-      category: 'automation',
+      id: "zapier",
+      name: "Zapier",
+      description: "Connect to 6000+ apps with automated workflows",
+      category: "automation",
       icon: <Zap className="w-6 h-6 text-orange-600" />,
       isConnected: false,
-      provider: 'zapier',
-      setupUrl: '/integrations/zapier',
-      isActive: true
+      provider: "zapier",
+      setupUrl: "/integrations/zapier",
+      isActive: true,
     },
     {
-      id: 'mailchimp',
-      name: 'Mailchimp',
-      description: 'Sync leads and send targeted email campaigns',
-      category: 'email',
+      id: "mailchimp",
+      name: "Mailchimp",
+      description: "Sync leads and send targeted email campaigns",
+      category: "email",
       icon: <Mail className="w-6 h-6 text-yellow-600" />,
       isConnected: false,
-      provider: 'mailchimp',
-      isActive: true
+      provider: "mailchimp",
+      isActive: true,
     },
     {
-      id: 'hubspot',
-      name: 'HubSpot',
-      description: 'Sync contacts and track lead engagement',
-      category: 'crm',
+      id: "hubspot",
+      name: "HubSpot",
+      description: "Sync contacts and track lead engagement",
+      category: "crm",
       icon: <Users className="w-6 h-6 text-orange-500" />,
       isConnected: false,
-      provider: 'hubspot',
-      isActive: true
+      provider: "hubspot",
+      isActive: true,
     },
     {
-      id: 'google_analytics',
-      name: 'Google Analytics',
-      description: 'Track website traffic from social media',
-      category: 'analytics',
+      id: "google_analytics",
+      name: "Google Analytics",
+      description: "Track website traffic from social media",
+      category: "analytics",
       icon: <BarChart3 className="w-6 h-6 text-blue-600" />,
       isConnected: false,
-      provider: 'google',
-      isActive: true
+      provider: "google",
+      isActive: true,
     },
     {
-      id: 'webhook_custom',
-      name: 'Custom Webhooks',
-      description: 'Create custom webhook endpoints for any integration',
-      category: 'automation',
+      id: "webhook_custom",
+      name: "Custom Webhooks",
+      description: "Create custom webhook endpoints for any integration",
+      category: "automation",
       icon: <Webhook className="w-6 h-6 text-purple-600" />,
       isConnected: false,
-      provider: 'custom',
-      isActive: true
+      provider: "custom",
+      isActive: true,
     },
     {
-      id: 'slack',
-      name: 'Slack',
-      description: 'Get notifications and manage content in Slack',
-      category: 'automation',
+      id: "slack",
+      name: "Slack",
+      description: "Get notifications and manage content in Slack",
+      category: "automation",
       icon: <Smartphone className="w-6 h-6 text-purple-500" />,
       isConnected: false,
-      provider: 'slack',
-      isActive: true
-    }
+      provider: "slack",
+      isActive: true,
+    },
   ];
 
   const fetchProviderConnections = async () => {
@@ -189,14 +195,14 @@ export const IntegrationHub = () => {
 
     try {
       const { data, error } = await supabase
-        .from('provider_connections')
-        .select('*')
-        .eq('status', 'connected');
+        .from("provider_connections")
+        .select("*")
+        .eq("status", "connected");
 
       if (error) throw error;
       setProviderConnections(data || []);
     } catch (error) {
-      console.error('Error fetching provider connections:', error);
+      console.error("Error fetching provider connections:", error);
     }
   };
 
@@ -207,7 +213,7 @@ export const IntegrationHub = () => {
       await fetchProviderConnections();
       setUserIntegrations([]);
     } catch (error) {
-      console.error('Error fetching integrations:', error);
+      console.error("Error fetching integrations:", error);
       toast({
         title: "Error",
         description: "Failed to load integrations",
@@ -220,27 +226,33 @@ export const IntegrationHub = () => {
 
   const handleConnectMailchimp = async () => {
     try {
-      const { data, error } = await supabase.functions.invoke('oauth-authorize', {
-        body: { provider: 'mailchimp' }
-      });
+      const { data, error } = await supabase.functions.invoke(
+        "oauth-authorize",
+        {
+          body: { provider: "mailchimp" },
+        },
+      );
 
       if (error) throw error;
 
       const { authUrl } = data;
-      const popup = window.open(authUrl, 'oauth', 'width=600,height=700');
+      const popup = window.open(authUrl, "oauth", "width=600,height=700");
       oauthPopupRef.current = popup;
     } catch (error: any) {
-      console.error('Error initiating Mailchimp OAuth:', error);
+      console.error("Error initiating Mailchimp OAuth:", error);
       toast({
         title: "Connection Failed",
-        description: error.message || "Failed to connect to Mailchimp",
+        description: getUserFacingIntegrationError(
+          error,
+          "Failed to connect to Mailchimp",
+        ),
         variant: "destructive",
       });
     }
   };
 
   const handleConnectIntegration = async (integration: Integration) => {
-    if (integration.provider === 'mailchimp') {
+    if (integration.provider === "mailchimp") {
       await handleConnectMailchimp();
     } else if (integration.setupUrl) {
       window.location.href = integration.setupUrl;
@@ -255,18 +267,19 @@ export const IntegrationHub = () => {
   const handleDisconnectIntegration = async (integrationId: string) => {
     toast({
       title: "Coming Soon",
-      description: "Integrations will be available once database setup is complete",
+      description:
+        "Integrations will be available once database setup is complete",
     });
   };
 
   const getConnectionStatus = (providerId: string) => {
     const providerConnection = providerConnections.find(
-      conn => conn.provider === providerId
+      (conn) => conn.provider === providerId,
     );
     if (providerConnection) return providerConnection;
 
     return userIntegrations.find(
-      int => int.provider === providerId && int.is_active
+      (int) => int.provider === providerId && int.is_active,
     );
   };
 
@@ -278,27 +291,30 @@ export const IntegrationHub = () => {
     const handleOAuthMessage = (e: MessageEvent) => {
       if (e.origin !== APP_ORIGIN) return;
 
-      if (e.data.type === 'oauth-success') {
+      if (e.data.type === "oauth-success") {
         toast({
           title: "Connected!",
           description: `Successfully connected to ${e.data.provider}`,
         });
         fetchProviderConnections();
-      } else if (e.data.type === 'oauth-error') {
+      } else if (e.data.type === "oauth-error") {
         toast({
           title: "Connection Failed",
-          description: e.data.message || "Failed to connect",
+          description: getUserFacingIntegrationError(
+            e.data.message,
+            "Failed to connect",
+          ),
           variant: "destructive",
         });
       }
     };
 
-    window.addEventListener('message', handleOAuthMessage);
-    return () => window.removeEventListener('message', handleOAuthMessage);
+    window.addEventListener("message", handleOAuthMessage);
+    return () => window.removeEventListener("message", handleOAuthMessage);
   }, [toast]);
 
   const getIntegrationsByCategory = (category: string) => {
-    return availableIntegrations.filter(int => int.category === category);
+    return availableIntegrations.filter((int) => int.category === category);
   };
 
   if (loading) {
@@ -310,7 +326,7 @@ export const IntegrationHub = () => {
     );
   }
 
-  const connectedCount = userIntegrations.filter(int => int.is_active).length;
+  const connectedCount = userIntegrations.filter((int) => int.is_active).length;
 
   const renderIntegrationCard = (integration: Integration) => {
     const connection = getConnectionStatus(integration.provider);
@@ -356,7 +372,8 @@ export const IntegrationHub = () => {
         <div>
           <h1 className="text-3xl font-bold">Integrations</h1>
           <p className="text-muted-foreground mt-2">
-            Connect your tools to sync data, automate workflows, and grow your business
+            Connect your tools to sync data, automate workflows, and grow your
+            business
           </p>
         </div>
         <div className="flex gap-3">
@@ -371,7 +388,11 @@ export const IntegrationHub = () => {
         </div>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+      <Tabs
+        value={activeTab}
+        onValueChange={setActiveTab}
+        className="space-y-6"
+      >
         <TabsList>
           <TabsTrigger value="marketplace">All Integrations</TabsTrigger>
           <TabsTrigger value="connected">My Connections</TabsTrigger>
@@ -387,9 +408,19 @@ export const IntegrationHub = () => {
                 description="One-time import from Mailchimp or Klaviyo with AI-powered mapping"
                 icon={<Download className="w-6 h-6 text-primary" />}
                 badge={{ label: "New" }}
-                features={["✓ Contacts & Consent", "✓ Tags & Segments", "✓ AI Auto-Mapping", "✓ Reconciliation Report"]}
+                features={[
+                  "✓ Contacts & Consent",
+                  "✓ Tags & Segments",
+                  "✓ AI Auto-Mapping",
+                  "✓ Reconciliation Report",
+                ]}
               >
-                <Button onClick={() => window.location.href = '/integrations/migrations'} className="mt-2">
+                <Button
+                  onClick={() =>
+                    (window.location.href = "/integrations/migrations")
+                  }
+                  className="mt-2"
+                >
                   <Download className="w-4 h-4 mr-2" />
                   Start Migration
                 </Button>
@@ -400,9 +431,17 @@ export const IntegrationHub = () => {
                 description="Connect your POS to sync customers, orders, and purchase data in real-time"
                 icon={<Store className="w-6 h-6 text-primary" />}
                 badge={{ label: "Popular", className: "bg-green-600" }}
-                features={["✓ Customer Sync", "✓ Order History", "✓ Purchase Data", "✓ Real-time Updates"]}
+                features={[
+                  "✓ Customer Sync",
+                  "✓ Order History",
+                  "✓ Purchase Data",
+                  "✓ Real-time Updates",
+                ]}
               >
-                <Button onClick={() => window.location.href = '/crm/pos'} className="mt-2">
+                <Button
+                  onClick={() => (window.location.href = "/crm/pos")}
+                  className="mt-2"
+                >
                   <Store className="w-4 h-4 mr-2" />
                   Browse POS Options
                 </Button>
@@ -434,8 +473,12 @@ export const IntegrationHub = () => {
             description="Sync contacts and manage your marketing tools"
             icon={<Users className="w-5 h-5" />}
           >
-            {renderIntegrationCard(availableIntegrations.find(i => i.id === 'mailchimp')!)}
-            {renderIntegrationCard(availableIntegrations.find(i => i.id === 'hubspot')!)}
+            {renderIntegrationCard(
+              availableIntegrations.find((i) => i.id === "mailchimp")!,
+            )}
+            {renderIntegrationCard(
+              availableIntegrations.find((i) => i.id === "hubspot")!,
+            )}
           </IntegrationSection>
 
           {/* Social Media Section */}
@@ -444,7 +487,7 @@ export const IntegrationHub = () => {
             description="Connect your social accounts to publish and manage content"
             icon={<Smartphone className="w-5 h-5" />}
           >
-            {getIntegrationsByCategory('social').map(renderIntegrationCard)}
+            {getIntegrationsByCategory("social").map(renderIntegrationCard)}
           </IntegrationSection>
 
           {/* Analytics & Tracking Section */}
@@ -462,12 +505,12 @@ export const IntegrationHub = () => {
             description="Automate tasks and connect to thousands of apps"
             icon={<Zap className="w-5 h-5" />}
           >
-            {getIntegrationsByCategory('automation').map(renderIntegrationCard)}
+            {getIntegrationsByCategory("automation").map(renderIntegrationCard)}
           </IntegrationSection>
         </TabsContent>
 
         <TabsContent value="connected" className="space-y-6">
-          {userIntegrations.filter(int => int.is_active).length === 0 ? (
+          {userIntegrations.filter((int) => int.is_active).length === 0 ? (
             <Card className="bg-card border border-border">
               <CardContent className="p-12 text-center">
                 <AlertCircle className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
@@ -475,9 +518,10 @@ export const IntegrationHub = () => {
                   No Connected Integrations
                 </h3>
                 <p className="text-muted-foreground mb-4">
-                  Connect your first integration to start automating your workflow
+                  Connect your first integration to start automating your
+                  workflow
                 </p>
-                <Button onClick={() => setActiveTab('marketplace')}>
+                <Button onClick={() => setActiveTab("marketplace")}>
                   Browse Integrations
                 </Button>
               </CardContent>
@@ -502,40 +546,50 @@ export const IntegrationHub = () => {
                   Other Integrations
                 </h3>
                 <div className="grid grid-cols-1 gap-4">
-                  {userIntegrations.filter(int => int.is_active).map((integration) => (
-                    <Card key={integration.id} className="bg-card border border-border">
-                      <CardContent className="p-6">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 bg-green-100 dark:bg-green-900 rounded-lg flex items-center justify-center">
-                              <Check className="w-6 h-6 text-green-600 dark:text-green-400" />
+                  {userIntegrations
+                    .filter((int) => int.is_active)
+                    .map((integration) => (
+                      <Card
+                        key={integration.id}
+                        className="bg-card border border-border"
+                      >
+                        <CardContent className="p-6">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                              <div className="w-12 h-12 bg-green-100 dark:bg-green-900 rounded-lg flex items-center justify-center">
+                                <Check className="w-6 h-6 text-green-600 dark:text-green-400" />
+                              </div>
+                              <div>
+                                <h3 className="font-medium capitalize">
+                                  {integration.provider} Integration
+                                </h3>
+                                <p className="text-sm text-muted-foreground">
+                                  Connected on{" "}
+                                  {new Date(
+                                    integration.created_at,
+                                  ).toLocaleDateString()}
+                                </p>
+                              </div>
                             </div>
-                            <div>
-                              <h3 className="font-medium capitalize">
-                                {integration.provider} Integration
-                              </h3>
-                              <p className="text-sm text-muted-foreground">
-                                Connected on {new Date(integration.created_at).toLocaleDateString()}
-                              </p>
+
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() =>
+                                  handleDisconnectIntegration(integration.id)
+                                }
+                              >
+                                Disconnect
+                              </Button>
+                              <Button size="sm" variant="outline">
+                                <Settings className="w-4 h-4" />
+                              </Button>
                             </div>
                           </div>
-                          
-                          <div className="flex gap-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleDisconnectIntegration(integration.id)}
-                            >
-                              Disconnect
-                            </Button>
-                            <Button size="sm" variant="outline">
-                              <Settings className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+                        </CardContent>
+                      </Card>
+                    ))}
                 </div>
               </section>
             </div>
@@ -550,8 +604,8 @@ export const IntegrationHub = () => {
                 <h3 className="font-semibold">Custom Webhooks</h3>
               </div>
               <p className="text-muted-foreground mb-4">
-                Create custom webhook endpoints to integrate with any external service.
-                Coming soon!
+                Create custom webhook endpoints to integrate with any external
+                service. Coming soon!
               </p>
               <Button disabled>
                 <Plus className="w-4 h-4 mr-2" />

@@ -4,7 +4,11 @@ import { toast } from "sonner";
 
 import {
   buildIntegrationDetailModel,
+  getUserFacingIntegrationError,
+  summarizeUserFacingIntegrationWarnings,
   type IntegrationDetailModel,
+  type IntegrationDetailRow,
+  type IntegrationDetailTimelineEntry,
   type IntegrationDetailTone,
 } from "@/components/integrations/integrationDetailModel";
 import {
@@ -44,7 +48,7 @@ const REQUIRED_SQUARE_WEBHOOK_EVENTS = [
 ] as const;
 
 const META_OAUTH_SCOPE =
-  "pages_read_engagement,pages_show_list,pages_manage_posts,instagram_basic,instagram_content_publish,instagram_manage_insights";
+  "pages_manage_posts,pages_read_engagement,pages_show_list,instagram_basic,instagram_content_publish,instagram_manage_insights,read_insights";
 
 const COMING_SOON_INTEGRATION_SLUGS = [
   "shopify",
@@ -61,17 +65,25 @@ type ComingSoonContent = {
   statusLabel: string;
   statusTone: IntegrationDetailTone;
   availabilityLabel: string;
-  cardTitle: string;
   description: string;
   metadata: string[];
   capabilities: string[];
-  previewCallout?: {
+  callout?: {
+    tone: "info" | "warning";
     title: string;
     description: string;
+  };
+  notifyLabel: string;
+  notifyConfirmation: string;
+  requestLabel: string;
+  payloadPreview?: {
+    summary: string;
+    content: string;
   };
 };
 
 export type ComingSoonDetailData = ComingSoonContent & {
+  integrationName: string;
   notifyEmail: string | null;
   requestPath: string;
   isSubmitted: boolean;
@@ -79,99 +91,134 @@ export type ComingSoonDetailData = ComingSoonContent & {
 
 const COMING_SOON_CONTENT: Record<ComingSoonIntegrationSlug, ComingSoonContent> = {
   shopify: {
-    statusLabel: "Upcoming",
+    statusLabel: "Coming soon",
     statusTone: "warning",
     availabilityLabel: "Planned ecommerce release",
-    cardTitle: "Shopify is queued for a future rollout.",
     description:
-      "This page is intentionally limited to roadmap visibility and interest capture while the production Shopify connection flow stays offline.",
+      "The new first-class Shopify integration will replace the retired legacy flow and bring ecommerce activity fully into the shared BloomSuite integrations shell.",
     metadata: [
       "Category: POS Systems",
-      "Scope: Ecommerce customers + orders",
+      "Scope: Products, orders, customers, and storefront data",
       "Availability: Planned release",
     ],
     capabilities: [
-      "Sync Shopify customers into BloomSuite CRM",
-      "Import ecommerce orders for segmentation and reporting",
-      "Map storefront activity into existing automation triggers",
+      "Sync Shopify products, orders, and customers into BloomSuite CRM",
+      "Trigger automations on new orders, abandoned carts, and fulfillment events",
+      "Import your Shopify customer base as a migration source",
+      "Display Shopify products on BloomSuite-powered store pages",
     ],
+    callout: {
+      tone: "warning",
+      title: "The legacy Shopify connection flow in BloomSuite has been retired.",
+      description:
+        "The new first-class Shopify integration is currently being built.",
+    },
+    notifyLabel: "Notify me when available",
+    notifyConfirmation: "You're on the list. We'll notify you when Shopify is available.",
+    requestLabel: "Request this integration →",
   },
   hubspot: {
-    statusLabel: "Upcoming",
+    statusLabel: "Coming soon",
     statusTone: "warning",
     availabilityLabel: "Planned automation release",
-    cardTitle: "HubSpot support is planned, not open yet.",
     description:
-      "The HubSpot detail route is reserved for a future release that will bring CRM and automation interoperability into the shared integrations shell.",
+      "HubSpot support is planned as a first-class CRM and automation integration within the shared BloomSuite detail-page shell.",
     metadata: [
       "Category: Automation",
-      "Scope: CRM sync + workflow handoff",
+      "Scope: CRM sync, imports, and lifecycle handoff",
       "Availability: Planned release",
     ],
     capabilities: [
-      "Bring HubSpot contacts into BloomSuite workflows",
-      "Send BloomSuite events into HubSpot automation paths",
-      "Preserve account-level setup inside the existing integrations hub",
+      "Sync BloomSuite CRM contacts and customers into HubSpot",
+      "Push BloomSuite automation events as HubSpot timeline activities",
+      "Import HubSpot contacts into BloomSuite",
+      "Bi-directional deal and lifecycle stage sync",
     ],
+    notifyLabel: "Notify me when available",
+    notifyConfirmation: "You're on the list. We'll notify you when HubSpot is available.",
+    requestLabel: "Request this integration →",
   },
   zapier: {
     statusLabel: "In progress",
     statusTone: "warning",
     availabilityLabel: "Internal preview build",
-    cardTitle: "Zapier is actively being built.",
     description:
-      "This route stays informational while the integration is under active construction. Preview infrastructure exists elsewhere in the repo, but setup controls are intentionally hidden here.",
+      "Zapier is in active development and will become BloomSuite's no-code bridge to the broader app ecosystem.",
     metadata: [
       "Category: Automation",
-      "Scope: Triggers + actions",
+      "Scope: Triggers, actions, and multi-step workflows",
       "Availability: In progress",
     ],
     capabilities: [
-      "Trigger Zaps from BloomSuite customer and activity events",
-      "Accept Zapier-driven actions back into BloomSuite workflows",
-      "Offer a guided setup path once the public release is ready",
+      "Trigger Zapier workflows from BloomSuite CRM events (new customer, purchase, loyalty join)",
+      "Push data from 5,000+ Zapier-connected apps into BloomSuite contacts",
+      "No-code automation across your full tool stack",
+      "Multi-step Zap support with BloomSuite as trigger or action",
     ],
-    previewCallout: {
-      title: "Preview status",
+    callout: {
+      tone: "info",
+      title: "The Zapier integration is in active development.",
       description:
-        "Zapier is currently in progress. Public webhook configuration and setup controls are not exposed from this page yet.",
+        "The documentation below describes planned functionality.",
     },
+    notifyLabel: "Notify me when available",
+    notifyConfirmation: "You're on the list. We'll notify you when Zapier is available.",
+    requestLabel: "Request this integration →",
   },
   slack: {
-    statusLabel: "Upcoming",
+    statusLabel: "Coming soon",
     statusTone: "warning",
     availabilityLabel: "Planned collaboration release",
-    cardTitle: "Slack notifications are on the roadmap.",
     description:
-      "Slack will arrive as an automation-facing integration for operational alerts, approvals, and team notifications without adding a second setup surface.",
+      "Slack support is planned as BloomSuite's shared collaboration and alerting surface for operators and teams.",
     metadata: [
       "Category: Automation",
       "Scope: Alerts + workflow notifications",
       "Availability: Planned release",
     ],
     capabilities: [
-      "Send BloomSuite alerts into Slack channels",
-      "Route automation approvals to Slack-based teams",
-      "Keep notification setup inside the shared integrations experience",
+      "Receive BloomSuite CRM notifications in designated Slack channels",
+      "Alert your team when automations fire, syncs fail, or connections have issues",
+      "Daily and weekly performance summaries delivered to Slack",
+      "Custom alert rules based on thresholds (e.g. orders over GBP 500)",
     ],
+    notifyLabel: "Notify me when available",
+    notifyConfirmation: "You're on the list. We'll notify you when Slack is available.",
+    requestLabel: "Request this integration →",
   },
   "custom-webhooks": {
-    statusLabel: "Upcoming",
+    statusLabel: "Coming soon",
     statusTone: "warning",
     availabilityLabel: "Planned developer release",
-    cardTitle: "Custom webhooks are reserved for a later milestone.",
     description:
-      "This route is intentionally scoped to roadmap messaging while webhook controls stay disabled until the underlying contract is production-ready.",
+      "Custom Webhooks are planned as BloomSuite's general-purpose outbound event delivery surface for external systems.",
     metadata: [
       "Category: Automation",
-      "Scope: Outbound callbacks + inbound triggers",
+      "Scope: Outbound callbacks, payload templates, and delivery logs",
       "Availability: Planned release",
     ],
     capabilities: [
-      "Register outbound BloomSuite event callbacks",
-      "Accept inbound webhook triggers for workflow automation",
-      "Surface delivery status from the shared integrations shell",
+      "Send BloomSuite CRM events to any external system via HTTP POST",
+      "Configure custom payload templates and authentication headers",
+      "Monitor delivery logs and retry failed webhook calls automatically",
+      "Webhook signing — verify requests originated from BloomSuite",
     ],
+    notifyLabel: "Notify me when available",
+    notifyConfirmation:
+      "You're on the list. We'll notify you when Custom Webhooks is available.",
+    requestLabel: "Request this integration →",
+    payloadPreview: {
+      summary: "Preview example payload",
+      content: `{
+  "event": "purchase.completed",
+  "timestamp": "2026-03-01T14:30:00Z",
+  "data": {
+    "customer_email": "jane@example.com",
+    "order_total": 4250,
+    "currency": "GBP"
+  }
+}`,
+    },
   },
 };
 
@@ -346,6 +393,11 @@ export type LightspeedDetailData = {
 };
 
 type PosSyncJobRow = Database["public"]["Tables"]["pos_sync_jobs_v2"]["Row"];
+type SquareCustomerRow = Database["public"]["Tables"]["pos_customers"]["Row"];
+type BaseSquareSaleRow = Database["public"]["Tables"]["pos_orders"]["Row"];
+type SquareProductRow = Database["public"]["Tables"]["products"]["Row"];
+type CloverConnectionTestRecord =
+  Database["public"]["Tables"]["clover_connection_tests"]["Row"];
 
 export type TrackedLightspeedSyncJob = PosSyncJobRow & {
   normalizedSyncType: "customers" | "sales" | "products" | "full";
@@ -358,16 +410,29 @@ export type LightspeedSyncState = "idle" | "triggering" | "syncing";
 
 type LightspeedCustomerRow =
   Database["public"]["Tables"]["lightspeed_customers"]["Row"];
-type LightspeedSaleRow = Database["public"]["Tables"]["lightspeed_sales"]["Row"];
+type BaseLightspeedSaleRow =
+  Database["public"]["Tables"]["lightspeed_sales"]["Row"];
 type LightspeedProductRow =
   Database["public"]["Tables"]["lightspeed_products"]["Row"];
 
 export type LightspeedSortDirection = "asc" | "desc";
+export type SquareCustomerSortField =
+  | "name"
+  | "email"
+  | "updated_at"
+  | "created_at";
+export type SquareSalesSortField = "order_date" | "total_amount" | "status";
+export type SquareProductsSortField =
+  | "name"
+  | "category"
+  | "inventory_count"
+  | "price";
 export type LightspeedCustomerSortField =
   | "name"
   | "total_spend"
   | "purchase_count"
-  | "last_purchase_date";
+  | "last_purchase_date"
+  | "synced_at";
 export type LightspeedSalesSortField = "sale_date" | "total_amount" | "status";
 export type LightspeedProductsSortField =
   | "name"
@@ -379,26 +444,30 @@ export type LightspeedDashboardOptions = {
   customers?: {
     page?: number;
     search?: string;
-    sortField?: LightspeedCustomerSortField;
+    sortField?: LightspeedCustomerSortField | SquareCustomerSortField;
     sortDirection?: LightspeedSortDirection;
   };
   sales?: {
     page?: number;
+    search?: string;
     status?: string;
     startDate?: string | null;
     endDate?: string | null;
-    sortField?: LightspeedSalesSortField;
+    sortField?: LightspeedSalesSortField | SquareSalesSortField;
     sortDirection?: LightspeedSortDirection;
   };
   products?: {
     page?: number;
+    search?: string;
     category?: string;
+    categories?: string[];
     inStockOnly?: boolean;
-    sortField?: LightspeedProductsSortField;
+    sortField?: LightspeedProductsSortField | SquareProductsSortField;
     sortDirection?: LightspeedSortDirection;
   };
   syncLogs?: {
     page?: number;
+    status?: string;
   };
 };
 
@@ -422,6 +491,11 @@ export type LightspeedCustomerTableRow = LightspeedCustomerRow & {
   quality: LightspeedCustomerDataQuality;
 };
 
+export type LightspeedSaleRow = BaseLightspeedSaleRow & {
+  customerDisplayName: string | null;
+  lineItemCount: number;
+};
+
 export type LightspeedSalesSummary = {
   revenue: number;
   averageOrderValue: number;
@@ -432,6 +506,7 @@ export type LightspeedProductStockState = "out" | "low" | "healthy" | "unknown";
 
 export type LightspeedProductTableRow = LightspeedProductRow & {
   stockState: LightspeedProductStockState;
+  normalizedTags: string[];
 };
 
 export type LightspeedSyncLogRow = PosSyncJobRow & {
@@ -439,6 +514,157 @@ export type LightspeedSyncLogRow = PosSyncJobRow & {
   progressPercent: number;
   isStale: boolean;
   isTerminal: boolean;
+};
+
+export type SquareCustomerTableRow = SquareCustomerRow & {
+  displayName: string;
+  normalizedTags: string[];
+};
+
+export type SquareSaleRow = BaseSquareSaleRow & {
+  customerDisplayName: string | null;
+  lineItemCount: number;
+  orderType: string | null;
+  automationFired: boolean;
+};
+
+export type SquareSalesSummary = {
+  revenue: number;
+  averageOrderValue: number;
+  saleCount: number;
+};
+
+export type SquareProductTableRow = SquareProductRow & {
+  stockState: LightspeedProductStockState;
+  normalizedTags: string[];
+};
+
+export type SquareSyncLogRow = LightspeedSyncLogRow;
+
+export type CloverCustomerTableRow = SquareCustomerRow & {
+  displayName: string;
+  normalizedTags: string[];
+};
+
+export type CloverSaleRow = BaseSquareSaleRow & {
+  customerDisplayName: string | null;
+  lineItemCount: number;
+  orderType: string | null;
+};
+
+export type CloverSalesSummary = {
+  revenue: number;
+  averageOrderValue: number;
+  saleCount: number;
+};
+
+export type CloverProductTableRow = SquareProductRow & {
+  stockState: LightspeedProductStockState;
+  normalizedTags: string[];
+};
+
+export type CloverSyncLogRow = LightspeedSyncLogRow;
+
+export type CloverConnectionTestEndpointResult = {
+  success: boolean;
+  count?: number;
+  samples?: Json[];
+  data?: Json;
+  error?: string;
+  timing_ms: number;
+  status_code?: number;
+};
+
+export type CloverConnectionTestReport = {
+  status: "success" | "partial" | "failed";
+  summary: string;
+  duration_ms: number;
+  results: {
+    merchant: CloverConnectionTestEndpointResult;
+    employees: CloverConnectionTestEndpointResult;
+    customers: CloverConnectionTestEndpointResult;
+    inventory: CloverConnectionTestEndpointResult;
+    orders: CloverConnectionTestEndpointResult;
+    payments: CloverConnectionTestEndpointResult;
+  };
+  counts: {
+    employees: number;
+    customers: number;
+    items: number;
+    orders_last_30d: number;
+    payments_last_30d: number;
+  };
+  errors: Array<{ endpoint: string; code: string; message: string }>;
+};
+
+export type CloverConnectionTestHistoryRow = CloverConnectionTestRecord & {
+  report: CloverConnectionTestReport;
+};
+
+export type CloverDashboardData = {
+  customers: {
+    rows: CloverCustomerTableRow[];
+    pagination: LightspeedPagination;
+    isLoading: boolean;
+    isFetching: boolean;
+  };
+  sales: {
+    rows: CloverSaleRow[];
+    pagination: LightspeedPagination;
+    summary: CloverSalesSummary;
+    isLoading: boolean;
+    isFetching: boolean;
+  };
+  products: {
+    rows: CloverProductTableRow[];
+    pagination: LightspeedPagination;
+    categories: string[];
+    isLoading: boolean;
+    isFetching: boolean;
+  };
+  syncLogs: {
+    rows: CloverSyncLogRow[];
+    pagination: LightspeedPagination;
+    isLoading: boolean;
+    isFetching: boolean;
+  };
+  connectionTests: {
+    rows: CloverConnectionTestHistoryRow[];
+    latestReport: CloverConnectionTestReport | null;
+    latestTestedAt: string | null;
+    pagination: LightspeedPagination;
+    isLoading: boolean;
+    isFetching: boolean;
+  };
+};
+
+export type SquareDashboardData = {
+  customers: {
+    rows: SquareCustomerTableRow[];
+    pagination: LightspeedPagination;
+    isLoading: boolean;
+    isFetching: boolean;
+  };
+  sales: {
+    rows: SquareSaleRow[];
+    pagination: LightspeedPagination;
+    summary: SquareSalesSummary;
+    isLoading: boolean;
+    isFetching: boolean;
+  };
+  products: {
+    rows: SquareProductTableRow[];
+    pagination: LightspeedPagination;
+    categories: string[];
+    isLoading: boolean;
+    isFetching: boolean;
+  };
+  syncLogs: {
+    rows: SquareSyncLogRow[];
+    pagination: LightspeedPagination;
+    isLoading: boolean;
+    isFetching: boolean;
+  };
 };
 
 export type LightspeedDashboardData = {
@@ -590,6 +816,73 @@ function formatLightspeedCustomerName(
   return email?.trim() || customerId || "Unnamed customer";
 }
 
+function formatSquareCustomerName(
+  name?: string | null,
+  email?: string | null,
+  customerId?: string | null,
+) {
+  if (name?.trim()) {
+    return name.trim();
+  }
+
+  return email?.trim() || customerId || "Unnamed customer";
+}
+
+function getSquareOrderType(order: BaseSquareSaleRow) {
+  if (order.fulfillment_type?.trim()) {
+    return order.fulfillment_type.trim();
+  }
+
+  if (order.fulfillment_state?.trim()) {
+    return order.fulfillment_state.trim();
+  }
+
+  if (order.raw_data && typeof order.raw_data === "object" && !Array.isArray(order.raw_data)) {
+    const rawData = order.raw_data as Record<string, unknown>;
+    const candidate = [rawData.order_type, rawData.orderType].find(
+      (value) => typeof value === "string" && value.trim().length > 0,
+    );
+
+    return typeof candidate === "string" ? candidate.trim() : null;
+  }
+
+  return null;
+}
+
+function hasSquareAutomationFired(rawData: Json | null | undefined) {
+  if (!rawData || typeof rawData !== "object" || Array.isArray(rawData)) {
+    return false;
+  }
+
+  const source = rawData as Record<string, unknown>;
+  const markers = [
+    source.triggers_fired,
+    source.triggersFired,
+    source.automation_fired,
+    source.automationFired,
+  ];
+
+  return markers.some((value) => {
+    if (Array.isArray(value)) {
+      return value.length > 0;
+    }
+
+    if (typeof value === "boolean") {
+      return value;
+    }
+
+    if (typeof value === "number") {
+      return value > 0;
+    }
+
+    if (typeof value === "string") {
+      return value.trim().length > 0;
+    }
+
+    return false;
+  });
+}
+
 function getLightspeedProductStockState(
   inventoryCount?: number | null,
 ): LightspeedProductStockState {
@@ -620,6 +913,136 @@ function normalizeLightspeedSyncLogRow(job: PosSyncJobRow): LightspeedSyncLogRow
 
 function getJsonArrayLength(value: Json | null | undefined) {
   return Array.isArray(value) ? value.length : 0;
+}
+
+function normalizeJsonStringList(value: Json | null | undefined) {
+  if (!Array.isArray(value)) {
+    return [] as string[];
+  }
+
+  return value
+    .flatMap((entry) => {
+      if (typeof entry === "string") {
+        return [entry.trim()];
+      }
+
+      if (entry && typeof entry === "object") {
+        const namedEntry = entry as {
+          name?: unknown;
+          label?: unknown;
+          value?: unknown;
+        };
+        const candidate = [namedEntry.name, namedEntry.label, namedEntry.value].find(
+          (item) => typeof item === "string" && item.trim().length > 0,
+        );
+
+        return typeof candidate === "string" ? [candidate.trim()] : [];
+      }
+
+      return [];
+    })
+    .filter((entry, index, allEntries) => Boolean(entry) && allEntries.indexOf(entry) === index);
+}
+
+function isJsonRecord(value: Json | null | undefined): value is Record<string, Json> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function normalizeCloverTestStatus(
+  status?: string | null,
+): "success" | "partial" | "failed" {
+  if (status === "success" || status === "partial") {
+    return status;
+  }
+
+  return "failed";
+}
+
+function parseCloverEndpointResult(
+  value: Json | null | undefined,
+): CloverConnectionTestEndpointResult {
+  if (!isJsonRecord(value)) {
+    return {
+      success: false,
+      error: "No result recorded",
+      timing_ms: 0,
+    };
+  }
+
+  return {
+    success: Boolean(value.success),
+    count: typeof value.count === "number" ? value.count : undefined,
+    samples: Array.isArray(value.samples) ? value.samples : undefined,
+    data: value.data,
+    error: typeof value.error === "string" ? value.error : undefined,
+    timing_ms: typeof value.timing_ms === "number" ? value.timing_ms : 0,
+    status_code:
+      typeof value.status_code === "number" ? value.status_code : undefined,
+  };
+}
+
+function parseCloverTestCounts(value: Json | null | undefined) {
+  const source = isJsonRecord(value) ? value : {};
+
+  return {
+    employees: typeof source.employees === "number" ? source.employees : 0,
+    customers: typeof source.customers === "number" ? source.customers : 0,
+    items: typeof source.items === "number" ? source.items : 0,
+    orders_last_30d:
+      typeof source.orders_last_30d === "number" ? source.orders_last_30d : 0,
+    payments_last_30d:
+      typeof source.payments_last_30d === "number"
+        ? source.payments_last_30d
+        : 0,
+  };
+}
+
+function parseCloverTestErrors(value: Json | null | undefined) {
+  if (!Array.isArray(value)) {
+    return [] as Array<{ endpoint: string; code: string; message: string }>;
+  }
+
+  return value.flatMap((entry) => {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+      return [];
+    }
+
+    const candidate = entry as Record<string, unknown>;
+
+    return [
+      {
+        endpoint:
+          typeof candidate.endpoint === "string" ? candidate.endpoint : "unknown",
+        code: typeof candidate.code === "string" ? candidate.code : "ERROR",
+        message:
+          typeof candidate.message === "string"
+            ? candidate.message
+            : "Unknown Clover test error",
+      },
+    ];
+  });
+}
+
+function parseCloverConnectionTestReport(
+  row: CloverConnectionTestRecord,
+): CloverConnectionTestReport {
+  const results = isJsonRecord(row.raw_results) ? row.raw_results : {};
+
+  return {
+    status: normalizeCloverTestStatus(row.status),
+    summary: row.summary ?? "Clover connection test completed.",
+    duration_ms: row.duration_ms ?? 0,
+    results: {
+      merchant: parseCloverEndpointResult(results.merchant),
+      employees: parseCloverEndpointResult(results.employees),
+      customers: parseCloverEndpointResult(results.customers),
+      inventory: parseCloverEndpointResult(results.inventory),
+      orders: parseCloverEndpointResult(results.orders),
+      payments: parseCloverEndpointResult(results.payments),
+    },
+    counts: parseCloverTestCounts(row.counts),
+    errors: parseCloverTestErrors(row.errors),
+  };
 }
 
 function isLightspeedJobStale(job: PosSyncJobRow) {
@@ -662,6 +1085,7 @@ export type MetaAssetRow = {
   secondaryLabel: string;
   connectedAt: string | null;
   lastActivityAt: string | null;
+  active: boolean;
 };
 
 export type MetaDetailData = {
@@ -676,6 +1100,7 @@ export type MetaDetailData = {
   facebookPageCount: number;
   instagramAccountCount: number;
   connectedAssetCount: number;
+  totalAssetCount: number;
   connectedPlatforms: string[];
   platformSummary: string;
   authorizationSummary: string;
@@ -687,26 +1112,52 @@ export type MetaDetailData = {
 
 type Ga4ConnectionRecord = {
   id: string;
+  tenant_id: string;
   property_id: string;
+  property_name: string | null;
+  measurement_id: string | null;
+  google_account_email: string | null;
   connection_status: string;
   service_account_configured: boolean;
+  last_pull_at: string | null;
   last_test_at: string | null;
+  last_test_status: string | null;
+  last_test_message: string | null;
   created_at: string;
   updated_at: string;
 };
 
+export type Ga4ConnectionTestResult = {
+  status: "success" | "error" | "idle";
+  title: string;
+  message: string;
+  checkedAt: string | null;
+};
+
 export type Ga4DetailData = {
   connectionId: string | null;
+  tenantId: string | null;
   propertyId: string | null;
+  propertyName: string | null;
   propertyLabel: string;
+  measurementId: string | null;
+  googleAccountEmail: string | null;
   connectionStatus: "connected" | "authorizing" | "error" | "not-connected" | string;
   connectionLabel: string;
+  authorizationLabel: string;
   serviceAccountConfigured: boolean;
+  readPermissionsConfirmed: boolean;
+  reportingStatus: string;
+  lastPullAt: string | null;
   lastTestAt: string | null;
+  lastTestStatus: "success" | "error" | "idle";
+  lastTestMessage: string | null;
+  latestConnectionTest: Ga4ConnectionTestResult;
   connectedAt: string | null;
   updatedAt: string | null;
   reportingPath: string;
   managementPath: string;
+  analyticsUrl: string;
   reportingSummary: string;
   canDisconnect: boolean;
 };
@@ -744,8 +1195,33 @@ type ImportJobRecord = {
   report: unknown;
 };
 
+type MarketingImportFieldRow = {
+  label: string;
+  value: string;
+  description?: string;
+  tone?: IntegrationDetailTone;
+  valueClassName?: string;
+  copyValue?: string | null;
+  copyLabel?: string;
+};
+
+type MarketingImportStatePresentation = {
+  label: string;
+  subtitle: string;
+  tone: IntegrationDetailTone;
+  valueClassName: string;
+};
+
+type MarketingImportDangerZone = {
+  title: string;
+  description: string;
+  confirmDescription: string;
+  bullets: string[];
+};
+
 export type MarketingImportDetailData = {
   provider: MarketingProviderKey;
+  providerSlug: "mailchimp" | "klaviyo" | "constant-contact";
   providerLabel: string;
   providerDescription: string;
   connectionId: string | null;
@@ -764,10 +1240,29 @@ export type MarketingImportDetailData = {
   latestImportStartedAt: string | null;
   latestImportCompletedAt: string | null;
   latestImportSummary: string;
+  latestImportLabel: string;
+  latestImportTone: IntegrationDetailTone;
+  contactsImportedAllTime: number;
+  importJobCount: number;
   importFlowPath: string;
   previewListsPath: string;
   purposeLabel: string;
   liveSyncLabel: string;
+  importOnlyLabel: string;
+  connectionState: MarketingImportStatePresentation;
+  authorizationLabel: string;
+  authorizationSummary: string;
+  authorizationModelLabel: string;
+  healthRows: {
+    authorization: IntegrationDetailRow[];
+    importHistory: IntegrationDetailRow[];
+  };
+  timeline: IntegrationDetailTimelineEntry[];
+  connectionDetailsRows: MarketingImportFieldRow[];
+  capabilityRows: MarketingImportFieldRow[];
+  supportsRevokeToken: boolean;
+  supportsValidateConnection: boolean;
+  dangerZone: MarketingImportDangerZone;
   capabilities: string[];
   canDisconnect: boolean;
 };
@@ -778,6 +1273,8 @@ type EmailInfrastructureDomainRecord = {
   status: string;
   created_at: string | null;
   updated_at: string | null;
+  env: string | null;
+  is_sandbox: boolean | null;
   verified_at: string | null;
   last_verify_attempt_at: string | null;
   last_verify_error: string | null;
@@ -817,7 +1314,31 @@ type EmailInfrastructureDnsStatus = {
   purpose: string;
   required: boolean;
   verified: boolean;
+  verificationState:
+    | "verified"
+    | "incorrect"
+    | "missing"
+    | "not-configured";
+  statusLabel: string;
+  statusTone: IntegrationDetailTone;
+  statusReason: string;
   lastCheckedAt: string | null;
+};
+
+type EmailInfrastructureFieldRow = {
+  label: string;
+  value: string;
+  description?: string;
+  tone?: IntegrationDetailTone;
+  copyValue?: string | null;
+  copyLabel?: string;
+};
+
+type EmailInfrastructureSetupTool = {
+  label: string;
+  description: string;
+  path: string;
+  tone?: IntegrationDetailTone;
 };
 
 export type EmailInfrastructureDetailData = {
@@ -828,6 +1349,8 @@ export type EmailInfrastructureDetailData = {
   primaryDomain: string | null;
   primaryStatus: string;
   primaryStatusLabel: string;
+  environmentLabel: string;
+  isSandbox: boolean;
   providerLabel: string;
   providerModeLabel: string;
   domainCount: number;
@@ -854,10 +1377,23 @@ export type EmailInfrastructureDetailData = {
   verifiedAt: string | null;
   lastVerifyAttemptAt: string | null;
   lastError: string | null;
+  banner: {
+    tone: "info" | "warning";
+    title: string;
+    description: string;
+  } | null;
   readinessSummary: string;
   configurationSummary: string;
   healthSummary: string;
   domainConnectSummary: string;
+  healthRows: {
+    domain: IntegrationDetailRow[];
+    dnsHealth: IntegrationDetailRow[];
+    sendingHealth: IntegrationDetailRow[];
+  };
+  configurationRows: EmailInfrastructureFieldRow[];
+  protocolRows: EmailInfrastructureFieldRow[];
+  setupToolRows: EmailInfrastructureSetupTool[];
   dnsRecords: EmailInfrastructureDnsStatus[];
   domainSettingsPath: string;
   emailSettingsPath: string;
@@ -874,8 +1410,10 @@ type DetailResult = {
   requestPath?: string;
   squareConnection?: SquareConnectionRecord | null;
   squareDetail?: SquareDetailData;
+  squareDashboard?: SquareDashboardData;
   cloverConnection?: CloverConnectionRecord | null;
   cloverDetail?: CloverDetailData;
+  cloverDashboard?: CloverDashboardData;
   lightspeedConnection?: LightspeedConnectionRecord | null;
   lightspeedDetail?: LightspeedDetailData;
   metaConnections?: MetaConnectionRecord[] | null;
@@ -913,6 +1451,7 @@ function buildComingSoonDetailData(
 
   return {
     ...content,
+    integrationName: seed.name,
     notifyEmail,
     requestPath: buildComingSoonRequestPath(seed.name),
     isSubmitted,
@@ -923,36 +1462,52 @@ const MARKETING_PROVIDER_META: Record<
   MarketingProviderKey,
   {
     label: string;
+    slug: "mailchimp" | "klaviyo" | "constant-contact";
     description: string;
     capabilities: string[];
+    authorizationModelLabel: string;
+    supportsRevokeToken: boolean;
+    supportsValidateConnection: boolean;
   }
 > = {
   mailchimp: {
     label: "Mailchimp",
+    slug: "mailchimp",
     description: "Import audiences, tags, and list structure from Mailchimp.",
     capabilities: [
       "Preview available audiences before importing",
       "Start one-time contact imports into BloomSuite",
       "Preserve list and segment structure for review",
     ],
+    authorizationModelLabel: "OAuth authorization",
+    supportsRevokeToken: true,
+    supportsValidateConnection: false,
   },
   klaviyo: {
     label: "Klaviyo",
+    slug: "klaviyo",
     description: "Import lists and audience structure from Klaviyo.",
     capabilities: [
       "Preview available lists before importing",
       "Start one-time contact imports into BloomSuite",
       "Retain imported audience groupings for CRM review",
     ],
+    authorizationModelLabel: "API key connection",
+    supportsRevokeToken: false,
+    supportsValidateConnection: true,
   },
   constant_contact: {
     label: "Constant Contact",
+    slug: "constant-contact",
     description: "Import contact lists from Constant Contact.",
     capabilities: [
       "Preview available contact lists before importing",
       "Start one-time contact imports into BloomSuite",
       "Reuse the existing migration wizard without enabling live sync",
     ],
+    authorizationModelLabel: "OAuth authorization",
+    supportsRevokeToken: true,
+    supportsValidateConnection: false,
   },
 };
 
@@ -1004,33 +1559,269 @@ function countUniqueArtifacts(
   ).size;
 }
 
+function sumImportReportCount(importJobs: ImportJobRecord[], key: string) {
+  return importJobs.reduce((total, job) => {
+    const value = getImportReportCount(job.report, key);
+    return total + (value ?? 0);
+  }, 0);
+}
+
+function formatMarketingImportStatusLabel(status?: string | null) {
+  if (!status) {
+    return "Not started";
+  }
+
+  switch (status.trim().toLowerCase()) {
+    case "completed":
+      return "Completed";
+    case "running":
+    case "processing":
+    case "in_progress":
+      return "Running";
+    case "failed":
+      return "Failed";
+    case "cancelled":
+      return "Cancelled";
+    case "queued":
+    case "pending":
+      return "Queued";
+    default:
+      return status
+        .split(/[\s_-]+/)
+        .filter(Boolean)
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(" ");
+  }
+}
+
+function getMarketingImportStatusTone(status?: string | null): IntegrationDetailTone {
+  switch (status?.trim().toLowerCase()) {
+    case "completed":
+      return "success";
+    case "failed":
+      return "danger";
+    case "queued":
+    case "pending":
+    case "running":
+    case "processing":
+    case "in_progress":
+      return "warning";
+    default:
+      return "neutral";
+  }
+}
+
+function getMarketingImportConnectionState(
+  provider: MarketingProviderKey,
+  connection: MarketingProviderConnectionRecord | null,
+): MarketingImportStatePresentation {
+  if (connection?.status === "connected") {
+    return {
+      label: provider === "klaviyo" ? "Validated" : "Authorized",
+      subtitle:
+        provider === "klaviyo"
+          ? "Stored credential is ready for list previews and one-time imports"
+          : "Stored authorization is ready for list previews and one-time imports",
+      tone: "success",
+      valueClassName: "text-emerald-600",
+    };
+  }
+
+  return {
+    label: "Action required",
+    subtitle:
+      provider === "klaviyo"
+        ? "Connect Klaviyo to validate the stored credential before importing"
+        : "Connect this provider to authorize previews and one-time imports",
+    tone: "warning",
+    valueClassName: "text-amber-600",
+  };
+}
+
+function buildMarketingImportCapabilityRows(
+  provider: MarketingProviderKey,
+  listCount: number,
+  segmentCount: number,
+): MarketingImportFieldRow[] {
+  if (provider === "mailchimp") {
+    return [
+      {
+        label: "Audience Lists",
+        value: formatCount(listCount),
+        description:
+          listCount > 0
+            ? "Cached Mailchimp audiences are available for preview and import planning."
+            : "Preview lists to cache Mailchimp audience metadata.",
+        tone: listCount > 0 ? "success" : "neutral",
+      },
+      {
+        label: "Tags and Segments",
+        value: formatCount(segmentCount),
+        description:
+          segmentCount > 0
+            ? "Mailchimp segments and tags are available for import review."
+            : "Segment artifacts will appear after list preview when available.",
+        tone: segmentCount > 0 ? "success" : "neutral",
+      },
+      {
+        label: "Consent History",
+        value: "Available",
+        description:
+          "Mailchimp email consent state can be carried with imported contacts.",
+        tone: "success",
+      },
+    ];
+  }
+
+  if (provider === "klaviyo") {
+    return [
+      {
+        label: "Profiles",
+        value: "Available",
+        description:
+          "One-time profile imports are available through the existing migration wizard.",
+        tone: "success",
+      },
+      {
+        label: "Lists and Segments",
+        value: `${formatCount(listCount)} lists • ${formatCount(segmentCount)} segments`,
+        description:
+          "Preview lists to refresh cached audience structure before importing.",
+        tone: listCount > 0 || segmentCount > 0 ? "success" : "neutral",
+      },
+      {
+        label: "SMS Consent",
+        value: "Supported",
+        description:
+          "Klaviyo SMS consent can be imported alongside profile data when present.",
+        tone: "success",
+      },
+    ];
+  }
+
+  return [
+    {
+      label: "Contact Lists",
+      value: formatCount(listCount),
+      description:
+        listCount > 0
+          ? "Constant Contact lists are available for preview and import planning."
+          : "Preview lists to cache Constant Contact list metadata.",
+      tone: listCount > 0 ? "success" : "neutral",
+    },
+    {
+      label: "Event Registrations",
+      value: "Unavailable",
+      description:
+        "Event registration data is not imported from Constant Contact in this workflow.",
+      tone: "neutral",
+      valueClassName: "text-slate-600",
+    },
+    {
+      label: "Survey Responses",
+      value: "Unavailable",
+      description:
+        "Survey response data is not imported from Constant Contact in this workflow.",
+      tone: "neutral",
+      valueClassName: "text-slate-600",
+    },
+  ];
+}
+
+function buildMarketingImportDangerZone(
+  provider: MarketingProviderKey,
+  providerLabel: string,
+  authorizationModelLabel: string,
+): MarketingImportDangerZone {
+  const revokeLabel =
+    provider === "klaviyo" ? "stored credential" : authorizationModelLabel.toLowerCase();
+
+  return {
+    title: `Disconnect ${providerLabel}`,
+    description: `Disconnect ${providerLabel} by removing the ${revokeLabel} used for import previews and one-time imports.`,
+    confirmDescription:
+      provider === "klaviyo"
+        ? `Disconnecting ${providerLabel} removes the stored connection details for this tenant and stops future previews or imports until the provider is connected again.`
+        : `Disconnecting ${providerLabel} revokes the stored authorization and stops future previews or imports until the provider is connected again.`,
+    bullets: [
+      "Future list previews will stop until the provider is connected again.",
+      "New one-time imports cannot be started while the connection is removed.",
+      "Previously imported CRM records are not deleted from BloomSuite.",
+    ],
+  };
+}
+
 function buildGa4DetailData(
   connection: Ga4ConnectionRecord | null,
   canDisconnect: boolean,
 ): Ga4DetailData {
-  const propertyLabel = connection?.property_id
-    ? `Property ${connection.property_id}`
-    : "Property pending";
+  const propertyLabel =
+    connection?.property_name?.trim() ||
+    (connection?.property_id ? `Property ${connection.property_id}` : "—");
   const isConnected = connection?.connection_status === "connected";
+  const lastTestStatus =
+    connection?.last_test_status === "success"
+      ? "success"
+      : connection?.last_test_status === "error"
+        ? "error"
+        : "idle";
+  const latestConnectionTest: Ga4ConnectionTestResult =
+    lastTestStatus === "success"
+      ? {
+          status: "success",
+          title: "Test passed",
+          message:
+            connection?.last_test_message ??
+            "Property accessible · Sessions data available",
+          checkedAt: connection?.last_test_at ?? null,
+        }
+      : lastTestStatus === "error"
+        ? {
+            status: "error",
+            title: "Test failed",
+            message:
+              connection?.last_test_message ??
+              "BloomSuite could not verify this GA4 connection.",
+            checkedAt: connection?.last_test_at ?? null,
+          }
+        : {
+            status: "idle",
+            title: "No test run yet",
+            message:
+              "No test run yet. Click 'Run Test' to verify your connection.",
+            checkedAt: null,
+          };
 
   return {
     connectionId: connection?.id ?? null,
+    tenantId: connection?.tenant_id ?? null,
     propertyId: connection?.property_id ?? null,
+    propertyName: connection?.property_name ?? null,
     propertyLabel,
+    measurementId: connection?.measurement_id ?? null,
+    googleAccountEmail: connection?.google_account_email ?? null,
     connectionStatus: connection?.connection_status ?? "not-connected",
     connectionLabel: isConnected
       ? "Connected"
       : connection?.connection_status === "error"
-        ? "Attention needed"
+        ? "Reconnect required"
         : connection?.connection_status === "authorizing"
           ? "Authorizing"
           : "Not connected",
+    authorizationLabel: isConnected ? "Authorized" : "Reconnect required",
     serviceAccountConfigured: Boolean(connection?.service_account_configured),
+    readPermissionsConfirmed: Boolean(connection?.service_account_configured),
+    reportingStatus: isConnected ? "Active" : "Unavailable",
+    lastPullAt: connection?.last_pull_at ?? null,
     lastTestAt: connection?.last_test_at ?? null,
+    lastTestStatus,
+    lastTestMessage: connection?.last_test_message ?? null,
+    latestConnectionTest,
     connectedAt: connection?.created_at ?? null,
     updatedAt: connection?.updated_at ?? null,
     reportingPath: "/integrations/website",
     managementPath: "/integrations/website",
+    analyticsUrl: "https://analytics.google.com",
     reportingSummary: isConnected
       ? "Website analytics reporting is available from the Website integrations page."
       : "Connect a GA4 property to unlock website analytics reporting.",
@@ -1042,10 +1833,11 @@ function buildMarketingImportDetailData(
   provider: MarketingProviderKey,
   connection: MarketingProviderConnectionRecord | null,
   artifacts: ProviderArtifactRecord[],
-  latestImport: ImportJobRecord | null,
+  importJobs: ImportJobRecord[],
   canDisconnect: boolean,
 ): MarketingImportDetailData {
   const providerMeta = MARKETING_PROVIDER_META[provider];
+  const latestImport = importJobs[0] ?? null;
   const accountName =
     connection?.provider_account_name ??
     getMetadataString(connection?.metadata, ["accountname", "name", "organization_name"]);
@@ -1059,6 +1851,13 @@ function buildMarketingImportDetailData(
   const contactsImported = getImportReportCount(latestImport?.report, "contacts_imported");
   const segmentsCreated = getImportReportCount(latestImport?.report, "segments_created");
   const errorCount = getImportReportErrorCount(latestImport?.report);
+  const contactsImportedAllTime = sumImportReportCount(
+    importJobs,
+    "contacts_imported",
+  );
+  const connectionState = getMarketingImportConnectionState(provider, connection);
+  const latestImportLabel = formatMarketingImportStatusLabel(latestImport?.status);
+  const latestImportTone = getMarketingImportStatusTone(latestImport?.status);
   const latestImportSummary = latestImport
     ? [
         contactsImported !== null
@@ -1070,9 +1869,163 @@ function buildMarketingImportDetailData(
         .filter((value): value is string => Boolean(value))
         .join(" • ") || `Latest import status: ${latestImport.status}`
     : "No import job has been recorded yet.";
+  const authorizationLabel =
+    provider === "klaviyo"
+      ? connection
+        ? "API key configured"
+        : "API key required"
+      : connection
+        ? "OAuth authorization active"
+        : "OAuth authorization required";
+  const authorizationSummary =
+    provider === "klaviyo"
+      ? connection
+        ? "Klaviyo credentials are stored securely for preview and import flows. The raw API key is never shown from this page."
+        : "Connect Klaviyo to validate the stored credential before importing profiles."
+      : connection
+        ? `${providerMeta.label} authorization is active for previews and one-time imports.`
+        : `Connect ${providerMeta.label} to authorize list previews and one-time contact imports.`;
+  const authorizationRows: IntegrationDetailRow[] = [
+    {
+      label: providerMeta.authorizationModelLabel,
+      value: authorizationLabel,
+      tone: connection ? "success" : "warning",
+      tooltip: authorizationSummary,
+    },
+    {
+      label: "Connection updated",
+      value: connection?.updated_at ? "Recently updated" : "No update recorded",
+      timestamp: connection?.updated_at ?? connection?.connected_at ?? null,
+      tone: connection ? "neutral" : "warning",
+      tooltip:
+        connection?.updated_at ?? connection?.connected_at
+          ? "Latest connection metadata refresh recorded for this provider."
+          : "No provider connection metadata is stored yet.",
+    },
+  ];
+  const latestImportActivityAt =
+    latestImport?.completed_at ?? latestImport?.updated_at ?? latestImport?.created_at ?? null;
+  const importHistoryRows: IntegrationDetailRow[] = [
+    {
+      label: "Latest Import",
+      value: latestImportLabel,
+      tone: latestImport ? latestImportTone : "warning",
+      tooltip: latestImportSummary,
+    },
+    {
+      label: "Last import activity",
+      value: latestImportActivityAt ? "Activity recorded" : "No import activity yet",
+      timestamp: latestImportActivityAt,
+      tone: latestImport ? latestImportTone : "warning",
+      tooltip: latestImportSummary,
+    },
+    {
+      label: "Contacts Imported",
+      value: formatCount(contactsImportedAllTime),
+      tone: contactsImportedAllTime > 0 ? "success" : "neutral",
+      tooltip: `${importJobs.length} import job${importJobs.length === 1 ? "" : "s"} recorded for this provider.`,
+    },
+  ];
+  const timeline: IntegrationDetailTimelineEntry[] = [
+    {
+      key: `${provider}-connected`,
+      label: connection ? `${providerMeta.label} connected` : `${providerMeta.label} not connected`,
+      timestamp: connection?.connected_at ?? connection?.created_at ?? null,
+      tone: connection ? "success" : "warning",
+    },
+  ];
+
+  if (latestImport?.created_at) {
+    timeline.push({
+      key: `${provider}-import-started`,
+      label: `${providerMeta.label} import started`,
+      timestamp: latestImport.created_at,
+      tone: latestImportTone === "danger" ? "warning" : "neutral",
+    });
+  }
+
+  if (latestImport?.completed_at) {
+    timeline.push({
+      key: `${provider}-import-completed`,
+      label:
+        latestImportTone === "danger"
+          ? `${providerMeta.label} import failed`
+          : `${providerMeta.label} import completed`,
+      timestamp: latestImport.completed_at,
+      tone: latestImportTone,
+    });
+  }
+
+  const connectionDetailsRows: MarketingImportFieldRow[] = [
+    {
+      label: "Provider",
+      value: providerMeta.label,
+    },
+    {
+      label: "Authorization",
+      value: connectionState.label,
+      description: connectionState.subtitle,
+      tone: connectionState.tone,
+      valueClassName: connectionState.valueClassName,
+    },
+    {
+      label: "Account Name",
+      value: accountName ?? "Not connected yet",
+    },
+    {
+      label: "Account ID",
+      value: connection?.provider_account_id ?? "Not available",
+      copyValue: connection?.provider_account_id ?? null,
+      copyLabel: "Account ID",
+    },
+    {
+      label: "Contact Email",
+      value: contactEmail ?? "Not available",
+    },
+    {
+      label: "Connected Since",
+      value: connection?.connected_at ?? connection?.created_at ?? "Not connected",
+      description:
+        connection?.connected_at || connection?.created_at
+          ? "Stored connection timestamp for this tenant."
+          : "No provider connection is stored yet.",
+    },
+  ];
+
+  if (provider === "klaviyo") {
+    connectionDetailsRows.push({
+      label: "Credential Type",
+      value: "API key",
+      description:
+        "Stored securely for import workflows. The raw API key is never displayed here.",
+      tone: connection ? "success" : "warning",
+    });
+  } else {
+    connectionDetailsRows.push({
+      label: "Token Expiry",
+      value: connection?.token_expires_at ?? "No expiry reported",
+      description:
+        connection?.token_expires_at
+          ? "OAuth token expiry reported by the provider connection."
+          : "This provider did not report a token expiry for the current connection.",
+      tone: connection?.token_expires_at ? "neutral" : "warning",
+    });
+  }
+
+  const capabilityRows = buildMarketingImportCapabilityRows(
+    provider,
+    listCount,
+    segmentCount,
+  );
+  const dangerZone = buildMarketingImportDangerZone(
+    provider,
+    providerMeta.label,
+    providerMeta.authorizationModelLabel,
+  );
 
   return {
     provider,
+    providerSlug: providerMeta.slug,
     providerLabel: providerMeta.label,
     providerDescription: providerMeta.description,
     connectionId: connection?.id ?? null,
@@ -1096,10 +2049,29 @@ function buildMarketingImportDetailData(
     latestImportStartedAt: latestImport?.created_at ?? null,
     latestImportCompletedAt: latestImport?.completed_at ?? null,
     latestImportSummary,
+    latestImportLabel,
+    latestImportTone,
+    contactsImportedAllTime,
+    importJobCount: importJobs.length,
     importFlowPath: `/integrations/migrations?provider=${provider}`,
     previewListsPath: `/integrations/migrations?provider=${provider}&step=choose`,
     purposeLabel: "Contact Import",
     liveSyncLabel: "Not available",
+    importOnlyLabel: "Import only",
+    connectionState,
+    authorizationLabel,
+    authorizationSummary,
+    authorizationModelLabel: providerMeta.authorizationModelLabel,
+    healthRows: {
+      authorization: authorizationRows,
+      importHistory: importHistoryRows,
+    },
+    timeline,
+    connectionDetailsRows,
+    capabilityRows,
+    supportsRevokeToken: providerMeta.supportsRevokeToken,
+    supportsValidateConnection: providerMeta.supportsValidateConnection,
+    dangerZone,
     capabilities: providerMeta.capabilities,
     canDisconnect,
   };
@@ -1107,6 +2079,34 @@ function buildMarketingImportDetailData(
 
 function normalizeInfrastructureValue(value: string | null | undefined) {
   return value?.trim().replace(/\.$/, "").toLowerCase() ?? null;
+}
+
+function formatIsoDate(timestamp: string | null | undefined) {
+  if (!timestamp) {
+    return "Not available";
+  }
+
+  const parsed = new Date(timestamp);
+
+  if (Number.isNaN(parsed.getTime())) {
+    return "Not available";
+  }
+
+  return parsed.toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+function formatRate(value?: number | null) {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return "0%";
+  }
+
+  return `${value >= 10 ? value.toFixed(0) : value.toFixed(1)}%`;
 }
 
 function getEmailInfrastructureStatusLabel(status: string | null | undefined) {
@@ -1171,6 +2171,152 @@ function getEmailInfrastructureProviderModeLabel(
   return "Manual DNS setup";
 }
 
+function getEmailInfrastructureEnvironmentLabel(
+  domain: EmailInfrastructureDomainRecord | null,
+) {
+  if (domain?.is_sandbox) {
+    return "Sandbox";
+  }
+
+  if (domain?.env === "dev") {
+    return "Development";
+  }
+
+  if (domain?.env === "prod") {
+    return "Production";
+  }
+
+  return "Environment pending";
+}
+
+function getInfrastructureToneFromVerificationState(
+  state: EmailInfrastructureDnsStatus["verificationState"],
+): IntegrationDetailTone {
+  switch (state) {
+    case "verified":
+      return "success";
+    case "incorrect":
+      return "danger";
+    case "missing":
+      return "warning";
+    default:
+      return "neutral";
+  }
+}
+
+function getInfrastructureLabelFromVerificationState(
+  state: EmailInfrastructureDnsStatus["verificationState"],
+) {
+  switch (state) {
+    case "verified":
+      return "Verified";
+    case "incorrect":
+      return "Incorrect";
+    case "missing":
+      return "Missing";
+    default:
+      return "Not configured";
+  }
+}
+
+function getInfrastructurePurposeLabel(purpose: string) {
+  switch (purpose) {
+    case "spf":
+      return "SPF";
+    case "dkim":
+      return "DKIM";
+    case "dmarc":
+      return "DMARC";
+    case "return_path":
+      return "Return Path";
+    case "verification":
+      return "Verification";
+    default:
+      return purpose
+        .split("_")
+        .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+        .join(" ");
+  }
+}
+
+function getEmailInfrastructureDnsBadge(
+  primaryDomain: EmailInfrastructureDomainRecord | null,
+  dnsStatuses: EmailInfrastructureDnsStatus[],
+): Pick<EmailInfrastructureDetailData, "badgeLabel" | "badgeTone"> {
+  if (!primaryDomain) {
+    return { badgeLabel: "Setup required", badgeTone: "neutral" };
+  }
+
+  if (dnsStatuses.length === 0) {
+    return { badgeLabel: "DNS setup needed", badgeTone: "warning" };
+  }
+
+  if (dnsStatuses.some((record) => record.verificationState === "incorrect")) {
+    return { badgeLabel: "DNS issues", badgeTone: "danger" };
+  }
+
+  if (dnsStatuses.some((record) => record.verificationState === "missing")) {
+    return { badgeLabel: "DNS pending", badgeTone: "warning" };
+  }
+
+  return { badgeLabel: "DNS healthy", badgeTone: "success" };
+}
+
+function buildEmailInfrastructureBanner(
+  primaryDomain: EmailInfrastructureDomainRecord | null,
+  dnsStatuses: EmailInfrastructureDnsStatus[],
+  providerModeLabel: string,
+) {
+  if (!primaryDomain) {
+    return {
+      tone: "warning" as const,
+      title: "No sending domain configured",
+      description:
+        "Add a sending domain before BloomSuite can verify DNS, evaluate sending health, or run infrastructure checks.",
+    };
+  }
+
+  if (primaryDomain.is_sandbox) {
+    return {
+      tone: "info" as const,
+      title: "Sandbox sending domain",
+      description:
+        "This domain is marked as sandbox-only. Use it for setup validation and test sending, not production traffic.",
+    };
+  }
+
+  if (primaryDomain.last_verify_error || primaryDomain.error) {
+    return {
+      tone: "warning" as const,
+      title: "Recent DNS verification issue",
+      description:
+        primaryDomain.last_verify_error ??
+        primaryDomain.error ??
+        "BloomSuite recorded a recent verification problem for this domain.",
+    };
+  }
+
+  if (dnsStatuses.some((record) => record.verificationState === "incorrect")) {
+    return {
+      tone: "warning" as const,
+      title: "DNS records need correction",
+      description:
+        `At least one required DNS record is present with the wrong value. Review the records below or open ${providerModeLabel.toLowerCase()} to repair the domain.`,
+    };
+  }
+
+  if (dnsStatuses.some((record) => record.verificationState === "missing")) {
+    return {
+      tone: "warning" as const,
+      title: "DNS verification still in progress",
+      description:
+        "BloomSuite can see the domain, but one or more required DNS records are still missing from public DNS results.",
+    };
+  }
+
+  return null;
+}
+
 function getEmailInfrastructureHealthStatus(
   checks: EmailInfrastructureHealthCheck[],
 ): Pick<
@@ -1221,12 +2367,31 @@ function getEmailInfrastructureHealthStatus(
   };
 }
 
+function getEmailInfrastructureHealthTone(
+  status: EmailInfrastructureDetailData["healthCheckStatus"],
+): IntegrationDetailTone {
+  switch (status) {
+    case "healthy":
+      return "success";
+    case "warning":
+      return "warning";
+    case "error":
+      return "danger";
+    default:
+      return "neutral";
+  }
+}
+
 function buildEmailInfrastructureVerificationMap(
   domain: EmailInfrastructureDomainRecord | null,
 ) {
   const verificationMap = new Map<
     string,
-    { verified: boolean; lastCheckedAt: string | null }
+    {
+      verificationState: EmailInfrastructureDnsStatus["verificationState"];
+      lastCheckedAt: string | null;
+      statusReason: string;
+    }
   >();
   const resendStatus = asObject(domain?.resend_status);
   const directDns = asObject(resendStatus?.direct_dns);
@@ -1252,9 +2417,19 @@ function buildEmailInfrastructureVerificationMap(
     verificationMap.set(
       `${type}:${normalizeInfrastructureValue(name)}`,
       {
-        verified:
-          Boolean(source?.dns_verified) || source?.status === "verified",
+        verificationState:
+          Boolean(source?.dns_verified) || source?.status === "verified"
+            ? "verified"
+            : Boolean(source?.has_conflict)
+              ? "incorrect"
+              : "missing",
         lastCheckedAt: null,
+        statusReason:
+          typeof source?.status === "string"
+            ? `Provider reported ${source.status}`
+            : Boolean(source?.has_conflict)
+              ? "Provider reported a conflicting value"
+              : "Provider has not verified this record yet",
       },
     );
   }
@@ -1271,11 +2446,20 @@ function buildEmailInfrastructureVerificationMap(
     verificationMap.set(
       `${type}:${normalizeInfrastructureValue(fqdn)}`,
       {
-        verified: Boolean(source?.found) || Boolean(source?.verified),
+        verificationState: Boolean(source?.verified)
+          ? "verified"
+          : Boolean(source?.found)
+            ? "incorrect"
+            : "missing",
         lastCheckedAt:
           typeof source?.last_checked_at === "string"
             ? source.last_checked_at
             : null,
+        statusReason: Boolean(source?.verified)
+          ? "Public DNS matches the expected value"
+          : Boolean(source?.found)
+            ? "Public DNS found a record, but the value does not match"
+            : "Public DNS did not return the expected record",
       },
     );
   }
@@ -1300,10 +2484,16 @@ function buildEmailInfrastructureDetailData(
     const match = verificationMap.get(
       `${record.type}:${normalizeInfrastructureValue(record.name)}`,
     );
+    const verificationState = match?.verificationState ?? "missing";
 
     return {
       ...record,
-      verified: match?.verified ?? false,
+      verified: verificationState === "verified",
+      verificationState,
+      statusLabel: getInfrastructureLabelFromVerificationState(verificationState),
+      statusTone: getInfrastructureToneFromVerificationState(verificationState),
+      statusReason:
+        match?.statusReason ?? "BloomSuite has not verified this DNS record yet",
       lastCheckedAt: match?.lastCheckedAt ?? null,
     };
   });
@@ -1313,6 +2503,7 @@ function buildEmailInfrastructureDetailData(
   const dnsVerifiedCount = dnsStatuses.filter((record) => record.verified).length;
   const providerLabel = getEmailInfrastructureProviderLabel(primaryDomain);
   const providerModeLabel = getEmailInfrastructureProviderModeLabel(primaryDomain);
+  const environmentLabel = getEmailInfrastructureEnvironmentLabel(primaryDomain);
   const primaryStatusLabel = getEmailInfrastructureStatusLabel(primaryDomain?.status);
   const healthState = getEmailInfrastructureHealthStatus(healthChecks);
   const reputationScore =
@@ -1347,20 +2538,192 @@ function buildEmailInfrastructureDetailData(
       : 0;
   const deliveryRate30d = sent30d > 0 ? (delivered30d / sent30d) * 100 : 0;
   const bounceRate30d = sent30d > 0 ? (bounced30d / sent30d) * 100 : 0;
+  const badge = getEmailInfrastructureDnsBadge(primaryDomain, dnsStatuses);
+  const banner = buildEmailInfrastructureBanner(
+    primaryDomain,
+    dnsStatuses,
+    providerModeLabel,
+  );
+  const purposeRows = ["spf", "dkim", "dmarc"].map((purpose) => {
+    const matchingRecords = dnsStatuses.filter((record) => record.purpose === purpose);
+    const hasIncorrect = matchingRecords.some(
+      (record) => record.verificationState === "incorrect",
+    );
+    const hasMissing = matchingRecords.some(
+      (record) => record.verificationState === "missing",
+    );
+    const allVerified =
+      matchingRecords.length > 0 &&
+      matchingRecords.every((record) => record.verificationState === "verified");
+    const verificationState =
+      matchingRecords.length === 0
+        ? "not-configured"
+        : hasIncorrect
+          ? "incorrect"
+          : hasMissing
+            ? "missing"
+            : allVerified
+              ? "verified"
+              : "not-configured";
+
+    return {
+      label: getInfrastructurePurposeLabel(purpose),
+      value: getInfrastructureLabelFromVerificationState(verificationState),
+      description:
+        matchingRecords.length > 0
+          ? matchingRecords
+              .map((record) => `${record.type} ${record.name}`)
+              .join(" • ")
+          : "No record is currently stored for this protocol",
+      tone: getInfrastructureToneFromVerificationState(verificationState),
+    } satisfies EmailInfrastructureFieldRow;
+  });
+  const configurationRows: EmailInfrastructureFieldRow[] = [
+    {
+      label: "Primary Domain",
+      value: primaryDomain?.domain ?? "No sending domain configured",
+      description:
+        primaryDomain?.created_at
+          ? `Added ${formatIsoDate(primaryDomain.created_at)}`
+          : "Open domain settings to add a sending domain",
+      tone: primaryDomain ? "success" : "warning",
+      copyValue: primaryDomain?.domain ?? null,
+      copyLabel: "Primary domain",
+    },
+    {
+      label: "Status",
+      value: primaryStatusLabel,
+      description: environmentLabel,
+      tone:
+        primaryDomain && ["active", "warming_up"].includes(primaryDomain.status)
+          ? "success"
+          : primaryDomain
+            ? "warning"
+            : "neutral",
+    },
+    {
+      label: "Provider",
+      value: providerLabel,
+      description: providerModeLabel,
+    },
+    {
+      label: "Verified At",
+      value: primaryDomain?.verified_at ? formatIsoDate(primaryDomain.verified_at) : "Not verified yet",
+      description:
+        primaryDomain?.last_verify_attempt_at
+          ? `Last DNS check ${formatIsoDate(primaryDomain.last_verify_attempt_at)}`
+          : "No verification attempts recorded yet",
+      tone: primaryDomain?.verified_at ? "success" : "warning",
+    },
+  ];
+  const healthRows = {
+    domain: [
+      {
+        label: "Primary Domain",
+        value: primaryDomain?.domain ?? "Setup required",
+        tone: primaryDomain ? "success" : "warning",
+        tooltip:
+          primaryDomain?.domain ??
+          "No domain is configured for BloomSuite email sending yet.",
+      },
+      {
+        label: "Status",
+        value: primaryStatusLabel,
+        tone:
+          primaryDomain && ["active", "warming_up"].includes(primaryDomain.status)
+            ? "success"
+            : primaryDomain
+              ? "warning"
+              : "neutral",
+        tooltip: providerModeLabel,
+      },
+      {
+        label: "Environment",
+        value: environmentLabel,
+        tone: primaryDomain?.is_sandbox ? "warning" : "neutral",
+        tooltip: primaryDomain?.is_sandbox
+          ? "Sandbox domains are intended for setup validation and low-risk test sending."
+          : "Production domains are used for live sending.",
+      },
+    ],
+    dnsHealth: purposeRows.map((row) => ({
+      label: row.label,
+      value: row.value,
+      tone: row.tone,
+      tooltip: row.description,
+    })),
+    sendingHealth: [
+      {
+        label: "Health Check",
+        value: healthState.healthCheckLabel,
+        tone: getEmailInfrastructureHealthTone(healthState.healthCheckStatus),
+        tooltip: healthState.latestHealthCheckAt
+          ? `Latest DNS check ${formatIsoDate(healthState.latestHealthCheckAt)}`
+          : "No infrastructure checks have been recorded yet.",
+      },
+      {
+        label: "Reputation",
+        value:
+          reputationScore !== null
+            ? `${Math.round(reputationScore)} ${typeof healthDashboard?.reputation_tier === "string" ? `• ${healthDashboard.reputation_tier}` : ""}`.trim()
+            : "Unavailable",
+        tone: reputationScore !== null ? "success" : "neutral",
+        tooltip:
+          reputationScore !== null
+            ? `${sent24h.toLocaleString()} sent in the last 24 hours`
+            : "Tenant reputation data is not available yet.",
+      },
+      {
+        label: "Delivery",
+        value: `${formatRate(bounceRate24h)} bounce • ${formatRate(complaintRate24h)} complaint`,
+        tone:
+          bounceRate24h <= 2 && complaintRate24h <= 0.3
+            ? "success"
+            : "warning",
+        tooltip:
+          deliveryRate30d > 0
+            ? `${deliveryRate30d.toFixed(1)}% delivered over the last 30 days`
+            : "No 30-day delivery summary is available yet.",
+      },
+    ],
+  };
+  const setupToolRows: EmailInfrastructureSetupTool[] = [
+    {
+      label: "Domain Management",
+      description: "Review domains, default sending settings, and DNS evidence.",
+      path: "/domains",
+      tone: "neutral",
+    },
+    {
+      label: "Domain Connect Setup",
+      description: "Open the email sending setup flow and Domain Connect wizard.",
+      path: "/crm/settings/email-sending",
+      tone: "neutral",
+    },
+    {
+      label: "Sending Logs",
+      description: "Inspect sending activity, recent failures, and delivery events.",
+      path: "/activity?q=email",
+      tone: "neutral",
+    },
+  ];
 
   return {
-    badgeLabel: "Infrastructure",
-    badgeTone: "neutral",
+    badgeLabel: badge.badgeLabel,
+    badgeTone: badge.badgeTone,
     metadata: [
       `Category: Infrastructure`,
       `Domain: ${primaryDomain?.domain ?? "Not configured"}`,
       `Status: ${primaryStatusLabel}`,
       `Provider: ${providerLabel}`,
+      `Environment: ${environmentLabel}`,
     ],
     primaryDomainId: primaryDomain?.id ?? null,
     primaryDomain: primaryDomain?.domain ?? null,
     primaryStatus: primaryDomain?.status ?? "not-configured",
     primaryStatusLabel,
+    environmentLabel,
+    isSandbox: Boolean(primaryDomain?.is_sandbox),
     providerLabel,
     providerModeLabel,
     domainCount: domains.length,
@@ -1395,6 +2758,7 @@ function buildEmailInfrastructureDetailData(
     verifiedAt: primaryDomain?.verified_at ?? null,
     lastVerifyAttemptAt: primaryDomain?.last_verify_attempt_at ?? null,
     lastError: primaryDomain?.last_verify_error ?? primaryDomain?.error ?? null,
+    banner,
     readinessSummary: primaryDomain
       ? `${primaryDomain.domain} is currently ${primaryStatusLabel.toLowerCase()} with ${dnsVerifiedCount}/${dnsStatuses.length || 0} DNS records verified.`
       : "No sending domain is configured yet. Add a domain to begin DNS verification and delivery monitoring.",
@@ -1408,6 +2772,10 @@ function buildEmailInfrastructureDetailData(
     domainConnectSummary: primaryDomain?.is_entri_managed
       ? `Automatic DNS management is available through ${providerLabel}.`
       : "Use Domain settings to run Domain Connect, review DNS records, or continue manual setup.",
+    healthRows,
+    configurationRows,
+    protocolRows: purposeRows,
+    setupToolRows,
     dnsRecords: dnsStatuses,
     domainSettingsPath: "/domains",
     emailSettingsPath: "/crm/settings/email-sending",
@@ -1594,6 +2962,23 @@ function isTimestampExpired(timestamp?: string | null) {
   return new Date(timestamp).getTime() <= Date.now();
 }
 
+function isTimestampWithinDays(
+  timestamp: string | null | undefined,
+  days: number,
+) {
+  if (!timestamp) {
+    return false;
+  }
+
+  const targetTime = new Date(timestamp).getTime();
+
+  if (Number.isNaN(targetTime) || targetTime <= Date.now()) {
+    return false;
+  }
+
+  return targetTime - Date.now() <= days * 24 * 60 * 60 * 1000;
+}
+
 function buildMetaAssetRow(
   connection: MetaConnectionRecord,
   platform: "facebook" | "instagram",
@@ -1621,6 +3006,7 @@ function buildMetaAssetRow(
           : "Instagram Business account",
     connectedAt: connection.created_at ?? null,
     lastActivityAt: connection.updated_at ?? null,
+    active: connection.is_active !== false,
   };
 }
 
@@ -1628,13 +3014,16 @@ function buildMetaDetailData(
   connections: MetaConnectionRecord[],
   canDisconnect: boolean,
 ): MetaDetailData {
-  const activeConnections = connections.filter(
-    (connection) => connection.is_active !== false && !connection.deleted_at,
+  const availableConnections = connections.filter(
+    (connection) => !connection.deleted_at,
   );
-  const facebookPages = activeConnections
+  const activeConnections = availableConnections.filter(
+    (connection) => connection.is_active !== false,
+  );
+  const facebookPages = availableConnections
     .filter((connection) => connection.platform === "facebook")
     .map((connection) => buildMetaAssetRow(connection, "facebook"));
-  const instagramAccounts = activeConnections
+  const instagramAccounts = availableConnections
     .filter((connection) => connection.platform === "instagram")
     .map((connection) => buildMetaAssetRow(connection, "instagram"));
   const expiresAt = getEarliestTimestamp(
@@ -1672,6 +3061,7 @@ function buildMetaDetailData(
     facebookPageCount: facebookPages.length,
     instagramAccountCount: instagramAccounts.length,
     connectedAssetCount: activeConnections.length,
+    totalAssetCount: availableConnections.length,
     connectedPlatforms,
     platformSummary:
       activeConnections.length > 0
@@ -2042,12 +3432,12 @@ export function useIntegrationDetailData(
 
           const connection = connectionResponse.data?.[0] ?? null;
           const artifacts = artifactsResponse.data ?? [];
-          const latestImport = jobsResponse.data?.[0] ?? null;
+          const importJobs = jobsResponse.data ?? [];
           const marketingImportDetail = buildMarketingImportDetailData(
             provider,
             connection,
             artifacts,
-            latestImport,
+            importJobs,
             seed.canDisconnect,
           );
           const accountLabel =
@@ -2154,14 +3544,17 @@ export function useIntegrationDetailData(
                 : undefined,
           };
         }
-        case "google-analytics-4": {
-          if (!user?.id) {
+        case "google-analytics": {
+          if (!tenant?.id || !user?.id) {
             return fallback;
           }
 
           const { data, error } = await supabase
             .from("google_analytics_settings")
-            .select("id, property_id, connection_status, last_test_at, service_account_configured, created_at, updated_at")
+            .select(
+              "id, tenant_id, property_id, property_name, measurement_id, google_account_email, connection_status, last_pull_at, last_test_at, last_test_status, last_test_message, service_account_configured, created_at, updated_at",
+            )
+            .eq("tenant_id", tenant.id)
             .eq("user_id", user.id)
             .maybeSingle();
 
@@ -2190,7 +3583,10 @@ export function useIntegrationDetailData(
               contextLabel: ga4Detail.propertyLabel,
               connectedAt: ga4Detail.connectedAt,
               verificationAt: ga4Detail.lastTestAt,
-              lastActivityAt: ga4Detail.lastTestAt ?? ga4Detail.updatedAt,
+              lastActivityAt:
+                ga4Detail.lastPullAt ??
+                ga4Detail.lastTestAt ??
+                ga4Detail.updatedAt,
               hasWebhookMonitoring: false,
               syncSummary: ga4Detail.serviceAccountConfigured
                 ? "Service account configured"
@@ -2217,7 +3613,7 @@ export function useIntegrationDetailData(
           const { data, error } = await supabase
             .from("email_domains")
             .select(
-              "id, domain, status, created_at, updated_at, verified_at, last_verify_attempt_at, last_verify_error, error, daily_limit, daily_sent_count, warmup_stage, entri_provider, is_entri_managed, healthy_days_counter, resend_status",
+              "id, domain, status, created_at, updated_at, env, is_sandbox, verified_at, last_verify_attempt_at, last_verify_error, error, daily_limit, daily_sent_count, warmup_stage, entri_provider, is_entri_managed, healthy_days_counter, resend_status",
             )
             .eq("tenant_id", tenant.id)
             .order("created_at", { ascending: false });
@@ -2385,6 +3781,7 @@ export function useIntegrationDetailData(
       },
       sales: {
         page: Math.max(options?.sales?.page ?? 1, 1),
+        search: options?.sales?.search?.trim() ?? "",
         status: options?.sales?.status?.trim() ?? "all",
         startDate: options?.sales?.startDate ?? null,
         endDate: options?.sales?.endDate ?? null,
@@ -2393,12 +3790,122 @@ export function useIntegrationDetailData(
       },
       products: {
         page: Math.max(options?.products?.page ?? 1, 1),
-        category: options?.products?.category?.trim() ?? "all",
+        search: options?.products?.search?.trim() ?? "",
+        categories: Array.from(
+          new Set(
+            (options?.products?.categories ??
+              (options?.products?.category && options.products.category !== "all"
+                ? [options.products.category]
+                : []))
+              .map((value) => value?.trim())
+              .filter((value): value is string => Boolean(value)),
+          ),
+        ),
         inStockOnly: Boolean(options?.products?.inStockOnly),
         sortField: options?.products?.sortField ?? "name",
         sortDirection: options?.products?.sortDirection ?? "asc",
       },
       syncLogs: {
+        page: Math.max(options?.syncLogs?.page ?? 1, 1),
+        status: options?.syncLogs?.status?.trim() ?? "all",
+      },
+    }),
+    [options],
+  );
+
+  const squareDashboardOptions = useMemo(
+    () => ({
+      customers: {
+        page: Math.max(options?.customers?.page ?? 1, 1),
+        search: options?.customers?.search?.trim() ?? "",
+        sortField:
+          (options?.customers?.sortField as SquareCustomerSortField | undefined) ??
+          "updated_at",
+        sortDirection: options?.customers?.sortDirection ?? "desc",
+      },
+      sales: {
+        page: Math.max(options?.sales?.page ?? 1, 1),
+        search: options?.sales?.search?.trim() ?? "",
+        status: options?.sales?.status?.trim() ?? "all",
+        startDate: options?.sales?.startDate ?? null,
+        endDate: options?.sales?.endDate ?? null,
+        sortField:
+          (options?.sales?.sortField as SquareSalesSortField | undefined) ??
+          "order_date",
+        sortDirection: options?.sales?.sortDirection ?? "desc",
+      },
+      products: {
+        page: Math.max(options?.products?.page ?? 1, 1),
+        search: options?.products?.search?.trim() ?? "",
+        categories: Array.from(
+          new Set(
+            (options?.products?.categories ??
+              (options?.products?.category && options.products.category !== "all"
+                ? [options.products.category]
+                : []))
+              .map((value) => value?.trim())
+              .filter((value): value is string => Boolean(value)),
+          ),
+        ),
+        inStockOnly: Boolean(options?.products?.inStockOnly),
+        sortField:
+          (options?.products?.sortField as SquareProductsSortField | undefined) ??
+          "name",
+        sortDirection: options?.products?.sortDirection ?? "asc",
+      },
+      syncLogs: {
+        page: Math.max(options?.syncLogs?.page ?? 1, 1),
+        status: options?.syncLogs?.status?.trim() ?? "all",
+      },
+    }),
+    [options],
+  );
+
+  const cloverDashboardOptions = useMemo(
+    () => ({
+      customers: {
+        page: Math.max(options?.customers?.page ?? 1, 1),
+        search: options?.customers?.search?.trim() ?? "",
+        sortField:
+          (options?.customers?.sortField as SquareCustomerSortField | undefined) ??
+          "updated_at",
+        sortDirection: options?.customers?.sortDirection ?? "desc",
+      },
+      sales: {
+        page: Math.max(options?.sales?.page ?? 1, 1),
+        search: options?.sales?.search?.trim() ?? "",
+        status: options?.sales?.status?.trim() ?? "all",
+        startDate: options?.sales?.startDate ?? null,
+        endDate: options?.sales?.endDate ?? null,
+        sortField:
+          (options?.sales?.sortField as SquareSalesSortField | undefined) ??
+          "order_date",
+        sortDirection: options?.sales?.sortDirection ?? "desc",
+      },
+      products: {
+        page: Math.max(options?.products?.page ?? 1, 1),
+        search: options?.products?.search?.trim() ?? "",
+        categories: Array.from(
+          new Set(
+            (options?.products?.categories ??
+              (options?.products?.category && options.products.category !== "all"
+                ? [options.products.category]
+                : []))
+              .map((value) => value?.trim())
+              .filter((value): value is string => Boolean(value)),
+          ),
+        ),
+        inStockOnly: Boolean(options?.products?.inStockOnly),
+        sortField:
+          (options?.products?.sortField as SquareProductsSortField | undefined) ??
+          "name",
+        sortDirection: options?.products?.sortDirection ?? "asc",
+      },
+      syncLogs: {
+        page: Math.max(options?.syncLogs?.page ?? 1, 1),
+        status: options?.syncLogs?.status?.trim() ?? "all",
+      },
+      connectionTests: {
         page: Math.max(options?.syncLogs?.page ?? 1, 1),
       },
     }),
@@ -2407,6 +3914,811 @@ export function useIntegrationDetailData(
 
   const isLightspeedDashboardEnabled =
     slug === "lightspeed" && Boolean(tenant?.id) && Boolean(resolved?.lightspeedDetail);
+  const isSquareDashboardEnabled =
+    slug === "square" && Boolean(tenant?.id) && Boolean(resolved?.squareDetail?.connectionId);
+  const isCloverDashboardEnabled =
+    slug === "clover" && Boolean(tenant?.id) && Boolean(resolved?.cloverDetail?.connectionId);
+
+  const squareCustomersQuery = useQuery({
+    queryKey: [
+      "integration-detail-square-customers",
+      tenant?.id ?? null,
+      resolved?.squareDetail?.connectionId ?? null,
+      squareDashboardOptions.customers.page,
+      squareDashboardOptions.customers.search,
+      squareDashboardOptions.customers.sortField,
+      squareDashboardOptions.customers.sortDirection,
+    ],
+    enabled: isSquareDashboardEnabled,
+    queryFn: async () => {
+      if (!tenant?.id || !resolved?.squareDetail?.connectionId) {
+        return {
+          rows: [] as SquareCustomerTableRow[],
+          pagination: buildLightspeedPagination(1, 0),
+        };
+      }
+
+      const { from, to, safePage } = getLightspeedPageRange(
+        squareDashboardOptions.customers.page,
+      );
+      let request = supabase
+        .from("pos_customers")
+        .select("*", { count: "exact" })
+        .eq("pos_connection_id", resolved.squareDetail.connectionId)
+        .eq("pos_source", "square");
+
+      if (squareDashboardOptions.customers.search) {
+        const pattern = `%${squareDashboardOptions.customers.search.replace(/,/g, " ")}%`;
+        request = request.or(
+          [
+            `name.ilike.${pattern}`,
+            `email.ilike.${pattern}`,
+            `phone.ilike.${pattern}`,
+            `external_id.ilike.${pattern}`,
+          ].join(","),
+        );
+      }
+
+      request = request.order(squareDashboardOptions.customers.sortField, {
+        ascending: squareDashboardOptions.customers.sortDirection === "asc",
+        nullsFirst: false,
+      });
+
+      const { data, error, count } = await request.range(from, to);
+      if (error) {
+        throw error;
+      }
+
+      return {
+        rows: (data ?? []).map((row) => ({
+          ...row,
+          displayName: formatSquareCustomerName(row.name, row.email, row.external_id),
+          normalizedTags: row.tags ?? [],
+        })),
+        pagination: buildLightspeedPagination(safePage, count ?? 0),
+      };
+    },
+  });
+
+  const squareSalesQuery = useQuery({
+    queryKey: [
+      "integration-detail-square-sales",
+      tenant?.id ?? null,
+      resolved?.squareDetail?.connectionId ?? null,
+      squareDashboardOptions.sales.page,
+      squareDashboardOptions.sales.search,
+      squareDashboardOptions.sales.status,
+      squareDashboardOptions.sales.startDate,
+      squareDashboardOptions.sales.endDate,
+      squareDashboardOptions.sales.sortField,
+      squareDashboardOptions.sales.sortDirection,
+    ],
+    enabled: isSquareDashboardEnabled,
+    queryFn: async () => {
+      if (!tenant?.id || !resolved?.squareDetail?.connectionId) {
+        return {
+          rows: [] as SquareSaleRow[],
+          pagination: buildLightspeedPagination(1, 0),
+        };
+      }
+
+      const { from, to, safePage } = getLightspeedPageRange(
+        squareDashboardOptions.sales.page,
+      );
+      let request = supabase
+        .from("pos_orders")
+        .select("*", { count: "exact" })
+        .eq("pos_connection_id", resolved.squareDetail.connectionId);
+
+      if (squareDashboardOptions.sales.search) {
+        const pattern = `%${squareDashboardOptions.sales.search}%`;
+        request = request.or(
+          [`external_id.ilike.${pattern}`, `external_customer_id.ilike.${pattern}`].join(","),
+        );
+      }
+
+      if (squareDashboardOptions.sales.status !== "all") {
+        request = request.eq("status", squareDashboardOptions.sales.status);
+      }
+
+      if (squareDashboardOptions.sales.startDate) {
+        request = request.gte(
+          "order_date",
+          `${squareDashboardOptions.sales.startDate}T00:00:00.000Z`,
+        );
+      }
+
+      if (squareDashboardOptions.sales.endDate) {
+        request = request.lte(
+          "order_date",
+          `${squareDashboardOptions.sales.endDate}T23:59:59.999Z`,
+        );
+      }
+
+      request = request.order(squareDashboardOptions.sales.sortField, {
+        ascending: squareDashboardOptions.sales.sortDirection === "asc",
+        nullsFirst: false,
+      });
+
+      const { data, error, count } = await request.range(from, to);
+      if (error) {
+        throw error;
+      }
+
+      const customerIds = Array.from(
+        new Set(
+          (data ?? [])
+            .map((row) => row.pos_customer_id)
+            .filter((value): value is string => Boolean(value)),
+        ),
+      );
+
+      let customerNameMap = new Map<string, string>();
+
+      if (customerIds.length > 0) {
+        const { data: customerData, error: customerError } = await supabase
+          .from("pos_customers")
+          .select("id, name, email, external_id")
+          .in("id", customerIds);
+
+        if (customerError) {
+          throw customerError;
+        }
+
+        customerNameMap = new Map(
+          (customerData ?? []).map((row) => [
+            row.id,
+            formatSquareCustomerName(row.name, row.email, row.external_id),
+          ]),
+        );
+      }
+
+      return {
+        rows: (data ?? []).map((row) => ({
+          ...row,
+          customerDisplayName: row.pos_customer_id
+            ? customerNameMap.get(row.pos_customer_id) ?? null
+            : null,
+          lineItemCount: getJsonArrayLength(row.items),
+          orderType: getSquareOrderType(row),
+          automationFired: hasSquareAutomationFired(row.raw_data),
+        })),
+        pagination: buildLightspeedPagination(safePage, count ?? 0),
+      };
+    },
+  });
+
+  const squareSalesSummaryQuery = useQuery({
+    queryKey: [
+      "integration-detail-square-sales-summary",
+      tenant?.id ?? null,
+      resolved?.squareDetail?.connectionId ?? null,
+      squareDashboardOptions.sales.search,
+      squareDashboardOptions.sales.status,
+      squareDashboardOptions.sales.startDate,
+      squareDashboardOptions.sales.endDate,
+    ],
+    enabled: isSquareDashboardEnabled,
+    queryFn: async () => {
+      if (!tenant?.id || !resolved?.squareDetail?.connectionId) {
+        return {
+          revenue: 0,
+          averageOrderValue: 0,
+          saleCount: 0,
+        } satisfies SquareSalesSummary;
+      }
+
+      let request = supabase
+        .from("pos_orders")
+        .select("id, total_amount")
+        .eq("pos_connection_id", resolved.squareDetail.connectionId);
+
+      if (squareDashboardOptions.sales.search) {
+        const pattern = `%${squareDashboardOptions.sales.search}%`;
+        request = request.or(
+          [`external_id.ilike.${pattern}`, `external_customer_id.ilike.${pattern}`].join(","),
+        );
+      }
+
+      if (squareDashboardOptions.sales.status !== "all") {
+        request = request.eq("status", squareDashboardOptions.sales.status);
+      }
+
+      if (squareDashboardOptions.sales.startDate) {
+        request = request.gte(
+          "order_date",
+          `${squareDashboardOptions.sales.startDate}T00:00:00.000Z`,
+        );
+      }
+
+      if (squareDashboardOptions.sales.endDate) {
+        request = request.lte(
+          "order_date",
+          `${squareDashboardOptions.sales.endDate}T23:59:59.999Z`,
+        );
+      }
+
+      const { data, error } = await request;
+      if (error) {
+        throw error;
+      }
+
+      const saleCount = data?.length ?? 0;
+      const revenue = (data ?? []).reduce(
+        (total, row) => total + (row.total_amount ?? 0),
+        0,
+      );
+
+      return {
+        revenue,
+        averageOrderValue: saleCount > 0 ? revenue / saleCount : 0,
+        saleCount,
+      } satisfies SquareSalesSummary;
+    },
+  });
+
+  const squareProductsQuery = useQuery({
+    queryKey: [
+      "integration-detail-square-products",
+      tenant?.id ?? null,
+      squareDashboardOptions.products.page,
+      squareDashboardOptions.products.search,
+      squareDashboardOptions.products.categories.join("|"),
+      squareDashboardOptions.products.inStockOnly,
+      squareDashboardOptions.products.sortField,
+      squareDashboardOptions.products.sortDirection,
+    ],
+    enabled: isSquareDashboardEnabled,
+    queryFn: async () => {
+      if (!tenant?.id) {
+        return {
+          rows: [] as SquareProductTableRow[],
+          pagination: buildLightspeedPagination(1, 0),
+        };
+      }
+
+      const { from, to, safePage } = getLightspeedPageRange(
+        squareDashboardOptions.products.page,
+      );
+      let request = supabase
+        .from("products")
+        .select("*", { count: "exact" })
+        .eq("tenant_id", tenant.id)
+        .eq("source", "square");
+
+      if (squareDashboardOptions.products.search) {
+        const pattern = `%${squareDashboardOptions.products.search}%`;
+        request = request.or(
+          [`name.ilike.${pattern}`, `sku.ilike.${pattern}`, `external_id.ilike.${pattern}`].join(","),
+        );
+      }
+
+      if (squareDashboardOptions.products.categories.length > 0) {
+        request = request.in("category", squareDashboardOptions.products.categories);
+      }
+
+      if (squareDashboardOptions.products.inStockOnly) {
+        request = request.gt("inventory_count", 0);
+      }
+
+      request = request.order(squareDashboardOptions.products.sortField, {
+        ascending: squareDashboardOptions.products.sortDirection === "asc",
+        nullsFirst: false,
+      });
+
+      const { data, error, count } = await request.range(from, to);
+      if (error) {
+        throw error;
+      }
+
+      return {
+        rows: (data ?? []).map((row) => ({
+          ...row,
+          stockState: getLightspeedProductStockState(row.inventory_count),
+          normalizedTags: row.tags ?? [],
+        })),
+        pagination: buildLightspeedPagination(safePage, count ?? 0),
+      };
+    },
+  });
+
+  const squareProductCategoriesQuery = useQuery({
+    queryKey: ["integration-detail-square-product-categories", tenant?.id ?? null],
+    enabled: isSquareDashboardEnabled,
+    queryFn: async () => {
+      if (!tenant?.id) {
+        return [] as string[];
+      }
+
+      const { data, error } = await supabase
+        .from("products")
+        .select("category")
+        .eq("tenant_id", tenant.id)
+        .eq("source", "square")
+        .not("category", "is", null)
+        .limit(5000);
+
+      if (error) {
+        throw error;
+      }
+
+      return Array.from(
+        new Set(
+          (data ?? [])
+            .map((row) => row.category?.trim())
+            .filter((value): value is string => Boolean(value)),
+        ),
+      ).sort((left, right) => left.localeCompare(right));
+    },
+  });
+
+  const squareSyncLogsQuery = useQuery({
+    queryKey: [
+      "integration-detail-square-sync-logs",
+      tenant?.id ?? null,
+      squareDashboardOptions.syncLogs.page,
+      squareDashboardOptions.syncLogs.status,
+    ],
+    enabled: isSquareDashboardEnabled,
+    queryFn: async () => {
+      if (!tenant?.id) {
+        return {
+          rows: [] as SquareSyncLogRow[],
+          pagination: buildLightspeedPagination(1, 0),
+        };
+      }
+
+      const { from, to, safePage } = getLightspeedPageRange(
+        squareDashboardOptions.syncLogs.page,
+      );
+      let request = supabase
+        .from("pos_sync_jobs_v2")
+        .select("*", { count: "exact" })
+        .eq("tenant_id", tenant.id)
+        .eq("provider", "square");
+
+      if (squareDashboardOptions.syncLogs.status !== "all") {
+        request = request.eq("status", squareDashboardOptions.syncLogs.status);
+      }
+
+      const { data, error, count } = await request
+        .order("created_at", { ascending: false })
+        .range(from, to);
+
+      if (error) {
+        throw error;
+      }
+
+      return {
+        rows: (data ?? []).map(normalizeLightspeedSyncLogRow),
+        pagination: buildLightspeedPagination(safePage, count ?? 0),
+      };
+    },
+  });
+
+  const cloverCustomersQuery = useQuery({
+    queryKey: [
+      "integration-detail-clover",
+      "customers",
+      tenant?.id ?? null,
+      resolved?.cloverDetail?.connectionId ?? null,
+      cloverDashboardOptions.customers.page,
+      cloverDashboardOptions.customers.search,
+      cloverDashboardOptions.customers.sortField,
+      cloverDashboardOptions.customers.sortDirection,
+    ],
+    enabled: isCloverDashboardEnabled,
+    queryFn: async () => {
+      if (!tenant?.id || !resolved?.cloverDetail?.connectionId) {
+        return {
+          rows: [] as CloverCustomerTableRow[],
+          pagination: buildLightspeedPagination(1, 0),
+        };
+      }
+
+      const { from, to, safePage } = getLightspeedPageRange(
+        cloverDashboardOptions.customers.page,
+      );
+      let request = supabase
+        .from("pos_customers")
+        .select("*", { count: "exact" })
+        .eq("pos_connection_id", resolved.cloverDetail.connectionId)
+        .eq("pos_source", "clover");
+
+      if (cloverDashboardOptions.customers.search) {
+        const pattern = `%${cloverDashboardOptions.customers.search.replace(/,/g, " ")}%`;
+        request = request.or(
+          [
+            `name.ilike.${pattern}`,
+            `email.ilike.${pattern}`,
+            `phone.ilike.${pattern}`,
+            `external_id.ilike.${pattern}`,
+          ].join(","),
+        );
+      }
+
+      request = request.order(cloverDashboardOptions.customers.sortField, {
+        ascending: cloverDashboardOptions.customers.sortDirection === "asc",
+        nullsFirst: false,
+      });
+
+      const { data, error, count } = await request.range(from, to);
+      if (error) {
+        throw error;
+      }
+
+      return {
+        rows: (data ?? []).map((row) => ({
+          ...row,
+          displayName: formatSquareCustomerName(row.name, row.email, row.external_id),
+          normalizedTags: row.tags ?? [],
+        })),
+        pagination: buildLightspeedPagination(safePage, count ?? 0),
+      };
+    },
+  });
+
+  const cloverSalesQuery = useQuery({
+    queryKey: [
+      "integration-detail-clover",
+      "sales",
+      tenant?.id ?? null,
+      resolved?.cloverDetail?.connectionId ?? null,
+      cloverDashboardOptions.sales.page,
+      cloverDashboardOptions.sales.search,
+      cloverDashboardOptions.sales.status,
+      cloverDashboardOptions.sales.startDate,
+      cloverDashboardOptions.sales.endDate,
+      cloverDashboardOptions.sales.sortField,
+      cloverDashboardOptions.sales.sortDirection,
+    ],
+    enabled: isCloverDashboardEnabled,
+    queryFn: async () => {
+      if (!tenant?.id || !resolved?.cloverDetail?.connectionId) {
+        return {
+          rows: [] as CloverSaleRow[],
+          pagination: buildLightspeedPagination(1, 0),
+        };
+      }
+
+      const { from, to, safePage } = getLightspeedPageRange(
+        cloverDashboardOptions.sales.page,
+      );
+      let request = supabase
+        .from("pos_orders")
+        .select("*", { count: "exact" })
+        .eq("pos_connection_id", resolved.cloverDetail.connectionId);
+
+      if (cloverDashboardOptions.sales.search) {
+        const pattern = `%${cloverDashboardOptions.sales.search}%`;
+        request = request.or(
+          [`external_id.ilike.${pattern}`, `external_customer_id.ilike.${pattern}`].join(","),
+        );
+      }
+
+      if (cloverDashboardOptions.sales.status !== "all") {
+        request = request.eq("status", cloverDashboardOptions.sales.status);
+      }
+
+      if (cloverDashboardOptions.sales.startDate) {
+        request = request.gte(
+          "order_date",
+          `${cloverDashboardOptions.sales.startDate}T00:00:00.000Z`,
+        );
+      }
+
+      if (cloverDashboardOptions.sales.endDate) {
+        request = request.lte(
+          "order_date",
+          `${cloverDashboardOptions.sales.endDate}T23:59:59.999Z`,
+        );
+      }
+
+      request = request.order(cloverDashboardOptions.sales.sortField, {
+        ascending: cloverDashboardOptions.sales.sortDirection === "asc",
+        nullsFirst: false,
+      });
+
+      const { data, error, count } = await request.range(from, to);
+      if (error) {
+        throw error;
+      }
+
+      const customerIds = Array.from(
+        new Set(
+          (data ?? [])
+            .map((row) => row.pos_customer_id)
+            .filter((value): value is string => Boolean(value)),
+        ),
+      );
+
+      let customerNameMap = new Map<string, string>();
+
+      if (customerIds.length > 0) {
+        const { data: customerData, error: customerError } = await supabase
+          .from("pos_customers")
+          .select("id, name, email, external_id")
+          .in("id", customerIds);
+
+        if (customerError) {
+          throw customerError;
+        }
+
+        customerNameMap = new Map(
+          (customerData ?? []).map((row) => [
+            row.id,
+            formatSquareCustomerName(row.name, row.email, row.external_id),
+          ]),
+        );
+      }
+
+      return {
+        rows: (data ?? []).map((row) => ({
+          ...row,
+          customerDisplayName: row.pos_customer_id
+            ? customerNameMap.get(row.pos_customer_id) ?? null
+            : null,
+          lineItemCount: getJsonArrayLength(row.items),
+          orderType: getSquareOrderType(row),
+        })),
+        pagination: buildLightspeedPagination(safePage, count ?? 0),
+      };
+    },
+  });
+
+  const cloverSalesSummaryQuery = useQuery({
+    queryKey: [
+      "integration-detail-clover",
+      "sales-summary",
+      tenant?.id ?? null,
+      resolved?.cloverDetail?.connectionId ?? null,
+      cloverDashboardOptions.sales.search,
+      cloverDashboardOptions.sales.status,
+      cloverDashboardOptions.sales.startDate,
+      cloverDashboardOptions.sales.endDate,
+    ],
+    enabled: isCloverDashboardEnabled,
+    queryFn: async () => {
+      if (!tenant?.id || !resolved?.cloverDetail?.connectionId) {
+        return {
+          revenue: 0,
+          averageOrderValue: 0,
+          saleCount: 0,
+        } satisfies CloverSalesSummary;
+      }
+
+      let request = supabase
+        .from("pos_orders")
+        .select("id, total_amount")
+        .eq("pos_connection_id", resolved.cloverDetail.connectionId);
+
+      if (cloverDashboardOptions.sales.search) {
+        const pattern = `%${cloverDashboardOptions.sales.search}%`;
+        request = request.or(
+          [`external_id.ilike.${pattern}`, `external_customer_id.ilike.${pattern}`].join(","),
+        );
+      }
+
+      if (cloverDashboardOptions.sales.status !== "all") {
+        request = request.eq("status", cloverDashboardOptions.sales.status);
+      }
+
+      if (cloverDashboardOptions.sales.startDate) {
+        request = request.gte(
+          "order_date",
+          `${cloverDashboardOptions.sales.startDate}T00:00:00.000Z`,
+        );
+      }
+
+      if (cloverDashboardOptions.sales.endDate) {
+        request = request.lte(
+          "order_date",
+          `${cloverDashboardOptions.sales.endDate}T23:59:59.999Z`,
+        );
+      }
+
+      const { data, error } = await request;
+      if (error) {
+        throw error;
+      }
+
+      const saleCount = data?.length ?? 0;
+      const revenue = (data ?? []).reduce(
+        (total, row) => total + (row.total_amount ?? 0),
+        0,
+      );
+
+      return {
+        revenue,
+        averageOrderValue: saleCount > 0 ? revenue / saleCount : 0,
+        saleCount,
+      } satisfies CloverSalesSummary;
+    },
+  });
+
+  const cloverProductsQuery = useQuery({
+    queryKey: [
+      "integration-detail-clover",
+      "products",
+      tenant?.id ?? null,
+      cloverDashboardOptions.products.page,
+      cloverDashboardOptions.products.search,
+      cloverDashboardOptions.products.categories.join("|"),
+      cloverDashboardOptions.products.inStockOnly,
+      cloverDashboardOptions.products.sortField,
+      cloverDashboardOptions.products.sortDirection,
+    ],
+    enabled: isCloverDashboardEnabled,
+    queryFn: async () => {
+      if (!tenant?.id) {
+        return {
+          rows: [] as CloverProductTableRow[],
+          pagination: buildLightspeedPagination(1, 0),
+        };
+      }
+
+      const { from, to, safePage } = getLightspeedPageRange(
+        cloverDashboardOptions.products.page,
+      );
+      let request = supabase
+        .from("products")
+        .select("*", { count: "exact" })
+        .eq("tenant_id", tenant.id)
+        .eq("source", "clover");
+
+      if (cloverDashboardOptions.products.search) {
+        const pattern = `%${cloverDashboardOptions.products.search}%`;
+        request = request.or(
+          [`name.ilike.${pattern}`, `sku.ilike.${pattern}`, `external_id.ilike.${pattern}`].join(","),
+        );
+      }
+
+      if (cloverDashboardOptions.products.categories.length > 0) {
+        request = request.in("category", cloverDashboardOptions.products.categories);
+      }
+
+      if (cloverDashboardOptions.products.inStockOnly) {
+        request = request.gt("inventory_count", 0);
+      }
+
+      request = request.order(cloverDashboardOptions.products.sortField, {
+        ascending: cloverDashboardOptions.products.sortDirection === "asc",
+        nullsFirst: false,
+      });
+
+      const { data, error, count } = await request.range(from, to);
+      if (error) {
+        throw error;
+      }
+
+      return {
+        rows: (data ?? []).map((row) => ({
+          ...row,
+          stockState: getLightspeedProductStockState(row.inventory_count),
+          normalizedTags: row.tags ?? [],
+        })),
+        pagination: buildLightspeedPagination(safePage, count ?? 0),
+      };
+    },
+  });
+
+  const cloverProductCategoriesQuery = useQuery({
+    queryKey: ["integration-detail-clover", "product-categories", tenant?.id ?? null],
+    enabled: isCloverDashboardEnabled,
+    queryFn: async () => {
+      if (!tenant?.id) {
+        return [] as string[];
+      }
+
+      const { data, error } = await supabase
+        .from("products")
+        .select("category")
+        .eq("tenant_id", tenant.id)
+        .eq("source", "clover")
+        .not("category", "is", null)
+        .limit(5000);
+
+      if (error) {
+        throw error;
+      }
+
+      return Array.from(
+        new Set(
+          (data ?? [])
+            .map((row) => row.category?.trim())
+            .filter((value): value is string => Boolean(value)),
+        ),
+      ).sort((left, right) => left.localeCompare(right));
+    },
+  });
+
+  const cloverSyncLogsQuery = useQuery({
+    queryKey: [
+      "integration-detail-clover",
+      "sync-logs",
+      tenant?.id ?? null,
+      cloverDashboardOptions.syncLogs.page,
+      cloverDashboardOptions.syncLogs.status,
+    ],
+    enabled: isCloverDashboardEnabled,
+    queryFn: async () => {
+      if (!tenant?.id) {
+        return {
+          rows: [] as CloverSyncLogRow[],
+          pagination: buildLightspeedPagination(1, 0),
+        };
+      }
+
+      const { from, to, safePage } = getLightspeedPageRange(
+        cloverDashboardOptions.syncLogs.page,
+      );
+      let request = supabase
+        .from("pos_sync_jobs_v2")
+        .select("*", { count: "exact" })
+        .eq("tenant_id", tenant.id)
+        .eq("provider", "clover");
+
+      if (cloverDashboardOptions.syncLogs.status !== "all") {
+        request = request.eq("status", cloverDashboardOptions.syncLogs.status);
+      }
+
+      const { data, error, count } = await request
+        .order("created_at", { ascending: false })
+        .range(from, to);
+
+      if (error) {
+        throw error;
+      }
+
+      return {
+        rows: (data ?? []).map(normalizeLightspeedSyncLogRow),
+        pagination: buildLightspeedPagination(safePage, count ?? 0),
+      };
+    },
+  });
+
+  const cloverConnectionTestsQuery = useQuery({
+    queryKey: [
+      "integration-detail-clover",
+      "connection-tests",
+      tenant?.id ?? null,
+      resolved?.cloverDetail?.connectionId ?? null,
+      cloverDashboardOptions.connectionTests.page,
+    ],
+    enabled: isCloverDashboardEnabled,
+    queryFn: async () => {
+      if (!tenant?.id || !resolved?.cloverDetail?.connectionId) {
+        return {
+          rows: [] as CloverConnectionTestHistoryRow[],
+          pagination: buildLightspeedPagination(1, 0),
+        };
+      }
+
+      const { from, to, safePage } = getLightspeedPageRange(
+        cloverDashboardOptions.connectionTests.page,
+      );
+
+      const { data, error, count } = await supabase
+        .from("clover_connection_tests")
+        .select("*", { count: "exact" })
+        .eq("tenant_id", tenant.id)
+        .eq("connection_id", resolved.cloverDetail.connectionId)
+        .order("created_at", { ascending: false })
+        .range(from, to);
+
+      if (error) {
+        throw error;
+      }
+
+      return {
+        rows: (data ?? []).map((row) => ({
+          ...row,
+          report: parseCloverConnectionTestReport(row),
+        })),
+        pagination: buildLightspeedPagination(safePage, count ?? 0),
+      };
+    },
+  });
 
   const lightspeedCustomersQuery = useQuery({
     queryKey: [
@@ -2497,6 +4809,7 @@ export function useIntegrationDetailData(
       "integration-detail-lightspeed-sales",
       tenant?.id ?? null,
       lightspeedDashboardOptions.sales.page,
+      lightspeedDashboardOptions.sales.search,
       lightspeedDashboardOptions.sales.status,
       lightspeedDashboardOptions.sales.startDate,
       lightspeedDashboardOptions.sales.endDate,
@@ -2519,6 +4832,13 @@ export function useIntegrationDetailData(
         .from("lightspeed_sales")
         .select("*", { count: "exact" })
         .eq("tenant_id", tenant.id);
+
+      if (lightspeedDashboardOptions.sales.search) {
+        request = request.ilike(
+          "lightspeed_sale_id",
+          `%${lightspeedDashboardOptions.sales.search}%`,
+        );
+      }
 
       if (lightspeedDashboardOptions.sales.status !== "all") {
         request = request.eq("status", lightspeedDashboardOptions.sales.status);
@@ -2548,8 +4868,48 @@ export function useIntegrationDetailData(
         throw error;
       }
 
+      const customerIds = Array.from(
+        new Set(
+          (data ?? [])
+            .map((row) => row.lightspeed_customer_id)
+            .filter((value): value is string => Boolean(value)),
+        ),
+      );
+
+      let customerNameMap = new Map<string, string>();
+
+      if (customerIds.length > 0) {
+        const { data: customerData, error: customerError } = await supabase
+          .from("lightspeed_customers")
+          .select("lightspeed_customer_id, first_name, last_name, email")
+          .eq("tenant_id", tenant.id)
+          .in("lightspeed_customer_id", customerIds);
+
+        if (customerError) {
+          throw customerError;
+        }
+
+        customerNameMap = new Map(
+          (customerData ?? []).map((row) => [
+            row.lightspeed_customer_id,
+            formatLightspeedCustomerName(
+              row.first_name,
+              row.last_name,
+              row.email,
+              row.lightspeed_customer_id,
+            ),
+          ]),
+        );
+      }
+
       return {
-        rows: data ?? [],
+        rows: (data ?? []).map((row) => ({
+          ...row,
+          customerDisplayName: row.lightspeed_customer_id
+            ? customerNameMap.get(row.lightspeed_customer_id) ?? null
+            : null,
+          lineItemCount: getJsonArrayLength(row.line_items),
+        })),
         pagination: buildLightspeedPagination(safePage, count ?? 0),
       };
     },
@@ -2559,6 +4919,7 @@ export function useIntegrationDetailData(
     queryKey: [
       "integration-detail-lightspeed-sales-summary",
       tenant?.id ?? null,
+      lightspeedDashboardOptions.sales.search,
       lightspeedDashboardOptions.sales.status,
       lightspeedDashboardOptions.sales.startDate,
       lightspeedDashboardOptions.sales.endDate,
@@ -2577,6 +4938,13 @@ export function useIntegrationDetailData(
         .from("lightspeed_sales")
         .select("id, total_amount")
         .eq("tenant_id", tenant.id);
+
+      if (lightspeedDashboardOptions.sales.search) {
+        request = request.ilike(
+          "lightspeed_sale_id",
+          `%${lightspeedDashboardOptions.sales.search}%`,
+        );
+      }
 
       if (lightspeedDashboardOptions.sales.status !== "all") {
         request = request.eq("status", lightspeedDashboardOptions.sales.status);
@@ -2620,7 +4988,8 @@ export function useIntegrationDetailData(
       "integration-detail-lightspeed-products",
       tenant?.id ?? null,
       lightspeedDashboardOptions.products.page,
-      lightspeedDashboardOptions.products.category,
+      lightspeedDashboardOptions.products.search,
+      lightspeedDashboardOptions.products.categories.join("|"),
       lightspeedDashboardOptions.products.inStockOnly,
       lightspeedDashboardOptions.products.sortField,
       lightspeedDashboardOptions.products.sortDirection,
@@ -2642,8 +5011,13 @@ export function useIntegrationDetailData(
         .select("*", { count: "exact" })
         .eq("tenant_id", tenant.id);
 
-      if (lightspeedDashboardOptions.products.category !== "all") {
-        request = request.eq("category", lightspeedDashboardOptions.products.category);
+      if (lightspeedDashboardOptions.products.search) {
+        const pattern = `%${lightspeedDashboardOptions.products.search}%`;
+        request = request.or([`name.ilike.${pattern}`, `sku.ilike.${pattern}`].join(","));
+      }
+
+      if (lightspeedDashboardOptions.products.categories.length > 0) {
+        request = request.in("category", lightspeedDashboardOptions.products.categories);
       }
 
       if (lightspeedDashboardOptions.products.inStockOnly) {
@@ -2664,6 +5038,7 @@ export function useIntegrationDetailData(
         rows: (data ?? []).map((row) => ({
           ...row,
           stockState: getLightspeedProductStockState(row.inventory_count),
+          normalizedTags: normalizeJsonStringList(row.tags),
         })),
         pagination: buildLightspeedPagination(safePage, count ?? 0),
       };
@@ -2704,6 +5079,7 @@ export function useIntegrationDetailData(
       "integration-detail-lightspeed-sync-logs",
       tenant?.id ?? null,
       lightspeedDashboardOptions.syncLogs.page,
+      lightspeedDashboardOptions.syncLogs.status,
     ],
     enabled: isLightspeedDashboardEnabled,
     queryFn: async () => {
@@ -2717,11 +5093,17 @@ export function useIntegrationDetailData(
       const { from, to, safePage } = getLightspeedPageRange(
         lightspeedDashboardOptions.syncLogs.page,
       );
-      const { data, error, count } = await supabase
+      let request = supabase
         .from("pos_sync_jobs_v2")
         .select("*", { count: "exact" })
         .eq("tenant_id", tenant.id)
-        .eq("provider", "lightspeed")
+        .eq("provider", "lightspeed");
+
+      if (lightspeedDashboardOptions.syncLogs.status !== "all") {
+        request = request.eq("status", lightspeedDashboardOptions.syncLogs.status);
+      }
+
+      const { data, error, count } = await request
         .order("created_at", { ascending: false })
         .range(from, to);
 
@@ -2920,10 +5302,10 @@ export function useIntegrationDetailData(
       }
     },
     onError: (error) => {
-      const message =
-        error instanceof Error
-          ? error.message
-          : "We couldn't save your notification request.";
+      const message = getUserFacingIntegrationError(
+        error,
+        "We couldn't save your notification request.",
+      );
       toast.error(message);
     },
   });
@@ -2967,10 +5349,10 @@ export function useIntegrationDetailData(
       ]);
     },
     onError: (error) => {
-      const message =
-        error instanceof Error
-          ? error.message
-          : "Email infrastructure health check failed.";
+      const message = getUserFacingIntegrationError(
+        error,
+        "Email infrastructure health check failed.",
+      );
       toast.error(message);
     },
   });
@@ -3002,7 +5384,10 @@ export function useIntegrationDetailData(
       ]);
     },
     onError: (error) => {
-      const message = error instanceof Error ? error.message : "Square sync could not be started.";
+      const message = getUserFacingIntegrationError(
+        error,
+        "Square sync could not be started.",
+      );
       toast.error(message);
     },
   });
@@ -3040,7 +5425,10 @@ export function useIntegrationDetailData(
       ]);
     },
     onError: (error) => {
-      const message = error instanceof Error ? error.message : "Square webhook verification failed.";
+      const message = getUserFacingIntegrationError(
+        error,
+        "Square webhook verification failed.",
+      );
       toast.error(message);
     },
   });
@@ -3068,11 +5456,15 @@ export function useIntegrationDetailData(
 
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["integration-detail"] }),
+        queryClient.invalidateQueries({ queryKey: ["integration-detail-clover"] }),
         queryClient.invalidateQueries({ queryKey: ["integrations-hub"] }),
       ]);
     },
     onError: (error) => {
-      const message = error instanceof Error ? error.message : "Clover sync could not be started.";
+      const message = getUserFacingIntegrationError(
+        error,
+        "Clover sync could not be started.",
+      );
       toast.error(message);
     },
   });
@@ -3102,12 +5494,15 @@ export function useIntegrationDetailData(
 
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["integration-detail"] }),
+        queryClient.invalidateQueries({ queryKey: ["integration-detail-clover"] }),
         queryClient.invalidateQueries({ queryKey: ["integrations-hub"] }),
       ]);
     },
     onError: (error) => {
-      const message =
-        error instanceof Error ? error.message : "Clover connection test could not be completed.";
+      const message = getUserFacingIntegrationError(
+        error,
+        "Clover connection test could not be completed.",
+      );
       toast.error(message);
     },
   });
@@ -3145,7 +5540,10 @@ export function useIntegrationDetailData(
 
       if (data.errors?.length) {
         toast.info(
-          `Lightspeed sync queued with warnings: ${data.errors.join("; ")}`,
+          summarizeUserFacingIntegrationWarnings(
+            data.errors,
+            "Lightspeed sync queued with warnings. Some records may need attention.",
+          ),
         );
       } else {
         toast.info("Lightspeed sync queued. Progress will update live.");
@@ -3157,7 +5555,10 @@ export function useIntegrationDetailData(
       ]);
     },
     onError: (error) => {
-      const message = error instanceof Error ? error.message : "Lightspeed sync could not be started.";
+      const message = getUserFacingIntegrationError(
+        error,
+        "Lightspeed sync could not be started.",
+      );
       toast.error(message);
     },
   });
@@ -3279,6 +5680,155 @@ export function useIntegrationDetailData(
     lightspeedSyncLogsQuery.isLoading,
   ]);
 
+  const squareDashboard = useMemo<SquareDashboardData | null>(() => {
+    if (!isSquareDashboardEnabled) {
+      return null;
+    }
+
+    return {
+      customers: {
+        rows: squareCustomersQuery.data?.rows ?? [],
+        pagination: squareCustomersQuery.data?.pagination ?? buildLightspeedPagination(1, 0),
+        isLoading: squareCustomersQuery.isLoading,
+        isFetching: squareCustomersQuery.isFetching,
+      },
+      sales: {
+        rows: squareSalesQuery.data?.rows ?? [],
+        pagination: squareSalesQuery.data?.pagination ?? buildLightspeedPagination(1, 0),
+        summary: squareSalesSummaryQuery.data ?? {
+          revenue: 0,
+          averageOrderValue: 0,
+          saleCount: 0,
+        },
+        isLoading: squareSalesQuery.isLoading || squareSalesSummaryQuery.isLoading,
+        isFetching: squareSalesQuery.isFetching || squareSalesSummaryQuery.isFetching,
+      },
+      products: {
+        rows: squareProductsQuery.data?.rows ?? [],
+        pagination: squareProductsQuery.data?.pagination ?? buildLightspeedPagination(1, 0),
+        categories: squareProductCategoriesQuery.data ?? [],
+        isLoading: squareProductsQuery.isLoading || squareProductCategoriesQuery.isLoading,
+        isFetching: squareProductsQuery.isFetching || squareProductCategoriesQuery.isFetching,
+      },
+      syncLogs: {
+        rows: squareSyncLogsQuery.data?.rows ?? [],
+        pagination: squareSyncLogsQuery.data?.pagination ?? buildLightspeedPagination(1, 0),
+        isLoading: squareSyncLogsQuery.isLoading,
+        isFetching: squareSyncLogsQuery.isFetching,
+      },
+    };
+  }, [
+    isSquareDashboardEnabled,
+    squareCustomersQuery.data?.pagination,
+    squareCustomersQuery.data?.rows,
+    squareCustomersQuery.isFetching,
+    squareCustomersQuery.isLoading,
+    squareProductCategoriesQuery.data,
+    squareProductCategoriesQuery.isFetching,
+    squareProductCategoriesQuery.isLoading,
+    squareProductsQuery.data?.pagination,
+    squareProductsQuery.data?.rows,
+    squareProductsQuery.isFetching,
+    squareProductsQuery.isLoading,
+    squareSalesQuery.data?.pagination,
+    squareSalesQuery.data?.rows,
+    squareSalesQuery.isFetching,
+    squareSalesQuery.isLoading,
+    squareSalesSummaryQuery.data,
+    squareSalesSummaryQuery.isFetching,
+    squareSalesSummaryQuery.isLoading,
+    squareSyncLogsQuery.data?.pagination,
+    squareSyncLogsQuery.data?.rows,
+    squareSyncLogsQuery.isFetching,
+    squareSyncLogsQuery.isLoading,
+  ]);
+
+  const cloverDashboard = useMemo<CloverDashboardData | null>(() => {
+    if (!isCloverDashboardEnabled) {
+      return null;
+    }
+
+    const latestConnectionTest = cloverConnectionTestsQuery.data?.rows[0] ?? null;
+
+    return {
+      customers: {
+        rows: cloverCustomersQuery.data?.rows ?? [],
+        pagination:
+          cloverCustomersQuery.data?.pagination ?? buildLightspeedPagination(1, 0),
+        isLoading: cloverCustomersQuery.isLoading,
+        isFetching: cloverCustomersQuery.isFetching,
+      },
+      sales: {
+        rows: cloverSalesQuery.data?.rows ?? [],
+        pagination:
+          cloverSalesQuery.data?.pagination ?? buildLightspeedPagination(1, 0),
+        summary: cloverSalesSummaryQuery.data ?? {
+          revenue: 0,
+          averageOrderValue: 0,
+          saleCount: 0,
+        },
+        isLoading: cloverSalesQuery.isLoading || cloverSalesSummaryQuery.isLoading,
+        isFetching:
+          cloverSalesQuery.isFetching || cloverSalesSummaryQuery.isFetching,
+      },
+      products: {
+        rows: cloverProductsQuery.data?.rows ?? [],
+        pagination:
+          cloverProductsQuery.data?.pagination ?? buildLightspeedPagination(1, 0),
+        categories: cloverProductCategoriesQuery.data ?? [],
+        isLoading:
+          cloverProductsQuery.isLoading || cloverProductCategoriesQuery.isLoading,
+        isFetching:
+          cloverProductsQuery.isFetching || cloverProductCategoriesQuery.isFetching,
+      },
+      syncLogs: {
+        rows: cloverSyncLogsQuery.data?.rows ?? [],
+        pagination:
+          cloverSyncLogsQuery.data?.pagination ?? buildLightspeedPagination(1, 0),
+        isLoading: cloverSyncLogsQuery.isLoading,
+        isFetching: cloverSyncLogsQuery.isFetching,
+      },
+      connectionTests: {
+        rows: cloverConnectionTestsQuery.data?.rows ?? [],
+        latestReport: latestConnectionTest?.report ?? null,
+        latestTestedAt: latestConnectionTest?.created_at ?? null,
+        pagination:
+          cloverConnectionTestsQuery.data?.pagination ??
+          buildLightspeedPagination(1, 0),
+        isLoading: cloverConnectionTestsQuery.isLoading,
+        isFetching: cloverConnectionTestsQuery.isFetching,
+      },
+    };
+  }, [
+    cloverConnectionTestsQuery.data?.pagination,
+    cloverConnectionTestsQuery.data?.rows,
+    cloverConnectionTestsQuery.isFetching,
+    cloverConnectionTestsQuery.isLoading,
+    cloverCustomersQuery.data?.pagination,
+    cloverCustomersQuery.data?.rows,
+    cloverCustomersQuery.isFetching,
+    cloverCustomersQuery.isLoading,
+    cloverProductCategoriesQuery.data,
+    cloverProductCategoriesQuery.isFetching,
+    cloverProductCategoriesQuery.isLoading,
+    cloverProductsQuery.data?.pagination,
+    cloverProductsQuery.data?.rows,
+    cloverProductsQuery.isFetching,
+    cloverProductsQuery.isLoading,
+    cloverSalesQuery.data?.pagination,
+    cloverSalesQuery.data?.rows,
+    cloverSalesQuery.isFetching,
+    cloverSalesQuery.isLoading,
+    cloverSalesSummaryQuery.data,
+    cloverSalesSummaryQuery.isFetching,
+    cloverSalesSummaryQuery.isLoading,
+    cloverSyncLogsQuery.data?.pagination,
+    cloverSyncLogsQuery.data?.rows,
+    cloverSyncLogsQuery.isFetching,
+    cloverSyncLogsQuery.isLoading,
+    isCloverDashboardEnabled,
+  ]);
+
   const lightspeedActiveJobIds = useMemo(() => {
     return lightspeedSyncJobs
       .filter((job) => !job.isTerminal)
@@ -3353,8 +5903,10 @@ export function useIntegrationDetailData(
       toast.success("Meta authorization opened in a new tab.");
     },
     onError: (error) => {
-      const message =
-        error instanceof Error ? error.message : "Meta authorization could not be started.";
+      const message = getUserFacingIntegrationError(
+        error,
+        "Meta authorization could not be started.",
+      );
       toast.error(message);
     },
   });
@@ -3382,50 +5934,83 @@ export function useIntegrationDetailData(
       ]);
     },
     onError: (error) => {
-      const message =
-        error instanceof Error ? error.message : "Meta asset refresh could not be started.";
+      const message = getUserFacingIntegrationError(
+        error,
+        "Meta asset refresh could not be started.",
+      );
       toast.error(message);
     },
   });
 
   const ga4ConnectionTestMutation = useMutation({
     mutationFn: async () => {
-      if (slug !== "google-analytics-4") {
+      if (slug !== "google-analytics") {
         throw new Error("Connection testing is only available on the Google Analytics detail page.");
+      }
+
+      if (!tenant?.id || !user?.id) {
+        throw new Error("A tenant-scoped user context is required to test Google Analytics.");
       }
 
       if (!resolved?.ga4Detail?.propertyId) {
         throw new Error("Connect Google Analytics before running a connection test.");
       }
 
-      const { data, error } = await supabase.functions.invoke("ga-report-data", {
-        body: {
-          propertyId: resolved.ga4Detail.propertyId,
-          dateRange: 7,
-        },
-      });
+      const testedAt = new Date().toISOString();
 
-      if (error) {
+      try {
+        const { data, error } = await supabase.functions.invoke("ga-report-data", {
+          body: {
+            propertyId: resolved.ga4Detail.propertyId,
+            dateRange: 7,
+          },
+        });
+
+        if (error) {
+          throw error;
+        }
+
+        if (!data?.success) {
+          throw new Error("Google Analytics connection test failed.");
+        }
+
+        if (resolved.ga4Detail.connectionId) {
+          const { error: updateError } = await supabase
+            .from("google_analytics_settings")
+            .update({
+              last_test_at: testedAt,
+              last_test_status: "success",
+              last_test_message: "Property accessible · Sessions data available",
+            })
+            .eq("id", resolved.ga4Detail.connectionId)
+            .eq("tenant_id", tenant.id)
+            .eq("user_id", user.id);
+
+          if (updateError) {
+            throw updateError;
+          }
+        }
+
+        return data;
+      } catch (error) {
+        if (resolved.ga4Detail.connectionId) {
+          await supabase
+            .from("google_analytics_settings")
+            .update({
+              last_test_at: testedAt,
+              last_test_status: "error",
+              last_test_message: getUserFacingIntegrationError(
+                error,
+                "Google Analytics connection test failed.",
+              ),
+            })
+            .eq("id", resolved.ga4Detail.connectionId)
+            .eq("tenant_id", tenant.id)
+            .eq("user_id", user.id);
+        }
+
         throw error;
       }
-
-      if (!data?.success) {
-        throw new Error("Google Analytics connection test failed.");
-      }
-
-      if (resolved.ga4Detail.connectionId) {
-        const { error: updateError } = await supabase
-          .from("google_analytics_settings")
-          .update({ last_test_at: new Date().toISOString() })
-          .eq("id", resolved.ga4Detail.connectionId)
-          .eq("user_id", user?.id ?? "");
-
-        if (updateError) {
-          throw updateError;
-        }
-      }
-
-      return data;
     },
     onSuccess: async () => {
       toast.success("Google Analytics connection test completed.");
@@ -3435,16 +6020,23 @@ export function useIntegrationDetailData(
         queryClient.invalidateQueries({ queryKey: ["integrations-hub"] }),
       ]);
     },
-    onError: (error) => {
-      const message =
-        error instanceof Error ? error.message : "Google Analytics connection test failed.";
+    onError: async (error) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["integration-detail"] }),
+        queryClient.invalidateQueries({ queryKey: ["integrations-hub"] }),
+      ]);
+
+      const message = getUserFacingIntegrationError(
+        error,
+        "Google Analytics connection test failed.",
+      );
       toast.error(message);
     },
   });
 
   const ga4ReauthorizationMutation = useMutation({
     mutationFn: async () => {
-      if (slug !== "google-analytics-4") {
+      if (slug !== "google-analytics") {
         throw new Error("Reauthorization is only available on the Google Analytics detail page.");
       }
 
@@ -3470,8 +6062,10 @@ export function useIntegrationDetailData(
       toast.success("Redirecting to Google Analytics authorization.");
     },
     onError: (error) => {
-      const message =
-        error instanceof Error ? error.message : "Google Analytics authorization could not be started.";
+      const message = getUserFacingIntegrationError(
+        error,
+        "Google Analytics authorization could not be started.",
+      );
       toast.error(message);
     },
   });
@@ -3589,6 +6183,7 @@ export function useIntegrationDetailData(
             .from("google_analytics_settings")
             .delete()
             .eq("id", resolved.disconnectRef.id)
+            .eq("tenant_id", tenant?.id ?? "")
             .eq("user_id", user.id);
 
           if (error) throw error;
@@ -3607,8 +6202,48 @@ export function useIntegrationDetailData(
       ]);
     },
     onError: (error) => {
-      const message = error instanceof Error ? error.message : "Disconnect failed.";
+      const message = getUserFacingIntegrationError(error, "Disconnect failed.");
       toast.error(message);
+    },
+  });
+
+  const marketingImportValidationMutation = useMutation({
+    mutationFn: async () => {
+      if (resolved?.item?.slug !== "klaviyo") {
+        throw new Error("Connection validation is only available for Klaviyo.");
+      }
+
+      const { data, error } = await supabase.functions.invoke(
+        "klaviyo-fetch-lists",
+      );
+
+      if (error) throw error;
+      if (data?.error) {
+        throw new Error(data.error);
+      }
+
+      return data as { lists?: unknown[] } | null;
+    },
+    onSuccess: async (data) => {
+      const listCount = Array.isArray(data?.lists) ? data.lists.length : 0;
+      toast.success(
+        listCount > 0
+          ? `Klaviyo connection validated. ${listCount} list${listCount === 1 ? "" : "s"} available.`
+          : "Klaviyo connection validated.",
+      );
+
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["integration-detail", slug] }),
+        queryClient.invalidateQueries({ queryKey: ["integrations-hub"] }),
+      ]);
+    },
+    onError: (error) => {
+      toast.error(
+        getUserFacingIntegrationError(
+          error,
+          "Unable to validate the Klaviyo connection.",
+        ),
+      );
     },
   });
 
@@ -3618,7 +6253,9 @@ export function useIntegrationDetailData(
     model: resolved?.model ?? null,
     comingSoonDetail,
     squareDetail: resolved?.squareDetail ?? null,
+    squareDashboard,
     cloverDetail: resolved?.cloverDetail ?? null,
+    cloverDashboard,
     lightspeedDetail: resolved?.lightspeedDetail ?? null,
     lightspeedDashboard,
     metaDetail: resolved?.metaDetail ?? null,
@@ -3629,6 +6266,8 @@ export function useIntegrationDetailData(
     requestPath: resolved?.requestPath,
     canUseActions:
       !isComingSoonIntegrationSlug(resolved?.item?.slug ?? null) && hasRole("member"),
+      canAccessLightspeedAdminFeatures:
+        resolved?.item?.slug === "lightspeed" ? isSuperAdmin : false,
     canDisconnect: Boolean(
       resolved?.model?.canDisconnect &&
         resolved?.disconnectRef &&
@@ -3656,6 +6295,8 @@ export function useIntegrationDetailData(
     isCloverConnectionTesting: cloverConnectionTestMutation.isPending,
     lightspeedSyncJobs,
     lightspeedActiveJobIds,
+    lightspeedTrackedJobIds,
+    lightspeedRealtimeActive: lightspeedTrackedJobIds.length > 0,
     lightspeedSyncState,
     lightspeedHasStaleJobs,
     triggerLightspeedSync: lightspeedSyncMutation.mutateAsync,
@@ -3668,6 +6309,10 @@ export function useIntegrationDetailData(
     isGa4ConnectionTesting: ga4ConnectionTestMutation.isPending,
     triggerGa4Reauthorization: ga4ReauthorizationMutation.mutateAsync,
     isGa4Reauthorizing: ga4ReauthorizationMutation.isPending,
+    validateMarketingImportConnection:
+      marketingImportValidationMutation.mutateAsync,
+    isValidatingMarketingImportConnection:
+      marketingImportValidationMutation.isPending,
     disconnect: disconnectMutation.mutateAsync,
     isDisconnecting: disconnectMutation.isPending,
   };

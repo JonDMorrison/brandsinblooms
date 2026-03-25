@@ -1,18 +1,33 @@
-import { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
-import { Card } from '@/components/ui/card';
-import { Switch } from '@/components/ui/switch';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
-import { 
-  Loader2, CheckCircle, Users, ShoppingCart, Package, 
-  Gift, Star, Cake, Clock, User, Heart, Sparkles,
-  ArrowRight, PartyPopper
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { CLOVER_QUICK_AUTOMATIONS, type QuickAutomation } from '@/lib/automation/cloverQuickAutomations';
+import { useState, useEffect } from "react";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+import { Card } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import {
+  Loader2,
+  CheckCircle,
+  Users,
+  ShoppingCart,
+  Package,
+  Gift,
+  Star,
+  Cake,
+  Clock,
+  User,
+  Heart,
+  Sparkles,
+  ArrowRight,
+  PartyPopper,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import {
+  CLOVER_QUICK_AUTOMATIONS,
+  type QuickAutomation,
+} from "@/lib/automation/cloverQuickAutomations";
+import { getUserFacingIntegrationError } from "@/components/integrations/integrationDetailModel";
 
 interface CloverSetupWizardProps {
   open: boolean;
@@ -21,12 +36,24 @@ interface CloverSetupWizardProps {
   connectionId?: string;
 }
 
-type WizardStep = 'sync' | 'overview' | 'automations' | 'complete';
+type WizardStep = "sync" | "overview" | "automations" | "complete";
 
 interface SyncProgress {
-  customers: { synced: number; total: number; status: 'pending' | 'syncing' | 'complete' | 'error' };
-  sales: { synced: number; total: number; status: 'pending' | 'syncing' | 'complete' | 'error' };
-  products: { synced: number; total: number; status: 'pending' | 'syncing' | 'complete' | 'error' };
+  customers: {
+    synced: number;
+    total: number;
+    status: "pending" | "syncing" | "complete" | "error";
+  };
+  sales: {
+    synced: number;
+    total: number;
+    status: "pending" | "syncing" | "complete" | "error";
+  };
+  products: {
+    synced: number;
+    total: number;
+    status: "pending" | "syncing" | "complete" | "error";
+  };
 }
 
 interface SyncResults {
@@ -35,7 +62,10 @@ interface SyncResults {
   productsCount: number;
 }
 
-const ICON_MAP: Record<QuickAutomation['icon'], React.ComponentType<{ className?: string }>> = {
+const ICON_MAP: Record<
+  QuickAutomation["icon"],
+  React.ComponentType<{ className?: string }>
+> = {
   gift: Gift,
   star: Star,
   cake: Cake,
@@ -45,23 +75,23 @@ const ICON_MAP: Record<QuickAutomation['icon'], React.ComponentType<{ className?
 };
 
 const STEPS: { id: WizardStep; label: string }[] = [
-  { id: 'sync', label: 'Sync Data' },
-  { id: 'overview', label: 'Overview' },
-  { id: 'automations', label: 'Automations' },
-  { id: 'complete', label: 'Done' },
+  { id: "sync", label: "Sync Data" },
+  { id: "overview", label: "Overview" },
+  { id: "automations", label: "Automations" },
+  { id: "complete", label: "Done" },
 ];
 
-export const CloverSetupWizard = ({ 
-  open, 
-  onOpenChange, 
+export const CloverSetupWizard = ({
+  open,
+  onOpenChange,
   merchantName,
-  connectionId 
+  connectionId,
 }: CloverSetupWizardProps) => {
-  const [currentStep, setCurrentStep] = useState<WizardStep>('sync');
+  const [currentStep, setCurrentStep] = useState<WizardStep>("sync");
   const [syncProgress, setSyncProgress] = useState<SyncProgress>({
-    customers: { synced: 0, total: 0, status: 'pending' },
-    sales: { synced: 0, total: 0, status: 'pending' },
-    products: { synced: 0, total: 0, status: 'pending' },
+    customers: { synced: 0, total: 0, status: "pending" },
+    sales: { synced: 0, total: 0, status: "pending" },
+    products: { synced: 0, total: 0, status: "pending" },
   });
   const [syncResults, setSyncResults] = useState<SyncResults>({
     customersCount: 0,
@@ -69,48 +99,54 @@ export const CloverSetupWizard = ({
     productsCount: 0,
   });
   const [selectedAutomations, setSelectedAutomations] = useState<Set<string>>(
-    new Set(CLOVER_QUICK_AUTOMATIONS.filter(a => a.recommended).map(a => a.id))
+    new Set(
+      CLOVER_QUICK_AUTOMATIONS.filter((a) => a.recommended).map((a) => a.id),
+    ),
   );
   const [creatingAutomations, setCreatingAutomations] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const { toast } = useToast();
 
-  const currentStepIndex = STEPS.findIndex(s => s.id === currentStep);
+  const currentStepIndex = STEPS.findIndex((s) => s.id === currentStep);
 
   useEffect(() => {
-    if (open && currentStep === 'sync' && !isSyncing) {
+    if (open && currentStep === "sync" && !isSyncing) {
       startSync();
     }
   }, [open, currentStep]);
 
-  const fetchActualCounts = async (): Promise<{ customers: number; sales: number; products: number }> => {
+  const fetchActualCounts = async (): Promise<{
+    customers: number;
+    sales: number;
+    products: number;
+  }> => {
     try {
       const { data: userData } = await supabase.auth.getUser();
       if (!userData.user) return { customers: 0, sales: 0, products: 0 };
 
       const { data: user } = await supabase
-        .from('users')
-        .select('tenant_id')
-        .eq('id', userData.user.id)
+        .from("users")
+        .select("tenant_id")
+        .eq("id", userData.user.id)
         .single();
 
       if (!user?.tenant_id) return { customers: 0, sales: 0, products: 0 };
 
       const [customersResult, productsResult, salesResult] = await Promise.all([
         supabase
-          .from('crm_customers')
-          .select('id', { count: 'exact', head: true })
-          .eq('tenant_id', user.tenant_id)
-          .eq('pos_source', 'clover'),
+          .from("crm_customers")
+          .select("id", { count: "exact", head: true })
+          .eq("tenant_id", user.tenant_id)
+          .eq("pos_source", "clover"),
         supabase
-          .from('products')
-          .select('id', { count: 'exact', head: true })
-          .eq('tenant_id', user.tenant_id)
-          .eq('source', 'clover'),
+          .from("products")
+          .select("id", { count: "exact", head: true })
+          .eq("tenant_id", user.tenant_id)
+          .eq("source", "clover"),
         supabase
-          .from('pos_orders')
-          .select('id', { count: 'exact', head: true })
-          .eq('pos_connection_id', connectionId),
+          .from("pos_orders")
+          .select("id", { count: "exact", head: true })
+          .eq("pos_connection_id", connectionId),
       ]);
 
       return {
@@ -119,7 +155,7 @@ export const CloverSetupWizard = ({
         products: productsResult.count || 0,
       };
     } catch (error) {
-      console.error('[CloverSetupWizard] Error fetching counts:', error);
+      console.error("[CloverSetupWizard] Error fetching counts:", error);
       return { customers: 0, sales: 0, products: 0 };
     }
   };
@@ -127,59 +163,68 @@ export const CloverSetupWizard = ({
   const startSync = async () => {
     setIsSyncing(true);
     setSyncProgress({
-      customers: { synced: 0, total: 0, status: 'syncing' },
-      sales: { synced: 0, total: 0, status: 'pending' },
-      products: { synced: 0, total: 0, status: 'pending' },
+      customers: { synced: 0, total: 0, status: "syncing" },
+      sales: { synced: 0, total: 0, status: "pending" },
+      products: { synced: 0, total: 0, status: "pending" },
     });
 
     try {
       // Step 1: Sync customers
-      console.log('[CloverSetupWizard] Starting customer sync...');
-      setSyncProgress(prev => ({ ...prev, customers: { ...prev.customers, status: 'syncing' } }));
-      
-      try {
-        await supabase.functions.invoke('clover-sync-customers');
-      } catch (e) {
-        console.log('[CloverSetupWizard] Customer sync call completed or timed out');
-      }
-      
-      setSyncProgress(prev => ({
+      console.log("[CloverSetupWizard] Starting customer sync...");
+      setSyncProgress((prev) => ({
         ...prev,
-        customers: { ...prev.customers, status: 'complete' },
-        sales: { ...prev.sales, status: 'syncing' },
+        customers: { ...prev.customers, status: "syncing" },
+      }));
+
+      try {
+        await supabase.functions.invoke("clover-sync-customers");
+      } catch (e) {
+        console.log(
+          "[CloverSetupWizard] Customer sync call completed or timed out",
+        );
+      }
+
+      setSyncProgress((prev) => ({
+        ...prev,
+        customers: { ...prev.customers, status: "complete" },
+        sales: { ...prev.sales, status: "syncing" },
       }));
 
       // Step 2: Sync sales
-      console.log('[CloverSetupWizard] Starting sales sync...');
+      console.log("[CloverSetupWizard] Starting sales sync...");
       try {
-        await supabase.functions.invoke('clover-sync-sales');
+        await supabase.functions.invoke("clover-sync-sales");
       } catch (e) {
-        console.log('[CloverSetupWizard] Sales sync call completed or timed out');
+        console.log(
+          "[CloverSetupWizard] Sales sync call completed or timed out",
+        );
       }
-      
-      setSyncProgress(prev => ({
+
+      setSyncProgress((prev) => ({
         ...prev,
-        sales: { ...prev.sales, status: 'complete' },
-        products: { ...prev.products, status: 'syncing' },
+        sales: { ...prev.sales, status: "complete" },
+        products: { ...prev.products, status: "syncing" },
       }));
 
       // Step 3: Sync products
-      console.log('[CloverSetupWizard] Starting products sync...');
+      console.log("[CloverSetupWizard] Starting products sync...");
       try {
-        await supabase.functions.invoke('clover-sync-products');
+        await supabase.functions.invoke("clover-sync-products");
       } catch (e) {
-        console.log('[CloverSetupWizard] Products sync call completed or timed out');
+        console.log(
+          "[CloverSetupWizard] Products sync call completed or timed out",
+        );
       }
-      
-      setSyncProgress(prev => ({
+
+      setSyncProgress((prev) => ({
         ...prev,
-        products: { ...prev.products, status: 'complete' },
+        products: { ...prev.products, status: "complete" },
       }));
 
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
       const actualCounts = await fetchActualCounts();
-      console.log('[CloverSetupWizard] Actual database counts:', actualCounts);
+      console.log("[CloverSetupWizard] Actual database counts:", actualCounts);
 
       setSyncResults({
         customersCount: actualCounts.customers,
@@ -188,30 +233,44 @@ export const CloverSetupWizard = ({
       });
 
       setSyncProgress({
-        customers: { synced: actualCounts.customers, total: actualCounts.customers, status: 'complete' },
-        sales: { synced: actualCounts.sales, total: actualCounts.sales, status: 'complete' },
-        products: { synced: actualCounts.products, total: actualCounts.products, status: 'complete' },
+        customers: {
+          synced: actualCounts.customers,
+          total: actualCounts.customers,
+          status: "complete",
+        },
+        sales: {
+          synced: actualCounts.sales,
+          total: actualCounts.sales,
+          status: "complete",
+        },
+        products: {
+          synced: actualCounts.products,
+          total: actualCounts.products,
+          status: "complete",
+        },
       });
 
-      const hasData = actualCounts.customers > 0 || actualCounts.sales > 0 || actualCounts.products > 0;
-      
+      const hasData =
+        actualCounts.customers > 0 ||
+        actualCounts.sales > 0 ||
+        actualCounts.products > 0;
+
       toast({
-        title: 'Sync complete!',
-        description: hasData 
+        title: "Sync complete!",
+        description: hasData
           ? `Imported ${actualCounts.customers} customers, ${actualCounts.sales} sales, ${actualCounts.products} products`
-          : 'No data found to import. You can proceed to set up automations.',
+          : "No data found to import. You can proceed to set up automations.",
       });
-      
-      setTimeout(() => {
-        setCurrentStep('overview');
-      }, 1500);
 
+      setTimeout(() => {
+        setCurrentStep("overview");
+      }, 1500);
     } catch (error: any) {
-      console.error('Sync error:', error);
+      console.error("Sync error:", error);
       toast({
-        title: 'Sync encountered issues',
-        description: 'Some data may have synced. You can retry or proceed.',
-        variant: 'destructive',
+        title: "Sync encountered issues",
+        description: "Some data may have synced. You can retry or proceed.",
+        variant: "destructive",
       });
     } finally {
       setIsSyncing(false);
@@ -219,7 +278,7 @@ export const CloverSetupWizard = ({
   };
 
   const toggleAutomation = (id: string) => {
-    setSelectedAutomations(prev => {
+    setSelectedAutomations((prev) => {
       const next = new Set(prev);
       if (next.has(id)) {
         next.delete(id);
@@ -232,7 +291,7 @@ export const CloverSetupWizard = ({
 
   const createSelectedAutomations = async () => {
     if (selectedAutomations.size === 0) {
-      setCurrentStep('complete');
+      setCurrentStep("complete");
       return;
     }
 
@@ -240,49 +299,54 @@ export const CloverSetupWizard = ({
 
     try {
       const { data: userData } = await supabase.auth.getUser();
-      if (!userData.user) throw new Error('Not authenticated');
+      if (!userData.user) throw new Error("Not authenticated");
 
       const { data: user } = await supabase
-        .from('users')
-        .select('tenant_id')
-        .eq('id', userData.user.id)
+        .from("users")
+        .select("tenant_id")
+        .eq("id", userData.user.id)
         .single();
 
-      if (!user?.tenant_id) throw new Error('No tenant found');
+      if (!user?.tenant_id) throw new Error("No tenant found");
 
-      const automationsToCreate = CLOVER_QUICK_AUTOMATIONS
-        .filter(a => selectedAutomations.has(a.id))
-        .map(a => ({
-          name: a.name,
-          trigger_type: a.trigger_type,
-          is_active: true,
-          tenant_id: user.tenant_id,
-          user_id: userData.user.id,
-          template_source: 'clover_wizard',
-          workflow_steps: JSON.stringify([{
+      const automationsToCreate = CLOVER_QUICK_AUTOMATIONS.filter((a) =>
+        selectedAutomations.has(a.id),
+      ).map((a) => ({
+        name: a.name,
+        trigger_type: a.trigger_type,
+        is_active: true,
+        tenant_id: user.tenant_id,
+        user_id: userData.user.id,
+        template_source: "clover_wizard",
+        workflow_steps: JSON.stringify([
+          {
             type: a.default_channel,
             delay: a.delay_days ? { days: a.delay_days } : null,
-          }]),
-        }));
+          },
+        ]),
+      }));
 
       const { error } = await supabase
-        .from('crm_automations')
+        .from("crm_automations")
         .insert(automationsToCreate);
 
       if (error) throw error;
 
       toast({
-        title: 'Automations created',
+        title: "Automations created",
         description: `${automationsToCreate.length} automation(s) activated`,
       });
 
-      setCurrentStep('complete');
+      setCurrentStep("complete");
     } catch (error: any) {
-      console.error('Error creating automations:', error);
+      console.error("Error creating automations:", error);
       toast({
-        title: 'Failed to create automations',
-        description: error.message,
-        variant: 'destructive',
+        title: "Failed to create automations",
+        description: getUserFacingIntegrationError(
+          error,
+          "The automations could not be created. Please try again.",
+        ),
+        variant: "destructive",
       });
     } finally {
       setCreatingAutomations(false);
@@ -293,9 +357,9 @@ export const CloverSetupWizard = ({
     onOpenChange(false);
     if (connectionId) {
       supabase
-        .from('clover_connections')
+        .from("clover_connections")
         .update({ setup_wizard_completed_at: new Date().toISOString() })
-        .eq('id', connectionId)
+        .eq("id", connectionId)
         .then(() => {});
     }
   };
@@ -327,16 +391,21 @@ export const CloverSetupWizard = ({
               <span>Customers</span>
             </div>
             <span>
-              {syncProgress.customers.status === 'complete' 
-                ? <CheckCircle className="h-4 w-4 text-green-500" />
-                : syncProgress.customers.status === 'syncing'
-                ? <Loader2 className="h-4 w-4 animate-spin" />
-                : null
-              }
+              {syncProgress.customers.status === "complete" ? (
+                <CheckCircle className="h-4 w-4 text-green-500" />
+              ) : syncProgress.customers.status === "syncing" ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : null}
             </span>
           </div>
-          <Progress 
-            value={syncProgress.customers.status === 'complete' ? 100 : syncProgress.customers.status === 'syncing' ? 50 : 0} 
+          <Progress
+            value={
+              syncProgress.customers.status === "complete"
+                ? 100
+                : syncProgress.customers.status === "syncing"
+                  ? 50
+                  : 0
+            }
             className="h-2"
           />
         </div>
@@ -348,16 +417,21 @@ export const CloverSetupWizard = ({
               <span>Sales History</span>
             </div>
             <span>
-              {syncProgress.sales.status === 'complete' 
-                ? <CheckCircle className="h-4 w-4 text-green-500" />
-                : syncProgress.sales.status === 'syncing'
-                ? <Loader2 className="h-4 w-4 animate-spin" />
-                : null
-              }
+              {syncProgress.sales.status === "complete" ? (
+                <CheckCircle className="h-4 w-4 text-green-500" />
+              ) : syncProgress.sales.status === "syncing" ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : null}
             </span>
           </div>
-          <Progress 
-            value={syncProgress.sales.status === 'complete' ? 100 : syncProgress.sales.status === 'syncing' ? 50 : 0} 
+          <Progress
+            value={
+              syncProgress.sales.status === "complete"
+                ? 100
+                : syncProgress.sales.status === "syncing"
+                  ? 50
+                  : 0
+            }
             className="h-2"
           />
         </div>
@@ -369,22 +443,27 @@ export const CloverSetupWizard = ({
               <span>Products</span>
             </div>
             <span>
-              {syncProgress.products.status === 'complete' 
-                ? <CheckCircle className="h-4 w-4 text-green-500" />
-                : syncProgress.products.status === 'syncing'
-                ? <Loader2 className="h-4 w-4 animate-spin" />
-                : null
-              }
+              {syncProgress.products.status === "complete" ? (
+                <CheckCircle className="h-4 w-4 text-green-500" />
+              ) : syncProgress.products.status === "syncing" ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : null}
             </span>
           </div>
-          <Progress 
-            value={syncProgress.products.status === 'complete' ? 100 : syncProgress.products.status === 'syncing' ? 50 : 0} 
+          <Progress
+            value={
+              syncProgress.products.status === "complete"
+                ? 100
+                : syncProgress.products.status === "syncing"
+                  ? 50
+                  : 0
+            }
             className="h-2"
           />
         </div>
       </div>
 
-      {syncProgress.customers.status === 'error' && (
+      {syncProgress.customers.status === "error" && (
         <Button onClick={startSync} variant="outline" className="w-full">
           Retry Sync
         </Button>
@@ -447,21 +526,25 @@ export const CloverSetupWizard = ({
         {CLOVER_QUICK_AUTOMATIONS.map((automation) => {
           const IconComponent = ICON_MAP[automation.icon];
           const isSelected = selectedAutomations.has(automation.id);
-          
+
           return (
-            <Card 
+            <Card
               key={automation.id}
               className={cn(
                 "p-4 cursor-pointer transition-all hover:shadow-md",
-                isSelected && "ring-2 ring-primary bg-primary/5"
+                isSelected && "ring-2 ring-primary bg-primary/5",
               )}
               onClick={() => toggleAutomation(automation.id)}
             >
               <div className="flex items-center gap-4">
-                <div className={cn(
-                  "w-10 h-10 rounded-lg flex items-center justify-center",
-                  isSelected ? "bg-primary text-primary-foreground" : "bg-muted"
-                )}>
+                <div
+                  className={cn(
+                    "w-10 h-10 rounded-lg flex items-center justify-center",
+                    isSelected
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted",
+                  )}
+                >
                   <IconComponent className="h-5 w-5" />
                 </div>
                 <div className="flex-1 min-w-0">
@@ -477,7 +560,7 @@ export const CloverSetupWizard = ({
                     {automation.description}
                   </p>
                 </div>
-                <Switch 
+                <Switch
                   checked={isSelected}
                   onCheckedChange={() => toggleAutomation(automation.id)}
                   onClick={(e) => e.stopPropagation()}
@@ -489,14 +572,19 @@ export const CloverSetupWizard = ({
       </div>
 
       <div className="flex justify-between">
-        <Button variant="ghost" onClick={() => setCurrentStep('overview')}>
+        <Button variant="ghost" onClick={() => setCurrentStep("overview")}>
           Back
         </Button>
-        <Button onClick={createSelectedAutomations} disabled={creatingAutomations}>
-          {creatingAutomations ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-          {selectedAutomations.size > 0 
-            ? `Create ${selectedAutomations.size} Automation${selectedAutomations.size > 1 ? 's' : ''}`
-            : 'Skip'}
+        <Button
+          onClick={createSelectedAutomations}
+          disabled={creatingAutomations}
+        >
+          {creatingAutomations ? (
+            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+          ) : null}
+          {selectedAutomations.size > 0
+            ? `Create ${selectedAutomations.size} Automation${selectedAutomations.size > 1 ? "s" : ""}`
+            : "Skip"}
         </Button>
       </div>
     </div>
@@ -509,10 +597,10 @@ export const CloverSetupWizard = ({
       </div>
       <h3 className="text-2xl font-semibold">You're All Set!</h3>
       <p className="text-muted-foreground max-w-sm mx-auto">
-        Your Clover integration is configured and ready to use. 
+        Your Clover integration is configured and ready to use.
         {merchantName && ` Connected to ${merchantName}.`}
       </p>
-      
+
       <div className="pt-4">
         <Button onClick={handleClose} size="lg">
           Get Started
@@ -525,28 +613,28 @@ export const CloverSetupWizard = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogTitle className="sr-only">Clover Setup Wizard</DialogTitle>
-        
+
         {/* Progress indicator */}
         <div className="flex items-center justify-center gap-2 mb-4">
           {STEPS.map((step, index) => (
-            <div 
+            <div
               key={step.id}
               className={cn(
                 "w-2 h-2 rounded-full transition-all",
-                index === currentStepIndex 
-                  ? "w-8 bg-primary" 
-                  : index < currentStepIndex 
-                    ? "bg-primary" 
-                    : "bg-muted"
+                index === currentStepIndex
+                  ? "w-8 bg-primary"
+                  : index < currentStepIndex
+                    ? "bg-primary"
+                    : "bg-muted",
               )}
             />
           ))}
         </div>
 
-        {currentStep === 'sync' && renderSyncStep()}
-        {currentStep === 'overview' && renderOverviewStep()}
-        {currentStep === 'automations' && renderAutomationsStep()}
-        {currentStep === 'complete' && renderCompleteStep()}
+        {currentStep === "sync" && renderSyncStep()}
+        {currentStep === "overview" && renderOverviewStep()}
+        {currentStep === "automations" && renderAutomationsStep()}
+        {currentStep === "complete" && renderCompleteStep()}
       </DialogContent>
     </Dialog>
   );
