@@ -517,7 +517,9 @@ function App() {
               element={
                 <ProtectedRoute>
                   <SidebarLayout>
-                    <FormsPage />
+                    <ErrorBoundary>
+                      <FormsPage />
+                    </ErrorBoundary>
                   </SidebarLayout>
                 </ProtectedRoute>
               }
@@ -527,7 +529,9 @@ function App() {
               element={
                 <ProtectedRoute>
                   <SidebarLayout>
-                    <FormEditorPage />
+                    <ErrorBoundary>
+                      <FormEditorPage />
+                    </ErrorBoundary>
                   </SidebarLayout>
                 </ProtectedRoute>
               }

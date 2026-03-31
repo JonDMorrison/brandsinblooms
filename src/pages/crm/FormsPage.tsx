@@ -2,7 +2,8 @@ import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { FileText, Plus, Eye, Trash2, MoreHorizontal, Copy, Layout, Search } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { FileText, Plus, Eye, Trash2, MoreHorizontal, Copy, Layout, Search, AlertTriangle, RefreshCw } from 'lucide-react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useForms, useFormSubmissions } from '@/hooks/useForms';
 import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
@@ -17,11 +18,13 @@ import { NativeSelect } from '@/components/ui/NativeSelect';
 import { FormTemplatesDialog } from '@/components/forms/FormTemplatesDialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
+import { useQueryClient } from '@tanstack/react-query';
 
 export default function FormsPage() {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { forms, isLoading, deleteForm, isDeleting, createForm, isCreating } = useForms();
+  const queryClient = useQueryClient();
+  const { forms, isLoading, error, deleteForm, isDeleting, createForm, isCreating } = useForms();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [formToDelete, setFormToDelete] = useState<{ id: string; name: string } | null>(null);
   const [templatesDialogOpen, setTemplatesDialogOpen] = useState(false);
@@ -43,22 +46,33 @@ export default function FormsPage() {
   };
 
   const handleCreateBlank = async () => {
-    const form = await createForm({ name: 'Untitled Form' });
-    if (form) {
-      navigate(`/crm/forms/${form.id}`);
+    try {
+      const form = await createForm({ name: 'Untitled Form' });
+      if (form) {
+        navigate(`/crm/forms/${form.id}`);
+      }
+    } catch (err) {
+      // Error toast is already shown by useForms mutation onError; log for debugging
+      console.error('[FormsPage] handleCreateBlank failed:', err);
     }
   };
 
   const handleTemplateSelect = async (templateData: any) => {
-    const form = await createForm({
-      name: templateData.name || 'Untitled Form',
-      fields_json: templateData.fields_json,
-      settings_json: templateData.settings_json,
-      compliance_json: templateData.compliance_json,
-    });
-    setTemplatesDialogOpen(false);
-    if (form) {
-      navigate(`/crm/forms/${form.id}`);
+    try {
+      const form = await createForm({
+        name: templateData.name || 'Untitled Form',
+        fields_json: templateData.fields_json,
+        settings_json: templateData.settings_json,
+        compliance_json: templateData.compliance_json,
+      });
+      setTemplatesDialogOpen(false);
+      if (form) {
+        navigate(`/crm/forms/${form.id}`);
+      }
+    } catch (err) {
+      // Error toast is already shown by useForms mutation onError; log for debugging
+      console.error('[FormsPage] handleTemplateSelect failed:', err);
+      setTemplatesDialogOpen(false);
     }
   };
 
@@ -121,6 +135,27 @@ export default function FormsPage() {
           </Button>
         </div>
       </div>
+
+      {/* Error state */}
+      {error && (
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription className="flex items-center justify-between gap-4">
+            <span>
+              Failed to load forms.{' '}
+              {error instanceof Error ? error.message : 'Please check your connection and try again.'}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => queryClient.invalidateQueries({ queryKey: ['forms'] })}
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Retry
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

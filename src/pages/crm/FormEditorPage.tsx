@@ -23,6 +23,7 @@ import { cn } from '@/lib/utils';
 import { useMediaQuery } from '@/hooks/use-media-query';
 import { useBeforeUnload } from '@/hooks/useBeforeUnload';
 import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 export default function FormEditorPage() {
   const { formId } = useParams<{ formId: string }>();
@@ -294,12 +295,14 @@ export default function FormEditorPage() {
         {/* Right Column: Preview Panel */}
         {showPreview && showPreviewForTab && (
           <div className="hidden lg:flex lg:flex-col w-[40%] min-w-[380px] max-w-[500px] border-l bg-muted/30 p-4 overflow-hidden">
-            <PreviewPanel
-              fields={fields}
-              settings={settings}
-              compliance={compliance}
-              className="h-full"
-            />
+            <ErrorBoundary>
+              <PreviewPanel
+                fields={fields}
+                settings={settings}
+                compliance={compliance}
+                className="h-full"
+              />
+            </ErrorBoundary>
           </div>
         )}
       </div>
@@ -332,12 +335,14 @@ export default function FormEditorPage() {
               </Button>
             </div>
             <div className="flex-1 overflow-auto">
-              <PreviewPanel
-                fields={fields}
-                settings={settings}
-                compliance={compliance}
-                className="h-full"
-              />
+              <ErrorBoundary>
+                <PreviewPanel
+                  fields={fields}
+                  settings={settings}
+                  compliance={compliance}
+                  className="h-full"
+                />
+              </ErrorBoundary>
             </div>
           </div>
         </div>
