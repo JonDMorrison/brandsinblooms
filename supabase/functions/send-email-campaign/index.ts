@@ -1393,7 +1393,7 @@ serve(async (req: Request) => {
         try {
           const resp = await supabase
             .from('email_messages')
-            .upsert(chunk, { onConflict: 'campaign_id,customer_id', ignoreDuplicates: true });
+            .upsert(chunk, { onConflict: 'campaign_id,customer_id,retry_sequence', ignoreDuplicates: true });
 
           if (resp.error) {
             const code = (resp.error as any)?.code;
