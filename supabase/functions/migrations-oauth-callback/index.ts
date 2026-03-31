@@ -4,6 +4,11 @@ import {
   encryptToken,
   assertEncryptionKeyConfigured,
 } from "../_shared/crypto/tokens.ts";
+import {
+  detectEnvironment,
+  detectEnvironmentFromOrigin,
+  getEnvSecret,
+} from "../_shared/environment.ts";
 
 declare const EdgeRuntime: {
   waitUntil(promise: Promise<unknown>): void;
@@ -13,6 +18,24 @@ const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
+};
+
+const PROVIDER_CLIENT_SECRET_BASE_NAMES: Record<
+  string,
+  { clientIdKey: string; clientSecretKey: string }
+> = {
+  mailchimp: {
+    clientIdKey: "MAILCHIMP_CLIENT_ID",
+    clientSecretKey: "MAILCHIMP_CLIENT_SECRET",
+  },
+  klaviyo: {
+    clientIdKey: "KLAVIYO_CLIENT_ID",
+    clientSecretKey: "KLAVIYO_CLIENT_SECRET",
+  },
+  constant_contact: {
+    clientIdKey: "CONSTANT_CONTACT_CLIENT_ID",
+    clientSecretKey: "CONSTANT_CONTACT_CLIENT_SECRET",
+  },
 };
 
 // Fail fast if encryption key is not configured
@@ -216,13 +239,35 @@ export async function handleMigrationsOAuthCallback(
     const user_id = uid;
     const tenant_id = userRow.tenant_id;
 
-    // Get OAuth credentials
-    const clientId = deps.envGet(`${provider.toUpperCase()}_CLIENT_ID`);
-    const clientSecret = deps.envGet(`${provider.toUpperCase()}_CLIENT_SECRET`);
+    const environment = appOriginFromState
+      ? detectEnvironmentFromOrigin(appOriginFromState)
+      : detectEnvironment(req);
+    const credentialKeys = PROVIDER_CLIENT_SECRET_BASE_NAMES[provider];
+    const clientId = getEnvSecret(
+      credentialKeys.clientIdKey,
+      environment,
+      deps.envGet,
+    );
+    const clientSecret = getEnvSecret(
+      credentialKeys.clientSecretKey,
+      environment,
+      deps.envGet,
+    );
     if (!clientId || !clientSecret) {
-      throw new Error("OAuth credentials not configured");
+      throw new Error(
+        `OAuth credentials not configured for ${provider} in ${environment} environment`,
+      );
     }
     // redirectUri is derived from verified state claims
+
+    console.log("[migrations-oauth-callback] Using OAuth credentials", {
+      provider,
+      environment,
+      redirectUri,
+      appOrigin: appOriginFromState,
+      hasClientId: Boolean(clientId),
+      hasClientSecret: Boolean(clientSecret),
+    });
 
     // Exchange code for tokens
     let tokenUrl = "";

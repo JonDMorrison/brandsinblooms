@@ -1279,9 +1279,7 @@ describe("IntegrationDetailPage GA4 and marketing-import branches", () => {
     renderPage("/integrations/mailchimp");
 
     expect(screen.queryByText("Mailchimp import in progress")).toBeNull();
-    expect(
-      screen.queryByRole("button", { name: "Import Running" }),
-    ).toBeNull();
+    expect(screen.queryByRole("button", { name: "Import Running" })).toBeNull();
     expect(screen.getByRole("button", { name: "Start Import" })).toBeTruthy();
   });
 

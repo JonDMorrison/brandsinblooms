@@ -3,7 +3,20 @@
  * Determines if we're running in development/preview or production
  */
 
-export type Environment = 'development' | 'production';
+export type Environment = "development" | "production";
+
+export function detectEnvironmentFromOrigin(
+  value: string | null | undefined,
+): Environment {
+  const normalized = (value || "").toLowerCase();
+
+  const isDev =
+    normalized.includes("localhost") ||
+    normalized.includes("lovableproject.com") ||
+    normalized.includes("lovable.app");
+
+  return isDev ? "development" : "production";
+}
 
 /**
  * Detect the current environment based on the request origin
@@ -11,35 +24,29 @@ export type Environment = 'development' | 'production';
  * Production: bloomsuite.app and custom domains
  */
 export function detectEnvironment(req: Request): Environment {
-  const origin = req.headers.get('origin') || '';
-  const referer = req.headers.get('referer') || '';
-
-  // Check if request is from development/preview environment
-  const isDev =
-    origin.includes('localhost') ||
-    origin.includes('lovableproject.com') ||
-    origin.includes('lovable.app') || // Lovable preview URLs
-    referer.includes('localhost') ||
-    referer.includes('lovableproject.com') ||
-    referer.includes('lovable.app');
-
-  return isDev ? 'development' : 'production';
+  return detectEnvironmentFromOrigin(
+    req.headers.get("origin") || req.headers.get("referer"),
+  );
 }
 
 /**
  * Get environment-specific secret value
  * Looks for DEV or PROD suffix based on environment
  */
-export function getEnvSecret(baseName: string, env: Environment): string | undefined {
-  const suffix = env === 'development' ? '_DEV' : '_PROD';
+export function getEnvSecret(
+  baseName: string,
+  env: Environment,
+  envGet: (key: string) => string | undefined = (key) => Deno.env.get(key),
+): string | undefined {
+  const suffix = env === "development" ? "_DEV" : "_PROD";
 
   // Prefer environment-specific secrets (recommended)
-  const envSpecific = Deno.env.get(`${baseName}${suffix}`);
+  const envSpecific = envGet(`${baseName}${suffix}`);
   if (envSpecific) return envSpecific;
 
   // Backwards-compatible fallback (some older deployments used unsuffixed secrets)
   // Example: LIGHTSPEED_CLIENT_ID / LIGHTSPEED_CLIENT_SECRET
-  return Deno.env.get(baseName);
+  return envGet(baseName);
 }
 
 /**
@@ -50,8 +57,8 @@ export function getLightspeedCredentials(env: Environment): {
   clientSecret: string | undefined;
 } {
   return {
-    clientId: getEnvSecret('LIGHTSPEED_CLIENT_ID', env),
-    clientSecret: getEnvSecret('LIGHTSPEED_CLIENT_SECRET', env),
+    clientId: getEnvSecret("LIGHTSPEED_CLIENT_ID", env),
+    clientSecret: getEnvSecret("LIGHTSPEED_CLIENT_SECRET", env),
   };
 }
 
@@ -63,8 +70,8 @@ export function getFacebookCredentials(env: Environment): {
   clientSecret: string | undefined;
 } {
   return {
-    clientId: getEnvSecret('FB_CLIENT_ID', env),
-    clientSecret: getEnvSecret('FB_CLIENT_SECRET', env),
+    clientId: getEnvSecret("FB_CLIENT_ID", env),
+    clientSecret: getEnvSecret("FB_CLIENT_SECRET", env),
   };
 }
 
@@ -76,8 +83,8 @@ export function getMailchimpCredentials(env: Environment): {
   clientSecret: string | undefined;
 } {
   return {
-    clientId: getEnvSecret('MAILCHIMP_CLIENT_ID', env),
-    clientSecret: getEnvSecret('MAILCHIMP_CLIENT_SECRET', env),
+    clientId: getEnvSecret("MAILCHIMP_CLIENT_ID", env),
+    clientSecret: getEnvSecret("MAILCHIMP_CLIENT_SECRET", env),
   };
 }
 
@@ -89,8 +96,8 @@ export function getSquareCredentials(env: Environment): {
   clientSecret: string | undefined;
 } {
   return {
-    clientId: getEnvSecret('SQUARE_CLIENT_ID', env),
-    clientSecret: getEnvSecret('SQUARE_CLIENT_SECRET', env),
+    clientId: getEnvSecret("SQUARE_CLIENT_ID", env),
+    clientSecret: getEnvSecret("SQUARE_CLIENT_SECRET", env),
   };
 }
 
@@ -107,10 +114,16 @@ export function getSquareCredentials(env: Environment): {
  * Development: https://{preview-id}.lovableproject.com/oauth/callback
  * Production: https://bloomsuite.app/oauth/callback
  */
-export function getOAuthRedirectUri(env: Environment, path: string = '/oauth/callback'): string {
-  console.warn('⚠️ getOAuthRedirectUri() is deprecated and unused. Use frontend environment utils instead.');
-  const baseUrl = env === 'development'
-    ? 'https://lovable.app'  // ❌ INCORRECT - should be dynamic preview URL
-    : 'https://bloomsuite.app';
+export function getOAuthRedirectUri(
+  env: Environment,
+  path: string = "/oauth/callback",
+): string {
+  console.warn(
+    "⚠️ getOAuthRedirectUri() is deprecated and unused. Use frontend environment utils instead.",
+  );
+  const baseUrl =
+    env === "development"
+      ? "https://lovable.app" // ❌ INCORRECT - should be dynamic preview URL
+      : "https://bloomsuite.app";
   return `${baseUrl}${path}`;
 }

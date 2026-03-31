@@ -105,3 +105,44 @@ Deno.test(
     assertStringIncludes(body.authUrl, "state=signed-state");
   },
 );
+
+Deno.test(
+  "oauth-authorize uses development Mailchimp credentials for preview origins",
+  async () => {
+    const { client } = createMockSupabaseClient({
+      "auth:getUser": { data: { user: { id: "user-1" } }, error: null },
+      "users:select": { data: { tenant_id: "tenant-1" }, error: null },
+    });
+
+    const response = await handleOAuthAuthorize(
+      jsonRequest(
+        "https://example.test",
+        { provider: "mailchimp" },
+        {
+          headers: {
+            Authorization: "Bearer token",
+            Origin: "https://preview-123.lovable.app",
+          },
+        },
+      ),
+      {
+        createClient: () => client as never,
+        envGet: makeEnv({
+          SUPABASE_URL: "https://supabase.test",
+          SUPABASE_ANON_KEY: "anon-key",
+          OAUTH_STATE_SECRET: "state-secret",
+          MAILCHIMP_CLIENT_ID_DEV: "mailchimp-client-id-dev",
+          MAILCHIMP_CLIENT_SECRET_DEV: "mailchimp-client-secret-dev",
+        }),
+        createJwt: async () => "signed-state",
+        getNumericDate: () => 123,
+        randomUUID: () => "uuid-123",
+        importKey: async () => ({}) as CryptoKey,
+      },
+    );
+
+    assertEquals(response.status, 200);
+    const body = await response.json();
+    assertStringIncludes(body.authUrl, "client_id=mailchimp-client-id-dev");
+  },
+);

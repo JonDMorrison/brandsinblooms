@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { create, getNumericDate } from "https://deno.land/x/djwt@v2.8/mod.ts";
+import { detectEnvironment, getEnvSecret } from "../_shared/environment.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -7,13 +8,22 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-const PROVIDER_REQUIRED_SECRETS: Record<string, string[]> = {
-  mailchimp: ["MAILCHIMP_CLIENT_ID", "MAILCHIMP_CLIENT_SECRET"],
-  klaviyo: ["KLAVIYO_CLIENT_ID", "KLAVIYO_CLIENT_SECRET"],
-  constant_contact: [
-    "CONSTANT_CONTACT_CLIENT_ID",
-    "CONSTANT_CONTACT_CLIENT_SECRET",
-  ],
+const PROVIDER_CLIENT_SECRET_BASE_NAMES: Record<
+  string,
+  { clientIdKey: string; clientSecretKey: string }
+> = {
+  mailchimp: {
+    clientIdKey: "MAILCHIMP_CLIENT_ID",
+    clientSecretKey: "MAILCHIMP_CLIENT_SECRET",
+  },
+  klaviyo: {
+    clientIdKey: "KLAVIYO_CLIENT_ID",
+    clientSecretKey: "KLAVIYO_CLIENT_SECRET",
+  },
+  constant_contact: {
+    clientIdKey: "CONSTANT_CONTACT_CLIENT_ID",
+    clientSecretKey: "CONSTANT_CONTACT_CLIENT_SECRET",
+  },
 };
 
 export interface OAuthAuthorizeDependencies {
@@ -49,11 +59,7 @@ export async function handleOAuthAuthorize(
       throw new Error("Invalid provider");
     }
 
-    const requiredSecrets = [
-      "OAUTH_STATE_SECRET",
-      ...(PROVIDER_REQUIRED_SECRETS[provider] ?? []),
-    ];
-    for (const key of requiredSecrets) {
+    for (const key of ["OAUTH_STATE_SECRET"]) {
       if (!deps.envGet(key)) {
         return new Response(
           JSON.stringify({ error: `Missing required secret: ${key}` }),
@@ -114,13 +120,23 @@ export async function handleOAuthAuthorize(
       throw new Error("No tenant found for user");
     }
 
-    // Get OAuth credentials from environment
-    const clientId = deps.envGet(`${provider.toUpperCase()}_CLIENT_ID`);
+    const environment = detectEnvironment(req);
+    const credentialKeys = PROVIDER_CLIENT_SECRET_BASE_NAMES[provider];
+    const clientId = getEnvSecret(
+      credentialKeys.clientIdKey,
+      environment,
+      deps.envGet,
+    );
+    const clientSecret = getEnvSecret(
+      credentialKeys.clientSecretKey,
+      environment,
+      deps.envGet,
+    );
 
-    if (!clientId) {
+    if (!clientId || !clientSecret) {
       return new Response(
         JSON.stringify({
-          error: `Missing required secret: ${provider.toUpperCase()}_CLIENT_ID`,
+          error: `Missing OAuth credentials for ${provider} in ${environment} environment`,
         }),
         {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -196,7 +212,9 @@ export async function handleOAuthAuthorize(
         `response_type=code&client_id=${encodeURIComponent(clientId)}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${encodeURIComponent(state)}&scope=contact_data+offline_access+account_read`;
     }
 
-    console.log(`[oauth-authorize] Generated auth URL for ${provider}`);
+    console.log(
+      `[oauth-authorize] Generated auth URL for ${provider} using ${environment} credentials`,
+    );
 
     return new Response(JSON.stringify({ authUrl, state }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
