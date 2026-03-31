@@ -293,14 +293,15 @@ function mapLightspeedCustomer(customer: any, connection: any) {
     lightspeed_customer_id: String(customer.id ?? customer.customerID),
     contact_id: customer.contact_id ? String(customer.contact_id) : null,
     email:
-      customer.email ??
-      customer.Contact?.Emails?.ContactEmail?.[0]?.address ??
-      null,
+      normalizeOptionalString(
+        customer.email ?? customer.Contact?.Emails?.ContactEmail?.[0]?.address,
+      )?.toLowerCase() ?? null,
     phone:
-      customer.phone ??
-      customer.Contact?.Phones?.ContactPhone?.[0]?.number ??
-      customer.Contact?.Phones?.Phone?.[0]?.number ??
-      null,
+      normalizeOptionalString(
+        customer.phone ??
+          customer.Contact?.Phones?.ContactPhone?.[0]?.number ??
+          customer.Contact?.Phones?.Phone?.[0]?.number,
+      ) ?? null,
     first_name: customer.first_name ?? customer.firstName ?? null,
     last_name: customer.last_name ?? customer.lastName ?? null,
     customer_group_id: customer.customer_code
@@ -337,6 +338,61 @@ function mapLightspeedCustomer(customer: any, connection: any) {
     raw_data: customer,
     synced_at: new Date().toISOString(),
   };
+}
+
+function normalizeOptionalString(value: unknown) {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function buildLightspeedCrmCustomerPayload(
+  row: ReturnType<typeof mapLightspeedCustomer>,
+) {
+  const payload: Record<string, unknown> = {
+    tenant_id: row.tenant_id,
+    updated_at: new Date().toISOString(),
+    pos_source: "lightspeed",
+  };
+
+  if (row.email) {
+    payload.email = row.email;
+  }
+
+  if (row.phone) {
+    payload.phone = row.phone;
+  }
+
+  if (row.first_name) {
+    payload.first_name = row.first_name;
+  }
+
+  if (row.last_name) {
+    payload.last_name = row.last_name;
+  }
+
+  if (typeof row.purchase_count === "number") {
+    payload.pos_order_count = row.purchase_count;
+  }
+
+  if (typeof row.total_spend === "number") {
+    payload.total_spent = row.total_spend;
+    payload.pos_total_spent = row.total_spend;
+    payload.lifetime_value = row.total_spend;
+  }
+
+  if (row.first_purchase_date) {
+    payload.first_purchase_date = row.first_purchase_date;
+  }
+
+  if (row.last_purchase_date) {
+    payload.last_purchase_date = row.last_purchase_date;
+  }
+
+  return payload;
 }
 
 function mapLightspeedSale(sale: any, connection: any) {
@@ -438,6 +494,29 @@ function mapLightspeedProduct(product: any, connection: any) {
     tags: rawTags,
     raw_data: product,
     synced_at: new Date().toISOString(),
+  };
+}
+
+function mapLightspeedProductToCatalogProduct(
+  row: ReturnType<typeof mapLightspeedProduct>,
+) {
+  return {
+    tenant_id: row.tenant_id,
+    external_id: row.lightspeed_product_id,
+    source: "lightspeed",
+    name: row.name ?? "Unnamed Product",
+    description: row.description,
+    sku: row.sku,
+    price: row.price ?? 0,
+    currency: "USD",
+    inventory_count: row.inventory_count ?? 0,
+    category: row.category,
+    tags: Array.isArray(row.tags) ? row.tags : [],
+    external_data: row.raw_data ?? {},
+    last_synced_at: row.synced_at,
+    status: "active",
+    is_visible: true,
+    updated_at: new Date().toISOString(),
   };
 }
 
@@ -692,77 +771,106 @@ async function syncLightspeedCustomers(
         continue;
       }
 
+      insertedRows += 1;
+
       if (row.email || row.phone) {
+        const crmPayload = buildLightspeedCrmCustomerPayload(row);
+        let crmFailureRecorded = false;
+        const recordCrmFailure = () => {
+          if (!crmFailureRecorded) {
+            failedRows += 1;
+            crmFailureRecorded = true;
+          }
+        };
         const filters = [];
         if (row.email) filters.push(`email.eq.${row.email}`);
         if (row.phone) filters.push(`phone.eq.${row.phone}`);
 
-        const { data: existingContact, error: existingContactError } =
+        const { data: matchingContacts, error: matchingContactsError } =
           filters.length > 0
             ? await supabase
                 .from("crm_customers")
-                .select("id")
+                .select("id,email,phone")
                 .eq("tenant_id", connection.tenant_id)
                 .or(filters.join(","))
-                .maybeSingle()
-            : { data: null, error: null };
+                .limit(10)
+            : { data: [], error: null };
 
-        if (existingContactError) {
-          failedRows += 1;
+        if (matchingContactsError) {
+          recordCrmFailure();
           console.error(
             "[POS-SYNC-WORKER] Failed to look up CRM customer for Lightspeed customer:",
-            existingContactError.message,
+            matchingContactsError.message,
           );
-          continue;
-        }
+        } else {
+          const matchedByEmail = row.email
+            ? (matchingContacts ?? []).find(
+                (contact) => contact.email === row.email,
+              )
+            : null;
+          const matchedByPhone =
+            !matchedByEmail && row.phone
+              ? (matchingContacts ?? []).find(
+                  (contact) => contact.phone === row.phone,
+                )
+              : null;
 
-        let contactId = existingContact?.id ?? row.contact_id ?? null;
+          let contactId =
+            matchedByEmail?.id ?? matchedByPhone?.id ?? row.contact_id ?? null;
 
-        if (!contactId) {
-          const { data: newContact, error: createError } = await supabase
-            .from("crm_customers")
-            .insert({
-              tenant_id: connection.tenant_id,
-              email: row.email,
-              phone: row.phone,
-              first_name: row.first_name,
-              last_name: row.last_name,
-              source: "lightspeed",
-            })
-            .select("id")
-            .single();
+          if (contactId) {
+            const crmUpdatePayload = { ...crmPayload };
+            if (!matchedByEmail) {
+              delete crmUpdatePayload.email;
+            }
 
-          if (createError) {
-            failedRows += 1;
-            console.error(
-              "[POS-SYNC-WORKER] Failed to create CRM customer for Lightspeed customer:",
-              createError.message,
-            );
-            continue;
+            const { error: updateCrmError } = await supabase
+              .from("crm_customers")
+              .update(crmUpdatePayload)
+              .eq("id", contactId);
+
+            if (updateCrmError) {
+              recordCrmFailure();
+              console.error(
+                "[POS-SYNC-WORKER] Failed to update CRM customer for Lightspeed customer:",
+                updateCrmError.message,
+              );
+            }
+          } else if (row.email) {
+            const { data: newContact, error: createError } = await supabase
+              .from("crm_customers")
+              .upsert(crmPayload, { onConflict: "tenant_id,email" })
+              .select("id")
+              .single();
+
+            if (createError) {
+              recordCrmFailure();
+              console.error(
+                "[POS-SYNC-WORKER] Failed to create CRM customer for Lightspeed customer:",
+                createError.message,
+              );
+            } else {
+              contactId = newContact?.id ?? null;
+            }
           }
 
-          contactId = newContact?.id ?? null;
-        }
+          if (contactId) {
+            const { error: linkError } = await supabase
+              .from("lightspeed_customers")
+              .update({ contact_id: contactId })
+              .eq("tenant_id", connection.tenant_id)
+              .eq("lightspeed_customer_id", row.lightspeed_customer_id);
 
-        if (contactId) {
-          const { error: linkError } = await supabase
-            .from("lightspeed_customers")
-            .update({ contact_id: contactId })
-            .eq("tenant_id", connection.tenant_id)
-            .eq("lightspeed_customer_id", row.lightspeed_customer_id);
-
-          if (linkError) {
-            failedRows += 1;
-            console.error(
-              "[POS-SYNC-WORKER] Failed to link Lightspeed customer to CRM customer:",
-              linkError.message,
-            );
-            continue;
+            if (linkError) {
+              recordCrmFailure();
+              console.error(
+                "[POS-SYNC-WORKER] Failed to link Lightspeed customer to CRM customer:",
+                linkError.message,
+              );
+            }
           }
         }
       }
-
-      insertedRows += 1;
     } catch (error: any) {
       failedRows += 1;
       console.error(
@@ -1095,6 +1203,21 @@ async function syncLightspeedProducts(
         console.error(
           "[POS-SYNC-WORKER] Failed to upsert Lightspeed product:",
           upsertError.message,
+        );
+        continue;
+      }
+
+      const { error: sharedProductError } = await supabase
+        .from("products")
+        .upsert(mapLightspeedProductToCatalogProduct(mappedProduct), {
+          onConflict: "tenant_id,external_id",
+        });
+
+      if (sharedProductError) {
+        failedRows += 1;
+        console.error(
+          "[POS-SYNC-WORKER] Failed to mirror Lightspeed product into products table:",
+          sharedProductError.message,
         );
         continue;
       }

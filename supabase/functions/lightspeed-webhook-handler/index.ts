@@ -1,14 +1,14 @@
-import { createClient } from 'npm:@supabase/supabase-js@2';
-import { corsHeaders } from '../_shared/cors.ts';
+import { createClient } from "npm:@supabase/supabase-js@2";
+import { corsHeaders } from "../_shared/cors.ts";
 
-console.log('[LS-WEBHOOK] Edge function starting');
+console.log("[LS-WEBHOOK] Edge function starting");
 
-const HANDLER_NAME = 'lightspeed-webhook-handler';
+const HANDLER_NAME = "lightspeed-webhook-handler";
 const responseHeaders = {
   ...corsHeaders,
-  'Access-Control-Allow-Headers':
-    'authorization, x-client-info, apikey, content-type, x-lightspeed-signature, x-lightspeed-storeid',
-  'Content-Type': 'application/json',
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-lightspeed-signature, x-lightspeed-storeid",
+  "Content-Type": "application/json",
 };
 
 type JsonObject = Record<string, unknown>;
@@ -29,7 +29,7 @@ function jsonResponse(body: unknown, status = 200) {
 }
 
 function asObject(value: unknown): JsonObject | null {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
     return null;
   }
 
@@ -37,27 +37,30 @@ function asObject(value: unknown): JsonObject | null {
 }
 
 function toInteger(value: unknown, fallback = 0) {
-  const parsed = Number.parseInt(String(value ?? ''), 10);
+  const parsed = Number.parseInt(String(value ?? ""), 10);
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
 function normalizeEmail(value: unknown) {
-  return typeof value === 'string' && value.trim().length > 0
+  return typeof value === "string" && value.trim().length > 0
     ? value.trim().toLowerCase()
     : null;
 }
 
 function parseLightspeedCompletedFlag(value: unknown) {
-  return value === true || value === 'true' || value === '1' || value === 1;
+  return value === true || value === "true" || value === "1" || value === 1;
 }
 
 function getRoutingContext(req: Request) {
   const url = new URL(req.url);
-  const pathSegments = url.pathname.split('/').filter(Boolean);
+  const pathSegments = url.pathname.split("/").filter(Boolean);
   const trailingSegment = pathSegments[pathSegments.length - 1] ?? null;
   const domainPrefixFromPath =
-    trailingSegment && trailingSegment !== HANDLER_NAME ? trailingSegment : null;
-  const storeIdFromHeader = req.headers.get('x-lightspeed-storeid')?.trim() || null;
+    trailingSegment && trailingSegment !== HANDLER_NAME
+      ? trailingSegment
+      : null;
+  const storeIdFromHeader =
+    req.headers.get("x-lightspeed-storeid")?.trim() || null;
 
   return {
     domainPrefixFromPath,
@@ -67,51 +70,54 @@ function getRoutingContext(req: Request) {
 
 function isProductionEnvironment() {
   const environment =
-    Deno.env.get('ENVIRONMENT') ??
-    Deno.env.get('NODE_ENV') ??
-    Deno.env.get('SUPABASE_ENV') ??
-    '';
+    Deno.env.get("ENVIRONMENT") ??
+    Deno.env.get("NODE_ENV") ??
+    Deno.env.get("SUPABASE_ENV") ??
+    "";
 
-  return ['production', 'prod'].includes(environment.toLowerCase());
+  return ["production", "prod"].includes(environment.toLowerCase());
 }
 
 function decodeBase64Signature(signatureHeader: string) {
   const normalized = signatureHeader
     .trim()
-    .replace(/^sha256=/i, '')
-    .replace(/-/g, '+')
-    .replace(/_/g, '/');
-  const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=');
+    .replace(/^sha256=/i, "")
+    .replace(/-/g, "+")
+    .replace(/_/g, "/");
+  const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=");
 
   return Uint8Array.from(atob(padded), (char) => char.charCodeAt(0));
 }
 
-async function verifyLightspeedSignature(rawBody: string, signatureHeader: string) {
-  const secret = Deno.env.get('LIGHTSPEED_WEBHOOK_SECRET');
+async function verifyLightspeedSignature(
+  rawBody: string,
+  signatureHeader: string,
+) {
+  const secret = Deno.env.get("LIGHTSPEED_WEBHOOK_SECRET");
 
   if (!secret) {
-    console.warn('[LS-WEBHOOK] LIGHTSPEED_WEBHOOK_SECRET not configured');
+    console.warn("[LS-WEBHOOK] LIGHTSPEED_WEBHOOK_SECRET not configured");
     return !isProductionEnvironment();
   }
 
   try {
     const encoder = new TextEncoder();
     const key = await crypto.subtle.importKey(
-      'raw',
+      "raw",
       encoder.encode(secret),
-      { name: 'HMAC', hash: 'SHA-256' },
+      { name: "HMAC", hash: "SHA-256" },
       false,
-      ['verify'],
+      ["verify"],
     );
 
     return await crypto.subtle.verify(
-      'HMAC',
+      "HMAC",
       key,
       decodeBase64Signature(signatureHeader),
       encoder.encode(rawBody),
     );
   } catch (error) {
-    console.error('[LS-WEBHOOK] Signature verification error:', error);
+    console.error("[LS-WEBHOOK] Signature verification error:", error);
     return false;
   }
 }
@@ -120,8 +126,11 @@ function extractEventType(payload: unknown) {
   const root = asObject(payload);
   const data = asObject(root?.data);
 
-  const eventType = root?.event_type ?? root?.type ?? data?.event_type ?? data?.type;
-  return typeof eventType === 'string' && eventType.length > 0 ? eventType : 'unknown';
+  const eventType =
+    root?.event_type ?? root?.type ?? data?.event_type ?? data?.type;
+  return typeof eventType === "string" && eventType.length > 0
+    ? eventType
+    : "unknown";
 }
 
 function extractEntity(
@@ -153,18 +162,26 @@ function extractEntity(
 }
 
 function extractSaleFromPayload(payload: unknown) {
-  return extractEntity(payload, 'saleID', ['Sale', 'sale']);
+  return extractEntity(payload, "saleID", ["Sale", "sale"]);
 }
 
 function extractCustomerFromPayload(payload: unknown) {
-  return extractEntity(payload, 'customerID', ['Customer', 'customer']);
+  return extractEntity(payload, "customerID", ["Customer", "customer"]);
 }
 
 function extractProductFromPayload(payload: unknown) {
-  return extractEntity(payload, 'itemID', ['Item', 'item', 'Product', 'product']);
+  return extractEntity(payload, "itemID", [
+    "Item",
+    "item",
+    "Product",
+    "product",
+  ]);
 }
 
-function mapLightspeedCustomer(customer: any, connection: LightspeedConnection) {
+function mapLightspeedCustomer(
+  customer: any,
+  connection: LightspeedConnection,
+) {
   const email = normalizeEmail(
     customer.Contact?.Emails?.ContactEmail?.[0]?.address ?? customer.email,
   );
@@ -180,10 +197,11 @@ function mapLightspeedCustomer(customer: any, connection: LightspeedConnection) 
       null,
     first_name: customer.firstName ?? null,
     last_name: customer.lastName ?? null,
-    customer_group_id:
-      customer.customerTypeID ? String(customer.customerTypeID) :
-      customer.CustomerType?.customerTypeID ? String(customer.CustomerType.customerTypeID) :
-      null,
+    customer_group_id: customer.customerTypeID
+      ? String(customer.customerTypeID)
+      : customer.CustomerType?.customerTypeID
+        ? String(customer.CustomerType.customerTypeID)
+        : null,
     loyalty_balance:
       customer.loyaltyBalance !== undefined && customer.loyaltyBalance !== null
         ? Number.parseFloat(String(customer.loyaltyBalance))
@@ -207,13 +225,15 @@ function mapLightspeedSale(sale: any, connection: LightspeedConnection) {
     tenant_id: connection.tenant_id,
     lightspeed_sale_id: String(sale.saleID),
     lightspeed_customer_id: sale.customerID ? String(sale.customerID) : null,
-    contact_id: sale.Customer?.contactID ? String(sale.Customer.contactID) : null,
+    contact_id: sale.Customer?.contactID
+      ? String(sale.Customer.contactID)
+      : null,
     sale_date: sale.completeTime ?? sale.createTime ?? null,
     total_amount:
       sale.calcTotal !== undefined && sale.calcTotal !== null
         ? Number.parseFloat(String(sale.calcTotal))
         : Number.parseFloat(String(sale.total ?? 0)),
-    status: parseLightspeedCompletedFlag(sale.completed) ? 'completed' : 'open',
+    status: parseLightspeedCompletedFlag(sale.completed) ? "completed" : "open",
     line_items: sale.SaleLines?.SaleLine ?? sale.SaleLines ?? [],
     payment_method:
       sale.SalePayments?.SalePayment?.[0]?.PaymentType?.name ??
@@ -229,23 +249,29 @@ function mapLightspeedProduct(product: any, connection: LightspeedConnection) {
   const rawTags = Array.isArray(product.tags)
     ? product.tags
     : product.Tags?.tag
-      ? (Array.isArray(product.Tags.tag) ? product.Tags.tag : [product.Tags.tag]).map((tag: any) => tag?.name ?? tag)
+      ? (Array.isArray(product.Tags.tag)
+          ? product.Tags.tag
+          : [product.Tags.tag]
+        ).map((tag: any) => tag?.name ?? tag)
       : [];
 
   return {
     tenant_id: connection.tenant_id,
     lightspeed_product_id: String(product.itemID),
     name: product.description ?? null,
-    sku: product.systemSku ?? product.customSku ?? product.manufacturerSku ?? null,
+    sku:
+      product.systemSku ?? product.customSku ?? product.manufacturerSku ?? null,
     description: product.longDescription ?? null,
     price:
-      product.Prices?.ItemPrice?.[0]?.amount !== undefined && product.Prices?.ItemPrice?.[0]?.amount !== null
+      product.Prices?.ItemPrice?.[0]?.amount !== undefined &&
+      product.Prices?.ItemPrice?.[0]?.amount !== null
         ? Number.parseFloat(String(product.Prices.ItemPrice[0].amount))
         : product.defaultCost !== undefined && product.defaultCost !== null
           ? Number.parseFloat(String(product.defaultCost))
           : null,
     inventory_count:
-      product.ItemShops?.ItemShop?.[0]?.qoh !== undefined && product.ItemShops?.ItemShop?.[0]?.qoh !== null
+      product.ItemShops?.ItemShop?.[0]?.qoh !== undefined &&
+      product.ItemShops?.ItemShop?.[0]?.qoh !== null
         ? Number.parseInt(String(product.ItemShops.ItemShop[0].qoh), 10)
         : product.qoh !== undefined && product.qoh !== null
           ? Number.parseInt(String(product.qoh), 10)
@@ -257,6 +283,29 @@ function mapLightspeedProduct(product: any, connection: LightspeedConnection) {
   };
 }
 
+function mapLightspeedProductToCatalogProduct(
+  row: ReturnType<typeof mapLightspeedProduct>,
+) {
+  return {
+    tenant_id: row.tenant_id,
+    external_id: row.lightspeed_product_id,
+    source: "lightspeed",
+    name: row.name ?? "Unnamed Product",
+    description: row.description,
+    sku: row.sku,
+    price: row.price ?? 0,
+    currency: "USD",
+    inventory_count: row.inventory_count ?? 0,
+    category: row.category,
+    tags: Array.isArray(row.tags) ? row.tags : [],
+    external_data: row.raw_data ?? {},
+    last_synced_at: row.synced_at,
+    status: "active",
+    is_visible: true,
+    updated_at: row.synced_at,
+  };
+}
+
 async function resolveLightspeedConnection(
   supabase: any,
   domainPrefixFromPath: string | null,
@@ -264,16 +313,16 @@ async function resolveLightspeedConnection(
 ) {
   if (domainPrefixFromPath) {
     const { data, error } = await supabase
-      .from('lightspeed_connections')
-      .select('*')
-      .eq('status', 'connected')
-      .eq('domain_prefix', domainPrefixFromPath)
+      .from("lightspeed_connections")
+      .select("*")
+      .eq("status", "connected")
+      .eq("domain_prefix", domainPrefixFromPath)
       .limit(1);
 
     return {
       connection: (data?.[0] ?? null) as LightspeedConnection | null,
       error,
-      routingSource: 'path',
+      routingSource: "path",
       routingKey: domainPrefixFromPath,
     };
   }
@@ -292,34 +341,40 @@ async function resolveLightspeedConnection(
     return {
       connection: null,
       error: null,
-      routingSource: 'header',
+      routingSource: "header",
       routingKey: storeIdFromHeader,
     };
   }
 
   const { data, error } = await supabase
-    .from('lightspeed_connections')
-    .select('*')
-    .eq('status', 'connected')
-    .eq('retailer_id', retailerId)
+    .from("lightspeed_connections")
+    .select("*")
+    .eq("status", "connected")
+    .eq("retailer_id", retailerId)
     .limit(1);
 
   return {
     connection: (data?.[0] ?? null) as LightspeedConnection | null,
     error,
-    routingSource: 'header',
+    routingSource: "header",
     routingKey: String(retailerId),
   };
 }
 
-async function updateLastWebhookReceivedAt(supabase: any, connectionId: string) {
+async function updateLastWebhookReceivedAt(
+  supabase: any,
+  connectionId: string,
+) {
   const { error } = await supabase
-    .from('lightspeed_connections')
+    .from("lightspeed_connections")
     .update({ last_webhook_received_at: new Date().toISOString() })
-    .eq('id', connectionId);
+    .eq("id", connectionId);
 
   if (error) {
-    console.error('[LS-WEBHOOK] Failed to update last_webhook_received_at:', error.message);
+    console.error(
+      "[LS-WEBHOOK] Failed to update last_webhook_received_at:",
+      error.message,
+    );
   }
 }
 
@@ -330,14 +385,14 @@ async function handleSaleEvent(
 ) {
   const sale = extractSaleFromPayload(payload);
   if (!sale?.saleID) {
-    console.log('[LS-WEBHOOK] Sale event missing saleID, ignoring');
+    console.log("[LS-WEBHOOK] Sale event missing saleID, ignoring");
     return;
   }
 
   const { error: upsertError } = await supabase
-    .from('lightspeed_sales')
+    .from("lightspeed_sales")
     .upsert(mapLightspeedSale(sale, connection), {
-      onConflict: 'tenant_id,lightspeed_sale_id',
+      onConflict: "tenant_id,lightspeed_sale_id",
     });
 
   if (upsertError) {
@@ -345,11 +400,13 @@ async function handleSaleEvent(
   }
 
   await supabase
-    .from('lightspeed_connections')
+    .from("lightspeed_connections")
     .update({ last_sales_sync: new Date().toISOString() })
-    .eq('id', connection.id);
+    .eq("id", connection.id);
 
-  console.log(`[LS-WEBHOOK] Sale ${sale.saleID} upserted for tenant ${connection.tenant_id}`);
+  console.log(
+    `[LS-WEBHOOK] Sale ${sale.saleID} upserted for tenant ${connection.tenant_id}`,
+  );
 }
 
 async function handleCustomerEvent(
@@ -359,16 +416,16 @@ async function handleCustomerEvent(
 ) {
   const customer = extractCustomerFromPayload(payload);
   if (!customer?.customerID) {
-    console.log('[LS-WEBHOOK] Customer event missing customerID, ignoring');
+    console.log("[LS-WEBHOOK] Customer event missing customerID, ignoring");
     return;
   }
 
   const providerRow = mapLightspeedCustomer(customer, connection);
 
   const { error: providerUpsertError } = await supabase
-    .from('lightspeed_customers')
+    .from("lightspeed_customers")
     .upsert(providerRow, {
-      onConflict: 'tenant_id,lightspeed_customer_id',
+      onConflict: "tenant_id,lightspeed_customer_id",
     });
 
   if (providerUpsertError) {
@@ -381,7 +438,7 @@ async function handleCustomerEvent(
     const crmRow: Record<string, unknown> = {
       tenant_id: connection.tenant_id,
       email,
-      pos_source: 'lightspeed',
+      pos_source: "lightspeed",
       lightspeed_customer_id: String(customer.customerID),
       updated_at: new Date().toISOString(),
     };
@@ -398,11 +455,11 @@ async function handleCustomerEvent(
       crmRow.phone = providerRow.phone;
     }
 
-    if (typeof providerRow.purchase_count === 'number') {
+    if (typeof providerRow.purchase_count === "number") {
       crmRow.pos_order_count = providerRow.purchase_count;
     }
 
-    if (typeof providerRow.total_spend === 'number') {
+    if (typeof providerRow.total_spend === "number") {
       crmRow.total_spent = providerRow.total_spend;
       crmRow.pos_total_spent = providerRow.total_spend;
       crmRow.lifetime_value = providerRow.total_spend;
@@ -417,8 +474,8 @@ async function handleCustomerEvent(
     }
 
     const { error: crmUpsertError } = await supabase
-      .from('crm_customers')
-      .upsert(crmRow, { onConflict: 'tenant_id,email' });
+      .from("crm_customers")
+      .upsert(crmRow, { onConflict: "tenant_id,email" });
 
     if (crmUpsertError) {
       throw crmUpsertError;
@@ -426,11 +483,13 @@ async function handleCustomerEvent(
   }
 
   await supabase
-    .from('lightspeed_connections')
+    .from("lightspeed_connections")
     .update({ last_customer_sync: new Date().toISOString() })
-    .eq('id', connection.id);
+    .eq("id", connection.id);
 
-  console.log(`[LS-WEBHOOK] Customer ${customer.customerID} upserted for tenant ${connection.tenant_id}`);
+  console.log(
+    `[LS-WEBHOOK] Customer ${customer.customerID} upserted for tenant ${connection.tenant_id}`,
+  );
 }
 
 async function handleProductEvent(
@@ -440,26 +499,40 @@ async function handleProductEvent(
 ) {
   const product = extractProductFromPayload(payload);
   if (!product?.itemID) {
-    console.log('[LS-WEBHOOK] Product event missing itemID, ignoring');
+    console.log("[LS-WEBHOOK] Product event missing itemID, ignoring");
     return;
   }
 
+  const providerRow = mapLightspeedProduct(product, connection);
+
   const { error: upsertError } = await supabase
-    .from('lightspeed_products')
-    .upsert(mapLightspeedProduct(product, connection), {
-      onConflict: 'tenant_id,lightspeed_product_id',
+    .from("lightspeed_products")
+    .upsert(providerRow, {
+      onConflict: "tenant_id,lightspeed_product_id",
     });
 
   if (upsertError) {
     throw upsertError;
   }
 
-  await supabase
-    .from('lightspeed_connections')
-    .update({ last_product_sync: new Date().toISOString() })
-    .eq('id', connection.id);
+  const { error: catalogUpsertError } = await supabase
+    .from("products")
+    .upsert(mapLightspeedProductToCatalogProduct(providerRow), {
+      onConflict: "tenant_id,external_id",
+    });
 
-  console.log(`[LS-WEBHOOK] Product ${product.itemID} upserted for tenant ${connection.tenant_id}`);
+  if (catalogUpsertError) {
+    throw catalogUpsertError;
+  }
+
+  await supabase
+    .from("lightspeed_connections")
+    .update({ last_product_sync: new Date().toISOString() })
+    .eq("id", connection.id);
+
+  console.log(
+    `[LS-WEBHOOK] Product ${product.itemID} upserted for tenant ${connection.tenant_id}`,
+  );
 }
 
 async function dispatchLightspeedEvent(
@@ -469,16 +542,16 @@ async function dispatchLightspeedEvent(
   supabase: any,
 ) {
   switch (eventType) {
-    case 'sale.completed':
-    case 'sale.updated':
+    case "sale.completed":
+    case "sale.updated":
       await handleSaleEvent(payload, connection, supabase);
       break;
-    case 'customer.created':
-    case 'customer.updated':
+    case "customer.created":
+    case "customer.updated":
       await handleCustomerEvent(payload, connection, supabase);
       break;
-    case 'product.updated':
-    case 'item.updated':
+    case "product.updated":
+    case "item.updated":
       await handleProductEvent(payload, connection, supabase);
       break;
     default:
@@ -487,39 +560,42 @@ async function dispatchLightspeedEvent(
 }
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') {
+  if (req.method === "OPTIONS") {
     return new Response(null, { headers: responseHeaders });
   }
 
-  if (req.method !== 'POST') {
-    return jsonResponse({ error: 'Method not allowed' }, 405);
+  if (req.method !== "POST") {
+    return jsonResponse({ error: "Method not allowed" }, 405);
   }
 
   const { domainPrefixFromPath, storeIdFromHeader } = getRoutingContext(req);
   if (!domainPrefixFromPath && !storeIdFromHeader) {
-    console.error('[LS-WEBHOOK] No routing key found in path or headers');
-    return jsonResponse({ error: 'Missing routing context' }, 400);
+    console.error("[LS-WEBHOOK] No routing key found in path or headers");
+    return jsonResponse({ error: "Missing routing context" }, 400);
   }
 
   const rawBody = await req.text();
-  const signatureHeader = req.headers.get('x-lightspeed-signature');
+  const signatureHeader = req.headers.get("x-lightspeed-signature");
 
   if (!signatureHeader) {
-    console.warn('[LS-WEBHOOK] Missing signature header — rejecting');
-    return jsonResponse({ error: 'Unauthorized' }, 401);
+    console.warn("[LS-WEBHOOK] Missing signature header — rejecting");
+    return jsonResponse({ error: "Unauthorized" }, 401);
   }
 
-  const signatureValid = await verifyLightspeedSignature(rawBody, signatureHeader);
+  const signatureValid = await verifyLightspeedSignature(
+    rawBody,
+    signatureHeader,
+  );
   if (!signatureValid) {
-    console.warn('[LS-WEBHOOK] Signature verification failed — rejecting');
-    return jsonResponse({ error: 'Unauthorized' }, 401);
+    console.warn("[LS-WEBHOOK] Signature verification failed — rejecting");
+    return jsonResponse({ error: "Unauthorized" }, 401);
   }
 
-  console.log('[LS-WEBHOOK] Signature verified');
+  console.log("[LS-WEBHOOK] Signature verified");
 
   const supabase = createClient(
-    Deno.env.get('SUPABASE_URL') ?? '',
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+    Deno.env.get("SUPABASE_URL") ?? "",
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
     {
       auth: {
         autoRefreshToken: false,
@@ -528,17 +604,28 @@ Deno.serve(async (req) => {
     },
   );
 
-  const { connection, error: connError, routingSource, routingKey } =
-    await resolveLightspeedConnection(supabase, domainPrefixFromPath, storeIdFromHeader);
+  const {
+    connection,
+    error: connError,
+    routingSource,
+    routingKey,
+  } = await resolveLightspeedConnection(
+    supabase,
+    domainPrefixFromPath,
+    storeIdFromHeader,
+  );
 
   if (connError) {
-    console.error('[LS-WEBHOOK] Connection resolution error:', connError.message);
-    return jsonResponse({ error: 'Internal server error' }, 500);
+    console.error(
+      "[LS-WEBHOOK] Connection resolution error:",
+      connError.message,
+    );
+    return jsonResponse({ error: "Internal server error" }, 500);
   }
 
   if (!connection) {
     console.warn(
-      `[LS-WEBHOOK] No matching connected Lightspeed store found for ${routingSource ?? 'unknown'} routing key ${routingKey ?? 'n/a'}`,
+      `[LS-WEBHOOK] No matching connected Lightspeed store found for ${routingSource ?? "unknown"} routing key ${routingKey ?? "n/a"}`,
     );
     return jsonResponse({ success: true, unroutable: true }, 200);
   }
@@ -553,12 +640,14 @@ Deno.serve(async (req) => {
   try {
     payload = rawBody.length > 0 ? JSON.parse(rawBody) : {};
   } catch {
-    console.error('[LS-WEBHOOK] Invalid JSON payload');
-    return jsonResponse({ error: 'Bad Request' }, 400);
+    console.error("[LS-WEBHOOK] Invalid JSON payload");
+    return jsonResponse({ error: "Bad Request" }, 400);
   }
 
   const eventType = extractEventType(payload);
-  console.log(`[LS-WEBHOOK] Event type: ${eventType}, tenant: ${connection.tenant_id}`);
+  console.log(
+    `[LS-WEBHOOK] Event type: ${eventType}, tenant: ${connection.tenant_id}`,
+  );
 
   try {
     await dispatchLightspeedEvent(eventType, payload, connection, supabase);

@@ -251,6 +251,23 @@ function formatCount(value?: number | null) {
   return value.toLocaleString();
 }
 
+function getEffectiveImportedCount(
+  syncedCount?: number | null,
+  dashboardTotalCount?: number | null,
+) {
+  const normalizedSyncedCount =
+    typeof syncedCount === "number" && Number.isFinite(syncedCount)
+      ? syncedCount
+      : 0;
+  const normalizedDashboardCount =
+    typeof dashboardTotalCount === "number" &&
+    Number.isFinite(dashboardTotalCount)
+      ? dashboardTotalCount
+      : 0;
+
+  return Math.max(normalizedSyncedCount, normalizedDashboardCount);
+}
+
 function formatEnvironmentLabel(environment?: string | null) {
   if (!environment) {
     return "Environment pending";
@@ -698,6 +715,7 @@ export default function IntegrationDetailPage() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const [disconnectOpen, setDisconnectOpen] = useState(false);
+  const [lightspeedResetOpen, setLightspeedResetOpen] = useState(false);
   const [shopifyDialogOpen, setShopifyDialogOpen] = useState(false);
   const [copiedLabel, setCopiedLabel] = useState<string | null>(null);
   const [lightspeedTab, setLightspeedTab] =
@@ -935,6 +953,18 @@ export default function IntegrationDetailPage() {
   );
   const lightspeedWebhookMode = formatLightspeedWebhookMode(
     lightspeedDetail?.webhookMode,
+  );
+  const lightspeedCustomersCount = getEffectiveImportedCount(
+    lightspeedDetail?.customersSynced,
+    lightspeedDashboard?.customers.pagination.totalCount,
+  );
+  const lightspeedSalesCount = getEffectiveImportedCount(
+    lightspeedDetail?.salesSynced,
+    lightspeedDashboard?.sales.pagination.totalCount,
+  );
+  const lightspeedProductsCount = getEffectiveImportedCount(
+    lightspeedDetail?.productsSynced,
+    lightspeedDashboard?.products.pagination.totalCount,
   );
   const metaAuthorizationState = formatMetaAuthorizationState(
     metaDetail?.authorizationStatus,
@@ -1538,17 +1568,17 @@ export default function IntegrationDetailPage() {
           {
             value: "customers" as const,
             label: "Customers",
-            count: lightspeedDetail.customersSynced ?? 0,
+            count: lightspeedCustomersCount,
           },
           {
             value: "sales" as const,
             label: "Sales",
-            count: lightspeedDetail.salesSynced ?? 0,
+            count: lightspeedSalesCount,
           },
           {
             value: "products" as const,
             label: "Products",
-            count: lightspeedDetail.productsSynced ?? 0,
+            count: lightspeedProductsCount,
           },
           {
             value: "sync-logs" as const,
@@ -1670,6 +1700,11 @@ export default function IntegrationDetailPage() {
         job.normalizedSyncType === syncType ||
         job.normalizedSyncType === "full",
     );
+  const canResetLightspeedSyncedData =
+    detail.canAccessLightspeedAdminFeatures &&
+    detail.lightspeedSyncState === "idle" &&
+    lightspeedActiveSyncJobs.length === 0 &&
+    !detail.isResettingLightspeedData;
   const lightspeedSyncHealth = lightspeedNeedsReconnect
     ? {
         value: "Reconnect required",
@@ -2256,7 +2291,7 @@ export default function IntegrationDetailPage() {
           {
             key: "lightspeed-customers",
             label: "Customers Synced",
-            value: formatCount(lightspeedDetail.customersSynced),
+            value: formatCount(lightspeedCustomersCount),
             subtitle: lightspeedDetail.lastCustomerSync
               ? `Last synced ${formatRelativeTimestamp(lightspeedDetail.lastCustomerSync)}`
               : "Last synced —",
@@ -2266,7 +2301,7 @@ export default function IntegrationDetailPage() {
           {
             key: "lightspeed-sales",
             label: "Sales Synced",
-            value: formatCount(lightspeedDetail.salesSynced),
+            value: formatCount(lightspeedSalesCount),
             subtitle: lightspeedDetail.lastSalesSync
               ? `Last sync: ${formatRelativeTimestamp(lightspeedDetail.lastSalesSync)}`
               : "Last sync: —",
@@ -2276,7 +2311,7 @@ export default function IntegrationDetailPage() {
           {
             key: "lightspeed-products",
             label: "Products Synced",
-            value: formatCount(lightspeedDetail.productsSynced),
+            value: formatCount(lightspeedProductsCount),
             subtitle: lightspeedDetail.lastProductSync
               ? `Last sync: ${formatRelativeTimestamp(lightspeedDetail.lastProductSync)}`
               : "Last sync: —",
@@ -3736,7 +3771,7 @@ export default function IntegrationDetailPage() {
                 {
                   key: "customers",
                   label: "Customers",
-                  value: formatCount(lightspeedDetail.customersSynced),
+                  value: formatCount(lightspeedCustomersCount),
                   description: lightspeedDetail.lastCustomerSync
                     ? `Last synced ${formatRelativeTimestamp(lightspeedDetail.lastCustomerSync)}`
                     : "No customer sync recorded yet",
@@ -3745,7 +3780,7 @@ export default function IntegrationDetailPage() {
                 {
                   key: "sales",
                   label: "Sales",
-                  value: formatCount(lightspeedDetail.salesSynced),
+                  value: formatCount(lightspeedSalesCount),
                   description: lightspeedDetail.lastSalesSync
                     ? `Last synced ${formatRelativeTimestamp(lightspeedDetail.lastSalesSync)}`
                     : "No sales sync recorded yet",
@@ -3754,7 +3789,7 @@ export default function IntegrationDetailPage() {
                 {
                   key: "products",
                   label: "Products",
-                  value: formatCount(lightspeedDetail.productsSynced),
+                  value: formatCount(lightspeedProductsCount),
                   description: lightspeedDetail.lastProductSync
                     ? `Last synced ${formatRelativeTimestamp(lightspeedDetail.lastProductSync)}`
                     : "No product sync recorded yet",
@@ -6952,19 +6987,19 @@ export default function IntegrationDetailPage() {
                           <SyncTypeRow
                             label="Customers"
                             lastSyncedAt={lightspeedDetail.lastCustomerSync}
-                            syncedCount={lightspeedDetail.customersSynced}
+                            syncedCount={lightspeedCustomersCount}
                             isSyncing={hasActiveLightspeedSyncType("customers")}
                           />
                           <SyncTypeRow
                             label="Sales"
                             lastSyncedAt={lightspeedDetail.lastSalesSync}
-                            syncedCount={lightspeedDetail.salesSynced}
+                            syncedCount={lightspeedSalesCount}
                             isSyncing={hasActiveLightspeedSyncType("sales")}
                           />
                           <SyncTypeRow
                             label="Products"
                             lastSyncedAt={lightspeedDetail.lastProductSync}
-                            syncedCount={lightspeedDetail.productsSynced}
+                            syncedCount={lightspeedProductsCount}
                             isSyncing={hasActiveLightspeedSyncType("products")}
                           />
                           <FieldRow
@@ -7168,8 +7203,8 @@ export default function IntegrationDetailPage() {
                             }
                             description={
                               lightspeedDetail.lastCustomerSync
-                                ? `Last synced ${formatRelativeTimestamp(lightspeedDetail.lastCustomerSync)} • ${formatCount(lightspeedDetail.customersSynced)} records`
-                                : `${formatCount(lightspeedDetail.customersSynced)} records available`
+                                ? `Last synced ${formatRelativeTimestamp(lightspeedDetail.lastCustomerSync)} • ${formatCount(lightspeedCustomersCount)} records`
+                                : `${formatCount(lightspeedCustomersCount)} records available`
                             }
                           />
                           <DataFeedRow
@@ -7189,8 +7224,8 @@ export default function IntegrationDetailPage() {
                             }
                             description={
                               lightspeedDetail.lastSalesSync
-                                ? `Last synced ${formatRelativeTimestamp(lightspeedDetail.lastSalesSync)} • ${formatCount(lightspeedDetail.salesSynced)} records`
-                                : `${formatCount(lightspeedDetail.salesSynced)} records available`
+                                ? `Last synced ${formatRelativeTimestamp(lightspeedDetail.lastSalesSync)} • ${formatCount(lightspeedSalesCount)} records`
+                                : `${formatCount(lightspeedSalesCount)} records available`
                             }
                           />
                           <DataFeedRow
@@ -7210,8 +7245,8 @@ export default function IntegrationDetailPage() {
                             }
                             description={
                               lightspeedDetail.lastProductSync
-                                ? `Last synced ${formatRelativeTimestamp(lightspeedDetail.lastProductSync)} • ${formatCount(lightspeedDetail.productsSynced)} records`
-                                : `${formatCount(lightspeedDetail.productsSynced)} records available`
+                                ? `Last synced ${formatRelativeTimestamp(lightspeedDetail.lastProductSync)} • ${formatCount(lightspeedProductsCount)} records`
+                                : `${formatCount(lightspeedProductsCount)} records available`
                             }
                           />
                         </div>
@@ -7242,7 +7277,7 @@ export default function IntegrationDetailPage() {
                         isFetching={Boolean(
                           lightspeedDashboard?.customers.isFetching,
                         )}
-                        customersSynced={lightspeedDetail.customersSynced ?? 0}
+                        customersSynced={lightspeedCustomersCount}
                         searchQuery={customerSearchInput}
                         onSearchQueryChange={(value) => {
                           setCustomerSearchInput(value);
@@ -8054,33 +8089,72 @@ export default function IntegrationDetailPage() {
                       <p className="text-xs font-semibold uppercase tracking-wider text-red-600">
                         Danger Zone
                       </p>
-                      <div className="rounded-xl border border-red-100 bg-white p-5">
-                        <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-                          <div className="max-w-2xl space-y-2">
-                            <h3 className="text-sm font-semibold text-foreground">
-                              Disconnect Lightspeed X-Series
-                            </h3>
-                            <p className="text-sm leading-6 text-muted-foreground">
-                              Remove the stored Lightspeed connection from
-                              BloomSuite, stop customer, sales, and product
-                              sync, and clear the credentials used for this
-                              account.
-                            </p>
-                            <p className="text-sm leading-6 text-muted-foreground">
-                              {detail.canDisconnect
-                                ? "Imported CRM data is not deleted. You can reconnect this Lightspeed account later if syncing needs to be restored."
-                                : "Only site admins can remove the stored Lightspeed connection from this page."}
-                            </p>
+                      <div className="space-y-4">
+                        <div className="rounded-xl border border-red-100 bg-white p-5">
+                          <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+                            <div className="max-w-2xl space-y-2">
+                              <h3 className="text-sm font-semibold text-foreground">
+                                Reset synced Lightspeed data
+                              </h3>
+                              <p className="text-sm leading-6 text-muted-foreground">
+                                Delete imported Lightspeed customers, sales,
+                                products, and sync logs for this tenant only,
+                                then clear the stored Lightspeed counters and
+                                resume cursors so you can rerun internal tests
+                                from a clean sync state.
+                              </p>
+                              <p className="text-sm leading-6 text-muted-foreground">
+                                Existing CRM customer records and the Lightspeed
+                                connection stay intact.
+                                {canResetLightspeedSyncedData
+                                  ? " You can fire a fresh sync again immediately after the reset completes."
+                                  : detail.isResettingLightspeedData
+                                    ? " A reset is already in progress."
+                                    : " Wait for active Lightspeed sync jobs to finish before resetting tenant data."}
+                              </p>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className="border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800 disabled:border-red-100 disabled:text-red-300"
+                              disabled={!canResetLightspeedSyncedData}
+                              onClick={() => setLightspeedResetOpen(true)}
+                            >
+                              {detail.isResettingLightspeedData
+                                ? "Resetting..."
+                                : "Reset synced data"}
+                            </Button>
                           </div>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            className="border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800 disabled:border-red-100 disabled:text-red-300"
-                            disabled={!detail.canDisconnect}
-                            onClick={() => setDisconnectOpen(true)}
-                          >
-                            Disconnect Lightspeed
-                          </Button>
+                        </div>
+
+                        <div className="rounded-xl border border-red-100 bg-white p-5">
+                          <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+                            <div className="max-w-2xl space-y-2">
+                              <h3 className="text-sm font-semibold text-foreground">
+                                Disconnect Lightspeed X-Series
+                              </h3>
+                              <p className="text-sm leading-6 text-muted-foreground">
+                                Remove the stored Lightspeed connection from
+                                BloomSuite, stop customer, sales, and product
+                                sync, and clear the credentials used for this
+                                account.
+                              </p>
+                              <p className="text-sm leading-6 text-muted-foreground">
+                                {detail.canDisconnect
+                                  ? "Imported CRM data is not deleted. You can reconnect this Lightspeed account later if syncing needs to be restored."
+                                  : "Only site admins can remove the stored Lightspeed connection from this page."}
+                              </p>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className="border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800 disabled:border-red-100 disabled:text-red-300"
+                              disabled={!detail.canDisconnect}
+                              onClick={() => setDisconnectOpen(true)}
+                            >
+                              Disconnect Lightspeed
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -8192,6 +8266,75 @@ export default function IntegrationDetailPage() {
             initialDomain={shopifyConnection?.shop_domain ?? null}
           />
         ) : null}
+
+        <AlertDialog
+          open={lightspeedResetOpen}
+          onOpenChange={setLightspeedResetOpen}
+        >
+          <AlertDialogContent className="sm:max-w-lg">
+            <AlertDialogHeader>
+              <AlertDialogTitle>Reset Lightspeed synced data?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This clears only the current tenant&apos;s imported Lightspeed
+                data and sync history so super admins can rerun internal test
+                syncs from a clean state.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <div className="space-y-4">
+              <ul className="space-y-3 rounded-xl border border-red-100 bg-red-50/40 p-4 text-sm text-slate-900">
+                <li className="flex items-start gap-3">
+                  <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-700">
+                    <X className="h-3.5 w-3.5" />
+                  </span>
+                  <span>
+                    Imported Lightspeed customers, sales, products, and sync
+                    logs for this tenant will be deleted.
+                  </span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-700">
+                    <X className="h-3.5 w-3.5" />
+                  </span>
+                  <span>
+                    Lightspeed sync counters and version cursors will be reset
+                    so the next run behaves like a fresh import.
+                  </span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-700">
+                    <X className="h-3.5 w-3.5" />
+                  </span>
+                  <span>
+                    The Lightspeed connection stays connected, and existing CRM
+                    customer records are not deleted.
+                  </span>
+                </li>
+              </ul>
+              <p className="text-sm leading-6 text-muted-foreground">
+                This action is scoped to the current super admin tenant only.
+              </p>
+            </div>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={detail.isResettingLightspeedData}>
+                Cancel
+              </AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-red-600 text-white hover:bg-red-700 focus-visible:ring-red-500"
+                onClick={(event) => {
+                  event.preventDefault();
+                  void detail.resetLightspeedData().then(() => {
+                    setLightspeedResetOpen(false);
+                  });
+                }}
+                disabled={detail.isResettingLightspeedData}
+              >
+                {detail.isResettingLightspeedData
+                  ? "Resetting..."
+                  : "Reset Lightspeed data"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         <AlertDialog open={disconnectOpen} onOpenChange={setDisconnectOpen}>
           <AlertDialogContent

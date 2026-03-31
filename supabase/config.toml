@@ -194,6 +194,9 @@ verify_jwt = true
 [functions.lightspeed-full-sync]
 verify_jwt = true
 
+[functions.lightspeed-reset-tenant]
+verify_jwt = true
+
 [functions.lightspeed-webhook-handler]
 verify_jwt = false
 # Required runtime secret for LS-004:

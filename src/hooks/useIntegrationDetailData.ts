@@ -7712,6 +7712,90 @@ export function useIntegrationDetailData(
     },
   });
 
+  const lightspeedResetMutation = useMutation({
+    mutationFn: async () => {
+      if (slug !== "lightspeed") {
+        throw new Error(
+          "Reset is only available on the Lightspeed detail page.",
+        );
+      }
+
+      if (!isSuperAdmin) {
+        throw new Error("Only site admins can reset Lightspeed synced data.");
+      }
+
+      const { data, error } = await supabase.functions.invoke(
+        "lightspeed-reset-tenant",
+      );
+
+      if (error) {
+        throw error;
+      }
+
+      if (data?.error) {
+        throw new Error(
+          data.message ?? "Unable to reset Lightspeed synced data.",
+        );
+      }
+
+      return data as {
+        success: boolean;
+        tenantId: string;
+        counts: {
+          customers: number;
+          sales: number;
+          products: number;
+          syncJobs: number;
+          connections: number;
+        };
+        message: string;
+      };
+    },
+    onSuccess: async (data) => {
+      setLightspeedTrackedJobIds([]);
+      setLightspeedJobRowsById({});
+      setShouldToastLightspeedCompletion(false);
+      lastLightspeedTerminalToastRef.current = null;
+
+      const counts = data?.counts;
+      const countSummary = [
+        counts?.customers
+          ? `${counts.customers.toLocaleString()} customer${counts.customers === 1 ? "" : "s"}`
+          : null,
+        counts?.sales
+          ? `${counts.sales.toLocaleString()} sale${counts.sales === 1 ? "" : "s"}`
+          : null,
+        counts?.products
+          ? `${counts.products.toLocaleString()} product${counts.products === 1 ? "" : "s"}`
+          : null,
+        counts?.syncJobs
+          ? `${counts.syncJobs.toLocaleString()} sync log${counts.syncJobs === 1 ? "" : "s"}`
+          : null,
+      ]
+        .filter(Boolean)
+        .join(", ");
+
+      toast.success(
+        countSummary
+          ? `Lightspeed synced data reset for this tenant. Removed ${countSummary}.`
+          : "Lightspeed synced data reset for this tenant.",
+      );
+
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["integration-detail"] }),
+        queryClient.invalidateQueries({ queryKey: ["integrations-hub"] }),
+      ]);
+    },
+    onError: (error) => {
+      toast.error(
+        getUserFacingIntegrationError(
+          error,
+          "Unable to reset Lightspeed synced data.",
+        ),
+      );
+    },
+  });
+
   const disconnectMutation = useMutation({
     mutationFn: async () => {
       if (!resolved?.disconnectRef) {
@@ -7977,6 +8061,8 @@ export function useIntegrationDetailData(
     lightspeedHasStaleJobs,
     triggerLightspeedSync: lightspeedSyncMutation.mutateAsync,
     isLightspeedSyncing: lightspeedSyncState !== "idle",
+    resetLightspeedData: lightspeedResetMutation.mutateAsync,
+    isResettingLightspeedData: lightspeedResetMutation.isPending,
     triggerMetaReauthorization: metaReauthorizationMutation.mutateAsync,
     isMetaReauthorizing: metaReauthorizationMutation.isPending,
     refreshMetaAssets: metaAssetRefreshMutation.mutateAsync,

@@ -167,6 +167,41 @@ function extractCategory(product: LightspeedXSeriesProduct) {
   );
 }
 
+function buildCatalogProductRow(
+  tenantId: string,
+  productId: string,
+  product: LightspeedXSeriesProduct,
+  syncedAt: string,
+) {
+  return {
+    tenant_id: tenantId,
+    external_id: productId,
+    source: "lightspeed",
+    name:
+      product.name ??
+      product.description ??
+      (product as any).description ??
+      "Unnamed Product",
+    sku:
+      product.sku ??
+      (product as any).customSku ??
+      (product as any).manufacturerSku ??
+      null,
+    description:
+      product.description ?? (product as any).longDescription ?? null,
+    price: extractPrice(product),
+    currency: "USD",
+    inventory_count: extractInventoryCount(product),
+    category: extractCategory(product),
+    tags: extractTags(product),
+    external_data: product,
+    last_synced_at: syncedAt,
+    status: "active",
+    is_visible: true,
+    updated_at: syncedAt,
+  };
+}
+
 function buildProductUrl(
   domainPrefix: string,
   afterVersion: number,
@@ -467,40 +502,58 @@ Deno.serve(async (req: Request) => {
           continue;
         }
 
+        const syncedAt = new Date().toISOString();
+        const providerRow = {
+          tenant_id: tenantId,
+          lightspeed_product_id: productId,
+          name:
+            product.name ??
+            product.description ??
+            (product as any).description ??
+            "Unnamed Product",
+          sku:
+            product.sku ??
+            (product as any).customSku ??
+            (product as any).manufacturerSku ??
+            null,
+          description:
+            product.description ?? (product as any).longDescription ?? null,
+          price: extractPrice(product),
+          inventory_count: extractInventoryCount(product),
+          category: extractCategory(product),
+          tags: extractTags(product),
+          raw_data: product,
+          synced_at: syncedAt,
+        };
+
         const { error: upsertError } = await supabaseClient
           .from("lightspeed_products")
-          .upsert(
-            {
-              tenant_id: tenantId,
-              lightspeed_product_id: productId,
-              name:
-                product.name ??
-                product.description ??
-                (product as any).description ??
-                "Unnamed Product",
-              sku:
-                product.sku ??
-                (product as any).customSku ??
-                (product as any).manufacturerSku ??
-                null,
-              description:
-                product.description ?? (product as any).longDescription ?? null,
-              price: extractPrice(product),
-              inventory_count: extractInventoryCount(product),
-              category: extractCategory(product),
-              tags: extractTags(product),
-              raw_data: product,
-              synced_at: new Date().toISOString(),
-            },
-            {
-              onConflict: "tenant_id,lightspeed_product_id",
-            },
-          );
+          .upsert(providerRow, {
+            onConflict: "tenant_id,lightspeed_product_id",
+          });
 
         if (upsertError) {
           console.error(
             "[LS-SYNC-PRODUCTS] Upsert error:",
             upsertError.message,
+          );
+          pageFailed += 1;
+          continue;
+        }
+
+        const { error: catalogUpsertError } = await supabaseClient
+          .from("products")
+          .upsert(
+            buildCatalogProductRow(tenantId, productId, product, syncedAt),
+            {
+              onConflict: "tenant_id,external_id",
+            },
+          );
+
+        if (catalogUpsertError) {
+          console.error(
+            "[LS-SYNC-PRODUCTS] Catalog upsert error:",
+            catalogUpsertError.message,
           );
           pageFailed += 1;
           continue;

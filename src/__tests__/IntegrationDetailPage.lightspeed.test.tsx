@@ -319,6 +319,8 @@ function buildLightspeedDetailState({
     lightspeedHasStaleJobs: false,
     triggerLightspeedSync: vi.fn().mockResolvedValue(undefined),
     isLightspeedSyncing: false,
+    resetLightspeedData: vi.fn().mockResolvedValue(undefined),
+    isResettingLightspeedData: false,
     disconnect: vi.fn().mockResolvedValue(undefined),
     isDisconnecting: false,
   };
@@ -463,6 +465,41 @@ describe("IntegrationDetailPage Lightspeed branch", () => {
     windowOpenSpy.mockRestore();
   });
 
+  it("shows a super-admin-only reset control for tenant-scoped Lightspeed test resets", async () => {
+    const state = buildLightspeedDetailState({
+      canAccessLightspeedAdminFeatures: true,
+    });
+
+    mockedUseIntegrationDetailData.mockReturnValue({
+      ...state,
+      lightspeedSyncJobs: [],
+      lightspeedActiveJobIds: [],
+      lightspeedTrackedJobIds: [],
+      lightspeedRealtimeActive: false,
+      lightspeedSyncState: "idle",
+      isLightspeedSyncing: false,
+    });
+
+    renderPage();
+
+    fireEvent.click(screen.getByRole("button", { name: /reset synced data/i }));
+
+    expect(screen.getByText("Reset Lightspeed synced data?")).toBeTruthy();
+    expect(
+      screen.getByText(
+        /This action is scoped to the current super admin tenant only/i,
+      ),
+    ).toBeTruthy();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /reset lightspeed data/i }),
+    );
+
+    await waitFor(() => {
+      expect(state.resetLightspeedData).toHaveBeenCalledTimes(1);
+    });
+  });
+
   it("falls back to idle queue messaging when no Lightspeed jobs are actively fetching", () => {
     const state = buildLightspeedDetailState();
     const queuedJobs = state.lightspeedDashboard.syncLogs.rows.map(
@@ -513,6 +550,71 @@ describe("IntegrationDetailPage Lightspeed branch", () => {
         .getAllByRole("button", { name: /sync now/i })[0]
         .hasAttribute("disabled"),
     ).toBe(false);
+  });
+
+  it("uses provider totals when Lightspeed connection counters are still zero", () => {
+    const state = buildLightspeedDetailState();
+
+    mockedUseIntegrationDetailData.mockReturnValue({
+      ...state,
+      lightspeedDetail: {
+        ...state.lightspeedDetail,
+        customersSynced: 0,
+        salesSynced: 0,
+        productsSynced: 0,
+      },
+      lightspeedDashboard: {
+        ...state.lightspeedDashboard,
+        customers: {
+          ...state.lightspeedDashboard.customers,
+          pagination: {
+            ...state.lightspeedDashboard.customers.pagination,
+            totalCount: 7,
+          },
+        },
+        sales: {
+          ...state.lightspeedDashboard.sales,
+          pagination: {
+            ...state.lightspeedDashboard.sales.pagination,
+            totalCount: 8,
+          },
+        },
+        products: {
+          ...state.lightspeedDashboard.products,
+          pagination: {
+            ...state.lightspeedDashboard.products.pagination,
+            totalCount: 9,
+          },
+        },
+      },
+    });
+
+    renderPage();
+
+    expect(
+      screen.getByRole("button", { name: /customers/i }).textContent,
+    ).toContain("7");
+    expect(
+      screen.getByRole("button", { name: /sales/i }).textContent,
+    ).toContain("8");
+    expect(
+      screen.getByRole("button", { name: /products/i }).textContent,
+    ).toContain("9");
+    expect(
+      screen.getAllByText(
+        (_, node) => node?.textContent?.includes("7 records") ?? false,
+      ).length,
+    ).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText(
+        (_, node) => node?.textContent?.includes("8 records") ?? false,
+      ).length,
+    ).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText(
+        (_, node) => node?.textContent?.includes("9 records") ?? false,
+      ).length,
+    ).toBeGreaterThan(0);
   });
 
   it("renders the extracted data tabs and preserves core interactions", async () => {
