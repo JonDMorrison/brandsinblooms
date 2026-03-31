@@ -1,9 +1,15 @@
-import { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
-import { Download, CheckCircle2, Unplug } from 'lucide-react';
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { Download, CheckCircle2, Unplug } from "lucide-react";
 
 interface ReportStepProps {
   jobId: string;
@@ -11,93 +17,121 @@ interface ReportStepProps {
   onDisconnect: () => void;
 }
 
-export const ReportStep = ({ jobId, report, onDisconnect }: ReportStepProps) => {
+interface ImportReportSummary {
+  contacts_imported: number;
+  contacts_skipped: number;
+  contacts_failed: number;
+  segments_created: number;
+  tags_created: number;
+  consents_recorded: number;
+  errors: string[];
+  batches_processed: number;
+}
+
+export const ReportStep = ({
+  jobId,
+  report,
+  onDisconnect,
+}: ReportStepProps) => {
   const { toast } = useToast();
   const [disconnecting, setDisconnecting] = useState(false);
 
   const handleDownloadReport = () => {
+    const summary = normalizeReport(report);
     const reportData = {
       jobId,
       timestamp: new Date().toISOString(),
-      summary: report || {
-        contacts_imported: 0,
-        segments_created: 0,
-        personas_created: 0,
-        tags_imported: 0,
-        suppressions_added: 0
-      }
+      summary,
     };
 
-    const blob = new Blob([JSON.stringify(reportData, null, 2)], { 
-      type: 'application/json' 
+    const blob = new Blob([JSON.stringify(reportData, null, 2)], {
+      type: "application/json",
     });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
-    a.download = `migration-report-${new Date().toISOString().split('T')[0]}.json`;
+    a.download = `migration-report-${new Date().toISOString().split("T")[0]}.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
 
     toast({
-      title: 'Report Downloaded',
-      description: 'Migration report has been saved'
+      title: "Report Downloaded",
+      description: "Migration report has been saved",
     });
   };
+
+  const normalizeReport = (rawReport: any): ImportReportSummary => ({
+    contacts_imported: Number(rawReport?.contacts_imported ?? 0),
+    contacts_skipped: Number(rawReport?.contacts_skipped ?? 0),
+    contacts_failed: Number(rawReport?.contacts_failed ?? 0),
+    segments_created: Number(rawReport?.segments_created ?? 0),
+    tags_created: Number(rawReport?.tags_created ?? 0),
+    consents_recorded: Number(rawReport?.consents_recorded ?? 0),
+    errors: Array.isArray(rawReport?.errors)
+      ? rawReport.errors.filter(
+          (entry: unknown): entry is string => typeof entry === "string",
+        )
+      : [],
+    batches_processed: Number(rawReport?.batches_processed ?? 0),
+  });
 
   const handleDisconnect = async () => {
     setDisconnecting(true);
     try {
       // Get job to find provider
       const { data: job } = await supabase
-        .from('import_jobs')
-        .select('provider')
-        .eq('id', jobId)
+        .from("import_jobs")
+        .select("provider")
+        .eq("id", jobId)
         .single();
 
-      if (!job) throw new Error('Job not found');
+      if (!job) throw new Error("Job not found");
 
       const provider = job.provider;
 
       // Call appropriate revoke-token edge function
-      const revokeFunction = provider === 'constant_contact' 
-        ? 'constant-contact-revoke-token' 
-        : 'mailchimp-revoke-token';
-      
+      const revokeFunction =
+        provider === "constant_contact"
+          ? "constant-contact-revoke-token"
+          : "mailchimp-revoke-token";
+
       const { data, error } = await supabase.functions.invoke(revokeFunction, {
-        body: { provider }
+        body: { provider },
       });
 
       if (error) throw error;
       if (data?.error) throw new Error(data.message);
 
       toast({
-        title: 'Provider Disconnected',
-        description: data?.message || 'OAuth tokens have been revoked successfully'
+        title: "Provider Disconnected",
+        description:
+          data?.message || "OAuth tokens have been revoked successfully",
       });
 
       onDisconnect();
     } catch (error: any) {
-      console.error('Disconnect error:', error);
+      console.error("Disconnect error:", error);
       toast({
-        title: 'Disconnect Failed',
+        title: "Disconnect Failed",
         description: error.message,
-        variant: 'destructive'
+        variant: "destructive",
       });
     } finally {
       setDisconnecting(false);
     }
   };
 
-  const summary = report || {};
+  const summary = normalizeReport(report);
 
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-semibold mb-2">Migration Complete</h2>
         <p className="text-muted-foreground">
-          Your migration has been completed successfully. Review the summary below.
+          Your migration has been completed successfully. Review the summary
+          below.
         </p>
       </div>
 
@@ -113,55 +147,81 @@ export const ReportStep = ({ jobId, report, onDisconnect }: ReportStepProps) => 
 
       <Card className="p-6">
         <h3 className="font-semibold mb-4">Summary</h3>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
           <div>
             <p className="text-sm text-muted-foreground">Contacts Imported</p>
-            <p className="text-2xl font-bold">{summary.contacts_imported?.toLocaleString() || 0}</p>
+            <p className="text-2xl font-bold">
+              {summary.contacts_imported.toLocaleString()}
+            </p>
+          </div>
+          <div>
+            <p className="text-sm text-muted-foreground">Contacts Skipped</p>
+            <p className="text-2xl font-bold">
+              {summary.contacts_skipped.toLocaleString()}
+            </p>
+          </div>
+          <div>
+            <p className="text-sm text-muted-foreground">Contacts Failed</p>
+            <p className="text-2xl font-bold text-destructive">
+              {summary.contacts_failed.toLocaleString()}
+            </p>
+          </div>
+          <div>
+            <p className="text-sm text-muted-foreground">Consents Recorded</p>
+            <p className="text-2xl font-bold">
+              {summary.consents_recorded.toLocaleString()}
+            </p>
+          </div>
+          <div>
+            <p className="text-sm text-muted-foreground">Tags Created</p>
+            <p className="text-2xl font-bold">
+              {summary.tags_created.toLocaleString()}
+            </p>
           </div>
           <div>
             <p className="text-sm text-muted-foreground">Segments Created</p>
-            <p className="text-2xl font-bold">{summary.segments_created || 0}</p>
+            <p className="text-2xl font-bold">
+              {summary.segments_created.toLocaleString()}
+            </p>
           </div>
           <div>
-            <p className="text-sm text-muted-foreground">Personas Created</p>
-            <p className="text-2xl font-bold">{summary.personas_created || 0}</p>
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground">Tags Imported</p>
-            <p className="text-2xl font-bold">{summary.tags_imported || 0}</p>
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground">Suppressions Added</p>
-            <p className="text-2xl font-bold">{summary.suppressions_added || 0}</p>
+            <p className="text-sm text-muted-foreground">Batches Processed</p>
+            <p className="text-2xl font-bold">
+              {summary.batches_processed.toLocaleString()}
+            </p>
           </div>
           <div>
             <p className="text-sm text-muted-foreground">Total Errors</p>
-            <p className="text-2xl font-bold text-destructive">{summary.errors?.length || 0}</p>
+            <p className="text-2xl font-bold text-destructive">
+              {summary.errors.length}
+            </p>
           </div>
         </div>
 
-        {summary.errors && summary.errors.length > 0 && (
+        {summary.errors.length > 0 && (
           <div className="mt-4 pt-4 border-t">
-            <h4 className="font-medium mb-2">Errors</h4>
-            <div className="space-y-1">
-              {summary.errors.slice(0, 5).map((error: string, i: number) => (
-                <p key={i} className="text-sm text-destructive">{error}</p>
-              ))}
-              {summary.errors.length > 5 && (
-                <p className="text-sm text-muted-foreground">
-                  + {summary.errors.length - 5} more errors
-                </p>
-              )}
-            </div>
+            <Accordion type="single" collapsible>
+              <AccordionItem value="errors">
+                <AccordionTrigger>
+                  Review import warnings ({summary.errors.length})
+                </AccordionTrigger>
+                <AccordionContent>
+                  <div className="space-y-2">
+                    {summary.errors.map((error: string, i: number) => (
+                      <p key={i} className="text-sm text-destructive">
+                        {error}
+                      </p>
+                    ))}
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
           </div>
         )}
       </Card>
 
       <div className="flex justify-between">
-        <Button
-          variant="outline"
-          onClick={handleDownloadReport}
-        >
+        <Button variant="outline" onClick={handleDownloadReport}>
           <Download className="w-4 h-4 mr-2" />
           Download Report
         </Button>
@@ -171,7 +231,7 @@ export const ReportStep = ({ jobId, report, onDisconnect }: ReportStepProps) => 
           disabled={disconnecting}
         >
           <Unplug className="w-4 h-4 mr-2" />
-          {disconnecting ? 'Disconnecting...' : 'Disconnect Provider'}
+          {disconnecting ? "Disconnecting..." : "Disconnect Provider"}
         </Button>
       </div>
     </div>

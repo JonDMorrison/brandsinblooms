@@ -36,7 +36,12 @@ export default function CRMIntegrationsPage() {
   ];
 
   const handleStartMigration = (provider: string) => {
-    navigate("/integrations/migrations", { state: { provider } });
+    if (provider === "mailchimp") {
+      navigate("/integrations/mailchimp");
+      return;
+    }
+
+    navigate(`/integrations/migrations?provider=${provider}`);
   };
 
   return (

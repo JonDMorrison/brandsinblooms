@@ -3,6 +3,7 @@ import {
   BarChart3,
   Globe,
   Mail,
+  MessageSquare,
   Network,
   ShoppingBag,
   ShoppingCart,
@@ -142,15 +143,15 @@ const INTEGRATION_SEEDS: IntegrationSeed[] = [
       "Sync products, orders, and customers between Shopify and BloomSuite.",
     category: "pos-systems",
     categoryLabel: "POS Systems",
-    defaultStatus: "coming-soon",
+    defaultStatus: "available",
     icon: ShoppingBag,
     keywords: ["shopify", "ecommerce", "storefront"],
     syncScopeLabel: "Ecommerce customers + orders",
-    disablePrimaryAction: true,
-    actionLabel: "Notify me",
-    detailActionLabel: "Request Shopify access",
+    targetPath: "/integrations/shopify",
+    actionLabel: "Connect",
+    detailActionLabel: "Connect Shopify",
     detailSummary:
-      "Shopify will arrive as a future ecommerce connection for customer and order syncing inside BloomSuite.",
+      "Shopify connects BloomSuite to your storefront through a store-specific OAuth install flow.",
   },
   {
     slug: "meta",
@@ -161,7 +162,14 @@ const INTEGRATION_SEEDS: IntegrationSeed[] = [
     categoryLabel: "Social",
     defaultStatus: "available",
     icon: Network,
-    keywords: ["meta", "facebook", "instagram", "social", "pages", "publishing"],
+    keywords: [
+      "meta",
+      "facebook",
+      "instagram",
+      "social",
+      "pages",
+      "publishing",
+    ],
     syncScopeLabel: "Facebook + Instagram publishing",
     canDisconnect: true,
     targetPath: "/social-accounts",
@@ -204,19 +212,19 @@ const INTEGRATION_SEEDS: IntegrationSeed[] = [
     slug: "mailchimp",
     name: "Mailchimp",
     description:
-      "Import contacts, lists, tags, and consent data from your Mailchimp account.",
+      "Import contacts, lists, segments, tags, and consent data from your Mailchimp account.",
     category: "marketing-import",
     categoryLabel: "Marketing Import",
     defaultStatus: "available",
     icon: Mail,
     keywords: ["mailchimp", "email", "contacts", "segments", "lists"],
-    syncScopeLabel: "Contacts + Lists",
+    syncScopeLabel: "Contacts + Lists + Segments",
     canDisconnect: true,
-    targetPath: "/integrations/migrations",
+    targetPath: "/integrations/mailchimp",
     actionLabel: "Connect",
     detailActionLabel: "Open import flow",
     detailSummary:
-      "Mailchimp import brings audience lists and consent history into BloomSuite.",
+      "Mailchimp import brings lists, segments, tags, and consent history into BloomSuite.",
   },
   {
     slug: "klaviyo",
@@ -253,6 +261,57 @@ const INTEGRATION_SEEDS: IntegrationSeed[] = [
     detailActionLabel: "Open import flow",
     detailSummary:
       "Constant Contact import brings list structure and contact records into BloomSuite.",
+  },
+  {
+    slug: "hubspot",
+    name: "HubSpot",
+    description:
+      "Planned CRM sync and automation handoff between BloomSuite and HubSpot.",
+    category: "automation",
+    categoryLabel: "Automation",
+    defaultStatus: "coming-soon",
+    icon: Network,
+    keywords: ["hubspot", "crm", "automation", "contacts", "deals"],
+    syncScopeLabel: "CRM contacts + lifecycle handoff",
+    disablePrimaryAction: true,
+    actionLabel: "Notify me",
+    detailActionLabel: "Request HubSpot access",
+    detailSummary:
+      "HubSpot is planned as a future CRM sync and lifecycle handoff integration.",
+  },
+  {
+    slug: "zapier",
+    name: "Zapier",
+    description:
+      "Planned no-code automation bridge between BloomSuite and external apps.",
+    category: "automation",
+    categoryLabel: "Automation",
+    defaultStatus: "coming-soon",
+    icon: Zap,
+    keywords: ["zapier", "automation", "workflows", "triggers", "actions"],
+    syncScopeLabel: "Triggers + actions",
+    disablePrimaryAction: true,
+    actionLabel: "Notify me",
+    detailActionLabel: "Request Zapier access",
+    detailSummary:
+      "Zapier is in active development as BloomSuite's broader app automation layer.",
+  },
+  {
+    slug: "slack",
+    name: "Slack",
+    description:
+      "Planned BloomSuite alerts and workflow notifications delivered into Slack.",
+    category: "automation",
+    categoryLabel: "Automation",
+    defaultStatus: "coming-soon",
+    icon: MessageSquare,
+    keywords: ["slack", "alerts", "automation", "notifications", "channels"],
+    syncScopeLabel: "Alerts + team notifications",
+    disablePrimaryAction: true,
+    actionLabel: "Notify me",
+    detailActionLabel: "Request Slack access",
+    detailSummary:
+      "Slack is planned as BloomSuite's shared operator and team alerting surface.",
   },
   {
     slug: "custom-webhooks",
@@ -299,8 +358,7 @@ export function getIntegrationSeed(slug: string) {
 
   if (slug === "google-analytics-4") {
     return (
-      INTEGRATION_SEEDS.find((seed) => seed.slug === "google-analytics") ??
-      null
+      INTEGRATION_SEEDS.find((seed) => seed.slug === "google-analytics") ?? null
     );
   }
 
@@ -342,7 +400,10 @@ export function filterIntegrations(
       item.syncScopeLabel,
       item.metaLabel,
       ...item.keywords,
-      ...(item.children ?? []).flatMap((child) => [child.name, child.description ?? ""]),
+      ...(item.children ?? []).flatMap((child) => [
+        child.name,
+        child.description ?? "",
+      ]),
     ]
       .filter(Boolean)
       .join(" ")
@@ -367,13 +428,19 @@ export function getTabCounts(
   };
 
   INTEGRATION_CATEGORIES.forEach((category) => {
-    counts[category.value] = filterIntegrations(items, category.value, searchQuery).length;
+    counts[category.value] = filterIntegrations(
+      items,
+      category.value,
+      searchQuery,
+    ).length;
   });
 
   return counts;
 }
 
-export function getSummaryCounts(items: IntegrationDefinition[]): IntegrationSummaryCounts {
+export function getSummaryCounts(
+  items: IntegrationDefinition[],
+): IntegrationSummaryCounts {
   return items.reduce<IntegrationSummaryCounts>(
     (summary, item) => {
       if (item.status === "connected") {

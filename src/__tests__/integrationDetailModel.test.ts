@@ -52,7 +52,7 @@ describe("integration detail model helpers", () => {
   });
 
   it("builds a coming-soon model with a roadmap placeholder timeline", () => {
-    const seed = getIntegrationSeed("shopify");
+    const seed = getIntegrationSeed("custom-webhooks");
     expect(seed).not.toBeNull();
 
     const model = buildIntegrationDetailModel({

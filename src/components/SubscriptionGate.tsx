@@ -1,18 +1,17 @@
-
 import { useAuth } from "@/contexts/AuthContext";
 
 interface SubscriptionGateProps {
-  requiredPlan: 'free_trial' | 'sprout' | 'bloom';
+  requiredPlan: "free_trial" | "seed" | "sprout" | "bloom" | "thrive";
   feature: string;
   children: React.ReactNode;
   fallback?: React.ReactNode;
 }
 
-export const SubscriptionGate = ({ 
-  requiredPlan, 
-  feature, 
-  children, 
-  fallback 
+export const SubscriptionGate = ({
+  requiredPlan,
+  feature,
+  children,
+  fallback,
 }: SubscriptionGateProps) => {
   const { user } = useAuth();
 

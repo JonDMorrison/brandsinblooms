@@ -54,7 +54,14 @@ const MigrationsPage = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const selectedProvider = useMemo<Provider | null>(() => {
-    const provider = new URLSearchParams(location.search).get("provider");
+    const providerFromSearch = new URLSearchParams(location.search).get(
+      "provider",
+    );
+    const providerFromState =
+      typeof location.state === "object" && location.state !== null
+        ? (location.state as { provider?: string }).provider
+        : null;
+    const provider = providerFromSearch ?? providerFromState ?? null;
 
     if (
       provider === "mailchimp" ||
@@ -65,7 +72,7 @@ const MigrationsPage = () => {
     }
 
     return null;
-  }, [location.search]);
+  }, [location.search, location.state]);
   const [currentStep, setCurrentStep] = useState<Step>(() => {
     const step = new URLSearchParams(location.search).get("step");
     return step === "choose" && selectedProvider ? "choose" : "connect";

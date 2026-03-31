@@ -16,7 +16,9 @@ function withPatchedItem(
   slug: string,
   patch: Partial<IntegrationDefinition>,
 ) {
-  return items.map((item) => (item.slug === slug ? { ...item, ...patch } : item));
+  return items.map((item) =>
+    item.slug === slug ? { ...item, ...patch } : item,
+  );
 }
 
 function buildMetaChildren(
@@ -37,6 +39,79 @@ function buildMetaChildren(
   ];
 }
 
+type PostgrestLikeError =
+  | {
+      code?: string;
+      message?: string;
+    }
+  | null
+  | undefined;
+
+function isMissingRelationError(error: PostgrestLikeError) {
+  const code = String(error?.code ?? "").toLowerCase();
+  const message = String(error?.message ?? "").toLowerCase();
+
+  return (
+    code === "42p01" ||
+    (message.includes("relation") && message.includes("does not exist"))
+  );
+}
+
+function isMissingColumnError(error: PostgrestLikeError, columnName?: string) {
+  const code = String(error?.code ?? "").toLowerCase();
+  const message = String(error?.message ?? "").toLowerCase();
+
+  return (
+    code === "42703" ||
+    (message.includes("column") &&
+      message.includes("does not exist") &&
+      (!columnName || message.includes(columnName.toLowerCase())))
+  );
+}
+
+async function loadShopifyConnection(tenantId: string) {
+  const result = await supabase
+    .from("shopify_connections")
+    .select("id, status, connected_at, shop_domain, tenant_id, user_id")
+    .eq("tenant_id", tenantId)
+    .eq("status", "connected")
+    .order("connected_at", { ascending: false })
+    .limit(1);
+
+  if (isMissingRelationError(result.error)) {
+    return { data: [], error: null };
+  }
+
+  return result;
+}
+
+async function loadGoogleAnalyticsConnection(tenantId: string, userId: string) {
+  const preferredResult = await supabase
+    .from("google_analytics_settings")
+    .select(
+      "id, property_id, connection_status, last_test_at, service_account_configured, user_id, tenant_id",
+    )
+    .eq("tenant_id", tenantId)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (isMissingRelationError(preferredResult.error)) {
+    return { data: null, error: null };
+  }
+
+  if (!isMissingColumnError(preferredResult.error, "tenant_id")) {
+    return preferredResult;
+  }
+
+  return await supabase
+    .from("google_analytics_settings")
+    .select(
+      "id, property_id, connection_status, last_test_at, service_account_configured, user_id",
+    )
+    .eq("user_id", userId)
+    .maybeSingle();
+}
+
 export function useIntegrationsHubData() {
   const { user } = useAuth();
   const { tenant } = useTenant();
@@ -47,6 +122,7 @@ export function useIntegrationsHubData() {
     enabled: Boolean(user?.id),
     queryFn: async () => {
       const [
+        shopifyResult,
         squareResult,
         cloverResult,
         lightspeedResult,
@@ -56,9 +132,14 @@ export function useIntegrationsHubData() {
         emailDomainsResult,
       ] = await Promise.all([
         tenant?.id
+          ? loadShopifyConnection(tenant.id)
+          : Promise.resolve({ data: [], error: null }),
+        tenant?.id
           ? supabase
               .from("square_connections")
-              .select("id, status, connected_at, merchant_name, last_synced_at, tenant_id, user_id")
+              .select(
+                "id, status, connected_at, merchant_name, last_synced_at, tenant_id, user_id",
+              )
               .eq("tenant_id", tenant.id)
               .eq("status", "connected")
               .order("connected_at", { ascending: false })
@@ -67,7 +148,9 @@ export function useIntegrationsHubData() {
         tenant?.id
           ? supabase
               .from("clover_connections")
-              .select("id, status, connected_at, merchant_name, last_synced_at, tenant_id, user_id")
+              .select(
+                "id, status, connected_at, merchant_name, last_synced_at, tenant_id, user_id",
+              )
               .eq("tenant_id", tenant.id)
               .eq("status", "connected")
               .order("connected_at", { ascending: false })
@@ -99,30 +182,30 @@ export function useIntegrationsHubData() {
         user?.id
           ? supabase
               .from("social_connections")
-              .select("id, platform, platform_account_name, is_active, created_at, user_id, deleted_at")
+              .select(
+                "id, platform, platform_account_name, is_active, created_at, user_id, deleted_at",
+              )
               .eq("user_id", user.id)
               .in("platform", ["facebook", "instagram"])
               .eq("is_active", true)
               .is("deleted_at", null)
           : Promise.resolve({ data: [], error: null }),
         tenant?.id && user?.id
-          ? supabase
-              .from("google_analytics_settings")
-              .select("id, property_id, connection_status, last_test_at, service_account_configured, user_id, tenant_id")
-              .eq("tenant_id", tenant.id)
-              .eq("user_id", user.id)
-              .maybeSingle()
+          ? loadGoogleAnalyticsConnection(tenant.id, user.id)
           : Promise.resolve({ data: null, error: null }),
         tenant?.id
           ? supabase
               .from("email_domains")
-              .select("id, domain, status, created_at, updated_at, entri_provider, is_entri_managed")
+              .select(
+                "id, domain, status, created_at, updated_at, entri_provider, is_entri_managed",
+              )
               .eq("tenant_id", tenant.id)
               .order("created_at", { ascending: false })
           : Promise.resolve({ data: [], error: null }),
       ]);
 
       const errors = [
+        shopifyResult.error,
         squareResult.error,
         cloverResult.error,
         lightspeedResult.error,
@@ -136,6 +219,7 @@ export function useIntegrationsHubData() {
         throw errors[0];
       }
 
+      const shopifyConnection = shopifyResult.data?.[0] ?? null;
       const squareConnection = squareResult.data?.[0] ?? null;
       const cloverConnection = cloverResult.data?.[0] ?? null;
       const lightspeedConnection = lightspeedResult.data?.[0] ?? null;
@@ -148,6 +232,15 @@ export function useIntegrationsHubData() {
         ...seed,
         status: seed.defaultStatus,
       }));
+
+      if (shopifyConnection) {
+        items = withPatchedItem(items, "shopify", {
+          status: "connected",
+          connectedSince: shopifyConnection.connected_at,
+          metaLabel: shopifyConnection.shop_domain ?? "Shopify store",
+          actionLabel: "Configure",
+        });
+      }
 
       if (squareConnection) {
         items = withPatchedItem(items, "square", {
@@ -171,23 +264,28 @@ export function useIntegrationsHubData() {
         items = withPatchedItem(items, "lightspeed", {
           status: "connected",
           connectedSince: lightspeedConnection.connected_at,
-          metaLabel:
-            lightspeedConnection.domain_prefix
-              ? `${lightspeedConnection.domain_prefix}.retail.lightspeed.app`
-              : lightspeedConnection.retailer_name ?? "Lightspeed retailer",
+          metaLabel: lightspeedConnection.domain_prefix
+            ? `${lightspeedConnection.domain_prefix}.retail.lightspeed.app`
+            : (lightspeedConnection.retailer_name ?? "Lightspeed retailer"),
           actionLabel: "Configure",
           targetPath: "/integrations/lightspeed/guide",
         });
       }
 
-      const providerByName = new Map(providerConnections.map((connection) => [connection.provider, connection]));
+      const providerByName = new Map(
+        providerConnections.map((connection) => [
+          connection.provider,
+          connection,
+        ]),
+      );
 
       const mailchimpConnection = providerByName.get("mailchimp");
       if (mailchimpConnection) {
         items = withPatchedItem(items, "mailchimp", {
           status: "connected",
           connectedSince: mailchimpConnection.connected_at,
-          metaLabel: mailchimpConnection.provider_account_name ?? "Mailchimp account",
+          metaLabel:
+            mailchimpConnection.provider_account_name ?? "Mailchimp account",
           actionLabel: "Configure",
         });
       }
@@ -197,7 +295,8 @@ export function useIntegrationsHubData() {
         items = withPatchedItem(items, "klaviyo", {
           status: "connected",
           connectedSince: klaviyoConnection.connected_at,
-          metaLabel: klaviyoConnection.provider_account_name ?? "Klaviyo account",
+          metaLabel:
+            klaviyoConnection.provider_account_name ?? "Klaviyo account",
           actionLabel: "Configure",
         });
       }
@@ -208,28 +307,39 @@ export function useIntegrationsHubData() {
           status: "connected",
           connectedSince: constantContactConnection.connected_at,
           metaLabel:
-            constantContactConnection.provider_account_name ?? "Constant Contact account",
+            constantContactConnection.provider_account_name ??
+            "Constant Contact account",
           actionLabel: "Configure",
         });
       }
 
       const facebookConnection = socialConnections.find(
-        (connection) => connection.platform === "facebook" && connection.is_active,
+        (connection) =>
+          connection.platform === "facebook" && connection.is_active,
       );
       const instagramConnection = socialConnections.find(
-        (connection) => connection.platform === "instagram" && connection.is_active,
+        (connection) =>
+          connection.platform === "instagram" && connection.is_active,
       );
-      const isMetaConnected = Boolean(facebookConnection || instagramConnection);
+      const isMetaConnected = Boolean(
+        facebookConnection || instagramConnection,
+      );
 
       items = withPatchedItem(items, "meta", {
         status: isMetaConnected ? "connected" : "available",
-        connectedSince: facebookConnection?.created_at ?? instagramConnection?.created_at ?? null,
+        connectedSince:
+          facebookConnection?.created_at ??
+          instagramConnection?.created_at ??
+          null,
         metaLabel:
           facebookConnection?.platform_account_name ??
           instagramConnection?.platform_account_name ??
           "Managed in Meta social connections",
         actionLabel: isMetaConnected ? "Configure" : "Connect",
-        children: buildMetaChildren(Boolean(facebookConnection), Boolean(instagramConnection)),
+        children: buildMetaChildren(
+          Boolean(facebookConnection),
+          Boolean(instagramConnection),
+        ),
       });
 
       if (googleAnalyticsConnection?.connection_status === "connected") {
@@ -241,7 +351,9 @@ export function useIntegrationsHubData() {
         });
       }
 
-      const managedDomain = emailDomains.find((domain) => ["active", "warming_up"].includes(domain.status));
+      const managedDomain = emailDomains.find((domain) =>
+        ["active", "warming_up"].includes(domain.status),
+      );
       const latestDomain = managedDomain ?? emailDomains[0] ?? null;
       if (latestDomain) {
         items = withPatchedItem(items, "email-infrastructure", {
@@ -255,6 +367,7 @@ export function useIntegrationsHubData() {
       return {
         items,
         connections: {
+          shopifyConnection,
           squareConnection,
           cloverConnection,
           lightspeedConnection,
@@ -270,12 +383,17 @@ export function useIntegrationsHubData() {
     },
   });
 
-  const items = query.data?.items ?? getIntegrationSeeds().map((seed) => ({
-    ...seed,
-    status: seed.defaultStatus,
-  }));
+  const items =
+    query.data?.items ??
+    getIntegrationSeeds().map((seed) => ({
+      ...seed,
+      status: seed.defaultStatus,
+    }));
 
-  const itemMap = useMemo(() => new Map(items.map((item) => [item.slug, item])), [items]);
+  const itemMap = useMemo(
+    () => new Map(items.map((item) => [item.slug, item])),
+    [items],
+  );
 
   return {
     items,

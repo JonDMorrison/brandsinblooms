@@ -68,11 +68,20 @@ import { CustomersTabView as SquareCustomersTabView } from "@/components/integra
 import { ProductsTabView as SquareProductsTabView } from "@/components/integrations/square/ProductsTabView";
 import { SalesTabView as SquareSalesTabView } from "@/components/integrations/square/SalesTabView";
 import { SyncLogsTabView as SquareSyncLogsTabView } from "@/components/integrations/square/SyncLogsTabView";
+import { CustomersTabView as ShopifyCustomersTabView } from "@/components/integrations/shopify/CustomersTabView";
+import { OrdersTabView as ShopifyOrdersTabView } from "@/components/integrations/shopify/OrdersTabView";
+import { ProductsTabView as ShopifyProductsTabView } from "@/components/integrations/shopify/ProductsTabView";
+import { SyncLogsTabView as ShopifySyncLogsTabView } from "@/components/integrations/shopify/SyncLogsTabView";
 import {
   getUserFacingIntegrationError,
   type IntegrationDetailTone,
 } from "@/components/integrations/integrationDetailModel";
 import { getIntegrationSeed } from "@/components/integrations/integrationsHubConfig";
+import {
+  ConnectShopifyDialog,
+  ConnectShopifyHint,
+  getShopifyAdminUrl,
+} from "@/components/integrations/shopify/ConnectShopifyDialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -134,6 +143,9 @@ import {
   type SquareProductTableRow,
   type SquareSaleRow,
   type SquareSalesSortField,
+  type ShopifyCustomerSortField,
+  type ShopifyOrdersSortField,
+  type ShopifyProductsSortField,
   useIntegrationDetailData,
 } from "@/hooks/useIntegrationDetailData";
 import { cn } from "@/lib/utils";
@@ -141,6 +153,8 @@ import NotFound from "@/pages/NotFound";
 
 const REQUEST_INTEGRATION_MAILTO =
   "mailto:support@bloomsuite.app?subject=Request%20an%20Integration&body=Hi%20BloomSuite%20team%2C%0A%0AI'd%20like%20to%20request%20support%20for%20the%20following%20integration%3A%0A";
+
+const SHOPIFY_DIAGNOSTICS_PATH = "/integrations/shopify/debug";
 
 function formatRelativeTimestamp(timestamp?: string | null) {
   if (!timestamp) {
@@ -152,6 +166,25 @@ function formatRelativeTimestamp(timestamp?: string | null) {
   } catch {
     return "Not available";
   }
+}
+
+function formatDurationLabel(durationSeconds?: number | null) {
+  if (typeof durationSeconds !== "number" || Number.isNaN(durationSeconds)) {
+    return null;
+  }
+
+  const minutes = Math.floor(durationSeconds / 60);
+  const seconds = durationSeconds % 60;
+
+  if (minutes <= 0) {
+    return `${seconds}s`;
+  }
+
+  if (seconds === 0) {
+    return `${minutes}m`;
+  }
+
+  return `${minutes}m ${seconds}s`;
 }
 
 function formatExactTimestamp(timestamp?: string | null) {
@@ -336,9 +369,11 @@ function getLatestTimestamp(
 }
 
 function isLightspeedJobActive(status: string) {
-  return (
-    status !== "completed" && status !== "failed" && status !== "cancelled"
-  );
+  return status === "in_progress";
+}
+
+function isLightspeedJobQueued(status: string) {
+  return status === "pending" || status === "delayed";
 }
 
 function formatLightspeedWebhookMode(
@@ -663,6 +698,7 @@ export default function IntegrationDetailPage() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const [disconnectOpen, setDisconnectOpen] = useState(false);
+  const [shopifyDialogOpen, setShopifyDialogOpen] = useState(false);
   const [copiedLabel, setCopiedLabel] = useState<string | null>(null);
   const [lightspeedTab, setLightspeedTab] =
     useState<LightspeedTabValue>("overview");
@@ -710,6 +746,12 @@ export default function IntegrationDetailPage() {
     useState<LightspeedSortDirection>("asc");
   const [squareProductsSortField, setSquareProductsSortField] =
     useState<SquareProductsSortField>("name");
+  const [shopifyCustomerSortField, setShopifyCustomerSortField] =
+    useState<ShopifyCustomerSortField>("last_order_date");
+  const [shopifyOrdersSortField, setShopifyOrdersSortField] =
+    useState<ShopifyOrdersSortField>("order_date");
+  const [shopifyProductsSortField, setShopifyProductsSortField] =
+    useState<ShopifyProductsSortField>("updated_at");
   const [syncLogsPage, setSyncLogsPage] = useState(1);
   const [syncLogsStatus, setSyncLogsStatus] = useState("all");
   const deferredCustomerSearch = useDebouncedValue(
@@ -813,7 +855,37 @@ export default function IntegrationDetailPage() {
                 status: syncLogsStatus,
               },
             }
-          : undefined,
+          : slug === "shopify"
+            ? {
+                customers: {
+                  page: customerPage,
+                  search: deferredCustomerSearch,
+                  sortField: shopifyCustomerSortField,
+                  sortDirection: customerSortDirection,
+                },
+                sales: {
+                  page: salesPage,
+                  search: deferredSalesSearch,
+                  status: salesStatus,
+                  startDate: salesStartDate || null,
+                  endDate: salesEndDate || null,
+                  sortField: shopifyOrdersSortField,
+                  sortDirection: salesSortDirection,
+                },
+                products: {
+                  page: productsPage,
+                  search: deferredProductsSearch,
+                  categories: productsCategories,
+                  inStockOnly: productsInStockOnly,
+                  sortField: shopifyProductsSortField,
+                  sortDirection: productsSortDirection,
+                },
+                syncLogs: {
+                  page: syncLogsPage,
+                  status: syncLogsStatus,
+                },
+              }
+            : undefined,
   );
 
   const seed = useMemo(() => (slug ? getIntegrationSeed(slug) : null), [slug]);
@@ -836,6 +908,7 @@ export default function IntegrationDetailPage() {
   const isSquare = item.slug === "square";
   const isClover = item.slug === "clover";
   const isLightspeed = item.slug === "lightspeed";
+  const isShopify = item.slug === "shopify";
   const isMeta = item.slug === "meta";
   const isGa4 = item.slug === "google-analytics";
   const isEmailInfrastructure = item.slug === "email-infrastructure";
@@ -843,6 +916,8 @@ export default function IntegrationDetailPage() {
     item.slug === "mailchimp" ||
     item.slug === "klaviyo" ||
     item.slug === "constant-contact";
+  const shopifyConnection = detail.shopifyConnection;
+  const shopifyDashboard = detail.shopifyDashboard;
   const squareDetail = detail.squareDetail;
   const squareDashboard = detail.squareDashboard;
   const cloverDetail = detail.cloverDetail;
@@ -855,6 +930,9 @@ export default function IntegrationDetailPage() {
   const emailInfrastructureDetail = detail.emailInfrastructureDetail;
   const comingSoonDetail = detail.comingSoonDetail;
   const isComingSoonPage = Boolean(comingSoonDetail);
+  const shopifyAdminUrl = getShopifyAdminUrl(
+    shopifyConnection?.shop_domain ?? null,
+  );
   const lightspeedWebhookMode = formatLightspeedWebhookMode(
     lightspeedDetail?.webhookMode,
   );
@@ -924,6 +1002,91 @@ export default function IntegrationDetailPage() {
           },
         }
       : null;
+  const shopifyNeedsWebhookAttention =
+    isShopify &&
+    Boolean(shopifyConnection) &&
+    (Boolean(shopifyConnection?.webhook_last_error) ||
+      !shopifyConnection?.webhooks_subscribed);
+  const shopifyLatestActivityAt = getLatestTimestamp([
+    shopifyConnection?.last_webhook_received_at,
+    shopifyConnection?.last_synced_at,
+    shopifyConnection?.updated_at,
+  ]);
+  const shopifyAppUninstalled = /app was uninstalled/i.test(
+    shopifyConnection?.webhook_last_error ?? "",
+  );
+  const shopifyConnected = shopifyConnection?.status === "connected";
+  const shopifyScopeCount = (shopifyConnection?.scope ?? "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean).length;
+  const shopifyPageStatus =
+    isShopify && shopifyConnection
+      ? shopifyAppUninstalled
+        ? {
+            label: "App uninstalled",
+            tone: "danger" as const,
+            summary:
+              "The Shopify app was removed from the store. Reinstall it to restore sync, webhook delivery, and automation intake.",
+          }
+        : !shopifyConnected
+          ? {
+              label: "Reconnect required",
+              tone: "danger" as const,
+              summary:
+                "BloomSuite still has a Shopify store record for this tenant, but the active OAuth credentials are no longer available.",
+            }
+          : shopifyNeedsWebhookAttention
+            ? {
+                label: "Webhooks only",
+                tone: "warning" as const,
+                summary:
+                  "The Shopify store is connected, but webhook coverage needs review before BloomSuite can trust real-time event delivery.",
+              }
+            : {
+                label: "Healthy",
+                tone: "success" as const,
+                summary:
+                  "Connection, sync readiness, and Shopify webhook coverage are healthy for this store.",
+              }
+      : null;
+  const shopifyStatusBanner =
+    isShopify && shopifyConnection
+      ? shopifyAppUninstalled
+        ? {
+            tone: "danger" as const,
+            title: "Shopify app was uninstalled",
+            description:
+              "Reinstall the BloomSuite Shopify app to restore credentials, webhook subscriptions, and queue-backed sync jobs for this store.",
+            actionLabel: "Reinstall App",
+            onAction: () => setShopifyDialogOpen(true),
+          }
+        : !shopifyConnected
+          ? {
+              tone: "danger" as const,
+              title: "Reconnect Shopify",
+              description:
+                "This store record is still available, but BloomSuite needs a fresh OAuth install to restore token-based access.",
+              actionLabel: "Reconnect",
+              onAction: () => setShopifyDialogOpen(true),
+            }
+          : shopifyNeedsWebhookAttention
+            ? {
+                tone: "warning" as const,
+                title: "Verify Shopify webhook coverage",
+                description: getUserFacingIntegrationError(
+                  shopifyConnection.webhook_last_error,
+                  "BloomSuite needs to verify the current Shopify webhook subscriptions before relying on real-time order, customer, and product events.",
+                ),
+                actionLabel: detail.isVerifyingShopifyWebhooks
+                  ? "Verifying..."
+                  : "Verify Webhooks",
+                onAction: () => {
+                  void detail.verifyShopifyWebhooks();
+                },
+              }
+            : null
+      : null;
   const squarePrimaryAction =
     isSquare && squareDetail
       ? {
@@ -957,6 +1120,32 @@ export default function IntegrationDetailPage() {
             value: "sync-logs" as const,
             label: "Sync Logs",
             isActive: detail.isSquareSyncing,
+          },
+        ]
+      : [];
+  const shopifyTabItems =
+    isShopify && shopifyConnection
+      ? [
+          { value: "overview" as const, label: "Overview" },
+          {
+            value: "customers" as const,
+            label: "Customers",
+            count: shopifyConnection.customers_synced ?? 0,
+          },
+          {
+            value: "sales" as const,
+            label: "Orders",
+            count: shopifyConnection.sales_synced ?? 0,
+          },
+          {
+            value: "products" as const,
+            label: "Products",
+            count: shopifyConnection.products_synced ?? 0,
+          },
+          {
+            value: "sync-logs" as const,
+            label: "Sync Logs",
+            isActive: detail.isShopifySyncing,
           },
         ]
       : [];
@@ -1239,6 +1428,9 @@ export default function IntegrationDetailPage() {
 
     return count;
   })();
+  const lightspeedRecentSuccessCount = lightspeedSyncLogRows.filter(
+    (row) => row.status === "completed",
+  ).length;
   const lightspeedLatestFailedLog = lightspeedSyncLogRows.find(
     (row) => row.status === "failed" || row.status === "cancelled",
   );
@@ -1445,9 +1637,31 @@ export default function IntegrationDetailPage() {
     lightspeedDetail?.lastSyncedAt,
     lightspeedDetail?.connectedAt,
   ]);
-  const lightspeedActiveSyncJobs = detail.lightspeedSyncJobs.filter((job) =>
-    isLightspeedJobActive(job.status),
+  const lightspeedActiveSyncJobs = detail.lightspeedSyncJobs.filter(
+    (job) => isLightspeedJobActive(job.status) && !job.isStale,
   );
+  const lightspeedQueuedSyncJobs = detail.lightspeedSyncJobs.filter((job) =>
+    isLightspeedJobQueued(job.status),
+  );
+  const lightspeedStaleSyncJobs = detail.lightspeedSyncJobs.filter(
+    (job) => job.isStale,
+  );
+  const latestLightspeedSyncLog =
+    detail.lightspeedDashboard?.syncLogs.rows[0] ?? null;
+  const lightspeedLatestSyncWasEmpty =
+    latestLightspeedSyncLog?.status === "completed" &&
+    Math.max(
+      latestLightspeedSyncLog.fetched_rows ?? 0,
+      latestLightspeedSyncLog.inserted_rows ?? 0,
+      latestLightspeedSyncLog.processed_rows ?? 0,
+    ) === 0;
+  const lightspeedIdleQueueDescription = detail.lightspeedHasStaleJobs
+    ? `${lightspeedStaleSyncJobs.length} stalled job${lightspeedStaleSyncJobs.length === 1 ? "" : "s"}. No records are currently being fetched.`
+    : lightspeedQueuedSyncJobs.length > 0
+      ? `${lightspeedQueuedSyncJobs.length} queued job${lightspeedQueuedSyncJobs.length === 1 ? "" : "s"} waiting to start or retry. No records are currently being fetched.`
+      : lightspeedLatestSyncWasEmpty
+        ? "No active Lightspeed sync jobs. The latest sync did not find any new records."
+        : "No active Lightspeed sync jobs.";
   const hasActiveLightspeedSyncType = (
     syncType: "customers" | "sales" | "products",
   ) =>
@@ -1470,50 +1684,57 @@ export default function IntegrationDetailPage() {
           tone: "neutral" as const,
           description:
             lightspeedActiveSyncJobs.length > 0
-              ? `${lightspeedActiveSyncJobs.length} active job${lightspeedActiveSyncJobs.length === 1 ? "" : "s"} in progress.`
+              ? `${lightspeedActiveSyncJobs.length} active job${lightspeedActiveSyncJobs.length === 1 ? "" : "s"} currently fetching records.`
               : "Queue records are being created now.",
         }
       : detail.lightspeedHasStaleJobs
         ? {
             value: "Stalled",
             tone: "warning" as const,
-            description:
-              "One or more Lightspeed jobs have stopped reporting progress.",
+            description: lightspeedIdleQueueDescription,
           }
-        : lightspeedRecentFailureCount > 0
+        : lightspeedQueuedSyncJobs.length > 0
           ? {
-              value: "Attention needed",
+              value: "Queued",
               tone: "warning" as const,
-              description:
-                lightspeedLatestSyncFailureMessage ??
-                "A recent Lightspeed sync attempt needs review.",
+              description: lightspeedIdleQueueDescription,
             }
-          : lightspeedDetail?.lastSyncedAt ||
-              lightspeedLatestSuccessfulActivityAt
+          : lightspeedRecentFailureCount > 0
             ? {
-                value: "Healthy",
-                tone: "success" as const,
-                description: `Last successful activity ${formatRelativeTimestamp(
-                  lightspeedDetail?.lastSyncedAt ??
-                    lightspeedLatestSuccessfulActivityAt,
-                )}.`,
+                value: "Attention needed",
+                tone: "warning" as const,
+                description:
+                  lightspeedLatestSyncFailureMessage ??
+                  "A recent Lightspeed sync failed and should be reviewed before the next run.",
               }
-            : {
-                value: null,
-                tone: "neutral" as const,
-                description: "No successful sync has been recorded yet.",
-              };
+            : lightspeedRecentSuccessCount > 0
+              ? {
+                  value: "Healthy",
+                  tone: "success" as const,
+                  description:
+                    lightspeedLatestSuccessfulActivityAt !== null
+                      ? `Latest successful Lightspeed activity recorded ${formatRelativeTimestamp(lightspeedLatestSuccessfulActivityAt)}.`
+                      : "Recent Lightspeed syncs completed successfully.",
+                }
+              : {
+                  value: "Idle",
+                  tone: "neutral" as const,
+                  description:
+                    lightspeedLatestSuccessfulActivityAt !== null
+                      ? `No active Lightspeed sync jobs. Latest activity recorded ${formatRelativeTimestamp(lightspeedLatestSuccessfulActivityAt)}.`
+                      : lightspeedIdleQueueDescription,
+                };
   const lightspeedWebhookHealth = lightspeedNeedsReconnect
     ? {
         value: "Reconnect required",
         tone: "danger" as const,
         description:
-          "Webhook status cannot be trusted until the connection is repaired.",
+          "The stored authorization must be repaired before webhook health can be trusted.",
       }
     : lightspeedDetail?.webhookMode === "unavailable"
       ? {
           value: "Unavailable",
-          tone: "neutral" as const,
+          tone: "warning" as const,
           description:
             "This Lightspeed account does not expose the webhook APIs BloomSuite expects.",
         }
@@ -1929,6 +2150,57 @@ export default function IntegrationDetailPage() {
         ]
       : [];
 
+  const shopifyMetricCards =
+    isShopify && shopifyConnection
+      ? [
+          {
+            key: "shopify-status",
+            label: "Store Status",
+            value: shopifyPageStatus?.label ?? "Available",
+            subtitle: shopifyConnection.connected_at
+              ? `Connected ${formatRelativeTimestamp(shopifyConnection.connected_at)}`
+              : "Connect Shopify to enable BloomSuite sync and webhooks",
+            icon: PlugZap,
+            tone: shopifyPageStatus?.tone ?? model.statusTone,
+          },
+          {
+            key: "shopify-customers",
+            label: "Customers Synced",
+            value: formatCount(shopifyConnection.customers_synced),
+            subtitle: shopifyConnection.last_customer_sync
+              ? `Last synced ${formatRelativeTimestamp(shopifyConnection.last_customer_sync)}`
+              : "No customer sync recorded yet",
+            icon: Users,
+            tone: shopifyConnection.last_customer_sync ? "success" : "neutral",
+          },
+          {
+            key: "shopify-orders",
+            label: "Orders Synced",
+            value: formatCount(shopifyConnection.sales_synced),
+            subtitle: shopifyConnection.last_sales_sync
+              ? `Last synced ${formatRelativeTimestamp(shopifyConnection.last_sales_sync)}`
+              : "No order sync recorded yet",
+            icon: Receipt,
+            tone: shopifyConnection.last_sales_sync ? "success" : "neutral",
+          },
+          {
+            key: "shopify-webhooks",
+            label: "Webhook Topics",
+            value: shopifyConnection.webhooks_subscribed
+              ? "11 / 11"
+              : "Needs review",
+            subtitle: shopifyConnection.webhooks_subscribed
+              ? "All required Shopify webhook topics are verified"
+              : "One or more required Shopify webhook topics needs attention",
+            icon: Webhook,
+            tone: shopifyConnection.webhooks_subscribed ? "success" : "warning",
+            valueClassName: shopifyConnection.webhooks_subscribed
+              ? "text-emerald-600"
+              : "text-amber-600",
+          },
+        ]
+      : [];
+
   const cloverMetricCards =
     isClover && cloverDetail
       ? [
@@ -2146,7 +2418,10 @@ export default function IntegrationDetailPage() {
           },
           {
             key: "marketing-import-latest",
-            label: "Latest Import",
+            label:
+              marketingImportDetail.providerSlug === "mailchimp"
+                ? "Last Import"
+                : "Latest Import",
             value: marketingImportDetail.latestImportCompletedAt
               ? formatRelativeTimestamp(
                   marketingImportDetail.latestImportCompletedAt,
@@ -2157,9 +2432,16 @@ export default function IntegrationDetailPage() {
                   )
                 : "Not started",
             subtitle: marketingImportDetail.latestImportId
-              ? marketingImportDetail.latestImportSummary
+              ? marketingImportDetail.providerSlug === "mailchimp"
+                ? marketingImportDetail.latestCompletedImport?.durationSeconds
+                  ? `${marketingImportDetail.latestImportSummary} • ${formatDurationLabel(marketingImportDetail.latestCompletedImport.durationSeconds)}`
+                  : marketingImportDetail.latestImportSummary
+                : marketingImportDetail.latestImportSummary
               : marketingImportDetail.latestImportLabel,
-            icon: Activity,
+            icon:
+              marketingImportDetail.providerSlug === "mailchimp"
+                ? Clock3
+                : Activity,
             tone: marketingImportDetail.latestImportId
               ? marketingImportDetail.latestImportTone
               : "warning",
@@ -2169,7 +2451,10 @@ export default function IntegrationDetailPage() {
             label: "Authorization",
             value: marketingImportDetail.connectionState.label,
             subtitle: marketingImportDetail.connectionState.subtitle,
-            icon: PlugZap,
+            icon:
+              marketingImportDetail.providerSlug === "mailchimp"
+                ? Key
+                : PlugZap,
             tone: marketingImportDetail.connectionState.tone,
             valueClassName:
               marketingImportDetail.connectionState.valueClassName,
@@ -2279,12 +2564,35 @@ export default function IntegrationDetailPage() {
             id: "primary",
             items: [
               {
-                label:
-                  item.status === "coming-soon"
+                label: isShopify
+                  ? item.status === "connected"
+                    ? "Open Shopify admin"
+                    : (item.detailActionLabel ?? "Connect Shopify")
+                  : item.status === "coming-soon"
                     ? "Request integration"
                     : (item.detailActionLabel ?? "Open integration"),
-                icon: item.status === "coming-soon" ? MailPlus : ExternalLink,
+                icon:
+                  isShopify && item.status !== "connected"
+                    ? PlugZap
+                    : item.status === "coming-soon"
+                      ? MailPlus
+                      : ExternalLink,
                 onSelect: () => {
+                  if (isShopify) {
+                    if (item.status === "connected") {
+                      if (shopifyAdminUrl) {
+                        window.open(
+                          shopifyAdminUrl,
+                          "_blank",
+                          "noopener,noreferrer",
+                        );
+                      }
+                    } else {
+                      setShopifyDialogOpen(true);
+                    }
+                    return;
+                  }
+
                   if (item.status === "coming-soon") {
                     window.location.href = `${REQUEST_INTEGRATION_MAILTO}${encodeURIComponent(item.name)}`;
                     return;
@@ -2379,6 +2687,73 @@ export default function IntegrationDetailPage() {
                         void copyToClipboard(
                           squareDetail.webhookSubscriptionId,
                           "Webhook subscription ID",
+                        );
+                      },
+                    },
+                  ],
+                },
+              ]
+            : []),
+          ...(isShopify && shopifyConnection
+            ? [
+                {
+                  id: "shopify-operations",
+                  label: "Shopify Operations",
+                  items: [
+                    {
+                      label: detail.isShopifySyncing
+                        ? "Starting sync…"
+                        : "Trigger manual sync",
+                      icon: RefreshCcw,
+                      disabled:
+                        item.status !== "connected" || detail.isShopifySyncing,
+                      onSelect: () => {
+                        void detail.triggerShopifySync();
+                      },
+                    },
+                    {
+                      label: detail.isVerifyingShopifyWebhooks
+                        ? "Verifying webhooks…"
+                        : "Verify webhooks",
+                      icon: Webhook,
+                      disabled:
+                        item.status !== "connected" ||
+                        detail.isVerifyingShopifyWebhooks,
+                      onSelect: () => {
+                        void detail.verifyShopifyWebhooks();
+                      },
+                    },
+                    ...(detail.canAccessLightspeedAdminFeatures
+                      ? [
+                          {
+                            label: "Run diagnostics",
+                            icon: FlaskConical,
+                            onSelect: () => navigate(SHOPIFY_DIAGNOSTICS_PATH),
+                          },
+                        ]
+                      : []),
+                    {
+                      label: "Open Shopify admin",
+                      icon: ExternalLink,
+                      disabled: !shopifyAdminUrl,
+                      onSelect: () => {
+                        if (shopifyAdminUrl) {
+                          window.open(
+                            shopifyAdminUrl,
+                            "_blank",
+                            "noopener,noreferrer",
+                          );
+                        }
+                      },
+                    },
+                    {
+                      label: "Copy store domain",
+                      icon: Copy,
+                      disabled: !shopifyConnection.shop_domain,
+                      onSelect: () => {
+                        void copyToClipboard(
+                          shopifyConnection.shop_domain,
+                          "Store domain",
                         );
                       },
                     },
@@ -2609,17 +2984,19 @@ export default function IntegrationDetailPage() {
                     {
                       label: isMeta
                         ? "Disconnect Meta"
-                        : isSquare
-                          ? "Disconnect Square"
-                          : isClover
-                            ? "Disconnect Clover"
-                            : isLightspeed
-                              ? "Disconnect Lightspeed"
-                              : isGa4
-                                ? "Disconnect Google Analytics"
-                                : isMarketingImport && marketingImportDetail
-                                  ? `Disconnect ${marketingImportDetail.providerLabel}`
-                                  : "Disconnect integration",
+                        : isShopify
+                          ? "Disconnect Shopify"
+                          : isSquare
+                            ? "Disconnect Square"
+                            : isClover
+                              ? "Disconnect Clover"
+                              : isLightspeed
+                                ? "Disconnect Lightspeed"
+                                : isGa4
+                                  ? "Disconnect Google Analytics"
+                                  : isMarketingImport && marketingImportDetail
+                                    ? `Disconnect ${marketingImportDetail.providerLabel}`
+                                    : "Disconnect integration",
                       icon: ShieldAlert,
                       destructive: true,
                       onSelect: () => setDisconnectOpen(true),
@@ -2706,6 +3083,43 @@ export default function IntegrationDetailPage() {
           },
         }
       : null;
+  const shopifyPrimaryAction = isShopify
+    ? !shopifyConnection
+      ? {
+          label: "Connect Shopify",
+          disabled: false,
+          onClick: () => setShopifyDialogOpen(true),
+        }
+      : shopifyAppUninstalled
+        ? {
+            label: "Reinstall App",
+            disabled: false,
+            onClick: () => setShopifyDialogOpen(true),
+          }
+        : !shopifyConnected
+          ? {
+              label: "Reconnect",
+              disabled: false,
+              onClick: () => setShopifyDialogOpen(true),
+            }
+          : shopifyNeedsWebhookAttention
+            ? {
+                label: detail.isVerifyingShopifyWebhooks
+                  ? "Verifying..."
+                  : "Verify Webhooks",
+                disabled: detail.isVerifyingShopifyWebhooks,
+                onClick: () => {
+                  void detail.verifyShopifyWebhooks();
+                },
+              }
+            : {
+                label: detail.isShopifySyncing ? "Syncing..." : "Sync Now",
+                disabled: detail.isShopifySyncing,
+                onClick: () => {
+                  void detail.triggerShopifySync();
+                },
+              }
+    : null;
   const comingSoonPrimaryAction =
     isComingSoonPage && comingSoonDetail
       ? {
@@ -3423,10 +3837,236 @@ export default function IntegrationDetailPage() {
           </section>
         ) : null}
 
+        {isShopify && shopifyConnection && shopifyPageStatus ? (
+          <section className="space-y-5 rounded-[1.75rem] border border-border/70 bg-white/95 p-6 shadow-sm shadow-brand-navy/5">
+            <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
+              <div className="space-y-4">
+                <div className="flex flex-wrap items-start gap-4">
+                  <div className="flex h-16 w-16 items-center justify-center rounded-[1.35rem] border border-border/70 bg-slate-50 shadow-sm">
+                    <Icon className="h-7 w-7 text-slate-700" />
+                  </div>
+                  <div className="space-y-3">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <h1 className="text-xl font-semibold text-foreground sm:text-2xl">
+                        {item.name}
+                      </h1>
+                      <DetailStatusBadge
+                        label={shopifyPageStatus.label}
+                        tone={shopifyPageStatus.tone}
+                      />
+                      {detail.isFetching ? (
+                        <span className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-slate-50 px-3 py-1 text-xs font-medium text-muted-foreground">
+                          <RefreshCcw className="h-3.5 w-3.5" />
+                          Refreshing
+                        </span>
+                      ) : null}
+                    </div>
+
+                    <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
+                      {shopifyPageStatus.summary}
+                    </p>
+
+                    <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted-foreground">
+                      <span>
+                        Store{" "}
+                        {shopifyConnection.shop_name?.trim() ||
+                          shopifyConnection.shop_domain}
+                      </span>
+                      <span>Domain {shopifyConnection.shop_domain}</span>
+                      <span>
+                        Connected{" "}
+                        {shopifyConnection.connected_at
+                          ? formatRelativeTimestamp(
+                              shopifyConnection.connected_at,
+                            )
+                          : "—"}
+                      </span>
+                    </div>
+
+                    {shopifyAdminUrl && shopifyConnected ? (
+                      <div className="flex flex-wrap items-center gap-2 text-sm">
+                        <a
+                          href={shopifyAdminUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-brand-navy underline-offset-4 hover:underline"
+                        >
+                          {shopifyConnection.shop_domain}
+                          <ExternalLink className="h-3.5 w-3.5" />
+                        </a>
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 self-start">
+                {shopifyPrimaryAction ? (
+                  <Button
+                    type="button"
+                    onClick={shopifyPrimaryAction.onClick}
+                    disabled={shopifyPrimaryAction.disabled}
+                  >
+                    {detail.isShopifySyncing &&
+                    shopifyConnected &&
+                    !shopifyNeedsWebhookAttention ? (
+                      <RefreshCcw className="mr-2 h-4 w-4" />
+                    ) : null}
+                    {shopifyPrimaryAction.label}
+                  </Button>
+                ) : null}
+                <Button variant="outline" size="sm" asChild>
+                  <Link to={`/integrations/${seed.slug}/documentation`}>
+                    <BookOpen className="mr-1.5 h-3.5 w-3.5" />
+                    Documentation
+                  </Link>
+                </Button>
+                {headerActionSections.length > 0 ? (
+                  <ActionDropdown
+                    label="Actions"
+                    align="end"
+                    sections={headerActionSections}
+                    triggerClassName="min-w-[10rem] justify-between"
+                  />
+                ) : null}
+              </div>
+            </div>
+
+            {detail.isError ? (
+              <div className="flex flex-col gap-3 rounded-2xl border border-rose-200 bg-rose-50/80 px-4 py-4 text-sm text-rose-800 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                  <div>
+                    <div className="font-semibold">
+                      Unable to refresh integration details
+                    </div>
+                    <div className="mt-1 text-rose-700/90">
+                      {getUserFacingIntegrationError(
+                        detail.error,
+                        "An unexpected error occurred while loading this integration.",
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => void detail.refetch()}
+                >
+                  Retry
+                </Button>
+              </div>
+            ) : null}
+
+            {shopifyStatusBanner ? (
+              <div
+                className={cn(
+                  "flex flex-col gap-3 rounded-2xl px-4 py-4 text-sm sm:flex-row sm:items-center sm:justify-between",
+                  shopifyStatusBanner.tone === "danger"
+                    ? "border border-rose-200 bg-rose-50/90 text-rose-900"
+                    : "border border-amber-200 bg-amber-50/90 text-amber-900",
+                )}
+              >
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                  <div>
+                    <div className="font-semibold">
+                      {shopifyStatusBanner.title}
+                    </div>
+                    <div className="mt-1 leading-6">
+                      {shopifyStatusBanner.description}
+                    </div>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  variant={
+                    shopifyStatusBanner.tone === "danger"
+                      ? "destructive"
+                      : "outline"
+                  }
+                  onClick={shopifyStatusBanner.onAction}
+                >
+                  {shopifyStatusBanner.actionLabel}
+                </Button>
+              </div>
+            ) : null}
+
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              {shopifyMetricCards.map((card) => (
+                <div
+                  key={card.key}
+                  className="rounded-[1.35rem] border border-border/70 bg-slate-50/60 p-5"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <div className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                        {card.label}
+                      </div>
+                      <div
+                        className={cn(
+                          "mt-3 text-3xl font-semibold tracking-tight text-slate-950",
+                          card.valueClassName,
+                        )}
+                      >
+                        {card.value}
+                      </div>
+                    </div>
+                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-border/70 bg-white">
+                      <card.icon className="h-5 w-5 text-slate-700" />
+                    </div>
+                  </div>
+                  <p className="mt-3 text-sm leading-6 text-muted-foreground">
+                    {card.subtitle}
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            <div className="overflow-x-auto rounded-[1.35rem] border border-border/70 bg-slate-50/60 p-2">
+              <div className="flex min-w-max items-center gap-2">
+                {shopifyTabItems.map((tab) => {
+                  const isActive = lightspeedTab === tab.value;
+
+                  return (
+                    <button
+                      key={tab.value}
+                      type="button"
+                      onClick={() => setLightspeedTab(tab.value)}
+                      className={cn(
+                        "inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-colors",
+                        isActive
+                          ? "bg-white text-slate-950 shadow-sm"
+                          : "text-muted-foreground hover:bg-white/70 hover:text-slate-900",
+                      )}
+                    >
+                      <span>{tab.label}</span>
+                      {"count" in tab &&
+                      typeof tab.count === "number" &&
+                      tab.count > 0 ? (
+                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700">
+                          {formatCount(tab.count)}
+                        </span>
+                      ) : null}
+                      {"isActive" in tab && tab.isActive ? (
+                        <span className="relative flex h-2.5 w-2.5">
+                          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-brand-teal/50" />
+                          <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-brand-teal" />
+                        </span>
+                      ) : null}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </section>
+        ) : null}
+
         {!(
           (isLightspeed && lightspeedDetail) ||
           (isSquare && squareDetail) ||
-          (isClover && cloverDetail)
+          (isClover && cloverDetail) ||
+          (isShopify && shopifyConnection)
         ) ? (
           <section className="rounded-[1.75rem] border border-border/70 bg-gradient-to-br from-white via-white to-brand-teal/5 p-6 shadow-sm shadow-brand-navy/5">
             <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
@@ -3508,8 +4148,11 @@ export default function IntegrationDetailPage() {
                 </div>
               </div>
 
+              {isShopify ? <ConnectShopifyHint /> : null}
+
               <div className="flex flex-wrap items-center gap-2 self-start">
                 {(isComingSoonPage && comingSoonPrimaryAction) ||
+                (isShopify && shopifyPrimaryAction) ||
                 (isEmailInfrastructure && emailInfrastructurePrimaryAction) ||
                 (isMeta && metaPrimaryAction) ||
                 (isGa4 && ga4PrimaryAction) ? (
@@ -3518,9 +4161,11 @@ export default function IntegrationDetailPage() {
                     variant={
                       isComingSoonPage && comingSoonPrimaryAction
                         ? comingSoonPrimaryAction.variant
-                        : isMeta && metaPrimaryAction
-                          ? metaPrimaryAction.variant
-                          : ga4PrimaryAction?.variant
+                        : isShopify && shopifyPrimaryAction
+                          ? "default"
+                          : isMeta && metaPrimaryAction
+                            ? metaPrimaryAction.variant
+                            : ga4PrimaryAction?.variant
                     }
                     className={cn(
                       isMeta && metaPrimaryAction
@@ -3530,16 +4175,23 @@ export default function IntegrationDetailPage() {
                     disabled={
                       isComingSoonPage && comingSoonPrimaryAction
                         ? comingSoonPrimaryAction.disabled
-                        : isEmailInfrastructure &&
-                            emailInfrastructurePrimaryAction
-                          ? emailInfrastructurePrimaryAction.disabled
-                          : isMeta && metaPrimaryAction
-                            ? metaPrimaryAction.disabled
-                            : ga4PrimaryAction?.disabled
+                        : isShopify && shopifyPrimaryAction
+                          ? shopifyPrimaryAction.disabled
+                          : isEmailInfrastructure &&
+                              emailInfrastructurePrimaryAction
+                            ? emailInfrastructurePrimaryAction.disabled
+                            : isMeta && metaPrimaryAction
+                              ? metaPrimaryAction.disabled
+                              : ga4PrimaryAction?.disabled
                     }
                     onClick={() => {
                       if (isComingSoonPage && comingSoonPrimaryAction) {
                         comingSoonPrimaryAction.onClick();
+                        return;
+                      }
+
+                      if (isShopify && shopifyPrimaryAction) {
+                        shopifyPrimaryAction.onClick();
                         return;
                       }
 
@@ -3576,15 +4228,19 @@ export default function IntegrationDetailPage() {
                     ) : isEmailInfrastructure &&
                       emailInfrastructurePrimaryAction ? (
                       <FlaskConical className="mr-2 h-4 w-4" />
+                    ) : isShopify && item.status !== "connected" ? (
+                      <PlugZap className="mr-2 h-4 w-4" />
                     ) : null}
                     {isComingSoonPage && comingSoonPrimaryAction
                       ? comingSoonPrimaryAction.label
-                      : isEmailInfrastructure &&
-                          emailInfrastructurePrimaryAction
-                        ? emailInfrastructurePrimaryAction.label
-                        : isMeta && metaPrimaryAction
-                          ? metaPrimaryAction.label
-                          : ga4PrimaryAction?.label}
+                      : isShopify && shopifyPrimaryAction
+                        ? shopifyPrimaryAction.label
+                        : isEmailInfrastructure &&
+                            emailInfrastructurePrimaryAction
+                          ? emailInfrastructurePrimaryAction.label
+                          : isMeta && metaPrimaryAction
+                            ? metaPrimaryAction.label
+                            : ga4PrimaryAction?.label}
                   </Button>
                 ) : null}
                 {!isComingSoonPage ? (
@@ -4141,6 +4797,367 @@ export default function IntegrationDetailPage() {
                     </div>
                   ) : null}
                 </OverviewPanel>
+              ) : isShopify && shopifyConnection ? (
+                <Tabs
+                  value={lightspeedTab}
+                  onValueChange={(value) =>
+                    setLightspeedTab(value as LightspeedTabValue)
+                  }
+                  className="space-y-6"
+                >
+                  <TabsContent value="overview" className="space-y-5">
+                    <OverviewPanel
+                      title="Integration Health"
+                      description="A single operator view of connection, queue-backed sync, webhook coverage, and automation readiness for this Shopify store."
+                      action={
+                        <DetailStatusBadge
+                          label={shopifyPageStatus?.label ?? "Available"}
+                          tone={shopifyPageStatus?.tone ?? "neutral"}
+                        />
+                      }
+                    >
+                      <div>
+                        <FieldRow
+                          label="Connection"
+                          value={
+                            shopifyAppUninstalled
+                              ? "App uninstalled"
+                              : shopifyConnected
+                                ? "Connected"
+                                : "Reconnect required"
+                          }
+                          tone={
+                            shopifyAppUninstalled || !shopifyConnected
+                              ? "danger"
+                              : "success"
+                          }
+                          description={
+                            shopifyConnection.connected_at
+                              ? `Connected ${formatRelativeTimestamp(shopifyConnection.connected_at)}.`
+                              : "No connection timestamp is available yet."
+                          }
+                        />
+                        <FieldRow
+                          label="Sync status"
+                          value={
+                            detail.shopifySyncState === "triggering"
+                              ? "Creating jobs"
+                              : detail.shopifySyncState === "syncing"
+                                ? "In progress"
+                                : "Idle"
+                          }
+                          tone={
+                            detail.shopifySyncState === "idle"
+                              ? "neutral"
+                              : "success"
+                          }
+                          description={
+                            detail.shopifySyncState === "idle"
+                              ? "No active Shopify sync jobs."
+                              : `${detail.shopifyActiveJobIds.length} active job${detail.shopifyActiveJobIds.length === 1 ? "" : "s"} currently running.`
+                          }
+                        />
+                        <FieldRow
+                          label="Webhook subscription"
+                          value={
+                            shopifyConnection.webhooks_subscribed
+                              ? "Verified"
+                              : "Needs verification"
+                          }
+                          tone={
+                            shopifyConnection.webhooks_subscribed
+                              ? "success"
+                              : "warning"
+                          }
+                          description={
+                            shopifyConnection.webhooks_last_checked_at
+                              ? `Last checked ${formatRelativeTimestamp(shopifyConnection.webhooks_last_checked_at)}.`
+                              : "Shopify webhook coverage has not been verified yet."
+                          }
+                        />
+                        <FieldRow
+                          label="Latest activity"
+                          value={
+                            shopifyLatestActivityAt
+                              ? formatRelativeTimestamp(shopifyLatestActivityAt)
+                              : null
+                          }
+                          description={
+                            formatExactTimestamp(shopifyLatestActivityAt) ??
+                            "BloomSuite has not recorded Shopify activity yet."
+                          }
+                          tone={shopifyLatestActivityAt ? "success" : "neutral"}
+                        />
+                        <FieldRow
+                          label="Automation pipeline"
+                          value="payment.completed"
+                          tone="success"
+                          description="Shopify paid orders flow into the existing BloomSuite payment automation contract."
+                        />
+                      </div>
+
+                      {shopifyConnection.webhook_last_error ? (
+                        <div className="mt-4 rounded-lg border border-amber-100 bg-amber-50/70 p-3 text-sm leading-6 text-amber-900">
+                          {getUserFacingIntegrationError(
+                            shopifyConnection.webhook_last_error,
+                            "Shopify webhook verification needs operator review.",
+                          )}
+                        </div>
+                      ) : null}
+                    </OverviewPanel>
+
+                    <OverviewPanel
+                      title="Data Feeds"
+                      description="BloomSuite reads synced Shopify customer, order, and product records from the tenant-scoped Shopify storage layer."
+                      action={
+                        <div className="flex items-center gap-1">
+                          {detail.canAccessLightspeedAdminFeatures ? (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 px-2 text-muted-foreground hover:bg-gray-50 hover:text-slate-900"
+                              onClick={() => navigate(SHOPIFY_DIAGNOSTICS_PATH)}
+                            >
+                              Diagnostics
+                            </Button>
+                          ) : null}
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 px-2 text-muted-foreground hover:bg-gray-50 hover:text-slate-900"
+                            onClick={() => setLightspeedTab("sync-logs")}
+                          >
+                            Sync Logs
+                          </Button>
+                        </div>
+                      }
+                    >
+                      <div>
+                        <DataFeedRow
+                          label="Customer feed"
+                          status={
+                            shopifyConnection.last_customer_sync
+                              ? "Active"
+                              : "Pending"
+                          }
+                          tone={
+                            shopifyConnection.last_customer_sync
+                              ? "success"
+                              : "warning"
+                          }
+                          description={
+                            shopifyConnection.last_customer_sync
+                              ? `Last synced ${formatRelativeTimestamp(shopifyConnection.last_customer_sync)} • ${formatCount(shopifyConnection.customers_synced)} records`
+                              : `${formatCount(shopifyConnection.customers_synced)} records available`
+                          }
+                        />
+                        <DataFeedRow
+                          label="Order feed"
+                          status={
+                            shopifyConnection.last_sales_sync
+                              ? "Active"
+                              : "Pending"
+                          }
+                          tone={
+                            shopifyConnection.last_sales_sync
+                              ? "success"
+                              : "warning"
+                          }
+                          description={
+                            shopifyConnection.last_sales_sync
+                              ? `Last synced ${formatRelativeTimestamp(shopifyConnection.last_sales_sync)} • ${formatCount(shopifyConnection.sales_synced)} records`
+                              : `${formatCount(shopifyConnection.sales_synced)} records available`
+                          }
+                        />
+                        <DataFeedRow
+                          label="Product feed"
+                          status={
+                            shopifyConnection.last_product_sync
+                              ? "Active"
+                              : "Pending"
+                          }
+                          tone={
+                            shopifyConnection.last_product_sync
+                              ? "success"
+                              : "warning"
+                          }
+                          description={
+                            shopifyConnection.last_product_sync
+                              ? `Last synced ${formatRelativeTimestamp(shopifyConnection.last_product_sync)} • ${formatCount(shopifyConnection.products_synced)} records`
+                              : `${formatCount(shopifyConnection.products_synced)} records available`
+                          }
+                        />
+                      </div>
+
+                      <div className="mt-4 rounded-lg border border-gray-100 bg-slate-50/70 p-3 text-sm leading-6 text-muted-foreground">
+                        Diagnostics and Sync Logs remain the operator tools for
+                        verifying Shopify feed health when webhook coverage, API
+                        access, or recent job failures need review.
+                      </div>
+                    </OverviewPanel>
+                  </TabsContent>
+
+                  <TabsContent value="customers" className="mt-0">
+                    <ShopifyCustomersTabView
+                      rows={shopifyDashboard?.customers.rows ?? []}
+                      pagination={
+                        shopifyDashboard?.customers.pagination ?? {
+                          page: 1,
+                          pageSize: 50,
+                          totalCount: 0,
+                          totalPages: 1,
+                        }
+                      }
+                      isLoading={Boolean(shopifyDashboard?.customers.isLoading)}
+                      isFetching={Boolean(
+                        shopifyDashboard?.customers.isFetching,
+                      )}
+                      customersSynced={shopifyConnection.customers_synced ?? 0}
+                      searchQuery={customerSearchInput}
+                      onSearchQueryChange={(value) => {
+                        setCustomerSearchInput(value);
+                        setCustomerPage(1);
+                      }}
+                      sortField={shopifyCustomerSortField}
+                      sortDirection={customerSortDirection}
+                      onSortChange={(field, direction) => {
+                        setShopifyCustomerSortField(field);
+                        setCustomerSortDirection(direction);
+                        setCustomerPage(1);
+                      }}
+                      onPageChange={setCustomerPage}
+                      onTriggerSync={() => {
+                        void detail.triggerShopifySync();
+                      }}
+                    />
+                  </TabsContent>
+
+                  <TabsContent value="sales" className="mt-0">
+                    <ShopifyOrdersTabView
+                      rows={shopifyDashboard?.orders.rows ?? []}
+                      pagination={
+                        shopifyDashboard?.orders.pagination ?? {
+                          page: 1,
+                          pageSize: 50,
+                          totalCount: 0,
+                          totalPages: 1,
+                        }
+                      }
+                      summary={
+                        shopifyDashboard?.orders.summary ?? {
+                          revenue: 0,
+                          averageOrderValue: 0,
+                          saleCount: 0,
+                        }
+                      }
+                      isLoading={Boolean(shopifyDashboard?.orders.isLoading)}
+                      isFetching={Boolean(shopifyDashboard?.orders.isFetching)}
+                      searchQuery={salesSearchInput}
+                      onSearchQueryChange={(value) => {
+                        setSalesSearchInput(value);
+                        setSalesPage(1);
+                      }}
+                      status={salesStatus}
+                      onStatusChange={(value) => {
+                        setSalesStatus(value);
+                        setSalesPage(1);
+                      }}
+                      startDate={salesStartDate}
+                      endDate={salesEndDate}
+                      onDateRangeChange={(startDate, endDate) => {
+                        setSalesStartDate(startDate);
+                        setSalesEndDate(endDate);
+                        setSalesPage(1);
+                      }}
+                      sortField={shopifyOrdersSortField}
+                      sortDirection={salesSortDirection}
+                      onSortChange={(field, direction) => {
+                        setShopifyOrdersSortField(field);
+                        setSalesSortDirection(direction);
+                        setSalesPage(1);
+                      }}
+                      onPageChange={setSalesPage}
+                    />
+                  </TabsContent>
+
+                  <TabsContent value="products" className="mt-0">
+                    <ShopifyProductsTabView
+                      rows={shopifyDashboard?.products.rows ?? []}
+                      pagination={
+                        shopifyDashboard?.products.pagination ?? {
+                          page: 1,
+                          pageSize: 50,
+                          totalCount: 0,
+                          totalPages: 1,
+                        }
+                      }
+                      categories={shopifyDashboard?.products.categories ?? []}
+                      isLoading={Boolean(shopifyDashboard?.products.isLoading)}
+                      isFetching={Boolean(
+                        shopifyDashboard?.products.isFetching,
+                      )}
+                      searchQuery={productsSearchInput}
+                      onSearchQueryChange={(value) => {
+                        setProductsSearchInput(value);
+                        setProductsPage(1);
+                      }}
+                      selectedCategories={productsCategories}
+                      onSelectedCategoriesChange={(value) => {
+                        setProductsCategories(value);
+                        setProductsPage(1);
+                      }}
+                      inStockOnly={productsInStockOnly}
+                      onInStockOnlyChange={(value) => {
+                        setProductsInStockOnly(value);
+                        setProductsPage(1);
+                      }}
+                      sortField={shopifyProductsSortField}
+                      sortDirection={productsSortDirection}
+                      onSortChange={(field, direction) => {
+                        setShopifyProductsSortField(field);
+                        setProductsSortDirection(direction);
+                        setProductsPage(1);
+                      }}
+                      onPageChange={setProductsPage}
+                      onTriggerSync={() => {
+                        void detail.triggerShopifySync();
+                      }}
+                    />
+                  </TabsContent>
+
+                  <TabsContent value="sync-logs" className="mt-0">
+                    <ShopifySyncLogsTabView
+                      rows={shopifyDashboard?.syncLogs.rows ?? []}
+                      pagination={
+                        shopifyDashboard?.syncLogs.pagination ?? {
+                          page: 1,
+                          pageSize: 50,
+                          totalCount: 0,
+                          totalPages: 1,
+                        }
+                      }
+                      isLoading={Boolean(shopifyDashboard?.syncLogs.isLoading)}
+                      isFetching={Boolean(
+                        shopifyDashboard?.syncLogs.isFetching,
+                      )}
+                      statusFilter={syncLogsStatus}
+                      onStatusFilterChange={(value) => {
+                        setSyncLogsStatus(value);
+                        setSyncLogsPage(1);
+                      }}
+                      onPageChange={setSyncLogsPage}
+                      onRetrySync={() => {
+                        void detail.triggerShopifySync();
+                      }}
+                      onRefresh={() => {
+                        void detail.refetch();
+                      }}
+                      trackedJobIds={detail.shopifyActiveJobIds}
+                    />
+                  </TabsContent>
+                </Tabs>
               ) : isSquare && squareDetail ? (
                 <>
                   <Tabs
@@ -5145,8 +6162,16 @@ export default function IntegrationDetailPage() {
                   </SectionCard>
 
                   <SectionCard
-                    title="Import Timeline"
-                    description="Connection and recent import milestones recorded for this provider."
+                    title={
+                      marketingImportDetail.providerSlug === "mailchimp"
+                        ? "Recent Imports"
+                        : "Import Timeline"
+                    }
+                    description={
+                      marketingImportDetail.providerSlug === "mailchimp"
+                        ? "Recent completed Mailchimp imports recorded for this provider."
+                        : "Connection and recent import milestones recorded for this provider."
+                    }
                   >
                     <DetailTimeline entries={marketingImportDetail.timeline} />
                   </SectionCard>
@@ -5178,7 +6203,229 @@ export default function IntegrationDetailPage() {
             </div>
 
             <div className="space-y-6">
-              {isSquare && squareDetail ? (
+              {isShopify && shopifyConnection ? (
+                <>
+                  <SectionCard
+                    title="Store Details"
+                    description="Store identity and OAuth metadata stored for this tenant's Shopify connection."
+                  >
+                    <div>
+                      <FieldRow
+                        label="Store name"
+                        value={
+                          shopifyConnection.shop_name ??
+                          shopifyConnection.shop_domain
+                        }
+                      />
+                      <FieldRow
+                        label="Store domain"
+                        value={shopifyConnection.shop_domain}
+                        copyValue={shopifyConnection.shop_domain}
+                        copyLabel="Store domain"
+                        copiedLabel={copiedLabel}
+                        onCopy={copyToClipboard}
+                      />
+                      <FieldRow
+                        label="Store owner"
+                        value={shopifyConnection.shop_owner ?? "—"}
+                      />
+                      <FieldRow
+                        label="Store email"
+                        value={shopifyConnection.shop_email ?? "—"}
+                      />
+                      <FieldRow
+                        label="Scopes granted"
+                        value={
+                          shopifyScopeCount > 0
+                            ? String(shopifyScopeCount)
+                            : null
+                        }
+                        description={
+                          shopifyScopeCount > 0
+                            ? `${shopifyScopeCount} OAuth scope${shopifyScopeCount === 1 ? "" : "s"} stored for this installation.`
+                            : "OAuth scope metadata is not available for this store."
+                        }
+                        tone={shopifyScopeCount > 0 ? "success" : "neutral"}
+                      />
+                      <FieldRow
+                        label="Connected"
+                        value={
+                          shopifyConnection.connected_at
+                            ? formatRelativeTimestamp(
+                                shopifyConnection.connected_at,
+                              )
+                            : null
+                        }
+                        description={formatExactTimestamp(
+                          shopifyConnection.connected_at,
+                        )}
+                      />
+                    </div>
+                  </SectionCard>
+
+                  <SectionCard
+                    title="Sync Status"
+                    description="Current Shopify sync coverage and last recorded telemetry per data domain."
+                  >
+                    <div>
+                      <SyncTypeRow
+                        label="Customers"
+                        lastSyncedAt={shopifyConnection.last_customer_sync}
+                        syncedCount={shopifyConnection.customers_synced}
+                        isSyncing={detail.shopifySyncState !== "idle"}
+                      />
+                      <SyncTypeRow
+                        label="Orders"
+                        lastSyncedAt={shopifyConnection.last_sales_sync}
+                        syncedCount={shopifyConnection.sales_synced}
+                        isSyncing={detail.shopifySyncState !== "idle"}
+                      />
+                      <SyncTypeRow
+                        label="Products"
+                        lastSyncedAt={shopifyConnection.last_product_sync}
+                        syncedCount={shopifyConnection.products_synced}
+                        isSyncing={detail.shopifySyncState !== "idle"}
+                      />
+                    </div>
+                  </SectionCard>
+
+                  <SectionCard
+                    title="Webhook Subscription"
+                    description="Subscription state, retry telemetry, and required topic coverage for BloomSuite's Shopify webhook intake."
+                  >
+                    <div>
+                      <FieldRow
+                        label="Subscription state"
+                        value={
+                          shopifyConnection.webhooks_subscribed
+                            ? "Verified"
+                            : "Needs verification"
+                        }
+                        tone={
+                          shopifyConnection.webhooks_subscribed
+                            ? "success"
+                            : "warning"
+                        }
+                      />
+                      <FieldRow
+                        label="Required topics"
+                        value="11"
+                        description="BloomSuite verifies 11 required Shopify webhook topics, including app/uninstalled."
+                      />
+                      <FieldRow
+                        label="Subscription IDs"
+                        value={
+                          Array.isArray(
+                            shopifyConnection.webhook_subscription_ids,
+                          )
+                            ? String(
+                                shopifyConnection.webhook_subscription_ids
+                                  .length,
+                              )
+                            : null
+                        }
+                        description="Stored webhook subscription references currently tracked for this store."
+                      />
+                      <FieldRow
+                        label="Last checked"
+                        value={
+                          shopifyConnection.webhooks_last_checked_at
+                            ? formatRelativeTimestamp(
+                                shopifyConnection.webhooks_last_checked_at,
+                              )
+                            : null
+                        }
+                        description={formatExactTimestamp(
+                          shopifyConnection.webhooks_last_checked_at,
+                        )}
+                      />
+                      <FieldRow
+                        label="Last event"
+                        value={
+                          shopifyConnection.last_webhook_received_at
+                            ? formatRelativeTimestamp(
+                                shopifyConnection.last_webhook_received_at,
+                              )
+                            : null
+                        }
+                        description={formatExactTimestamp(
+                          shopifyConnection.last_webhook_received_at,
+                        )}
+                      />
+                      <FieldRow
+                        label="Retry queue"
+                        value={
+                          (shopifyConnection.webhook_retry_count ?? 0) > 0
+                            ? `${shopifyConnection.webhook_retry_count} pending`
+                            : "No retries pending"
+                        }
+                        tone={
+                          (shopifyConnection.webhook_retry_count ?? 0) > 0
+                            ? "warning"
+                            : "neutral"
+                        }
+                      />
+                      <FieldRow
+                        label="Next retry"
+                        value={
+                          shopifyConnection.webhook_next_retry_at
+                            ? formatRelativeTimestamp(
+                                shopifyConnection.webhook_next_retry_at,
+                              )
+                            : null
+                        }
+                        description={formatExactTimestamp(
+                          shopifyConnection.webhook_next_retry_at,
+                        )}
+                      />
+                    </div>
+
+                    {shopifyConnection.webhook_last_error ? (
+                      <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50/80 p-4 text-sm text-amber-900">
+                        <div className="font-semibold">Last webhook error</div>
+                        <div className="mt-1 leading-6 text-amber-800/90">
+                          {getUserFacingIntegrationError(
+                            shopifyConnection.webhook_last_error,
+                            "Shopify webhook coverage needs operator review.",
+                          )}
+                        </div>
+                      </div>
+                    ) : null}
+                  </SectionCard>
+
+                  <SectionCard
+                    title="Automation Pipeline"
+                    description="How Shopify store events currently map into BloomSuite CRM and automation flows."
+                  >
+                    <div>
+                      <HealthFieldRow
+                        label="Payment trigger"
+                        value="payment.completed"
+                        tone="success"
+                        description="Paid Shopify orders route into the existing BloomSuite payment automation contract."
+                      />
+                      <HealthFieldRow
+                        label="Customer writes"
+                        value="Active"
+                        tone="success"
+                        description="Shopify customer events can update CRM customer records for this tenant."
+                      />
+                      <HealthFieldRow
+                        label="Refund handling"
+                        value="Active"
+                        tone="success"
+                        description="Refund creation events are part of the required Shopify webhook set and feed the current event pipeline."
+                      />
+                      <HealthFieldRow
+                        label="Product updates"
+                        value="Active"
+                        tone="success"
+                        description="Product create and update webhooks keep BloomSuite's synced Shopify catalog current."
+                      />
+                    </div>
+                  </SectionCard>
+                </>
+              ) : isSquare && squareDetail ? (
                 <>
                   <SectionCard
                     title="Merchant Details"
@@ -5727,17 +6974,22 @@ export default function IntegrationDetailPage() {
                                 ? "Creating jobs"
                                 : detail.lightspeedSyncState === "syncing"
                                   ? "In progress"
-                                  : null
+                                  : "Idle"
                             }
                             description={
-                              detail.lightspeedSyncState === "idle"
-                                ? "No active Lightspeed sync jobs."
-                                : `${lightspeedActiveSyncJobs.length} active job${lightspeedActiveSyncJobs.length === 1 ? "" : "s"} currently running.`
+                              detail.lightspeedSyncState === "triggering"
+                                ? "Queue records are being created now."
+                                : detail.lightspeedSyncState === "idle"
+                                  ? lightspeedIdleQueueDescription
+                                  : `${lightspeedActiveSyncJobs.length} active job${lightspeedActiveSyncJobs.length === 1 ? "" : "s"} currently fetching records.`
                             }
                             tone={
-                              detail.lightspeedSyncState === "idle"
-                                ? "neutral"
-                                : "success"
+                              detail.lightspeedSyncState === "syncing"
+                                ? "success"
+                                : detail.lightspeedHasStaleJobs ||
+                                    lightspeedQueuedSyncJobs.length > 0
+                                  ? "warning"
+                                  : "neutral"
                             }
                           />
                         </div>
@@ -6606,7 +7858,8 @@ export default function IntegrationDetailPage() {
                       <div className="mt-4 flex justify-end">
                         <Button
                           type="button"
-                          variant="outline"
+                          variant="ghost"
+                          className="h-auto px-0 py-0 text-sm font-medium text-muted-foreground hover:bg-transparent hover:text-foreground"
                           disabled={
                             !detail.canDisconnect || detail.isDisconnecting
                           }
@@ -6627,24 +7880,32 @@ export default function IntegrationDetailPage() {
                     <DetailFieldRows
                       rows={marketingImportDetail.capabilityRows}
                     />
-                    <div className="mt-4 rounded-2xl border border-border/70 bg-slate-50/70 p-4">
-                      <div className="text-sm font-semibold text-slate-950">
-                        Available capabilities
+                    {marketingImportDetail.providerSlug === "mailchimp" ? (
+                      marketingImportDetail.capabilitiesNote ? (
+                        <div className="mt-4 rounded-2xl border border-border/70 bg-slate-50/70 p-4 text-sm text-muted-foreground">
+                          {marketingImportDetail.capabilitiesNote}
+                        </div>
+                      ) : null
+                    ) : (
+                      <div className="mt-4 rounded-2xl border border-border/70 bg-slate-50/70 p-4">
+                        <div className="text-sm font-semibold text-slate-950">
+                          Available capabilities
+                        </div>
+                        <div className="mt-3 space-y-2 text-sm text-muted-foreground">
+                          {marketingImportDetail.capabilities.map(
+                            (capability) => (
+                              <div
+                                key={capability}
+                                className="flex items-start gap-2"
+                              >
+                                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                                <span>{capability}</span>
+                              </div>
+                            ),
+                          )}
+                        </div>
                       </div>
-                      <div className="mt-3 space-y-2 text-sm text-muted-foreground">
-                        {marketingImportDetail.capabilities.map(
-                          (capability) => (
-                            <div
-                              key={capability}
-                              className="flex items-start gap-2"
-                            >
-                              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
-                              <span>{capability}</span>
-                            </div>
-                          ),
-                        )}
-                      </div>
-                    </div>
+                    )}
                   </SectionCard>
 
                   <SectionCard
@@ -6693,6 +7954,43 @@ export default function IntegrationDetailPage() {
                         </Button>
                       ) : null}
                     </div>
+                    {marketingImportDetail.providerSlug === "mailchimp" ? (
+                      marketingImportDetail.latestCompletedImport ? (
+                        <div className="mt-4 border-t border-border/70 pt-4">
+                          <div className="flex items-center justify-between gap-3">
+                            <div>
+                              <p className="text-sm font-medium text-foreground">
+                                {marketingImportDetail.latestCompletedImport.contactsImported.toLocaleString()}{" "}
+                                contacts imported
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {formatRelativeTimestamp(
+                                  marketingImportDetail.latestCompletedImport
+                                    .completedAt,
+                                )}
+                                {marketingImportDetail.latestCompletedImport
+                                  .durationSeconds
+                                  ? ` · ${formatDurationLabel(marketingImportDetail.latestCompletedImport.durationSeconds)}`
+                                  : ""}
+                                {marketingImportDetail.latestCompletedImport
+                                  .segmentsCreated > 0
+                                  ? ` · ${marketingImportDetail.latestCompletedImport.segmentsCreated} segments created`
+                                  : ""}
+                                {marketingImportDetail.latestCompletedImport
+                                  .errorCount > 0
+                                  ? ` · ${marketingImportDetail.latestCompletedImport.errorCount} error${marketingImportDetail.latestCompletedImport.errorCount === 1 ? "" : "s"}`
+                                  : ""}
+                              </p>
+                            </div>
+                            <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-500" />
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="mt-4 border-t border-border/70 pt-4 text-sm italic text-muted-foreground">
+                          No import history yet
+                        </p>
+                      )
+                    ) : null}
                   </SectionCard>
                 </>
               ) : (
@@ -6794,15 +8092,17 @@ export default function IntegrationDetailPage() {
                   description={
                     isSquare
                       ? "Disconnect Square using the current repo-supported flow for removing the stored connection."
-                      : isMeta
-                        ? "Remove the shared Meta authorization and disconnect the stored Facebook Page and Instagram account access for this tenant."
-                        : isClover
-                          ? "Disconnect Clover using the existing repo-supported flow for removing the stored connection."
-                          : isGa4
-                            ? "Remove the stored GA4 property connection for this tenant and stop future reporting pulls until the property is connected again."
-                            : isMarketingImport && marketingImportDetail
-                              ? marketingImportDetail.dangerZone.description
-                              : "Destructive actions are gated until provider-specific controls are available."
+                      : isShopify
+                        ? "Remove the stored Shopify OAuth connection, webhook subscriptions, and BloomSuite access tokens for this tenant."
+                        : isMeta
+                          ? "Remove the shared Meta authorization and disconnect the stored Facebook Page and Instagram account access for this tenant."
+                          : isClover
+                            ? "Disconnect Clover using the existing repo-supported flow for removing the stored connection."
+                            : isGa4
+                              ? "Remove the stored GA4 property connection for this tenant and stop future reporting pulls until the property is connected again."
+                              : isMarketingImport && marketingImportDetail
+                                ? marketingImportDetail.dangerZone.description
+                                : "Destructive actions are gated until provider-specific controls are available."
                   }
                 >
                   <div className="rounded-2xl border border-rose-200 bg-rose-50/70 p-4">
@@ -6811,34 +8111,38 @@ export default function IntegrationDetailPage() {
                         <div className="text-sm font-semibold text-rose-900">
                           {isMeta
                             ? "Disconnect Meta"
-                            : isClover
-                              ? "Disconnect Clover"
-                              : isGa4
-                                ? "Disconnect Google Analytics"
-                                : isMarketingImport && marketingImportDetail
-                                  ? marketingImportDetail.dangerZone.title
-                                  : (model.disconnectTitle ??
-                                    "No destructive action available")}
+                            : isShopify
+                              ? "Disconnect Shopify"
+                              : isClover
+                                ? "Disconnect Clover"
+                                : isGa4
+                                  ? "Disconnect Google Analytics"
+                                  : isMarketingImport && marketingImportDetail
+                                    ? marketingImportDetail.dangerZone.title
+                                    : (model.disconnectTitle ??
+                                      "No destructive action available")}
                         </div>
                         <p className="mt-1 text-sm leading-6 text-rose-800/80">
                           {isMeta
                             ? detail.canDisconnect
                               ? "Disconnecting Meta removes the shared authorization for this tenant, clears the stored Facebook Page and Instagram account links, and stops publishing or analytics access until Meta is authorized again. Existing CRM data is not deleted."
                               : "No stored Meta authorization is currently available to remove from this page."
-                            : isClover
-                              ? "Disconnecting Clover will stop all sync and real-time event processing and remove your Clover credentials from BloomSuite. Your existing CRM data is not deleted."
-                              : isGa4
-                                ? "Disconnecting Google Analytics removes the stored GA4 property settings for this tenant and stops future reporting pulls until the property is connected again. Historical CRM data is not deleted."
-                                : isMarketingImport && marketingImportDetail
-                                  ? marketingImportDetail.dangerZone
-                                      .confirmDescription
-                                  : model.canDisconnect
-                                    ? model.disconnectDescription
-                                    : isSquare
-                                      ? "Only site admins can remove the stored Square connection from this page."
-                                      : item.isManagedInfrastructure
-                                        ? "This integration is managed through settings and cannot be disconnected from the shell."
-                                        : "Disconnect actions will appear here when this integration supports them."}
+                            : isShopify
+                              ? "Disconnecting Shopify removes BloomSuite's stored Shopify credentials, clears webhook subscription references, and stops future Shopify sync and automation intake until the app is reinstalled. Existing CRM data is not deleted."
+                              : isClover
+                                ? "Disconnecting Clover will stop all sync and real-time event processing and remove your Clover credentials from BloomSuite. Your existing CRM data is not deleted."
+                                : isGa4
+                                  ? "Disconnecting Google Analytics removes the stored GA4 property settings for this tenant and stops future reporting pulls until the property is connected again. Historical CRM data is not deleted."
+                                  : isMarketingImport && marketingImportDetail
+                                    ? marketingImportDetail.dangerZone
+                                        .confirmDescription
+                                    : model.canDisconnect
+                                      ? model.disconnectDescription
+                                      : isSquare
+                                        ? "Only site admins can remove the stored Square connection from this page."
+                                        : item.isManagedInfrastructure
+                                          ? "This integration is managed through settings and cannot be disconnected from the shell."
+                                          : "Disconnect actions will appear here when this integration supports them."}
                         </p>
                       </div>
                       <Button
@@ -6849,13 +8153,15 @@ export default function IntegrationDetailPage() {
                       >
                         {isMeta
                           ? "Disconnect Meta"
-                          : isClover
-                            ? "Disconnect Clover"
-                            : isGa4
-                              ? "Disconnect Google Analytics"
-                              : isMarketingImport && marketingImportDetail
-                                ? marketingImportDetail.dangerZone.title
-                                : "Disconnect"}
+                          : isShopify
+                            ? "Disconnect Shopify"
+                            : isClover
+                              ? "Disconnect Clover"
+                              : isGa4
+                                ? "Disconnect Google Analytics"
+                                : isMarketingImport && marketingImportDetail
+                                  ? marketingImportDetail.dangerZone.title
+                                  : "Disconnect"}
                       </Button>
                     </div>
                     {isMarketingImport && marketingImportDetail ? (
@@ -6879,6 +8185,14 @@ export default function IntegrationDetailPage() {
           </div>
         )}
 
+        {isShopify ? (
+          <ConnectShopifyDialog
+            open={shopifyDialogOpen}
+            onOpenChange={setShopifyDialogOpen}
+            initialDomain={shopifyConnection?.shop_domain ?? null}
+          />
+        ) : null}
+
         <AlertDialog open={disconnectOpen} onOpenChange={setDisconnectOpen}>
           <AlertDialogContent
             className={isLightspeed ? "sm:max-w-lg" : undefined}
@@ -6887,38 +8201,42 @@ export default function IntegrationDetailPage() {
               <AlertDialogTitle>
                 {isMeta
                   ? "Disconnect Meta?"
-                  : isSquare
-                    ? "Disconnect Square?"
-                    : isClover
-                      ? "Disconnect Clover?"
-                      : isLightspeed
-                        ? "Disconnect Lightspeed X-Series?"
-                        : isGa4
-                          ? "Disconnect Google Analytics?"
-                          : isMarketingImport && marketingImportDetail
-                            ? `Disconnect ${marketingImportDetail.providerLabel}?`
-                            : (model.disconnectTitle ??
-                              "Disconnect integration?")}
+                  : isShopify
+                    ? "Disconnect Shopify?"
+                    : isSquare
+                      ? "Disconnect Square?"
+                      : isClover
+                        ? "Disconnect Clover?"
+                        : isLightspeed
+                          ? "Disconnect Lightspeed X-Series?"
+                          : isGa4
+                            ? "Disconnect Google Analytics?"
+                            : isMarketingImport && marketingImportDetail
+                              ? `Disconnect ${marketingImportDetail.providerLabel}?`
+                              : (model.disconnectTitle ??
+                                "Disconnect integration?")}
               </AlertDialogTitle>
               <AlertDialogDescription>
                 {isLightspeed
                   ? "This removes the current Lightspeed X-Series connection from BloomSuite and immediately stops its active integration workflows."
-                  : isSquare
-                    ? "Disconnecting Square removes the stored merchant connection from BloomSuite and stops future Square syncs, webhook processing, and automation-trigger intake until the integration is connected again."
-                    : isMeta
-                      ? "Disconnecting Meta removes the shared authorization for this tenant, clears the stored Facebook Page and Instagram account links, and stops publishing or analytics access until Meta is authorized again. Existing CRM data is not deleted."
-                      : isClover
-                        ? "Disconnecting Clover will stop all sync and real-time event processing and remove your Clover credentials from BloomSuite. Your existing CRM data is not deleted."
-                        : isGa4
-                          ? "Disconnecting Google Analytics removes the stored GA4 property settings for this tenant and stops future reporting pulls until the property is connected again. Historical CRM data is not deleted."
-                          : isMarketingImport && marketingImportDetail
-                            ? marketingImportDetail.dangerZone
-                                .confirmDescription
-                            : (model.disconnectDescription ??
-                              `Disconnecting ${item.name} will stop future syncing until it is connected again.`)}
+                  : isShopify
+                    ? "Disconnecting Shopify removes the stored OAuth credentials for this tenant, clears webhook subscriptions, and stops Shopify sync and automation intake until the app is installed again."
+                    : isSquare
+                      ? "Disconnecting Square removes the stored merchant connection from BloomSuite and stops future Square syncs, webhook processing, and automation-trigger intake until the integration is connected again."
+                      : isMeta
+                        ? "Disconnecting Meta removes the shared authorization for this tenant, clears the stored Facebook Page and Instagram account links, and stops publishing or analytics access until Meta is authorized again. Existing CRM data is not deleted."
+                        : isClover
+                          ? "Disconnecting Clover will stop all sync and real-time event processing and remove your Clover credentials from BloomSuite. Your existing CRM data is not deleted."
+                          : isGa4
+                            ? "Disconnecting Google Analytics removes the stored GA4 property settings for this tenant and stops future reporting pulls until the property is connected again. Historical CRM data is not deleted."
+                            : isMarketingImport && marketingImportDetail
+                              ? marketingImportDetail.dangerZone
+                                  .confirmDescription
+                              : (model.disconnectDescription ??
+                                `Disconnecting ${item.name} will stop future syncing until it is connected again.`)}
               </AlertDialogDescription>
             </AlertDialogHeader>
-            {isLightspeed || isSquare || isClover ? (
+            {isLightspeed || isSquare || isClover || isShopify ? (
               <div className="space-y-4">
                 <ul className="space-y-3 rounded-xl border border-red-100 bg-red-50/40 p-4 text-sm text-slate-900">
                   <li className="flex items-start gap-3">
@@ -6928,9 +8246,11 @@ export default function IntegrationDetailPage() {
                     <span>
                       {isSquare
                         ? "Customer, sales, and product sync will stop until Square is connected again."
-                        : isClover
-                          ? "Customer, sales, and product sync will stop until Clover is connected again."
-                          : "Customer, sales, and product sync will stop until Lightspeed is connected again."}
+                        : isShopify
+                          ? "Customer, order, and product sync will stop until Shopify is reconnected."
+                          : isClover
+                            ? "Customer, sales, and product sync will stop until Clover is connected again."
+                            : "Customer, sales, and product sync will stop until Lightspeed is connected again."}
                     </span>
                   </li>
                   <li className="flex items-start gap-3">
@@ -6940,9 +8260,11 @@ export default function IntegrationDetailPage() {
                     <span>
                       {isSquare
                         ? "Stored Square merchant credentials and webhook subscription references will be removed from this BloomSuite account."
-                        : isClover
-                          ? "Stored Clover merchant credentials and app-level webhook health references will be removed from this BloomSuite account."
-                          : "Stored Lightspeed credentials will be removed from this BloomSuite account."}
+                        : isShopify
+                          ? "Stored Shopify access tokens and webhook subscription references will be removed from this BloomSuite account."
+                          : isClover
+                            ? "Stored Clover merchant credentials and app-level webhook health references will be removed from this BloomSuite account."
+                            : "Stored Lightspeed credentials will be removed from this BloomSuite account."}
                     </span>
                   </li>
                   <li className="flex items-start gap-3">
@@ -6952,15 +8274,23 @@ export default function IntegrationDetailPage() {
                     <span>
                       {isSquare
                         ? "Webhook-driven automation intake will pause, and any new Square events will be ignored until the connection is restored."
-                        : isClover
-                          ? "Any new Clover events and connection-test diagnostics will be ignored until the connection is restored and app-level webhook health can be verified again."
-                          : "Any active sync jobs for this connection will be canceled and need to be restarted after reconnection."}
+                        : isShopify
+                          ? "Webhook-driven Shopify automation intake will pause, and new order, customer, refund, and product events will be ignored until the app is reinstalled."
+                          : isClover
+                            ? "Any new Clover events and connection-test diagnostics will be ignored until the connection is restored and app-level webhook health can be verified again."
+                            : "Any active sync jobs for this connection will be canceled and need to be restarted after reconnection."}
                     </span>
                   </li>
                 </ul>
                 <p className="text-sm leading-6 text-muted-foreground">
                   Imported CRM data is not deleted. You can reconnect{" "}
-                  {isSquare ? "Square" : isClover ? "Clover" : "Lightspeed"}{" "}
+                  {isSquare
+                    ? "Square"
+                    : isShopify
+                      ? "Shopify"
+                      : isClover
+                        ? "Clover"
+                        : "Lightspeed"}{" "}
                   later to restore syncing.
                 </p>
               </div>
@@ -6989,31 +8319,42 @@ export default function IntegrationDetailPage() {
               </AlertDialogCancel>
               <AlertDialogAction
                 className={
-                  isLightspeed || isSquare || isClover
+                  isLightspeed || isSquare || isClover || isShopify
                     ? "bg-red-600 text-white hover:bg-red-700 focus-visible:ring-red-500"
                     : undefined
                 }
                 onClick={(event) => {
                   event.preventDefault();
-                  void detail.disconnect().then(() => setDisconnectOpen(false));
+                  void detail.disconnect().then(() => {
+                    setDisconnectOpen(false);
+                    if (
+                      isShopify ||
+                      (isMarketingImport &&
+                        marketingImportDetail?.providerSlug === "mailchimp")
+                    ) {
+                      navigate("/integrations");
+                    }
+                  });
                 }}
                 disabled={detail.isDisconnecting}
               >
                 {detail.isDisconnecting
                   ? "Disconnecting..."
-                  : isSquare
-                    ? "Remove Square connection"
-                    : isMeta
-                      ? "Remove Meta connection"
-                      : isClover
-                        ? "Remove Clover connection"
-                        : isLightspeed
-                          ? "Disconnect Lightspeed"
-                          : isGa4
-                            ? "Remove Google Analytics connection"
-                            : isMarketingImport && marketingImportDetail
-                              ? `Remove ${marketingImportDetail.providerLabel} connection`
-                              : "Confirm disconnect"}
+                  : isShopify
+                    ? "Disconnect Shopify"
+                    : isSquare
+                      ? "Remove Square connection"
+                      : isMeta
+                        ? "Remove Meta connection"
+                        : isClover
+                          ? "Remove Clover connection"
+                          : isLightspeed
+                            ? "Disconnect Lightspeed"
+                            : isGa4
+                              ? "Remove Google Analytics connection"
+                              : isMarketingImport && marketingImportDetail
+                                ? `Remove ${marketingImportDetail.providerLabel} connection`
+                                : "Confirm disconnect"}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

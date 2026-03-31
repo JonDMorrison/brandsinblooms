@@ -463,6 +463,58 @@ describe("IntegrationDetailPage Lightspeed branch", () => {
     windowOpenSpy.mockRestore();
   });
 
+  it("falls back to idle queue messaging when no Lightspeed jobs are actively fetching", () => {
+    const state = buildLightspeedDetailState();
+    const queuedJobs = state.lightspeedDashboard.syncLogs.rows.map(
+      (job, index) => ({
+        ...job,
+        id: `queued-job-${index + 1}`,
+        status: index === 0 ? "pending" : "delayed",
+        progress_message:
+          index === 0
+            ? "Queued - waiting to start"
+            : "Waiting for retry window after repeated failures",
+        completed_at: null,
+        isStale: false,
+        isTerminal: false,
+      }),
+    );
+
+    mockedUseIntegrationDetailData.mockReturnValue({
+      ...state,
+      lightspeedDashboard: {
+        ...state.lightspeedDashboard,
+        syncLogs: {
+          ...state.lightspeedDashboard.syncLogs,
+          rows: queuedJobs,
+        },
+      },
+      lightspeedSyncJobs: queuedJobs,
+      lightspeedActiveJobIds: [],
+      lightspeedTrackedJobIds: queuedJobs.map((job) => job.id),
+      lightspeedRealtimeActive: true,
+      lightspeedSyncState: "idle",
+      lightspeedHasStaleJobs: false,
+      isLightspeedSyncing: false,
+    });
+
+    renderPage();
+
+    expect(
+      screen.getAllByText(
+        "2 queued jobs waiting to start or retry. No records are currently being fetched.",
+      ).length,
+    ).toBeGreaterThan(0);
+    expect(
+      screen.queryByText("2 active jobs currently fetching records."),
+    ).toBeNull();
+    expect(
+      screen
+        .getAllByRole("button", { name: /sync now/i })[0]
+        .hasAttribute("disabled"),
+    ).toBe(false);
+  });
+
   it("renders the extracted data tabs and preserves core interactions", async () => {
     const state = buildLightspeedDetailState();
     mockedUseIntegrationDetailData.mockReturnValue(state);

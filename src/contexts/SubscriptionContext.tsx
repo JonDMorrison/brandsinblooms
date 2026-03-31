@@ -1,17 +1,41 @@
-import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from "react";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useCallback,
+  useMemo,
+} from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { isSuperAdmin } from "@/utils/adminUtils";
-import { isTestAccount, ensureTestAccountHasProAccess } from "@/utils/testAccountUtils";
+import {
+  isTestAccount,
+  ensureTestAccountHasProAccess,
+} from "@/utils/testAccountUtils";
 
-type SubscriptionPlan = 'free_trial' | 'sprout' | 'bloom' | 'expired';
-type BillingInterval = 'monthly' | 'annual';
+type SubscriptionPlan =
+  | "free_trial"
+  | "seed"
+  | "sprout"
+  | "bloom"
+  | "thrive"
+  | "expired";
+type BillingInterval = "monthly" | "annual";
+
+const PAID_PLANS: SubscriptionPlan[] = ["seed", "sprout", "bloom", "thrive"];
+
+const isPaidPlan = (plan?: SubscriptionPlan | null) =>
+  plan ? PAID_PLANS.includes(plan) : false;
+const getEffectivePlan = (subscription: Subscription | null) =>
+  subscription?.tier ?? subscription?.plan ?? null;
 
 interface Subscription {
   id: string;
   user_id: string;
   plan: SubscriptionPlan;
+  tier: SubscriptionPlan | null;
   start_date: string;
   end_date: string;
   billing_interval: BillingInterval;
@@ -26,28 +50,41 @@ interface SubscriptionContextType {
   trialDaysLeft: number;
   subscriptionError: string | null;
   lastCheckTime: Date | null;
-  updateSubscription: (plan: SubscriptionPlan, billingInterval: BillingInterval) => Promise<void>;
+  updateSubscription: (
+    plan: SubscriptionPlan,
+    billingInterval: BillingInterval,
+  ) => Promise<void>;
   checkAccess: (requiredPlan: SubscriptionPlan) => boolean;
   refreshSubscription: () => Promise<void>;
   clearSubscriptionError: () => void;
 }
 
-const SubscriptionContext = createContext<SubscriptionContextType | undefined>(undefined);
+const SubscriptionContext = createContext<SubscriptionContextType | undefined>(
+  undefined,
+);
 
 export const useSubscription = () => {
   const context = useContext(SubscriptionContext);
   if (context === undefined) {
-    throw new Error("useSubscription must be used within a SubscriptionProvider");
+    throw new Error(
+      "useSubscription must be used within a SubscriptionProvider",
+    );
   }
   return context;
 };
 
-export const SubscriptionProvider = ({ children }: { children: React.ReactNode }) => {
+export const SubscriptionProvider = ({
+  children,
+}: {
+  children: React.ReactNode;
+}) => {
   const { user, isInLimboState, forceReset } = useAuth();
   const navigate = useNavigate();
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [loading, setLoading] = useState(true);
-  const [subscriptionError, setSubscriptionError] = useState<string | null>(null);
+  const [subscriptionError, setSubscriptionError] = useState<string | null>(
+    null,
+  );
   const [lastCheckTime, setLastCheckTime] = useState<Date | null>(null);
 
   // Check if current user is a developer with super admin access OR a test account
@@ -58,7 +95,9 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
   // Initialize loading state based on whether we have a user
   useEffect(() => {
     if (!user) {
-      console.log('🔓 SubscriptionProvider: No user on init, setting loading to false');
+      console.log(
+        "🔓 SubscriptionProvider: No user on init, setting loading to false",
+      );
       setLoading(false);
     }
   }, []); // Run only once on mount
@@ -71,8 +110,8 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
     if (!user) return null;
 
     try {
-      console.log('📝 Creating default subscription for user:', user.id);
-      
+      console.log("📝 Creating default subscription for user:", user.id);
+
       // For test accounts, create PRO subscription instead of trial
       if (isTestUser) {
         const startDate = new Date();
@@ -80,24 +119,27 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
         endDate.setFullYear(startDate.getFullYear() + 10); // 10 years
 
         const { data, error } = await supabase
-          .from('subscriptions')
+          .from("subscriptions")
           .insert({
             user_id: user.id,
-            plan: 'bloom', // Highest tier for test accounts
-            start_date: startDate.toISOString().split('T')[0],
-            end_date: endDate.toISOString().split('T')[0],
-            billing_interval: 'annual'
+            plan: "bloom", // Highest tier for test accounts
+            tier: "bloom",
+            start_date: startDate.toISOString().split("T")[0],
+            end_date: endDate.toISOString().split("T")[0],
+            billing_interval: "annual",
           })
           .select()
           .single();
 
         if (error) {
-          console.error('❌ Error creating test account subscription:', error);
-          setSubscriptionError(`Failed to create test subscription: ${error.message}`);
+          console.error("❌ Error creating test account subscription:", error);
+          setSubscriptionError(
+            `Failed to create test subscription: ${error.message}`,
+          );
           return null;
         }
 
-        console.log('✅ Created PRO subscription for test account');
+        console.log("✅ Created PRO subscription for test account");
         return data;
       }
 
@@ -107,43 +149,51 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
       endDate.setDate(startDate.getDate() + 7); // 7-day trial
 
       const { data, error } = await supabase
-        .from('subscriptions')
+        .from("subscriptions")
         .insert({
           user_id: user.id,
-          plan: 'free_trial',
-          start_date: startDate.toISOString().split('T')[0],
-          end_date: endDate.toISOString().split('T')[0],
-          billing_interval: 'monthly'
+          plan: "free_trial",
+          tier: "free_trial",
+          start_date: startDate.toISOString().split("T")[0],
+          end_date: endDate.toISOString().split("T")[0],
+          billing_interval: "monthly",
         })
         .select()
         .single();
 
       if (error) {
-        console.error('❌ Error creating subscription:', error);
-        setSubscriptionError(`Failed to create trial subscription: ${error.message}`);
+        console.error("❌ Error creating subscription:", error);
+        setSubscriptionError(
+          `Failed to create trial subscription: ${error.message}`,
+        );
         return null;
       }
 
-      console.log('✅ Created new 7-day trial subscription');
+      console.log("✅ Created new 7-day trial subscription");
       return data;
     } catch (error) {
-      console.error('❌ Error in createDefaultSubscription:', error);
-      setSubscriptionError(`Unexpected error creating subscription: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error("❌ Error in createDefaultSubscription:", error);
+      setSubscriptionError(
+        `Unexpected error creating subscription: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
       return null;
     }
   };
 
-  const updateSubscriptionPlan = async (plan: SubscriptionPlan, billingInterval: BillingInterval) => {
+  const updateSubscriptionPlan = async (
+    plan: SubscriptionPlan,
+    billingInterval: BillingInterval,
+  ) => {
     if (!user || !subscription) return;
 
     try {
       const startDate = new Date();
       let endDate = new Date();
-      
-      if (plan === 'free_trial') {
+
+      if (plan === "free_trial") {
         endDate.setDate(startDate.getDate() + 7); // 7-day trial
-      } else if (plan === 'sprout' || plan === 'bloom') {
-        if (billingInterval === 'annual') {
+      } else if (isPaidPlan(plan)) {
+        if (billingInterval === "annual") {
           endDate.setFullYear(startDate.getFullYear() + 1);
         } else {
           endDate.setMonth(startDate.getMonth() + 1);
@@ -151,29 +201,32 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
       }
 
       const { data, error } = await supabase
-        .from('subscriptions')
+        .from("subscriptions")
         .update({
           plan,
+          tier: plan,
           billing_interval: billingInterval,
-          start_date: startDate.toISOString().split('T')[0],
-          end_date: endDate.toISOString().split('T')[0]
+          start_date: startDate.toISOString().split("T")[0],
+          end_date: endDate.toISOString().split("T")[0],
         })
-        .eq('id', subscription.id)
+        .eq("id", subscription.id)
         .select()
         .single();
 
       if (error) {
-        console.error('❌ Error updating subscription:', error);
+        console.error("❌ Error updating subscription:", error);
         setSubscriptionError(`Failed to update subscription: ${error.message}`);
         return;
       }
 
       setSubscription(data);
       setSubscriptionError(null);
-      console.log('✅ Subscription updated successfully');
+      console.log("✅ Subscription updated successfully");
     } catch (error) {
-      console.error('❌ Error in updateSubscriptionPlan:', error);
-      setSubscriptionError(`Unexpected error updating subscription: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error("❌ Error in updateSubscriptionPlan:", error);
+      setSubscriptionError(
+        `Unexpected error updating subscription: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
     }
   };
 
@@ -196,27 +249,38 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
       setIsLoadingSubscription(true);
       setSubscriptionError(null);
       setLastFetchUser(user.id);
-      
+
       // Ensure test accounts have PRO access (non-blocking)
       if (isTestUser) {
-        const testAccountPromise = ensureTestAccountHasProAccess(user.id, user.email!);
+        const testAccountPromise = ensureTestAccountHasProAccess(
+          user.id,
+          user.email!,
+        );
         testAccountPromise.catch(console.error);
       }
 
       // Optimized query - fetch only what we need with proper timeout handling
       const queryPromise = supabase
-        .from('subscriptions')
-        .select('id, plan, start_date, end_date, billing_interval, created_at')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
+        .from("subscriptions")
+        .select(
+          "id, plan, tier, start_date, end_date, billing_interval, created_at, updated_at",
+        )
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
         .limit(5); // Limit results
 
       // Use Promise.race for proper timeout handling
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Subscription fetch timed out')), 20000)
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(
+          () => reject(new Error("Subscription fetch timed out")),
+          20000,
+        ),
       );
 
-      const result = await Promise.race([queryPromise, timeoutPromise]) as any;
+      const result = (await Promise.race([
+        queryPromise,
+        timeoutPromise,
+      ])) as any;
 
       const { data: allSubscriptions, error: countError } = result;
 
@@ -226,22 +290,25 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
       }
 
       let data = null;
-      
+
       if (allSubscriptions && allSubscriptions.length > 1) {
         data = allSubscriptions[0]; // Use the most recent one
-        
+
         // Clean up duplicates asynchronously to avoid blocking
-        const duplicateIds = allSubscriptions.slice(1).map(sub => sub.id);
+        const duplicateIds = allSubscriptions.slice(1).map((sub) => sub.id);
         if (duplicateIds.length > 0) {
           (async () => {
             try {
               await supabase
-                .from('subscriptions')
+                .from("subscriptions")
                 .delete()
-                .in('id', duplicateIds);
-              console.log('🧹 Cleaned up duplicate subscriptions');
+                .in("id", duplicateIds);
+              console.log("🧹 Cleaned up duplicate subscriptions");
             } catch (error) {
-              console.error('Failed to cleanup duplicate subscriptions:', error);
+              console.error(
+                "Failed to cleanup duplicate subscriptions:",
+                error,
+              );
             }
           })();
         }
@@ -251,37 +318,46 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
 
       if (data) {
         setSubscription(data);
-        
+
         // Check expiry asynchronously to avoid blocking UI
         const endDate = new Date(data.end_date);
         const now = new Date();
-        
-        if (data.plan === 'free_trial' && now > endDate && !hasPrivilegedAccess) {
+        const effectivePlan = data.tier ?? data.plan;
+
+        if (
+          effectivePlan === "free_trial" &&
+          now > endDate &&
+          !hasPrivilegedAccess
+        ) {
           (async () => {
             try {
-              await updateSubscriptionPlan('expired', data.billing_interval);
-              console.log('✅ Updated expired subscription');
+              await updateSubscriptionPlan("expired", data.billing_interval);
+              console.log("✅ Updated expired subscription");
             } catch (error) {
-              console.error('Failed to update expired subscription:', error);
+              console.error("Failed to update expired subscription:", error);
             }
           })();
         }
       } else {
         // Create default subscription asynchronously
-        createDefaultSubscription().then(newSub => {
-          if (newSub) setSubscription(newSub);
-        }).catch(console.error);
+        createDefaultSubscription()
+          .then((newSub) => {
+            if (newSub) setSubscription(newSub);
+          })
+          .catch(console.error);
       }
-      
+
       setLastCheckTime(new Date());
     } catch (error) {
-      if (error instanceof Error && error.message.includes('timed out')) {
-        console.warn('⚠️ Subscription fetch timed out, using default state');
+      if (error instanceof Error && error.message.includes("timed out")) {
+        console.warn("⚠️ Subscription fetch timed out, using default state");
         // Set default state instead of error state to prevent app crash
         setSubscription(null);
         setSubscriptionError(null);
       } else {
-        setSubscriptionError(`Failed to fetch subscription: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        setSubscriptionError(
+          `Failed to fetch subscription: ${error instanceof Error ? error.message : "Unknown error"}`,
+        );
       }
     } finally {
       setLoading(false);
@@ -297,84 +373,95 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
 
     // Throttle Stripe checks more aggressively (max once every 2 minutes)
     const now = Date.now();
-    if (isCheckingStripe || (now - lastStripeCheck) < 120000) {
+    if (isCheckingStripe || now - lastStripeCheck < 120000) {
       return;
     }
 
     try {
       setIsCheckingStripe(true);
       setLastStripeCheck(now);
-      
+
       // Add proper timeout handling for Stripe calls
-      const stripePromise = supabase.functions.invoke('check-subscription');
-      
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Stripe check timed out')), 30000)
+      const stripePromise = supabase.functions.invoke("check-subscription");
+
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("Stripe check timed out")), 30000),
       );
-      
-      const result = await Promise.race([stripePromise, timeoutPromise]) as any;
-      
+
+      const result = (await Promise.race([
+        stripePromise,
+        timeoutPromise,
+      ])) as any;
+
       const { data, error } = result;
-      
+
       if (error) {
         setSubscriptionError(`Stripe check failed: ${error.message}`);
         return;
       }
-      
+
       // Only refresh if there's actually new data
       if (data && (data.subscribed || data.plan)) {
         setLastFetchUser(null);
         await fetchSubscription();
       }
     } catch (error) {
-      if (error instanceof Error && error.message.includes('timed out')) {
-        console.warn('⚠️ Stripe check timed out, continuing without check');
+      if (error instanceof Error && error.message.includes("timed out")) {
+        console.warn("⚠️ Stripe check timed out, continuing without check");
         // Don't set error state for timeouts, just continue
       } else {
-        setSubscriptionError(`Stripe verification failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        setSubscriptionError(
+          `Stripe verification failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+        );
       }
     } finally {
       setIsCheckingStripe(false);
     }
   }, [user?.id, fetchSubscription]);
 
-  const updateSubscription = useCallback(async (plan: SubscriptionPlan, billingInterval: BillingInterval) => {
-    await updateSubscriptionPlan(plan, billingInterval);
-  }, []);
+  const updateSubscription = useCallback(
+    async (plan: SubscriptionPlan, billingInterval: BillingInterval) => {
+      await updateSubscriptionPlan(plan, billingInterval);
+    },
+    [],
+  );
 
   const refreshSubscription = useCallback(async () => {
-    console.log('🔄 Refreshing subscription data');
+    console.log("🔄 Refreshing subscription data");
     setLoading(true);
     setSubscriptionError(null);
     await fetchSubscription();
     await checkStripeSubscription();
-    console.log('✅ Subscription refresh completed');
+    console.log("✅ Subscription refresh completed");
   }, [fetchSubscription, checkStripeSubscription]);
 
   const checkAccess = useCallback((requiredPlan: SubscriptionPlan): boolean => {
     // Under the new plan, all users have access to all features
-    console.log('🔓 Universal access granted - all features available to all users');
+    console.log(
+      "🔓 Universal access granted - all features available to all users",
+    );
     return true;
   }, []);
 
   // Modified to account for privileged access
-  const isTrialExpired = subscription?.plan === 'expired' && !hasPrivilegedAccess;
+  const isTrialExpired =
+    getEffectivePlan(subscription) === "expired" && !hasPrivilegedAccess;
 
   const trialDaysLeft = (() => {
     // Privileged access: show as if they have unlimited time
     if (hasPrivilegedAccess) {
       return 999; // Show a high number for privileged users
     }
-    
-    if (!subscription || subscription.plan !== 'free_trial') {
+
+    if (!subscription || getEffectivePlan(subscription) !== "free_trial") {
       return 0;
     }
-    
+
     const endDate = new Date(subscription.end_date);
     const now = new Date();
     const diffTime = endDate.getTime() - now.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
+
     return Math.max(0, diffDays);
   })();
 
@@ -386,11 +473,11 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
       const stripeTimer = setTimeout(() => {
         checkStripeSubscription();
       }, 15000); // Much longer delay to avoid startup bottleneck
-      
+
       return () => clearTimeout(stripeTimer);
     } else {
       // Important: Clear loading state when there's no user (e.g., on landing pages)
-      console.log('🔓 No user found, clearing subscription loading state');
+      console.log("🔓 No user found, clearing subscription loading state");
       setLoading(false);
       setSubscription(null);
       setSubscriptionError(null);
@@ -399,11 +486,20 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
 
   // Enhanced trial expiration handling - skip for privileged users
   useEffect(() => {
-    if (subscription && subscription.plan === 'expired' && !hasPrivilegedAccess && !isInLimboState) {
+    if (
+      subscription &&
+      getEffectivePlan(subscription) === "expired" &&
+      !hasPrivilegedAccess &&
+      !isInLimboState
+    ) {
       const currentPath = window.location.pathname;
-      if (currentPath !== '/pricing' && currentPath !== '/auth' && !currentPath.startsWith('/subscription')) {
-        console.log('⚠️ Trial expired, redirecting to pricing');
-        navigate('/pricing');
+      if (
+        currentPath !== "/pricing" &&
+        currentPath !== "/auth" &&
+        !currentPath.startsWith("/subscription")
+      ) {
+        console.log("⚠️ Trial expired, redirecting to pricing");
+        navigate("/pricing");
       }
     }
   }, [subscription, navigate, hasPrivilegedAccess, isInLimboState]);
@@ -411,10 +507,16 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
   // Handle limbo state detection
   useEffect(() => {
     if (isInLimboState && subscriptionError) {
-      console.log('🚨 Limbo state detected with subscription error, forcing reset');
+      console.log(
+        "🚨 Limbo state detected with subscription error, forcing reset",
+      );
       // Give user option to force reset
       setTimeout(() => {
-        if (window.confirm('Authentication error detected. Would you like to reset your session?')) {
+        if (
+          window.confirm(
+            "Authentication error detected. Would you like to reset your session?",
+          )
+        ) {
           forceReset();
         }
       }, 2000);
@@ -427,7 +529,12 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
 
     const interval = setInterval(() => {
       // Only auto-refresh if user is on a trial or paid plan and no errors
-      if ((subscription.plan === 'free_trial' || subscription.plan === 'sprout' || subscription.plan === 'bloom') && !subscriptionError && !isCheckingStripe) {
+      const effectivePlan = getEffectivePlan(subscription);
+      if (
+        (effectivePlan === "free_trial" || isPaidPlan(effectivePlan)) &&
+        !subscriptionError &&
+        !isCheckingStripe
+      ) {
         checkStripeSubscription();
       }
     }, 1800000); // Check every 30 minutes to significantly reduce load
@@ -435,37 +542,40 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
     return () => clearInterval(interval);
   }, [user?.id, subscription?.plan, subscriptionError]);
 
-  const value = useMemo(() => ({
-    subscription,
-    loading,
-    isTrialExpired,
-    trialDaysLeft,
-    subscriptionError,
-    lastCheckTime,
-    updateSubscription,
-    checkAccess,
-    refreshSubscription,
-    clearSubscriptionError
-  }), [
-    subscription,
-    loading,
-    isTrialExpired,
-    trialDaysLeft,
-    subscriptionError,
-    lastCheckTime,
-    updateSubscription,
-    checkAccess,
-    refreshSubscription,
-    clearSubscriptionError
-  ]);
+  const value = useMemo(
+    () => ({
+      subscription,
+      loading,
+      isTrialExpired,
+      trialDaysLeft,
+      subscriptionError,
+      lastCheckTime,
+      updateSubscription,
+      checkAccess,
+      refreshSubscription,
+      clearSubscriptionError,
+    }),
+    [
+      subscription,
+      loading,
+      isTrialExpired,
+      trialDaysLeft,
+      subscriptionError,
+      lastCheckTime,
+      updateSubscription,
+      checkAccess,
+      refreshSubscription,
+      clearSubscriptionError,
+    ],
+  );
 
-  console.log('🔍 SubscriptionProvider render:', { 
-    hasSubscription: !!subscription, 
-    loading, 
+  console.log("🔍 SubscriptionProvider render:", {
+    hasSubscription: !!subscription,
+    loading,
     subscriptionError,
     isInLimboState,
     hasPrivilegedAccess,
-    lastCheckTime 
+    lastCheckTime,
   });
 
   return (

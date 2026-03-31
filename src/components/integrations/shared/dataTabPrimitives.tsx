@@ -633,10 +633,11 @@ export function SyncTypeBadge({ job }: { job: SyncTypeBadgeJob }) {
           label: "customers",
           Icon: Users,
         }
-      : job.normalizedSyncType === "sales"
+      : job.normalizedSyncType === "sales" ||
+          job.normalizedSyncType === "orders"
         ? {
             className: "bg-purple-50 text-purple-700",
-            label: "sales",
+            label: job.normalizedSyncType,
             Icon: ShoppingBag,
           }
         : {

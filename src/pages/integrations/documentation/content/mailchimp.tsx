@@ -262,6 +262,11 @@ export const mailchimpDocumentation: DocContent = {
               ],
             ]}
           />
+          <DocCallout title="Segment filtering in the Choose step">
+            When you select specific segments in the Choose step, only contacts
+            from those segments are imported. Contacts in the full list but not
+            in your selected segments will not be imported.
+          </DocCallout>
           <DocCallout
             variant="warning"
             title="Unsubscribed records remain unsubscribed"
@@ -400,6 +405,11 @@ export const mailchimpDocumentation: DocContent = {
             ["Phone", "Yes", ""],
             ["Subscription status", "Yes", "Mapped to consent status"],
             ["Unsubscribe date", "Yes", "Preserved when available"],
+            [
+              "Segments",
+              "Yes",
+              "Imported as BloomSuite CRM segments, with contacts linked",
+            ],
             ["Tags", "Yes", "Preserved as tags"],
             [
               "Groups or interests",

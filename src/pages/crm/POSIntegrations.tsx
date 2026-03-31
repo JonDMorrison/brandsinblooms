@@ -1,61 +1,93 @@
-import React, { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { NativeSelect } from '@/components/ui/NativeSelect';
-import { Upload, Store, RefreshCw, Download, Clock } from 'lucide-react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
-import { POSConnectionForm } from '@/components/crm/pos/POSConnectionForm';
-import { VMXUploader } from '@/components/crm/pos/VMXUploader';
+import React, { useState } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { NativeSelect } from "@/components/ui/NativeSelect";
+import { Upload, Store, RefreshCw, Download, Clock } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { POSConnectionForm } from "@/components/crm/pos/POSConnectionForm";
+import { VMXUploader } from "@/components/crm/pos/VMXUploader";
+
+const LEGACY_SHOPIFY_DEPRECATED = true;
 
 const POSIntegrations = () => {
-  const [selectedPOS, setSelectedPOS] = useState<string>('');
+  const [selectedPOS, setSelectedPOS] = useState<string>("");
   const [showConnectionForm, setShowConnectionForm] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   // Fetch POS connections
   const { data: connections } = useQuery({
-    queryKey: ['pos-connections'],
+    queryKey: ["pos-connections"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('pos_connections')
-        .select('*')
-        .order('created_at', { ascending: false });
-      
+        .from("pos_connections")
+        .select("*")
+        .order("created_at", { ascending: false });
+
       if (error) throw error;
       return data;
-    }
+    },
   });
 
-  // Fetch integration logs  
+  // Fetch integration logs
   const { data: logs } = useQuery({
-    queryKey: ['integration-logs'],
+    queryKey: ["integration-logs"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('integration_logs')
-        .select('*')
-        .order('sync_date', { ascending: false })
+        .from("integration_logs")
+        .select("*")
+        .order("sync_date", { ascending: false })
         .limit(10);
-      
+
       if (error) throw error;
       return data;
-    }
+    },
   });
 
   const posOptions = [
-    { value: 'shopify', label: 'Shopify', description: 'Connect your Shopify store' },
-    { value: 'square', label: 'Square', description: 'Connect your Square POS' },
-    { value: 'vmx', label: 'VMX (CSV Upload)', description: 'Upload customer data via CSV' },
-    { value: 'lightspeed', label: 'Lightspeed', description: 'Coming Soon', disabled: true },
-    { value: 'clover', label: 'Clover', description: 'Coming Soon', disabled: true },
-  ];
+    {
+      value: "shopify",
+      label: "Shopify",
+      description: "Connect your Shopify store",
+    },
+    {
+      value: "square",
+      label: "Square",
+      description: "Connect your Square POS",
+    },
+    {
+      value: "vmx",
+      label: "VMX (CSV Upload)",
+      description: "Upload customer data via CSV",
+    },
+    {
+      value: "lightspeed",
+      label: "Lightspeed",
+      description: "Coming Soon",
+      disabled: true,
+    },
+    {
+      value: "clover",
+      label: "Clover",
+      description: "Coming Soon",
+      disabled: true,
+    },
+  ].filter(
+    (option) => !(option.value === "shopify" && LEGACY_SHOPIFY_DEPRECATED),
+  );
 
   const handlePOSSelection = (value: string) => {
     setSelectedPOS(value);
-    if (value === 'vmx') {
+    if (value === "vmx") {
       // VMX uses CSV upload, no connection form needed
       return;
     }
@@ -64,27 +96,33 @@ const POSIntegrations = () => {
 
   const triggerManualSync = useMutation({
     mutationFn: async (connectionId: string) => {
-      const connection = connections?.find(c => c.id === connectionId);
-      if (!connection) throw new Error('Connection not found');
+      const connection = connections?.find((c) => c.id === connectionId);
+      if (!connection) throw new Error("Connection not found");
+
+      if (connection.platform === "shopify") {
+        throw new Error(
+          "Legacy Shopify sync is deprecated. Use the Shopify integration page instead.",
+        );
+      }
 
       const functionName = `${connection.platform.toLowerCase()}-sync`;
       const { data, error } = await supabase.functions.invoke(functionName, {
-        body: { connectionId }
+        body: { connectionId },
       });
 
       if (error) throw error;
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['pos-connections'] });
-      queryClient.invalidateQueries({ queryKey: ['integration-logs'] });
+      queryClient.invalidateQueries({ queryKey: ["pos-connections"] });
+      queryClient.invalidateQueries({ queryKey: ["integration-logs"] });
       toast({ title: "Manual sync triggered successfully" });
     },
     onError: (error) => {
-      toast({ 
-        title: "Sync failed", 
+      toast({
+        title: "Sync failed",
         description: error.message,
-        variant: "destructive" 
+        variant: "destructive",
       });
     },
   });
@@ -95,22 +133,24 @@ const POSIntegrations = () => {
 
   const getStatusBadge = (status: string) => {
     const statusConfig = {
-      active: { variant: 'default' as const, label: 'Active' },
-      syncing: { variant: 'secondary' as const, label: 'Syncing' },
-      error: { variant: 'destructive' as const, label: 'Error' },
-      inactive: { variant: 'outline' as const, label: 'Inactive' },
+      active: { variant: "default" as const, label: "Active" },
+      syncing: { variant: "secondary" as const, label: "Syncing" },
+      error: { variant: "destructive" as const, label: "Error" },
+      inactive: { variant: "outline" as const, label: "Inactive" },
     };
 
-    const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.inactive;
+    const config =
+      statusConfig[status as keyof typeof statusConfig] ||
+      statusConfig.inactive;
     return <Badge variant={config.variant}>{config.label}</Badge>;
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
+    return new Date(dateString).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     });
   };
 
@@ -142,24 +182,33 @@ const POSIntegrations = () => {
             options={posOptions.map((option) => ({
               value: option.value,
               label: option.label,
-              disabled: option.disabled
+              disabled: option.disabled,
             }))}
           />
-          
-          {selectedPOS === 'vmx' && (
+
+          {selectedPOS === "vmx" && (
             <div className="mt-4">
-              <VMXUploader onSuccess={() => {
-                queryClient.invalidateQueries({ queryKey: ['integration-logs'] });
-                toast({
-                  title: "Upload Successful",
-                  description: "Your customer data has been imported successfully.",
-                });
-              }} />
+              <VMXUploader
+                onSuccess={() => {
+                  queryClient.invalidateQueries({
+                    queryKey: ["integration-logs"],
+                  });
+                  toast({
+                    title: "Upload Successful",
+                    description:
+                      "Your customer data has been imported successfully.",
+                  });
+                }}
+              />
             </div>
           )}
 
           <div className="text-sm text-muted-foreground">
-            Don't see your POS system? <Button variant="link" className="p-0 h-auto">Contact us</Button> to request it.
+            Don't see your POS system?{" "}
+            <Button variant="link" className="p-0 h-auto">
+              Contact us
+            </Button>{" "}
+            to request it.
           </div>
         </CardContent>
       </Card>
@@ -176,14 +225,19 @@ const POSIntegrations = () => {
           <CardContent>
             <div className="space-y-4">
               {connections.map((connection) => (
-                <div key={connection.id} className="flex items-center justify-between p-4 border rounded-lg">
+                <div
+                  key={connection.id}
+                  className="flex items-center justify-between p-4 border rounded-lg"
+                >
                   <div className="space-y-1">
                     <div className="flex items-center gap-3">
                       <h3 className="font-medium">{connection.name}</h3>
-                      {getStatusBadge(connection.sync_status || 'inactive')}
+                      {getStatusBadge(connection.sync_status || "inactive")}
                     </div>
                     <div className="text-sm text-muted-foreground">
-                      Platform: {connection.platform.charAt(0).toUpperCase() + connection.platform.slice(1)}
+                      Platform:{" "}
+                      {connection.platform.charAt(0).toUpperCase() +
+                        connection.platform.slice(1)}
                     </div>
                     {connection.last_sync_at && (
                       <div className="text-sm text-muted-foreground flex items-center gap-1">
@@ -193,14 +247,25 @@ const POSIntegrations = () => {
                     )}
                   </div>
                   <div className="flex gap-2">
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       size="sm"
                       onClick={() => handleSync(connection.id)}
-                      disabled={connection.sync_status === 'syncing' || triggerManualSync.isPending}
+                      disabled={
+                        connection.platform === "shopify" ||
+                        connection.sync_status === "syncing" ||
+                        triggerManualSync.isPending
+                      }
                     >
-                      <RefreshCw className={`h-4 w-4 mr-2 ${(connection.sync_status === 'syncing' || triggerManualSync.isPending) ? 'animate-spin' : ''}`} />
-                      {connection.sync_status === 'syncing' || triggerManualSync.isPending ? 'Syncing...' : 'Sync Now'}
+                      <RefreshCw
+                        className={`h-4 w-4 mr-2 ${connection.sync_status === "syncing" || triggerManualSync.isPending ? "animate-spin" : ""}`}
+                      />
+                      {connection.platform === "shopify"
+                        ? "Use new Shopify flow"
+                        : connection.sync_status === "syncing" ||
+                            triggerManualSync.isPending
+                          ? "Syncing..."
+                          : "Sync Now"}
                     </Button>
                   </div>
                 </div>
@@ -222,16 +287,20 @@ const POSIntegrations = () => {
           <CardContent>
             <div className="space-y-3">
               {logs.map((log) => (
-                <div key={log.id} className="flex items-center justify-between p-3 border rounded">
+                <div
+                  key={log.id}
+                  className="flex items-center justify-between p-3 border rounded"
+                >
                   <div className="space-y-1">
                     <div className="flex items-center gap-3">
-                      <span className="font-medium capitalize">{log.pos_source}</span>
+                      <span className="font-medium capitalize">
+                        {log.pos_source}
+                      </span>
                       {getStatusBadge(log.status)}
                     </div>
                     <div className="text-sm text-muted-foreground">
-                      {formatDate(log.sync_date)} • 
-                      {log.customers_imported} customers • 
-                      {log.orders_imported} orders
+                      {formatDate(log.sync_date)} •{log.customers_imported}{" "}
+                      customers •{log.orders_imported} orders
                     </div>
                     {log.error_message && (
                       <div className="text-sm text-destructive">
@@ -247,13 +316,13 @@ const POSIntegrations = () => {
       )}
 
       {/* Connection Form Modal */}
-      {showConnectionForm && selectedPOS && selectedPOS !== 'vmx' && (
+      {showConnectionForm && selectedPOS && selectedPOS !== "vmx" && (
         <POSConnectionForm
           platform={selectedPOS}
           onSuccess={() => {
             setShowConnectionForm(false);
-            setSelectedPOS('');
-            queryClient.invalidateQueries({ queryKey: ['pos-connections'] });
+            setSelectedPOS("");
+            queryClient.invalidateQueries({ queryKey: ["pos-connections"] });
             toast({
               title: "Connection Successful",
               description: `Successfully connected to ${selectedPOS.charAt(0).toUpperCase() + selectedPOS.slice(1)}`,
@@ -261,7 +330,7 @@ const POSIntegrations = () => {
           }}
           onCancel={() => {
             setShowConnectionForm(false);
-            setSelectedPOS('');
+            setSelectedPOS("");
           }}
         />
       )}

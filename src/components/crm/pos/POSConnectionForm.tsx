@@ -1,12 +1,24 @@
-import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ExternalLink, Key, Store } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
+import React, { useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { ExternalLink, Key, Store } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 interface POSConnectionFormProps {
   platform: string;
@@ -14,49 +26,107 @@ interface POSConnectionFormProps {
   onCancel: () => void;
 }
 
+const LEGACY_SHOPIFY_DEPRECATED = true;
+
 export const POSConnectionForm: React.FC<POSConnectionFormProps> = ({
   platform,
   onSuccess,
   onCancel,
 }) => {
   const [credentials, setCredentials] = useState<Record<string, string>>({});
-  const [connectionName, setConnectionName] = useState('');
+  const [connectionName, setConnectionName] = useState("");
   const [isConnecting, setIsConnecting] = useState(false);
   const { toast } = useToast();
 
   const platformConfig = {
-    shopify: {
-      title: 'Connect Shopify',
-      description: 'Connect your Shopify store to sync customer and order data.',
-      fields: [
-        { key: 'shop_domain', label: 'Shop Domain', placeholder: 'your-shop.myshopify.com', type: 'text' },
-        { key: 'access_token', label: 'Private App Access Token', placeholder: 'shpat_...', type: 'password' },
-      ],
-      helpLink: 'https://help.shopify.com/en/manual/apps/private-apps',
-      helpText: 'Create a private app in your Shopify admin to get the access token.',
-    },
+    ...(!LEGACY_SHOPIFY_DEPRECATED
+      ? {
+          shopify: {
+            title: "Connect Shopify",
+            description:
+              "Connect your Shopify store to sync customer and order data.",
+            fields: [
+              {
+                key: "shop_domain",
+                label: "Shop Domain",
+                placeholder: "your-shop.myshopify.com",
+                type: "text",
+              },
+              {
+                key: "access_token",
+                label: "Private App Access Token",
+                placeholder: "shpat_...",
+                type: "password",
+              },
+            ],
+            helpLink: "https://help.shopify.com/en/manual/apps/private-apps",
+            helpText:
+              "Create a private app in your Shopify admin to get the access token.",
+          },
+        }
+      : {}),
     square: {
-      title: 'Connect Square',
-      description: 'Connect your Square POS to sync customer and transaction data.',
+      title: "Connect Square",
+      description:
+        "Connect your Square POS to sync customer and transaction data.",
       fields: [
-        { key: 'application_id', label: 'Application ID', placeholder: 'sandbox-sq0idb-...', type: 'text' },
-        { key: 'access_token', label: 'Access Token', placeholder: 'EAAAEOurQbdhG8Q...', type: 'password' },
-        { key: 'environment', label: 'Environment', placeholder: 'sandbox or production', type: 'text' },
+        {
+          key: "application_id",
+          label: "Application ID",
+          placeholder: "sandbox-sq0idb-...",
+          type: "text",
+        },
+        {
+          key: "access_token",
+          label: "Access Token",
+          placeholder: "EAAAEOurQbdhG8Q...",
+          type: "password",
+        },
+        {
+          key: "environment",
+          label: "Environment",
+          placeholder: "sandbox or production",
+          type: "text",
+        },
       ],
-      helpLink: 'https://developer.squareup.com/docs/build-basics/access-tokens',
-      helpText: 'Get your application credentials from the Square Developer Dashboard.',
+      helpLink:
+        "https://developer.squareup.com/docs/build-basics/access-tokens",
+      helpText:
+        "Get your application credentials from the Square Developer Dashboard.",
     },
     counterpoint: {
-      title: 'Connect Counterpoint',
-      description: 'Connect your Counterpoint POS system to sync customers, orders, and inventory.',
+      title: "Connect Counterpoint",
+      description:
+        "Connect your Counterpoint POS system to sync customers, orders, and inventory.",
       fields: [
-        { key: 'api_key', label: 'API Key', placeholder: 'cp_...', type: 'password' },
-        { key: 'base_url', label: 'API Base URL', placeholder: 'https://api.counterpoint.com', type: 'text' },
-        { key: 'account_id', label: 'Account ID', placeholder: 'Your account ID', type: 'text' },
-        { key: 'environment', label: 'Environment', placeholder: 'sandbox or production', type: 'text' },
+        {
+          key: "api_key",
+          label: "API Key",
+          placeholder: "cp_...",
+          type: "password",
+        },
+        {
+          key: "base_url",
+          label: "API Base URL",
+          placeholder: "https://api.counterpoint.com",
+          type: "text",
+        },
+        {
+          key: "account_id",
+          label: "Account ID",
+          placeholder: "Your account ID",
+          type: "text",
+        },
+        {
+          key: "environment",
+          label: "Environment",
+          placeholder: "sandbox or production",
+          type: "text",
+        },
       ],
-      helpLink: 'https://counterpoint.com/api-docs',
-      helpText: 'Get your API credentials from your Counterpoint admin dashboard.',
+      helpLink: "https://counterpoint.com/api-docs",
+      helpText:
+        "Get your API credentials from your Counterpoint admin dashboard.",
     },
   };
 
@@ -73,11 +143,13 @@ export const POSConnectionForm: React.FC<POSConnectionFormProps> = ({
     }
 
     // Validate required fields
-    const missingFields = config.fields.filter(field => !credentials[field.key]?.trim());
+    const missingFields = config.fields.filter(
+      (field) => !credentials[field.key]?.trim(),
+    );
     if (missingFields.length > 0) {
       toast({
         title: "Missing Credentials",
-        description: `Please fill in: ${missingFields.map(f => f.label).join(', ')}`,
+        description: `Please fill in: ${missingFields.map((f) => f.label).join(", ")}`,
         variant: "destructive",
       });
       return;
@@ -86,12 +158,14 @@ export const POSConnectionForm: React.FC<POSConnectionFormProps> = ({
     setIsConnecting(true);
     try {
       // Get current user
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('User not authenticated');
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) throw new Error("User not authenticated");
 
       // Create POS connection
       const { data, error } = await supabase
-        .from('pos_connections')
+        .from("pos_connections")
         .insert({
           name: connectionName,
           platform,
@@ -106,25 +180,31 @@ export const POSConnectionForm: React.FC<POSConnectionFormProps> = ({
       if (error) throw error;
 
       // Test the connection
-      const { error: testError } = await supabase.functions.invoke(`${platform}-sync`, {
-        body: { 
-          connection_id: data.id,
-          test_only: true 
-        }
-      });
+      const { error: testError } = await supabase.functions.invoke(
+        `${platform}-sync`,
+        {
+          body: {
+            connection_id: data.id,
+            test_only: true,
+          },
+        },
+      );
 
       if (testError) {
         // Delete the connection if test fails
-        await supabase.from('pos_connections').delete().eq('id', data.id);
+        await supabase.from("pos_connections").delete().eq("id", data.id);
         throw new Error(`Connection test failed: ${testError.message}`);
       }
 
       onSuccess();
     } catch (error) {
-      console.error('Connection error:', error);
+      console.error("Connection error:", error);
       toast({
         title: "Connection Failed",
-        description: error instanceof Error ? error.message : "Failed to connect to POS system.",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to connect to POS system.",
         variant: "destructive",
       });
     } finally {
@@ -142,9 +222,7 @@ export const POSConnectionForm: React.FC<POSConnectionFormProps> = ({
             <Store className="h-5 w-5" />
             {config.title}
           </DialogTitle>
-          <DialogDescription>
-            {config.description}
-          </DialogDescription>
+          <DialogDescription>{config.description}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
@@ -164,17 +242,21 @@ export const POSConnectionForm: React.FC<POSConnectionFormProps> = ({
             <div key={field.key} className="space-y-2">
               <Label htmlFor={field.key}>
                 {field.label}
-                {field.type === 'password' && <Key className="inline h-3 w-3 ml-1" />}
+                {field.type === "password" && (
+                  <Key className="inline h-3 w-3 ml-1" />
+                )}
               </Label>
               <Input
                 id={field.key}
                 type={field.type}
                 placeholder={field.placeholder}
-                value={credentials[field.key] || ''}
-                onChange={(e) => setCredentials(prev => ({
-                  ...prev,
-                  [field.key]: e.target.value
-                }))}
+                value={credentials[field.key] || ""}
+                onChange={(e) =>
+                  setCredentials((prev) => ({
+                    ...prev,
+                    [field.key]: e.target.value,
+                  }))
+                }
               />
             </div>
           ))}
@@ -189,7 +271,12 @@ export const POSConnectionForm: React.FC<POSConnectionFormProps> = ({
                 {config.helpText}
               </CardDescription>
               <Button variant="outline" size="sm" asChild>
-                <a href={config.helpLink} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1">
+                <a
+                  href={config.helpLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1"
+                >
                   <ExternalLink className="h-3 w-3" />
                   View Documentation
                 </a>
@@ -202,12 +289,12 @@ export const POSConnectionForm: React.FC<POSConnectionFormProps> = ({
             <Button variant="outline" onClick={onCancel} className="flex-1">
               Cancel
             </Button>
-            <Button 
-              onClick={handleConnect} 
+            <Button
+              onClick={handleConnect}
               disabled={isConnecting}
               className="flex-1"
             >
-              {isConnecting ? 'Connecting...' : 'Connect'}
+              {isConnecting ? "Connecting..." : "Connect"}
             </Button>
           </div>
         </div>

@@ -61,7 +61,7 @@ vi.mock("sonner", () => ({
 import { useIntegrationDetailData } from "@/hooks/useIntegrationDetailData";
 
 function ComingSoonHookProbe() {
-  const detail = useIntegrationDetailData("shopify");
+  const detail = useIntegrationDetailData("custom-webhooks");
 
   if (!detail.item || !detail.model || !detail.comingSoonDetail) {
     return <div>loading</div>;
@@ -137,7 +137,7 @@ describe("useIntegrationDetailData coming-soon notify flow", () => {
         tenant_id: "tenant-1",
         user_id: "user-1",
         email: "owner@example.com",
-        integration_slug: "shopify",
+        integration_slug: "custom-webhooks",
       });
     });
 

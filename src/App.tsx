@@ -74,6 +74,8 @@ import CallbackPage from "@/pages/integrations/lightspeed/CallbackPage";
 import GuidePage from "@/pages/integrations/lightspeed/GuidePage";
 import DebugPage from "@/pages/integrations/lightspeed/DebugPage";
 import LightspeedConnectPage from "@/pages/integrations/lightspeed/ConnectPage";
+import ShopifyCallbackPage from "@/pages/integrations/shopify/CallbackPage";
+import ShopifyDebugPage from "@/pages/integrations/shopify/DebugPage";
 import SquareCallbackPage from "@/pages/integrations/square/CallbackPage";
 import SquareGuidePage from "@/pages/integrations/square/GuidePage";
 import CloverCallbackPage from "@/pages/integrations/clover/CallbackPage";
@@ -717,6 +719,7 @@ function App() {
               />
               <Route path="lightspeed/guide" element={<GuidePage />} />
               <Route path="lightspeed/debug" element={<DebugPage />} />
+              <Route path="shopify/debug" element={<ShopifyDebugPage />} />
               <Route path="square/guide" element={<SquareGuidePage />} />
               <Route path="clover/guide" element={<CloverGuidePage />} />
               <Route
@@ -730,6 +733,10 @@ function App() {
             <Route
               path="/integrations/lightspeed/callback"
               element={<CallbackPage />}
+            />
+            <Route
+              path="/integrations/shopify/callback"
+              element={<ShopifyCallbackPage />}
             />
             <Route
               path="/integrations/square/callback"

@@ -1,62 +1,79 @@
-import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Store, Upload, Settings, Zap } from 'lucide-react';
-import { POSConnectionForm } from './POSConnectionForm';
+import React, { useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Store, Upload, Settings, Zap } from "lucide-react";
+import { POSConnectionForm } from "./POSConnectionForm";
 
 interface POSPlatformPickerProps {
   onSelect: () => void;
   onCancel: () => void;
 }
 
+const LEGACY_SHOPIFY_DEPRECATED = true;
+
 const platforms = [
   {
-    id: 'shopify',
-    name: 'Shopify',
-    description: 'Connect your Shopify store to sync customers and orders',
+    id: "shopify",
+    name: "Shopify",
+    description: "Connect your Shopify store to sync customers and orders",
     icon: Store,
-    status: 'available',
-    features: ['Customers', 'Orders', 'Products', 'Real-time sync']
+    status: "available",
+    features: ["Customers", "Orders", "Products", "Real-time sync"],
   },
   {
-    id: 'square',
-    name: 'Square',
-    description: 'Integrate with Square POS for customer and transaction data',
+    id: "square",
+    name: "Square",
+    description: "Integrate with Square POS for customer and transaction data",
     icon: Settings,
-    status: 'available',
-    features: ['Customers', 'Payments', 'Items', 'Locations']
+    status: "available",
+    features: ["Customers", "Payments", "Items", "Locations"],
   },
   {
-    id: 'counterpoint',
-    name: 'Counterpoint',
-    description: 'Connect your Counterpoint POS system for comprehensive data sync',
+    id: "counterpoint",
+    name: "Counterpoint",
+    description:
+      "Connect your Counterpoint POS system for comprehensive data sync",
     icon: Store,
-    status: 'available',
-    features: ['Customers', 'Orders', 'Products', 'Multi-location']
+    status: "available",
+    features: ["Customers", "Orders", "Products", "Multi-location"],
   },
   {
-    id: 'vmx',
-    name: 'VMX CSV Import',
-    description: 'Upload CSV files from VMX or other POS systems',
+    id: "vmx",
+    name: "VMX CSV Import",
+    description: "Upload CSV files from VMX or other POS systems",
     icon: Upload,
-    status: 'available',
-    features: ['CSV Upload', 'Bulk Import', 'Data Validation']
+    status: "available",
+    features: ["CSV Upload", "Bulk Import", "Data Validation"],
   },
   {
-    id: 'mock',
-    name: 'Mock POS (Demo)',
-    description: 'Demo integration with sample data for testing',
+    id: "mock",
+    name: "Mock POS (Demo)",
+    description: "Demo integration with sample data for testing",
     icon: Zap,
-    status: 'demo',
-    features: ['Sample Data', 'Testing', 'Development']
-  }
-];
+    status: "demo",
+    features: ["Sample Data", "Testing", "Development"],
+  },
+].filter(
+  (platform) => !(platform.id === "shopify" && LEGACY_SHOPIFY_DEPRECATED),
+);
 
 export const POSPlatformPicker: React.FC<POSPlatformPickerProps> = ({
   onSelect,
-  onCancel
+  onCancel,
 }) => {
   const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null);
 
@@ -84,7 +101,7 @@ export const POSPlatformPicker: React.FC<POSPlatformPickerProps> = ({
           {platforms.map((platform) => {
             const IconComponent = platform.icon;
             return (
-              <Card 
+              <Card
                 key={platform.id}
                 className="cursor-pointer hover:bg-accent/50 transition-colors"
                 onClick={() => setSelectedPlatform(platform.id)}
@@ -94,9 +111,13 @@ export const POSPlatformPicker: React.FC<POSPlatformPickerProps> = ({
                     <div className="flex items-center gap-3">
                       <IconComponent className="w-8 h-8 text-primary" />
                       <div>
-                        <CardTitle className="text-lg">{platform.name}</CardTitle>
-                        <Badge 
-                          variant={platform.status === 'demo' ? 'secondary' : 'default'}
+                        <CardTitle className="text-lg">
+                          {platform.name}
+                        </CardTitle>
+                        <Badge
+                          variant={
+                            platform.status === "demo" ? "secondary" : "default"
+                          }
                           className="mt-1"
                         >
                           {platform.status}

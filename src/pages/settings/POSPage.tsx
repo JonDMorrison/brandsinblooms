@@ -1,5 +1,11 @@
-import { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -28,21 +34,18 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
+const LEGACY_SHOPIFY_DEPRECATED = true;
+
 const POSPage = () => {
   const [showConnectionForm, setShowConnectionForm] = useState(false);
-  const [selectedPlatform, setSelectedPlatform] = useState<string>('');
+  const [selectedPlatform, setSelectedPlatform] = useState<string>("");
   const [showVMXUploader, setShowVMXUploader] = useState(false);
-  
-  const {
-    connections,
-    isLoading,
-    runSync,
-    disconnectPOS,
-    isSyncing,
-  } = usePOSConnections();
+
+  const { connections, isLoading, runSync, disconnectPOS, isSyncing } =
+    usePOSConnections();
 
   const handleConnectNew = (platform: string) => {
-    if (platform === 'vmx') {
+    if (platform === "vmx") {
       setShowVMXUploader(true);
     } else {
       setSelectedPlatform(platform);
@@ -52,28 +55,28 @@ const POSPage = () => {
 
   const getStatusColor = (status: string | null) => {
     switch (status) {
-      case 'connected':
-        return 'bg-emerald-500';
-      case 'error':
-        return 'bg-destructive';
-      case 'syncing':
-        return 'bg-warning';
+      case "connected":
+        return "bg-emerald-500";
+      case "error":
+        return "bg-destructive";
+      case "syncing":
+        return "bg-warning";
       default:
-        return 'bg-muted';
+        return "bg-muted";
     }
   };
 
   const getStatusText = (status: string | null, isActive: boolean) => {
-    if (!isActive) return 'Disconnected';
+    if (!isActive) return "Disconnected";
     switch (status) {
-      case 'connected':
-        return 'Connected';
-      case 'error':
-        return 'Error';
-      case 'syncing':
-        return 'Syncing';
+      case "connected":
+        return "Connected";
+      case "error":
+        return "Error";
+      case "syncing":
+        return "Syncing";
       default:
-        return 'Pending';
+        return "Pending";
     }
   };
 
@@ -82,7 +85,9 @@ const POSPage = () => {
       <div className="container max-w-6xl mx-auto p-6">
         <div className="mb-8">
           <h1 className="text-3xl font-bold tracking-tight">POS Connections</h1>
-          <p className="text-muted-foreground">Manage your point-of-sale integrations</p>
+          <p className="text-muted-foreground">
+            Manage your point-of-sale integrations
+          </p>
         </div>
         <div className="grid gap-4 md:grid-cols-2">
           {[1, 2, 3].map((i) => (
@@ -128,41 +133,50 @@ const POSPage = () => {
                       </CardTitle>
                       <CardDescription>{connection.name}</CardDescription>
                     </div>
-                    <Badge 
-                      variant="secondary" 
+                    <Badge
+                      variant="secondary"
                       className={`${getStatusColor(connection.sync_status)} text-primary-foreground`}
                     >
-                      {getStatusText(connection.sync_status, connection.is_active)}
+                      {getStatusText(
+                        connection.sync_status,
+                        connection.is_active,
+                      )}
                     </Badge>
                   </div>
                 </div>
               </CardHeader>
-              
+
               <CardContent className="space-y-4">
                 <div className="grid gap-2 text-sm">
-                  {connection.platform === 'shopify' && (
+                  {connection.platform === "shopify" && (
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Shop Domain:</span>
+                      <span className="text-muted-foreground">
+                        Shop Domain:
+                      </span>
                       <span className="font-medium">
-                        {JSON.parse(connection.credentials_encrypted || '{}').shop_domain || 'N/A'}
+                        {JSON.parse(connection.credentials_encrypted || "{}")
+                          .shop_domain || "N/A"}
                       </span>
                     </div>
                   )}
-                  
-                  {connection.platform === 'square' && (
+
+                  {connection.platform === "square" && (
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Location:</span>
                       <span className="font-medium">
-                        {connection.settings?.location_name || 'Square Location'}
+                        {connection.settings?.location_name ||
+                          "Square Location"}
                       </span>
                     </div>
                   )}
-                  
-                  {connection.platform === 'vmx' && (
+
+                  {connection.platform === "vmx" && (
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Last Upload:</span>
+                      <span className="text-muted-foreground">
+                        Last Upload:
+                      </span>
                       <span className="font-medium">
-                        {connection.settings?.file_name || 'CSV File'}
+                        {connection.settings?.file_name || "CSV File"}
                       </span>
                     </div>
                   )}
@@ -170,10 +184,12 @@ const POSPage = () => {
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Last Synced:</span>
                     <span className="font-medium">
-                      {connection.last_sync_at 
-                        ? formatDistanceToNow(new Date(connection.last_sync_at), { addSuffix: true })
-                        : 'Never'
-                      }
+                      {connection.last_sync_at
+                        ? formatDistanceToNow(
+                            new Date(connection.last_sync_at),
+                            { addSuffix: true },
+                          )
+                        : "Never"}
                     </span>
                   </div>
                 </div>
@@ -185,14 +201,20 @@ const POSPage = () => {
                     variant="outline"
                     size="sm"
                     onClick={() => runSync(connection.id)}
-                    disabled={isSyncing}
+                    disabled={isSyncing || connection.platform === "shopify"}
                     className="flex-1"
                   >
-                    <RefreshCw className={`h-4 w-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
-                    {isSyncing ? 'Syncing...' : 'Run Sync'}
+                    <RefreshCw
+                      className={`h-4 w-4 mr-2 ${isSyncing ? "animate-spin" : ""}`}
+                    />
+                    {connection.platform === "shopify"
+                      ? "Use Shopify integration"
+                      : isSyncing
+                        ? "Syncing..."
+                        : "Run Sync"}
                   </Button>
 
-                  {connection.platform === 'vmx' && (
+                  {connection.platform === "vmx" && (
                     <Dialog>
                       <DialogTrigger asChild>
                         <Button variant="outline" size="sm">
@@ -204,10 +226,13 @@ const POSPage = () => {
                         <DialogHeader>
                           <DialogTitle>Upload New CSV</DialogTitle>
                           <DialogDescription>
-                            Upload a new VMX CSV file to update your customer data
+                            Upload a new VMX CSV file to update your customer
+                            data
                           </DialogDescription>
                         </DialogHeader>
-                        <VMXUploader onSuccess={() => setShowVMXUploader(false)} />
+                        <VMXUploader
+                          onSuccess={() => setShowVMXUploader(false)}
+                        />
                       </DialogContent>
                     </Dialog>
                   )}
@@ -220,15 +245,18 @@ const POSPage = () => {
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                       <AlertDialogHeader>
-                        <AlertDialogTitle>Disconnect POS System</AlertDialogTitle>
+                        <AlertDialogTitle>
+                          Disconnect POS System
+                        </AlertDialogTitle>
                         <AlertDialogDescription>
-                          This will permanently remove this connection and stop data syncing. 
-                          Existing customer data will be preserved.
+                          This will permanently remove this connection and stop
+                          data syncing. Existing customer data will be
+                          preserved.
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction 
+                        <AlertDialogAction
                           onClick={() => disconnectPOS(connection.id)}
                           className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                         >
@@ -253,23 +281,26 @@ const POSPage = () => {
             <CardContent className="text-center space-y-3">
               <div className="text-4xl mb-4">🛍️</div>
               <div className="grid gap-2">
-                <Button 
-                  variant="outline" 
-                  onClick={() => handleConnectNew('shopify')}
+                <Button
+                  variant="outline"
+                  onClick={() => handleConnectNew("shopify")}
                   className="w-full"
+                  disabled={LEGACY_SHOPIFY_DEPRECATED}
                 >
-                  Connect Shopify
+                  {LEGACY_SHOPIFY_DEPRECATED
+                    ? "Shopify moved to Integrations"
+                    : "Connect Shopify"}
                 </Button>
-                <Button 
-                  variant="outline" 
-                  onClick={() => handleConnectNew('square')}
+                <Button
+                  variant="outline"
+                  onClick={() => handleConnectNew("square")}
                   className="w-full"
                 >
                   Connect Square
                 </Button>
-                <Button 
-                  variant="outline" 
-                  onClick={() => handleConnectNew('vmx')}
+                <Button
+                  variant="outline"
+                  onClick={() => handleConnectNew("vmx")}
                   className="w-full"
                 >
                   Upload VMX CSV
@@ -284,18 +315,18 @@ const POSPage = () => {
           <div className="text-6xl mb-4">🛍️</div>
           <CardTitle className="mb-2">No POS Systems Connected</CardTitle>
           <CardDescription className="mb-6">
-            Connect your first point-of-sale system to start syncing customer data
+            Connect your first point-of-sale system to start syncing customer
+            data
           </CardDescription>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <Button onClick={() => handleConnectNew('shopify')}>
-              <Plus className="h-4 w-4 mr-2" />
-              Connect Shopify
-            </Button>
-            <Button variant="outline" onClick={() => handleConnectNew('square')}>
+            <Button
+              variant="outline"
+              onClick={() => handleConnectNew("square")}
+            >
               <Plus className="h-4 w-4 mr-2" />
               Connect Square
             </Button>
-            <Button variant="outline" onClick={() => handleConnectNew('vmx')}>
+            <Button variant="outline" onClick={() => handleConnectNew("vmx")}>
               <Upload className="h-4 w-4 mr-2" />
               Upload VMX CSV
             </Button>

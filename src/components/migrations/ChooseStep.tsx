@@ -15,11 +15,12 @@ interface ChooseStepProps {
 interface List {
   id: string;
   name: string;
-  member_count: number;
+  memberCount: number;
   segments: Array<{
-    id: string;
+    id: number;
     name: string;
-    member_count: number;
+    memberCount: number;
+    type: string;
   }>;
 }
 
@@ -31,6 +32,10 @@ export const ChooseStep = ({
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [lists, setLists] = useState<List[]>([]);
+  const [availableTotals, setAvailableTotals] = useState({
+    lists: 0,
+    segments: 0,
+  });
   const [selectedLists, setSelectedLists] = useState<Set<string>>(new Set());
   const [selectedSegments, setSelectedSegments] = useState<Set<string>>(
     new Set(),
@@ -86,13 +91,32 @@ export const ChooseStep = ({
           throw new Error(data.error);
         }
 
-        setLists(data?.lists || []);
+        const fetchedLists = data?.lists || [];
+        setLists(fetchedLists);
+        setAvailableTotals({
+          lists: data?.totalLists ?? fetchedLists.length,
+          segments:
+            data?.totalSegments ??
+            fetchedLists.reduce(
+              (count: number, list: List) =>
+                count + (list.segments?.length ?? 0),
+              0,
+            ),
+        });
       } else if (connectedProvider === "klaviyo") {
         const { data, error } = await supabase.functions.invoke(
           "klaviyo-fetch-lists",
         );
         if (error) throw error;
-        setLists(data.lists || []);
+        const fetchedLists = data.lists || [];
+        setLists(fetchedLists);
+        setAvailableTotals({
+          lists: fetchedLists.length,
+          segments: fetchedLists.reduce(
+            (count: number, list: List) => count + (list.segments?.length ?? 0),
+            0,
+          ),
+        });
       } else if (connectedProvider === "constant_contact") {
         const { data, error } = await supabase.functions.invoke(
           "constant-contact-fetch-lists",
@@ -105,6 +129,10 @@ export const ChooseStep = ({
           segments: [], // Constant Contact doesn't have list-level segments
         }));
         setLists(listsWithSegments);
+        setAvailableTotals({
+          lists: listsWithSegments.length,
+          segments: 0,
+        });
       }
     } catch (error: any) {
       console.error("Fetch lists error:", error);
@@ -147,6 +175,31 @@ export const ChooseStep = ({
   };
 
   const canProceed = selectedLists.size > 0 || selectedSegments.size > 0;
+  const selectedListCount = selectedLists.size;
+  const selectedSegmentCount = selectedSegments.size;
+  const selectedAudienceEstimate = lists.reduce((total, list) => {
+    let nextTotal = total;
+
+    if (selectedLists.has(list.id)) {
+      nextTotal += list.memberCount;
+    }
+
+    for (const segment of list.segments ?? []) {
+      if (selectedSegments.has(`${list.id}:${segment.id}`)) {
+        nextTotal += segment.memberCount;
+      }
+    }
+
+    return nextTotal;
+  }, 0);
+  const scopeMessage =
+    selectedListCount > 0 && selectedSegmentCount > 0
+      ? "Full lists import every contact in those audiences. Selected segments are imported as additional scopes, and duplicate contacts are skipped during import."
+      : selectedSegmentCount > 0
+        ? "Only contacts inside the selected segments will be imported."
+        : selectedListCount > 0
+          ? "Every contact in the selected lists will be imported."
+          : "Choose full lists, individual segments, or a mix of both.";
 
   if (loading) {
     return (
@@ -166,6 +219,38 @@ export const ChooseStep = ({
         </p>
       </div>
 
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card className="p-4">
+          <p className="text-sm text-muted-foreground">Available Lists</p>
+          <p className="mt-2 text-2xl font-semibold">
+            {availableTotals.lists.toLocaleString()}
+          </p>
+        </Card>
+        <Card className="p-4">
+          <p className="text-sm text-muted-foreground">Available Segments</p>
+          <p className="mt-2 text-2xl font-semibold">
+            {availableTotals.segments.toLocaleString()}
+          </p>
+        </Card>
+        <Card className="p-4">
+          <p className="text-sm text-muted-foreground">Selected Audience</p>
+          <p className="mt-2 text-2xl font-semibold">
+            {selectedAudienceEstimate.toLocaleString()}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Pre-dedupe estimate across {selectedListCount} list
+            {selectedListCount === 1 ? "" : "s"} and {selectedSegmentCount}{" "}
+            segment
+            {selectedSegmentCount === 1 ? "" : "s"}
+          </p>
+        </Card>
+      </div>
+
+      <Card className="border-dashed p-4">
+        <p className="text-sm font-medium">Import scope</p>
+        <p className="mt-1 text-sm text-muted-foreground">{scopeMessage}</p>
+      </Card>
+
       <div className="space-y-4">
         {lists.map((list) => (
           <Card key={list.id} className="p-4">
@@ -178,7 +263,7 @@ export const ChooseStep = ({
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="font-semibold">{list.name}</h3>
                   <span className="text-sm text-muted-foreground">
-                    {list.member_count.toLocaleString()} contacts
+                    {list.memberCount.toLocaleString()} contacts
                   </span>
                 </div>
 
@@ -199,7 +284,7 @@ export const ChooseStep = ({
                         />
                         <span className="text-sm flex-1">{segment.name}</span>
                         <span className="text-xs text-muted-foreground">
-                          {segment.member_count.toLocaleString()}
+                          {segment.memberCount.toLocaleString()}
                         </span>
                       </div>
                     ))}
@@ -224,7 +309,7 @@ export const ChooseStep = ({
           Back
         </Button>
         <Button onClick={handleContinue} disabled={!canProceed}>
-          Continue ({selectedLists.size + selectedSegments.size} selected)
+          Continue ({selectedListCount + selectedSegmentCount} selected)
         </Button>
       </div>
     </div>

@@ -197,6 +197,38 @@ function buildMarketingImportDetail(
     latestImportCompletedAt: "2026-03-23T09:30:00.000Z",
     latestImportSummary:
       "420 contacts imported • 3 segments created • 0 errors",
+    latestImportReport: {
+      contactsImported: 420,
+      contactsSkipped: 10,
+      contactsFailed: 0,
+      segmentsCreated: 3,
+      tagsCreated: 6,
+      consentsRecorded: 420,
+      errors: [],
+      batchesProcessed: 5,
+    },
+    latestCompletedImport: {
+      id: `job-${provider}`,
+      startedAt: "2026-03-23T09:00:00.000Z",
+      completedAt: "2026-03-23T09:30:00.000Z",
+      status: "completed",
+      contactsImported: 420,
+      segmentsCreated: 3,
+      errorCount: 0,
+      durationSeconds: 1800,
+    },
+    importHistory: [
+      {
+        id: `job-${provider}`,
+        startedAt: "2026-03-23T09:00:00.000Z",
+        completedAt: "2026-03-23T09:30:00.000Z",
+        status: "completed",
+        contactsImported: 420,
+        segmentsCreated: 3,
+        errorCount: 0,
+        durationSeconds: 1800,
+      },
+    ],
     latestImportLabel: "Completed",
     latestImportTone: "success",
     contactsImportedAllTime: 420,
@@ -207,45 +239,96 @@ function buildMarketingImportDetail(
     liveSyncLabel: "Not available",
     importOnlyLabel: "Import only",
     connectionState: {
-      label: provider === "klaviyo" ? "Validated" : "Authorized",
+      label:
+        provider === "klaviyo"
+          ? "Validated"
+          : provider === "mailchimp"
+            ? "Connected"
+            : "Connected",
       subtitle:
         provider === "klaviyo"
           ? "Stored credential is ready for list previews and one-time imports"
-          : "Stored authorization is ready for list previews and one-time imports",
+          : provider === "mailchimp"
+            ? "Mailchimp authorization is active for previews and one-time or periodic imports."
+            : "Stored authorization is ready for list previews and one-time imports",
       tone: "success",
       valueClassName: "text-emerald-600",
     },
     authorizationLabel:
-      provider === "klaviyo"
-        ? "API key configured"
-        : "OAuth authorization active",
+      provider === "mailchimp"
+        ? "Connected"
+        : provider === "klaviyo"
+          ? "API key configured"
+          : "OAuth authorization active",
     authorizationSummary:
       provider === "klaviyo"
         ? "Klaviyo credentials are stored securely for preview and import flows. The raw API key is never shown from this page."
-        : `${baseLabel} authorization is active for previews and one-time imports.`,
+        : provider === "mailchimp"
+          ? "Mailchimp is connected and ready for previews and imports."
+          : `${baseLabel} authorization is active for previews and one-time imports.`,
     authorizationModelLabel:
       provider === "klaviyo" ? "API key connection" : "OAuth authorization",
     healthRows: {
-      authorization: [
-        {
-          label:
-            provider === "klaviyo"
-              ? "API key connection"
-              : "OAuth authorization",
-          value:
-            provider === "klaviyo"
-              ? "API key configured"
-              : "OAuth authorization active",
-          tone: "success",
-        },
-      ],
-      importHistory: [
-        {
-          label: "Latest Import",
-          value: "Completed",
-          tone: "success",
-        },
-      ],
+      authorization:
+        provider === "mailchimp"
+          ? [
+              {
+                label: "Status",
+                value: "Connected",
+                tone: "success",
+              },
+              {
+                label: "Connected since",
+                value: "Connected",
+                timestamp: "2026-03-18T10:00:00.000Z",
+                tone: "success",
+              },
+              {
+                label: "Mailchimp account",
+                value: "Bloom Mailchimp",
+                tone: "neutral",
+              },
+            ]
+          : [
+              {
+                label:
+                  provider === "klaviyo"
+                    ? "API key connection"
+                    : "OAuth authorization",
+                value:
+                  provider === "klaviyo"
+                    ? "API key configured"
+                    : "OAuth authorization active",
+                tone: "success",
+              },
+            ],
+      importHistory:
+        provider === "mailchimp"
+          ? [
+              {
+                label: "Status",
+                value: "420 contacts imported",
+                tone: "success",
+              },
+              {
+                label: "Last import",
+                value: "Import recorded",
+                timestamp: "2026-03-23T09:30:00.000Z",
+                tone: "success",
+              },
+              {
+                label: "Total contacts",
+                value: "420",
+                tone: "success",
+              },
+            ]
+          : [
+              {
+                label: "Latest Import",
+                value: "Completed",
+                tone: "success",
+              },
+            ],
     },
     timeline: [
       {
@@ -256,24 +339,45 @@ function buildMarketingImportDetail(
       },
     ],
     connectionDetailsRows: [
-      {
-        label: "Provider",
-        value: baseLabel,
-      },
-      {
-        label: "Authorization",
-        value: provider === "klaviyo" ? "Validated" : "Authorized",
-        description:
-          provider === "klaviyo"
-            ? "Stored credential is ready for list previews and one-time imports"
-            : "Stored authorization is ready for list previews and one-time imports",
-        tone: "success",
-        valueClassName: "text-emerald-600",
-      },
-      {
-        label: "Connected Since",
-        value: "2026-03-18T10:00:00.000Z",
-      },
+      ...(provider === "mailchimp"
+        ? [
+            {
+              label: "Authorization Status",
+              value: "Connected",
+              description:
+                "Mailchimp authorization is active for previews and one-time or periodic imports.",
+              tone: "success",
+              valueClassName: "text-emerald-600",
+            },
+            {
+              label: "Mailchimp Account",
+              value: "Bloom Mailchimp",
+            },
+            {
+              label: "Connected Since",
+              value: "2026-03-18T10:00:00.000Z",
+            },
+          ]
+        : [
+            {
+              label: "Provider",
+              value: baseLabel,
+            },
+            {
+              label: "Authorization",
+              value: provider === "klaviyo" ? "Validated" : "Authorized",
+              description:
+                provider === "klaviyo"
+                  ? "Stored credential is ready for list previews and one-time imports"
+                  : "Stored authorization is ready for list previews and one-time imports",
+              tone: "success",
+              valueClassName: "text-emerald-600",
+            },
+            {
+              label: "Connected Since",
+              value: "2026-03-18T10:00:00.000Z",
+            },
+          ]),
       ...(provider === "klaviyo"
         ? [
             {
@@ -322,29 +426,70 @@ function buildMarketingImportDetail(
             ]
           : [
               {
-                label: "Consent History",
-                value: "Available",
-                description:
-                  "Mailchimp email consent state can be carried with imported contacts.",
+                label: "Contacts",
+                value: "Available to import",
                 tone: "success",
               },
+              { label: "Tags", value: "Available to import", tone: "success" },
+              {
+                label: "Lists & Audiences",
+                value: "Available to import",
+                tone: "success",
+              },
+              {
+                label: "Segments",
+                value: "Available to import",
+                tone: "success",
+              },
+              {
+                label: "Consent status",
+                value: "Available to import",
+                tone: "success",
+              },
+              {
+                label: "Groups / Interests",
+                value: "Available to import",
+                tone: "success",
+              },
+              { label: "Live sync", value: "Not available", tone: "neutral" },
             ],
     supportsRevokeToken: provider !== "klaviyo",
     supportsValidateConnection: provider === "klaviyo",
     dangerZone: {
       title: `Disconnect ${baseLabel}`,
-      description: `Disconnect ${baseLabel} by removing the stored authorization used for import previews and one-time imports.`,
-      confirmDescription: `Disconnecting ${baseLabel} stops future previews and imports until the provider is connected again.`,
-      bullets: [
-        "Future list previews will stop until the provider is connected again.",
-        "New one-time imports cannot be started while the connection is removed.",
-        "Previously imported CRM records are not deleted from BloomSuite.",
-      ],
+      description:
+        provider === "mailchimp"
+          ? "Remove BloomSuite's access to your Mailchimp account and stop future Mailchimp imports."
+          : `Disconnect ${baseLabel} by removing the stored authorization used for import previews and one-time imports.`,
+      confirmDescription:
+        provider === "mailchimp"
+          ? "Disconnecting Mailchimp revokes the saved authorization, clears cached list and segment data, and prevents future previews or imports until Mailchimp is connected again."
+          : `Disconnecting ${baseLabel} stops future previews and imports until the provider is connected again.`,
+      bullets:
+        provider === "mailchimp"
+          ? [
+              "Remove BloomSuite's access to your Mailchimp account",
+              "Prevent future imports from Mailchimp",
+              "Clear cached list and segment data",
+            ]
+          : [
+              "Future list previews will stop until the provider is connected again.",
+              "New one-time imports cannot be started while the connection is removed.",
+              "Previously imported CRM records are not deleted from BloomSuite.",
+            ],
+      safetyNote:
+        provider === "mailchimp"
+          ? "Previously imported contacts remain in your BloomSuite CRM. Your Mailchimp account is not affected."
+          : "Previously imported CRM records remain in BloomSuite after the connection is removed.",
     },
     capabilities: [
       "Preview available audiences before importing",
       "Start one-time contact imports into BloomSuite",
     ],
+    capabilitiesNote:
+      provider === "mailchimp"
+        ? "Mailchimp is available for one-time or periodic import, not live two-way sync."
+        : null,
     canDisconnect: true,
     ...overrides,
   };
@@ -357,7 +502,7 @@ function buildMailchimpState() {
       status: "connected",
       connectedSince: "2026-03-18T10:00:00.000Z",
       metaLabel: "Bloom Newsletter",
-      targetPath: "/integrations/migrations?provider=mailchimp",
+      targetPath: "/integrations/mailchimp",
     },
     {
       contextLabel: "Bloom Newsletter",
@@ -538,7 +683,7 @@ describe("IntegrationDetailPage GA4 and marketing-import branches", () => {
       screen.getByRole("heading", { name: "Import History" }),
     ).toBeTruthy();
     expect(
-      screen.getByRole("heading", { name: "Import Timeline" }),
+      screen.getByRole("heading", { name: "Recent Imports" }),
     ).toBeTruthy();
     expect(screen.getByText("Connection Details")).toBeTruthy();
     expect(screen.getByText("Import Capabilities")).toBeTruthy();
@@ -546,13 +691,18 @@ describe("IntegrationDetailPage GA4 and marketing-import branches", () => {
     expect(screen.getByText("Live Sync: Not available")).toBeTruthy();
     expect(screen.getByText("Contacts Imported")).toBeTruthy();
     expect(screen.getByText("Revoke Token")).toBeTruthy();
+    expect(screen.getByText("Segments")).toBeTruthy();
+    expect(
+      screen.getByText(
+        "Mailchimp is available for one-time or periodic import, not live two-way sync.",
+      ),
+    ).toBeTruthy();
+    expect(
+      screen.getAllByText("420 contacts imported").length,
+    ).toBeGreaterThanOrEqual(1);
     expect(screen.queryByText("Webhook Health")).toBeNull();
     expect(screen.queryByText("Sync Health")).toBeNull();
-    expect(
-      screen.getAllByText(
-        "420 contacts imported • 3 segments created • 0 errors",
-      ).length,
-    ).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText("Last Import")).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: "Start Import" }));
 

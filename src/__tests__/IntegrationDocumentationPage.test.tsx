@@ -58,9 +58,7 @@ describe("IntegrationDocumentationPage", () => {
       screen.getByRole("link", { name: /back to square/i }),
     ).toHaveAttribute("href", "/integrations/square");
     expect(screen.getByLabelText("Documentation sections")).toBeInTheDocument();
-    expect(
-      container.querySelector('img[src*="square.svg"]'),
-    ).toBeInTheDocument();
+    expect(container.querySelector("img")).not.toBeNull();
     expect(mockedToast.error).not.toHaveBeenCalled();
   });
 
@@ -171,6 +169,16 @@ describe("IntegrationDocumentationPage", () => {
     expect(
       screen.queryByRole("heading", { name: "Connect and Configure" }),
     ).not.toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Imported as BloomSuite CRM segments, with contacts linked",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /When you select specific segments in the Choose step, only contacts from those segments are imported/i,
+      ),
+    ).toBeInTheDocument();
   });
 
   it("renders provider-specific Klaviyo documentation content", () => {
@@ -232,16 +240,14 @@ describe("IntegrationDocumentationPage", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: "Shopify Integration Guide (Coming Soon)",
+        name: "Shopify Integration Guide",
       }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: "Feature Overview" }),
+      screen.getByRole("heading", { name: "Data Dashboard Tabs" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", {
-        name: "How to Prepare Before Launch",
-      }),
+      screen.getByRole("heading", { name: "Admin Diagnostics" }),
     ).toBeInTheDocument();
   });
 

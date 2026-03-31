@@ -47,19 +47,31 @@ const REQUIRED_SQUARE_WEBHOOK_EVENTS = [
   "inventory.count.updated",
 ] as const;
 
+const REQUIRED_SHOPIFY_WEBHOOK_EVENTS = [
+  "customers/create",
+  "customers/update",
+  "orders/create",
+  "orders/updated",
+  "orders/paid",
+  "orders/fulfilled",
+  "orders/cancelled",
+  "refunds/create",
+  "products/create",
+  "products/update",
+  "app/uninstalled",
+] as const;
+
 const META_OAUTH_SCOPE =
   "pages_manage_posts,pages_read_engagement,pages_show_list,instagram_basic,instagram_content_publish,instagram_manage_insights,read_insights";
 
 const COMING_SOON_INTEGRATION_SLUGS = [
-  "shopify",
   "hubspot",
   "zapier",
   "slack",
   "custom-webhooks",
 ] as const;
 
-type ComingSoonIntegrationSlug =
-  (typeof COMING_SOON_INTEGRATION_SLUGS)[number];
+type ComingSoonIntegrationSlug = (typeof COMING_SOON_INTEGRATION_SLUGS)[number];
 
 type ComingSoonContent = {
   statusLabel: string;
@@ -89,7 +101,10 @@ export type ComingSoonDetailData = ComingSoonContent & {
   isSubmitted: boolean;
 };
 
-const COMING_SOON_CONTENT: Record<ComingSoonIntegrationSlug, ComingSoonContent> = {
+const COMING_SOON_CONTENT: Record<
+  ComingSoonIntegrationSlug,
+  ComingSoonContent
+> = {
   shopify: {
     statusLabel: "Coming soon",
     statusTone: "warning",
@@ -109,12 +124,14 @@ const COMING_SOON_CONTENT: Record<ComingSoonIntegrationSlug, ComingSoonContent> 
     ],
     callout: {
       tone: "warning",
-      title: "The legacy Shopify connection flow in BloomSuite has been retired.",
+      title:
+        "The legacy Shopify connection flow in BloomSuite has been retired.",
       description:
         "The new first-class Shopify integration is currently being built.",
     },
     notifyLabel: "Notify me when available",
-    notifyConfirmation: "You're on the list. We'll notify you when Shopify is available.",
+    notifyConfirmation:
+      "You're on the list. We'll notify you when Shopify is available.",
     requestLabel: "Request this integration →",
   },
   hubspot: {
@@ -135,7 +152,8 @@ const COMING_SOON_CONTENT: Record<ComingSoonIntegrationSlug, ComingSoonContent> 
       "Bi-directional deal and lifecycle stage sync",
     ],
     notifyLabel: "Notify me when available",
-    notifyConfirmation: "You're on the list. We'll notify you when HubSpot is available.",
+    notifyConfirmation:
+      "You're on the list. We'll notify you when HubSpot is available.",
     requestLabel: "Request this integration →",
   },
   zapier: {
@@ -158,11 +176,11 @@ const COMING_SOON_CONTENT: Record<ComingSoonIntegrationSlug, ComingSoonContent> 
     callout: {
       tone: "info",
       title: "The Zapier integration is in active development.",
-      description:
-        "The documentation below describes planned functionality.",
+      description: "The documentation below describes planned functionality.",
     },
     notifyLabel: "Notify me when available",
-    notifyConfirmation: "You're on the list. We'll notify you when Zapier is available.",
+    notifyConfirmation:
+      "You're on the list. We'll notify you when Zapier is available.",
     requestLabel: "Request this integration →",
   },
   slack: {
@@ -183,7 +201,8 @@ const COMING_SOON_CONTENT: Record<ComingSoonIntegrationSlug, ComingSoonContent> 
       "Custom alert rules based on thresholds (e.g. orders over GBP 500)",
     ],
     notifyLabel: "Notify me when available",
-    notifyConfirmation: "You're on the list. We'll notify you when Slack is available.",
+    notifyConfirmation:
+      "You're on the list. We'll notify you when Slack is available.",
     requestLabel: "Request this integration →",
   },
   "custom-webhooks": {
@@ -393,6 +412,11 @@ export type LightspeedDetailData = {
 };
 
 type PosSyncJobRow = Database["public"]["Tables"]["pos_sync_jobs_v2"]["Row"];
+type ShopifyCustomerRow =
+  Database["public"]["Tables"]["shopify_customers"]["Row"];
+type ShopifyOrderRow = Database["public"]["Tables"]["shopify_orders"]["Row"];
+type ShopifyProductRow =
+  Database["public"]["Tables"]["shopify_products"]["Row"];
 type SquareCustomerRow = Database["public"]["Tables"]["pos_customers"]["Row"];
 type BaseSquareSaleRow = Database["public"]["Tables"]["pos_orders"]["Row"];
 type SquareProductRow = Database["public"]["Tables"]["products"]["Row"];
@@ -540,6 +564,84 @@ export type SquareProductTableRow = SquareProductRow & {
 };
 
 export type SquareSyncLogRow = LightspeedSyncLogRow;
+
+export type ShopifyCustomerSortField =
+  | "name"
+  | "email"
+  | "orders_count"
+  | "total_spent"
+  | "last_order_date"
+  | "synced_at";
+export type ShopifyOrdersSortField =
+  | "order_date"
+  | "total_price"
+  | "financial_status"
+  | "fulfillment_status";
+export type ShopifyProductsSortField =
+  | "title"
+  | "vendor"
+  | "product_type"
+  | "inventory_quantity"
+  | "updated_at";
+
+export type ShopifyCustomerTableRow = ShopifyCustomerRow & {
+  displayName: string;
+  normalizedTags: string[];
+};
+
+export type ShopifyOrderTableRow = ShopifyOrderRow & {
+  customerDisplayName: string | null;
+  lineItemCount: number;
+};
+
+export type ShopifySalesSummary = {
+  revenue: number;
+  averageOrderValue: number;
+  saleCount: number;
+};
+
+export type ShopifyProductTableRow = ShopifyProductRow & {
+  normalizedTags: string[];
+  imageCount: number;
+  variantCount: number;
+  stockState: LightspeedProductStockState;
+};
+
+export type ShopifySyncLogRow = PosSyncJobRow & {
+  normalizedSyncType: "customers" | "orders" | "products" | "full";
+  progressPercent: number;
+  isStale: boolean;
+  isTerminal: boolean;
+};
+
+export type ShopifyDashboardData = {
+  customers: {
+    rows: ShopifyCustomerTableRow[];
+    pagination: LightspeedPagination;
+    isLoading: boolean;
+    isFetching: boolean;
+  };
+  orders: {
+    rows: ShopifyOrderTableRow[];
+    pagination: LightspeedPagination;
+    summary: ShopifySalesSummary;
+    isLoading: boolean;
+    isFetching: boolean;
+  };
+  products: {
+    rows: ShopifyProductTableRow[];
+    pagination: LightspeedPagination;
+    categories: string[];
+    isLoading: boolean;
+    isFetching: boolean;
+  };
+  syncLogs: {
+    rows: ShopifySyncLogRow[];
+    pagination: LightspeedPagination;
+    isLoading: boolean;
+    isFetching: boolean;
+  };
+};
 
 export type CloverCustomerTableRow = SquareCustomerRow & {
   displayName: string;
@@ -696,8 +798,17 @@ export type LightspeedDashboardData = {
   };
 };
 
-const LIGHTSPEED_ACTIVE_JOB_STATUSES = ["pending", "in_progress", "delayed"] as const;
-const LIGHTSPEED_SYNC_ORDER = ["customers", "sales", "products", "full"] as const;
+const LIGHTSPEED_ACTIVE_JOB_STATUSES = [
+  "pending",
+  "in_progress",
+  "delayed",
+] as const;
+const LIGHTSPEED_SYNC_ORDER = [
+  "customers",
+  "sales",
+  "products",
+  "full",
+] as const;
 const LIGHTSPEED_STALE_JOB_MS = 5 * 60 * 1000;
 const LIGHTSPEED_DASHBOARD_PAGE_SIZE = 50;
 const LIGHTSPEED_DATA_STALE_MS = 30 * 24 * 60 * 60 * 1000;
@@ -720,16 +831,33 @@ function normalizeLightspeedJobSyncType(
   return "customers";
 }
 
+function normalizeShopifyJobSyncType(
+  syncType: PosSyncJobRow["sync_type"] | string,
+): "customers" | "orders" | "products" | "full" {
+  if (syncType === "orders" || syncType === "sales") {
+    return "orders";
+  }
+
+  if (syncType === "products") {
+    return "products";
+  }
+
+  if (syncType === "full") {
+    return "full";
+  }
+
+  return "customers";
+}
+
 function isTerminalLightspeedJobStatus(status: PosSyncJobRow["status"]) {
-  return status === "completed" || status === "failed" || status === "cancelled";
+  return (
+    status === "completed" || status === "failed" || status === "cancelled"
+  );
 }
 
 function getLightspeedJobActivityTimestamp(job: PosSyncJobRow) {
   return (
-    job.last_progress_at ??
-    job.updated_at ??
-    job.started_at ??
-    job.created_at
+    job.last_progress_at ?? job.updated_at ?? job.started_at ?? job.created_at
   );
 }
 
@@ -738,7 +866,8 @@ function calculateLightspeedJobProgress(job: PosSyncJobRow) {
     return 100;
   }
 
-  const estimatedRows = typeof job.estimated_rows === "number" ? job.estimated_rows : null;
+  const estimatedRows =
+    typeof job.estimated_rows === "number" ? job.estimated_rows : null;
   const totalPagesEstimate =
     typeof job.total_pages_est === "number" ? job.total_pages_est : null;
   const processedRows = Math.max(
@@ -749,12 +878,20 @@ function calculateLightspeedJobProgress(job: PosSyncJobRow) {
 
   if (estimatedRows && estimatedRows > 0) {
     const rawProgress = Math.round((processedRows / estimatedRows) * 100);
-    return Math.max(job.status === "in_progress" ? 5 : 0, Math.min(99, rawProgress));
+    return Math.max(
+      job.status === "in_progress" ? 5 : 0,
+      Math.min(99, rawProgress),
+    );
   }
 
   if (totalPagesEstimate && totalPagesEstimate > 0) {
-    const rawProgress = Math.round(((job.current_page ?? 0) / totalPagesEstimate) * 100);
-    return Math.max(job.status === "in_progress" ? 5 : 0, Math.min(99, rawProgress));
+    const rawProgress = Math.round(
+      ((job.current_page ?? 0) / totalPagesEstimate) * 100,
+    );
+    return Math.max(
+      job.status === "in_progress" ? 5 : 0,
+      Math.min(99, rawProgress),
+    );
   }
 
   if ((job.current_page ?? 0) > 0) {
@@ -780,7 +917,10 @@ function buildLightspeedPagination(
   };
 }
 
-function getLightspeedPageRange(page: number, pageSize = LIGHTSPEED_DASHBOARD_PAGE_SIZE) {
+function getLightspeedPageRange(
+  page: number,
+  pageSize = LIGHTSPEED_DASHBOARD_PAGE_SIZE,
+) {
   const safePage = Math.max(page, 1);
   const from = (safePage - 1) * pageSize;
   const to = from + pageSize - 1;
@@ -828,6 +968,21 @@ function formatSquareCustomerName(
   return email?.trim() || customerId || "Unnamed customer";
 }
 
+function formatShopifyCustomerName(
+  firstName?: string | null,
+  lastName?: string | null,
+  email?: string | null,
+  customerId?: string | null,
+) {
+  const fullName = [firstName, lastName].filter(Boolean).join(" ").trim();
+
+  if (fullName) {
+    return fullName;
+  }
+
+  return email?.trim() || customerId || "Unnamed customer";
+}
+
 function getSquareOrderType(order: BaseSquareSaleRow) {
   if (order.fulfillment_type?.trim()) {
     return order.fulfillment_type.trim();
@@ -837,7 +992,11 @@ function getSquareOrderType(order: BaseSquareSaleRow) {
     return order.fulfillment_state.trim();
   }
 
-  if (order.raw_data && typeof order.raw_data === "object" && !Array.isArray(order.raw_data)) {
+  if (
+    order.raw_data &&
+    typeof order.raw_data === "object" &&
+    !Array.isArray(order.raw_data)
+  ) {
     const rawData = order.raw_data as Record<string, unknown>;
     const candidate = [rawData.order_type, rawData.orderType].find(
       (value) => typeof value === "string" && value.trim().length > 0,
@@ -901,10 +1060,22 @@ function getLightspeedProductStockState(
   return "healthy";
 }
 
-function normalizeLightspeedSyncLogRow(job: PosSyncJobRow): LightspeedSyncLogRow {
+function normalizeLightspeedSyncLogRow(
+  job: PosSyncJobRow,
+): LightspeedSyncLogRow {
   return {
     ...job,
     normalizedSyncType: normalizeLightspeedJobSyncType(job.sync_type),
+    progressPercent: calculateLightspeedJobProgress(job),
+    isStale: isLightspeedJobStale(job),
+    isTerminal: isTerminalLightspeedJobStatus(job.status),
+  };
+}
+
+function normalizeShopifySyncLogRow(job: PosSyncJobRow): ShopifySyncLogRow {
+  return {
+    ...job,
+    normalizedSyncType: normalizeShopifyJobSyncType(job.sync_type),
     progressPercent: calculateLightspeedJobProgress(job),
     isStale: isLightspeedJobStale(job),
     isTerminal: isTerminalLightspeedJobStatus(job.status),
@@ -932,19 +1103,26 @@ function normalizeJsonStringList(value: Json | null | undefined) {
           label?: unknown;
           value?: unknown;
         };
-        const candidate = [namedEntry.name, namedEntry.label, namedEntry.value].find(
-          (item) => typeof item === "string" && item.trim().length > 0,
-        );
+        const candidate = [
+          namedEntry.name,
+          namedEntry.label,
+          namedEntry.value,
+        ].find((item) => typeof item === "string" && item.trim().length > 0);
 
         return typeof candidate === "string" ? [candidate.trim()] : [];
       }
 
       return [];
     })
-    .filter((entry, index, allEntries) => Boolean(entry) && allEntries.indexOf(entry) === index);
+    .filter(
+      (entry, index, allEntries) =>
+        Boolean(entry) && allEntries.indexOf(entry) === index,
+    );
 }
 
-function isJsonRecord(value: Json | null | undefined): value is Record<string, Json> {
+function isJsonRecord(
+  value: Json | null | undefined,
+): value is Record<string, Json> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
@@ -1012,7 +1190,9 @@ function parseCloverTestErrors(value: Json | null | undefined) {
     return [
       {
         endpoint:
-          typeof candidate.endpoint === "string" ? candidate.endpoint : "unknown",
+          typeof candidate.endpoint === "string"
+            ? candidate.endpoint
+            : "unknown",
         code: typeof candidate.code === "string" ? candidate.code : "ERROR",
         message:
           typeof candidate.message === "string"
@@ -1142,7 +1322,12 @@ export type Ga4DetailData = {
   propertyLabel: string;
   measurementId: string | null;
   googleAccountEmail: string | null;
-  connectionStatus: "connected" | "authorizing" | "error" | "not-connected" | string;
+  connectionStatus:
+    | "connected"
+    | "authorizing"
+    | "error"
+    | "not-connected"
+    | string;
   connectionLabel: string;
   authorizationLabel: string;
   serviceAccountConfigured: boolean;
@@ -1190,9 +1375,32 @@ type ImportJobRecord = {
   id: string;
   status: string;
   created_at: string;
+  started_at: string | null;
   updated_at: string;
   completed_at: string | null;
   report: unknown;
+};
+
+type MarketingImportReportSummary = {
+  contactsImported: number;
+  contactsSkipped: number;
+  contactsFailed: number;
+  segmentsCreated: number;
+  tagsCreated: number;
+  consentsRecorded: number;
+  errors: string[];
+  batchesProcessed: number;
+};
+
+type MarketingImportHistoryEntry = {
+  id: string;
+  startedAt: string | null;
+  completedAt: string | null;
+  status: string;
+  contactsImported: number;
+  segmentsCreated: number;
+  errorCount: number;
+  durationSeconds: number | null;
 };
 
 type MarketingImportFieldRow = {
@@ -1217,6 +1425,7 @@ type MarketingImportDangerZone = {
   description: string;
   confirmDescription: string;
   bullets: string[];
+  safetyNote: string;
 };
 
 export type MarketingImportDetailData = {
@@ -1240,6 +1449,9 @@ export type MarketingImportDetailData = {
   latestImportStartedAt: string | null;
   latestImportCompletedAt: string | null;
   latestImportSummary: string;
+  latestImportReport: MarketingImportReportSummary | null;
+  latestCompletedImport: MarketingImportHistoryEntry | null;
+  importHistory: MarketingImportHistoryEntry[];
   latestImportLabel: string;
   latestImportTone: IntegrationDetailTone;
   contactsImportedAllTime: number;
@@ -1260,6 +1472,7 @@ export type MarketingImportDetailData = {
   timeline: IntegrationDetailTimelineEntry[];
   connectionDetailsRows: MarketingImportFieldRow[];
   capabilityRows: MarketingImportFieldRow[];
+  capabilitiesNote: string | null;
   supportsRevokeToken: boolean;
   supportsValidateConnection: boolean;
   dangerZone: MarketingImportDangerZone;
@@ -1314,11 +1527,7 @@ type EmailInfrastructureDnsStatus = {
   purpose: string;
   required: boolean;
   verified: boolean;
-  verificationState:
-    | "verified"
-    | "incorrect"
-    | "missing"
-    | "not-configured";
+  verificationState: "verified" | "incorrect" | "missing" | "not-configured";
   statusLabel: string;
   statusTone: IntegrationDetailTone;
   statusReason: string;
@@ -1408,6 +1617,32 @@ type DetailResult = {
   model: IntegrationDetailModel;
   targetPath?: string;
   requestPath?: string;
+  shopifyConnection?: {
+    id: string;
+    shop_domain: string;
+    shop_name: string | null;
+    shop_owner: string | null;
+    shop_email: string | null;
+    scope: string | null;
+    status: string | null;
+    connected_at: string | null;
+    last_synced_at: string | null;
+    last_customer_sync: string | null;
+    last_sales_sync: string | null;
+    last_product_sync: string | null;
+    last_webhook_received_at: string | null;
+    customers_synced: number | null;
+    sales_synced: number | null;
+    products_synced: number | null;
+    webhooks_subscribed: boolean | null;
+    webhook_subscription_ids: string[] | null;
+    webhooks_last_checked_at: string | null;
+    webhook_retry_count: number | null;
+    webhook_next_retry_at: string | null;
+    webhook_last_error: string | null;
+    updated_at: string;
+  } | null;
+  shopifyDashboard?: ShopifyDashboardData | null;
   squareConnection?: SquareConnectionRecord | null;
   squareDetail?: SquareDetailData;
   squareDashboard?: SquareDashboardData;
@@ -1423,7 +1658,10 @@ type DetailResult = {
   emailInfrastructureDetail?: EmailInfrastructureDetailData;
   lightspeedDashboard?: LightspeedDashboardData;
   disconnectRef?:
-    | { kind: "square" | "clover" | "lightspeed" | "ga4"; id: string }
+    | {
+        kind: "square" | "clover" | "lightspeed" | "shopify" | "ga4";
+        id: string;
+      }
     | { kind: "provider"; id: string; provider: string }
     | { kind: "meta"; ids: string[] };
 };
@@ -1473,11 +1711,13 @@ const MARKETING_PROVIDER_META: Record<
   mailchimp: {
     label: "Mailchimp",
     slug: "mailchimp",
-    description: "Import audiences, tags, and list structure from Mailchimp.",
+    description:
+      "Import contacts, lists, segments, tags, and consent data from Mailchimp.",
     capabilities: [
-      "Preview available audiences before importing",
-      "Start one-time contact imports into BloomSuite",
-      "Preserve list and segment structure for review",
+      "Import contacts and consent data into BloomSuite CRM",
+      "Bring Mailchimp lists and audiences into import planning",
+      "Import Mailchimp segments as BloomSuite CRM segments",
+      "Preserve tags, groups, and interests during migration",
     ],
     authorizationModelLabel: "OAuth authorization",
     supportsRevokeToken: true,
@@ -1548,6 +1788,86 @@ function getImportReportErrorCount(report: unknown) {
   return Array.isArray(errors) ? errors.length : null;
 }
 
+function getImportReportErrors(report: unknown) {
+  const errors = asObject(report)?.errors;
+
+  if (!Array.isArray(errors)) {
+    return [];
+  }
+
+  return errors.filter((error): error is string => typeof error === "string");
+}
+
+function buildMarketingImportReportSummary(
+  report: unknown,
+): MarketingImportReportSummary | null {
+  const source = asObject(report);
+
+  if (!source) {
+    return null;
+  }
+
+  return {
+    contactsImported: getImportReportCount(report, "contacts_imported") ?? 0,
+    contactsSkipped: getImportReportCount(report, "contacts_skipped") ?? 0,
+    contactsFailed: getImportReportCount(report, "contacts_failed") ?? 0,
+    segmentsCreated: getImportReportCount(report, "segments_created") ?? 0,
+    tagsCreated: getImportReportCount(report, "tags_created") ?? 0,
+    consentsRecorded: getImportReportCount(report, "consents_recorded") ?? 0,
+    errors: getImportReportErrors(report),
+    batchesProcessed: getImportReportCount(report, "batches_processed") ?? 0,
+  };
+}
+
+function isCompletedMarketingImportJob(job: ImportJobRecord) {
+  return job.status?.trim().toLowerCase() === "completed";
+}
+
+function getMarketingImportDurationSeconds(
+  startedAt?: string | null,
+  completedAt?: string | null,
+  fallbackStart?: string | null,
+) {
+  if (!completedAt) {
+    return null;
+  }
+
+  const startValue = startedAt ?? fallbackStart;
+  if (!startValue) {
+    return null;
+  }
+
+  const startedTime = new Date(startValue).getTime();
+  const completedTime = new Date(completedAt).getTime();
+
+  if (Number.isNaN(startedTime) || Number.isNaN(completedTime)) {
+    return null;
+  }
+
+  return Math.max(0, Math.floor((completedTime - startedTime) / 1000));
+}
+
+function buildMarketingImportHistoryEntry(
+  job: ImportJobRecord,
+): MarketingImportHistoryEntry {
+  const report = buildMarketingImportReportSummary(job.report);
+
+  return {
+    id: job.id,
+    startedAt: job.started_at ?? job.created_at,
+    completedAt: job.completed_at,
+    status: job.status,
+    contactsImported: report?.contactsImported ?? 0,
+    segmentsCreated: report?.segmentsCreated ?? 0,
+    errorCount: report?.errors.length ?? 0,
+    durationSeconds: getMarketingImportDurationSeconds(
+      job.started_at,
+      job.completed_at,
+      job.created_at,
+    ),
+  };
+}
+
 function countUniqueArtifacts(
   artifacts: ProviderArtifactRecord[],
   artifactType: string,
@@ -1594,7 +1914,9 @@ function formatMarketingImportStatusLabel(status?: string | null) {
   }
 }
 
-function getMarketingImportStatusTone(status?: string | null): IntegrationDetailTone {
+function getMarketingImportStatusTone(
+  status?: string | null,
+): IntegrationDetailTone {
   switch (status?.trim().toLowerCase()) {
     case "completed":
       return "success";
@@ -1617,18 +1939,40 @@ function getMarketingImportConnectionState(
 ): MarketingImportStatePresentation {
   if (connection?.status === "connected") {
     return {
-      label: provider === "klaviyo" ? "Validated" : "Authorized",
+      label:
+        provider === "klaviyo"
+          ? "Validated"
+          : provider === "mailchimp"
+            ? "Connected"
+            : "Connected",
       subtitle:
         provider === "klaviyo"
           ? "Stored credential is ready for list previews and one-time imports"
-          : "Stored authorization is ready for list previews and one-time imports",
+          : provider === "mailchimp"
+            ? "Mailchimp authorization is active for previews and one-time or periodic imports."
+            : "Stored authorization is ready for list previews and one-time imports",
       tone: "success",
       valueClassName: "text-emerald-600",
     };
   }
 
+  if (connection) {
+    return {
+      label: provider === "klaviyo" ? "Action required" : "Reconnect required",
+      subtitle:
+        provider === "klaviyo"
+          ? "Connect Klaviyo to validate the stored credential before importing"
+          : provider === "mailchimp"
+            ? "The saved Mailchimp authorization is no longer usable for previews or imports. Reconnect to continue."
+            : "Reconnect this provider before starting new previews or imports.",
+      tone: provider === "mailchimp" ? "danger" : "warning",
+      valueClassName:
+        provider === "mailchimp" ? "text-rose-600" : "text-amber-600",
+    };
+  }
+
   return {
-    label: "Action required",
+    label: "Not connected",
     subtitle:
       provider === "klaviyo"
         ? "Connect Klaviyo to validate the stored credential before importing"
@@ -1646,29 +1990,56 @@ function buildMarketingImportCapabilityRows(
   if (provider === "mailchimp") {
     return [
       {
-        label: "Audience Lists",
-        value: formatCount(listCount),
+        label: "Contacts",
+        value: "Available to import",
+        description: "Mailchimp contacts can be imported into BloomSuite CRM.",
+        tone: "success",
+      },
+      {
+        label: "Tags",
+        value: "Available to import",
+        description: "Mailchimp tags are preserved during the import flow.",
+        tone: "success",
+      },
+      {
+        label: "Lists & Audiences",
+        value: "Available to import",
         description:
           listCount > 0
-            ? "Cached Mailchimp audiences are available for preview and import planning."
+            ? `${formatCount(listCount)} cached list${listCount === 1 ? "" : "s"} available for preview and import.`
             : "Preview lists to cache Mailchimp audience metadata.",
-        tone: listCount > 0 ? "success" : "neutral",
+        tone: "success",
       },
       {
-        label: "Tags and Segments",
-        value: formatCount(segmentCount),
+        label: "Segments",
+        value: "Available to import",
         description:
           segmentCount > 0
-            ? "Mailchimp segments and tags are available for import review."
-            : "Segment artifacts will appear after list preview when available.",
-        tone: segmentCount > 0 ? "success" : "neutral",
+            ? `${formatCount(segmentCount)} cached segment${segmentCount === 1 ? "" : "s"} ready for import planning.`
+            : "Segments are imported as BloomSuite CRM segments when selected.",
+        tone: "success",
       },
       {
-        label: "Consent History",
-        value: "Available",
+        label: "Consent status",
+        value: "Available to import",
         description:
           "Mailchimp email consent state can be carried with imported contacts.",
         tone: "success",
+      },
+      {
+        label: "Groups / Interests",
+        value: "Available to import",
+        description:
+          "Mailchimp groups and interests can be preserved as part of the migration surface.",
+        tone: "success",
+      },
+      {
+        label: "Live sync",
+        value: "Not available",
+        description:
+          "Mailchimp is available for one-time or periodic import, not live two-way sync.",
+        tone: "neutral",
+        valueClassName: "text-slate-600",
       },
     ];
   }
@@ -1733,8 +2104,27 @@ function buildMarketingImportDangerZone(
   providerLabel: string,
   authorizationModelLabel: string,
 ): MarketingImportDangerZone {
+  if (provider === "mailchimp") {
+    return {
+      title: "Disconnect Mailchimp",
+      description:
+        "Remove BloomSuite's access to your Mailchimp account and stop future Mailchimp imports.",
+      confirmDescription:
+        "Disconnecting Mailchimp revokes the saved authorization, clears cached list and segment data, and prevents future previews or imports until Mailchimp is connected again.",
+      bullets: [
+        "Remove BloomSuite's access to your Mailchimp account",
+        "Prevent future imports from Mailchimp",
+        "Clear cached list and segment data",
+      ],
+      safetyNote:
+        "Previously imported contacts remain in your BloomSuite CRM. Your Mailchimp account is not affected.",
+    };
+  }
+
   const revokeLabel =
-    provider === "klaviyo" ? "stored credential" : authorizationModelLabel.toLowerCase();
+    provider === "klaviyo"
+      ? "stored credential"
+      : authorizationModelLabel.toLowerCase();
 
   return {
     title: `Disconnect ${providerLabel}`,
@@ -1748,6 +2138,8 @@ function buildMarketingImportDangerZone(
       "New one-time imports cannot be started while the connection is removed.",
       "Previously imported CRM records are not deleted from BloomSuite.",
     ],
+    safetyNote:
+      "Previously imported CRM records remain in BloomSuite after the connection is removed.",
   };
 }
 
@@ -1838,27 +2230,59 @@ function buildMarketingImportDetailData(
 ): MarketingImportDetailData {
   const providerMeta = MARKETING_PROVIDER_META[provider];
   const latestImport = importJobs[0] ?? null;
+  const completedImportJobs = importJobs
+    .filter(isCompletedMarketingImportJob)
+    .sort((left, right) => {
+      const leftTime = new Date(left.completed_at ?? left.updated_at).getTime();
+      const rightTime = new Date(
+        right.completed_at ?? right.updated_at,
+      ).getTime();
+
+      return rightTime - leftTime;
+    });
+  const latestCompletedJob = completedImportJobs[0] ?? null;
+  const latestImportReport = buildMarketingImportReportSummary(
+    latestCompletedJob?.report,
+  );
+  const latestCompletedImport = latestCompletedJob
+    ? buildMarketingImportHistoryEntry(latestCompletedJob)
+    : null;
+  const importHistory = completedImportJobs
+    .slice(0, 5)
+    .map(buildMarketingImportHistoryEntry);
   const accountName =
     connection?.provider_account_name ??
-    getMetadataString(connection?.metadata, ["accountname", "name", "organization_name"]);
-  const contactEmail = getMetadataString(connection?.metadata, [
-    "contact_email",
-    "email",
-    "login_email",
-  ]) ?? getMetadataString(asObject(connection?.metadata)?.login, ["email"]);
+    getMetadataString(connection?.metadata, [
+      "accountname",
+      "name",
+      "organization_name",
+    ]);
+  const contactEmail =
+    getMetadataString(connection?.metadata, [
+      "contact_email",
+      "email",
+      "login_email",
+    ]) ?? getMetadataString(asObject(connection?.metadata)?.login, ["email"]);
   const listCount = countUniqueArtifacts(artifacts, "list");
   const segmentCount = countUniqueArtifacts(artifacts, "segment");
-  const contactsImported = getImportReportCount(latestImport?.report, "contacts_imported");
-  const segmentsCreated = getImportReportCount(latestImport?.report, "segments_created");
-  const errorCount = getImportReportErrorCount(latestImport?.report);
+  const contactsImported = latestImportReport?.contactsImported ?? null;
+  const segmentsCreated = latestImportReport?.segmentsCreated ?? null;
+  const errorCount = latestImportReport?.errors.length ?? null;
   const contactsImportedAllTime = sumImportReportCount(
-    importJobs,
+    completedImportJobs,
     "contacts_imported",
   );
-  const connectionState = getMarketingImportConnectionState(provider, connection);
-  const latestImportLabel = formatMarketingImportStatusLabel(latestImport?.status);
-  const latestImportTone = getMarketingImportStatusTone(latestImport?.status);
-  const latestImportSummary = latestImport
+  const connectionState = getMarketingImportConnectionState(
+    provider,
+    connection,
+  );
+  const latestImportLabel = formatMarketingImportStatusLabel(
+    latestCompletedJob?.status,
+  );
+  const latestImportTone = getMarketingImportStatusTone(
+    latestCompletedJob?.status,
+  );
+  const latestImportSummary = latestCompletedImport
     ? [
         contactsImported !== null
           ? `${contactsImported.toLocaleString()} contacts imported`
@@ -1867,75 +2291,176 @@ function buildMarketingImportDetailData(
         errorCount !== null ? `${errorCount} errors` : null,
       ]
         .filter((value): value is string => Boolean(value))
-        .join(" • ") || `Latest import status: ${latestImport.status}`
+        .join(" • ") || `Latest import status: ${latestCompletedImport.status}`
     : "No import job has been recorded yet.";
   const authorizationLabel =
-    provider === "klaviyo"
-      ? connection
-        ? "API key configured"
-        : "API key required"
-      : connection
-        ? "OAuth authorization active"
-        : "OAuth authorization required";
+    provider === "mailchimp"
+      ? connectionState.label
+      : provider === "klaviyo"
+        ? connection
+          ? "API key configured"
+          : "API key required"
+        : connection
+          ? connectionState.label
+          : "OAuth authorization required";
   const authorizationSummary =
     provider === "klaviyo"
       ? connection
         ? "Klaviyo credentials are stored securely for preview and import flows. The raw API key is never shown from this page."
         : "Connect Klaviyo to validate the stored credential before importing profiles."
-      : connection
-        ? `${providerMeta.label} authorization is active for previews and one-time imports.`
-        : `Connect ${providerMeta.label} to authorize list previews and one-time contact imports.`;
-  const authorizationRows: IntegrationDetailRow[] = [
-    {
-      label: providerMeta.authorizationModelLabel,
-      value: authorizationLabel,
-      tone: connection ? "success" : "warning",
-      tooltip: authorizationSummary,
-    },
-    {
-      label: "Connection updated",
-      value: connection?.updated_at ? "Recently updated" : "No update recorded",
-      timestamp: connection?.updated_at ?? connection?.connected_at ?? null,
-      tone: connection ? "neutral" : "warning",
-      tooltip:
-        connection?.updated_at ?? connection?.connected_at
-          ? "Latest connection metadata refresh recorded for this provider."
-          : "No provider connection metadata is stored yet.",
-    },
-  ];
+      : provider === "mailchimp"
+        ? connection?.status === "connected"
+          ? "Mailchimp is connected and ready for previews and imports."
+          : connection
+            ? "Reconnect Mailchimp to restore preview and import access."
+            : "Connect Mailchimp to authorize previews and one-time contact imports."
+        : connection
+          ? `${providerMeta.label} authorization is active for previews and one-time imports.`
+          : `Connect ${providerMeta.label} to authorize list previews and one-time contact imports.`;
+  const authorizationRows: IntegrationDetailRow[] =
+    provider === "mailchimp"
+      ? [
+          {
+            label: "Status",
+            value: connectionState.label,
+            tone: connectionState.tone,
+            tooltip: authorizationSummary,
+          },
+          {
+            label: "Connected since",
+            value: connection?.connected_at ? "Connected" : "Not connected",
+            timestamp:
+              connection?.connected_at ?? connection?.created_at ?? null,
+            tone: connection?.connected_at ? "success" : "warning",
+            tooltip: connection?.connected_at
+              ? "When BloomSuite last established the Mailchimp connection for this tenant."
+              : "Mailchimp has not been connected for this tenant yet.",
+          },
+          {
+            label: "Mailchimp account",
+            value: accountName ?? "Not available",
+            tone: accountName ? "neutral" : "warning",
+            tooltip:
+              "Mailchimp account metadata stored with the current connection.",
+          },
+        ]
+      : [
+          {
+            label: providerMeta.authorizationModelLabel,
+            value: authorizationLabel,
+            tone: connection ? "success" : "warning",
+            tooltip: authorizationSummary,
+          },
+          {
+            label: "Connection updated",
+            value: connection?.updated_at
+              ? "Recently updated"
+              : "No update recorded",
+            timestamp:
+              connection?.updated_at ?? connection?.connected_at ?? null,
+            tone: connection ? "neutral" : "warning",
+            tooltip:
+              (connection?.updated_at ?? connection?.connected_at)
+                ? "Latest connection metadata refresh recorded for this provider."
+                : "No provider connection metadata is stored yet.",
+          },
+        ];
   const latestImportActivityAt =
-    latestImport?.completed_at ?? latestImport?.updated_at ?? latestImport?.created_at ?? null;
-  const importHistoryRows: IntegrationDetailRow[] = [
-    {
-      label: "Latest Import",
-      value: latestImportLabel,
-      tone: latestImport ? latestImportTone : "warning",
-      tooltip: latestImportSummary,
-    },
-    {
-      label: "Last import activity",
-      value: latestImportActivityAt ? "Activity recorded" : "No import activity yet",
-      timestamp: latestImportActivityAt,
-      tone: latestImport ? latestImportTone : "warning",
-      tooltip: latestImportSummary,
-    },
-    {
-      label: "Contacts Imported",
-      value: formatCount(contactsImportedAllTime),
-      tone: contactsImportedAllTime > 0 ? "success" : "neutral",
-      tooltip: `${importJobs.length} import job${importJobs.length === 1 ? "" : "s"} recorded for this provider.`,
-    },
-  ];
-  const timeline: IntegrationDetailTimelineEntry[] = [
-    {
-      key: `${provider}-connected`,
-      label: connection ? `${providerMeta.label} connected` : `${providerMeta.label} not connected`,
-      timestamp: connection?.connected_at ?? connection?.created_at ?? null,
-      tone: connection ? "success" : "warning",
-    },
-  ];
+    latestCompletedJob?.completed_at ??
+    latestCompletedJob?.updated_at ??
+    latestCompletedJob?.created_at ??
+    null;
+  const importHistoryRows: IntegrationDetailRow[] =
+    provider === "mailchimp"
+      ? [
+          {
+            label: "Status",
+            value: latestCompletedImport
+              ? latestCompletedImport.contactsImported > 0
+                ? `${latestCompletedImport.contactsImported.toLocaleString()} contacts imported`
+                : "Completed"
+              : "No imports yet",
+            tone: latestCompletedImport
+              ? latestCompletedImport.contactsImported > 0
+                ? "success"
+                : "neutral"
+              : "neutral",
+            tooltip: latestImportSummary,
+          },
+          {
+            label: "Last import",
+            value: latestImportActivityAt
+              ? "Import recorded"
+              : "No imports yet",
+            timestamp: latestImportActivityAt,
+            tone: latestCompletedImport ? latestImportTone : "neutral",
+            tooltip: latestImportSummary,
+          },
+          {
+            label: "Total contacts",
+            value: formatCount(contactsImportedAllTime),
+            tone: contactsImportedAllTime > 0 ? "success" : "neutral",
+            tooltip: `${completedImportJobs.length} completed import job${completedImportJobs.length === 1 ? "" : "s"} recorded for this provider.`,
+          },
+        ]
+      : [
+          {
+            label: "Latest Import",
+            value: latestImportLabel,
+            tone: latestCompletedImport ? latestImportTone : "warning",
+            tooltip: latestImportSummary,
+          },
+          {
+            label: "Last import activity",
+            value: latestImportActivityAt
+              ? "Activity recorded"
+              : "No import activity yet",
+            timestamp: latestImportActivityAt,
+            tone: latestCompletedImport ? latestImportTone : "warning",
+            tooltip: latestImportSummary,
+          },
+          {
+            label: "Contacts Imported",
+            value: formatCount(contactsImportedAllTime),
+            tone: contactsImportedAllTime > 0 ? "success" : "neutral",
+            tooltip: `${completedImportJobs.length} import job${completedImportJobs.length === 1 ? "" : "s"} recorded for this provider.`,
+          },
+        ];
+  const timeline: IntegrationDetailTimelineEntry[] =
+    provider === "mailchimp"
+      ? [
+          ...importHistory.map((entry) => ({
+            key: `${provider}-${entry.id}`,
+            label:
+              entry.segmentsCreated > 0
+                ? `${entry.contactsImported.toLocaleString()} contacts imported · ${entry.segmentsCreated} segments created`
+                : `${entry.contactsImported.toLocaleString()} contacts imported`,
+            timestamp: entry.completedAt,
+            tone: entry.errorCount > 0 ? "warning" : "success",
+          })),
+          {
+            key: `${provider}-connected`,
+            label: connection
+              ? `${providerMeta.label} connected`
+              : `${providerMeta.label} not connected`,
+            timestamp:
+              connection?.connected_at ?? connection?.created_at ?? null,
+            tone: connection ? "success" : "warning",
+          },
+        ]
+      : [
+          {
+            key: `${provider}-connected`,
+            label: connection
+              ? `${providerMeta.label} connected`
+              : `${providerMeta.label} not connected`,
+            timestamp:
+              connection?.connected_at ?? connection?.created_at ?? null,
+            tone: connection ? "success" : "warning",
+          },
+        ];
 
-  if (latestImport?.created_at) {
+  if (provider !== "mailchimp" && latestImport?.created_at) {
     timeline.push({
       key: `${provider}-import-started`,
       label: `${providerMeta.label} import started`,
@@ -1944,7 +2469,7 @@ function buildMarketingImportDetailData(
     });
   }
 
-  if (latestImport?.completed_at) {
+  if (provider !== "mailchimp" && latestImport?.completed_at) {
     timeline.push({
       key: `${provider}-import-completed`,
       label:
@@ -1956,41 +2481,70 @@ function buildMarketingImportDetailData(
     });
   }
 
-  const connectionDetailsRows: MarketingImportFieldRow[] = [
-    {
-      label: "Provider",
-      value: providerMeta.label,
-    },
-    {
-      label: "Authorization",
-      value: connectionState.label,
-      description: connectionState.subtitle,
-      tone: connectionState.tone,
-      valueClassName: connectionState.valueClassName,
-    },
-    {
-      label: "Account Name",
-      value: accountName ?? "Not connected yet",
-    },
-    {
-      label: "Account ID",
-      value: connection?.provider_account_id ?? "Not available",
-      copyValue: connection?.provider_account_id ?? null,
-      copyLabel: "Account ID",
-    },
-    {
-      label: "Contact Email",
-      value: contactEmail ?? "Not available",
-    },
-    {
-      label: "Connected Since",
-      value: connection?.connected_at ?? connection?.created_at ?? "Not connected",
-      description:
-        connection?.connected_at || connection?.created_at
-          ? "Stored connection timestamp for this tenant."
-          : "No provider connection is stored yet.",
-    },
-  ];
+  const connectionDetailsRows: MarketingImportFieldRow[] =
+    provider === "mailchimp"
+      ? [
+          {
+            label: "Authorization Status",
+            value: connectionState.label,
+            description: connectionState.subtitle,
+            tone: connectionState.tone,
+            valueClassName: connectionState.valueClassName,
+          },
+          {
+            label: "Mailchimp Account",
+            value: accountName ?? "Not available",
+          },
+          {
+            label: "Connected Since",
+            value:
+              connection?.connected_at ??
+              connection?.created_at ??
+              "Not connected",
+            description:
+              connection?.connected_at || connection?.created_at
+                ? "Stored Mailchimp connection timestamp for this tenant."
+                : "No Mailchimp connection is stored yet.",
+          },
+        ]
+      : [
+          {
+            label: "Provider",
+            value: providerMeta.label,
+          },
+          {
+            label: "Authorization",
+            value: connectionState.label,
+            description: connectionState.subtitle,
+            tone: connectionState.tone,
+            valueClassName: connectionState.valueClassName,
+          },
+          {
+            label: "Account Name",
+            value: accountName ?? "Not connected yet",
+          },
+          {
+            label: "Account ID",
+            value: connection?.provider_account_id ?? "Not available",
+            copyValue: connection?.provider_account_id ?? null,
+            copyLabel: "Account ID",
+          },
+          {
+            label: "Contact Email",
+            value: contactEmail ?? "Not available",
+          },
+          {
+            label: "Connected Since",
+            value:
+              connection?.connected_at ??
+              connection?.created_at ??
+              "Not connected",
+            description:
+              connection?.connected_at || connection?.created_at
+                ? "Stored connection timestamp for this tenant."
+                : "No provider connection is stored yet.",
+          },
+        ];
 
   if (provider === "klaviyo") {
     connectionDetailsRows.push({
@@ -2000,14 +2554,13 @@ function buildMarketingImportDetailData(
         "Stored securely for import workflows. The raw API key is never displayed here.",
       tone: connection ? "success" : "warning",
     });
-  } else {
+  } else if (provider !== "mailchimp") {
     connectionDetailsRows.push({
       label: "Token Expiry",
       value: connection?.token_expires_at ?? "No expiry reported",
-      description:
-        connection?.token_expires_at
-          ? "OAuth token expiry reported by the provider connection."
-          : "This provider did not report a token expiry for the current connection.",
+      description: connection?.token_expires_at
+        ? "OAuth token expiry reported by the provider connection."
+        : "This provider did not report a token expiry for the current connection.",
       tone: connection?.token_expires_at ? "neutral" : "warning",
     });
   }
@@ -2017,6 +2570,10 @@ function buildMarketingImportDetailData(
     listCount,
     segmentCount,
   );
+  const capabilitiesNote =
+    provider === "mailchimp"
+      ? "Mailchimp is available for one-time or periodic import, not live two-way sync."
+      : null;
   const dangerZone = buildMarketingImportDangerZone(
     provider,
     providerMeta.label,
@@ -2033,26 +2590,30 @@ function buildMarketingImportDetailData(
     accountId: connection?.provider_account_id ?? null,
     contactEmail: contactEmail ?? null,
     connectionStatus: connection?.status ?? "not-connected",
-    connectionLabel: connection ? "Connected" : "Not connected",
+    connectionLabel: connectionState.label,
     connectedAt: connection?.connected_at ?? connection?.created_at ?? null,
     updatedAt:
-      latestImport?.completed_at ??
-      latestImport?.updated_at ??
+      latestCompletedJob?.completed_at ??
+      latestCompletedJob?.updated_at ??
       connection?.updated_at ??
       connection?.connected_at ??
       null,
     tokenExpiresAt: connection?.token_expires_at ?? null,
     listCount,
     segmentCount,
-    latestImportId: latestImport?.id ?? null,
-    latestImportStatus: latestImport?.status ?? null,
-    latestImportStartedAt: latestImport?.created_at ?? null,
-    latestImportCompletedAt: latestImport?.completed_at ?? null,
+    latestImportId: latestCompletedJob?.id ?? null,
+    latestImportStatus: latestCompletedJob?.status ?? null,
+    latestImportStartedAt:
+      latestCompletedJob?.started_at ?? latestCompletedJob?.created_at ?? null,
+    latestImportCompletedAt: latestCompletedJob?.completed_at ?? null,
     latestImportSummary,
+    latestImportReport,
+    latestCompletedImport,
+    importHistory,
     latestImportLabel,
     latestImportTone,
     contactsImportedAllTime,
-    importJobCount: importJobs.length,
+    importJobCount: completedImportJobs.length,
     importFlowPath: `/integrations/migrations?provider=${provider}`,
     previewListsPath: `/integrations/migrations?provider=${provider}&step=choose`,
     purposeLabel: "Contact Import",
@@ -2069,6 +2630,7 @@ function buildMarketingImportDetailData(
     timeline,
     connectionDetailsRows,
     capabilityRows,
+    capabilitiesNote,
     supportsRevokeToken: providerMeta.supportsRevokeToken,
     supportsValidateConnection: providerMeta.supportsValidateConnection,
     dangerZone,
@@ -2300,8 +2862,7 @@ function buildEmailInfrastructureBanner(
     return {
       tone: "warning" as const,
       title: "DNS records need correction",
-      description:
-        `At least one required DNS record is present with the wrong value. Review the records below or open ${providerModeLabel.toLowerCase()} to repair the domain.`,
+      description: `At least one required DNS record is present with the wrong value. Review the records below or open ${providerModeLabel.toLowerCase()} to repair the domain.`,
     };
   }
 
@@ -2414,54 +2975,49 @@ function buildEmailInfrastructureVerificationMap(
       continue;
     }
 
-    verificationMap.set(
-      `${type}:${normalizeInfrastructureValue(name)}`,
-      {
-        verificationState:
-          Boolean(source?.dns_verified) || source?.status === "verified"
-            ? "verified"
-            : Boolean(source?.has_conflict)
-              ? "incorrect"
-              : "missing",
-        lastCheckedAt: null,
-        statusReason:
-          typeof source?.status === "string"
-            ? `Provider reported ${source.status}`
-            : Boolean(source?.has_conflict)
-              ? "Provider reported a conflicting value"
-              : "Provider has not verified this record yet",
-      },
-    );
+    verificationMap.set(`${type}:${normalizeInfrastructureValue(name)}`, {
+      verificationState:
+        Boolean(source?.dns_verified) || source?.status === "verified"
+          ? "verified"
+          : Boolean(source?.has_conflict)
+            ? "incorrect"
+            : "missing",
+      lastCheckedAt: null,
+      statusReason:
+        typeof source?.status === "string"
+          ? `Provider reported ${source.status}`
+          : Boolean(source?.has_conflict)
+            ? "Provider reported a conflicting value"
+            : "Provider has not verified this record yet",
+    });
   }
 
   for (const entry of directChecks) {
     const source = asObject(entry);
-    const type = typeof source?.record_type === "string" ? source.record_type : null;
+    const type =
+      typeof source?.record_type === "string" ? source.record_type : null;
     const fqdn = typeof source?.fqdn === "string" ? source.fqdn : null;
 
     if (!type || !fqdn) {
       continue;
     }
 
-    verificationMap.set(
-      `${type}:${normalizeInfrastructureValue(fqdn)}`,
-      {
-        verificationState: Boolean(source?.verified)
-          ? "verified"
-          : Boolean(source?.found)
-            ? "incorrect"
-            : "missing",
-        lastCheckedAt:
-          typeof source?.last_checked_at === "string"
-            ? source.last_checked_at
-            : null,
-        statusReason: Boolean(source?.verified)
-          ? "Public DNS matches the expected value"
-          : Boolean(source?.found)
-            ? "Public DNS found a record, but the value does not match"
-            : "Public DNS did not return the expected record",
-      },
-    );
+    verificationMap.set(`${type}:${normalizeInfrastructureValue(fqdn)}`, {
+      verificationState: Boolean(source?.verified)
+        ? "verified"
+        : Boolean(source?.found)
+          ? "incorrect"
+          : "missing",
+      lastCheckedAt:
+        typeof source?.last_checked_at === "string"
+          ? source.last_checked_at
+          : null,
+      statusReason: Boolean(source?.verified)
+        ? "Public DNS matches the expected value"
+        : Boolean(source?.found)
+          ? "Public DNS found a record, but the value does not match"
+          : "Public DNS did not return the expected record",
+    });
   }
 
   return verificationMap;
@@ -2475,11 +3031,14 @@ function buildEmailInfrastructureDetailData(
   deliverabilitySummary: Record<string, unknown> | null,
 ): EmailInfrastructureDetailData {
   const primaryDomain =
-    domains.find((domain) => ["active", "warming_up"].includes(domain.status)) ??
+    domains.find((domain) =>
+      ["active", "warming_up"].includes(domain.status),
+    ) ??
     domains.find((domain) => Boolean(domain.verified_at)) ??
     domains[0] ??
     null;
-  const verificationMap = buildEmailInfrastructureVerificationMap(primaryDomain);
+  const verificationMap =
+    buildEmailInfrastructureVerificationMap(primaryDomain);
   const dnsStatuses = dnsRecords.map((record) => {
     const match = verificationMap.get(
       `${record.type}:${normalizeInfrastructureValue(record.name)}`,
@@ -2490,28 +3049,40 @@ function buildEmailInfrastructureDetailData(
       ...record,
       verified: verificationState === "verified",
       verificationState,
-      statusLabel: getInfrastructureLabelFromVerificationState(verificationState),
+      statusLabel:
+        getInfrastructureLabelFromVerificationState(verificationState),
       statusTone: getInfrastructureToneFromVerificationState(verificationState),
       statusReason:
-        match?.statusReason ?? "BloomSuite has not verified this DNS record yet",
+        match?.statusReason ??
+        "BloomSuite has not verified this DNS record yet",
       lastCheckedAt: match?.lastCheckedAt ?? null,
     };
   });
   const verifiedDomainCount = domains.filter(
-    (domain) => Boolean(domain.verified_at) || ["active", "warming_up"].includes(domain.status),
+    (domain) =>
+      Boolean(domain.verified_at) ||
+      ["active", "warming_up"].includes(domain.status),
   ).length;
-  const dnsVerifiedCount = dnsStatuses.filter((record) => record.verified).length;
+  const dnsVerifiedCount = dnsStatuses.filter(
+    (record) => record.verified,
+  ).length;
   const providerLabel = getEmailInfrastructureProviderLabel(primaryDomain);
-  const providerModeLabel = getEmailInfrastructureProviderModeLabel(primaryDomain);
-  const environmentLabel = getEmailInfrastructureEnvironmentLabel(primaryDomain);
-  const primaryStatusLabel = getEmailInfrastructureStatusLabel(primaryDomain?.status);
+  const providerModeLabel =
+    getEmailInfrastructureProviderModeLabel(primaryDomain);
+  const environmentLabel =
+    getEmailInfrastructureEnvironmentLabel(primaryDomain);
+  const primaryStatusLabel = getEmailInfrastructureStatusLabel(
+    primaryDomain?.status,
+  );
   const healthState = getEmailInfrastructureHealthStatus(healthChecks);
   const reputationScore =
     typeof healthDashboard?.reputation_score === "number"
       ? healthDashboard.reputation_score
       : null;
   const sent24h =
-    typeof healthDashboard?.sent_24h === "number" ? healthDashboard.sent_24h : 0;
+    typeof healthDashboard?.sent_24h === "number"
+      ? healthDashboard.sent_24h
+      : 0;
   const delivered24h =
     typeof healthDashboard?.delivered_24h === "number"
       ? healthDashboard.delivered_24h
@@ -2545,7 +3116,9 @@ function buildEmailInfrastructureDetailData(
     providerModeLabel,
   );
   const purposeRows = ["spf", "dkim", "dmarc"].map((purpose) => {
-    const matchingRecords = dnsStatuses.filter((record) => record.purpose === purpose);
+    const matchingRecords = dnsStatuses.filter(
+      (record) => record.purpose === purpose,
+    );
     const hasIncorrect = matchingRecords.some(
       (record) => record.verificationState === "incorrect",
     );
@@ -2554,7 +3127,9 @@ function buildEmailInfrastructureDetailData(
     );
     const allVerified =
       matchingRecords.length > 0 &&
-      matchingRecords.every((record) => record.verificationState === "verified");
+      matchingRecords.every(
+        (record) => record.verificationState === "verified",
+      );
     const verificationState =
       matchingRecords.length === 0
         ? "not-configured"
@@ -2582,10 +3157,9 @@ function buildEmailInfrastructureDetailData(
     {
       label: "Primary Domain",
       value: primaryDomain?.domain ?? "No sending domain configured",
-      description:
-        primaryDomain?.created_at
-          ? `Added ${formatIsoDate(primaryDomain.created_at)}`
-          : "Open domain settings to add a sending domain",
+      description: primaryDomain?.created_at
+        ? `Added ${formatIsoDate(primaryDomain.created_at)}`
+        : "Open domain settings to add a sending domain",
       tone: primaryDomain ? "success" : "warning",
       copyValue: primaryDomain?.domain ?? null,
       copyLabel: "Primary domain",
@@ -2608,11 +3182,12 @@ function buildEmailInfrastructureDetailData(
     },
     {
       label: "Verified At",
-      value: primaryDomain?.verified_at ? formatIsoDate(primaryDomain.verified_at) : "Not verified yet",
-      description:
-        primaryDomain?.last_verify_attempt_at
-          ? `Last DNS check ${formatIsoDate(primaryDomain.last_verify_attempt_at)}`
-          : "No verification attempts recorded yet",
+      value: primaryDomain?.verified_at
+        ? formatIsoDate(primaryDomain.verified_at)
+        : "Not verified yet",
+      description: primaryDomain?.last_verify_attempt_at
+        ? `Last DNS check ${formatIsoDate(primaryDomain.last_verify_attempt_at)}`
+        : "No verification attempts recorded yet",
       tone: primaryDomain?.verified_at ? "success" : "warning",
     },
   ];
@@ -2630,7 +3205,8 @@ function buildEmailInfrastructureDetailData(
         label: "Status",
         value: primaryStatusLabel,
         tone:
-          primaryDomain && ["active", "warming_up"].includes(primaryDomain.status)
+          primaryDomain &&
+          ["active", "warming_up"].includes(primaryDomain.status)
             ? "success"
             : primaryDomain
               ? "warning"
@@ -2677,9 +3253,7 @@ function buildEmailInfrastructureDetailData(
         label: "Delivery",
         value: `${formatRate(bounceRate24h)} bounce • ${formatRate(complaintRate24h)} complaint`,
         tone:
-          bounceRate24h <= 2 && complaintRate24h <= 0.3
-            ? "success"
-            : "warning",
+          bounceRate24h <= 2 && complaintRate24h <= 0.3 ? "success" : "warning",
         tooltip:
           deliveryRate30d > 0
             ? `${deliveryRate30d.toFixed(1)}% delivered over the last 30 days`
@@ -2690,19 +3264,22 @@ function buildEmailInfrastructureDetailData(
   const setupToolRows: EmailInfrastructureSetupTool[] = [
     {
       label: "Domain Management",
-      description: "Review domains, default sending settings, and DNS evidence.",
+      description:
+        "Review domains, default sending settings, and DNS evidence.",
       path: "/domains",
       tone: "neutral",
     },
     {
       label: "Domain Connect Setup",
-      description: "Open the email sending setup flow and Domain Connect wizard.",
+      description:
+        "Open the email sending setup flow and Domain Connect wizard.",
       path: "/crm/settings/email-sending",
       tone: "neutral",
     },
     {
       label: "Sending Logs",
-      description: "Inspect sending activity, recent failures, and delivery events.",
+      description:
+        "Inspect sending activity, recent failures, and delivery events.",
       path: "/activity?q=email",
       tone: "neutral",
     },
@@ -2943,15 +3520,23 @@ function summarizeCounts(entries: Array<[string, number | null | undefined]>) {
 }
 
 function getMostRecentTimestamp(values: Array<string | null | undefined>) {
-  return values
-    .filter((value): value is string => Boolean(value))
-    .sort((left, right) => new Date(right).getTime() - new Date(left).getTime())[0] ?? null;
+  return (
+    values
+      .filter((value): value is string => Boolean(value))
+      .sort(
+        (left, right) => new Date(right).getTime() - new Date(left).getTime(),
+      )[0] ?? null
+  );
 }
 
 function getEarliestTimestamp(values: Array<string | null | undefined>) {
-  return values
-    .filter((value): value is string => Boolean(value))
-    .sort((left, right) => new Date(left).getTime() - new Date(right).getTime())[0] ?? null;
+  return (
+    values
+      .filter((value): value is string => Boolean(value))
+      .sort(
+        (left, right) => new Date(left).getTime() - new Date(right).getTime(),
+      )[0] ?? null
+  );
 }
 
 function isTimestampExpired(timestamp?: string | null) {
@@ -2985,8 +3570,8 @@ function buildMetaAssetRow(
 ): MetaAssetRow {
   const externalId =
     platform === "facebook"
-      ? connection.page_id ?? connection.platform_account_id
-      : connection.platform_account_id ?? connection.page_id;
+      ? (connection.page_id ?? connection.platform_account_id)
+      : (connection.platform_account_id ?? connection.page_id);
 
   return {
     id: connection.id,
@@ -3032,7 +3617,9 @@ function buildMetaDetailData(
   const authorizationStatus =
     activeConnections.length === 0
       ? "not-connected"
-      : activeConnections.some((connection) => !isTimestampExpired(connection.expires_at))
+      : activeConnections.some(
+            (connection) => !isTimestampExpired(connection.expires_at),
+          )
         ? "authorized"
         : "expired";
   const connectedPlatforms = [
@@ -3103,16 +3690,20 @@ async function launchMetaAuthorizationFlow() {
   authUrl.searchParams.set("state", combinedState);
   authUrl.searchParams.set("auth_type", "rerequest");
 
-  const oauthTab = window.open(authUrl.toString(), "_blank", "noopener,noreferrer");
+  const oauthTab = window.open(
+    authUrl.toString(),
+    "_blank",
+    "noopener,noreferrer",
+  );
 
   if (!oauthTab) {
-    throw new Error(
-      "Please allow new tabs to connect Meta, then try again.",
-    );
+    throw new Error("Please allow new tabs to connect Meta, then try again.");
   }
 }
 
-function buildFallbackResult(seed: ReturnType<typeof getIntegrationSeed>): DetailResult | null {
+function buildFallbackResult(
+  seed: ReturnType<typeof getIntegrationSeed>,
+): DetailResult | null {
   if (!seed) {
     return null;
   }
@@ -3155,15 +3746,26 @@ export function useIntegrationDetailData(
   const { data: isSuperAdmin = false } = useIsSuperAdmin();
   const queryClient = useQueryClient();
   const seed = slug ? getIntegrationSeed(slug) : null;
-  const [submittedInterestKey, setSubmittedInterestKey] = useState<string | null>(null);
-  const [lightspeedTrackedJobIds, setLightspeedTrackedJobIds] = useState<string[]>([]);
-  const [lightspeedJobRowsById, setLightspeedJobRowsById] = useState<Record<string, PosSyncJobRow>>({});
+  const [submittedInterestKey, setSubmittedInterestKey] = useState<
+    string | null
+  >(null);
+  const [lightspeedTrackedJobIds, setLightspeedTrackedJobIds] = useState<
+    string[]
+  >([]);
+  const [lightspeedJobRowsById, setLightspeedJobRowsById] = useState<
+    Record<string, PosSyncJobRow>
+  >({});
   const [shouldToastLightspeedCompletion, setShouldToastLightspeedCompletion] =
     useState(false);
   const lastLightspeedTerminalToastRef = useRef<string | null>(null);
 
   const query = useQuery({
-    queryKey: ["integration-detail", slug ?? null, tenant?.id ?? null, user?.id ?? null],
+    queryKey: [
+      "integration-detail",
+      slug ?? null,
+      tenant?.id ?? null,
+      user?.id ?? null,
+    ],
     enabled: Boolean(seed),
     queryFn: async (): Promise<DetailResult | null> => {
       if (!seed) {
@@ -3353,7 +3955,8 @@ export function useIntegrationDetailData(
             model: buildIntegrationDetailModel({
               item,
               status: "connected",
-              contextLabel: connection.retailer_name ?? connection.domain_prefix,
+              contextLabel:
+                connection.retailer_name ?? connection.domain_prefix,
               connectedAt: connection.connected_at,
               lastSyncAt:
                 connection.last_synced_at ??
@@ -3386,6 +3989,111 @@ export function useIntegrationDetailData(
             disconnectRef: { kind: "lightspeed", id: connection.id },
           };
         }
+        case "shopify": {
+          if (!tenant?.id || !user?.id) {
+            return fallback;
+          }
+
+          const response = await (supabase as any)
+            .from("shopify_connections")
+            .select(
+              "id, shop_domain, shop_name, shop_owner, shop_email, scope, status, connected_at, last_synced_at, last_customer_sync, last_sales_sync, last_product_sync, last_webhook_received_at, customers_synced, sales_synced, products_synced, webhooks_subscribed, webhook_subscription_ids, webhooks_last_checked_at, webhook_retry_count, webhook_next_retry_at, webhook_last_error, updated_at",
+            )
+            .eq("tenant_id", tenant.id)
+            .eq("user_id", user.id)
+            .order("updated_at", { ascending: false })
+            .limit(1);
+
+          if (response.error) {
+            throw response.error;
+          }
+
+          const connection = response.data?.[0] ?? null;
+
+          if (!connection) {
+            const item: IntegrationDefinition = {
+              ...seed,
+              status: "available",
+              metaLabel: "OAuth-based Shopify connection",
+            };
+
+            return {
+              item,
+              model: buildIntegrationDetailModel({
+                item,
+                status: "available",
+                contextLabel: "Shopify OAuth install flow",
+                hasWebhookMonitoring: true,
+                syncSummary: "Customers 0 • Products 0 • Orders 0",
+                serviceStateLabel: "Ready to connect",
+                configurationHint:
+                  "Connect Shopify by entering your store domain, completing the Shopify OAuth install, and letting BloomSuite store the encrypted access token for this tenant.",
+                activityHint:
+                  "After the OAuth flow completes, this page will refresh and show the connected merchant, webhook health, and future sync readiness.",
+                canDisconnect: false,
+              }),
+              targetPath: "/integrations/shopify",
+              shopifyConnection: null,
+            };
+          }
+
+          const status =
+            connection.status === "connected" ? "connected" : "available";
+          const detailStatus: IntegrationStatus = "connected";
+          const label = connection.shop_name ?? connection.shop_domain;
+          const item: IntegrationDefinition = {
+            ...seed,
+            status,
+            connectedSince: connection.connected_at,
+            metaLabel: label,
+          };
+
+          return {
+            item,
+            model: buildIntegrationDetailModel({
+              item,
+              status: detailStatus,
+              contextLabel: label,
+              connectedAt: connection.connected_at,
+              lastSyncAt:
+                connection.last_synced_at ??
+                getMostRecentTimestamp([
+                  connection.last_customer_sync,
+                  connection.last_sales_sync,
+                  connection.last_product_sync,
+                ]),
+              lastActivityAt: getMostRecentTimestamp([
+                connection.last_webhook_received_at,
+                connection.last_synced_at,
+                connection.updated_at,
+              ]),
+              lastWebhookReceivedAt: connection.last_webhook_received_at,
+              hasWebhookMonitoring: true,
+              webhooksSubscribed: connection.webhooks_subscribed,
+              webhookRetryCount: connection.webhook_retry_count,
+              webhookNextRetryAt: connection.webhook_next_retry_at,
+              lastError: connection.webhook_last_error,
+              syncSummary: summarizeCounts([
+                ["Customers", connection.customers_synced],
+                ["Products", connection.products_synced],
+                ["Orders", connection.sales_synced],
+              ]),
+              serviceStateLabel: connection.status ?? "Connected",
+              configurationHint:
+                connection.status === "connected"
+                  ? "BloomSuite stores the encrypted Shopify access token in shopify_connections and refreshes the integration detail shell from that tenant-scoped connection record."
+                  : "Connect Shopify by entering your store domain and authorizing BloomSuite through Shopify's OAuth install screen.",
+              activityHint:
+                connection.status === "connected"
+                  ? "Webhook setup is triggered automatically after OAuth. Use Verify webhooks to re-check coverage, subscription health, and delivery readiness for this store."
+                  : "This Shopify store is disconnected. Reinstall or reconnect to restore webhook intake and sync jobs.",
+              canDisconnect: true,
+            }),
+            targetPath: "/integrations/shopify",
+            shopifyConnection: connection,
+            disconnectRef: { kind: "shopify", id: connection.id },
+          };
+        }
         case "mailchimp":
         case "klaviyo":
         case "constant-contact": {
@@ -3397,34 +4105,37 @@ export function useIntegrationDetailData(
             seed.slug === "constant-contact"
               ? "constant_contact"
               : (seed.slug as MarketingProviderKey);
-          const [connectionResponse, artifactsResponse, jobsResponse] = await Promise.all([
-            supabase
-              .from("provider_connections")
-              .select(
-                "id, provider, provider_account_name, provider_account_id, connected_at, created_at, updated_at, status, token_expires_at, metadata",
-              )
-              .eq("tenant_id", tenant.id)
-              .eq("user_id", user.id)
-              .eq("provider", provider)
-              .eq("status", "connected")
-              .is("revoked_at", null)
-              .order("connected_at", { ascending: false })
-              .limit(1),
-            supabase
-              .from("provider_artifacts")
-              .select("id, artifact_type, external_id, name, member_count, created_at")
-              .eq("tenant_id", tenant.id)
-              .eq("provider", provider)
-              .order("created_at", { ascending: false }),
-            supabase
-              .from("import_jobs")
-              .select("id, status, created_at, updated_at, completed_at, report")
-              .eq("tenant_id", tenant.id)
-              .eq("user_id", user.id)
-              .eq("provider", provider)
-              .order("created_at", { ascending: false })
-              .limit(5),
-          ]);
+          const [connectionResponse, artifactsResponse, jobsResponse] =
+            await Promise.all([
+              supabase
+                .from("provider_connections")
+                .select(
+                  "id, provider, provider_account_name, provider_account_id, connected_at, created_at, updated_at, status, token_expires_at, metadata",
+                )
+                .eq("tenant_id", tenant.id)
+                .eq("user_id", user.id)
+                .eq("provider", provider)
+                .order("updated_at", { ascending: false })
+                .order("connected_at", { ascending: false })
+                .limit(1),
+              supabase
+                .from("provider_artifacts")
+                .select(
+                  "id, artifact_type, external_id, name, member_count, created_at",
+                )
+                .eq("tenant_id", tenant.id)
+                .eq("provider", provider)
+                .order("created_at", { ascending: false }),
+              supabase
+                .from("import_jobs")
+                .select(
+                  "id, status, created_at, started_at, updated_at, completed_at, report",
+                )
+                .eq("tenant_id", tenant.id)
+                .eq("user_id", user.id)
+                .eq("provider", provider)
+                .order("created_at", { ascending: false }),
+            ]);
 
           if (connectionResponse.error) throw connectionResponse.error;
           if (artifactsResponse.error) throw artifactsResponse.error;
@@ -3456,7 +4167,9 @@ export function useIntegrationDetailData(
             model: buildIntegrationDetailModel({
               item,
               status: item.status,
-              contextLabel: connection ? accountLabel : `${seed.name} import flow`,
+              contextLabel: connection
+                ? accountLabel
+                : `${seed.name} import flow`,
               connectedAt: marketingImportDetail.connectedAt,
               lastSyncAt:
                 marketingImportDetail.latestImportCompletedAt ??
@@ -3499,9 +4212,15 @@ export function useIntegrationDetailData(
           const activeConnections = connections.filter(
             (connection) => connection.is_active !== false,
           );
-          const metaDetail = buildMetaDetailData(connections, seed.canDisconnect);
+          const metaDetail = buildMetaDetailData(
+            connections,
+            seed.canDisconnect,
+          );
           const names = activeConnections
-            .map((connection) => connection.platform_account_name || connection.platform)
+            .map(
+              (connection) =>
+                connection.platform_account_name || connection.platform,
+            )
             .filter(Boolean)
             .join(" • ");
           const status: IntegrationStatus =
@@ -3540,7 +4259,10 @@ export function useIntegrationDetailData(
             metaDetail,
             disconnectRef:
               connections.length > 0
-                ? { kind: "meta", ids: connections.map((connection) => connection.id) }
+                ? {
+                    kind: "meta",
+                    ids: connections.map((connection) => connection.id),
+                  }
                 : undefined,
           };
         }
@@ -3622,37 +4344,46 @@ export function useIntegrationDetailData(
 
           const domains = (data ?? []) as EmailInfrastructureDomainRecord[];
           const primaryDomain =
-            domains.find((domain) => ["active", "warming_up"].includes(domain.status)) ??
+            domains.find((domain) =>
+              ["active", "warming_up"].includes(domain.status),
+            ) ??
             domains.find((domain) => Boolean(domain.verified_at)) ??
             domains[0] ??
             null;
 
-          const [dnsRecordsResult, healthChecksResult, healthDashboardResult, deliverabilityResult] =
-            await Promise.all([
-              primaryDomain
-                ? supabase
-                    .from("email_dns_records")
-                    .select("id, name, type, value, purpose, required")
-                    .eq("email_domain_id", primaryDomain.id)
-                    .order("purpose", { ascending: true })
-                : Promise.resolve({ data: [], error: null }),
-              primaryDomain
-                ? supabase.functions.invoke("domain-health-check", {
-                    body: { method: "GET" },
-                    headers: { "X-Domain-Id": primaryDomain.id },
-                  })
-                : Promise.resolve({ data: { checks: [] }, error: null }),
-              supabase.rpc("get_tenant_email_health_dashboard" as never, {
+          const [
+            dnsRecordsResult,
+            healthChecksResult,
+            healthDashboardResult,
+            deliverabilityResult,
+          ] = await Promise.all([
+            primaryDomain
+              ? supabase
+                  .from("email_dns_records")
+                  .select("id, name, type, value, purpose, required")
+                  .eq("email_domain_id", primaryDomain.id)
+                  .order("purpose", { ascending: true })
+              : Promise.resolve({ data: [], error: null }),
+            primaryDomain
+              ? supabase.functions.invoke("domain-health-check", {
+                  body: { method: "GET" },
+                  headers: { "X-Domain-Id": primaryDomain.id },
+                })
+              : Promise.resolve({ data: { checks: [] }, error: null }),
+            supabase.rpc(
+              "get_tenant_email_health_dashboard" as never,
+              {
                 p_tenant_id: tenant.id,
-              } as never),
-              supabase
-                .from("deliverability_summary_30d")
-                .select(
-                  "sent_30d, delivered_30d, opened_30d, clicked_30d, bounced_30d, complained_30d",
-                )
-                .eq("tenant_id", tenant.id)
-                .maybeSingle(),
-            ]);
+              } as never,
+            ),
+            supabase
+              .from("deliverability_summary_30d")
+              .select(
+                "sent_30d, delivered_30d, opened_30d, clicked_30d, bounced_30d, complained_30d",
+              )
+              .eq("tenant_id", tenant.id)
+              .maybeSingle(),
+          ]);
 
           if (dnsRecordsResult.error) throw dnsRecordsResult.error;
           if (healthChecksResult.error) throw healthChecksResult.error;
@@ -3662,12 +4393,21 @@ export function useIntegrationDetailData(
           const emailInfrastructureDetail = buildEmailInfrastructureDetailData(
             domains,
             (dnsRecordsResult.data ?? []) as EmailInfrastructureDnsRecord[],
-            (((healthChecksResult.data as { checks?: EmailInfrastructureHealthCheck[] } | null)
-              ?.checks ?? []) as EmailInfrastructureHealthCheck[]),
+            ((
+              healthChecksResult.data as {
+                checks?: EmailInfrastructureHealthCheck[];
+              } | null
+            )?.checks ?? []) as EmailInfrastructureHealthCheck[],
             (Array.isArray(healthDashboardResult.data)
               ? (healthDashboardResult.data[0] ?? null)
-              : (healthDashboardResult.data ?? null)) as Record<string, unknown> | null,
-            (deliverabilityResult.data ?? null) as Record<string, unknown> | null,
+              : (healthDashboardResult.data ?? null)) as Record<
+              string,
+              unknown
+            > | null,
+            (deliverabilityResult.data ?? null) as Record<
+              string,
+              unknown
+            > | null,
           );
 
           const status: IntegrationStatus =
@@ -3707,10 +4447,8 @@ export function useIntegrationDetailData(
               ]),
               serviceStateLabel: emailInfrastructureDetail.primaryStatusLabel,
               canDisconnect: false,
-              configurationHint:
-                emailInfrastructureDetail.configurationSummary,
-              activityHint:
-                emailInfrastructureDetail.healthSummary,
+              configurationHint: emailInfrastructureDetail.configurationSummary,
+              activityHint: emailInfrastructureDetail.healthSummary,
             }),
             targetPath: emailInfrastructureDetail.domainSettingsPath,
             emailInfrastructureDetail,
@@ -3793,10 +4531,13 @@ export function useIntegrationDetailData(
         search: options?.products?.search?.trim() ?? "",
         categories: Array.from(
           new Set(
-            (options?.products?.categories ??
-              (options?.products?.category && options.products.category !== "all"
+            (
+              options?.products?.categories ??
+              (options?.products?.category &&
+              options.products.category !== "all"
                 ? [options.products.category]
-                : []))
+                : [])
+            )
               .map((value) => value?.trim())
               .filter((value): value is string => Boolean(value)),
           ),
@@ -3819,8 +4560,9 @@ export function useIntegrationDetailData(
         page: Math.max(options?.customers?.page ?? 1, 1),
         search: options?.customers?.search?.trim() ?? "",
         sortField:
-          (options?.customers?.sortField as SquareCustomerSortField | undefined) ??
-          "updated_at",
+          (options?.customers?.sortField as
+            | SquareCustomerSortField
+            | undefined) ?? "updated_at",
         sortDirection: options?.customers?.sortDirection ?? "desc",
       },
       sales: {
@@ -3839,18 +4581,22 @@ export function useIntegrationDetailData(
         search: options?.products?.search?.trim() ?? "",
         categories: Array.from(
           new Set(
-            (options?.products?.categories ??
-              (options?.products?.category && options.products.category !== "all"
+            (
+              options?.products?.categories ??
+              (options?.products?.category &&
+              options.products.category !== "all"
                 ? [options.products.category]
-                : []))
+                : [])
+            )
               .map((value) => value?.trim())
               .filter((value): value is string => Boolean(value)),
           ),
         ),
         inStockOnly: Boolean(options?.products?.inStockOnly),
         sortField:
-          (options?.products?.sortField as SquareProductsSortField | undefined) ??
-          "name",
+          (options?.products?.sortField as
+            | SquareProductsSortField
+            | undefined) ?? "name",
         sortDirection: options?.products?.sortDirection ?? "asc",
       },
       syncLogs: {
@@ -3867,8 +4613,9 @@ export function useIntegrationDetailData(
         page: Math.max(options?.customers?.page ?? 1, 1),
         search: options?.customers?.search?.trim() ?? "",
         sortField:
-          (options?.customers?.sortField as SquareCustomerSortField | undefined) ??
-          "updated_at",
+          (options?.customers?.sortField as
+            | SquareCustomerSortField
+            | undefined) ?? "updated_at",
         sortDirection: options?.customers?.sortDirection ?? "desc",
       },
       sales: {
@@ -3887,18 +4634,22 @@ export function useIntegrationDetailData(
         search: options?.products?.search?.trim() ?? "",
         categories: Array.from(
           new Set(
-            (options?.products?.categories ??
-              (options?.products?.category && options.products.category !== "all"
+            (
+              options?.products?.categories ??
+              (options?.products?.category &&
+              options.products.category !== "all"
                 ? [options.products.category]
-                : []))
+                : [])
+            )
               .map((value) => value?.trim())
               .filter((value): value is string => Boolean(value)),
           ),
         ),
         inStockOnly: Boolean(options?.products?.inStockOnly),
         sortField:
-          (options?.products?.sortField as SquareProductsSortField | undefined) ??
-          "name",
+          (options?.products?.sortField as
+            | SquareProductsSortField
+            | undefined) ?? "name",
         sortDirection: options?.products?.sortDirection ?? "asc",
       },
       syncLogs: {
@@ -3912,12 +4663,557 @@ export function useIntegrationDetailData(
     [options],
   );
 
+  const shopifyDashboardOptions = useMemo(
+    () => ({
+      customers: {
+        page: Math.max(options?.customers?.page ?? 1, 1),
+        search: options?.customers?.search?.trim() ?? "",
+        sortField:
+          (options?.customers?.sortField as
+            | ShopifyCustomerSortField
+            | undefined) ?? "last_order_date",
+        sortDirection: options?.customers?.sortDirection ?? "desc",
+      },
+      orders: {
+        page: Math.max(options?.sales?.page ?? 1, 1),
+        search: options?.sales?.search?.trim() ?? "",
+        status: options?.sales?.status?.trim() ?? "all",
+        startDate: options?.sales?.startDate ?? null,
+        endDate: options?.sales?.endDate ?? null,
+        sortField:
+          (options?.sales?.sortField as ShopifyOrdersSortField | undefined) ??
+          "order_date",
+        sortDirection: options?.sales?.sortDirection ?? "desc",
+      },
+      products: {
+        page: Math.max(options?.products?.page ?? 1, 1),
+        search: options?.products?.search?.trim() ?? "",
+        categories: Array.from(
+          new Set(
+            (
+              options?.products?.categories ??
+              (options?.products?.category &&
+              options.products.category !== "all"
+                ? [options.products.category]
+                : [])
+            )
+              .map((value) => value?.trim())
+              .filter((value): value is string => Boolean(value)),
+          ),
+        ),
+        inStockOnly: Boolean(options?.products?.inStockOnly),
+        sortField:
+          (options?.products?.sortField as
+            | ShopifyProductsSortField
+            | undefined) ?? "updated_at",
+        sortDirection: options?.products?.sortDirection ?? "desc",
+      },
+      syncLogs: {
+        page: Math.max(options?.syncLogs?.page ?? 1, 1),
+        status: options?.syncLogs?.status?.trim() ?? "all",
+      },
+    }),
+    [options],
+  );
+
   const isLightspeedDashboardEnabled =
-    slug === "lightspeed" && Boolean(tenant?.id) && Boolean(resolved?.lightspeedDetail);
+    slug === "lightspeed" &&
+    Boolean(tenant?.id) &&
+    Boolean(resolved?.lightspeedDetail);
   const isSquareDashboardEnabled =
-    slug === "square" && Boolean(tenant?.id) && Boolean(resolved?.squareDetail?.connectionId);
+    slug === "square" &&
+    Boolean(tenant?.id) &&
+    Boolean(resolved?.squareDetail?.connectionId);
   const isCloverDashboardEnabled =
-    slug === "clover" && Boolean(tenant?.id) && Boolean(resolved?.cloverDetail?.connectionId);
+    slug === "clover" &&
+    Boolean(tenant?.id) &&
+    Boolean(resolved?.cloverDetail?.connectionId);
+  const isShopifyDashboardEnabled =
+    slug === "shopify" &&
+    Boolean(tenant?.id) &&
+    Boolean(resolved?.shopifyConnection?.id);
+
+  const shopifyCustomersQuery = useQuery({
+    queryKey: [
+      "integration-detail-shopify-customers",
+      tenant?.id ?? null,
+      shopifyDashboardOptions.customers.page,
+      shopifyDashboardOptions.customers.search,
+      shopifyDashboardOptions.customers.sortField,
+      shopifyDashboardOptions.customers.sortDirection,
+    ],
+    enabled: isShopifyDashboardEnabled,
+    queryFn: async () => {
+      if (!tenant?.id) {
+        return {
+          rows: [] as ShopifyCustomerTableRow[],
+          pagination: buildLightspeedPagination(1, 0),
+        };
+      }
+
+      const { from, to, safePage } = getLightspeedPageRange(
+        shopifyDashboardOptions.customers.page,
+      );
+      const searchTerm = shopifyDashboardOptions.customers.search.replace(
+        /,/g,
+        " ",
+      );
+      let request = supabase
+        .from("shopify_customers")
+        .select("*", { count: "exact" })
+        .eq("tenant_id", tenant.id);
+
+      if (searchTerm) {
+        const pattern = `%${searchTerm}%`;
+        request = request.or(
+          [
+            `first_name.ilike.${pattern}`,
+            `last_name.ilike.${pattern}`,
+            `email.ilike.${pattern}`,
+            `phone.ilike.${pattern}`,
+            `shopify_customer_id.ilike.${pattern}`,
+          ].join(","),
+        );
+      }
+
+      if (shopifyDashboardOptions.customers.sortField === "name") {
+        request = request
+          .order("first_name", {
+            ascending:
+              shopifyDashboardOptions.customers.sortDirection === "asc",
+            nullsFirst: false,
+          })
+          .order("last_name", {
+            ascending:
+              shopifyDashboardOptions.customers.sortDirection === "asc",
+            nullsFirst: false,
+          });
+      } else {
+        request = request.order(shopifyDashboardOptions.customers.sortField, {
+          ascending: shopifyDashboardOptions.customers.sortDirection === "asc",
+          nullsFirst: false,
+        });
+      }
+
+      const { data, error, count } = await request.range(from, to);
+      if (error) {
+        throw error;
+      }
+
+      return {
+        rows: (data ?? []).map((row) => ({
+          ...row,
+          displayName: formatShopifyCustomerName(
+            row.first_name,
+            row.last_name,
+            row.email,
+            row.shopify_customer_id,
+          ),
+          normalizedTags: row.tags ?? [],
+        })),
+        pagination: buildLightspeedPagination(safePage, count ?? 0),
+      };
+    },
+  });
+
+  const shopifyOrdersQuery = useQuery({
+    queryKey: [
+      "integration-detail-shopify-orders",
+      tenant?.id ?? null,
+      shopifyDashboardOptions.orders.page,
+      shopifyDashboardOptions.orders.search,
+      shopifyDashboardOptions.orders.status,
+      shopifyDashboardOptions.orders.startDate,
+      shopifyDashboardOptions.orders.endDate,
+      shopifyDashboardOptions.orders.sortField,
+      shopifyDashboardOptions.orders.sortDirection,
+    ],
+    enabled: isShopifyDashboardEnabled,
+    queryFn: async () => {
+      if (!tenant?.id) {
+        return {
+          rows: [] as ShopifyOrderTableRow[],
+          pagination: buildLightspeedPagination(1, 0),
+        };
+      }
+
+      const { from, to, safePage } = getLightspeedPageRange(
+        shopifyDashboardOptions.orders.page,
+      );
+      let request = supabase
+        .from("shopify_orders")
+        .select("*", { count: "exact" })
+        .eq("tenant_id", tenant.id);
+
+      if (shopifyDashboardOptions.orders.search) {
+        const pattern = `%${shopifyDashboardOptions.orders.search}%`;
+        request = request.or(
+          [
+            `order_number.ilike.${pattern}`,
+            `email.ilike.${pattern}`,
+            `shopify_order_id.ilike.${pattern}`,
+          ].join(","),
+        );
+      }
+
+      if (shopifyDashboardOptions.orders.status !== "all") {
+        request = request.eq(
+          "financial_status",
+          shopifyDashboardOptions.orders.status,
+        );
+      }
+
+      if (shopifyDashboardOptions.orders.startDate) {
+        request = request.gte(
+          "order_date",
+          `${shopifyDashboardOptions.orders.startDate}T00:00:00.000Z`,
+        );
+      }
+
+      if (shopifyDashboardOptions.orders.endDate) {
+        request = request.lte(
+          "order_date",
+          `${shopifyDashboardOptions.orders.endDate}T23:59:59.999Z`,
+        );
+      }
+
+      request = request.order(shopifyDashboardOptions.orders.sortField, {
+        ascending: shopifyDashboardOptions.orders.sortDirection === "asc",
+        nullsFirst: false,
+      });
+
+      const { data, error, count } = await request.range(from, to);
+      if (error) {
+        throw error;
+      }
+
+      const customerIds = Array.from(
+        new Set(
+          (data ?? [])
+            .map((row) => row.shopify_customer_id)
+            .filter((value): value is string => Boolean(value)),
+        ),
+      );
+
+      let customerNameMap = new Map<string, string>();
+
+      if (customerIds.length > 0) {
+        const { data: customerData, error: customerError } = await supabase
+          .from("shopify_customers")
+          .select("shopify_customer_id, first_name, last_name, email")
+          .eq("tenant_id", tenant.id)
+          .in("shopify_customer_id", customerIds);
+
+        if (customerError) {
+          throw customerError;
+        }
+
+        customerNameMap = new Map(
+          (customerData ?? []).map((row) => [
+            row.shopify_customer_id,
+            formatShopifyCustomerName(
+              row.first_name,
+              row.last_name,
+              row.email,
+              row.shopify_customer_id,
+            ),
+          ]),
+        );
+      }
+
+      return {
+        rows: (data ?? []).map((row) => ({
+          ...row,
+          customerDisplayName: row.shopify_customer_id
+            ? (customerNameMap.get(row.shopify_customer_id) ?? null)
+            : null,
+          lineItemCount: getJsonArrayLength(row.line_items),
+        })),
+        pagination: buildLightspeedPagination(safePage, count ?? 0),
+      };
+    },
+  });
+
+  const shopifyOrdersSummaryQuery = useQuery({
+    queryKey: [
+      "integration-detail-shopify-orders-summary",
+      tenant?.id ?? null,
+      shopifyDashboardOptions.orders.search,
+      shopifyDashboardOptions.orders.status,
+      shopifyDashboardOptions.orders.startDate,
+      shopifyDashboardOptions.orders.endDate,
+    ],
+    enabled: isShopifyDashboardEnabled,
+    queryFn: async () => {
+      if (!tenant?.id) {
+        return {
+          revenue: 0,
+          averageOrderValue: 0,
+          saleCount: 0,
+        } satisfies ShopifySalesSummary;
+      }
+
+      let request = supabase
+        .from("shopify_orders")
+        .select("id, total_price")
+        .eq("tenant_id", tenant.id);
+
+      if (shopifyDashboardOptions.orders.search) {
+        const pattern = `%${shopifyDashboardOptions.orders.search}%`;
+        request = request.or(
+          [
+            `order_number.ilike.${pattern}`,
+            `email.ilike.${pattern}`,
+            `shopify_order_id.ilike.${pattern}`,
+          ].join(","),
+        );
+      }
+
+      if (shopifyDashboardOptions.orders.status !== "all") {
+        request = request.eq(
+          "financial_status",
+          shopifyDashboardOptions.orders.status,
+        );
+      }
+
+      if (shopifyDashboardOptions.orders.startDate) {
+        request = request.gte(
+          "order_date",
+          `${shopifyDashboardOptions.orders.startDate}T00:00:00.000Z`,
+        );
+      }
+
+      if (shopifyDashboardOptions.orders.endDate) {
+        request = request.lte(
+          "order_date",
+          `${shopifyDashboardOptions.orders.endDate}T23:59:59.999Z`,
+        );
+      }
+
+      const { data, error } = await request;
+      if (error) {
+        throw error;
+      }
+
+      const saleCount = data?.length ?? 0;
+      const revenue = (data ?? []).reduce(
+        (total, row) => total + (Number(row.total_price ?? 0) || 0),
+        0,
+      );
+
+      return {
+        revenue,
+        averageOrderValue: saleCount > 0 ? revenue / saleCount : 0,
+        saleCount,
+      } satisfies ShopifySalesSummary;
+    },
+  });
+
+  const shopifyProductsQuery = useQuery({
+    queryKey: [
+      "integration-detail-shopify-products",
+      tenant?.id ?? null,
+      shopifyDashboardOptions.products.page,
+      shopifyDashboardOptions.products.search,
+      shopifyDashboardOptions.products.categories.join("|"),
+      shopifyDashboardOptions.products.inStockOnly,
+      shopifyDashboardOptions.products.sortField,
+      shopifyDashboardOptions.products.sortDirection,
+    ],
+    enabled: isShopifyDashboardEnabled,
+    queryFn: async () => {
+      if (!tenant?.id) {
+        return {
+          rows: [] as ShopifyProductTableRow[],
+          pagination: buildLightspeedPagination(1, 0),
+        };
+      }
+
+      const { from, to, safePage } = getLightspeedPageRange(
+        shopifyDashboardOptions.products.page,
+      );
+      let request = supabase
+        .from("shopify_products")
+        .select("*", { count: "exact" })
+        .eq("tenant_id", tenant.id);
+
+      if (shopifyDashboardOptions.products.search) {
+        const pattern = `%${shopifyDashboardOptions.products.search}%`;
+        request = request.or(
+          [
+            `title.ilike.${pattern}`,
+            `vendor.ilike.${pattern}`,
+            `product_type.ilike.${pattern}`,
+            `shopify_product_id.ilike.${pattern}`,
+          ].join(","),
+        );
+      }
+
+      if (shopifyDashboardOptions.products.categories.length > 0) {
+        request = request.in(
+          "product_type",
+          shopifyDashboardOptions.products.categories,
+        );
+      }
+
+      if (shopifyDashboardOptions.products.inStockOnly) {
+        request = request.gt("inventory_quantity", 0);
+      }
+
+      request = request.order(shopifyDashboardOptions.products.sortField, {
+        ascending: shopifyDashboardOptions.products.sortDirection === "asc",
+        nullsFirst: false,
+      });
+
+      const { data, error, count } = await request.range(from, to);
+      if (error) {
+        throw error;
+      }
+
+      return {
+        rows: (data ?? []).map((row) => ({
+          ...row,
+          normalizedTags: row.tags ?? [],
+          imageCount: getJsonArrayLength(row.images),
+          variantCount: getJsonArrayLength(row.variants),
+          stockState: getLightspeedProductStockState(row.inventory_quantity),
+        })),
+        pagination: buildLightspeedPagination(safePage, count ?? 0),
+      };
+    },
+  });
+
+  const shopifyProductTypesQuery = useQuery({
+    queryKey: ["integration-detail-shopify-product-types", tenant?.id ?? null],
+    enabled: isShopifyDashboardEnabled,
+    queryFn: async () => {
+      if (!tenant?.id) {
+        return [] as string[];
+      }
+
+      const { data, error } = await supabase
+        .from("shopify_products")
+        .select("product_type")
+        .eq("tenant_id", tenant.id)
+        .not("product_type", "is", null)
+        .limit(5000);
+
+      if (error) {
+        throw error;
+      }
+
+      return Array.from(
+        new Set(
+          (data ?? [])
+            .map((row) => row.product_type?.trim())
+            .filter((value): value is string => Boolean(value)),
+        ),
+      ).sort((left, right) => left.localeCompare(right));
+    },
+  });
+
+  const shopifySyncLogsQuery = useQuery({
+    queryKey: [
+      "integration-detail-shopify-sync-logs",
+      tenant?.id ?? null,
+      shopifyDashboardOptions.syncLogs.page,
+      shopifyDashboardOptions.syncLogs.status,
+    ],
+    enabled: isShopifyDashboardEnabled,
+    queryFn: async () => {
+      if (!tenant?.id) {
+        return {
+          rows: [] as ShopifySyncLogRow[],
+          pagination: buildLightspeedPagination(1, 0),
+        };
+      }
+
+      const { from, to, safePage } = getLightspeedPageRange(
+        shopifyDashboardOptions.syncLogs.page,
+      );
+      let request = supabase
+        .from("pos_sync_jobs_v2")
+        .select("*", { count: "exact" })
+        .eq("tenant_id", tenant.id)
+        .eq("provider", "shopify");
+
+      if (shopifyDashboardOptions.syncLogs.status !== "all") {
+        request = request.eq("status", shopifyDashboardOptions.syncLogs.status);
+      }
+
+      const { data, error, count } = await request
+        .order("created_at", { ascending: false })
+        .range(from, to);
+
+      if (error) {
+        throw error;
+      }
+
+      return {
+        rows: (data ?? []).map(normalizeShopifySyncLogRow),
+        pagination: buildLightspeedPagination(safePage, count ?? 0),
+      };
+    },
+  });
+
+  const shopifyActiveJobsQuery = useQuery({
+    queryKey: [
+      "integration-detail-shopify-active-sync-jobs",
+      tenant?.id ?? null,
+    ],
+    enabled: isShopifyDashboardEnabled,
+    refetchInterval: (query) => {
+      const rows = query.state.data as ShopifySyncLogRow[] | undefined;
+      return rows && rows.length > 0 ? 5000 : false;
+    },
+    queryFn: async () => {
+      if (!tenant?.id) {
+        return [] as ShopifySyncLogRow[];
+      }
+
+      const { data, error } = await supabase
+        .from("pos_sync_jobs_v2")
+        .select("*")
+        .eq("tenant_id", tenant.id)
+        .eq("provider", "shopify")
+        .in("status", [...LIGHTSPEED_ACTIVE_JOB_STATUSES])
+        .order("created_at", { ascending: false })
+        .limit(3);
+
+      if (error) {
+        throw error;
+      }
+
+      return (data ?? []).map(normalizeShopifySyncLogRow);
+    },
+  });
+
+  const shopifyRecentJobsQuery = useQuery({
+    queryKey: [
+      "integration-detail-shopify-recent-sync-jobs",
+      tenant?.id ?? null,
+    ],
+    enabled: isShopifyDashboardEnabled,
+    queryFn: async () => {
+      if (!tenant?.id) {
+        return [] as ShopifySyncLogRow[];
+      }
+
+      const { data, error } = await supabase
+        .from("pos_sync_jobs_v2")
+        .select("*")
+        .eq("tenant_id", tenant.id)
+        .eq("provider", "shopify")
+        .order("created_at", { ascending: false })
+        .limit(5);
+
+      if (error) {
+        throw error;
+      }
+
+      return (data ?? []).map(normalizeShopifySyncLogRow);
+    },
+  });
 
   const squareCustomersQuery = useQuery({
     queryKey: [
@@ -3972,7 +5268,11 @@ export function useIntegrationDetailData(
       return {
         rows: (data ?? []).map((row) => ({
           ...row,
-          displayName: formatSquareCustomerName(row.name, row.email, row.external_id),
+          displayName: formatSquareCustomerName(
+            row.name,
+            row.email,
+            row.external_id,
+          ),
           normalizedTags: row.tags ?? [],
         })),
         pagination: buildLightspeedPagination(safePage, count ?? 0),
@@ -4013,7 +5313,10 @@ export function useIntegrationDetailData(
       if (squareDashboardOptions.sales.search) {
         const pattern = `%${squareDashboardOptions.sales.search}%`;
         request = request.or(
-          [`external_id.ilike.${pattern}`, `external_customer_id.ilike.${pattern}`].join(","),
+          [
+            `external_id.ilike.${pattern}`,
+            `external_customer_id.ilike.${pattern}`,
+          ].join(","),
         );
       }
 
@@ -4077,7 +5380,7 @@ export function useIntegrationDetailData(
         rows: (data ?? []).map((row) => ({
           ...row,
           customerDisplayName: row.pos_customer_id
-            ? customerNameMap.get(row.pos_customer_id) ?? null
+            ? (customerNameMap.get(row.pos_customer_id) ?? null)
             : null,
           lineItemCount: getJsonArrayLength(row.items),
           orderType: getSquareOrderType(row),
@@ -4116,7 +5419,10 @@ export function useIntegrationDetailData(
       if (squareDashboardOptions.sales.search) {
         const pattern = `%${squareDashboardOptions.sales.search}%`;
         request = request.or(
-          [`external_id.ilike.${pattern}`, `external_customer_id.ilike.${pattern}`].join(","),
+          [
+            `external_id.ilike.${pattern}`,
+            `external_customer_id.ilike.${pattern}`,
+          ].join(","),
         );
       }
 
@@ -4189,12 +5495,19 @@ export function useIntegrationDetailData(
       if (squareDashboardOptions.products.search) {
         const pattern = `%${squareDashboardOptions.products.search}%`;
         request = request.or(
-          [`name.ilike.${pattern}`, `sku.ilike.${pattern}`, `external_id.ilike.${pattern}`].join(","),
+          [
+            `name.ilike.${pattern}`,
+            `sku.ilike.${pattern}`,
+            `external_id.ilike.${pattern}`,
+          ].join(","),
         );
       }
 
       if (squareDashboardOptions.products.categories.length > 0) {
-        request = request.in("category", squareDashboardOptions.products.categories);
+        request = request.in(
+          "category",
+          squareDashboardOptions.products.categories,
+        );
       }
 
       if (squareDashboardOptions.products.inStockOnly) {
@@ -4223,7 +5536,10 @@ export function useIntegrationDetailData(
   });
 
   const squareProductCategoriesQuery = useQuery({
-    queryKey: ["integration-detail-square-product-categories", tenant?.id ?? null],
+    queryKey: [
+      "integration-detail-square-product-categories",
+      tenant?.id ?? null,
+    ],
     enabled: isSquareDashboardEnabled,
     queryFn: async () => {
       if (!tenant?.id) {
@@ -4350,7 +5666,11 @@ export function useIntegrationDetailData(
       return {
         rows: (data ?? []).map((row) => ({
           ...row,
-          displayName: formatSquareCustomerName(row.name, row.email, row.external_id),
+          displayName: formatSquareCustomerName(
+            row.name,
+            row.email,
+            row.external_id,
+          ),
           normalizedTags: row.tags ?? [],
         })),
         pagination: buildLightspeedPagination(safePage, count ?? 0),
@@ -4392,7 +5712,10 @@ export function useIntegrationDetailData(
       if (cloverDashboardOptions.sales.search) {
         const pattern = `%${cloverDashboardOptions.sales.search}%`;
         request = request.or(
-          [`external_id.ilike.${pattern}`, `external_customer_id.ilike.${pattern}`].join(","),
+          [
+            `external_id.ilike.${pattern}`,
+            `external_customer_id.ilike.${pattern}`,
+          ].join(","),
         );
       }
 
@@ -4456,7 +5779,7 @@ export function useIntegrationDetailData(
         rows: (data ?? []).map((row) => ({
           ...row,
           customerDisplayName: row.pos_customer_id
-            ? customerNameMap.get(row.pos_customer_id) ?? null
+            ? (customerNameMap.get(row.pos_customer_id) ?? null)
             : null,
           lineItemCount: getJsonArrayLength(row.items),
           orderType: getSquareOrderType(row),
@@ -4495,7 +5818,10 @@ export function useIntegrationDetailData(
       if (cloverDashboardOptions.sales.search) {
         const pattern = `%${cloverDashboardOptions.sales.search}%`;
         request = request.or(
-          [`external_id.ilike.${pattern}`, `external_customer_id.ilike.${pattern}`].join(","),
+          [
+            `external_id.ilike.${pattern}`,
+            `external_customer_id.ilike.${pattern}`,
+          ].join(","),
         );
       }
 
@@ -4569,12 +5895,19 @@ export function useIntegrationDetailData(
       if (cloverDashboardOptions.products.search) {
         const pattern = `%${cloverDashboardOptions.products.search}%`;
         request = request.or(
-          [`name.ilike.${pattern}`, `sku.ilike.${pattern}`, `external_id.ilike.${pattern}`].join(","),
+          [
+            `name.ilike.${pattern}`,
+            `sku.ilike.${pattern}`,
+            `external_id.ilike.${pattern}`,
+          ].join(","),
         );
       }
 
       if (cloverDashboardOptions.products.categories.length > 0) {
-        request = request.in("category", cloverDashboardOptions.products.categories);
+        request = request.in(
+          "category",
+          cloverDashboardOptions.products.categories,
+        );
       }
 
       if (cloverDashboardOptions.products.inStockOnly) {
@@ -4603,7 +5936,11 @@ export function useIntegrationDetailData(
   });
 
   const cloverProductCategoriesQuery = useQuery({
-    queryKey: ["integration-detail-clover", "product-categories", tenant?.id ?? null],
+    queryKey: [
+      "integration-detail-clover",
+      "product-categories",
+      tenant?.id ?? null,
+    ],
     enabled: isCloverDashboardEnabled,
     queryFn: async () => {
       if (!tenant?.id) {
@@ -4741,7 +6078,10 @@ export function useIntegrationDetailData(
       const { from, to, safePage } = getLightspeedPageRange(
         lightspeedDashboardOptions.customers.page,
       );
-      const searchTerm = lightspeedDashboardOptions.customers.search.replace(/,/g, " ");
+      const searchTerm = lightspeedDashboardOptions.customers.search.replace(
+        /,/g,
+        " ",
+      );
       let request = supabase
         .from("lightspeed_customers")
         .select("*", { count: "exact" })
@@ -4763,18 +6103,24 @@ export function useIntegrationDetailData(
       if (lightspeedDashboardOptions.customers.sortField === "name") {
         request = request
           .order("first_name", {
-            ascending: lightspeedDashboardOptions.customers.sortDirection === "asc",
+            ascending:
+              lightspeedDashboardOptions.customers.sortDirection === "asc",
             nullsFirst: false,
           })
           .order("last_name", {
-            ascending: lightspeedDashboardOptions.customers.sortDirection === "asc",
+            ascending:
+              lightspeedDashboardOptions.customers.sortDirection === "asc",
             nullsFirst: false,
           });
       } else {
-        request = request.order(lightspeedDashboardOptions.customers.sortField, {
-          ascending: lightspeedDashboardOptions.customers.sortDirection === "asc",
-          nullsFirst: false,
-        });
+        request = request.order(
+          lightspeedDashboardOptions.customers.sortField,
+          {
+            ascending:
+              lightspeedDashboardOptions.customers.sortDirection === "asc",
+            nullsFirst: false,
+          },
+        );
       }
 
       const { data, error, count } = await request.range(from, to);
@@ -4906,7 +6252,7 @@ export function useIntegrationDetailData(
         rows: (data ?? []).map((row) => ({
           ...row,
           customerDisplayName: row.lightspeed_customer_id
-            ? customerNameMap.get(row.lightspeed_customer_id) ?? null
+            ? (customerNameMap.get(row.lightspeed_customer_id) ?? null)
             : null,
           lineItemCount: getJsonArrayLength(row.line_items),
         })),
@@ -5013,11 +6359,16 @@ export function useIntegrationDetailData(
 
       if (lightspeedDashboardOptions.products.search) {
         const pattern = `%${lightspeedDashboardOptions.products.search}%`;
-        request = request.or([`name.ilike.${pattern}`, `sku.ilike.${pattern}`].join(","));
+        request = request.or(
+          [`name.ilike.${pattern}`, `sku.ilike.${pattern}`].join(","),
+        );
       }
 
       if (lightspeedDashboardOptions.products.categories.length > 0) {
-        request = request.in("category", lightspeedDashboardOptions.products.categories);
+        request = request.in(
+          "category",
+          lightspeedDashboardOptions.products.categories,
+        );
       }
 
       if (lightspeedDashboardOptions.products.inStockOnly) {
@@ -5046,7 +6397,10 @@ export function useIntegrationDetailData(
   });
 
   const lightspeedProductCategoriesQuery = useQuery({
-    queryKey: ["integration-detail-lightspeed-product-categories", tenant?.id ?? null],
+    queryKey: [
+      "integration-detail-lightspeed-product-categories",
+      tenant?.id ?? null,
+    ],
     enabled: isLightspeedDashboardEnabled,
     queryFn: async () => {
       if (!tenant?.id) {
@@ -5100,7 +6454,10 @@ export function useIntegrationDetailData(
         .eq("provider", "lightspeed");
 
       if (lightspeedDashboardOptions.syncLogs.status !== "all") {
-        request = request.eq("status", lightspeedDashboardOptions.syncLogs.status);
+        request = request.eq(
+          "status",
+          lightspeedDashboardOptions.syncLogs.status,
+        );
       }
 
       const { data, error, count } = await request
@@ -5217,7 +6574,9 @@ export function useIntegrationDetailData(
 
     const trackedJobIds = new Set(lightspeedTrackedJobIds);
     const channel = supabase
-      .channel(`lightspeed-sync-jobs-${tenant.id}-${lightspeedTrackedJobIds.join("-")}`)
+      .channel(
+        `lightspeed-sync-jobs-${tenant.id}-${lightspeedTrackedJobIds.join("-")}`,
+      )
       .on(
         "postgres_changes",
         {
@@ -5266,17 +6625,23 @@ export function useIntegrationDetailData(
   const comingSoonInterestMutation = useMutation({
     mutationFn: async () => {
       if (!seed || !isComingSoonIntegrationSlug(seed.slug)) {
-        throw new Error("Notify me is only available for coming-soon integrations.");
+        throw new Error(
+          "Notify me is only available for coming-soon integrations.",
+        );
       }
 
       if (!user?.id || !tenant?.id) {
-        throw new Error("You must be signed in with an active organization before requesting updates.");
+        throw new Error(
+          "You must be signed in with an active organization before requesting updates.",
+        );
       }
 
       const email = user.email?.trim();
 
       if (!email) {
-        throw new Error("Your account email is required before we can notify you.");
+        throw new Error(
+          "Your account email is required before we can notify you.",
+        );
       }
 
       const { error } = await supabase.from("integration_interest").insert({
@@ -5344,7 +6709,9 @@ export function useIntegrationDetailData(
       toast.success("Email infrastructure health check complete.");
 
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["integration-detail", slug] }),
+        queryClient.invalidateQueries({
+          queryKey: ["integration-detail", slug],
+        }),
         queryClient.invalidateQueries({ queryKey: ["integrations-hub"] }),
       ]);
     },
@@ -5360,14 +6727,17 @@ export function useIntegrationDetailData(
   const squareSyncMutation = useMutation({
     mutationFn: async () => {
       if (slug !== "square") {
-        throw new Error("Square sync is only available on the Square detail page.");
+        throw new Error(
+          "Square sync is only available on the Square detail page.",
+        );
       }
 
       if (!resolved?.squareDetail?.connectionId) {
         throw new Error("Connect Square before starting a sync.");
       }
 
-      const { data, error } = await supabase.functions.invoke("square-full-sync");
+      const { data, error } =
+        await supabase.functions.invoke("square-full-sync");
 
       if (error) {
         throw error;
@@ -5392,26 +6762,90 @@ export function useIntegrationDetailData(
     },
   });
 
+  const shopifySyncMutation = useMutation({
+    mutationFn: async () => {
+      if (slug !== "shopify") {
+        throw new Error(
+          "Shopify sync is only available on the Shopify detail page.",
+        );
+      }
+
+      if (!resolved?.shopifyConnection?.id) {
+        throw new Error("Connect Shopify before starting a sync.");
+      }
+
+      const { data, error } =
+        await supabase.functions.invoke("shopify-full-sync");
+
+      if (error) {
+        throw error;
+      }
+
+      if (!Array.isArray(data?.jobs) || data.jobs.length === 0) {
+        throw new Error("Shopify sync could not be started.");
+      }
+
+      return data;
+    },
+    onSuccess: async (data) => {
+      if (data.errors?.length) {
+        toast.info(
+          summarizeUserFacingIntegrationWarnings(
+            data.errors,
+            "Shopify sync queued with warnings.",
+          ),
+        );
+      } else {
+        toast.info("Shopify sync queued. Background jobs have started.");
+      }
+
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["integration-detail"] }),
+        queryClient.invalidateQueries({ queryKey: ["integrations-hub"] }),
+        queryClient.invalidateQueries({
+          queryKey: ["integration-detail-shopify-active-sync-jobs"],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["integration-detail-shopify-recent-sync-jobs"],
+        }),
+      ]);
+    },
+    onError: (error) => {
+      const message = getUserFacingIntegrationError(
+        error,
+        "Shopify sync could not be started.",
+      );
+      toast.error(message);
+    },
+  });
+
   const verifySquareWebhooksMutation = useMutation({
     mutationFn: async () => {
       if (slug !== "square") {
-        throw new Error("Webhook verification is only available on the Square detail page.");
+        throw new Error(
+          "Webhook verification is only available on the Square detail page.",
+        );
       }
 
       if (!resolved?.squareDetail?.connectionId) {
         throw new Error("Connect Square before verifying webhooks.");
       }
 
-      const { data, error } = await supabase.functions.invoke("square-manage-webhooks", {
-        body: { action: "verify" },
-      });
+      const { data, error } = await supabase.functions.invoke(
+        "square-manage-webhooks",
+        {
+          body: { action: "verify" },
+        },
+      );
 
       if (error) {
         throw error;
       }
 
       if (!data?.success) {
-        throw new Error(data?.message ?? data?.error ?? "Square webhook verification failed.");
+        throw new Error(
+          data?.message ?? data?.error ?? "Square webhook verification failed.",
+        );
       }
 
       return data;
@@ -5433,17 +6867,71 @@ export function useIntegrationDetailData(
     },
   });
 
+  const verifyShopifyWebhooksMutation = useMutation({
+    mutationFn: async () => {
+      if (slug !== "shopify") {
+        throw new Error(
+          "Webhook verification is only available on the Shopify detail page.",
+        );
+      }
+
+      if (!resolved?.shopifyConnection?.id) {
+        throw new Error("Connect Shopify before verifying webhooks.");
+      }
+
+      const { data, error } = await supabase.functions.invoke(
+        "shopify-manage-webhooks",
+        {
+          body: { action: "verify" },
+        },
+      );
+
+      if (error) {
+        throw error;
+      }
+
+      if (!data?.success) {
+        throw new Error(
+          data?.message ??
+            data?.error ??
+            "Shopify webhook verification failed.",
+        );
+      }
+
+      return data;
+    },
+    onSuccess: async (data) => {
+      toast.success(data?.message ?? "Shopify webhooks verified.");
+
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["integration-detail"] }),
+        queryClient.invalidateQueries({ queryKey: ["integrations-hub"] }),
+      ]);
+    },
+    onError: (error) => {
+      const message = getUserFacingIntegrationError(
+        error,
+        "Shopify webhook verification failed.",
+      );
+      toast.error(message);
+    },
+  });
+
   const cloverSyncMutation = useMutation({
     mutationFn: async () => {
       if (slug !== "clover") {
-        throw new Error("Clover sync is only available on the Clover detail page.");
+        throw new Error(
+          "Clover sync is only available on the Clover detail page.",
+        );
       }
 
       if (!resolved?.cloverDetail?.connectionId) {
         throw new Error("Connect Clover before starting a sync.");
       }
 
-      const { data, error } = await supabase.functions.invoke("clover-sync-customers");
+      const { data, error } = await supabase.functions.invoke(
+        "clover-sync-customers",
+      );
 
       if (error) {
         throw error;
@@ -5456,7 +6944,9 @@ export function useIntegrationDetailData(
 
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["integration-detail"] }),
-        queryClient.invalidateQueries({ queryKey: ["integration-detail-clover"] }),
+        queryClient.invalidateQueries({
+          queryKey: ["integration-detail-clover"],
+        }),
         queryClient.invalidateQueries({ queryKey: ["integrations-hub"] }),
       ]);
     },
@@ -5472,16 +6962,21 @@ export function useIntegrationDetailData(
   const cloverConnectionTestMutation = useMutation({
     mutationFn: async () => {
       if (slug !== "clover") {
-        throw new Error("Connection testing is only available on the Clover detail page.");
+        throw new Error(
+          "Connection testing is only available on the Clover detail page.",
+        );
       }
 
       if (!resolved?.cloverDetail?.connectionId) {
         throw new Error("Connect Clover before running a connection test.");
       }
 
-      const { data, error } = await supabase.functions.invoke("clover-test-harness", {
-        body: { date_range_days: 30 },
-      });
+      const { data, error } = await supabase.functions.invoke(
+        "clover-test-harness",
+        {
+          body: { date_range_days: 30 },
+        },
+      );
 
       if (error) {
         throw error;
@@ -5494,7 +6989,9 @@ export function useIntegrationDetailData(
 
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["integration-detail"] }),
-        queryClient.invalidateQueries({ queryKey: ["integration-detail-clover"] }),
+        queryClient.invalidateQueries({
+          queryKey: ["integration-detail-clover"],
+        }),
         queryClient.invalidateQueries({ queryKey: ["integrations-hub"] }),
       ]);
     },
@@ -5510,14 +7007,18 @@ export function useIntegrationDetailData(
   const lightspeedSyncMutation = useMutation({
     mutationFn: async () => {
       if (slug !== "lightspeed") {
-        throw new Error("Lightspeed sync is only available on the Lightspeed detail page.");
+        throw new Error(
+          "Lightspeed sync is only available on the Lightspeed detail page.",
+        );
       }
 
       if (!resolved?.lightspeedDetail?.connectionId) {
         throw new Error("Connect Lightspeed before starting a sync.");
       }
 
-      const { data, error } = await supabase.functions.invoke("lightspeed-full-sync");
+      const { data, error } = await supabase.functions.invoke(
+        "lightspeed-full-sync",
+      );
 
       if (error) {
         throw error;
@@ -5601,7 +7102,8 @@ export function useIntegrationDetailData(
       .slice(
         lightspeedDashboardOptions.syncLogs.page === 1
           ? 0
-          : (lightspeedSyncLogsQuery.data?.rows.length ?? LIGHTSPEED_DASHBOARD_PAGE_SIZE),
+          : (lightspeedSyncLogsQuery.data?.rows.length ??
+              LIGHTSPEED_DASHBOARD_PAGE_SIZE),
       );
   }, [
     lightspeedDashboardOptions.syncLogs.page,
@@ -5618,38 +7120,46 @@ export function useIntegrationDetailData(
       customers: {
         rows: lightspeedCustomersQuery.data?.rows ?? [],
         pagination:
-          lightspeedCustomersQuery.data?.pagination ?? buildLightspeedPagination(1, 0),
+          lightspeedCustomersQuery.data?.pagination ??
+          buildLightspeedPagination(1, 0),
         isLoading: lightspeedCustomersQuery.isLoading,
         isFetching: lightspeedCustomersQuery.isFetching,
       },
       sales: {
         rows: lightspeedSalesQuery.data?.rows ?? [],
         pagination:
-          lightspeedSalesQuery.data?.pagination ?? buildLightspeedPagination(1, 0),
+          lightspeedSalesQuery.data?.pagination ??
+          buildLightspeedPagination(1, 0),
         summary: lightspeedSalesSummaryQuery.data ?? {
           revenue: 0,
           averageOrderValue: 0,
           saleCount: 0,
         },
         isLoading:
-          lightspeedSalesQuery.isLoading || lightspeedSalesSummaryQuery.isLoading,
+          lightspeedSalesQuery.isLoading ||
+          lightspeedSalesSummaryQuery.isLoading,
         isFetching:
-          lightspeedSalesQuery.isFetching || lightspeedSalesSummaryQuery.isFetching,
+          lightspeedSalesQuery.isFetching ||
+          lightspeedSalesSummaryQuery.isFetching,
       },
       products: {
         rows: lightspeedProductsQuery.data?.rows ?? [],
         pagination:
-          lightspeedProductsQuery.data?.pagination ?? buildLightspeedPagination(1, 0),
+          lightspeedProductsQuery.data?.pagination ??
+          buildLightspeedPagination(1, 0),
         categories: lightspeedProductCategoriesQuery.data ?? [],
         isLoading:
-          lightspeedProductsQuery.isLoading || lightspeedProductCategoriesQuery.isLoading,
+          lightspeedProductsQuery.isLoading ||
+          lightspeedProductCategoriesQuery.isLoading,
         isFetching:
-          lightspeedProductsQuery.isFetching || lightspeedProductCategoriesQuery.isFetching,
+          lightspeedProductsQuery.isFetching ||
+          lightspeedProductCategoriesQuery.isFetching,
       },
       syncLogs: {
         rows: lightspeedSyncLogRows,
         pagination:
-          lightspeedSyncLogsQuery.data?.pagination ?? buildLightspeedPagination(1, 0),
+          lightspeedSyncLogsQuery.data?.pagination ??
+          buildLightspeedPagination(1, 0),
         isLoading: lightspeedSyncLogsQuery.isLoading,
         isFetching: lightspeedSyncLogsQuery.isFetching,
       },
@@ -5688,31 +7198,44 @@ export function useIntegrationDetailData(
     return {
       customers: {
         rows: squareCustomersQuery.data?.rows ?? [],
-        pagination: squareCustomersQuery.data?.pagination ?? buildLightspeedPagination(1, 0),
+        pagination:
+          squareCustomersQuery.data?.pagination ??
+          buildLightspeedPagination(1, 0),
         isLoading: squareCustomersQuery.isLoading,
         isFetching: squareCustomersQuery.isFetching,
       },
       sales: {
         rows: squareSalesQuery.data?.rows ?? [],
-        pagination: squareSalesQuery.data?.pagination ?? buildLightspeedPagination(1, 0),
+        pagination:
+          squareSalesQuery.data?.pagination ?? buildLightspeedPagination(1, 0),
         summary: squareSalesSummaryQuery.data ?? {
           revenue: 0,
           averageOrderValue: 0,
           saleCount: 0,
         },
-        isLoading: squareSalesQuery.isLoading || squareSalesSummaryQuery.isLoading,
-        isFetching: squareSalesQuery.isFetching || squareSalesSummaryQuery.isFetching,
+        isLoading:
+          squareSalesQuery.isLoading || squareSalesSummaryQuery.isLoading,
+        isFetching:
+          squareSalesQuery.isFetching || squareSalesSummaryQuery.isFetching,
       },
       products: {
         rows: squareProductsQuery.data?.rows ?? [],
-        pagination: squareProductsQuery.data?.pagination ?? buildLightspeedPagination(1, 0),
+        pagination:
+          squareProductsQuery.data?.pagination ??
+          buildLightspeedPagination(1, 0),
         categories: squareProductCategoriesQuery.data ?? [],
-        isLoading: squareProductsQuery.isLoading || squareProductCategoriesQuery.isLoading,
-        isFetching: squareProductsQuery.isFetching || squareProductCategoriesQuery.isFetching,
+        isLoading:
+          squareProductsQuery.isLoading ||
+          squareProductCategoriesQuery.isLoading,
+        isFetching:
+          squareProductsQuery.isFetching ||
+          squareProductCategoriesQuery.isFetching,
       },
       syncLogs: {
         rows: squareSyncLogsQuery.data?.rows ?? [],
-        pagination: squareSyncLogsQuery.data?.pagination ?? buildLightspeedPagination(1, 0),
+        pagination:
+          squareSyncLogsQuery.data?.pagination ??
+          buildLightspeedPagination(1, 0),
         isLoading: squareSyncLogsQuery.isLoading,
         isFetching: squareSyncLogsQuery.isFetching,
       },
@@ -5748,13 +7271,15 @@ export function useIntegrationDetailData(
       return null;
     }
 
-    const latestConnectionTest = cloverConnectionTestsQuery.data?.rows[0] ?? null;
+    const latestConnectionTest =
+      cloverConnectionTestsQuery.data?.rows[0] ?? null;
 
     return {
       customers: {
         rows: cloverCustomersQuery.data?.rows ?? [],
         pagination:
-          cloverCustomersQuery.data?.pagination ?? buildLightspeedPagination(1, 0),
+          cloverCustomersQuery.data?.pagination ??
+          buildLightspeedPagination(1, 0),
         isLoading: cloverCustomersQuery.isLoading,
         isFetching: cloverCustomersQuery.isFetching,
       },
@@ -5767,24 +7292,29 @@ export function useIntegrationDetailData(
           averageOrderValue: 0,
           saleCount: 0,
         },
-        isLoading: cloverSalesQuery.isLoading || cloverSalesSummaryQuery.isLoading,
+        isLoading:
+          cloverSalesQuery.isLoading || cloverSalesSummaryQuery.isLoading,
         isFetching:
           cloverSalesQuery.isFetching || cloverSalesSummaryQuery.isFetching,
       },
       products: {
         rows: cloverProductsQuery.data?.rows ?? [],
         pagination:
-          cloverProductsQuery.data?.pagination ?? buildLightspeedPagination(1, 0),
+          cloverProductsQuery.data?.pagination ??
+          buildLightspeedPagination(1, 0),
         categories: cloverProductCategoriesQuery.data ?? [],
         isLoading:
-          cloverProductsQuery.isLoading || cloverProductCategoriesQuery.isLoading,
+          cloverProductsQuery.isLoading ||
+          cloverProductCategoriesQuery.isLoading,
         isFetching:
-          cloverProductsQuery.isFetching || cloverProductCategoriesQuery.isFetching,
+          cloverProductsQuery.isFetching ||
+          cloverProductCategoriesQuery.isFetching,
       },
       syncLogs: {
         rows: cloverSyncLogsQuery.data?.rows ?? [],
         pagination:
-          cloverSyncLogsQuery.data?.pagination ?? buildLightspeedPagination(1, 0),
+          cloverSyncLogsQuery.data?.pagination ??
+          buildLightspeedPagination(1, 0),
         isLoading: cloverSyncLogsQuery.isLoading,
         isFetching: cloverSyncLogsQuery.isFetching,
       },
@@ -5829,17 +7359,108 @@ export function useIntegrationDetailData(
     isCloverDashboardEnabled,
   ]);
 
+  const shopifyDashboard = useMemo<ShopifyDashboardData | null>(() => {
+    if (!isShopifyDashboardEnabled) {
+      return null;
+    }
+
+    return {
+      customers: {
+        rows: shopifyCustomersQuery.data?.rows ?? [],
+        pagination:
+          shopifyCustomersQuery.data?.pagination ??
+          buildLightspeedPagination(1, 0),
+        isLoading: shopifyCustomersQuery.isLoading,
+        isFetching: shopifyCustomersQuery.isFetching,
+      },
+      orders: {
+        rows: shopifyOrdersQuery.data?.rows ?? [],
+        pagination:
+          shopifyOrdersQuery.data?.pagination ??
+          buildLightspeedPagination(1, 0),
+        summary: shopifyOrdersSummaryQuery.data ?? {
+          revenue: 0,
+          averageOrderValue: 0,
+          saleCount: 0,
+        },
+        isLoading:
+          shopifyOrdersQuery.isLoading || shopifyOrdersSummaryQuery.isLoading,
+        isFetching:
+          shopifyOrdersQuery.isFetching || shopifyOrdersSummaryQuery.isFetching,
+      },
+      products: {
+        rows: shopifyProductsQuery.data?.rows ?? [],
+        pagination:
+          shopifyProductsQuery.data?.pagination ??
+          buildLightspeedPagination(1, 0),
+        categories: shopifyProductTypesQuery.data ?? [],
+        isLoading:
+          shopifyProductsQuery.isLoading || shopifyProductTypesQuery.isLoading,
+        isFetching:
+          shopifyProductsQuery.isFetching ||
+          shopifyProductTypesQuery.isFetching,
+      },
+      syncLogs: {
+        rows: shopifySyncLogsQuery.data?.rows ?? [],
+        pagination:
+          shopifySyncLogsQuery.data?.pagination ??
+          buildLightspeedPagination(1, 0),
+        isLoading: shopifySyncLogsQuery.isLoading,
+        isFetching: shopifySyncLogsQuery.isFetching,
+      },
+    };
+  }, [
+    isShopifyDashboardEnabled,
+    shopifyCustomersQuery.data?.pagination,
+    shopifyCustomersQuery.data?.rows,
+    shopifyCustomersQuery.isFetching,
+    shopifyCustomersQuery.isLoading,
+    shopifyOrdersQuery.data?.pagination,
+    shopifyOrdersQuery.data?.rows,
+    shopifyOrdersQuery.isFetching,
+    shopifyOrdersQuery.isLoading,
+    shopifyOrdersSummaryQuery.data,
+    shopifyOrdersSummaryQuery.isFetching,
+    shopifyOrdersSummaryQuery.isLoading,
+    shopifyProductsQuery.data?.pagination,
+    shopifyProductsQuery.data?.rows,
+    shopifyProductsQuery.isFetching,
+    shopifyProductsQuery.isLoading,
+    shopifyProductTypesQuery.data,
+    shopifyProductTypesQuery.isFetching,
+    shopifyProductTypesQuery.isLoading,
+    shopifySyncLogsQuery.data?.pagination,
+    shopifySyncLogsQuery.data?.rows,
+    shopifySyncLogsQuery.isFetching,
+    shopifySyncLogsQuery.isLoading,
+  ]);
+
   const lightspeedActiveJobIds = useMemo(() => {
     return lightspeedSyncJobs
-      .filter((job) => !job.isTerminal)
+      .filter((job) => job.status === "in_progress" && !job.isStale)
       .map((job) => job.id);
   }, [lightspeedSyncJobs]);
 
-  const lightspeedSyncState: LightspeedSyncState = lightspeedSyncMutation.isPending
+  const shopifySyncJobs = shopifyActiveJobsQuery.data ?? [];
+
+  const shopifyActiveJobIds = useMemo(() => {
+    return shopifySyncJobs
+      .filter((job) => !job.isTerminal)
+      .map((job) => job.id);
+  }, [shopifySyncJobs]);
+
+  const shopifySyncState: LightspeedSyncState = shopifySyncMutation.isPending
     ? "triggering"
-    : lightspeedActiveJobIds.length > 0
+    : shopifyActiveJobIds.length > 0
       ? "syncing"
       : "idle";
+
+  const lightspeedSyncState: LightspeedSyncState =
+    lightspeedSyncMutation.isPending
+      ? "triggering"
+      : lightspeedActiveJobIds.length > 0
+        ? "syncing"
+        : "idle";
 
   const lightspeedHasStaleJobs = useMemo(() => {
     return lightspeedSyncJobs.some((job) => job.isStale);
@@ -5894,7 +7515,9 @@ export function useIntegrationDetailData(
   const metaReauthorizationMutation = useMutation({
     mutationFn: async () => {
       if (slug !== "meta") {
-        throw new Error("Meta authorization is only available on the Meta detail page.");
+        throw new Error(
+          "Meta authorization is only available on the Meta detail page.",
+        );
       }
 
       await launchMetaAuthorizationFlow();
@@ -5914,7 +7537,9 @@ export function useIntegrationDetailData(
   const metaAssetRefreshMutation = useMutation({
     mutationFn: async () => {
       if (slug !== "meta") {
-        throw new Error("Meta asset refresh is only available on the Meta detail page.");
+        throw new Error(
+          "Meta asset refresh is only available on the Meta detail page.",
+        );
       }
 
       const { data, error } = await supabase.functions.invoke("sync-analytics");
@@ -5945,26 +7570,35 @@ export function useIntegrationDetailData(
   const ga4ConnectionTestMutation = useMutation({
     mutationFn: async () => {
       if (slug !== "google-analytics") {
-        throw new Error("Connection testing is only available on the Google Analytics detail page.");
+        throw new Error(
+          "Connection testing is only available on the Google Analytics detail page.",
+        );
       }
 
       if (!tenant?.id || !user?.id) {
-        throw new Error("A tenant-scoped user context is required to test Google Analytics.");
+        throw new Error(
+          "A tenant-scoped user context is required to test Google Analytics.",
+        );
       }
 
       if (!resolved?.ga4Detail?.propertyId) {
-        throw new Error("Connect Google Analytics before running a connection test.");
+        throw new Error(
+          "Connect Google Analytics before running a connection test.",
+        );
       }
 
       const testedAt = new Date().toISOString();
 
       try {
-        const { data, error } = await supabase.functions.invoke("ga-report-data", {
-          body: {
-            propertyId: resolved.ga4Detail.propertyId,
-            dateRange: 7,
+        const { data, error } = await supabase.functions.invoke(
+          "ga-report-data",
+          {
+            body: {
+              propertyId: resolved.ga4Detail.propertyId,
+              dateRange: 7,
+            },
           },
-        });
+        );
 
         if (error) {
           throw error;
@@ -5980,7 +7614,8 @@ export function useIntegrationDetailData(
             .update({
               last_test_at: testedAt,
               last_test_status: "success",
-              last_test_message: "Property accessible · Sessions data available",
+              last_test_message:
+                "Property accessible · Sessions data available",
             })
             .eq("id", resolved.ga4Detail.connectionId)
             .eq("tenant_id", tenant.id)
@@ -6037,16 +7672,23 @@ export function useIntegrationDetailData(
   const ga4ReauthorizationMutation = useMutation({
     mutationFn: async () => {
       if (slug !== "google-analytics") {
-        throw new Error("Reauthorization is only available on the Google Analytics detail page.");
+        throw new Error(
+          "Reauthorization is only available on the Google Analytics detail page.",
+        );
       }
 
       if (!resolved?.ga4Detail?.propertyId) {
-        throw new Error("A GA4 property ID is required before reauthorizing Google Analytics.");
+        throw new Error(
+          "A GA4 property ID is required before reauthorizing Google Analytics.",
+        );
       }
 
-      const { data, error } = await supabase.functions.invoke("oauth-initiate", {
-        body: { propertyId: resolved.ga4Detail.propertyId },
-      });
+      const { data, error } = await supabase.functions.invoke(
+        "oauth-initiate",
+        {
+          body: { propertyId: resolved.ga4Detail.propertyId },
+        },
+      );
 
       if (error) {
         throw error;
@@ -6092,6 +7734,17 @@ export function useIntegrationDetailData(
       }
 
       switch (resolved.disconnectRef.kind) {
+        case "shopify": {
+          const { data, error } =
+            await supabase.functions.invoke("shopify-disconnect");
+
+          if (error) throw error;
+          if (data?.error) {
+            throw new Error(data.message ?? "Disconnect failed.");
+          }
+
+          return;
+        }
         case "square": {
           const { error } = await supabase
             .from("square_connections")
@@ -6192,17 +7845,26 @@ export function useIntegrationDetailData(
       }
     },
     onSuccess: async () => {
-      if (resolved?.item) {
+      if (slug === "shopify") {
+        toast.success("Shopify disconnected successfully");
+      } else if (slug === "mailchimp") {
+        toast.success("Mailchimp disconnected successfully");
+      } else if (resolved?.item) {
         toast.success(`${resolved.item.name} disconnected.`);
       }
 
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["integration-detail", slug] }),
+        queryClient.invalidateQueries({
+          queryKey: ["integration-detail", slug],
+        }),
         queryClient.invalidateQueries({ queryKey: ["integrations-hub"] }),
       ]);
     },
     onError: (error) => {
-      const message = getUserFacingIntegrationError(error, "Disconnect failed.");
+      const message = getUserFacingIntegrationError(
+        error,
+        "Disconnect failed.",
+      );
       toast.error(message);
     },
   });
@@ -6233,7 +7895,9 @@ export function useIntegrationDetailData(
       );
 
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["integration-detail", slug] }),
+        queryClient.invalidateQueries({
+          queryKey: ["integration-detail", slug],
+        }),
         queryClient.invalidateQueries({ queryKey: ["integrations-hub"] }),
       ]);
     },
@@ -6252,6 +7916,8 @@ export function useIntegrationDetailData(
     item: resolved?.item ?? null,
     model: resolved?.model ?? null,
     comingSoonDetail,
+    shopifyConnection: resolved?.shopifyConnection ?? null,
+    shopifyDashboard,
     squareDetail: resolved?.squareDetail ?? null,
     squareDashboard,
     cloverDetail: resolved?.cloverDetail ?? null,
@@ -6265,14 +7931,17 @@ export function useIntegrationDetailData(
     targetPath: resolved?.targetPath,
     requestPath: resolved?.requestPath,
     canUseActions:
-      !isComingSoonIntegrationSlug(resolved?.item?.slug ?? null) && hasRole("member"),
-      canAccessLightspeedAdminFeatures:
-        resolved?.item?.slug === "lightspeed" ? isSuperAdmin : false,
+      !isComingSoonIntegrationSlug(resolved?.item?.slug ?? null) &&
+      hasRole("member"),
+    canAccessLightspeedAdminFeatures:
+      resolved?.item?.slug === "lightspeed" ? isSuperAdmin : false,
     canDisconnect: Boolean(
       resolved?.model?.canDisconnect &&
-        resolved?.disconnectRef &&
-        (!["square", "clover", "lightspeed"].includes(resolved.disconnectRef.kind) ||
-          isSuperAdmin),
+      resolved?.disconnectRef &&
+      (!["square", "clover", "lightspeed"].includes(
+        resolved.disconnectRef.kind,
+      ) ||
+        isSuperAdmin),
     ),
     isLoading: Boolean(seed) && query.isLoading,
     isFetching: Boolean(seed) && query.isFetching,
@@ -6287,12 +7956,19 @@ export function useIntegrationDetailData(
       emailInfrastructureHealthCheckMutation.isPending,
     triggerSquareSync: squareSyncMutation.mutateAsync,
     isSquareSyncing: squareSyncMutation.isPending,
+    triggerShopifySync: shopifySyncMutation.mutateAsync,
+    isShopifySyncing: shopifySyncState !== "idle",
     verifySquareWebhooks: verifySquareWebhooksMutation.mutateAsync,
     isVerifyingSquareWebhooks: verifySquareWebhooksMutation.isPending,
+    verifyShopifyWebhooks: verifyShopifyWebhooksMutation.mutateAsync,
+    isVerifyingShopifyWebhooks: verifyShopifyWebhooksMutation.isPending,
     triggerCloverSync: cloverSyncMutation.mutateAsync,
     isCloverSyncing: cloverSyncMutation.isPending,
     runCloverConnectionTest: cloverConnectionTestMutation.mutateAsync,
     isCloverConnectionTesting: cloverConnectionTestMutation.isPending,
+    shopifySyncJobs,
+    shopifyActiveJobIds,
+    shopifySyncState,
     lightspeedSyncJobs,
     lightspeedActiveJobIds,
     lightspeedTrackedJobIds,

@@ -241,6 +241,30 @@ verify_jwt = true
 [functions.square-oauth-callback]
 verify_jwt = false
 
+[functions.shopify-oauth-start]
+verify_jwt = true
+
+[functions.shopify-oauth-callback]
+verify_jwt = false
+
+[functions.shopify-ensure-webhooks]
+verify_jwt = false
+
+[functions.shopify-webhook-handler]
+verify_jwt = false
+
+[functions.shopify-manage-webhooks]
+verify_jwt = true
+
+[functions.shopify-disconnect]
+verify_jwt = true
+
+[functions.shopify-diagnostics]
+verify_jwt = true
+
+[functions.shopify-full-sync]
+verify_jwt = true
+
 [functions.email-tracking-webhook]
 verify_jwt = false
 
