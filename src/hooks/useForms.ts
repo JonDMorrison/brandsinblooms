@@ -57,6 +57,9 @@ export function useForms() {
         compliance_json: form.compliance_json as unknown as FormCompliance,
       })) as Form[];
     },
+    retry: 2,
+    refetchOnMount: true,
+    refetchOnWindowFocus: false,
   });
 
   const createFormMutation = useMutation({
@@ -180,6 +183,7 @@ export function useForms() {
     forms: formsQuery.data || [],
     isLoading: formsQuery.isLoading,
     error: formsQuery.error,
+    refetch: formsQuery.refetch,
     createForm: createFormMutation.mutateAsync,
     updateForm: updateFormMutation.mutateAsync,
     deleteForm: deleteFormMutation.mutateAsync,
@@ -213,6 +217,9 @@ export function useForm(formId: string | undefined) {
       } as Form;
     },
     enabled: !!formId,
+    retry: 2,
+    refetchOnMount: true,
+    refetchOnWindowFocus: false,
   });
 }
 

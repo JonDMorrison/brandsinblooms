@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useBlocker } from 'react-router-dom';
 import { useForm } from '@/hooks/useForms';
+import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, Save, Loader2, Eye, EyeOff, PanelRightClose, PanelRight } from 'lucide-react';
+import { ArrowLeft, Save, Loader2, Eye, EyeOff, PanelRightClose, PanelRight, RefreshCw } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -28,7 +29,8 @@ export default function FormEditorPage() {
   const { formId } = useParams<{ formId: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { data: form, isLoading, error } = useForm(formId);
+  const queryClient = useQueryClient();
+  const { data: form, isLoading, error, refetch } = useForm(formId);
 
   const [name, setName] = useState('');
   const [fields, setFields] = useState<FormField[]>([]);
@@ -57,6 +59,11 @@ export default function FormEditorPage() {
       setShowPreview(false);
     }
   }, [isMobile]);
+
+  // Reset dirty state when navigating to a different form
+  useEffect(() => {
+    setHasChanges(false);
+  }, [formId]);
 
   // Initialize state from loaded form (Fix 2: include audience)
   useEffect(() => {
@@ -94,6 +101,10 @@ export default function FormEditorPage() {
         .eq('id', formId);
 
       if (error) throw error;
+
+      // Invalidate cached query data so navigation shows fresh state
+      queryClient.invalidateQueries({ queryKey: ['form', formId] });
+      queryClient.invalidateQueries({ queryKey: ['forms'] });
 
       toast({
         title: 'Form saved',
@@ -133,11 +144,21 @@ export default function FormEditorPage() {
       <div className="p-6">
         <div className="text-center py-12">
           <h2 className="text-xl font-semibold mb-2">Form not found</h2>
-          <p className="text-muted-foreground mb-4">This form may have been deleted.</p>
-          <Button variant="outline" onClick={() => navigate('/crm/forms')}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Forms
-          </Button>
+          <p className="text-muted-foreground mb-4">
+            {error ? (error as Error)?.message || 'Failed to load form.' : 'This form may have been deleted.'}
+          </p>
+          <div className="flex items-center justify-center gap-3">
+            {error && (
+              <Button variant="outline" onClick={() => refetch()}>
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Retry
+              </Button>
+            )}
+            <Button variant="outline" onClick={() => navigate('/crm/forms')}>
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Forms
+            </Button>
+          </div>
         </div>
       </div>
     );

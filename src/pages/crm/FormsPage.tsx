@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { FileText, Plus, Eye, Trash2, MoreHorizontal, Copy, Layout, Search } from 'lucide-react';
+import { FileText, Plus, Eye, Trash2, MoreHorizontal, Copy, Layout, Search, AlertCircle, RefreshCw } from 'lucide-react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useForms, useFormSubmissions } from '@/hooks/useForms';
 import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
@@ -21,7 +21,7 @@ import { useToast } from '@/hooks/use-toast';
 export default function FormsPage() {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { forms, isLoading, deleteForm, isDeleting, createForm, isCreating } = useForms();
+  const { forms, isLoading, error, refetch, deleteForm, isDeleting, createForm, isCreating } = useForms();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [formToDelete, setFormToDelete] = useState<{ id: string; name: string } | null>(null);
   const [templatesDialogOpen, setTemplatesDialogOpen] = useState(false);
@@ -105,6 +105,29 @@ export default function FormsPage() {
   const totalForms = forms.length;
 
   // Fix 7: Removed duplicate getStatusBadge — only standalone function below is used
+
+  if (error && !isLoading) {
+    return (
+      <div className="p-6 space-y-6">
+        <div className="flex justify-between items-center">
+          <h1 className="text-3xl font-bold">Forms</h1>
+        </div>
+        <Card>
+          <CardContent className="py-12 text-center">
+            <AlertCircle className="h-10 w-10 mx-auto mb-3 text-destructive" />
+            <h2 className="text-xl font-semibold mb-2">Failed to load forms</h2>
+            <p className="text-muted-foreground mb-4">
+              {(error as Error)?.message || 'An unexpected error occurred. Please try again.'}
+            </p>
+            <Button onClick={() => refetch()} variant="outline">
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Retry
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 space-y-6">
