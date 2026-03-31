@@ -20,8 +20,9 @@ export function FormBuildTab({ fields, onFieldsChange, onApplyTemplate }: FormBu
       type,
       label: type === 'email_consent' ? 'I agree to receive marketing emails' 
            : type === 'sms_consent' ? 'I agree to receive SMS messages. Msg & data rates may apply.'
+           : type === 'checkbox_group' ? 'What would you like to sign up for?'
            : `New ${type} field`,
-      required: type === 'email' || type === 'email_consent' || type === 'sms_consent',
+      required: type === 'email' || type === 'email_consent' || type === 'sms_consent' || type === 'checkbox_group',
       placeholder: type === 'email' ? 'you@example.com' 
                  : type === 'phone' ? '(555) 123-4567'
                  : type === 'text' ? 'Enter your answer...'
@@ -32,6 +33,10 @@ export function FormBuildTab({ fields, onFieldsChange, onApplyTemplate }: FormBu
                  : type === 'sms_consent' ? 'sms_consent'
                  : 'custom',
       options: type === 'select' ? ['Option 1', 'Option 2', 'Option 3'] : undefined,
+      checkbox_options: type === 'checkbox_group' ? [
+        { id: crypto.randomUUID(), label: 'Option 1', value: 'option_1', segment_id: '' },
+        { id: crypto.randomUUID(), label: 'Option 2', value: 'option_2', segment_id: '' },
+      ] : undefined,
     };
     onFieldsChange([...fields, newField]);
   };

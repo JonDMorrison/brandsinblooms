@@ -15,13 +15,15 @@ import {
   Type, 
   List,
   CheckSquare,
+  ListChecks,
   EyeOff,
   ShieldCheck,
   MessageSquare,
   AlertCircle,
-  HelpCircle
+  HelpCircle,
+  Plus,
 } from 'lucide-react';
-import { FormField, FormFieldType, FIELD_MAPPING_OPTIONS } from '@/types/formBuilder';
+import { FormField, FormFieldType, CheckboxGroupOption, FIELD_MAPPING_OPTIONS } from '@/types/formBuilder';
 import { NativeSelect } from '@/components/ui/NativeSelect';
 import {
   Collapsible,
@@ -36,6 +38,7 @@ import {
 } from '@/components/ui/tooltip';
 import { reorderArray } from '@/utils/dragUtils';
 import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
+import { useAllSegments } from '@/hooks/useAllSegments';
 
 interface DraggableFieldListProps {
   fields: FormField[];
@@ -77,6 +80,12 @@ const FIELD_TYPE_CONFIG: Record<FormFieldType, {
     label: 'Checkbox', 
     color: 'text-orange-600',
     helperText: 'Single yes/no option'
+  },
+  checkbox_group: {
+    icon: ListChecks,
+    label: 'Subscription Options',
+    color: 'text-emerald-600',
+    helperText: 'Multi-select checkboxes where each option can assign a CRM segment',
   },
   hidden: { 
     icon: EyeOff, 
@@ -338,6 +347,14 @@ function DraggableFieldItem({ field, index, onUpdate, onRemove }: DraggableField
                     </div>
                   )}
 
+                  {/* Checkbox Group Options with segment mapping */}
+                  {field.type === 'checkbox_group' && (
+                    <CheckboxGroupEditor
+                      options={field.checkbox_options || []}
+                      onChange={(opts) => onUpdate({ checkbox_options: opts })}
+                    />
+                  )}
+
                   {/* Required Toggle with inline preview */}
                   <div className="flex items-center justify-between p-3 border rounded-lg bg-background">
                     <div className="flex items-center gap-2">
@@ -389,5 +406,104 @@ function DraggableFieldItem({ field, index, onUpdate, onRemove }: DraggableField
         </div>
       )}
     </Draggable>
+  );
+}
+
+// ─── Checkbox Group Option Editor ────────────────────────────────────────────
+
+interface CheckboxGroupEditorProps {
+  options: CheckboxGroupOption[];
+  onChange: (options: CheckboxGroupOption[]) => void;
+}
+
+function CheckboxGroupEditor({ options, onChange }: CheckboxGroupEditorProps) {
+  const { segments, loading: segmentsLoading } = useAllSegments();
+
+  const addOption = () => {
+    onChange([
+      ...options,
+      { id: crypto.randomUUID(), label: 'New Option', value: `option_${options.length + 1}`, segment_id: '' },
+    ]);
+  };
+
+  const updateOption = (id: string, updates: Partial<CheckboxGroupOption>) => {
+    onChange(options.map(o => o.id === id ? { ...o, ...updates } : o));
+  };
+
+  const removeOption = (id: string) => {
+    onChange(options.filter(o => o.id !== id));
+  };
+
+  const segmentOptions = [
+    { value: '', label: '— No segment —' },
+    ...segments.map(s => ({ value: s.id, label: s.name })),
+  ];
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <Label className="text-xs font-medium">Subscription Options</Label>
+        <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={addOption}>
+          <Plus className="h-3 w-3 mr-1" />
+          Add Option
+        </Button>
+      </div>
+
+      {options.length === 0 && (
+        <p className="text-xs text-muted-foreground italic">No options yet. Add at least one.</p>
+      )}
+
+      <div className="space-y-2">
+        {options.map((opt, idx) => (
+          <div key={opt.id} className="p-3 border rounded-lg bg-background space-y-2">
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground w-5">{idx + 1}.</span>
+              <Input
+                value={opt.label}
+                onChange={(e) => {
+                  const label = e.target.value;
+                  // Auto-derive value from label (snake_case) unless user has customized it
+                  const autoValue = label.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+                  updateOption(opt.id, { label, value: autoValue || opt.value });
+                }}
+                placeholder="Option label (shown to visitor)"
+                className="flex-1 h-7 text-xs"
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                onClick={() => removeOption(opt.id)}
+              >
+                <Trash2 className="h-3 w-3" />
+              </Button>
+            </div>
+
+            <div className="flex items-center gap-2 pl-5">
+              <Label className="text-xs text-muted-foreground shrink-0">→ Assigns segment:</Label>
+              <select
+                value={opt.segment_id || ''}
+                onChange={(e) => updateOption(opt.id, { segment_id: e.target.value })}
+                className="flex-1 h-7 px-2 text-xs border rounded-md bg-background"
+                disabled={segmentsLoading}
+              >
+                {segmentOptions.map(s => (
+                  <option key={s.value} value={s.value}>{s.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="p-2 bg-emerald-50 border border-emerald-200 rounded-lg">
+        <p className="text-xs text-emerald-700">
+          <ListChecks className="h-3 w-3 inline mr-1" />
+          Visitors can select multiple options. Each selection assigns the contact to the mapped segment.
+          At least one must be selected when this field is required.
+        </p>
+      </div>
+    </div>
   );
 }

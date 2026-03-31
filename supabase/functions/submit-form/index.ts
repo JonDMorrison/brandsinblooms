@@ -30,6 +30,13 @@ function jsonResponse(
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
+interface CheckboxGroupOption {
+  id: string;
+  label: string;
+  value: string;
+  segment_id?: string;
+}
+
 interface FormField {
   id: string;
   type: string;
@@ -37,6 +44,7 @@ interface FormField {
   required: boolean;
   mapping_key: string;
   options?: string[];
+  checkbox_options?: CheckboxGroupOption[];
 }
 
 interface FormCompliance {
@@ -246,6 +254,18 @@ function validateRequiredFields(
   const errors: string[] = [];
 
   for (const field of fields) {
+    if (field.type === 'checkbox_group') {
+      // For checkbox_group, required means at least one option selected
+      if (field.required) {
+        const value = data[field.id];
+        const selected: string[] = Array.isArray(value) ? value : [];
+        if (selected.length === 0) {
+          errors.push(`${field.label}: please select at least one option`);
+        }
+      }
+      continue;
+    }
+
     if (field.required) {
       const value = data[field.id];
       if (value === undefined || value === null || value === '') {
@@ -329,6 +349,35 @@ function extractMappedValues(
   }
 
   return mapped;
+}
+
+/**
+ * Extract segment IDs selected via checkbox_group fields.
+ * Returns a deduplicated list of segment IDs that the visitor opted into.
+ */
+function extractCheckboxGroupSegmentIds(
+  fields: FormField[],
+  data: Record<string, unknown>
+): string[] {
+  const segmentIds: string[] = [];
+
+  for (const field of fields) {
+    if (field.type !== 'checkbox_group') continue;
+    const checkboxOptions = field.checkbox_options || [];
+    if (checkboxOptions.length === 0) continue;
+
+    const value = data[field.id];
+    const selectedValues: string[] = Array.isArray(value) ? value : [];
+
+    for (const opt of checkboxOptions) {
+      if (opt.segment_id && selectedValues.includes(opt.value)) {
+        segmentIds.push(opt.segment_id);
+      }
+    }
+  }
+
+  // Deduplicate
+  return [...new Set(segmentIds)];
 }
 
 /**
@@ -836,11 +885,67 @@ Deno.serve(async (req) => {
       }
     }
 
-    // ─── Step 9: Trigger segment evaluation (BEST-EFFORT) ───────────────────
+    // ─── Step 9: Assign segments from checkbox_group fields (BEST-EFFORT) ──────
+    // Additive: existing segment memberships are preserved.
+    // Idempotent: ON CONFLICT DO NOTHING prevents duplicate rows.
+    const checkboxSegmentIds = extractCheckboxGroupSegmentIds(fields, submissionData);
+    let checkboxSegmentsAssigned: string[] = [];
+
+    if (checkboxSegmentIds.length > 0) {
+      try {
+        console.log(`[submit-form] Assigning ${checkboxSegmentIds.length} segment(s) from checkbox_group for customer ${customerId.slice(0, 8)}...`);
+
+        // Verify all segment IDs belong to this tenant (security check)
+        const { data: validSegments, error: segValError } = await supabase
+          .from('crm_segments')
+          .select('id')
+          .eq('tenant_id', tenantId)
+          .in('id', checkboxSegmentIds);
+
+        if (segValError) {
+          console.warn('[submit-form] Segment validation error:', segValError.message);
+          debugInfo.checkbox_segment_validation_error = segValError.code;
+        } else {
+          const validSegmentIds = (validSegments || []).map((s: { id: string }) => s.id);
+          const invalidCount = checkboxSegmentIds.filter(id => !validSegmentIds.includes(id)).length;
+          if (invalidCount > 0) {
+            console.warn(`[submit-form] ${invalidCount} checkbox segment ID(s) not found for this tenant — skipped`);
+            debugInfo.checkbox_segment_invalid_count = invalidCount;
+          }
+
+          if (validSegmentIds.length > 0) {
+            // Build rows for idempotent insert
+            const segmentRows = validSegmentIds.map((segmentId: string) => ({
+              customer_id: customerId,
+              segment_id: segmentId,
+              assigned_at: new Date().toISOString(),
+            }));
+
+            const { error: segInsertError } = await supabase
+              .from('customer_segments')
+              .upsert(segmentRows, { onConflict: 'customer_id,segment_id', ignoreDuplicates: true });
+
+            if (segInsertError) {
+              console.warn('[submit-form] Checkbox segment insert error:', segInsertError.message);
+              debugInfo.checkbox_segment_insert_error = segInsertError.code;
+            } else {
+              checkboxSegmentsAssigned = validSegmentIds;
+              console.log(`[submit-form] Assigned ${validSegmentIds.length} segment(s) from checkbox_group: [${validSegmentIds.join(', ')}]`);
+            }
+          }
+        }
+      } catch (cbSegError) {
+        const errorMsg = (cbSegError as Error).message;
+        console.warn('[submit-form] Unexpected checkbox segment error:', errorMsg);
+        debugInfo.checkbox_segment_unexpected_error = errorMsg.slice(0, 100);
+        // Non-fatal - submission is still accepted
+      }
+    }
+
+    // ─── Step 10: Trigger segment evaluation (BEST-EFFORT) ─────────────────────
     // If this fails, submission still returns 200. Error is recorded for debugging.
     let segmentsJoined: string[] = [];
     let segmentsLeft: string[] = [];
-
     try {
       const segmentResponse = await fetch(
         `${supabaseUrl}/functions/v1/evaluate-customer-segments`,
@@ -875,10 +980,11 @@ Deno.serve(async (req) => {
       // Non-fatal - submission is still accepted
     }
 
-    // ─── Step 10: Update submission metadata with debug info ─────────────────
+    // ─── Step 11: Update submission metadata with debug info ─────────────────
     // Record audience processing results for audit trail (no PII in debug)
     const hasAudienceActivity = personasAssigned > 0 || personaErrors.length > 0 ||
-                                segmentsJoined.length > 0 || Object.keys(debugInfo).length > 0;
+                                segmentsJoined.length > 0 || checkboxSegmentsAssigned.length > 0 ||
+                                Object.keys(debugInfo).length > 0;
 
     if (hasAudienceActivity) {
       try {
@@ -893,6 +999,7 @@ Deno.serve(async (req) => {
                 personas_errors: personaErrors.length > 0 ? personaErrors : null,
                 segments_joined: segmentsJoined.length > 0 ? segmentsJoined : null,
                 segments_left: segmentsLeft.length > 0 ? segmentsLeft : null,
+                checkbox_segments_assigned: checkboxSegmentsAssigned.length > 0 ? checkboxSegmentsAssigned : null,
                 processed_at: new Date().toISOString(),
               },
               // Debug info: error codes only, no PII, no raw messages

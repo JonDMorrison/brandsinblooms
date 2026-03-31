@@ -2,7 +2,6 @@ import React, { useState, useMemo } from 'react';
 import { FormField, FormSettings, FormCompliance, FormTheme } from '@/types/formBuilder';
 import { Check, Shield } from 'lucide-react';
 import { cn } from '@/lib/utils';
-
 interface FormPreviewRendererProps {
   fields: FormField[];
   settings: FormSettings;
@@ -91,6 +90,17 @@ export function FormPreviewRenderer({
 
     fields.forEach((field) => {
       const value = formData[field.id];
+
+      if (field.type === 'checkbox_group') {
+        // checkbox_group: required means at least one option selected
+        if (field.required) {
+          const selected: string[] = Array.isArray(value) ? value : [];
+          if (selected.length === 0) {
+            newErrors[field.id] = 'Please select at least one option';
+          }
+        }
+        return; // No other validation for checkbox_group
+      }
 
       if (field.required && (!value || (typeof value === 'string' && !value.trim()))) {
         newErrors[field.id] = 'This field is required';
@@ -452,6 +462,51 @@ function FieldRenderer({ field, value, onChange, error, theme, labelPosition = '
           </div>
         );
 
+      case 'checkbox_group': {
+        const selected: string[] = Array.isArray(value) ? value : [];
+        const groupOptions = field.checkbox_options || [];
+        return (
+          <div className="bs-form-checkbox-group" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {groupOptions.map((opt) => {
+              const isChecked = selected.includes(opt.value);
+              return (
+                <div key={opt.id} className="bs-form-checkbox-wrap" style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                  <input
+                    type="checkbox"
+                    id={`${field.id}__${opt.id}`}
+                    checked={isChecked}
+                    onChange={(e) => {
+                      const next = e.target.checked
+                        ? [...selected, opt.value]
+                        : selected.filter(v => v !== opt.value);
+                      onChange(next);
+                    }}
+                    className="bs-form-checkbox"
+                    style={{
+                      flexShrink: 0,
+                      width: '18px',
+                      height: '18px',
+                      marginTop: '2px',
+                      accentColor: 'var(--bs-form-primary)',
+                    }}
+                  />
+                  <label
+                    htmlFor={`${field.id}__${opt.id}`}
+                    className="bs-form-checkbox-text"
+                    style={{ fontSize: '14px', color: '#4b5563' }}
+                  >
+                    {opt.label}
+                  </label>
+                </div>
+              );
+            })}
+            {groupOptions.length === 0 && (
+              <p style={{ fontSize: '13px', color: '#9ca3af', fontStyle: 'italic' }}>No options configured</p>
+            )}
+          </div>
+        );
+      }
+
       case 'phone':
         return (
           <input
@@ -493,7 +548,7 @@ function FieldRenderer({ field, value, onChange, error, theme, labelPosition = '
     }
   };
 
-  if (field.type === 'checkbox') {
+  if (field.type === 'checkbox' || field.type === 'checkbox_group') {
     return (
       <div 
         className={cn(
@@ -501,6 +556,13 @@ function FieldRenderer({ field, value, onChange, error, theme, labelPosition = '
           isHighlighted && "ring-2 ring-primary/50 ring-offset-2 rounded-md p-2 -m-2"
         )}
       >
+        {/* For checkbox_group, show the group label above the options */}
+        {field.type === 'checkbox_group' && (
+          <label className="bs-form-label" style={{ display: 'block', fontWeight: 500, fontSize: '14px', color: 'var(--bs-form-text)', marginBottom: '8px' }}>
+            {field.label}
+            {field.required && <span style={{ color: '#dc2626', marginLeft: '2px' }}>*</span>}
+          </label>
+        )}
         {renderInput()}
         {error && <p className="bs-form-error-msg" style={{ color: '#dc2626', fontSize: '13px', marginTop: '6px' }}>{error}</p>}
       </div>

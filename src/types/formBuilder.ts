@@ -6,6 +6,7 @@ export type FormFieldType =
   | 'phone'
   | 'select'
   | 'checkbox'
+  | 'checkbox_group'
   | 'hidden'
   | 'email_consent'
   | 'sms_consent';
@@ -17,6 +18,18 @@ export interface FormFieldRules {
   pattern_message?: string;
 }
 
+/**
+ * A single option within a checkbox_group field.
+ * Each option can map to a CRM segment so that selecting it
+ * automatically assigns the contact to that segment on submission.
+ */
+export interface CheckboxGroupOption {
+  id: string;       // Stable UUID, used as the key in submission data
+  label: string;    // Display label shown to the visitor
+  value: string;    // Stored value in submission data
+  segment_id?: string; // crm_segments.id to assign when this option is selected
+}
+
 export interface FormField {
   id: string;
   type: FormFieldType;
@@ -24,6 +37,7 @@ export interface FormField {
   required: boolean;
   placeholder?: string;
   options?: string[]; // For select type
+  checkbox_options?: CheckboxGroupOption[]; // For checkbox_group type
   mapping_key: string; // Maps to crm_customers fields or custom keys
   default_value?: string;
   rules?: FormFieldRules;

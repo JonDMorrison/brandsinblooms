@@ -10,6 +10,7 @@ import {
   Type, 
   List,
   CheckSquare,
+  ListChecks,
   EyeOff,
   ShieldCheck,
   MessageSquare,
@@ -34,6 +35,7 @@ const BASIC_FIELDS: {
   { type: 'phone', label: 'Phone', icon: Phone, description: 'Phone number' },
   { type: 'select', label: 'Dropdown', icon: List, description: 'Choose from options' },
   { type: 'checkbox', label: 'Checkbox', icon: CheckSquare, description: 'Yes/no option' },
+  { type: 'checkbox_group', label: 'Subscription Options', icon: ListChecks, description: 'Multi-select with segment mapping' },
   { type: 'hidden', label: 'Hidden', icon: EyeOff, description: 'Invisible tracking' },
 ];
 
