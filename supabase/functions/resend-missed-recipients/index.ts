@@ -596,7 +596,7 @@ serve(async (req) => {
       const chunk = messageRows.slice(i, i + UPSERT_CHUNK);
       const { error: upsertErr } = await supabase
         .from('email_messages')
-        .upsert(chunk, { onConflict: 'campaign_id,customer_id', ignoreDuplicates: true });
+        .upsert(chunk, { onConflict: 'campaign_id,customer_id,retry_sequence', ignoreDuplicates: true });
       if (upsertErr) {
         console.error('❌ Failed to persist email_messages:', upsertErr);
         return new Response(
