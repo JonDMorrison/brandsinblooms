@@ -12,7 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 
-type Provider = "mailchimp" | "klaviyo" | "constant_contact";
+type Provider = "klaviyo" | "constant_contact";
 
 type Step =
   | "connect"
@@ -27,7 +27,7 @@ const steps: { id: Step; label: string; description: string }[] = [
   {
     id: "connect",
     label: "Connect",
-    description: "Connect to Mailchimp, Klaviyo, or Constant Contact",
+    description: "Connect to Klaviyo or Constant Contact",
   },
   {
     id: "choose",
@@ -53,6 +53,7 @@ const MigrationsPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const supportedProviders: Provider[] = ["klaviyo", "constant_contact"];
   const selectedProvider = useMemo<Provider | null>(() => {
     const providerFromSearch = new URLSearchParams(location.search).get(
       "provider",
@@ -63,11 +64,7 @@ const MigrationsPage = () => {
         : null;
     const provider = providerFromSearch ?? providerFromState ?? null;
 
-    if (
-      provider === "mailchimp" ||
-      provider === "klaviyo" ||
-      provider === "constant_contact"
-    ) {
+    if (provider === "klaviyo" || provider === "constant_contact") {
       return provider;
     }
 
@@ -113,18 +110,24 @@ const MigrationsPage = () => {
       if (!userData?.tenant_id) return;
 
       // Determine provider from connection
-      const connectionQuery = supabase
+      let connectionQuery = supabase
         .from("provider_connections")
         .select("provider")
         .eq("status", "connected");
 
-      const { data: connection } = selectedProvider
-        ? await connectionQuery.eq("provider", selectedProvider).maybeSingle()
-        : await connectionQuery
-            .in("provider", ["mailchimp", "klaviyo", "constant_contact"])
-            .maybeSingle();
+      const { data: connections, error: connectionError } = selectedProvider
+        ? await connectionQuery.eq("provider", selectedProvider)
+        : await connectionQuery.in("provider", supportedProviders);
 
-      if (!connection) {
+      if (connectionError) {
+        throw connectionError;
+      }
+
+      const resolvedProvider =
+        selectedProvider ??
+        (connections?.[0]?.provider as Provider | undefined);
+
+      if (!resolvedProvider) {
         toast({
           title: "No Connected Provider",
           description: selectedProvider
@@ -140,7 +143,7 @@ const MigrationsPage = () => {
         .insert({
           user_id: user.id,
           tenant_id: userData.tenant_id, // Add tenant_id to fix RLS
-          provider: connection.provider,
+          provider: resolvedProvider,
           status: "pending",
           config: selection,
         })
@@ -204,8 +207,8 @@ const MigrationsPage = () => {
       <div>
         <h1 className="text-3xl font-bold mb-2">One-Time Migration</h1>
         <p className="text-muted-foreground">
-          Import contacts, consent, tags, and segments from Mailchimp, Klaviyo,
-          or Constant Contact
+          Import contacts, consent, tags, and segments from Klaviyo or Constant
+          Contact
         </p>
       </div>
 
@@ -260,7 +263,10 @@ const MigrationsPage = () => {
       {/* Step Content */}
       <Card className="p-8">
         {currentStep === "connect" && (
-          <ConnectStep onComplete={handleConnectComplete} />
+          <ConnectStep
+            allowedProviders={supportedProviders}
+            onComplete={handleConnectComplete}
+          />
         )}
         {currentStep === "choose" && (
           <ChooseStep

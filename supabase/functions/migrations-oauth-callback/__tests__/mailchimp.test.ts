@@ -9,15 +9,27 @@ import {
 const TEST_ENCRYPTION_KEY = btoa("12345678901234567890123456789012");
 
 Deno.test(
-  "migrations-oauth-callback rejects invalid state tokens",
+  "migrations-oauth-callback preserves the provider from raw state when JWT verification fails",
   async () => {
     Deno.env.set("TOKEN_ENCRYPTION_KEY", TEST_ENCRYPTION_KEY);
     const { client } = createMockSupabaseClient({});
+    const rawState = [
+      btoa(JSON.stringify({ alg: "HS256", typ: "JWT" })),
+      btoa(
+        JSON.stringify({
+          provider: "klaviyo",
+        }),
+      )
+        .replace(/\+/g, "-")
+        .replace(/\//g, "_")
+        .replace(/=+$/g, ""),
+      "bad-signature",
+    ].join(".");
 
     try {
       const response = await handleMigrationsOAuthCallback(
         new Request(
-          "https://supabase.test/functions/v1/migrations-oauth-callback?code=abc&state=bad-state&provider=mailchimp",
+          `https://supabase.test/functions/v1/migrations-oauth-callback?code=abc&state=${rawState}&provider=mailchimp`,
         ),
         {
           createClient: () => client as never,
@@ -35,10 +47,10 @@ Deno.test(
         },
       );
 
-      assertEquals(response.status, 400);
-      assertStringIncludes(
-        await response.text(),
-        "Invalid or expired state token",
+      assertEquals(response.status, 302);
+      assertEquals(
+        response.headers.get("Location"),
+        "https://app.example.test/oauth/callback?provider=klaviyo&status=error&message=Invalid+or+expired+state+token",
       );
     } finally {
       Deno.env.delete("TOKEN_ENCRYPTION_KEY");
@@ -191,7 +203,58 @@ Deno.test(
       assertEquals(response.status, 302);
       assertEquals(
         response.headers.get("Location"),
-        "https://app.example.test/oauth/callback?provider=mailchimp&status=error",
+        "https://app.example.test/oauth/callback?provider=mailchimp&status=error&message=Failed+to+obtain+access+token%3A+invalid_grant",
+      );
+    } finally {
+      Deno.env.delete("TOKEN_ENCRYPTION_KEY");
+    }
+  },
+);
+
+Deno.test(
+  "migrations-oauth-callback preserves non-Mailchimp providers in error redirects",
+  async () => {
+    Deno.env.set("TOKEN_ENCRYPTION_KEY", TEST_ENCRYPTION_KEY);
+    const { client } = createMockSupabaseClient({
+      "users:select": { data: { tenant_id: "tenant-1" }, error: null },
+    });
+
+    try {
+      const response = await handleMigrationsOAuthCallback(
+        new Request(
+          "https://supabase.test/functions/v1/migrations-oauth-callback?code=abc&state=good-state&provider=mailchimp",
+        ),
+        {
+          createClient: () => client as never,
+          verifyJwt: async () => ({
+            provider: "constant_contact",
+            redirectUri:
+              "https://supabase.test/functions/v1/migrations-oauth-callback?provider=constant_contact",
+            appOrigin: "https://app.example.test",
+            uid: "user-1",
+          }),
+          encryptToken: async () => "encrypted",
+          envGet: makeEnv({
+            OAUTH_STATE_SECRET: "state-secret",
+            CONSTANT_CONTACT_CLIENT_ID: "client-id",
+            CONSTANT_CONTACT_CLIENT_SECRET: "client-secret",
+            APP_ORIGIN: "https://app.example.test",
+            SUPABASE_URL: "https://supabase.test",
+            SUPABASE_SERVICE_ROLE_KEY: "service-role-key",
+          }),
+          importKey: async () => ({}) as CryptoKey,
+          fetch: async () =>
+            new Response(JSON.stringify({ error: "invalid_grant" }), {
+              headers: { "Content-Type": "application/json" },
+            }),
+          waitUntil: () => undefined,
+        },
+      );
+
+      assertEquals(response.status, 302);
+      assertEquals(
+        response.headers.get("Location"),
+        "https://app.example.test/oauth/callback?provider=constant_contact&status=error&message=Failed+to+obtain+access+token%3A+invalid_grant",
       );
     } finally {
       Deno.env.delete("TOKEN_ENCRYPTION_KEY");

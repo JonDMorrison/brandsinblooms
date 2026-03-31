@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -22,7 +22,6 @@ import {
   Download,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { getUserFacingIntegrationError } from "@/components/integrations/integrationDetailModel";
 import { GoogleAnalyticsConnection } from "./GoogleAnalyticsConnection";
 import { LightspeedIntegration } from "./LightspeedIntegration";
 import { LightspeedDebug } from "./LightspeedDebug";
@@ -32,8 +31,6 @@ import { MigrationStatusIndicator } from "@/components/migrations/MigrationStatu
 import { IntegrationSection } from "./IntegrationSection";
 import { IntegrationCard } from "./IntegrationCard";
 import { FeaturedCard } from "./FeaturedCard";
-
-const APP_ORIGIN = window.location.origin;
 
 interface Integration {
   id: string;
@@ -69,7 +66,6 @@ export const IntegrationHub = () => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("marketplace");
   const [providerConnections, setProviderConnections] = useState<any[]>([]);
-  const oauthPopupRef = useRef<Window | null>(null);
 
   // Check for Lightspeed connection status
   const { data: lightspeedConnection } = useQuery({
@@ -146,6 +142,7 @@ export const IntegrationHub = () => {
       icon: <Mail className="w-6 h-6 text-yellow-600" />,
       isConnected: false,
       provider: "mailchimp",
+      setupUrl: "/integrations/mailchimp",
       isActive: true,
     },
     {
@@ -224,37 +221,8 @@ export const IntegrationHub = () => {
     }
   };
 
-  const handleConnectMailchimp = async () => {
-    try {
-      const { data, error } = await supabase.functions.invoke(
-        "oauth-authorize",
-        {
-          body: { provider: "mailchimp" },
-        },
-      );
-
-      if (error) throw error;
-
-      const { authUrl } = data;
-      const popup = window.open(authUrl, "oauth", "width=600,height=700");
-      oauthPopupRef.current = popup;
-    } catch (error: any) {
-      console.error("Error initiating Mailchimp OAuth:", error);
-      toast({
-        title: "Connection Failed",
-        description: getUserFacingIntegrationError(
-          error,
-          "Failed to connect to Mailchimp",
-        ),
-        variant: "destructive",
-      });
-    }
-  };
-
   const handleConnectIntegration = async (integration: Integration) => {
-    if (integration.provider === "mailchimp") {
-      await handleConnectMailchimp();
-    } else if (integration.setupUrl) {
+    if (integration.setupUrl) {
       window.location.href = integration.setupUrl;
     } else {
       toast({
@@ -286,32 +254,6 @@ export const IntegrationHub = () => {
   useEffect(() => {
     fetchUserIntegrations();
   }, [user]);
-
-  useEffect(() => {
-    const handleOAuthMessage = (e: MessageEvent) => {
-      if (e.origin !== APP_ORIGIN) return;
-
-      if (e.data.type === "oauth-success") {
-        toast({
-          title: "Connected!",
-          description: `Successfully connected to ${e.data.provider}`,
-        });
-        fetchProviderConnections();
-      } else if (e.data.type === "oauth-error") {
-        toast({
-          title: "Connection Failed",
-          description: getUserFacingIntegrationError(
-            e.data.message,
-            "Failed to connect",
-          ),
-          variant: "destructive",
-        });
-      }
-    };
-
-    window.addEventListener("message", handleOAuthMessage);
-    return () => window.removeEventListener("message", handleOAuthMessage);
-  }, [toast]);
 
   const getIntegrationsByCategory = (category: string) => {
     return availableIntegrations.filter((int) => int.category === category);
@@ -416,9 +358,7 @@ export const IntegrationHub = () => {
                 ]}
               >
                 <Button
-                  onClick={() =>
-                    (window.location.href = "/integrations/migrations")
-                  }
+                  onClick={() => (window.location.href = "/integrations/crm")}
                   className="mt-2"
                 >
                   <Download className="w-4 h-4 mr-2" />

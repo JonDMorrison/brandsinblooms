@@ -82,8 +82,115 @@ Deno.test(
     assertEquals(response.status, 200);
     const body = await response.json();
     assertEquals(body.estimatedImportCount, 100);
+    assertEquals(body.listInfos.length, 1);
+    assertEquals(body.listInfos[0].id, "list-1");
     assertEquals(body.alreadyInCRM, 50);
     assertEquals(body.newContacts, 50);
+  },
+);
+
+Deno.test(
+  "mailchimp-fetch-preview aggregates all selected lists when no segments are selected",
+  async () => {
+    const { client: authClient } = createMockSupabaseClient({
+      "auth:getUser": { data: { user: { id: "user-1" } }, error: null },
+    });
+    const { client: serviceClient } = createMockSupabaseClient({
+      "users:select": { data: { tenant_id: "tenant-1" }, error: null },
+      "import_jobs:select": {
+        data: { config: { listIds: ["list-1", "list-2"], segmentIds: [] } },
+        error: null,
+      },
+      "provider_connections:select": {
+        data: { encrypted_access_token: "encrypted", metadata: { dc: "us1" } },
+        error: null,
+      },
+      "crm_customers:select": {
+        data: [{ email: "a@example.com" }],
+        error: null,
+      },
+    });
+
+    const response = await handleMailchimpFetchPreview(
+      jsonRequest(
+        "https://example.test",
+        { jobId: "job-1" },
+        { headers: { Authorization: "Bearer token" } },
+      ),
+      {
+        createClient: createClientFactory(authClient, serviceClient) as never,
+        envGet: makeEnv({
+          SUPABASE_URL: "https://supabase.test",
+          SUPABASE_SERVICE_ROLE_KEY: "service-role-key",
+          SUPABASE_ANON_KEY: "anon-key",
+        }),
+        mailchimpFromConnection: async () =>
+          ({
+            getList: async (listId: string) =>
+              listId === "list-1"
+                ? {
+                    id: "list-1",
+                    name: "Audience One",
+                    stats: { member_count: 100 },
+                  }
+                : {
+                    id: "list-2",
+                    name: "Audience Two",
+                    stats: { member_count: 50 },
+                  },
+            getListMembers: async (listId: string) =>
+              listId === "list-1"
+                ? {
+                    total_items: 100,
+                    members: [
+                      {
+                        email_address: "a@example.com",
+                        merge_fields: {},
+                        tags: [],
+                        status: "subscribed",
+                      },
+                      {
+                        email_address: "b@example.com",
+                        merge_fields: {},
+                        tags: [],
+                        status: "subscribed",
+                      },
+                    ],
+                  }
+                : {
+                    total_items: 50,
+                    members: [
+                      {
+                        email_address: "c@example.com",
+                        merge_fields: {},
+                        tags: [],
+                        status: "subscribed",
+                      },
+                      {
+                        email_address: "d@example.com",
+                        merge_fields: {},
+                        tags: [],
+                        status: "subscribed",
+                      },
+                    ],
+                  },
+          }) as never,
+      },
+    );
+
+    assertEquals(response.status, 200);
+    const body = await response.json();
+    assertEquals(body.listInfo.id, "multiple");
+    assertEquals(body.listInfo.name, "2 selected lists");
+    assertEquals(body.listInfos.length, 2);
+    assertEquals(body.listInfos[0].id, "list-1");
+    assertEquals(body.listInfos[0].totalMembers, 100);
+    assertEquals(body.listInfos[1].id, "list-2");
+    assertEquals(body.listInfos[1].totalMembers, 50);
+    assertEquals(body.estimatedImportCount, 150);
+    assertEquals(body.sampleContacts.length, 4);
+    assertEquals(body.alreadyInCRM, 38);
+    assertEquals(body.newContacts, 112);
   },
 );
 

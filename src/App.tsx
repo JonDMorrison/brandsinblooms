@@ -64,7 +64,7 @@ import AutomationsIntegrationsPage from "@/pages/integrations/AutomationsIntegra
 import WebsiteIntegrationsPage from "@/pages/integrations/WebsiteIntegrationsPage";
 import IntegrationDetailPage from "@/pages/integrations/IntegrationDetailPage";
 import IntegrationDocumentationPage from "@/pages/integrations/IntegrationDocumentationPage";
-import MigrationsPage from "@/pages/MigrationsPage";
+import MigrationsRouteGate from "@/pages/MigrationsRouteGate";
 import { OAuthCallbackHandler } from "@/components/migrations/OAuthCallbackHandler";
 import ReportedProblemsPage from "@/pages/admin/ReportedProblemsPage";
 import ReportedProblemDetailPage from "@/pages/admin/ReportedProblemDetailPage";
@@ -712,7 +712,7 @@ function App() {
                 element={<AutomationsIntegrationsPage />}
               />
               <Route path="website" element={<WebsiteIntegrationsPage />} />
-              <Route path="migrations" element={<MigrationsPage />} />
+              <Route path="migrations" element={<MigrationsRouteGate />} />
               <Route
                 path="lightspeed/connect"
                 element={<LightspeedConnectPage />}

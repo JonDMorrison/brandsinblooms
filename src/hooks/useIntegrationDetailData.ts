@@ -16,10 +16,12 @@ import {
   type IntegrationDefinition,
   type IntegrationStatus,
 } from "@/components/integrations/integrationsHubConfig";
+import { formatCount } from "@/components/integrations/shared/dataTabPrimitives";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database, Json } from "@/integrations/supabase/types";
 import { useIsSuperAdmin } from "@/hooks/useIsSuperAdmin";
+import { isMailchimpImportJobActivelyRunning } from "@/hooks/mailchimpImportState";
 import { useTenant } from "@/hooks/useTenant";
 import { useUserRole } from "@/hooks/useUserRole";
 import { fetchOAuthConfig } from "@/lib/api/oauth";
@@ -1375,7 +1377,6 @@ type ImportJobRecord = {
   id: string;
   status: string;
   created_at: string;
-  started_at: string | null;
   updated_at: string;
   completed_at: string | null;
   report: unknown;
@@ -1456,6 +1457,8 @@ export type MarketingImportDetailData = {
   latestImportTone: IntegrationDetailTone;
   contactsImportedAllTime: number;
   importJobCount: number;
+  hasRunningImport: boolean;
+  runningImportId: string | null;
   importFlowPath: string;
   previewListsPath: string;
   purposeLabel: string;
@@ -1776,6 +1779,27 @@ function getMetadataString(metadata: unknown, keys: string[]) {
   return null;
 }
 
+function getMetadataText(metadata: unknown, keys: string[]) {
+  const source = asObject(metadata);
+
+  if (!source) {
+    return null;
+  }
+
+  for (const key of keys) {
+    const value = source[key];
+    if (typeof value === "string" && value.trim().length > 0) {
+      return value;
+    }
+
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return String(value);
+    }
+  }
+
+  return null;
+}
+
 function getImportReportCount(report: unknown, key: string) {
   const value = asObject(report)?.[key];
 
@@ -1851,17 +1875,18 @@ function buildMarketingImportHistoryEntry(
   job: ImportJobRecord,
 ): MarketingImportHistoryEntry {
   const report = buildMarketingImportReportSummary(job.report);
+  const startedAt = job.created_at;
 
   return {
     id: job.id,
-    startedAt: job.started_at ?? job.created_at,
+    startedAt,
     completedAt: job.completed_at,
     status: job.status,
     contactsImported: report?.contactsImported ?? 0,
     segmentsCreated: report?.segmentsCreated ?? 0,
     errorCount: report?.errors.length ?? 0,
     durationSeconds: getMarketingImportDurationSeconds(
-      job.started_at,
+      startedAt,
       job.completed_at,
       job.created_at,
     ),
@@ -1937,20 +1962,65 @@ function getMarketingImportConnectionState(
   provider: MarketingProviderKey,
   connection: MarketingProviderConnectionRecord | null,
 ): MarketingImportStatePresentation {
+  if (provider === "mailchimp") {
+    switch (connection?.status?.trim().toLowerCase()) {
+      case "connected":
+        return {
+          label: "Connected",
+          subtitle:
+            "Mailchimp authorization is active for previews and one-time or periodic imports.",
+          tone: "success",
+          valueClassName: "text-emerald-600",
+        };
+      case "expired":
+        return {
+          label: "Expired",
+          subtitle:
+            "The saved Mailchimp authorization has expired. Reconnect to restore previews and imports.",
+          tone: "danger",
+          valueClassName: "text-rose-600",
+        };
+      case "revoked":
+        return {
+          label: "Revoked",
+          subtitle:
+            "Mailchimp access was revoked. Connect Mailchimp again to restore previews and imports.",
+          tone: "warning",
+          valueClassName: "text-amber-600",
+        };
+      case "error":
+        return {
+          label: "Error",
+          subtitle:
+            "BloomSuite could not validate the stored Mailchimp authorization. Reconnect to continue.",
+          tone: "danger",
+          valueClassName: "text-rose-600",
+        };
+      case "pending":
+        return {
+          label: "Pending",
+          subtitle: "Mailchimp authorization is in progress.",
+          tone: "neutral",
+          valueClassName: "text-slate-600",
+        };
+      default:
+        return {
+          label: "Not Connected",
+          subtitle:
+            "Connect Mailchimp to authorize previews and one-time contact imports.",
+          tone: "neutral",
+          valueClassName: "text-slate-600",
+        };
+    }
+  }
+
   if (connection?.status === "connected") {
     return {
-      label:
-        provider === "klaviyo"
-          ? "Validated"
-          : provider === "mailchimp"
-            ? "Connected"
-            : "Connected",
+      label: provider === "klaviyo" ? "Validated" : "Connected",
       subtitle:
         provider === "klaviyo"
           ? "Stored credential is ready for list previews and one-time imports"
-          : provider === "mailchimp"
-            ? "Mailchimp authorization is active for previews and one-time or periodic imports."
-            : "Stored authorization is ready for list previews and one-time imports",
+          : "Stored authorization is ready for list previews and one-time imports",
       tone: "success",
       valueClassName: "text-emerald-600",
     };
@@ -1962,12 +2032,9 @@ function getMarketingImportConnectionState(
       subtitle:
         provider === "klaviyo"
           ? "Connect Klaviyo to validate the stored credential before importing"
-          : provider === "mailchimp"
-            ? "The saved Mailchimp authorization is no longer usable for previews or imports. Reconnect to continue."
-            : "Reconnect this provider before starting new previews or imports.",
-      tone: provider === "mailchimp" ? "danger" : "warning",
-      valueClassName:
-        provider === "mailchimp" ? "text-rose-600" : "text-amber-600",
+          : "Reconnect this provider before starting new previews or imports.",
+      tone: "warning",
+      valueClassName: "text-amber-600",
     };
   }
 
@@ -2247,16 +2314,21 @@ function buildMarketingImportDetailData(
   const latestCompletedImport = latestCompletedJob
     ? buildMarketingImportHistoryEntry(latestCompletedJob)
     : null;
+  const runningImport =
+    importJobs.find((job) => isMailchimpImportJobActivelyRunning(job)) ?? null;
   const importHistory = completedImportJobs
     .slice(0, 5)
     .map(buildMarketingImportHistoryEntry);
   const accountName =
-    connection?.provider_account_name ??
     getMetadataString(connection?.metadata, [
       "accountname",
       "name",
       "organization_name",
-    ]);
+    ]) ?? connection?.provider_account_name;
+  const accountId =
+    getMetadataText(connection?.metadata, ["account_id", "id"]) ??
+    connection?.provider_account_id ??
+    null;
   const contactEmail =
     getMetadataString(connection?.metadata, [
       "contact_email",
@@ -2309,11 +2381,7 @@ function buildMarketingImportDetailData(
         ? "Klaviyo credentials are stored securely for preview and import flows. The raw API key is never shown from this page."
         : "Connect Klaviyo to validate the stored credential before importing profiles."
       : provider === "mailchimp"
-        ? connection?.status === "connected"
-          ? "Mailchimp is connected and ready for previews and imports."
-          : connection
-            ? "Reconnect Mailchimp to restore preview and import access."
-            : "Connect Mailchimp to authorize previews and one-time contact imports."
+        ? connectionState.subtitle
         : connection
           ? `${providerMeta.label} authorization is active for previews and one-time imports.`
           : `Connect ${providerMeta.label} to authorize list previews and one-time contact imports.`;
@@ -2496,6 +2564,12 @@ function buildMarketingImportDetailData(
             value: accountName ?? "Not available",
           },
           {
+            label: "Mailchimp Account ID",
+            value: accountId ?? "Not available",
+            copyValue: accountId,
+            copyLabel: "Account ID",
+          },
+          {
             label: "Connected Since",
             value:
               connection?.connected_at ??
@@ -2593,6 +2667,7 @@ function buildMarketingImportDetailData(
     connectionLabel: connectionState.label,
     connectedAt: connection?.connected_at ?? connection?.created_at ?? null,
     updatedAt:
+      runningImport?.updated_at ??
       latestCompletedJob?.completed_at ??
       latestCompletedJob?.updated_at ??
       connection?.updated_at ??
@@ -2603,8 +2678,7 @@ function buildMarketingImportDetailData(
     segmentCount,
     latestImportId: latestCompletedJob?.id ?? null,
     latestImportStatus: latestCompletedJob?.status ?? null,
-    latestImportStartedAt:
-      latestCompletedJob?.started_at ?? latestCompletedJob?.created_at ?? null,
+    latestImportStartedAt: latestCompletedJob?.created_at ?? null,
     latestImportCompletedAt: latestCompletedJob?.completed_at ?? null,
     latestImportSummary,
     latestImportReport,
@@ -2614,8 +2688,16 @@ function buildMarketingImportDetailData(
     latestImportTone,
     contactsImportedAllTime,
     importJobCount: completedImportJobs.length,
-    importFlowPath: `/integrations/migrations?provider=${provider}`,
-    previewListsPath: `/integrations/migrations?provider=${provider}&step=choose`,
+    hasRunningImport: Boolean(runningImport),
+    runningImportId: runningImport?.id ?? null,
+    importFlowPath:
+      provider === "mailchimp"
+        ? "/integrations/mailchimp"
+        : `/integrations/migrations?provider=${provider}`,
+    previewListsPath:
+      provider === "mailchimp"
+        ? "/integrations/mailchimp"
+        : `/integrations/migrations?provider=${provider}&step=choose`,
     purposeLabel: "Contact Import",
     liveSyncLabel: "Not available",
     importOnlyLabel: "Import only",
@@ -4105,19 +4187,32 @@ export function useIntegrationDetailData(
             seed.slug === "constant-contact"
               ? "constant_contact"
               : (seed.slug as MarketingProviderKey);
+          let connectionQuery = supabase
+            .from("provider_connections")
+            .select(
+              "id, provider, provider_account_name, provider_account_id, connected_at, created_at, updated_at, status, token_expires_at, metadata",
+            )
+            .eq("tenant_id", tenant.id)
+            .eq("provider", provider)
+            .order("updated_at", { ascending: false })
+            .order("connected_at", { ascending: false })
+            .limit(1);
+
+          let jobsQuery = supabase
+            .from("import_jobs")
+            .select("id, status, created_at, updated_at, completed_at, report")
+            .eq("tenant_id", tenant.id)
+            .eq("provider", provider)
+            .order("created_at", { ascending: false });
+
+          if (provider !== "mailchimp") {
+            connectionQuery = connectionQuery.eq("user_id", user.id);
+            jobsQuery = jobsQuery.eq("user_id", user.id);
+          }
+
           const [connectionResponse, artifactsResponse, jobsResponse] =
             await Promise.all([
-              supabase
-                .from("provider_connections")
-                .select(
-                  "id, provider, provider_account_name, provider_account_id, connected_at, created_at, updated_at, status, token_expires_at, metadata",
-                )
-                .eq("tenant_id", tenant.id)
-                .eq("user_id", user.id)
-                .eq("provider", provider)
-                .order("updated_at", { ascending: false })
-                .order("connected_at", { ascending: false })
-                .limit(1),
+              connectionQuery,
               supabase
                 .from("provider_artifacts")
                 .select(
@@ -4126,15 +4221,7 @@ export function useIntegrationDetailData(
                 .eq("tenant_id", tenant.id)
                 .eq("provider", provider)
                 .order("created_at", { ascending: false }),
-              supabase
-                .from("import_jobs")
-                .select(
-                  "id, status, created_at, started_at, updated_at, completed_at, report",
-                )
-                .eq("tenant_id", tenant.id)
-                .eq("user_id", user.id)
-                .eq("provider", provider)
-                .order("created_at", { ascending: false }),
+              jobsQuery,
             ]);
 
           if (connectionResponse.error) throw connectionResponse.error;
@@ -4157,7 +4244,8 @@ export function useIntegrationDetailData(
             `${seed.name} import connection`;
           const item: IntegrationDefinition = {
             ...seed,
-            status: connection ? "connected" : "available",
+            status:
+              connection?.status === "connected" ? "connected" : "available",
             connectedSince: marketingImportDetail.connectedAt,
             metaLabel: connection ? accountLabel : "Purpose: Contact Import",
           };
@@ -4180,9 +4268,13 @@ export function useIntegrationDetailData(
               serviceStateLabel: marketingImportDetail.connectionLabel,
               canDisconnect: item.canDisconnect,
               configurationHint:
-                "Use the migration wizard to preview provider lists and run one-time contact imports. This connection does not enable live sync.",
+                provider === "mailchimp"
+                  ? "Use the Mailchimp integration page to connect Mailchimp, review cached audiences, and manage one-time imports. This connection does not enable live sync."
+                  : "Use the migration wizard to preview provider lists and run one-time contact imports. This connection does not enable live sync.",
               activityHint:
-                "Import history and provider list discovery appear here without exposing encrypted tokens or hidden provider credentials.",
+                provider === "mailchimp"
+                  ? "Connection state, cached audience counts, and import history appear here without exposing encrypted tokens or hidden provider credentials."
+                  : "Import history and provider list discovery appear here without exposing encrypted tokens or hidden provider credentials.",
             }),
             targetPath: marketingImportDetail.importFlowPath,
             marketingImportDetail,
@@ -6713,6 +6805,9 @@ export function useIntegrationDetailData(
           queryKey: ["integration-detail", slug],
         }),
         queryClient.invalidateQueries({ queryKey: ["integrations-hub"] }),
+        queryClient.invalidateQueries({
+          queryKey: ["mailchimp-connection-summary"],
+        }),
       ]);
     },
     onError: (error) => {

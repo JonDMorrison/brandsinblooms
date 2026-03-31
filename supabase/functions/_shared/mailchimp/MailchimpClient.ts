@@ -26,6 +26,7 @@ export class MailchimpRequestError extends Error {
 export class MailchimpClient {
   private static readonly DEFAULT_DC = "us1";
   private static readonly MAX_RETRIES = 3;
+  private static readonly BASE_RETRY_DELAY_MS = 1000;
 
   private constructor(
     private readonly accessToken: string,
@@ -64,6 +65,26 @@ export class MailchimpClient {
     return MailchimpClient.DEFAULT_DC;
   }
 
+  private static isRetryableStatus(status: number): boolean {
+    return [408, 429, 500, 502, 503, 504].includes(status);
+  }
+
+  private static isRetryableTransportError(error: unknown): boolean {
+    return error instanceof TypeError || error instanceof DOMException;
+  }
+
+  private static getRetryDelayMs(attempt: number, retryAfterSeconds?: number) {
+    if (
+      typeof retryAfterSeconds === "number" &&
+      Number.isFinite(retryAfterSeconds) &&
+      retryAfterSeconds > 0
+    ) {
+      return retryAfterSeconds * 1000;
+    }
+
+    return Math.min(8000, MailchimpClient.BASE_RETRY_DELAY_MS * 2 ** attempt);
+  }
+
   async request<T>(path: string, options: RequestInit = {}): Promise<T> {
     const url = `${this.baseUrl}${path}`;
     let lastError: Error | null = null;
@@ -79,29 +100,35 @@ export class MailchimpClient {
           },
         });
 
-        if (response.status === 429) {
-          const retryAfter = Number.parseInt(
-            response.headers.get("Retry-After") ?? "60",
-            10,
-          );
-          const retryDelaySeconds = Number.isFinite(retryAfter)
-            ? retryAfter
-            : 60;
-          lastError = new Error(
-            `Mailchimp API rate limited at ${path}. Retry-After=${retryDelaySeconds}s`,
-          );
-          console.warn(
-            `[MailchimpClient] Rate limited. Retrying after ${retryDelaySeconds}s.`,
-          );
-          await new Promise((resolve) =>
-            setTimeout(resolve, retryDelaySeconds * 1000),
-          );
-          continue;
-        }
-
         if (!response.ok) {
           const body = await response.text();
-          throw new MailchimpRequestError(response.status, path, body);
+          const requestError = new MailchimpRequestError(
+            response.status,
+            path,
+            body,
+          );
+
+          if (
+            MailchimpClient.isRetryableStatus(response.status) &&
+            attempt < MailchimpClient.MAX_RETRIES - 1
+          ) {
+            const retryAfter = Number.parseInt(
+              response.headers.get("Retry-After") ?? "",
+              10,
+            );
+            const retryDelayMs = MailchimpClient.getRetryDelayMs(
+              attempt,
+              Number.isFinite(retryAfter) ? retryAfter : undefined,
+            );
+            lastError = requestError;
+            console.warn(
+              `[MailchimpClient] Retryable Mailchimp error ${response.status} at ${path}. Retrying in ${retryDelayMs}ms.`,
+            );
+            await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
+            continue;
+          }
+
+          throw requestError;
         }
 
         return (await response.json()) as T;
@@ -111,9 +138,18 @@ export class MailchimpClient {
           throw error;
         }
 
-        if (attempt === MailchimpClient.MAX_RETRIES - 1) {
+        if (
+          !MailchimpClient.isRetryableTransportError(error) ||
+          attempt === MailchimpClient.MAX_RETRIES - 1
+        ) {
           throw lastError;
         }
+
+        const retryDelayMs = MailchimpClient.getRetryDelayMs(attempt);
+        console.warn(
+          `[MailchimpClient] Retryable transport error at ${path}. Retrying in ${retryDelayMs}ms.`,
+        );
+        await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
       }
     }
 

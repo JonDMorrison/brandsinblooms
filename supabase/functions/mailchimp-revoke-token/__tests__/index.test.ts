@@ -56,6 +56,7 @@ Deno.test(
       },
       "provider_connections:update": { data: null, error: null },
       "provider_artifacts:delete": { data: null, error: null },
+      "import_jobs:update": { data: null, error: null },
     });
 
     const callOrder: string[] = [];
@@ -97,6 +98,15 @@ Deno.test(
         entry.table === "provider_artifacts" && entry.operation === "delete",
     );
     assertEquals(deleteEntry?.filters[0].value, "tenant-1");
+    const pendingJobsEntry = recorder.find(
+      (entry) => entry.table === "import_jobs" && entry.operation === "update",
+    );
+    const pendingJobsPayload = pendingJobsEntry?.payload as Record<
+      string,
+      unknown
+    >;
+    assertEquals(pendingJobsPayload.status, "failed");
+    assertEquals(pendingJobsPayload.error_details, "Provider disconnected");
   },
 );
 

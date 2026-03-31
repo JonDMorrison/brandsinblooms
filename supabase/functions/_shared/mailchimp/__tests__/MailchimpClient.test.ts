@@ -220,6 +220,109 @@ Deno.test("MailchimpClient.request does not retry on 401", async () => {
   }
 });
 
+Deno.test("MailchimpClient.request does not retry on 404", async () => {
+  let callCount = 0;
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async () => {
+    callCount += 1;
+    return new Response("missing", { status: 404 });
+  }) as typeof fetch;
+
+  try {
+    const client = await MailchimpClient.fromConnection(
+      buildConnection({ dc: "us3" }),
+      async () => "retry-token",
+    );
+
+    await assertRejects(
+      () => client.request("/lists/missing"),
+      MailchimpRequestError,
+      "Mailchimp API error 404",
+    );
+    assertEquals(callCount, 1);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+Deno.test("MailchimpClient.request retries on 500 responses", async () => {
+  let callCount = 0;
+  const delays: number[] = [];
+  const originalFetch = globalThis.fetch;
+  const originalSetTimeout = globalThis.setTimeout;
+
+  globalThis.fetch = (async () => {
+    callCount += 1;
+    if (callCount === 1) {
+      return new Response("server error", { status: 500 });
+    }
+    return jsonResponse({ health_status: "ok" });
+  }) as typeof fetch;
+  globalThis.setTimeout = ((
+    callback: (...args: unknown[]) => void,
+    delay?: number,
+  ) => {
+    delays.push(Number(delay ?? 0));
+    if (typeof callback === "function") {
+      callback();
+    }
+    return 0 as unknown as number;
+  }) as typeof setTimeout;
+
+  try {
+    const client = await MailchimpClient.fromConnection(
+      buildConnection({ dc: "us3" }),
+      async () => "retry-token",
+    );
+
+    await client.request("/ping");
+    assertEquals(callCount, 2);
+    assertEquals(delays, [1000]);
+  } finally {
+    globalThis.fetch = originalFetch;
+    globalThis.setTimeout = originalSetTimeout;
+  }
+});
+
+Deno.test("MailchimpClient.request retries on transport errors", async () => {
+  let callCount = 0;
+  const delays: number[] = [];
+  const originalFetch = globalThis.fetch;
+  const originalSetTimeout = globalThis.setTimeout;
+
+  globalThis.fetch = (async () => {
+    callCount += 1;
+    if (callCount === 1) {
+      throw new TypeError("network failure");
+    }
+    return jsonResponse({ health_status: "ok" });
+  }) as typeof fetch;
+  globalThis.setTimeout = ((
+    callback: (...args: unknown[]) => void,
+    delay?: number,
+  ) => {
+    delays.push(Number(delay ?? 0));
+    if (typeof callback === "function") {
+      callback();
+    }
+    return 0 as unknown as number;
+  }) as typeof setTimeout;
+
+  try {
+    const client = await MailchimpClient.fromConnection(
+      buildConnection({ dc: "us3" }),
+      async () => "retry-token",
+    );
+
+    await client.request("/ping");
+    assertEquals(callCount, 2);
+    assertEquals(delays, [1000]);
+  } finally {
+    globalThis.fetch = originalFetch;
+    globalThis.setTimeout = originalSetTimeout;
+  }
+});
+
 Deno.test(
   "MailchimpClient.request throws a typed error with status code and body on non-200",
   async () => {

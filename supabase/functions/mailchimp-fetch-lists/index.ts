@@ -164,13 +164,7 @@ export async function handleMailchimpFetchLists(
       }),
     );
 
-    const cacheJobId = await getArtifactCacheJobId(supabase, tenantId, userId);
-    await syncProviderArtifacts(
-      supabase,
-      tenantId,
-      cacheJobId,
-      listsWithSegments,
-    );
+    await syncProviderArtifacts(supabase, tenantId, null, listsWithSegments);
 
     console.log(
       `[mailchimp-fetch-lists] Fetched ${listsWithSegments.length} lists`,
@@ -206,75 +200,10 @@ if (import.meta.main) {
   Deno.serve((req) => handleMailchimpFetchLists(req));
 }
 
-function asObject(value: unknown): Record<string, unknown> | null {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return null;
-  }
-
-  return value as Record<string, unknown>;
-}
-
-async function getArtifactCacheJobId(
-  supabase: any,
-  tenantId: string,
-  userId: string,
-): Promise<string> {
-  const { data: jobs, error: jobsError } = await supabase
-    .from("import_jobs")
-    .select("id, config")
-    .eq("tenant_id", tenantId)
-    .eq("user_id", userId)
-    .eq("provider", "mailchimp")
-    .order("created_at", { ascending: false })
-    .limit(20);
-
-  if (jobsError) {
-    throw new Error(
-      `Failed to look up Mailchimp artifact cache job: ${jobsError.message}`,
-    );
-  }
-
-  const existingCacheJob = jobs?.find(
-    (job: any) => asObject(job.config)?.artifact_cache === true,
-  );
-  if (typeof existingCacheJob?.id === "string") {
-    return existingCacheJob.id;
-  }
-
-  const hiddenTimestamp = new Date(0).toISOString();
-  const { data: cacheJob, error: cacheJobError } = await supabase
-    .from("import_jobs")
-    .insert({
-      tenant_id: tenantId,
-      user_id: userId,
-      provider: "mailchimp",
-      status: "completed",
-      config: {
-        artifact_cache: true,
-        hidden: true,
-        generated_by: "mailchimp-fetch-lists",
-      },
-      report: null,
-      completed_at: hiddenTimestamp,
-      created_at: hiddenTimestamp,
-      updated_at: hiddenTimestamp,
-    })
-    .select("id")
-    .single();
-
-  if (cacheJobError || !cacheJob?.id) {
-    throw new Error(
-      `Failed to create Mailchimp artifact cache job: ${cacheJobError?.message || "Unknown error"}`,
-    );
-  }
-
-  return String(cacheJob.id);
-}
-
 export async function syncProviderArtifacts(
   supabase: any,
   tenantId: string,
-  importJobId: string,
+  importJobId: string | null,
   listsWithSegments: Array<{
     id: string;
     name: string;

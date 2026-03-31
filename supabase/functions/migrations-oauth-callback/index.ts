@@ -24,71 +24,76 @@ if (import.meta.main) {
   }
 }
 
-function htmlClose(
-  type: "oauth-success" | "oauth-error",
-  message: string,
-): Response {
-  const appOrigin =
-    Deno.env.get("APP_ORIGIN") ?? Deno.env.get("APP_BASE_URL") ?? "*";
-  const escapedMessage = JSON.stringify(message);
+function decodeJwtPayload(
+  value: string | null,
+): Record<string, unknown> | null {
+  if (!value) {
+    return null;
+  }
 
-  return new Response(
-    `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <title>${type === "oauth-success" ? "Success" : "Error"}</title>
-  <style>
-    body {
-      font-family: system-ui, -apple-system, sans-serif;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      height: 100vh;
-      margin: 0;
-      background: ${type === "oauth-success" ? "#f0fdf4" : "#fef2f2"};
+  const segments = value.split(".");
+  if (segments.length < 2) {
+    return null;
+  }
+
+  try {
+    const normalized = segments[1]
+      .replace(/-/g, "+")
+      .replace(/_/g, "/")
+      .padEnd(Math.ceil(segments[1].length / 4) * 4, "=");
+    const decoded = atob(normalized);
+    const parsed = JSON.parse(decoded);
+
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return null;
     }
-    .message {
-      text-align: center;
-      padding: 2rem;
-      color: ${type === "oauth-success" ? "#166534" : "#991b1b"};
-    }
-  </style>
-</head>
-<body>
-  <div class="message">
-    <p>${type === "oauth-success" ? "✓" : "✗"} ${message}</p>
-  </div>
-  <script>
-    try {
-      if (window.opener && !window.opener.closed) {
-        window.opener.postMessage({
-          type: '${type}',
-          message: ${escapedMessage},
-          provider: 'mailchimp'
-        }, '${appOrigin}');
-      }
-    } catch (e) {
-      console.error('postMessage failed:', e);
-    }
-    setTimeout(() => {
-      try {
-        window.close();
-      } catch (e) {
-        console.log('Could not close window:', e);
-      }
-    }, 300);
-  </script>
-</body>
-</html>`,
-    {
-      headers: {
-        ...corsHeaders,
-        "Content-Type": "text/html; charset=utf-8",
-      },
-      status: type === "oauth-error" ? 400 : 200,
-    },
+
+    return parsed as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
+function getStringValue(
+  source: Record<string, unknown> | null,
+  key: string,
+): string | undefined {
+  const value = source?.[key];
+
+  return typeof value === "string" && value.trim().length > 0
+    ? value
+    : undefined;
+}
+
+function resolveProvider(...candidates: Array<string | undefined>) {
+  return (
+    candidates.find(
+      (candidate) =>
+        typeof candidate === "string" && candidate.trim().length > 0,
+    ) ?? "unknown"
   );
+}
+
+function buildCallbackRedirectUrl({
+  appOrigin,
+  provider,
+  status,
+  message,
+}: {
+  appOrigin: string;
+  provider: string;
+  status: "success" | "error";
+  message?: string;
+}) {
+  const redirectUrl = new URL("/oauth/callback", appOrigin);
+  redirectUrl.searchParams.set("provider", provider);
+  redirectUrl.searchParams.set("status", status);
+
+  if (message) {
+    redirectUrl.searchParams.set("message", message);
+  }
+
+  return redirectUrl.toString();
 }
 
 export interface MigrationsOAuthCallbackDependencies {
@@ -119,15 +124,20 @@ export async function handleMigrationsOAuthCallback(
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Declare outside try block so it's accessible in catch
+  // Declare outside try block so redirect context is available in catch.
   let appOriginFromState: string | undefined;
+  let providerFromClaims: string | undefined;
+  let providerFromQuery: string | undefined;
+  let providerFromRawState: string | undefined;
 
   try {
     // Parse query parameters from the URL (OAuth callback is a GET request)
     const url = new URL(req.url);
     const code = url.searchParams.get("code");
     const state = url.searchParams.get("state");
-    let provider = url.searchParams.get("provider") || "mailchimp"; // May be overridden by verified state
+    providerFromQuery = url.searchParams.get("provider") ?? undefined;
+    providerFromRawState = getStringValue(decodeJwtPayload(state), "provider");
+    let provider = resolveProvider(providerFromRawState, providerFromQuery);
 
     if (!code || !state) {
       throw new Error("Missing required parameters: code and state");
@@ -153,20 +163,19 @@ export async function handleMigrationsOAuthCallback(
         "[migrations-oauth-callback] Missing encryption key:",
         error.message,
       );
-      return htmlClose(
-        "oauth-error",
+      throw new Error(
         "TOKEN_ENCRYPTION_KEY not configured. Please contact support.",
       );
     }
 
     // Verify signed JWT state
     let claims: any;
-    try {
-      const secret = deps.envGet("OAUTH_STATE_SECRET");
-      if (!secret) {
-        return htmlClose("oauth-error", "OAUTH_STATE_SECRET not configured");
-      }
+    const secret = deps.envGet("OAUTH_STATE_SECRET");
+    if (!secret) {
+      throw new Error("OAUTH_STATE_SECRET not configured");
+    }
 
+    try {
       const encoder = new TextEncoder();
       const key = await deps.importKey(
         "raw",
@@ -179,11 +188,17 @@ export async function handleMigrationsOAuthCallback(
       claims = await deps.verifyJwt(state, key);
     } catch (e) {
       console.error("[migrations-oauth-callback] JWT verification failed:", e);
-      return htmlClose("oauth-error", "Invalid or expired state token");
+      throw new Error("Invalid or expired state token");
     }
 
     // Override provider from claims and derive redirectUri/user/tenant
-    provider = (claims?.provider as string) || provider;
+    providerFromClaims =
+      typeof claims?.provider === "string" ? claims.provider : undefined;
+    provider = resolveProvider(
+      providerFromClaims,
+      providerFromRawState,
+      providerFromQuery,
+    );
     const redirectUri = claims?.redirectUri as string;
     appOriginFromState = claims?.appOrigin as string | undefined;
     const uid = claims?.uid as string;
@@ -285,7 +300,7 @@ export async function handleMigrationsOAuthCallback(
         "[migrations-oauth-callback] Encryption failed:",
         error.message,
       );
-      return htmlClose("oauth-error", "Failed to encrypt token");
+      throw new Error("Failed to encrypt token");
     }
 
     // Fetch account info
@@ -474,19 +489,36 @@ export async function handleMigrationsOAuthCallback(
       deps.envGet("APP_ORIGIN") ||
       deps.envGet("APP_BASE_URL") ||
       "https://bloomsuite.app";
-    const redirectUrl = `${appOrigin}/oauth/callback?provider=${provider}&status=success`;
+    const redirectUrl = buildCallbackRedirectUrl({
+      appOrigin,
+      provider,
+      status: "success",
+    });
     return new Response(null, {
       status: 302,
       headers: { ...corsHeaders, Location: redirectUrl },
     });
   } catch (error: any) {
     console.error("[migrations-oauth-callback] Error:", error);
+    const provider = resolveProvider(
+      providerFromClaims,
+      providerFromRawState,
+      providerFromQuery,
+    );
     const appOrigin =
       appOriginFromState ||
       deps.envGet("APP_ORIGIN") ||
       deps.envGet("APP_BASE_URL") ||
       "https://bloomsuite.app";
-    const redirectUrl = `${appOrigin}/oauth/callback?provider=mailchimp&status=error`;
+    const redirectUrl = buildCallbackRedirectUrl({
+      appOrigin,
+      provider,
+      status: "error",
+      message:
+        typeof error?.message === "string" && error.message.trim().length > 0
+          ? error.message
+          : "Connection failed",
+    });
     return new Response(null, {
       status: 302,
       headers: { ...corsHeaders, Location: redirectUrl },

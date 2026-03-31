@@ -187,6 +187,23 @@ export async function handleMailchimpRevokeToken(
       );
     }
 
+    const { error: pendingJobsError } = await adminSupabase
+      .from("import_jobs")
+      .update({
+        status: "failed",
+        error_details: "Provider disconnected",
+        current_stage: "Error: Provider disconnected",
+      })
+      .eq("tenant_id", tenantId)
+      .eq("provider", provider)
+      .eq("status", "pending");
+
+    if (pendingJobsError) {
+      throw new Error(
+        `Failed to fail pending import jobs: ${pendingJobsError.message}`,
+      );
+    }
+
     return new Response(
       JSON.stringify({
         success: true,

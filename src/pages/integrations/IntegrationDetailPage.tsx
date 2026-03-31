@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { format, formatDistanceToNow } from "date-fns";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
@@ -77,6 +77,10 @@ import {
   type IntegrationDetailTone,
 } from "@/components/integrations/integrationDetailModel";
 import { getIntegrationSeed } from "@/components/integrations/integrationsHubConfig";
+import { ConnectMailchimpDialog } from "@/components/integrations/mailchimp/ConnectMailchimpDialog";
+import { MailchimpImportOnboardingDialog } from "@/components/integrations/mailchimp/MailchimpImportOnboardingDialog";
+import { MailchimpIntegrationShell } from "@/components/integrations/mailchimp/MailchimpIntegrationShell";
+import { useMailchimpImportProgress } from "@/hooks/useMailchimpImportProgress";
 import {
   ConnectShopifyDialog,
   ConnectShopifyHint,
@@ -772,6 +776,17 @@ export default function IntegrationDetailPage() {
     useState<ShopifyProductsSortField>("updated_at");
   const [syncLogsPage, setSyncLogsPage] = useState(1);
   const [syncLogsStatus, setSyncLogsStatus] = useState("all");
+  const [mailchimpConnectDialogOpen, setMailchimpConnectDialogOpen] =
+    useState(false);
+  const [mailchimpImportDialogOpen, setMailchimpImportDialogOpen] =
+    useState(false);
+  const [mailchimpImportDialogMode, setMailchimpImportDialogMode] = useState<
+    "import" | "preview"
+  >("import");
+  const [trackedMailchimpImportJobId, setTrackedMailchimpImportJobId] =
+    useState<string | null>(null);
+  const [dismissedMailchimpImportJobIds, setDismissedMailchimpImportJobIds] =
+    useState<string[]>([]);
   const deferredCustomerSearch = useDebouncedValue(
     customerSearchInput.trim(),
     300,
@@ -907,6 +922,59 @@ export default function IntegrationDetailPage() {
   );
 
   const seed = useMemo(() => (slug ? getIntegrationSeed(slug) : null), [slug]);
+  const isMailchimpPage = slug === "mailchimp";
+  const marketingImportDetail = detail.marketingImportDetail;
+  const mailchimpImportProgress = useMailchimpImportProgress(
+    trackedMailchimpImportJobId,
+    { enabled: isMailchimpPage },
+  );
+
+  useEffect(() => {
+    if (!isMailchimpPage || !marketingImportDetail?.runningImportId) {
+      return;
+    }
+
+    setTrackedMailchimpImportJobId((current) =>
+      current === marketingImportDetail.runningImportId
+        ? current
+        : marketingImportDetail.runningImportId,
+    );
+  }, [isMailchimpPage, marketingImportDetail?.runningImportId]);
+
+  const handleMailchimpConnected = useCallback(async () => {
+    const result = await detail.refetch();
+
+    return (
+      result.data?.marketingImportDetail?.accountName ??
+      marketingImportDetail?.accountName ??
+      null
+    );
+  }, [detail.refetch, marketingImportDetail?.accountName]);
+  const handleMailchimpImportFlowUpdated = useCallback(
+    async (jobId?: string | null) => {
+      if (jobId) {
+        setTrackedMailchimpImportJobId(jobId);
+        setDismissedMailchimpImportJobIds((current) =>
+          current.filter((value) => value !== jobId),
+        );
+      }
+
+      await detail.refetch();
+    },
+    [detail.refetch],
+  );
+  const handleDismissMailchimpProgressCard = useCallback((jobId: string) => {
+    setDismissedMailchimpImportJobIds((current) =>
+      current.includes(jobId) ? current : [...current, jobId],
+    );
+  }, []);
+  const handleOpenMailchimpImportDialog = useCallback(() => {
+    setMailchimpImportDialogMode("import");
+    setMailchimpImportDialogOpen(true);
+  }, []);
+  const shouldHideDismissedMailchimpImportCard =
+    Boolean(mailchimpImportProgress.jobId) &&
+    dismissedMailchimpImportJobIds.includes(mailchimpImportProgress.jobId);
 
   if (!seed || !detail.isValidSlug) {
     return <NotFound />;
@@ -944,10 +1012,51 @@ export default function IntegrationDetailPage() {
   const lightspeedDashboard = detail.lightspeedDashboard;
   const metaDetail = detail.metaDetail;
   const ga4Detail = detail.ga4Detail;
-  const marketingImportDetail = detail.marketingImportDetail;
   const emailInfrastructureDetail = detail.emailInfrastructureDetail;
   const comingSoonDetail = detail.comingSoonDetail;
   const isComingSoonPage = Boolean(comingSoonDetail);
+
+  if (item.slug === "mailchimp" && marketingImportDetail) {
+    return (
+      <>
+        <MailchimpIntegrationShell
+          item={item}
+          marketingImportDetail={marketingImportDetail}
+          importProgress={
+            shouldHideDismissedMailchimpImportCard
+              ? null
+              : mailchimpImportProgress
+          }
+          canDisconnect={detail.canDisconnect}
+          isDisconnecting={detail.isDisconnecting}
+          onDisconnect={detail.disconnect}
+          onOpenConnectDialog={() => setMailchimpConnectDialogOpen(true)}
+          onOpenImportDialog={handleOpenMailchimpImportDialog}
+          onOpenPreviewDialog={() => {
+            setMailchimpImportDialogMode("preview");
+            setMailchimpImportDialogOpen(true);
+          }}
+          onDismissImportStatusCard={handleDismissMailchimpProgressCard}
+        />
+        <ConnectMailchimpDialog
+          open={mailchimpConnectDialogOpen}
+          onOpenChange={setMailchimpConnectDialogOpen}
+          onConnected={handleMailchimpConnected}
+        />
+        {mailchimpImportDialogOpen ? (
+          <MailchimpImportOnboardingDialog
+            open={mailchimpImportDialogOpen}
+            mode={mailchimpImportDialogMode}
+            marketingImportDetail={marketingImportDetail}
+            onOpenChange={setMailchimpImportDialogOpen}
+            onOpenConnectDialog={() => setMailchimpConnectDialogOpen(true)}
+            onStateChanged={handleMailchimpImportFlowUpdated}
+          />
+        ) : null}
+      </>
+    );
+  }
+
   const shopifyAdminUrl = getShopifyAdminUrl(
     shopifyConnection?.shop_domain ?? null,
   );

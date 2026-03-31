@@ -16,12 +16,56 @@ export interface MailchimpValidateDependencies {
   ) => Promise<MailchimpClient>;
 }
 
+interface ValidationCheck {
+  name:
+    | "connection_active"
+    | "api_reachable"
+    | "email_format"
+    | "duplicate_detection";
+  passed: boolean;
+  details: string;
+}
+
 const defaultDependencies: MailchimpValidateDependencies = {
   createClient,
   envGet: (key) => Deno.env.get(key),
   mailchimpFromConnection: (connection) =>
     MailchimpClient.fromConnection(connection),
 };
+
+function buildJsonResponse(body: Record<string, unknown>, status = 200) {
+  return new Response(JSON.stringify(body), {
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+    status,
+  });
+}
+
+function buildSkippedCheck(
+  name: ValidationCheck["name"],
+  reason: string,
+): ValidationCheck {
+  return {
+    name,
+    passed: false,
+    details: reason,
+  };
+}
+
+function parseSegmentSelection(value: string) {
+  const separatorIndex = value.indexOf(":");
+
+  if (separatorIndex === -1) {
+    return {
+      listId: null,
+      segmentId: value || null,
+    };
+  }
+
+  return {
+    listId: value.slice(0, separatorIndex),
+    segmentId: value.slice(separatorIndex + 1) || null,
+  };
+}
 
 export async function handleMailchimpValidate(
   req: Request,
@@ -105,67 +149,208 @@ export async function handleMailchimpValidate(
 
     if (!userData?.tenant_id) throw new Error("No tenant found");
 
-    // Get connection
+    const checks: ValidationCheck[] = [];
+    const validationErrors: string[] = [];
+
+    // Check connection state before touching Mailchimp.
     const { data: connection } = await supabase
       .from("provider_connections")
       .select("*")
       .eq("tenant_id", userData.tenant_id)
       .eq("provider", "mailchimp")
-      .eq("status", "connected")
       .single();
 
     if (!connection?.encrypted_access_token) {
-      throw new Error("Mailchimp not connected");
+      const details = "Mailchimp is not connected for this tenant.";
+      validationErrors.push(details);
+      checks.push({
+        name: "connection_active",
+        passed: false,
+        details,
+      });
+      checks.push(
+        buildSkippedCheck(
+          "api_reachable",
+          "Skipped because the Mailchimp connection is not active.",
+        ),
+      );
+      checks.push(
+        buildSkippedCheck(
+          "email_format",
+          "Skipped because the Mailchimp connection is not active.",
+        ),
+      );
+      checks.push(
+        buildSkippedCheck(
+          "duplicate_detection",
+          "Skipped because the Mailchimp connection is not active.",
+        ),
+      );
+
+      return buildJsonResponse({
+        valid: false,
+        checks,
+        validationErrors,
+      });
     }
+
+    if (connection.status !== "connected") {
+      const details = `Mailchimp connection is ${connection.status}. Reconnect Mailchimp before validating this import.`;
+      validationErrors.push(details);
+      checks.push({
+        name: "connection_active",
+        passed: false,
+        details,
+      });
+      checks.push(
+        buildSkippedCheck(
+          "api_reachable",
+          "Skipped because the Mailchimp connection is not active.",
+        ),
+      );
+      checks.push(
+        buildSkippedCheck(
+          "email_format",
+          "Skipped because the Mailchimp connection is not active.",
+        ),
+      );
+      checks.push(
+        buildSkippedCheck(
+          "duplicate_detection",
+          "Skipped because the Mailchimp connection is not active.",
+        ),
+      );
+
+      return buildJsonResponse({
+        valid: false,
+        checks,
+        validationErrors,
+      });
+    }
+
+    checks.push({
+      name: "connection_active",
+      passed: true,
+      details: "Mailchimp connection is active.",
+    });
 
     const client = await deps.mailchimpFromConnection(
       connection as MailchimpConnectionCredentials,
     );
     const isAlive = await client.ping();
     if (!isAlive) {
-      return new Response(
-        JSON.stringify({
-          valid: false,
-          error: "Could not connect to Mailchimp API",
-        }),
-        {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 200,
-        },
+      const details = "Could not connect to the Mailchimp API.";
+      checks.push({
+        name: "api_reachable",
+        passed: false,
+        details,
+      });
+      checks.push(
+        buildSkippedCheck(
+          "email_format",
+          "Skipped because the Mailchimp API is not reachable.",
+        ),
       );
+      checks.push(
+        buildSkippedCheck(
+          "duplicate_detection",
+          "Skipped because the Mailchimp API is not reachable.",
+        ),
+      );
+
+      return buildJsonResponse({
+        valid: false,
+        checks,
+        validationErrors: [details],
+        error: "Could not connect to Mailchimp API",
+      });
     }
 
+    checks.push({
+      name: "api_reachable",
+      passed: true,
+      details: "Mailchimp API responded to the validation ping.",
+    });
+
     const config = job.config as any;
-    const listIds = config.listIds || [];
+    const listIds = Array.isArray(config.listIds) ? config.listIds : [];
+    const segmentSelections = Array.isArray(config.segmentIds)
+      ? config.segmentIds
+      : [];
+    const validationMembers: Array<{ email_address: string }> = [];
 
-    const validationErrors: string[] = [];
-
-    // Validate each list and check for duplicate emails
+    // Validate each selected list and segment, then sample for duplicates.
     for (const listId of listIds) {
       const membersData = await client.getListMembers(listId, 0, 100);
 
-      for (const member of membersData.members || []) {
-        const email = member.email_address;
+      validationMembers.push(...(membersData.members || []));
 
-        // Validate email format
-        if (!validateEmail(email)) {
-          validationErrors.push(`Invalid email format: ${email}`);
+      for (const selection of segmentSelections) {
+        const { listId: selectedListId, segmentId } =
+          parseSegmentSelection(selection);
+
+        if (selectedListId !== listId || !segmentId) {
+          continue;
         }
 
-        // Check for duplicates in existing database
-        const { data: existing } = await supabase
-          .from("crm_customers")
-          .select("id, email")
-          .eq("tenant_id", userData.tenant_id)
-          .eq("email", email.toLowerCase())
-          .maybeSingle();
-
-        // Note: We allow duplicates but warn about them
-        if (existing) {
-          console.log(`Duplicate found: ${email} will be updated`);
-        }
+        const segmentMembers = await client.getSegmentMembers(
+          listId,
+          segmentId,
+          0,
+          100,
+        );
+        validationMembers.push(...(segmentMembers.members || []));
       }
     }
+
+    for (const member of validationMembers) {
+      const email = member.email_address;
+
+      if (!validateEmail(email)) {
+        validationErrors.push(`Invalid email format: ${email}`);
+      }
+    }
+
+    checks.push({
+      name: "email_format",
+      passed: validationErrors.length === 0,
+      details:
+        validationErrors.length === 0
+          ? `Validated ${validationMembers.length.toLocaleString()} Mailchimp members across selected lists and segments.`
+          : `Found ${validationErrors.length.toLocaleString()} invalid email address${validationErrors.length === 1 ? "" : "es"} in the sampled Mailchimp members.`,
+    });
+
+    const normalizedEmails = Array.from(
+      new Set(
+        validationMembers
+          .map((member) => member.email_address?.toLowerCase().trim())
+          .filter((email): email is string => Boolean(email)),
+      ),
+    );
+
+    let existingDuplicates = 0;
+    if (normalizedEmails.length > 0) {
+      const { data: existing, error: duplicateError } = await supabase
+        .from("crm_customers")
+        .select("id, email")
+        .eq("tenant_id", userData.tenant_id)
+        .in("email", normalizedEmails);
+
+      if (duplicateError) {
+        throw duplicateError;
+      }
+
+      existingDuplicates = existing?.length ?? 0;
+    }
+
+    checks.push({
+      name: "duplicate_detection",
+      passed: true,
+      details:
+        existingDuplicates > 0
+          ? `${existingDuplicates.toLocaleString()} sampled contact${existingDuplicates === 1 ? " already exists" : "s already exist"} in BloomSuite and will be updated or skipped during import.`
+          : "No sampled contacts already exist in BloomSuite.",
+    });
 
     // Limit validation errors to first 50
     const limitedErrors = validationErrors.slice(0, 50);
@@ -179,13 +364,15 @@ export async function handleMailchimpValidate(
       `[mailchimp-validate] Validation complete. Errors: ${limitedErrors.length}`,
     );
 
-    return new Response(
-      JSON.stringify({
-        valid: limitedErrors.length === 0,
-        validationErrors: limitedErrors,
-      }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
+    const valid = checks
+      .filter((check) => check.name !== "duplicate_detection")
+      .every((check) => check.passed);
+
+    return buildJsonResponse({
+      valid,
+      checks,
+      validationErrors: limitedErrors,
+    });
   } catch (error: any) {
     console.error("[mailchimp-validate] Error:", {
       message: error.message,
@@ -202,15 +389,12 @@ export async function handleMailchimpValidate(
           ? 404
           : 500;
 
-    return new Response(
-      JSON.stringify({
+    return buildJsonResponse(
+      {
         error: error.message,
         type: error.name,
-      }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: statusCode,
       },
+      statusCode,
     );
   }
 }

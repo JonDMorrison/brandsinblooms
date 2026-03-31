@@ -42,7 +42,7 @@ export default function LightspeedConnectPage() {
               ? `Connected to ${data.retailerName}`
               : undefined,
           });
-          navigate("/integrations/pos");
+          navigate("/integrations/lightspeed", { replace: true });
         } else if (data.status === "error") {
           toast({
             title: "Connection failed",

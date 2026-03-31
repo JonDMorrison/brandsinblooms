@@ -23,6 +23,12 @@ export interface MailchimpFetchPreviewDependencies {
   ) => Promise<MailchimpClient>;
 }
 
+interface PreviewListSummary {
+  id: string;
+  name: string;
+  totalMembers: number;
+}
+
 const defaultDependencies: MailchimpFetchPreviewDependencies = {
   createClient,
   envGet: (key) => Deno.env.get(key),
@@ -126,12 +132,19 @@ export async function handleMailchimpFetchPreview(
 
     const listInfo = await client.getList(listId);
 
+    let resolvedListInfo: PreviewListSummary = {
+      id: listInfo.id,
+      name: listInfo.name,
+      totalMembers: listInfo.stats?.member_count ?? 0,
+    };
+    let resolvedListInfos: PreviewListSummary[] = [resolvedListInfo];
     let estimatedImportCount = listInfo.stats?.member_count ?? 0;
     let selectedSegments: Array<{
       id: string;
       name: string;
       memberCount: number;
     }> = [];
+    let previewMembers: MailchimpMember[] = [];
 
     if (segmentIds.length > 0) {
       const segmentArtifacts = await loadSelectedSegmentArtifacts(
@@ -151,19 +164,52 @@ export async function handleMailchimpFetchPreview(
         (sum, segment) => sum + segment.memberCount,
         0,
       );
-    }
+      resolvedListInfos = [resolvedListInfo];
+      previewMembers = (
+        await client.getSegmentMembers(
+          listId,
+          extractSegmentId(segmentIds[0]) ?? "",
+          0,
+          10,
+        )
+      ).members;
+    } else {
+      const sampleSizePerList = getListPreviewSampleSize(listIds.length);
+      const resolvedLists = await Promise.all(
+        listIds.map(async (selectedListId) => {
+          const [selectedList, membersResponse] = await Promise.all([
+            client.getList(selectedListId),
+            client.getListMembers(selectedListId, 0, sampleSizePerList),
+          ]);
 
-    const previewMembers =
-      segmentIds.length === 0
-        ? (await client.getListMembers(listId, 0, 10)).members
-        : (
-            await client.getSegmentMembers(
-              listId,
-              extractSegmentId(segmentIds[0]) ?? "",
-              0,
-              10,
-            )
-          ).members;
+          return {
+            list: selectedList,
+            members: membersResponse.members,
+          };
+        }),
+      );
+
+      estimatedImportCount = resolvedLists.reduce(
+        (sum, entry) => sum + (entry.list.stats?.member_count ?? 0),
+        0,
+      );
+      resolvedListInfos = resolvedLists.map((entry) => ({
+        id: entry.list.id,
+        name: entry.list.name,
+        totalMembers: entry.list.stats?.member_count ?? 0,
+      }));
+      previewMembers = dedupePreviewMembersByEmail(
+        resolvedLists.flatMap((entry) => entry.members),
+      );
+      resolvedListInfo =
+        resolvedLists.length === 1
+          ? resolvedListInfos[0]
+          : {
+              id: "multiple",
+              name: `${resolvedLists.length} selected lists`,
+              totalMembers: estimatedImportCount,
+            };
+    }
 
     const normalizedContacts = previewMembers.map(normalizePreviewContact);
     const sampleEmails = normalizedContacts
@@ -198,11 +244,8 @@ export async function handleMailchimpFetchPreview(
     const estimatedDuration = formatEstimatedDuration(estimatedImportCount);
 
     return corsJsonResponse({
-      listInfo: {
-        id: listInfo.id,
-        name: listInfo.name,
-        totalMembers: listInfo.stats?.member_count ?? 0,
-      },
+      listInfo: resolvedListInfo,
+      listInfos: resolvedListInfos,
       selectedSegments,
       sampleContacts: normalizedContacts,
       estimatedImportCount,
@@ -329,6 +372,32 @@ function normalizePreviewContact(member: MailchimpMember) {
     status: member.status,
     tags: Array.isArray(member.tags) ? member.tags.map((tag) => tag.name) : [],
   };
+}
+
+function getListPreviewSampleSize(selectedListCount: number) {
+  if (selectedListCount <= 0) {
+    return 20;
+  }
+
+  return Math.max(3, Math.floor(20 / selectedListCount));
+}
+
+function dedupePreviewMembersByEmail(members: MailchimpMember[]) {
+  const seenEmails = new Set<string>();
+  const dedupedMembers: MailchimpMember[] = [];
+
+  for (const member of members) {
+    const email = member.email_address.trim().toLowerCase();
+
+    if (!email || seenEmails.has(email)) {
+      continue;
+    }
+
+    seenEmails.add(email);
+    dedupedMembers.push(member);
+  }
+
+  return dedupedMembers;
 }
 
 function formatEstimatedDuration(estimatedImportCount: number): string {

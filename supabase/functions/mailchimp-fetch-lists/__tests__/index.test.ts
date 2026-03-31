@@ -60,8 +60,6 @@ Deno.test(
         },
         error: null,
       },
-      "import_jobs:select": { data: [], error: null },
-      "import_jobs:insert": { data: { id: "cache-job-1" }, error: null },
       "provider_artifacts:upsert": { data: null, error: null },
     });
 
@@ -107,8 +105,16 @@ Deno.test(
     const payload = artifactUpsert?.payload as Array<Record<string, unknown>>;
     assertEquals(payload.length, 3);
     assertEquals(payload[0].artifact_type, "list");
+    assertEquals(payload[0].import_job_id, null);
     assertEquals(payload[1].external_id, "list-1:10");
     assertEquals(payload[2].external_id, "list-1:11");
+    assertEquals(
+      recorder.some(
+        (entry) =>
+          entry.table === "import_jobs" && entry.operation === "insert",
+      ),
+      false,
+    );
   },
 );
 
@@ -128,8 +134,6 @@ Deno.test(
         },
         error: null,
       },
-      "import_jobs:select": { data: [], error: null },
-      "import_jobs:insert": { data: { id: "cache-job-1" }, error: null },
     });
 
     const response = await handleMailchimpFetchLists(

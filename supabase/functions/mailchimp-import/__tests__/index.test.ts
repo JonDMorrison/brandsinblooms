@@ -1,6 +1,13 @@
-import { assertEquals } from "@std/assert";
+import { assertEquals, assertRejects } from "@std/assert";
 
-import { buildWorkItems, processBatch, runMailchimpImport } from "../index.ts";
+import {
+  buildImportJobStartUpdate,
+  buildWorkItems,
+  getImportStartDecision,
+  processBatch,
+  runMailchimpImport,
+} from "../index.ts";
+import { MailchimpRequestError } from "../../_shared/mailchimp/MailchimpClient.ts";
 import { createMockSupabaseClient } from "../../_shared/testing/testHarness.ts";
 
 Deno.test(
@@ -152,6 +159,29 @@ Deno.test(
 );
 
 Deno.test(
+  "mailchimp-import start helpers block running jobs and reset failed jobs",
+  () => {
+    const runningDecision = getImportStartDecision({ status: "running" });
+    assertEquals(runningDecision.allowed, false);
+    assertEquals(runningDecision.statusCode, 409);
+
+    const failedDecision = getImportStartDecision({ status: "failed" });
+    assertEquals(failedDecision.allowed, true);
+    assertEquals(failedDecision.resetProgress, true);
+
+    const restartPayload = buildImportJobStartUpdate(
+      { status: "failed" },
+      "migration-1",
+      failedDecision,
+    );
+    assertEquals(restartPayload.status, "running");
+    assertEquals(restartPayload.current_page, 0);
+    assertEquals(restartPayload.fetched_rows, 0);
+    assertEquals(restartPayload.batch_stats, null);
+  },
+);
+
+Deno.test(
   "mailchimp-import runMailchimpImport uses segment members only and writes normalized final report",
   async () => {
     const { client, recorder } = createMockSupabaseClient({
@@ -265,5 +295,167 @@ Deno.test(
     assertEquals(finalReport.consents_recorded, 1);
     assertEquals(finalReport.batches_processed, 1);
     assertEquals(Array.isArray(finalReport.errors), true);
+  },
+);
+
+Deno.test(
+  "mailchimp-import skips missing Mailchimp work items with warnings instead of failing the job",
+  async () => {
+    const { client, recorder } = createMockSupabaseClient({
+      "provider_artifacts:select": {
+        data: [
+          { external_id: "list-1", name: "Audience", member_count: 1 },
+          {
+            external_id: "list-404",
+            name: "Missing Audience",
+            member_count: 5,
+          },
+        ],
+        error: null,
+      },
+      "crm_customers:upsert": {
+        data: [{ id: "cust-1", email: "vip@example.com" }],
+        error: null,
+      },
+      "customer_consents:upsert": { data: null, error: null },
+      "crm_tags:select": { data: [], error: null },
+      "crm_tags:upsert": { data: [], error: null },
+      "customer_sources:upsert": { data: null, error: null },
+      "rpc:record_contact_import_event": { data: null, error: null },
+    });
+
+    await runMailchimpImport({
+      supabase: client as never,
+      job: {
+        id: "job-404",
+        config: { listIds: ["list-1", "list-404"], segmentIds: [] },
+        inserted_rows: 0,
+        skipped_rows: 0,
+        failed_rows: 0,
+        fetched_rows: 0,
+        current_page: 0,
+        batch_stats: null,
+      },
+      connection: {
+        encrypted_access_token: "encrypted",
+        metadata: { dc: "us1" },
+      },
+      tenantId: "tenant-1",
+      userId: "user-1",
+      migrationJobId: "migration-1",
+      client: {
+        getSegments: async () => [],
+        getList: async (listId: string) => ({
+          id: listId,
+          name: listId,
+          stats: { member_count: listId === "list-1" ? 1 : 5 },
+        }),
+        getListMembers: async (listId: string, offset: number) => {
+          if (listId === "list-404") {
+            throw new MailchimpRequestError(
+              404,
+              `/lists/${listId}/members`,
+              "missing",
+            );
+          }
+
+          if (offset > 0) {
+            return { total_items: 1, members: [] };
+          }
+
+          return {
+            total_items: 1,
+            members: [
+              {
+                id: "member-1",
+                email_address: "vip@example.com",
+                status: "subscribed",
+                merge_fields: {},
+                tags: [],
+              },
+            ],
+          };
+        },
+      } as never,
+    });
+
+    const importJobUpdates = recorder.filter(
+      (entry) => entry.table === "import_jobs" && entry.operation === "update",
+    );
+    const finalUpdate = importJobUpdates.at(-1)?.payload as Record<
+      string,
+      unknown
+    >;
+    const finalReport = finalUpdate.report as Record<string, unknown>;
+    assertEquals(finalUpdate.status, "completed");
+    assertEquals(finalReport.contacts_imported, 1);
+    assertEquals(
+      (finalReport.errors as string[])[0],
+      "List Missing Audience is no longer available in Mailchimp. Skipping this selection.",
+    );
+  },
+);
+
+Deno.test(
+  "mailchimp-import expires the connection and fails clearly on Mailchimp 401 errors",
+  async () => {
+    const { client, recorder } = createMockSupabaseClient({
+      "provider_artifacts:select": {
+        data: [{ external_id: "list-1", name: "Audience", member_count: 1 }],
+        error: null,
+      },
+      "provider_connections:update": { data: null, error: null },
+    });
+
+    await assertRejects(
+      () =>
+        runMailchimpImport({
+          supabase: client as never,
+          job: {
+            id: "job-401",
+            config: { listIds: ["list-1"], segmentIds: [] },
+            inserted_rows: 0,
+            skipped_rows: 0,
+            failed_rows: 0,
+            fetched_rows: 0,
+            current_page: 0,
+            batch_stats: null,
+          },
+          connection: {
+            encrypted_access_token: "encrypted",
+            metadata: { dc: "us1" },
+          },
+          tenantId: "tenant-1",
+          userId: "user-1",
+          migrationJobId: "migration-1",
+          client: {
+            getSegments: async () => [],
+            getList: async () => ({
+              id: "list-1",
+              name: "Audience",
+              stats: { member_count: 1 },
+            }),
+            getListMembers: async () => {
+              throw new MailchimpRequestError(
+                401,
+                "/lists/list-1/members",
+                "expired",
+              );
+            },
+          } as never,
+        }),
+      Error,
+      "Mailchimp connection expired during import",
+    );
+
+    const connectionUpdate = recorder.find(
+      (entry) =>
+        entry.table === "provider_connections" && entry.operation === "update",
+    );
+    const connectionPayload = connectionUpdate?.payload as Record<
+      string,
+      unknown
+    >;
+    assertEquals(connectionPayload.status, "expired");
   },
 );

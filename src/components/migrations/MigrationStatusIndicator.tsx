@@ -1,29 +1,33 @@
-import { Loader2, CheckCircle2, AlertCircle, Pause } from 'lucide-react';
-import { useMigrationJobs } from '@/hooks/useMigrationJobs';
-import { Progress } from '@/components/ui/progress';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import { Loader2, CheckCircle2, AlertCircle, Pause } from "lucide-react";
+import { useMigrationJobs } from "@/hooks/useMigrationJobs";
+import { Progress } from "@/components/ui/progress";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 
 export const MigrationStatusIndicator = () => {
   const { activeJobs, pauseJob, cancelJob, isControlling } = useMigrationJobs();
+  const visibleJobs = activeJobs.filter(
+    (job) => job.source_platform !== "mailchimp",
+  );
 
-  if (activeJobs.length === 0) return null;
+  if (visibleJobs.length === 0) return null;
 
-  const job = activeJobs[0]; // Show the first active job
+  const job = visibleJobs[0]; // Show the first active job
 
   return (
     <Card className="fixed bottom-4 right-4 w-96 p-4 shadow-lg z-50 bg-card">
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            {job.status === 'running' && (
+            {job.status === "running" && (
               <Loader2 className="h-4 w-4 animate-spin text-primary" />
             )}
-            {job.status === 'paused' && (
+            {job.status === "paused" && (
               <Pause className="h-4 w-4 text-warning" />
             )}
             <span className="font-medium text-sm">
-              {job.status === 'running' ? 'Migrating' : 'Paused'} {job.source_platform}
+              {job.status === "running" ? "Migrating" : "Paused"}{" "}
+              {job.source_platform}
             </span>
           </div>
           <span className="text-xs text-muted-foreground">
@@ -38,7 +42,7 @@ export const MigrationStatusIndicator = () => {
         </div>
 
         <div className="flex gap-2">
-          {job.status === 'running' && (
+          {job.status === "running" && (
             <Button
               size="sm"
               variant="outline"

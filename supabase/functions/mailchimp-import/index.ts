@@ -1,7 +1,10 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { assertEncryptionKeyConfigured } from "../_shared/crypto/tokens.ts";
 import { corsJsonResponse, handleCorsPrelight } from "../_shared/cors.ts";
-import { MailchimpClient } from "../_shared/mailchimp/MailchimpClient.ts";
+import {
+  MailchimpClient,
+  MailchimpRequestError,
+} from "../_shared/mailchimp/MailchimpClient.ts";
 import type {
   ImportReport,
   MailchimpConnectionCredentials,
@@ -60,6 +63,20 @@ interface RuntimeState {
   seenEmails: Set<string>;
 }
 
+interface ImportStartDecision {
+  allowed: boolean;
+  statusCode?: number;
+  error?: string;
+  resetProgress: boolean;
+  initialStage: string;
+}
+
+interface ImportProgressSnapshot {
+  currentRows: number;
+  totalRows: number;
+  progressPercentage: number;
+}
+
 if (import.meta.main) {
   try {
     assertEncryptionKeyConfigured();
@@ -77,7 +94,7 @@ addEventListener("beforeunload", (event) => {
   isShuttingDown = true;
 });
 
-async function handleMailchimpImportRequest(req: Request) {
+export async function handleMailchimpImportRequest(req: Request) {
   const corsResponse = handleCorsPrelight(req);
   if (corsResponse) {
     return corsResponse;
@@ -122,11 +139,12 @@ async function handleMailchimpImportRequest(req: Request) {
     const tenantId = await getTenantIdForUser(supabase, user.id);
     const importJob = await loadImportJob(supabase, jobId, tenantId, user.id);
 
-    if (importJob.status === "completed") {
+    const startDecision = getImportStartDecision(importJob);
+    if (!startDecision.allowed) {
       return corsJsonResponse(
-        { error: "Import job already completed" },
+        { error: startDecision.error ?? "Import job cannot be started" },
         {
-          status: 409,
+          status: startDecision.statusCode ?? 409,
         },
       );
     }
@@ -152,17 +170,15 @@ async function handleMailchimpImportRequest(req: Request) {
       config,
     );
 
-    const isResume = isResumeAttempt(importJob);
+    const isResume = !startDecision.resetProgress && isResumeAttempt(importJob);
+    const importJobStartUpdate = buildImportJobStartUpdate(
+      importJob,
+      migrationJobId,
+      startDecision,
+    );
     await supabase
       .from("import_jobs")
-      .update({
-        migration_job_id: migrationJobId,
-        status: "running",
-        current_stage: isResume
-          ? "Resuming Mailchimp import..."
-          : "Initializing Mailchimp import...",
-        error_details: null,
-      })
+      .update(importJobStartUpdate)
       .eq("id", importJob.id)
       .eq("tenant_id", tenantId);
 
@@ -171,6 +187,10 @@ async function handleMailchimpImportRequest(req: Request) {
       .update({
         status: "running",
         started_at: new Date().toISOString(),
+        completed_at: startDecision.resetProgress ? null : undefined,
+        progress_current: startDecision.resetProgress ? 0 : undefined,
+        progress_total: startDecision.resetProgress ? 0 : undefined,
+        progress_percentage: startDecision.resetProgress ? 0 : undefined,
         error_message: null,
       })
       .eq("id", migrationJobId)
@@ -186,6 +206,7 @@ async function handleMailchimpImportRequest(req: Request) {
         supabase: createServiceClient(),
         job: {
           ...importJob,
+          ...importJobStartUpdate,
           migration_job_id: migrationJobId,
           status: "running",
         },
@@ -240,7 +261,12 @@ export async function runMailchimpImport(params: {
     ));
   const config = parseImportJobConfig(job.config);
   const artifactMaps = await loadArtifactMaps(supabase, tenantId, config);
-  const workItems = await buildWorkItems(client, config, artifactMaps);
+  let workItems: WorkItem[] = [];
+  try {
+    workItems = await buildWorkItems(client, config, artifactMaps);
+  } catch (error) {
+    await rethrowImportMailchimpError(supabase, tenantId, userId, error);
+  }
 
   if (workItems.length === 0) {
     throw new Error("No Mailchimp import work items could be determined");
@@ -268,11 +294,22 @@ export async function runMailchimpImport(params: {
   let fetchedRows = typeof job.fetched_rows === "number" ? job.fetched_rows : 0;
   let currentBatch = resumeState.completedBatches;
   let failedBatches = resumeState.failedBatches;
+  let completedScopeRows = workItems
+    .slice(0, resumeState.activeScopeIndex)
+    .reduce((sum, item) => sum + Math.max(item.estimatedTotalRows, 0), 0);
 
   const runtimeState: RuntimeState = {
     knownTagNames: new Set<string>(),
     seenEmails: new Set<string>(),
   };
+
+  const initialProgress = computeImportProgressSnapshot({
+    workItems,
+    activeScopeIndex: resumeState.activeScopeIndex,
+    completedScopeRows,
+    activeScopeFetchedRows: Math.max(0, fetchedRows - completedScopeRows),
+    activeScopeKnownTotalRows: null,
+  });
 
   await writeProgressState(supabase, {
     jobId: job.id,
@@ -283,10 +320,7 @@ export async function runMailchimpImport(params: {
     insertedRows: report.contacts_imported,
     skippedRows: report.contacts_skipped,
     failedRows: report.contacts_failed,
-    progressPercentage: computeProgressPercentage(
-      fetchedRows,
-      estimatedTotalRows,
-    ),
+    progressPercentage: initialProgress.progressPercentage,
     currentStage:
       resumeState.activeScopeIndex > 0 || fetchedRows > 0
         ? "Resuming Mailchimp import..."
@@ -300,10 +334,10 @@ export async function runMailchimpImport(params: {
       activeListId: workItems[resumeState.activeScopeIndex]?.listId ?? null,
       activeSegmentId:
         workItems[resumeState.activeScopeIndex]?.segmentCompositeId ?? null,
-      estimatedTotalRows,
+      estimatedTotalRows: initialProgress.totalRows,
       totalBatches: Math.max(
         1,
-        Math.ceil(Math.max(estimatedTotalRows, 1) / BATCH_SIZE),
+        Math.ceil(Math.max(initialProgress.totalRows, 1) / BATCH_SIZE),
       ),
     }),
   });
@@ -323,6 +357,11 @@ export async function runMailchimpImport(params: {
         ? (typeof job.current_page === "number" ? job.current_page : 0) *
           BATCH_SIZE
         : 0;
+    let scopeFetchedRows =
+      scopeIndex === resumeState.activeScopeIndex
+        ? Math.max(0, fetchedRows - completedScopeRows)
+        : 0;
+    let scopeKnownTotalRows: number | null = null;
 
     const crmSegmentId =
       workItem.mode === "segment"
@@ -342,6 +381,14 @@ export async function runMailchimpImport(params: {
         return;
       }
 
+      const progressSnapshot = computeImportProgressSnapshot({
+        workItems,
+        activeScopeIndex: scopeIndex,
+        completedScopeRows,
+        activeScopeFetchedRows: scopeFetchedRows,
+        activeScopeKnownTotalRows: scopeKnownTotalRows,
+      });
+
       await writeProgressState(supabase, {
         jobId: job.id,
         migrationJobId,
@@ -351,10 +398,7 @@ export async function runMailchimpImport(params: {
         insertedRows: report.contacts_imported,
         skippedRows: report.contacts_skipped,
         failedRows: report.contacts_failed,
-        progressPercentage: computeProgressPercentage(
-          fetchedRows,
-          estimatedTotalRows,
-        ),
+        progressPercentage: progressSnapshot.progressPercentage,
         currentStage: getScopeStage(workItem, offset),
         batchStats: buildBatchStats({
           report,
@@ -364,23 +408,38 @@ export async function runMailchimpImport(params: {
           activeScopeIndex: scopeIndex,
           activeListId: workItem.listId,
           activeSegmentId: workItem.segmentCompositeId ?? null,
-          estimatedTotalRows,
+          estimatedTotalRows: progressSnapshot.totalRows,
           totalBatches: Math.max(
             1,
-            Math.ceil(Math.max(estimatedTotalRows, 1) / BATCH_SIZE),
+            Math.ceil(Math.max(progressSnapshot.totalRows, 1) / BATCH_SIZE),
           ),
         }),
       });
 
-      const result =
-        workItem.mode === "segment"
-          ? await client.getSegmentMembers(
-              workItem.listId,
-              workItem.segmentId ?? "",
-              offset,
-              BATCH_SIZE,
-            )
-          : await client.getListMembers(workItem.listId, offset, BATCH_SIZE);
+      const fetchResult = await fetchWorkItemMembers({
+        client,
+        workItem,
+        offset,
+        supabase,
+        tenantId,
+        userId,
+      });
+
+      if (fetchResult.warning) {
+        report.errors.push(fetchResult.warning);
+        break;
+      }
+
+      if (!fetchResult.result) {
+        throw new Error("Mailchimp fetch returned no result");
+      }
+
+      const result = fetchResult.result;
+      scopeKnownTotalRows = Math.max(
+        scopeKnownTotalRows ?? 0,
+        Number(result.total_items ?? 0),
+        scopeFetchedRows + result.members.length,
+      );
 
       if (result.members.length === 0) {
         break;
@@ -411,7 +470,25 @@ export async function runMailchimpImport(params: {
         };
       }
 
+      const batchErrorMessages = [...batchOutcome.errorMessages];
+
+      if (crmSegmentId && batchOutcome.customerIds.length > 0) {
+        try {
+          await linkCustomersToSegment(
+            supabase,
+            crmSegmentId,
+            batchOutcome.customerIds,
+            userId,
+          );
+        } catch (error: any) {
+          batchErrorMessages.push(
+            `Segment link error: ${error?.message ?? "Unknown segment linking error"}`,
+          );
+        }
+      }
+
       fetchedRows += result.members.length;
+      scopeFetchedRows += result.members.length;
       report.contacts_imported += batchOutcome.importedCount;
       report.contacts_skipped += batchOutcome.skippedCount;
       report.contacts_failed += batchOutcome.failedCount;
@@ -419,14 +496,14 @@ export async function runMailchimpImport(params: {
       report.tags_created += batchOutcome.tagsCreated;
       report.batches_processed += 1;
 
-      if (batchOutcome.errorMessages.length > 0) {
+      if (batchErrorMessages.length > 0) {
         failedBatches += 1;
-        report.errors.push(...batchOutcome.errorMessages);
+        report.errors.push(...batchErrorMessages);
 
         await supabase.rpc("log_import_batch_error", {
           p_job_id: job.id,
           p_batch_number: currentBatch,
-          p_error_message: batchOutcome.errorMessages.join(" | "),
+          p_error_message: batchErrorMessages.join(" | "),
           p_failed_items: result.members.map(
             (member: MailchimpMember) => member.email_address,
           ),
@@ -453,16 +530,15 @@ export async function runMailchimpImport(params: {
         }
       }
 
-      if (crmSegmentId && batchOutcome.customerIds.length > 0) {
-        await linkCustomersToSegment(
-          supabase,
-          crmSegmentId,
-          batchOutcome.customerIds,
-          userId,
-        );
-      }
-
       offset += BATCH_SIZE;
+
+      const postBatchProgress = computeImportProgressSnapshot({
+        workItems,
+        activeScopeIndex: scopeIndex,
+        completedScopeRows,
+        activeScopeFetchedRows: scopeFetchedRows,
+        activeScopeKnownTotalRows: scopeKnownTotalRows,
+      });
 
       await writeProgressState(supabase, {
         jobId: job.id,
@@ -473,10 +549,7 @@ export async function runMailchimpImport(params: {
         insertedRows: report.contacts_imported,
         skippedRows: report.contacts_skipped,
         failedRows: report.contacts_failed,
-        progressPercentage: computeProgressPercentage(
-          fetchedRows,
-          estimatedTotalRows,
-        ),
+        progressPercentage: postBatchProgress.progressPercentage,
         currentStage: getScopeStage(workItem, offset),
         batchStats: buildBatchStats({
           report,
@@ -486,10 +559,10 @@ export async function runMailchimpImport(params: {
           activeScopeIndex: scopeIndex,
           activeListId: workItem.listId,
           activeSegmentId: workItem.segmentCompositeId ?? null,
-          estimatedTotalRows,
+          estimatedTotalRows: postBatchProgress.totalRows,
           totalBatches: Math.max(
             1,
-            Math.ceil(Math.max(estimatedTotalRows, 1) / BATCH_SIZE),
+            Math.ceil(Math.max(postBatchProgress.totalRows, 1) / BATCH_SIZE),
           ),
         }),
       });
@@ -498,6 +571,16 @@ export async function runMailchimpImport(params: {
         break;
       }
     }
+
+    completedScopeRows += Math.max(scopeKnownTotalRows ?? scopeFetchedRows, 0);
+
+    const scopeCompletionProgress = computeImportProgressSnapshot({
+      workItems,
+      activeScopeIndex: Math.min(scopeIndex + 1, workItems.length),
+      completedScopeRows,
+      activeScopeFetchedRows: 0,
+      activeScopeKnownTotalRows: null,
+    });
 
     await writeProgressState(supabase, {
       jobId: job.id,
@@ -508,10 +591,7 @@ export async function runMailchimpImport(params: {
       insertedRows: report.contacts_imported,
       skippedRows: report.contacts_skipped,
       failedRows: report.contacts_failed,
-      progressPercentage: computeProgressPercentage(
-        fetchedRows,
-        estimatedTotalRows,
-      ),
+      progressPercentage: scopeCompletionProgress.progressPercentage,
       currentStage:
         scopeIndex === workItems.length - 1
           ? "Finalizing Mailchimp import..."
@@ -524,14 +604,18 @@ export async function runMailchimpImport(params: {
         activeScopeIndex: Math.min(scopeIndex + 1, workItems.length - 1),
         activeListId: workItems[scopeIndex + 1]?.listId ?? null,
         activeSegmentId: workItems[scopeIndex + 1]?.segmentCompositeId ?? null,
-        estimatedTotalRows,
+        estimatedTotalRows: scopeCompletionProgress.totalRows,
         totalBatches: Math.max(
           1,
-          Math.ceil(Math.max(estimatedTotalRows, 1) / BATCH_SIZE),
+          Math.ceil(
+            Math.max(scopeCompletionProgress.totalRows, 1) / BATCH_SIZE,
+          ),
         ),
       }),
     });
   }
+
+  const finalTotalRows = Math.max(completedScopeRows, fetchedRows, 0);
 
   await supabase
     .from("import_jobs")
@@ -554,10 +638,10 @@ export async function runMailchimpImport(params: {
         activeScopeIndex: workItems.length - 1,
         activeListId: null,
         activeSegmentId: null,
-        estimatedTotalRows,
+        estimatedTotalRows: finalTotalRows,
         totalBatches: Math.max(
           1,
-          Math.ceil(Math.max(estimatedTotalRows, 1) / BATCH_SIZE),
+          Math.ceil(Math.max(finalTotalRows, 1) / BATCH_SIZE),
         ),
       }),
     })
@@ -570,12 +654,12 @@ export async function runMailchimpImport(params: {
       status: "completed",
       completed_at: new Date().toISOString(),
       progress_percentage: 100,
-      progress_current: fetchedRows,
-      progress_total: estimatedTotalRows,
+      progress_current: finalTotalRows,
+      progress_total: finalTotalRows,
       metadata: {
         result: report,
         total_scopes: workItems.length,
-        estimated_total_rows: estimatedTotalRows,
+        estimated_total_rows: finalTotalRows,
       },
     })
     .eq("id", migrationJobId)
@@ -1240,6 +1324,124 @@ export function buildBatchStats(params: {
   };
 }
 
+export function getImportStartDecision(job: any): ImportStartDecision {
+  if (job.status === "completed") {
+    return {
+      allowed: false,
+      statusCode: 409,
+      error: "Import job already completed",
+      resetProgress: false,
+      initialStage: "complete",
+    };
+  }
+
+  if (job.status === "running") {
+    return {
+      allowed: false,
+      statusCode: 409,
+      error: "Import job already running",
+      resetProgress: false,
+      initialStage: "running",
+    };
+  }
+
+  if (job.status === "failed") {
+    return {
+      allowed: true,
+      resetProgress: true,
+      initialStage: "Restarting failed Mailchimp import...",
+    };
+  }
+
+  return {
+    allowed: true,
+    resetProgress: false,
+    initialStage: isResumeAttempt(job)
+      ? "Resuming Mailchimp import..."
+      : "Initializing Mailchimp import...",
+  };
+}
+
+export function buildImportJobStartUpdate(
+  importJob: any,
+  migrationJobId: string,
+  decision: ImportStartDecision,
+) {
+  const basePayload: Record<string, unknown> = {
+    migration_job_id: migrationJobId,
+    status: "running",
+    current_stage: decision.initialStage,
+    error_details: null,
+  };
+
+  if (!decision.resetProgress) {
+    return basePayload;
+  }
+
+  return {
+    ...basePayload,
+    current_page: 0,
+    fetched_rows: 0,
+    inserted_rows: 0,
+    skipped_rows: 0,
+    failed_rows: 0,
+    total_pages_est: null,
+    progress_percentage: 0,
+    report: null,
+    batch_stats: null,
+    completed_at: null,
+  };
+}
+
+function computeImportProgressSnapshot(params: {
+  workItems: WorkItem[];
+  activeScopeIndex: number;
+  completedScopeRows: number;
+  activeScopeFetchedRows: number;
+  activeScopeKnownTotalRows: number | null;
+}): ImportProgressSnapshot {
+  const {
+    workItems,
+    activeScopeIndex,
+    completedScopeRows,
+    activeScopeFetchedRows,
+    activeScopeKnownTotalRows,
+  } = params;
+
+  if (activeScopeIndex >= workItems.length) {
+    const totalRows = Math.max(completedScopeRows, 0);
+    return {
+      currentRows: totalRows,
+      totalRows,
+      progressPercentage: totalRows > 0 ? 99 : 0,
+    };
+  }
+
+  const currentScopeEstimate = Math.max(
+    activeScopeKnownTotalRows ??
+      workItems[activeScopeIndex]?.estimatedTotalRows ??
+      0,
+    activeScopeFetchedRows,
+  );
+  const remainingScopeEstimate = workItems
+    .slice(activeScopeIndex + 1)
+    .reduce((sum, item) => sum + Math.max(item.estimatedTotalRows, 0), 0);
+  const totalRows = Math.max(
+    completedScopeRows + currentScopeEstimate + remainingScopeEstimate,
+    0,
+  );
+  const currentRows = Math.max(
+    0,
+    completedScopeRows + Math.min(activeScopeFetchedRows, currentScopeEstimate),
+  );
+
+  return {
+    currentRows,
+    totalRows,
+    progressPercentage: computeProgressPercentage(currentRows, totalRows),
+  };
+}
+
 function getResumeState(job: any): ResumeState {
   const batchStats = asObject(job.batch_stats);
   return {
@@ -1266,6 +1468,91 @@ export function computeProgressPercentage(
     0,
     Math.min(99, Math.round((fetchedRows / estimatedTotalRows) * 100)),
   );
+}
+
+function isMailchimpStatusError(
+  error: unknown,
+  status: number,
+): error is MailchimpRequestError {
+  return error instanceof MailchimpRequestError && error.status === status;
+}
+
+async function rethrowImportMailchimpError(
+  supabase: SupabaseClient,
+  tenantId: string,
+  userId: string,
+  error: unknown,
+): Promise<never> {
+  if (isMailchimpStatusError(error, 401)) {
+    await expireMailchimpConnection(supabase, tenantId, userId);
+    throw new Error(
+      "Mailchimp connection expired during import. Reconnect Mailchimp and retry.",
+    );
+  }
+
+  throw error;
+}
+
+async function fetchWorkItemMembers(params: {
+  client: MailchimpClient;
+  workItem: WorkItem;
+  offset: number;
+  supabase: SupabaseClient;
+  tenantId: string;
+  userId: string;
+}): Promise<
+  | {
+      result: Awaited<ReturnType<MailchimpClient["getListMembers"]>>;
+      warning?: undefined;
+    }
+  | {
+      result?: undefined;
+      warning: string;
+    }
+> {
+  const { client, workItem, offset, supabase, tenantId, userId } = params;
+
+  try {
+    const result =
+      workItem.mode === "segment"
+        ? await client.getSegmentMembers(
+            workItem.listId,
+            workItem.segmentId ?? "",
+            offset,
+            BATCH_SIZE,
+          )
+        : await client.getListMembers(workItem.listId, offset, BATCH_SIZE);
+
+    return { result };
+  } catch (error) {
+    if (isMailchimpStatusError(error, 404)) {
+      return {
+        warning:
+          workItem.mode === "segment"
+            ? `Segment ${workItem.label} is no longer available in Mailchimp. Skipping this selection.`
+            : `List ${workItem.label} is no longer available in Mailchimp. Skipping this selection.`,
+      };
+    }
+
+    await rethrowImportMailchimpError(supabase, tenantId, userId, error);
+    throw new Error("Unreachable Mailchimp fetch error state");
+  }
+}
+
+async function expireMailchimpConnection(
+  supabase: SupabaseClient,
+  tenantId: string,
+  userId: string,
+) {
+  await supabase
+    .from("provider_connections")
+    .update({
+      status: "expired",
+      token_expires_at: new Date().toISOString(),
+    })
+    .eq("tenant_id", tenantId)
+    .eq("user_id", userId)
+    .eq("provider", "mailchimp");
 }
 
 export function getScopeStage(workItem: WorkItem, offset: number) {
@@ -1308,7 +1595,18 @@ export async function buildWorkItems(
     const selectedSegments = segmentIdsByList.get(listId) ?? [];
     if (selectedSegments.length > 0) {
       if (!liveSegmentsByList.has(listId)) {
-        liveSegmentsByList.set(listId, await client.getSegments(listId));
+        try {
+          liveSegmentsByList.set(listId, await client.getSegments(listId));
+        } catch (error) {
+          if (!isMailchimpStatusError(error, 404)) {
+            throw error;
+          }
+
+          console.warn(
+            `[mailchimp-import] List ${listId} is no longer available while resolving selected segments. Import will skip it at runtime if needed.`,
+          );
+          liveSegmentsByList.set(listId, []);
+        }
       }
 
       const liveSegments = liveSegmentsByList.get(listId) ?? [];
@@ -1339,9 +1637,19 @@ export async function buildWorkItems(
     let estimatedTotalRows = artifactMaps.listCounts.get(listId) ?? 0;
     let label = artifactMaps.listNames.get(listId) ?? `list ${listId}`;
     if (estimatedTotalRows === 0 || !artifactMaps.listNames.has(listId)) {
-      const listInfo = await client.getList(listId);
-      estimatedTotalRows = listInfo.stats?.member_count ?? estimatedTotalRows;
-      label = listInfo.name;
+      try {
+        const listInfo = await client.getList(listId);
+        estimatedTotalRows = listInfo.stats?.member_count ?? estimatedTotalRows;
+        label = listInfo.name;
+      } catch (error) {
+        if (!isMailchimpStatusError(error, 404)) {
+          throw error;
+        }
+
+        console.warn(
+          `[mailchimp-import] List ${listId} is no longer available while building work items. Import will skip it at runtime if needed.`,
+        );
+      }
     }
 
     workItems.push({
