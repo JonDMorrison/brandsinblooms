@@ -1,9 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
-  CheckCircle2,
   Clock3,
-  Database,
   Download,
   Loader2,
   RefreshCw,
@@ -12,7 +10,6 @@ import {
 
 import {
   DataTabEmptyState,
-  RawDataPre,
   StatusFilterPills,
   formatCount,
   formatDateTimeValue,
@@ -39,6 +36,8 @@ const STATUS_OPTIONS = [
   { label: "All", value: "all" },
   { label: "Pending", value: "pending" },
   { label: "Running", value: "running" },
+  { label: "Paused", value: "paused" },
+  { label: "Cancelled", value: "cancelled" },
   { label: "Completed", value: "completed" },
   { label: "Failed", value: "failed" },
 ] satisfies Array<{ label: string; value: MailchimpSyncLogsStatusFilter }>;
@@ -58,8 +57,16 @@ function getStatusBadgeClass(status: MailchimpSyncLogEntry["status"]) {
     return "border-rose-200 bg-rose-50 text-rose-700";
   }
 
+  if (status === "paused") {
+    return "border-amber-200 bg-amber-50 text-amber-700";
+  }
+
   if (status === "running") {
     return "border-sky-200 bg-sky-50 text-sky-700";
+  }
+
+  if (status === "cancelled") {
+    return "border-slate-200 bg-slate-100 text-slate-700";
   }
 
   return "border-slate-200 bg-slate-50 text-slate-700";
@@ -67,7 +74,11 @@ function getStatusBadgeClass(status: MailchimpSyncLogEntry["status"]) {
 
 function getStatusLabel(status: MailchimpSyncLogEntry["status"]) {
   if (status === "running") {
-    return "Running";
+    return "In Progress";
+  }
+
+  if (status === "failed") {
+    return "Needs Attention";
   }
 
   return status.charAt(0).toUpperCase() + status.slice(1);
@@ -80,6 +91,10 @@ function getProgressBarClass(status: MailchimpSyncLogEntry["status"]) {
 
   if (status === "completed") {
     return "bg-emerald-500";
+  }
+
+  if (status === "pending" || status === "paused" || status === "cancelled") {
+    return "bg-slate-400";
   }
 
   return "bg-sky-500";
@@ -188,114 +203,6 @@ function TimelineDot({
   );
 }
 
-function BatchStatistics({ entry }: { entry: MailchimpSyncLogEntry }) {
-  const batchStats = entry.batchStats;
-  const summaryRows = [
-    {
-      label: "Total batches",
-      value: formatCount(
-        typeof batchStats?.total_batches === "number"
-          ? batchStats.total_batches
-          : null,
-      ),
-    },
-    {
-      label: "Completed batches",
-      value: formatCount(
-        typeof batchStats?.completed_batches === "number"
-          ? batchStats.completed_batches
-          : null,
-      ),
-    },
-    {
-      label: "Failed batches",
-      value: formatCount(
-        typeof batchStats?.failed_batches === "number"
-          ? batchStats.failed_batches
-          : null,
-      ),
-    },
-    {
-      label: "Contacts per batch",
-      value: formatCount(
-        typeof batchStats?.contacts_per_batch === "number"
-          ? batchStats.contacts_per_batch
-          : null,
-      ),
-    },
-    {
-      label: "Estimated total rows",
-      value: formatCount(
-        typeof batchStats?.estimated_total_rows === "number"
-          ? batchStats.estimated_total_rows
-          : null,
-      ),
-    },
-    {
-      label: "Total scopes",
-      value: formatCount(
-        typeof batchStats?.total_scopes === "number"
-          ? batchStats.total_scopes
-          : null,
-      ),
-    },
-  ];
-
-  return (
-    <div className="space-y-4">
-      <div className="grid gap-3 md:grid-cols-3">
-        {summaryRows.map((row) => (
-          <SummaryMetric key={row.label} label={row.label} value={row.value} />
-        ))}
-      </div>
-
-      {entry.hasExplicitBatchRows ? (
-        <div className="overflow-hidden rounded-lg border border-slate-200">
-          <table className="min-w-full divide-y divide-slate-200 text-sm">
-            <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
-              <tr>
-                <th className="px-3 py-2 font-medium">Batch</th>
-                <th className="px-3 py-2 font-medium">Processed</th>
-                <th className="px-3 py-2 font-medium">Inserted</th>
-                <th className="px-3 py-2 font-medium">Skipped</th>
-                <th className="px-3 py-2 font-medium">Failed</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 bg-white">
-              {entry.explicitBatchRows.map((row) => (
-                <tr key={`${entry.id}-batch-row-${row.batchNumber}`}>
-                  <td className="px-3 py-2 font-medium text-slate-900">
-                    {row.batchNumber}
-                  </td>
-                  <td className="px-3 py-2 text-slate-600">
-                    {formatCount(row.contactsProcessed)}
-                  </td>
-                  <td className="px-3 py-2 text-slate-600">
-                    {formatCount(row.contactsInserted)}
-                  </td>
-                  <td className="px-3 py-2 text-slate-600">
-                    {formatCount(row.contactsSkipped)}
-                  </td>
-                  <td className="px-3 py-2 text-slate-600">
-                    {formatCount(row.contactsFailed)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      ) : (
-        <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
-          Batch rows are synthesized in the timeline from aggregate batch stats.
-          No persisted per-batch event log is available for this job.
-        </div>
-      )}
-
-      {batchStats ? <RawDataPre value={batchStats} /> : null}
-    </div>
-  );
-}
-
 function JobCard({
   entry,
   isExpanded,
@@ -377,11 +284,6 @@ function JobCard({
             {entry.completedAt ? (
               <span>Finished {formatRelativeTimestamp(entry.completedAt)}</span>
             ) : null}
-            {entry.totalPagesEstimate ? (
-              <span>
-                Page {entry.currentPage ?? 0} of ~{entry.totalPagesEstimate}
-              </span>
-            ) : null}
             {isExpanded ? (
               <span className="font-medium text-slate-700">Details open</span>
             ) : null}
@@ -391,7 +293,7 @@ function JobCard({
 
       <AccordionContent className="px-5 pb-5 pt-0">
         <div className="space-y-4 border-t border-slate-100 pt-4">
-          <DetailSection title="Configuration">
+          <DetailSection title="Selected audience">
             <div className="grid gap-4 lg:grid-cols-2">
               <div className="space-y-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
                 <div>
@@ -411,11 +313,14 @@ function JobCard({
                       ))
                     ) : (
                       <span className="text-sm text-slate-500">
-                        No lists selected
+                        No specific lists were saved for this import.
                       </span>
                     )}
                   </div>
                 </div>
+              </div>
+
+              <div className="space-y-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
                 <div>
                   <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
                     Segments
@@ -433,36 +338,16 @@ function JobCard({
                       ))
                     ) : (
                       <span className="text-sm text-slate-500">
-                        No segments selected
+                        No specific segments were saved for this import.
                       </span>
                     )}
                   </div>
                 </div>
               </div>
-
-              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">
-                  Config summary
-                </p>
-                {entry.configEntries.length > 0 ? (
-                  <dl className="grid gap-2 sm:grid-cols-2">
-                    {entry.configEntries.map((item) => (
-                      <div key={`${entry.id}-config-${item.key}`}>
-                        <dt className="text-xs text-slate-500">{item.key}</dt>
-                        <dd className="text-sm text-slate-900">{item.value}</dd>
-                      </div>
-                    ))}
-                  </dl>
-                ) : (
-                  <p className="text-sm text-slate-500">
-                    No configuration metadata stored.
-                  </p>
-                )}
-              </div>
             </div>
           </DetailSection>
 
-          <DetailSection title="Progress timeline">
+          <DetailSection title="Import activity">
             <div className="space-y-3">
               {entry.timeline.map((item) => (
                 <div key={item.id} className="flex gap-3">
@@ -471,49 +356,37 @@ function JobCard({
                     <span className="mt-1 h-full w-px bg-slate-200 last:hidden" />
                   </div>
                   <div className="pb-3">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-sm font-medium text-slate-900">
-                        {item.label}
-                      </p>
-                      {item.derived ? (
-                        <Badge
-                          variant="outline"
-                          className="border-slate-200 text-slate-500"
-                        >
-                          Derived
-                        </Badge>
-                      ) : null}
-                    </div>
+                    <p className="text-sm font-medium text-slate-900">
+                      {item.label}
+                    </p>
                     <p className="mt-1 text-sm text-slate-600">
                       {item.description}
                     </p>
-                    <p className="mt-1 text-xs text-slate-500">
-                      {item.timestamp
-                        ? formatDateTimeValue(item.timestamp)
-                        : "Timestamp not available"}
-                    </p>
+                    {item.timestamp ? (
+                      <p className="mt-1 text-xs text-slate-500">
+                        {formatDateTimeValue(item.timestamp)}
+                      </p>
+                    ) : null}
                   </div>
                 </div>
               ))}
             </div>
           </DetailSection>
 
-          <DetailSection title="Batch statistics">
-            <BatchStatistics entry={entry} />
-          </DetailSection>
-
           <DetailSection
-            title="Report"
+            title="Results"
             action={
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() => downloadReport(entry)}
-              >
-                <Download className="mr-2 h-4 w-4" />
-                Download Report
-              </Button>
+              entry.report ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => downloadReport(entry)}
+                >
+                  <Download className="mr-2 h-4 w-4" />
+                  Download Import Report
+                </Button>
+              ) : undefined
             }
           >
             <div className="grid gap-3 md:grid-cols-3">
@@ -547,21 +420,23 @@ function JobCard({
             </div>
 
             {entry.report ? (
-              <RawDataPre value={entry.report} />
+              <p className="text-sm text-slate-600">
+                A downloadable report is available for this import if you need
+                to review the final details outside this page.
+              </p>
             ) : (
               <p className="text-sm text-slate-500">
-                No final report is available for this job yet.
+                A final report has not been saved for this import yet.
               </p>
             )}
           </DetailSection>
 
           {entry.status === "failed" || entry.errorCount > 0 ? (
-            <DetailSection title="Errors">
+            <DetailSection title="What needs attention">
               <div className="space-y-3">
                 {entry.hasConnectionIssue ? (
                   <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-                    This looks like a Mailchimp connection problem. Reconnect
-                    the Mailchimp account, then retry the import.
+                    Reconnect Mailchimp, then retry this import.
                   </div>
                 ) : null}
                 {entry.errorMessages.length > 0 ? (
@@ -577,13 +452,10 @@ function JobCard({
                   </ul>
                 ) : (
                   <p className="text-sm text-slate-500">
-                    No structured error messages were stored for this job.
+                    This import stopped before it could finish. Retry it when
+                    you are ready.
                   </p>
                 )}
-
-                {entry.errorDetails ? (
-                  <RawDataPre value={entry.errorDetails} />
-                ) : null}
               </div>
             </DetailSection>
           ) : null}
@@ -638,7 +510,7 @@ export function SyncLogsTabView({
   }, [focusedJobId, rows]);
 
   const statusCounts = useMemo(() => {
-    return rows.reduce(
+    return rows.reduce<Record<MailchimpSyncLogEntry["status"], number>>(
       (accumulator, row) => {
         accumulator[row.status] += 1;
         return accumulator;
@@ -646,6 +518,8 @@ export function SyncLogsTabView({
       {
         pending: 0,
         running: 0,
+        paused: 0,
+        cancelled: 0,
         completed: 0,
         failed: 0,
       },
@@ -666,7 +540,8 @@ export function SyncLogsTabView({
               ) : null}
             </div>
             <p className="mt-1 text-sm text-slate-500">
-              Reverse-chronological Mailchimp import history for this workspace.
+              Review recent Mailchimp imports and open any run for a cleaner
+              summary of what happened.
             </p>
           </div>
 
@@ -706,8 +581,14 @@ export function SyncLogsTabView({
               {totalCount.toLocaleString()} job{totalCount === 1 ? "" : "s"}
             </span>
             <span>{statusCounts.running} running</span>
+            {statusCounts.paused > 0 ? (
+              <span>{statusCounts.paused} paused</span>
+            ) : null}
             <span>{statusCounts.failed} failed</span>
             <span>{statusCounts.completed} completed</span>
+            {statusCounts.cancelled > 0 ? (
+              <span>{statusCounts.cancelled} cancelled</span>
+            ) : null}
           </div>
         </div>
 

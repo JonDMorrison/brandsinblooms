@@ -137,8 +137,10 @@ function buildMailchimpImportProgressState(
     errorDetails: null,
     report: null,
     isRunning: false,
+    isPaused: false,
     isCompleted: false,
     isFailed: false,
+    isCancelled: false,
     isStale: false,
     lastUpdatedAt: null,
     loading: false,
@@ -155,7 +157,7 @@ function buildMailchimpSyncLogEntry(overrides: Record<string, unknown> = {}) {
     completedAt: "2026-03-23T09:08:00.000Z",
     updatedAt: "2026-03-23T09:08:00.000Z",
     progressPercentage: 100,
-    currentStage: "Import finished",
+    currentStage: "Import completed",
     estimatedCompletionAt: null,
     fetchedRows: 500,
     insertedRows: 420,
@@ -165,7 +167,7 @@ function buildMailchimpSyncLogEntry(overrides: Record<string, unknown> = {}) {
     totalPagesEstimate: 4,
     listIds: ["list-1"],
     segmentIds: ["segment-1"],
-    scopeSummary: "1 list, 1 segment",
+    scopeSummary: "Newsletter + VIP Customers",
     resolvedLists: [{ id: "list-1", name: "Newsletter" }],
     resolvedSegments: [{ id: "segment-1", name: "VIP Customers" }],
     configEntries: [
@@ -202,8 +204,9 @@ function buildMailchimpSyncLogEntry(overrides: Record<string, unknown> = {}) {
     timeline: [
       {
         id: "job-1-created",
-        label: "Job created",
-        description: "The import job record was created and queued.",
+        label: "Import requested",
+        description:
+          "BloomSuite saved your selected Mailchimp audience and queued the import.",
         timestamp: "2026-03-23T09:00:00.000Z",
         state: "complete",
         derived: false,
@@ -1126,7 +1129,7 @@ describe("IntegrationDetailPage GA4 and marketing-import branches", () => {
 
     expect(
       screen.getByText(
-        "Connection, import status, cached audience metadata, and imported Mailchimp CRM data live on this page.",
+        "Connect Mailchimp, review import progress, and manage the contacts you have already brought into BloomSuite.",
       ),
     ).toBeTruthy();
     expect(screen.getByRole("tab", { name: "Overview" })).toBeTruthy();
@@ -1138,9 +1141,8 @@ describe("IntegrationDetailPage GA4 and marketing-import branches", () => {
     expect(screen.getByRole("heading", { name: "Danger Zone" })).toBeTruthy();
     expect(screen.getByText("Lists Available")).toBeTruthy();
     expect(screen.getByText("Contacts Imported")).toBeTruthy();
-    expect(screen.getByText("Authorization")).toBeTruthy();
     expect(screen.getByText("Mailchimp account")).toBeTruthy();
-    expect(screen.getByText("Account ID")).toBeTruthy();
+    expect(screen.queryByText("Account ID")).toBeNull();
     expect(
       screen.getAllByText("Bloom Newsletter").length,
     ).toBeGreaterThanOrEqual(1);
@@ -1254,6 +1256,7 @@ describe("IntegrationDetailPage GA4 and marketing-import branches", () => {
     ).toBeGreaterThan(0);
     expect(screen.getByText("58%")).toBeTruthy();
     expect(screen.getByText("580")).toBeTruthy();
+    expect(screen.queryByText(/Job job-runn/i)).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "View Sync Logs" }));
 
@@ -1261,6 +1264,67 @@ describe("IntegrationDetailPage GA4 and marketing-import branches", () => {
       expect(screen.getByTestId("location-probe").textContent).toBe(
         "/integrations/mailchimp?tab=logs&job=job-running",
       );
+    });
+  });
+
+  it("pauses a running Mailchimp import from the progress card", async () => {
+    mockedUseIntegrationDetailData.mockReturnValue(
+      buildMailchimpRunningImportState(),
+    );
+    mockedUseMailchimpImportProgress.mockReturnValue(
+      buildMailchimpImportProgressState({
+        jobId: "job-running",
+        status: "running",
+        progressPercentage: 58,
+        currentStage: "Importing audience members",
+        isRunning: true,
+        refetch: vi.fn().mockResolvedValue(undefined),
+      }),
+    );
+    functionsInvokeMock.mockResolvedValue({
+      data: { status: "paused" },
+      error: null,
+    });
+
+    renderPage("/integrations/mailchimp");
+
+    fireEvent.click(screen.getByRole("button", { name: "Pause Import" }));
+
+    await waitFor(() => {
+      expect(functionsInvokeMock).toHaveBeenCalledWith("mailchimp-import", {
+        body: { jobId: "job-running", action: "pause" },
+      });
+    });
+  });
+
+  it("cancels a running Mailchimp import from the progress card", async () => {
+    mockedUseIntegrationDetailData.mockReturnValue(
+      buildMailchimpRunningImportState(),
+    );
+    mockedUseMailchimpImportProgress.mockReturnValue(
+      buildMailchimpImportProgressState({
+        jobId: "job-running",
+        status: "running",
+        progressPercentage: 58,
+        currentStage: "Importing audience members",
+        isRunning: true,
+        refetch: vi.fn().mockResolvedValue(undefined),
+      }),
+    );
+    functionsInvokeMock.mockResolvedValue({
+      data: { status: "cancelled" },
+      error: null,
+    });
+
+    renderPage("/integrations/mailchimp");
+
+    fireEvent.click(screen.getByRole("button", { name: "Cancel Import" }));
+    fireEvent.click(screen.getByRole("button", { name: "Cancel Import" }));
+
+    await waitFor(() => {
+      expect(functionsInvokeMock).toHaveBeenCalledWith("mailchimp-import", {
+        body: { jobId: "job-running", action: "cancel" },
+      });
     });
   });
 
@@ -1309,7 +1373,7 @@ describe("IntegrationDetailPage GA4 and marketing-import branches", () => {
 
     expect(screen.getByText("Mailchimp import finished")).toBeTruthy();
     expect(
-      screen.getByRole("button", { name: "Download Report as JSON" }),
+      screen.getByRole("button", { name: "Download Import Report" }),
     ).toBeTruthy();
     expect(screen.getByText(/Review import issues \(1\)/i)).toBeTruthy();
 
@@ -1612,9 +1676,11 @@ describe("IntegrationDetailPage GA4 and marketing-import branches", () => {
           buildMailchimpSyncLogEntry({
             id: "job-failed",
             status: "failed",
-            currentStage: "Mailchimp token expired",
+            currentStage: "Import needs attention",
             errorDetails: [{ message: "Mailchimp token expired" }],
-            errorMessages: ["Mailchimp token expired"],
+            errorMessages: [
+              "Your Mailchimp connection needs to be reconnected before the import can continue.",
+            ],
             errorCount: 1,
             hasConnectionIssue: true,
             report: null,
@@ -1624,7 +1690,7 @@ describe("IntegrationDetailPage GA4 and marketing-import branches", () => {
           buildMailchimpSyncLogEntry({
             id: "job-completed",
             status: "completed",
-            currentStage: "Import finished",
+            currentStage: "Import completed",
           }),
         ],
         totalCount: 24,
@@ -1636,14 +1702,23 @@ describe("IntegrationDetailPage GA4 and marketing-import branches", () => {
 
     renderPage("/integrations/mailchimp?tab=logs&job=job-failed");
 
-    expect(screen.getByText("Configuration")).toBeTruthy();
-    expect(screen.getByText("Progress timeline")).toBeTruthy();
+    expect(screen.getByText("Selected audience")).toBeTruthy();
+    expect(screen.getByText("Import activity")).toBeTruthy();
+    expect(screen.getByText("Results")).toBeTruthy();
+    expect(screen.getByText("What needs attention")).toBeTruthy();
     expect(screen.getByText("Newsletter")).toBeTruthy();
     expect(
+      screen.getByText("Reconnect Mailchimp, then retry this import."),
+    ).toBeTruthy();
+    expect(
       screen.getByText(
-        "This looks like a Mailchimp connection problem. Reconnect the Mailchimp account, then retry the import.",
+        "Your Mailchimp connection needs to be reconnected before the import can continue.",
       ),
     ).toBeTruthy();
+    expect(screen.queryByText("Configuration")).toBeNull();
+    expect(screen.queryByText("Progress timeline")).toBeNull();
+    expect(screen.queryByText("Batch statistics")).toBeNull();
+    expect(screen.queryByText("Mailchimp token expired")).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "Failed" }));
 

@@ -10,8 +10,10 @@ type MailchimpImportStateLike = {
 export type MailchimpImportStatus =
   | "pending"
   | "running"
+  | "paused"
   | "completed"
-  | "failed";
+  | "failed"
+  | "cancelled";
 
 export function normalizeMailchimpImportStatus(
   value: string | null | undefined,
@@ -21,10 +23,14 @@ export function normalizeMailchimpImportStatus(
       return "pending";
     case "running":
       return "running";
+    case "paused":
+      return "paused";
     case "completed":
       return "completed";
     case "failed":
       return "failed";
+    case "cancelled":
+      return "cancelled";
     default:
       return null;
   }

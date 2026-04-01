@@ -11,7 +11,7 @@ import { MailchimpRequestError } from "../../_shared/mailchimp/MailchimpClient.t
 import { createMockSupabaseClient } from "../../_shared/testing/testHarness.ts";
 
 Deno.test(
-  "mailchimp-import buildWorkItems imports only selected segments and skips full-list scope",
+  "mailchimp-import buildWorkItems uses cached segment metadata before live lookups",
   async () => {
     let getSegmentsCalls = 0;
     let getListCalls = 0;
@@ -46,7 +46,58 @@ Deno.test(
     assertEquals(workItems.length, 1);
     assertEquals(workItems[0].mode, "segment");
     assertEquals(workItems[0].segmentCompositeId, "list-1:10");
-    assertEquals(getSegmentsCalls, 1);
+    assertEquals(getSegmentsCalls, 0);
+    assertEquals(getListCalls, 0);
+  },
+);
+
+Deno.test(
+  "mailchimp-import buildWorkItems does not hit Mailchimp when cached audience metadata is missing",
+  async () => {
+    let getSegmentsCalls = 0;
+    let getListCalls = 0;
+
+    const workItems = await buildWorkItems(
+      {
+        getSegments: async () => {
+          getSegmentsCalls += 1;
+          return [{ id: 10, name: "VIP", member_count: 4 }];
+        },
+        getList: async () => {
+          getListCalls += 1;
+          return {
+            id: "list-2",
+            name: "Audience",
+            stats: { member_count: 100 },
+          };
+        },
+      } as never,
+      {
+        listIds: ["list-2"],
+        segmentIds: ["list-1:10"],
+      },
+      {
+        listCounts: new Map(),
+        listNames: new Map(),
+        segmentCounts: new Map(),
+        segmentNames: new Map(),
+      },
+    );
+
+    assertEquals(workItems.length, 2);
+    const segmentWorkItem = workItems.find(
+      (item) =>
+        item.mode === "segment" && item.segmentCompositeId === "list-1:10",
+    );
+    const listWorkItem = workItems.find(
+      (item) => item.mode === "full_list" && item.listId === "list-2",
+    );
+
+    assertEquals(segmentWorkItem?.label, "segment 10");
+    assertEquals(segmentWorkItem?.estimatedTotalRows, 0);
+    assertEquals(listWorkItem?.label, "list list-2");
+    assertEquals(listWorkItem?.estimatedTotalRows, 0);
+    assertEquals(getSegmentsCalls, 0);
     assertEquals(getListCalls, 0);
   },
 );
@@ -165,6 +216,14 @@ Deno.test(
     assertEquals(runningDecision.allowed, false);
     assertEquals(runningDecision.statusCode, 409);
 
+    const pausedDecision = getImportStartDecision({ status: "paused" });
+    assertEquals(pausedDecision.allowed, true);
+    assertEquals(pausedDecision.resetProgress, false);
+
+    const cancelledDecision = getImportStartDecision({ status: "cancelled" });
+    assertEquals(cancelledDecision.allowed, false);
+    assertEquals(cancelledDecision.statusCode, 409);
+
     const failedDecision = getImportStartDecision({ status: "failed" });
     assertEquals(failedDecision.allowed, true);
     assertEquals(failedDecision.resetProgress, true);
@@ -281,11 +340,22 @@ Deno.test(
     const importJobUpdates = recorder.filter(
       (entry) => entry.table === "import_jobs" && entry.operation === "update",
     );
+    const startupStages = importJobUpdates
+      .map((entry) => (entry.payload as Record<string, unknown>).current_stage)
+      .filter((value): value is string => typeof value === "string");
     const finalUpdate = importJobUpdates.at(-1)?.payload as Record<
       string,
       unknown
     >;
     const finalReport = finalUpdate.report as Record<string, unknown>;
+    assertEquals(
+      startupStages.includes("Loading Mailchimp audience details..."),
+      true,
+    );
+    assertEquals(
+      startupStages.includes("Preparing selected Mailchimp audiences..."),
+      true,
+    );
     assertEquals(finalUpdate.status, "completed");
     assertEquals(finalReport.contacts_imported, 1);
     assertEquals(finalReport.contacts_skipped, 0);

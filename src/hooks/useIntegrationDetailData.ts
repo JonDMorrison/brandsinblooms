@@ -1923,6 +1923,8 @@ function formatMarketingImportStatusLabel(status?: string | null) {
     case "processing":
     case "in_progress":
       return "Running";
+    case "paused":
+      return "Paused";
     case "failed":
       return "Failed";
     case "cancelled":
@@ -1947,6 +1949,8 @@ function getMarketingImportStatusTone(
       return "success";
     case "failed":
       return "danger";
+    case "paused":
+      return "neutral";
     case "queued":
     case "pending":
     case "running":
@@ -3822,12 +3826,14 @@ export function useIntegrationDetailData(
   slug?: string,
   options?: LightspeedDashboardOptions,
 ) {
-  const { user } = useAuth();
-  const { tenant } = useTenant();
+  const { user, loading: authLoading } = useAuth();
+  const { tenant, loading: tenantLoading } = useTenant();
   const { hasRole } = useUserRole();
   const { data: isSuperAdmin = false } = useIsSuperAdmin();
   const queryClient = useQueryClient();
   const seed = slug ? getIntegrationSeed(slug) : null;
+  const isMailchimpBootstrapPending =
+    seed?.slug === "mailchimp" && (authLoading || tenantLoading);
   const [submittedInterestKey, setSubmittedInterestKey] = useState<
     string | null
   >(null);
@@ -3848,7 +3854,7 @@ export function useIntegrationDetailData(
       tenant?.id ?? null,
       user?.id ?? null,
     ],
-    enabled: Boolean(seed),
+    enabled: Boolean(seed) && !isMailchimpBootstrapPending,
     queryFn: async (): Promise<DetailResult | null> => {
       if (!seed) {
         return null;
@@ -4553,6 +4559,10 @@ export function useIntegrationDetailData(
   });
 
   const resolved = useMemo(() => {
+    if (isMailchimpBootstrapPending) {
+      return null;
+    }
+
     const base = query.data ?? buildFallbackResult(seed);
     if (!base) {
       return null;
@@ -4599,7 +4609,7 @@ export function useIntegrationDetailData(
     }
 
     return base;
-  }, [query.data, seed, isSuperAdmin]);
+  }, [query.data, seed, isSuperAdmin, isMailchimpBootstrapPending]);
 
   const lightspeedDashboardOptions = useMemo(
     () => ({
@@ -8122,7 +8132,8 @@ export function useIntegrationDetailData(
       ) ||
         isSuperAdmin),
     ),
-    isLoading: Boolean(seed) && query.isLoading,
+    isLoading:
+      Boolean(seed) && (query.isLoading || isMailchimpBootstrapPending),
     isFetching: Boolean(seed) && query.isFetching,
     isError: query.isError,
     error: query.error,

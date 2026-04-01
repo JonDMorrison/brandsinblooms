@@ -1,6 +1,10 @@
 import { assertEquals, assertRejects } from "@std/assert";
 
-import { MailchimpClient, MailchimpRequestError } from "../MailchimpClient.ts";
+import {
+  MailchimpClient,
+  MailchimpRequestError,
+  MailchimpTimeoutError,
+} from "../MailchimpClient.ts";
 import type { MailchimpConnectionCredentials } from "../types.ts";
 
 function jsonResponse(body: unknown, init: ResponseInit = {}) {
@@ -187,7 +191,7 @@ Deno.test(
 
       await client.request("/ping");
       assertEquals(callCount, 2);
-      assertEquals(delays, [2000]);
+      assertEquals(delays.includes(2000), true);
     } finally {
       globalThis.fetch = originalFetch;
       globalThis.setTimeout = originalSetTimeout;
@@ -277,7 +281,7 @@ Deno.test("MailchimpClient.request retries on 500 responses", async () => {
 
     await client.request("/ping");
     assertEquals(callCount, 2);
-    assertEquals(delays, [1000]);
+    assertEquals(delays.includes(1000), true);
   } finally {
     globalThis.fetch = originalFetch;
     globalThis.setTimeout = originalSetTimeout;
@@ -316,12 +320,137 @@ Deno.test("MailchimpClient.request retries on transport errors", async () => {
 
     await client.request("/ping");
     assertEquals(callCount, 2);
-    assertEquals(delays, [1000]);
+    assertEquals(delays.includes(1000), true);
   } finally {
     globalThis.fetch = originalFetch;
     globalThis.setTimeout = originalSetTimeout;
   }
 });
+
+Deno.test("MailchimpClient.request retries on request timeouts", async () => {
+  let callCount = 0;
+  const delays: number[] = [];
+  const originalFetch = globalThis.fetch;
+  const originalSetTimeout = globalThis.setTimeout;
+  const originalClearTimeout = globalThis.clearTimeout;
+  let timerId = 0;
+
+  globalThis.fetch = (async (
+    _input: string | URL | Request,
+    init?: RequestInit,
+  ) => {
+    callCount += 1;
+
+    if (callCount === 1) {
+      return await new Promise<Response>((_resolve, reject) => {
+        const signal = init?.signal;
+        const rejectAbort = () =>
+          reject(new DOMException("The operation was aborted.", "AbortError"));
+
+        if (signal?.aborted) {
+          rejectAbort();
+          return;
+        }
+
+        signal?.addEventListener("abort", rejectAbort, { once: true });
+      });
+    }
+
+    return jsonResponse({ health_status: "ok" });
+  }) as typeof fetch;
+  globalThis.setTimeout = ((
+    callback: (...args: unknown[]) => void,
+    delay?: number,
+  ) => {
+    timerId += 1;
+    delays.push(Number(delay ?? 0));
+
+    if (
+      typeof callback === "function" &&
+      (timerId === 1 || Number(delay ?? 0) !== 15000)
+    ) {
+      callback();
+    }
+
+    return timerId as unknown as number;
+  }) as typeof setTimeout;
+  globalThis.clearTimeout = ((_id?: number) => {
+    return undefined;
+  }) as typeof clearTimeout;
+
+  try {
+    const client = await MailchimpClient.fromConnection(
+      buildConnection({ dc: "us3" }),
+      async () => "retry-token",
+    );
+
+    await client.request("/ping");
+    assertEquals(callCount, 2);
+    assertEquals(delays, [15000, 1000, 15000]);
+  } finally {
+    globalThis.fetch = originalFetch;
+    globalThis.setTimeout = originalSetTimeout;
+    globalThis.clearTimeout = originalClearTimeout;
+  }
+});
+
+Deno.test(
+  "MailchimpClient.request throws MailchimpTimeoutError after repeated timeouts",
+  async () => {
+    let timerId = 0;
+    const originalFetch = globalThis.fetch;
+    const originalSetTimeout = globalThis.setTimeout;
+    const originalClearTimeout = globalThis.clearTimeout;
+
+    globalThis.fetch = (async (
+      _input: string | URL | Request,
+      init?: RequestInit,
+    ) => {
+      return await new Promise<Response>((_resolve, reject) => {
+        const signal = init?.signal;
+        const rejectAbort = () =>
+          reject(new DOMException("The operation was aborted.", "AbortError"));
+
+        if (signal?.aborted) {
+          rejectAbort();
+          return;
+        }
+
+        signal?.addEventListener("abort", rejectAbort, { once: true });
+      });
+    }) as typeof fetch;
+    globalThis.setTimeout = ((
+      callback: (...args: unknown[]) => void,
+      _delay?: number,
+    ) => {
+      timerId += 1;
+      if (typeof callback === "function") {
+        callback();
+      }
+      return timerId as unknown as number;
+    }) as typeof setTimeout;
+    globalThis.clearTimeout = ((_id?: number) => {
+      return undefined;
+    }) as typeof clearTimeout;
+
+    try {
+      const client = await MailchimpClient.fromConnection(
+        buildConnection({ dc: "us3" }),
+        async () => "retry-token",
+      );
+
+      await assertRejects(
+        () => client.request("/ping"),
+        MailchimpTimeoutError,
+        "Mailchimp request timed out after 15000ms",
+      );
+    } finally {
+      globalThis.fetch = originalFetch;
+      globalThis.setTimeout = originalSetTimeout;
+      globalThis.clearTimeout = originalClearTimeout;
+    }
+  },
+);
 
 Deno.test(
   "MailchimpClient.request throws a typed error with status code and body on non-200",

@@ -17,6 +17,9 @@ declare const EdgeRuntime: {
 
 const BATCH_SIZE = 100;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MIGRATION_JOB_UPDATE_TIMEOUT_MS = 2500;
+const IMPORT_JOB_UPDATE_TIMEOUT_MS = 5000;
+const CRM_SEGMENT_QUERY_TIMEOUT_MS = 5000;
 
 type SupabaseClient = any;
 
@@ -71,10 +74,326 @@ interface ImportStartDecision {
   initialStage: string;
 }
 
+type ImportExecutionDirective = "continue" | "paused" | "cancelled";
+type MailchimpImportAction = "start" | "pause" | "cancel";
+
 interface ImportProgressSnapshot {
   currentRows: number;
   totalRows: number;
   progressPercentage: number;
+}
+
+interface SerializedImportFailure {
+  message: string;
+  name: string | null;
+  stack: string | null;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function serializeImportFailure(error: unknown): SerializedImportFailure {
+  if (error instanceof Error) {
+    return {
+      message: error.message || "Unknown Mailchimp import failure",
+      name: error.name || "Error",
+      stack: error.stack ?? null,
+    };
+  }
+
+  if (typeof error === "string" && error.trim().length > 0) {
+    return {
+      message: error,
+      name: "Error",
+      stack: null,
+    };
+  }
+
+  if (isRecord(error)) {
+    const message =
+      typeof error.message === "string" && error.message.trim().length > 0
+        ? error.message
+        : "Unknown Mailchimp import failure";
+
+    return {
+      message,
+      name: typeof error.name === "string" ? error.name : null,
+      stack: typeof error.stack === "string" ? error.stack : null,
+    };
+  }
+
+  return {
+    message: "Unknown Mailchimp import failure",
+    name: null,
+    stack: null,
+  };
+}
+
+function createMailchimpImportTimeoutError(context: string, timeoutMs: number) {
+  const error = new Error(`Timed out during ${context} after ${timeoutMs}ms`);
+  error.name = "TimeoutError";
+  return error;
+}
+
+function isUniqueViolation(error: unknown) {
+  return (
+    isRecord(error) &&
+    (error.code === "23505" ||
+      (typeof error.message === "string" &&
+        error.message.toLowerCase().includes("duplicate key")))
+  );
+}
+
+async function runTimedSupabaseQuery<T>(params: {
+  query: any;
+  timeoutMs: number;
+  timeoutContext: string;
+}) {
+  const { query: sourceQuery, timeoutMs, timeoutContext } = params;
+  const controller = new AbortController();
+  let timedOut = false;
+  const timeoutId = globalThis.setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, timeoutMs);
+
+  try {
+    let query = sourceQuery;
+    if (typeof query.abortSignal === "function") {
+      query = query.abortSignal(controller.signal);
+    }
+
+    return (await query) as T;
+  } catch (error) {
+    if (timedOut || controller.signal.aborted) {
+      throw createMailchimpImportTimeoutError(timeoutContext, timeoutMs);
+    }
+
+    throw error;
+  } finally {
+    globalThis.clearTimeout(timeoutId);
+  }
+}
+
+async function updateImportJobStrict(params: {
+  supabase: SupabaseClient;
+  jobId: string;
+  tenantId: string;
+  updates: Record<string, unknown>;
+  context: string;
+  metadata?: Record<string, unknown>;
+}) {
+  const { supabase, jobId, tenantId, updates, context, metadata } = params;
+
+  try {
+    const { error } = await runTimedSupabaseQuery<{ error: unknown }>({
+      query: supabase
+        .from("import_jobs")
+        .update(updates)
+        .eq("id", jobId)
+        .eq("tenant_id", tenantId),
+      timeoutMs: IMPORT_JOB_UPDATE_TIMEOUT_MS,
+      timeoutContext: `import_jobs update during ${context}`,
+    });
+
+    if (error) {
+      throw error;
+    }
+  } catch (error) {
+    const failure = serializeImportFailure(error);
+    console.error(
+      `[mailchimp-import] import_jobs update failed during ${context}:`,
+      {
+        jobId,
+        tenantId,
+        ...(metadata ?? {}),
+        message: failure.message,
+        name: failure.name,
+      },
+    );
+    throw error;
+  }
+}
+
+function buildWorkItemLogContext(params: {
+  jobId: string;
+  migrationJobId: string;
+  tenantId: string;
+  scopeIndex: number;
+  workItem: WorkItem;
+  currentStage?: string | null;
+  offset?: number | null;
+}) {
+  const { jobId, migrationJobId, tenantId, scopeIndex, workItem } = params;
+
+  return {
+    jobId,
+    migrationJobId,
+    tenantId,
+    scopeIndex,
+    workItemKey: workItem.key,
+    workItemMode: workItem.mode,
+    listId: workItem.listId,
+    segmentId: workItem.segmentId ?? null,
+    segmentCompositeId: workItem.segmentCompositeId ?? null,
+    currentStage: params.currentStage ?? null,
+    offset: typeof params.offset === "number" ? params.offset : null,
+  };
+}
+
+async function persistMailchimpImportFailure(params: {
+  jobId: string;
+  migrationJobId: string;
+  tenantId: string;
+  error: unknown;
+  context: string;
+}) {
+  const { jobId, migrationJobId, tenantId, error, context } = params;
+  const failure = serializeImportFailure(error);
+
+  console.error(`[mailchimp-import] ${context}:`, {
+    jobId,
+    migrationJobId,
+    tenantId,
+    message: failure.message,
+    name: failure.name,
+    stack: failure.stack,
+  });
+
+  try {
+    await markJobFailed(
+      createServiceClient(),
+      jobId,
+      migrationJobId,
+      tenantId,
+      failure.message,
+      failure.stack,
+    );
+  } catch (persistError) {
+    const persistenceFailure = serializeImportFailure(persistError);
+    console.error("[mailchimp-import] Failed to persist import failure:", {
+      jobId,
+      migrationJobId,
+      tenantId,
+      message: persistenceFailure.message,
+      name: persistenceFailure.name,
+      stack: persistenceFailure.stack,
+    });
+  }
+}
+
+async function runMailchimpImportInBackground(params: {
+  supabase: SupabaseClient;
+  job: any;
+  connection: any;
+  tenantId: string;
+  userId: string;
+  migrationJobId: string;
+  client?: MailchimpClient;
+}) {
+  try {
+    await runMailchimpImport(params);
+  } catch (error) {
+    await persistMailchimpImportFailure({
+      jobId: params.job.id,
+      migrationJobId: params.migrationJobId,
+      tenantId: params.tenantId,
+      error,
+      context: "Unhandled Mailchimp import background failure",
+    });
+  }
+}
+
+async function writeImportLifecycleStage(params: {
+  supabase: SupabaseClient;
+  jobId: string;
+  migrationJobId: string;
+  tenantId: string;
+  currentStage: string;
+  progressPercentage: number;
+}) {
+  const {
+    supabase,
+    jobId,
+    migrationJobId,
+    tenantId,
+    currentStage,
+    progressPercentage,
+  } = params;
+  const timestamp = new Date().toISOString();
+
+  await updateImportJobStrict({
+    supabase,
+    jobId,
+    tenantId,
+    updates: {
+      status: "running",
+      current_stage: currentStage,
+      progress_percentage: progressPercentage,
+      updated_at: timestamp,
+    },
+    context: "lifecycle-stage",
+    metadata: {
+      currentStage,
+      progressPercentage,
+    },
+  });
+
+  await updateMigrationJobBestEffort({
+    supabase,
+    migrationJobId,
+    tenantId,
+    updates: {
+      status: "running",
+      progress_percentage: progressPercentage,
+    },
+    context: "lifecycle-stage",
+  });
+}
+
+async function updateMigrationJobBestEffort(params: {
+  supabase: SupabaseClient;
+  migrationJobId: string;
+  tenantId: string;
+  updates: Record<string, unknown>;
+  context: string;
+}) {
+  const { supabase, migrationJobId, tenantId, updates, context } = params;
+  const controller = new AbortController();
+  const timeoutId = globalThis.setTimeout(() => {
+    controller.abort();
+  }, MIGRATION_JOB_UPDATE_TIMEOUT_MS);
+
+  try {
+    let query: any = supabase
+      .from("migration_jobs" as any)
+      .update(updates)
+      .eq("id", migrationJobId)
+      .eq("tenant_id", tenantId);
+
+    if (typeof query.abortSignal === "function") {
+      query = query.abortSignal(controller.signal);
+    }
+
+    const { error } = await query;
+    if (error) {
+      throw error;
+    }
+  } catch (error) {
+    const failure = serializeImportFailure(error);
+    console.warn(
+      `[mailchimp-import] Skipping migration job update during ${context}:`,
+      {
+        migrationJobId,
+        tenantId,
+        message: failure.message,
+        name: failure.name,
+      },
+    );
+  } finally {
+    globalThis.clearTimeout(timeoutId);
+  }
 }
 
 if (import.meta.main) {
@@ -100,9 +419,19 @@ export async function handleMailchimpImportRequest(req: Request) {
     return corsResponse;
   }
 
+  let startedImportContext: {
+    jobId: string;
+    migrationJobId: string;
+    tenantId: string;
+  } | null = null;
+
   try {
-    const { jobId } = await req.json();
+    const { jobId, action: requestedAction } = (await req.json()) as {
+      jobId?: string;
+      action?: string;
+    };
     const authHeader = req.headers.get("Authorization");
+    const action = normalizeMailchimpImportAction(requestedAction);
 
     if (!authHeader) {
       return corsJsonResponse(
@@ -137,6 +466,25 @@ export async function handleMailchimpImportRequest(req: Request) {
 
     const supabase = createServiceClient();
     const tenantId = await getTenantIdForUser(supabase, user.id);
+
+    if (!jobId) {
+      return corsJsonResponse(
+        { error: "Missing Mailchimp import job id" },
+        { status: 400 },
+      );
+    }
+
+    if (action !== "start") {
+      const result = await controlMailchimpImportJob(supabase, {
+        jobId,
+        tenantId,
+        userId: user.id,
+        action,
+      });
+
+      return corsJsonResponse(result, { status: 200 });
+    }
+
     const importJob = await loadImportJob(supabase, jobId, tenantId, user.id);
 
     const startDecision = getImportStartDecision(importJob);
@@ -176,15 +524,23 @@ export async function handleMailchimpImportRequest(req: Request) {
       migrationJobId,
       startDecision,
     );
-    await supabase
-      .from("import_jobs")
-      .update(importJobStartUpdate)
-      .eq("id", importJob.id)
-      .eq("tenant_id", tenantId);
+    await updateImportJobStrict({
+      supabase,
+      jobId: importJob.id,
+      tenantId,
+      updates: importJobStartUpdate,
+      context: "start-request",
+      metadata: {
+        currentStage: startDecision.initialStage,
+        resetProgress: startDecision.resetProgress,
+      },
+    });
 
-    await supabase
-      .from("migration_jobs" as any)
-      .update({
+    await updateMigrationJobBestEffort({
+      supabase,
+      migrationJobId,
+      tenantId,
+      updates: {
         status: "running",
         started_at: new Date().toISOString(),
         completed_at: startDecision.resetProgress ? null : undefined,
@@ -192,9 +548,15 @@ export async function handleMailchimpImportRequest(req: Request) {
         progress_total: startDecision.resetProgress ? 0 : undefined,
         progress_percentage: startDecision.resetProgress ? 0 : undefined,
         error_message: null,
-      })
-      .eq("id", migrationJobId)
-      .eq("tenant_id", tenantId);
+      },
+      context: "start-request",
+    });
+
+    startedImportContext = {
+      jobId: importJob.id,
+      migrationJobId,
+      tenantId,
+    };
 
     const response = corsJsonResponse(
       { jobId: importJob.id, migrationJobId, status: "running" },
@@ -202,7 +564,7 @@ export async function handleMailchimpImportRequest(req: Request) {
     );
 
     EdgeRuntime.waitUntil(
-      runMailchimpImport({
+      runMailchimpImportInBackground({
         supabase: createServiceClient(),
         job: {
           ...importJob,
@@ -214,25 +576,31 @@ export async function handleMailchimpImportRequest(req: Request) {
         tenantId,
         userId: user.id,
         migrationJobId,
-      }).catch(async (error: any) => {
-        console.error("[mailchimp-import] Unhandled error:", error);
-        const backgroundClient = createServiceClient();
-        await markJobFailed(
-          backgroundClient,
-          importJob.id,
-          migrationJobId,
-          error?.message ?? "Unknown Mailchimp import failure",
-        );
       }),
     );
 
     return response;
   } catch (error: any) {
-    console.error("[mailchimp-import] Error:", error);
+    const failure = serializeImportFailure(error);
+
+    if (startedImportContext) {
+      await persistMailchimpImportFailure({
+        ...startedImportContext,
+        error,
+        context: "Mailchimp import failed before background execution started",
+      });
+    } else {
+      console.error("[mailchimp-import] Error:", {
+        message: failure.message,
+        name: failure.name,
+        stack: failure.stack,
+      });
+    }
+
     return corsJsonResponse(
       {
-        error: error?.message ?? "Mailchimp import failed to start",
-        type: error?.name ?? "Error",
+        error: failure.message,
+        type: failure.name ?? "Error",
       },
       { status: 500 },
     );
@@ -254,17 +622,74 @@ export async function runMailchimpImport(params: {
 }) {
   const { supabase, job, connection, tenantId, userId, migrationJobId } =
     params;
-  const client =
-    params.client ??
-    (await MailchimpClient.fromConnection(
-      connection as MailchimpConnectionCredentials,
-    ));
   const config = parseImportJobConfig(job.config);
-  const artifactMaps = await loadArtifactMaps(supabase, tenantId, config);
+
+  if (
+    (await getImportExecutionDirective(supabase, {
+      jobId: job.id,
+      tenantId,
+    })) !== "continue"
+  ) {
+    return;
+  }
+
+  await writeImportLifecycleStage({
+    supabase,
+    jobId: job.id,
+    migrationJobId,
+    tenantId,
+    currentStage: "Loading Mailchimp audience details...",
+    progressPercentage: 2,
+  });
+
+  const [client, artifactMaps] = await Promise.all([
+    params.client
+      ? Promise.resolve(params.client)
+      : MailchimpClient.fromConnection(
+          connection as MailchimpConnectionCredentials,
+        ),
+    loadArtifactMaps(supabase, tenantId, config),
+  ]);
+
+  await writeImportLifecycleStage({
+    supabase,
+    jobId: job.id,
+    migrationJobId,
+    tenantId,
+    currentStage: "Preparing selected Mailchimp audiences...",
+    progressPercentage: 5,
+  });
+
+  console.log("[mailchimp-import] Reached Mailchimp import 5% boundary", {
+    jobId: job.id,
+    migrationJobId,
+    tenantId,
+    currentStage: "Preparing selected Mailchimp audiences...",
+  });
+
   let workItems: WorkItem[] = [];
   try {
     workItems = await buildWorkItems(client, config, artifactMaps);
+    console.log("[mailchimp-import] Prepared Mailchimp work items", {
+      jobId: job.id,
+      migrationJobId,
+      tenantId,
+      workItemCount: workItems.length,
+      selectedLists: config.listIds.length,
+      selectedSegments: config.segmentIds.length,
+    });
   } catch (error) {
+    const failure = serializeImportFailure(error);
+    console.error(
+      "[mailchimp-import] Failed while preparing work items after the 5% boundary:",
+      {
+        jobId: job.id,
+        migrationJobId,
+        tenantId,
+        message: failure.message,
+        name: failure.name,
+      },
+    );
     await rethrowImportMailchimpError(supabase, tenantId, userId, error);
   }
 
@@ -311,6 +736,21 @@ export async function runMailchimpImport(params: {
     activeScopeKnownTotalRows: null,
   });
 
+  const initialStage =
+    resumeState.activeScopeIndex > 0 || fetchedRows > 0
+      ? "Resuming Mailchimp import..."
+      : "Starting Mailchimp import...";
+
+  console.log("[mailchimp-import] Writing initial progress state", {
+    jobId: job.id,
+    migrationJobId,
+    tenantId,
+    currentStage: initialStage,
+    activeScopeIndex: resumeState.activeScopeIndex,
+    progressPercentage: initialProgress.progressPercentage,
+    estimatedTotalRows: initialProgress.totalRows,
+  });
+
   await writeProgressState(supabase, {
     jobId: job.id,
     migrationJobId,
@@ -321,10 +761,7 @@ export async function runMailchimpImport(params: {
     skippedRows: report.contacts_skipped,
     failedRows: report.contacts_failed,
     progressPercentage: initialProgress.progressPercentage,
-    currentStage:
-      resumeState.activeScopeIndex > 0 || fetchedRows > 0
-        ? "Resuming Mailchimp import..."
-        : "Starting Mailchimp import...",
+    currentStage: initialStage,
     batchStats: buildBatchStats({
       report,
       currentBatch,
@@ -342,12 +779,28 @@ export async function runMailchimpImport(params: {
     }),
   });
 
+  console.log("[mailchimp-import] Initial progress state written", {
+    jobId: job.id,
+    migrationJobId,
+    tenantId,
+    progressPercentage: initialProgress.progressPercentage,
+  });
+
   for (
     let scopeIndex = resumeState.activeScopeIndex;
     scopeIndex < workItems.length;
     scopeIndex += 1
   ) {
     if (isShuttingDown) {
+      return;
+    }
+
+    if (
+      (await getImportExecutionDirective(supabase, {
+        jobId: job.id,
+        tenantId,
+      })) !== "continue"
+    ) {
       return;
     }
 
@@ -363,21 +816,80 @@ export async function runMailchimpImport(params: {
         : 0;
     let scopeKnownTotalRows: number | null = null;
 
-    const crmSegmentId =
-      workItem.mode === "segment"
-        ? await ensureCrmSegment(
-            supabase,
-            tenantId,
-            userId,
-            workItem,
-            artifactMaps,
-            report,
-          )
-        : null;
+    const initialScopeStage = getScopeStage(workItem, resumeOffset);
+    let crmSegmentId: string | null = null;
+    if (workItem.mode === "segment") {
+      console.log(
+        "[mailchimp-import] Ensuring CRM segment before first Mailchimp fetch",
+        buildWorkItemLogContext({
+          jobId: job.id,
+          migrationJobId,
+          tenantId,
+          scopeIndex,
+          workItem,
+          currentStage: initialScopeStage,
+          offset: resumeOffset,
+        }),
+      );
+
+      try {
+        crmSegmentId = await ensureCrmSegment(
+          supabase,
+          tenantId,
+          userId,
+          workItem,
+          artifactMaps,
+          report,
+        );
+        console.log(
+          "[mailchimp-import] CRM segment ready before first Mailchimp fetch",
+          {
+            ...buildWorkItemLogContext({
+              jobId: job.id,
+              migrationJobId,
+              tenantId,
+              scopeIndex,
+              workItem,
+              currentStage: initialScopeStage,
+              offset: resumeOffset,
+            }),
+            crmSegmentId,
+          },
+        );
+      } catch (error) {
+        const failure = serializeImportFailure(error);
+        console.error(
+          "[mailchimp-import] Failed before first Mailchimp fetch while ensuring CRM segment:",
+          {
+            ...buildWorkItemLogContext({
+              jobId: job.id,
+              migrationJobId,
+              tenantId,
+              scopeIndex,
+              workItem,
+              currentStage: initialScopeStage,
+              offset: resumeOffset,
+            }),
+            message: failure.message,
+            name: failure.name,
+          },
+        );
+        throw error;
+      }
+    }
 
     let offset = resumeOffset;
     while (true) {
       if (isShuttingDown) {
+        return;
+      }
+
+      if (
+        (await getImportExecutionDirective(supabase, {
+          jobId: job.id,
+          tenantId,
+        })) !== "continue"
+      ) {
         return;
       }
 
@@ -416,6 +928,21 @@ export async function runMailchimpImport(params: {
         }),
       });
 
+      if (offset === resumeOffset) {
+        console.log(
+          "[mailchimp-import] Starting first Mailchimp fetch for scope",
+          buildWorkItemLogContext({
+            jobId: job.id,
+            migrationJobId,
+            tenantId,
+            scopeIndex,
+            workItem,
+            currentStage: getScopeStage(workItem, offset),
+            offset,
+          }),
+        );
+      }
+
       const fetchResult = await fetchWorkItemMembers({
         client,
         workItem,
@@ -426,6 +953,21 @@ export async function runMailchimpImport(params: {
       });
 
       if (fetchResult.warning) {
+        console.warn(
+          "[mailchimp-import] Skipping Mailchimp scope after fetch warning:",
+          {
+            ...buildWorkItemLogContext({
+              jobId: job.id,
+              migrationJobId,
+              tenantId,
+              scopeIndex,
+              workItem,
+              currentStage: getScopeStage(workItem, offset),
+              offset,
+            }),
+            warning: fetchResult.warning,
+          },
+        );
         report.errors.push(fetchResult.warning);
         break;
       }
@@ -617,9 +1159,20 @@ export async function runMailchimpImport(params: {
 
   const finalTotalRows = Math.max(completedScopeRows, fetchedRows, 0);
 
-  await supabase
-    .from("import_jobs")
-    .update({
+  if (
+    (await getImportExecutionDirective(supabase, {
+      jobId: job.id,
+      tenantId,
+    })) !== "continue"
+  ) {
+    return;
+  }
+
+  await updateImportJobStrict({
+    supabase,
+    jobId: job.id,
+    tenantId,
+    updates: {
       status: "completed",
       completed_at: new Date().toISOString(),
       progress_percentage: 100,
@@ -644,13 +1197,19 @@ export async function runMailchimpImport(params: {
           Math.ceil(Math.max(finalTotalRows, 1) / BATCH_SIZE),
         ),
       }),
-    })
-    .eq("id", job.id)
-    .eq("tenant_id", tenantId);
+    },
+    context: "completion",
+    metadata: {
+      progressPercentage: 100,
+      finalTotalRows,
+    },
+  });
 
-  await supabase
-    .from("migration_jobs" as any)
-    .update({
+  await updateMigrationJobBestEffort({
+    supabase,
+    migrationJobId,
+    tenantId,
+    updates: {
       status: "completed",
       completed_at: new Date().toISOString(),
       progress_percentage: 100,
@@ -661,9 +1220,9 @@ export async function runMailchimpImport(params: {
         total_scopes: workItems.length,
         estimated_total_rows: finalTotalRows,
       },
-    })
-    .eq("id", migrationJobId)
-    .eq("tenant_id", tenantId);
+    },
+    context: "completion",
+  });
 }
 
 export async function processBatch(
@@ -1111,34 +1670,101 @@ async function ensureCrmSegment(
     throw new Error("Segment work item is missing composite source id");
   }
 
-  const { data: existing } = await supabase
-    .from("crm_segments")
-    .select("id")
-    .eq("tenant_id", tenantId)
-    .eq("source", "mailchimp")
-    .eq("source_id", sourceId)
-    .maybeSingle();
+  const { data: existing, error: existingError } = await runTimedSupabaseQuery<{
+    data: { id?: string } | null;
+    error: unknown;
+  }>({
+    query: supabase
+      .from("crm_segments")
+      .select("id")
+      .eq("tenant_id", tenantId)
+      .eq("source", "mailchimp")
+      .eq("source_id", sourceId)
+      .maybeSingle(),
+    timeoutMs: CRM_SEGMENT_QUERY_TIMEOUT_MS,
+    timeoutContext: `CRM segment lookup for ${sourceId}`,
+  });
+
+  if (existingError) {
+    throw existingError;
+  }
 
   if (typeof (existing as any)?.id === "string") {
+    console.log("[mailchimp-import] Reusing existing CRM segment", {
+      tenantId,
+      sourceId,
+      crmSegmentId: (existing as any).id,
+      workItemKey: workItem.key,
+    });
     return (existing as any).id;
   }
 
   const name = artifactMaps.segmentNames.get(sourceId) ?? workItem.label;
-  const { data, error } = await supabase
-    .from("crm_segments")
-    .insert({
-      tenant_id: tenantId,
-      user_id: userId,
-      name,
-      source: "mailchimp",
-      source_id: sourceId,
-    })
-    .select("id")
-    .single();
+  const { data, error } = await runTimedSupabaseQuery<{
+    data: { id?: string } | null;
+    error: unknown;
+  }>({
+    query: supabase
+      .from("crm_segments")
+      .insert({
+        tenant_id: tenantId,
+        user_id: userId,
+        name,
+        source: "mailchimp",
+        source_id: sourceId,
+      })
+      .select("id")
+      .single(),
+    timeoutMs: CRM_SEGMENT_QUERY_TIMEOUT_MS,
+    timeoutContext: `CRM segment insert for ${sourceId}`,
+  });
+
+  if (error && isUniqueViolation(error)) {
+    const { data: concurrentExisting, error: concurrentLookupError } =
+      await runTimedSupabaseQuery<{
+        data: { id?: string } | null;
+        error: unknown;
+      }>({
+        query: supabase
+          .from("crm_segments")
+          .select("id")
+          .eq("tenant_id", tenantId)
+          .eq("source", "mailchimp")
+          .eq("source_id", sourceId)
+          .maybeSingle(),
+        timeoutMs: CRM_SEGMENT_QUERY_TIMEOUT_MS,
+        timeoutContext: `CRM segment re-lookup for ${sourceId}`,
+      });
+
+    if (
+      !concurrentLookupError &&
+      typeof (concurrentExisting as any)?.id === "string"
+    ) {
+      console.log(
+        "[mailchimp-import] Reused CRM segment after concurrent insert conflict",
+        {
+          tenantId,
+          sourceId,
+          crmSegmentId: (concurrentExisting as any).id,
+          workItemKey: workItem.key,
+        },
+      );
+      return String((concurrentExisting as any).id);
+    }
+
+    throw concurrentLookupError ?? error;
+  }
 
   if (error || !(data as any)?.id) {
     throw error ?? new Error("Failed to create CRM segment");
   }
+
+  console.log("[mailchimp-import] Created CRM segment for Mailchimp scope", {
+    tenantId,
+    sourceId,
+    crmSegmentId: (data as any).id,
+    workItemKey: workItem.key,
+  });
 
   report.segments_created += 1;
   return String((data as any).id);
@@ -1217,9 +1843,11 @@ export async function writeProgressState(
     batchStats,
   } = params;
 
-  await supabase
-    .from("import_jobs")
-    .update({
+  await updateImportJobStrict({
+    supabase,
+    jobId,
+    tenantId,
+    updates: {
       current_page: currentPage,
       fetched_rows: fetchedRows,
       inserted_rows: insertedRows,
@@ -1232,13 +1860,24 @@ export async function writeProgressState(
       progress_percentage: progressPercentage,
       current_stage: currentStage,
       batch_stats: batchStats,
-    })
-    .eq("id", jobId)
-    .eq("tenant_id", tenantId);
+    },
+    context: "progress-write",
+    metadata: {
+      currentPage,
+      fetchedRows,
+      insertedRows,
+      skippedRows,
+      failedRows,
+      progressPercentage,
+      currentStage,
+    },
+  });
 
-  await supabase
-    .from("migration_jobs" as any)
-    .update({
+  await updateMigrationJobBestEffort({
+    supabase,
+    migrationJobId,
+    tenantId,
+    updates: {
       status: "running",
       progress_current: fetchedRows,
       progress_total: Number(batchStats.estimated_total_rows) || 0,
@@ -1247,38 +1886,86 @@ export async function writeProgressState(
         ...batchStats,
         current_stage: currentStage,
       },
-    })
-    .eq("id", migrationJobId)
-    .eq("tenant_id", tenantId);
+    },
+    context: "progress-write",
+  });
 }
 
 export async function markJobFailed(
   supabase: SupabaseClient,
   jobId: string,
   migrationJobId: string,
+  tenantId: string,
   message: string,
+  stack?: string | null,
 ) {
   const timestamp = new Date().toISOString();
+  const errorDetails: Record<string, string> = {
+    message,
+    timestamp,
+  };
 
-  await supabase
-    .from("import_jobs")
-    .update({
-      status: "failed",
-      current_stage: `Error: ${message}`,
-      error_details: [{ message, timestamp }],
-    })
-    .eq("id", jobId);
+  console.error(
+    "[mailchimp-import] Persisting Mailchimp import failure state",
+    {
+      jobId,
+      migrationJobId,
+      tenantId,
+      message,
+    },
+  );
 
-  await supabase
-    .from("migration_jobs" as any)
-    .update({
+  if (stack) {
+    errorDetails.stack = stack;
+  }
+
+  let importJobPersistError: unknown = null;
+  try {
+    await updateImportJobStrict({
+      supabase,
+      jobId,
+      tenantId,
+      updates: {
+        status: "failed",
+        current_stage: `Error: ${message}`,
+        error_details: [errorDetails],
+        completed_at: timestamp,
+        updated_at: timestamp,
+      },
+      context: "failure-persist",
+      metadata: {
+        currentStage: `Error: ${message}`,
+      },
+    });
+  } catch (error) {
+    importJobPersistError = error;
+  }
+
+  const migrationMetadata: Record<string, unknown> = {
+    failure_at: timestamp,
+    failure_message: message,
+  };
+
+  if (stack) {
+    migrationMetadata.failure_stack = stack;
+  }
+
+  await updateMigrationJobBestEffort({
+    supabase,
+    migrationJobId,
+    tenantId,
+    updates: {
       status: "failed",
       error_message: message,
-      metadata: {
-        failure_at: timestamp,
-      },
-    })
-    .eq("id", migrationJobId);
+      completed_at: timestamp,
+      metadata: migrationMetadata,
+    },
+    context: "failure-persist",
+  });
+
+  if (importJobPersistError) {
+    throw importJobPersistError;
+  }
 }
 
 export function buildBatchStats(params: {
@@ -1342,6 +2029,16 @@ export function getImportStartDecision(job: any): ImportStartDecision {
       error: "Import job already running",
       resetProgress: false,
       initialStage: "running",
+    };
+  }
+
+  if (job.status === "cancelled") {
+    return {
+      allowed: false,
+      statusCode: 409,
+      error: "Cancelled import jobs cannot be resumed",
+      resetProgress: false,
+      initialStage: "cancelled",
     };
   }
 
@@ -1477,6 +2174,163 @@ function isMailchimpStatusError(
   return error instanceof MailchimpRequestError && error.status === status;
 }
 
+function normalizeImportJobStatus(value: unknown) {
+  return typeof value === "string" ? value.trim().toLowerCase() : "";
+}
+
+function normalizeMailchimpImportAction(
+  value: string | undefined,
+): MailchimpImportAction {
+  if (value === "pause" || value === "cancel") {
+    return value;
+  }
+
+  return "start";
+}
+
+async function controlMailchimpImportJob(
+  supabase: SupabaseClient,
+  params: {
+    jobId: string;
+    tenantId: string;
+    userId: string;
+    action: Exclude<MailchimpImportAction, "start">;
+  },
+) {
+  const { jobId, tenantId, userId, action } = params;
+  const importJob = await loadImportJob(supabase, jobId, tenantId, userId);
+  const currentStatus = normalizeImportJobStatus(importJob.status);
+  const timestamp = new Date().toISOString();
+
+  if (action === "pause") {
+    if (!["pending", "running"].includes(currentStatus)) {
+      throw new Error(
+        "Only pending or running Mailchimp imports can be paused",
+      );
+    }
+
+    await supabase
+      .from("import_jobs")
+      .update({
+        status: "paused",
+        current_stage: "Paused by user",
+      })
+      .eq("id", importJob.id)
+      .eq("tenant_id", tenantId);
+
+    if (importJob.migration_job_id) {
+      await updateMigrationJobBestEffort({
+        supabase,
+        migrationJobId: importJob.migration_job_id,
+        tenantId,
+        updates: {
+          status: "paused",
+          paused_at: timestamp,
+          metadata: {
+            ...(importJob.batch_stats &&
+            typeof importJob.batch_stats === "object"
+              ? importJob.batch_stats
+              : {}),
+            current_stage: "Paused by user",
+          },
+        },
+        context: "pause-control",
+      });
+    }
+
+    return {
+      jobId: importJob.id,
+      status: "paused",
+      message: "Mailchimp import paused",
+    };
+  }
+
+  if (!["pending", "running", "paused"].includes(currentStatus)) {
+    throw new Error(
+      "Only pending, running, or paused Mailchimp imports can be cancelled",
+    );
+  }
+
+  await supabase
+    .from("import_jobs")
+    .update({
+      status: "cancelled",
+      current_stage: "Cancelled by user",
+      completed_at: timestamp,
+    })
+    .eq("id", importJob.id)
+    .eq("tenant_id", tenantId);
+
+  if (importJob.migration_job_id) {
+    await updateMigrationJobBestEffort({
+      supabase,
+      migrationJobId: importJob.migration_job_id,
+      tenantId,
+      updates: {
+        status: "cancelled",
+        completed_at: timestamp,
+        error_message: null,
+        metadata: {
+          ...(importJob.batch_stats && typeof importJob.batch_stats === "object"
+            ? importJob.batch_stats
+            : {}),
+          current_stage: "Cancelled by user",
+          cancelled_by_user: true,
+        },
+      },
+      context: "cancel-control",
+    });
+  }
+
+  return {
+    jobId: importJob.id,
+    status: "cancelled",
+    message: "Mailchimp import cancelled",
+  };
+}
+
+async function getImportExecutionDirective(
+  supabase: SupabaseClient,
+  params: {
+    jobId: string;
+    tenantId: string;
+  },
+): Promise<ImportExecutionDirective> {
+  const { jobId, tenantId } = params;
+
+  try {
+    const { data, error } = await supabase
+      .from("import_jobs")
+      .select("status")
+      .eq("id", jobId)
+      .eq("tenant_id", tenantId)
+      .eq("provider", "mailchimp")
+      .maybeSingle();
+
+    if (error || !data) {
+      console.warn(
+        "[mailchimp-import] Unable to read control state; continuing import",
+        error?.message ?? "missing import job row",
+      );
+      return "continue";
+    }
+
+    const status = normalizeImportJobStatus(
+      (data as { status?: unknown }).status,
+    );
+    if (status === "paused" || status === "cancelled") {
+      return status;
+    }
+  } catch (error) {
+    console.warn(
+      "[mailchimp-import] Control state check failed; continuing import",
+      error,
+    );
+  }
+
+  return "continue";
+}
+
 async function rethrowImportMailchimpError(
   supabase: SupabaseClient,
   tenantId: string,
@@ -1511,6 +2365,15 @@ async function fetchWorkItemMembers(params: {
     }
 > {
   const { client, workItem, offset, supabase, tenantId, userId } = params;
+
+  console.log("[mailchimp-import] Fetching Mailchimp members", {
+    tenantId,
+    listId: workItem.listId,
+    segmentCompositeId: workItem.segmentCompositeId ?? null,
+    workItemKey: workItem.key,
+    offset,
+    limit: BATCH_SIZE,
+  });
 
   try {
     const result =
@@ -1561,7 +2424,7 @@ export function getScopeStage(workItem: WorkItem, offset: number) {
 }
 
 export async function buildWorkItems(
-  client: MailchimpClient,
+  _client: MailchimpClient,
   config: { listIds: string[]; segmentIds: string[] },
   artifactMaps: ArtifactMaps,
 ): Promise<WorkItem[]> {
@@ -1585,36 +2448,13 @@ export async function buildWorkItems(
       .filter((listId): listId is string => Boolean(listId)),
   ]);
 
-  const liveSegmentsByList = new Map<
-    string,
-    Array<{ id: number; name: string; member_count: number }>
-  >();
   const workItems: WorkItem[] = [];
 
   for (const listId of orderedListIds) {
     const selectedSegments = segmentIdsByList.get(listId) ?? [];
     if (selectedSegments.length > 0) {
-      if (!liveSegmentsByList.has(listId)) {
-        try {
-          liveSegmentsByList.set(listId, await client.getSegments(listId));
-        } catch (error) {
-          if (!isMailchimpStatusError(error, 404)) {
-            throw error;
-          }
-
-          console.warn(
-            `[mailchimp-import] List ${listId} is no longer available while resolving selected segments. Import will skip it at runtime if needed.`,
-          );
-          liveSegmentsByList.set(listId, []);
-        }
-      }
-
-      const liveSegments = liveSegmentsByList.get(listId) ?? [];
       for (const segmentSelection of selectedSegments) {
         const segmentId = extractSegmentId(segmentSelection) ?? "";
-        const liveSegment = liveSegments.find(
-          (segment) => String(segment.id) === segmentId,
-        );
         workItems.push({
           key: `segment:${segmentSelection}`,
           mode: "segment",
@@ -1623,41 +2463,20 @@ export async function buildWorkItems(
           segmentCompositeId: segmentSelection,
           label:
             artifactMaps.segmentNames.get(segmentSelection) ??
-            liveSegment?.name ??
             `segment ${segmentId}`,
           estimatedTotalRows:
-            artifactMaps.segmentCounts.get(segmentSelection) ??
-            liveSegment?.member_count ??
-            0,
+            artifactMaps.segmentCounts.get(segmentSelection) ?? 0,
         });
       }
       continue;
-    }
-
-    let estimatedTotalRows = artifactMaps.listCounts.get(listId) ?? 0;
-    let label = artifactMaps.listNames.get(listId) ?? `list ${listId}`;
-    if (estimatedTotalRows === 0 || !artifactMaps.listNames.has(listId)) {
-      try {
-        const listInfo = await client.getList(listId);
-        estimatedTotalRows = listInfo.stats?.member_count ?? estimatedTotalRows;
-        label = listInfo.name;
-      } catch (error) {
-        if (!isMailchimpStatusError(error, 404)) {
-          throw error;
-        }
-
-        console.warn(
-          `[mailchimp-import] List ${listId} is no longer available while building work items. Import will skip it at runtime if needed.`,
-        );
-      }
     }
 
     workItems.push({
       key: `list:${listId}`,
       mode: "full_list",
       listId,
-      label,
-      estimatedTotalRows,
+      label: artifactMaps.listNames.get(listId) ?? `list ${listId}`,
+      estimatedTotalRows: artifactMaps.listCounts.get(listId) ?? 0,
     });
   }
 
@@ -1674,40 +2493,55 @@ async function loadArtifactMaps(
   const segmentCounts = new Map<string, number>();
   const segmentNames = new Map<string, string>();
 
-  if (config.listIds.length > 0) {
-    const { data: listArtifacts } = await supabase
-      .from("provider_artifacts")
-      .select("external_id, name, member_count")
-      .eq("tenant_id", tenantId)
-      .eq("provider", "mailchimp")
-      .eq("artifact_type", "list")
-      .in("external_id", config.listIds);
+  const listArtifactsPromise =
+    config.listIds.length > 0
+      ? supabase
+          .from("provider_artifacts")
+          .select("external_id, name, member_count")
+          .eq("tenant_id", tenantId)
+          .eq("provider", "mailchimp")
+          .eq("artifact_type", "list")
+          .in("external_id", config.listIds)
+      : Promise.resolve({ data: [], error: null });
 
-    for (const artifact of (listArtifacts ?? []) as any[]) {
-      listCounts.set(
-        String(artifact.external_id),
-        Number(artifact.member_count ?? 0),
-      );
-      listNames.set(String(artifact.external_id), String(artifact.name));
-    }
+  const segmentArtifactsPromise =
+    config.segmentIds.length > 0
+      ? supabase
+          .from("provider_artifacts")
+          .select("external_id, name, member_count")
+          .eq("tenant_id", tenantId)
+          .eq("provider", "mailchimp")
+          .eq("artifact_type", "segment")
+          .in("external_id", config.segmentIds)
+      : Promise.resolve({ data: [], error: null });
+
+  const [listArtifactsResult, segmentArtifactsResult] = await Promise.all([
+    listArtifactsPromise,
+    segmentArtifactsPromise,
+  ]);
+
+  if (listArtifactsResult.error) {
+    throw listArtifactsResult.error;
   }
 
-  if (config.segmentIds.length > 0) {
-    const { data: segmentArtifacts } = await supabase
-      .from("provider_artifacts")
-      .select("external_id, name, member_count")
-      .eq("tenant_id", tenantId)
-      .eq("provider", "mailchimp")
-      .eq("artifact_type", "segment")
-      .in("external_id", config.segmentIds);
+  if (segmentArtifactsResult.error) {
+    throw segmentArtifactsResult.error;
+  }
 
-    for (const artifact of (segmentArtifacts ?? []) as any[]) {
-      segmentCounts.set(
-        String(artifact.external_id),
-        Number(artifact.member_count ?? 0),
-      );
-      segmentNames.set(String(artifact.external_id), String(artifact.name));
-    }
+  for (const artifact of (listArtifactsResult.data ?? []) as any[]) {
+    listCounts.set(
+      String(artifact.external_id),
+      Number(artifact.member_count ?? 0),
+    );
+    listNames.set(String(artifact.external_id), String(artifact.name));
+  }
+
+  for (const artifact of (segmentArtifactsResult.data ?? []) as any[]) {
+    segmentCounts.set(
+      String(artifact.external_id),
+      Number(artifact.member_count ?? 0),
+    );
+    segmentNames.set(String(artifact.external_id), String(artifact.name));
   }
 
   return { listCounts, listNames, segmentCounts, segmentNames };

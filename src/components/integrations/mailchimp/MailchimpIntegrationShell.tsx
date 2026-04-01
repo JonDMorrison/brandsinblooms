@@ -9,7 +9,10 @@ import {
   KeyRound,
   Loader2,
   Mail,
+  Pause,
+  Play,
   ShieldAlert,
+  Trash2,
   Users,
   XCircle,
 } from "lucide-react";
@@ -23,6 +26,12 @@ import {
 import type { IntegrationDefinition } from "@/components/integrations/integrationsHubConfig";
 import type { MarketingImportDetailData } from "@/hooks/useIntegrationDetailData";
 import type { MailchimpImportProgressState } from "@/hooks/useMailchimpImportProgress";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import {
+  formatMailchimpErrorMessages,
+  formatMailchimpStageLabel,
+} from "@/lib/mailchimpPresentation";
 import {
   Accordion,
   AccordionContent,
@@ -30,6 +39,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import {
+  AlertDialogAction,
   AlertDialog,
   AlertDialogCancel,
   AlertDialogContent,
@@ -115,14 +125,6 @@ function formatDurationLabel(durationSeconds?: number | null) {
   return `${minutes}m ${seconds}s`;
 }
 
-function formatStageLabel(stage?: string | null) {
-  if (!stage?.trim()) {
-    return "Processing import...";
-  }
-
-  return stage;
-}
-
 function getNumericRecord(source: Record<string, unknown> | null, key: string) {
   const value = source?.[key];
 
@@ -189,7 +191,7 @@ function normalizeErrorMessages(
     }
   }
 
-  return Array.from(normalized);
+  return formatMailchimpErrorMessages(Array.from(normalized));
 }
 
 function downloadImportReport(progress: MailchimpImportProgressState) {
@@ -274,6 +276,7 @@ export function MailchimpIntegrationShell({
   onOpenConnectDialog,
   onOpenImportDialog,
   onOpenPreviewDialog,
+  onRefreshImportState,
   onDismissImportStatusCard,
 }: {
   item: IntegrationDefinition;
@@ -285,11 +288,15 @@ export function MailchimpIntegrationShell({
   onOpenConnectDialog: () => void;
   onOpenImportDialog: () => void;
   onOpenPreviewDialog: () => void;
+  onRefreshImportState?: (jobId?: string | null) => Promise<void>;
   onDismissImportStatusCard?: (jobId: string) => void;
 }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const [disconnectOpen, setDisconnectOpen] = useState(false);
   const [disconnectError, setDisconnectError] = useState<string | null>(null);
+  const [isControllingImport, setIsControllingImport] = useState(false);
+  const [cancelImportOpen, setCancelImportOpen] = useState(false);
+  const { toast } = useToast();
   const currentTab = isValidTab(searchParams.get("tab"))
     ? (searchParams.get("tab") as MailchimpShellTab)
     : "overview";
@@ -303,10 +310,6 @@ export function MailchimpIntegrationShell({
         value: marketingImportDetail.accountName ?? "Not available",
       },
       {
-        label: "Account ID",
-        value: marketingImportDetail.accountId ?? "Not available",
-      },
-      {
         label: "Connected",
         value: isConnected
           ? formatRelativeTimestamp(marketingImportDetail.connectedAt)
@@ -318,7 +321,6 @@ export function MailchimpIntegrationShell({
     ],
     [
       isConnected,
-      marketingImportDetail.accountId,
       marketingImportDetail.accountName,
       marketingImportDetail.connectedAt,
     ],
@@ -338,9 +340,10 @@ export function MailchimpIntegrationShell({
   );
   const shouldShowImportStatusCard = Boolean(
     importProgress?.jobId &&
-      (importProgress.isRunning ||
-        importProgress.isCompleted ||
-        importProgress.isFailed),
+    (importProgress.isRunning ||
+      importProgress.isPaused ||
+      importProgress.isCompleted ||
+      importProgress.isFailed),
   );
   const importErrors = useMemo(
     () =>
@@ -381,6 +384,142 @@ export function MailchimpIntegrationShell({
       onDismissImportStatusCard?.(importProgress.jobId);
     }
   }, [importProgress, onDismissImportStatusCard]);
+  const refreshMailchimpImportState = useCallback(
+    async (jobId?: string | null) => {
+      await importProgress?.refetch?.();
+
+      if (onRefreshImportState) {
+        await onRefreshImportState(jobId ?? importProgress?.jobId ?? null);
+      }
+    },
+    [importProgress, onRefreshImportState],
+  );
+  const handlePauseImport = useCallback(async () => {
+    if (!importProgress?.jobId || isControllingImport) {
+      return;
+    }
+
+    setIsControllingImport(true);
+
+    try {
+      const { data, error } = await supabase.functions.invoke(
+        "mailchimp-import",
+        {
+          body: { jobId: importProgress.jobId, action: "pause" },
+        },
+      );
+
+      if (error) {
+        throw error;
+      }
+
+      if (data?.error) {
+        throw new Error(data.error);
+      }
+
+      await refreshMailchimpImportState(importProgress.jobId);
+      toast({
+        title: "Mailchimp import paused",
+        description:
+          "The current import will stop after the active batch checkpoint.",
+      });
+    } catch (error) {
+      toast({
+        title: "Could not pause Mailchimp import",
+        description: getUserFacingIntegrationError(
+          error,
+          "Mailchimp import could not be paused. Try again in a moment.",
+        ),
+        variant: "destructive",
+      });
+    } finally {
+      setIsControllingImport(false);
+    }
+  }, [importProgress, isControllingImport, refreshMailchimpImportState, toast]);
+  const handleResumeImport = useCallback(async () => {
+    if (!importProgress?.jobId || isControllingImport) {
+      return;
+    }
+
+    setIsControllingImport(true);
+
+    try {
+      const { data, error } = await supabase.functions.invoke(
+        "mailchimp-import",
+        {
+          body: { jobId: importProgress.jobId },
+        },
+      );
+
+      if (error) {
+        throw error;
+      }
+
+      if (data?.error) {
+        throw new Error(data.error);
+      }
+
+      await refreshMailchimpImportState(importProgress.jobId);
+      toast({
+        title: "Mailchimp import resumed",
+        description: "The paused import is running again.",
+      });
+    } catch (error) {
+      toast({
+        title: "Could not resume Mailchimp import",
+        description: getUserFacingIntegrationError(
+          error,
+          "Mailchimp import could not be resumed. Try again in a moment.",
+        ),
+        variant: "destructive",
+      });
+    } finally {
+      setIsControllingImport(false);
+    }
+  }, [importProgress, isControllingImport, refreshMailchimpImportState, toast]);
+  const handleCancelImport = useCallback(async () => {
+    if (!importProgress?.jobId || isControllingImport) {
+      return;
+    }
+
+    setIsControllingImport(true);
+
+    try {
+      const { data, error } = await supabase.functions.invoke(
+        "mailchimp-import",
+        {
+          body: { jobId: importProgress.jobId, action: "cancel" },
+        },
+      );
+
+      if (error) {
+        throw error;
+      }
+
+      if (data?.error) {
+        throw new Error(data.error);
+      }
+
+      setCancelImportOpen(false);
+      await refreshMailchimpImportState(importProgress.jobId);
+      toast({
+        title: "Mailchimp import cancelled",
+        description:
+          "The active Mailchimp import has been cleared from the running queue.",
+      });
+    } catch (error) {
+      toast({
+        title: "Could not cancel Mailchimp import",
+        description: getUserFacingIntegrationError(
+          error,
+          "Mailchimp import could not be cancelled. Try again in a moment.",
+        ),
+        variant: "destructive",
+      });
+    } finally {
+      setIsControllingImport(false);
+    }
+  }, [importProgress, isControllingImport, refreshMailchimpImportState, toast]);
 
   const handleDisconnectConfirm = async () => {
     setDisconnectError(null);
@@ -425,23 +564,14 @@ export function MailchimpIntegrationShell({
                 Mailchimp
               </h1>
               <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-                Connection, import status, cached audience metadata, and
-                imported Mailchimp CRM data live on this page.
+                Connect Mailchimp, review import progress, and manage the
+                contacts you have already brought into BloomSuite.
               </p>
               <div className="mt-4 flex flex-wrap items-center gap-2">
                 <DetailStatusBadge
                   label={marketingImportDetail.connectionState.label}
                   tone={marketingImportDetail.connectionState.tone}
                 />
-                {marketingImportDetail.hasRunningImport ? (
-                  <Badge
-                    variant="outline"
-                    className="gap-1.5 border-sky-200 bg-sky-50 text-sky-700"
-                  >
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    Syncing
-                  </Badge>
-                ) : null}
               </div>
             </div>
           </div>
@@ -479,6 +609,11 @@ export function MailchimpIntegrationShell({
                             <CheckCircle2 className="h-3.5 w-3.5" />
                             Import Complete
                           </Badge>
+                        ) : importProgress.isPaused ? (
+                          <Badge className="gap-1.5 bg-slate-200 text-slate-800 hover:bg-slate-200">
+                            <Pause className="h-3.5 w-3.5" />
+                            Import Paused
+                          </Badge>
                         ) : importProgress.isFailed ? (
                           <Badge className="gap-1.5 bg-rose-100 text-rose-800 hover:bg-rose-100">
                             <XCircle className="h-3.5 w-3.5" />
@@ -490,24 +625,27 @@ export function MailchimpIntegrationShell({
                             Import Running
                           </Badge>
                         )}
-                        <span className="text-sm text-muted-foreground">
-                          Job {importProgress.jobId.slice(0, 8)}
-                        </span>
                       </div>
                       <div>
                         <h2 className="text-xl font-semibold text-slate-950">
                           {importProgress.isCompleted
                             ? "Mailchimp import finished"
-                            : importProgress.isFailed
-                              ? "Mailchimp import needs attention"
-                              : "Mailchimp import in progress"}
+                            : importProgress.isPaused
+                              ? "Mailchimp import paused"
+                              : importProgress.isFailed
+                                ? "Mailchimp import needs attention"
+                                : "Mailchimp import in progress"}
                         </h2>
                         <p className="mt-1 text-sm text-muted-foreground">
                           {importProgress.isCompleted
                             ? "The latest Mailchimp import has completed and the final report is ready."
-                            : importProgress.isFailed
-                              ? "The latest Mailchimp import failed before completion. Review the reported issues or jump to Sync Logs for the focused job."
-                              : formatStageLabel(importProgress.currentStage)}
+                            : importProgress.isPaused
+                              ? "The latest Mailchimp import is paused. Resume it when you are ready or cancel it to clear the active run."
+                              : importProgress.isFailed
+                                ? "The latest Mailchimp import failed before completion. Review the reported issues or jump to Sync Logs for the focused job."
+                                : formatMailchimpStageLabel(
+                                    importProgress.currentStage,
+                                  )}
                         </p>
                       </div>
                     </div>
@@ -522,6 +660,47 @@ export function MailchimpIntegrationShell({
                       >
                         View Sync Logs
                       </Button>
+                      {importProgress.isPaused ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => void handleResumeImport()}
+                          disabled={isControllingImport}
+                        >
+                          {isControllingImport ? (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          ) : (
+                            <Play className="mr-2 h-4 w-4" />
+                          )}
+                          Resume Import
+                        </Button>
+                      ) : null}
+                      {importProgress.isRunning ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => void handlePauseImport()}
+                          disabled={isControllingImport}
+                        >
+                          {isControllingImport ? (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          ) : (
+                            <Pause className="mr-2 h-4 w-4" />
+                          )}
+                          Pause Import
+                        </Button>
+                      ) : null}
+                      {importProgress.isRunning || importProgress.isPaused ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => setCancelImportOpen(true)}
+                          disabled={isControllingImport}
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Cancel Import
+                        </Button>
+                      ) : null}
                       {(importProgress.isCompleted ||
                         importProgress.isFailed) &&
                       importProgress.report ? (
@@ -530,7 +709,7 @@ export function MailchimpIntegrationShell({
                           variant="outline"
                           onClick={handleDownloadReport}
                         >
-                          Download Report as JSON
+                          Download Import Report
                           <Download className="ml-2 h-4 w-4" />
                         </Button>
                       ) : null}
@@ -546,11 +725,15 @@ export function MailchimpIntegrationShell({
                     </div>
                   </div>
 
-                  {!importProgress.isCompleted && !importProgress.isFailed ? (
+                  {!importProgress.isCompleted &&
+                  !importProgress.isFailed &&
+                  !importProgress.isPaused ? (
                     <div className="space-y-3 rounded-2xl border border-sky-100 bg-sky-50/70 p-4">
                       <div className="flex items-center justify-between gap-4 text-sm">
                         <span className="font-medium text-slate-950">
-                          {formatStageLabel(importProgress.currentStage)}
+                          {formatMailchimpStageLabel(
+                            importProgress.currentStage,
+                          )}
                         </span>
                         <span className="font-semibold text-sky-900">
                           {Math.round(importProgress.progressPercentage)}%
@@ -689,8 +872,8 @@ export function MailchimpIntegrationShell({
                 value={formatCount(marketingImportDetail.listCount)}
                 subtitle={
                   marketingImportDetail.segmentCount > 0
-                    ? `${formatCount(marketingImportDetail.segmentCount)} cached segments available`
-                    : "Preview lists to refresh cached audience metadata"
+                    ? `${formatCount(marketingImportDetail.segmentCount)} audience segments available`
+                    : "Preview lists to refresh available Mailchimp audiences"
                 }
               />
               <MetricCard
@@ -699,7 +882,7 @@ export function MailchimpIntegrationShell({
                 value={formatCount(
                   marketingImportDetail.contactsImportedAllTime,
                 )}
-                subtitle={`Across ${formatCount(marketingImportDetail.importJobCount)} completed import job${marketingImportDetail.importJobCount === 1 ? "" : "s"}`}
+                subtitle={`Across ${formatCount(marketingImportDetail.importJobCount)} completed import${marketingImportDetail.importJobCount === 1 ? "" : "s"}`}
               />
               <MetricCard
                 icon={Clock3}
@@ -709,7 +892,7 @@ export function MailchimpIntegrationShell({
               />
               <MetricCard
                 icon={KeyRound}
-                label="Authorization"
+                label="Connection"
                 value={marketingImportDetail.connectionState.label}
                 subtitle={marketingImportDetail.connectionState.subtitle}
               />
@@ -718,7 +901,7 @@ export function MailchimpIntegrationShell({
             <div className="grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]">
               <SectionCard
                 title="Connection"
-                description="Current Mailchimp authorization state and stored account metadata for this tenant."
+                description="Current Mailchimp connection status for this workspace."
               >
                 <div className="space-y-4">
                   <div className="rounded-2xl border border-border/70 bg-slate-50/70 p-4">
@@ -730,22 +913,13 @@ export function MailchimpIntegrationShell({
                         label={marketingImportDetail.connectionState.label}
                         tone={marketingImportDetail.connectionState.tone}
                       />
-                      {marketingImportDetail.hasRunningImport ? (
-                        <Badge
-                          variant="outline"
-                          className="gap-1.5 border-sky-200 bg-sky-50 text-sky-700"
-                        >
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          Import running
-                        </Badge>
-                      ) : null}
                     </div>
                     <p className="mt-3 text-sm text-muted-foreground">
                       {marketingImportDetail.connectionState.subtitle}
                     </p>
                   </div>
 
-                  <div className="grid gap-3 md:grid-cols-3">
+                  <div className="grid gap-3 md:grid-cols-2">
                     {connectionDetails.map((row) => (
                       <div
                         key={row.label}
@@ -831,7 +1005,7 @@ export function MailchimpIntegrationShell({
 
             <SectionCard
               title="Recent Import"
-              description="Latest completed Mailchimp import recorded for this tenant."
+              description="Summary of the most recent completed Mailchimp import."
             >
               {recentImportSummary ? (
                 <div className="flex items-start gap-3 rounded-2xl border border-border/70 bg-slate-50/70 p-4 text-sm text-slate-950">
@@ -981,6 +1155,32 @@ export function MailchimpIntegrationShell({
                   ? "Retry"
                   : marketingImportDetail.dangerZone.title}
             </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog open={cancelImportOpen} onOpenChange={setCancelImportOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel Mailchimp import?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This stops the current Mailchimp import and clears it from the
+              active progress card. Completed rows stay imported; unfinished
+              batches will not continue.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isControllingImport}>
+              Keep Import
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(event) => {
+                event.preventDefault();
+                void handleCancelImport();
+              }}
+              disabled={isControllingImport}
+            >
+              {isControllingImport ? "Cancelling..." : "Cancel Import"}
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

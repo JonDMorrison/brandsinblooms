@@ -3,6 +3,13 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTenant } from "@/hooks/useTenant";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  formatMailchimpErrorMessages,
+  formatMailchimpStageLabel,
+  isMailchimpConnectionIssueMessage,
+  resolveMailchimpSelectionName,
+  summarizeMailchimpSelections,
+} from "@/lib/mailchimpPresentation";
 
 const PAGE_SIZE = 20;
 const POLL_INTERVAL_MS = 3000;
@@ -13,12 +20,20 @@ export type MailchimpSyncLogsStatusFilter =
   | "all"
   | "pending"
   | "running"
+  | "paused"
+  | "cancelled"
   | "completed"
   | "failed";
 
 export type MailchimpSyncLogsDatePreset = "7d" | "30d" | "all";
 
-type MailchimpImportJobStatus = "pending" | "running" | "completed" | "failed";
+type MailchimpImportJobStatus =
+  | "pending"
+  | "running"
+  | "paused"
+  | "cancelled"
+  | "completed"
+  | "failed";
 
 type MailchimpImportJobRow = {
   id: string;
@@ -135,10 +150,14 @@ function normalizeJobStatus(
   value: string | null | undefined,
 ): MailchimpImportJobStatus {
   switch (value?.trim().toLowerCase()) {
+    case "cancelled":
+      return "cancelled";
     case "completed":
       return "completed";
     case "failed":
       return "failed";
+    case "paused":
+      return "paused";
     case "running":
       return "running";
     default:
@@ -201,15 +220,6 @@ function matchesFilters(
   return row.created_at >= threshold;
 }
 
-function formatScopeSummary(listCount: number, segmentCount: number) {
-  const parts = [
-    `${listCount} list${listCount === 1 ? "" : "s"}`,
-    `${segmentCount} segment${segmentCount === 1 ? "" : "s"}`,
-  ];
-
-  return parts.join(", ");
-}
-
 function normalizeReport(report: unknown) {
   const source = asObject(report);
   const rawErrors = source?.errors;
@@ -232,7 +242,7 @@ function normalizeReport(report: unknown) {
   };
 }
 
-function normalizeErrorMessages(
+function collectErrorMessages(
   errorDetails: unknown,
   batchStats: Record<string, unknown> | null,
   reportErrors: string[],
@@ -285,18 +295,12 @@ function buildLookupMaps(artifacts: MailchimpArtifactRow[]) {
   const segmentNames = new Map<string, string>();
 
   for (const artifact of artifacts) {
-    if (artifact.artifact_type === "list") {
-      listNames.set(
-        artifact.external_id,
-        artifact.name ?? artifact.external_id,
-      );
+    if (artifact.artifact_type === "list" && artifact.name?.trim()) {
+      listNames.set(artifact.external_id, artifact.name);
     }
 
-    if (artifact.artifact_type === "segment") {
-      segmentNames.set(
-        artifact.external_id,
-        artifact.name ?? artifact.external_id,
-      );
+    if (artifact.artifact_type === "segment" && artifact.name?.trim()) {
+      segmentNames.set(artifact.external_id, artifact.name);
     }
   }
 
@@ -341,10 +345,11 @@ function buildConfigEntries(config: Record<string, unknown> | null) {
 function buildResolvedSelections(
   ids: string[],
   lookupMap: Map<string, string>,
+  kind: "list" | "segment",
 ) {
-  return ids.map((id) => ({
+  return ids.map((id, index) => ({
     id,
-    name: lookupMap.get(id) ?? id,
+    name: resolveMailchimpSelectionName(lookupMap.get(id), kind, index),
   }));
 }
 
@@ -358,7 +363,10 @@ function getActiveScopeLabel(
       ? batchStats.active_segment_id
       : null;
   if (activeSegmentId) {
-    return segmentNames.get(activeSegmentId) ?? activeSegmentId;
+    return resolveMailchimpSelectionName(
+      segmentNames.get(activeSegmentId),
+      "segment",
+    );
   }
 
   const activeListId =
@@ -366,7 +374,7 @@ function getActiveScopeLabel(
       ? batchStats.active_list_id
       : null;
   if (activeListId) {
-    return listNames.get(activeListId) ?? activeListId;
+    return resolveMailchimpSelectionName(listNames.get(activeListId), "list");
   }
 
   return null;
@@ -374,15 +382,25 @@ function getActiveScopeLabel(
 
 function buildTimeline(
   row: MailchimpImportJobRow,
-  batchStats: Record<string, unknown> | null,
-  activeScopeLabel: string | null,
+  {
+    activeScopeLabel,
+    currentStageLabel,
+    hasConnectionIssue,
+    selectionSummary,
+  }: {
+    activeScopeLabel: string | null;
+    currentStageLabel: string;
+    hasConnectionIssue: boolean;
+    selectionSummary: string;
+  },
 ) {
   const status = normalizeJobStatus(row.status);
   const timeline: MailchimpSyncLogTimelineEntry[] = [
     {
-      id: `${row.id}-created`,
-      label: "Job created",
-      description: "The import job record was created and queued.",
+      id: `${row.id}-requested`,
+      label: "Import requested",
+      description:
+        "BloomSuite saved your selected Mailchimp audience and queued the import.",
       timestamp: row.created_at,
       state: "complete",
       derived: false,
@@ -399,69 +417,68 @@ function buildTimeline(
     timeline.push({
       id: `${row.id}-started`,
       label: "Import started",
-      description: row.current_stage?.trim()
-        ? `First observed progress stage: ${row.current_stage}`
-        : "Derived from the first progress update observed on this job.",
+      description: activeScopeLabel
+        ? `BloomSuite started importing contacts from ${activeScopeLabel}.`
+        : "BloomSuite started importing your selected Mailchimp audience.",
       timestamp: null,
       state: status === "pending" ? "pending" : "complete",
-      derived: true,
-    });
-  }
-
-  const totalBatches = getNumberValue(batchStats, "total_batches") ?? 0;
-  const completedBatches = getNumberValue(batchStats, "completed_batches") ?? 0;
-  const failedBatches = getNumberValue(batchStats, "failed_batches") ?? 0;
-  const currentBatch =
-    status === "running" && totalBatches > completedBatches
-      ? completedBatches + 1
-      : null;
-
-  for (let batchNumber = 1; batchNumber <= totalBatches; batchNumber += 1) {
-    const isCurrent = currentBatch === batchNumber;
-    const isCompleted = batchNumber <= completedBatches;
-    const state: TimelineState = isCurrent
-      ? "current"
-      : isCompleted
-        ? "complete"
-        : status === "failed" && batchNumber === completedBatches + 1
-          ? "failed"
-          : "pending";
-
-    timeline.push({
-      id: `${row.id}-batch-${batchNumber}`,
-      label: `Batch ${batchNumber}`,
-      description: isCurrent
-        ? `${row.current_stage?.trim() || "Processing"}${activeScopeLabel ? ` · ${activeScopeLabel}` : ""}`
-        : isCompleted
-          ? "Completed batch milestone synthesized from aggregate batch stats."
-          : state === "failed"
-            ? `Batch milestone synthesized from aggregate stats. ${failedBatches > 0 ? `${failedBatches} batch failure${failedBatches === 1 ? "" : "s"} recorded.` : ""}`
-            : "Pending batch milestone synthesized from aggregate batch stats.",
-      timestamp: null,
-      state,
-      derived: true,
-    });
-  }
-
-  if (status === "completed" || status === "failed") {
-    timeline.push({
-      id: `${row.id}-terminal`,
-      label: status === "completed" ? "Job completed" : "Job failed",
-      description:
-        status === "completed"
-          ? "The Mailchimp import finished and wrote its final report."
-          : "The Mailchimp import stopped before completion.",
-      timestamp: row.completed_at ?? row.updated_at,
-      state: status === "completed" ? "complete" : "failed",
       derived: false,
     });
-  } else if (status === "running") {
+  }
+
+  if (status === "running") {
     timeline.push({
-      id: `${row.id}-current-stage`,
-      label: "Current stage",
-      description: row.current_stage?.trim() || "Import is running.",
+      id: `${row.id}-current`,
+      label: "In progress",
+      description: currentStageLabel,
       timestamp: row.updated_at,
       state: "current",
+      derived: false,
+    });
+  }
+
+  if (status === "paused") {
+    timeline.push({
+      id: `${row.id}-paused`,
+      label: "Import paused",
+      description: "The import was paused and can be resumed from this page.",
+      timestamp: row.updated_at,
+      state: "pending",
+      derived: false,
+    });
+  }
+
+  if (status === "cancelled") {
+    timeline.push({
+      id: `${row.id}-cancelled`,
+      label: "Import cancelled",
+      description: "The import was cancelled before it finished.",
+      timestamp: row.completed_at ?? row.updated_at,
+      state: "pending",
+      derived: false,
+    });
+  }
+
+  if (status === "completed") {
+    timeline.push({
+      id: `${row.id}-completed`,
+      label: "Import completed",
+      description: `BloomSuite finished importing ${selectionSummary}.`,
+      timestamp: row.completed_at ?? row.updated_at,
+      state: "complete",
+      derived: false,
+    });
+  }
+
+  if (status === "failed") {
+    timeline.push({
+      id: `${row.id}-failed`,
+      label: "Import needs attention",
+      description: hasConnectionIssue
+        ? "Reconnect Mailchimp, then retry this import."
+        : "The import stopped before it finished. Retry it when you are ready.",
+      timestamp: row.completed_at ?? row.updated_at,
+      state: "failed",
       derived: false,
     });
   }
@@ -525,18 +542,9 @@ function derivePagination(batchStats: Record<string, unknown> | null) {
 }
 
 function isConnectionIssue(errorMessages: string[]) {
-  const joined = errorMessages.join(" ").toLowerCase();
-
-  return [
-    "token",
-    "oauth",
-    "authorize",
-    "authorization",
-    "not connected",
-    "connection",
-    "expired",
-    "revoked",
-  ].some((fragment) => joined.includes(fragment));
+  return errorMessages.some((message) =>
+    isMailchimpConnectionIssueMessage(message),
+  );
 }
 
 function normalizeEntry(
@@ -549,16 +557,20 @@ function normalizeEntry(
   const resolvedLists = buildResolvedSelections(
     parsedConfig.listIds,
     lookups.listNames,
+    "list",
   );
   const resolvedSegments = buildResolvedSelections(
     parsedConfig.segmentIds,
     lookups.segmentNames,
+    "segment",
   );
-  const errorMessages = normalizeErrorMessages(
+  const rawErrorMessages = collectErrorMessages(
     row.error_details,
     batchStats,
     normalizedReport.errors,
   );
+  const hasConnectionIssue = isConnectionIssue(rawErrorMessages);
+  const errorMessages = formatMailchimpErrorMessages(rawErrorMessages);
   const { fetchedRows, insertedRows, skippedRows, failedRows } = deriveCounts(
     batchStats,
     normalizedReport,
@@ -570,6 +582,11 @@ function normalizeEntry(
     lookups.segmentNames,
   );
   const explicitBatchRows = buildExplicitBatchRows(batchStats);
+  const scopeSummary = summarizeMailchimpSelections([
+    ...resolvedLists.map((entry) => entry.name),
+    ...resolvedSegments.map((entry) => entry.name),
+  ]);
+  const currentStage = formatMailchimpStageLabel(row.current_stage);
 
   return {
     id: row.id,
@@ -578,7 +595,7 @@ function normalizeEntry(
     completedAt: row.completed_at,
     updatedAt: row.updated_at,
     progressPercentage: row.progress_percentage ?? 0,
-    currentStage: row.current_stage?.trim() || "Pending import",
+    currentStage,
     estimatedCompletionAt: row.estimated_completion_at,
     fetchedRows,
     insertedRows,
@@ -588,10 +605,7 @@ function normalizeEntry(
     totalPagesEstimate,
     listIds: parsedConfig.listIds,
     segmentIds: parsedConfig.segmentIds,
-    scopeSummary: formatScopeSummary(
-      parsedConfig.listIds.length,
-      parsedConfig.segmentIds.length,
-    ),
+    scopeSummary,
     resolvedLists,
     resolvedSegments,
     configEntries: buildConfigEntries(parsedConfig.raw),
@@ -610,8 +624,13 @@ function normalizeEntry(
     errorDetails: row.error_details,
     errorMessages,
     errorCount: errorMessages.length,
-    hasConnectionIssue: isConnectionIssue(errorMessages),
-    timeline: buildTimeline(row, batchStats, activeScopeLabel),
+    hasConnectionIssue,
+    timeline: buildTimeline(row, {
+      activeScopeLabel,
+      currentStageLabel: currentStage,
+      hasConnectionIssue,
+      selectionSummary: scopeSummary,
+    }),
     hasExplicitBatchRows: explicitBatchRows.length > 0,
     explicitBatchRows,
   };

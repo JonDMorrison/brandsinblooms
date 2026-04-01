@@ -1036,6 +1036,7 @@ export default function IntegrationDetailPage() {
             setMailchimpImportDialogMode("preview");
             setMailchimpImportDialogOpen(true);
           }}
+          onRefreshImportState={handleMailchimpImportFlowUpdated}
           onDismissImportStatusCard={handleDismissMailchimpProgressCard}
         />
         <ConnectMailchimpDialog

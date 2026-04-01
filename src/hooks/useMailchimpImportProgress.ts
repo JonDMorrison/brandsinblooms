@@ -82,8 +82,10 @@ export type MailchimpImportProgressState = {
   errorDetails: unknown;
   report: unknown;
   isRunning: boolean;
+  isPaused: boolean;
   isCompleted: boolean;
   isFailed: boolean;
+  isCancelled: boolean;
   isStale: boolean;
   lastUpdatedAt: string | null;
   loading: boolean;
@@ -110,8 +112,10 @@ function createEmptyState(
     errorDetails: null,
     report: null,
     isRunning: false,
+    isPaused: false,
     isCompleted: false,
     isFailed: false,
+    isCancelled: false,
     isStale: false,
     lastUpdatedAt: null,
     loading: false,
@@ -151,8 +155,10 @@ function mapJobToState(
     errorDetails: job.error_details,
     report: job.report,
     isRunning,
+    isPaused: status === "paused",
     isCompleted: status === "completed",
     isFailed: status === "failed",
+    isCancelled: status === "cancelled",
     isStale,
     lastUpdatedAt: job.updated_at ?? job.created_at,
     loading,
@@ -183,7 +189,7 @@ export function useMailchimpImportProgress(
       .select(IMPORT_JOB_PROGRESS_SELECT)
       .eq("tenant_id", tenant.id)
       .eq("provider", "mailchimp")
-      .in("status", ["pending", "running"])
+      .in("status", ["pending", "running", "paused"])
       .order("updated_at", { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -208,8 +214,15 @@ export function useMailchimpImportProgress(
     try {
       if (!resolvedJobId) {
         const latestRunningJob = await fetchLatestRunningJob();
+        const latestStatus = normalizeMailchimpImportStatus(
+          latestRunningJob?.status,
+        );
 
-        if (latestRunningJob && isMailchimpImportJobActivelyRunning(latestRunningJob)) {
+        if (
+          latestRunningJob &&
+          (isMailchimpImportJobActivelyRunning(latestRunningJob) ||
+            latestStatus === "paused")
+        ) {
           setDiscoveredJobId(latestRunningJob.id);
           setJob(latestRunningJob);
         } else {

@@ -229,7 +229,14 @@ function HookProbe({
   datePreset = "all",
   focusedJobId = null,
 }: {
-  statusFilter?: "all" | "pending" | "running" | "completed" | "failed";
+  statusFilter?:
+    | "all"
+    | "pending"
+    | "running"
+    | "paused"
+    | "cancelled"
+    | "completed"
+    | "failed";
   datePreset?: "7d" | "30d" | "all";
   focusedJobId?: string | null;
 }) {
@@ -246,6 +253,15 @@ function HookProbe({
       <div data-testid="first-id">{state.rows[0]?.id ?? "none"}</div>
       <div data-testid="first-list-name">
         {state.rows[0]?.resolvedLists[0]?.name ?? "none"}
+      </div>
+      <div data-testid="first-scope-summary">
+        {state.rows[0]?.scopeSummary ?? "none"}
+      </div>
+      <div data-testid="first-stage">
+        {state.rows[0]?.currentStage ?? "none"}
+      </div>
+      <div data-testid="first-error">
+        {state.rows[0]?.errorMessages[0] ?? "none"}
       </div>
       <div data-testid="first-progress">
         {state.rows[0]?.progressPercentage ?? 0}
@@ -312,6 +328,12 @@ describe("useMailchimpSyncLogs", () => {
       expect(screen.getByTestId("total-count").textContent).toBe("22");
       expect(screen.getByTestId("first-list-name").textContent).toBe(
         "Newsletter",
+      );
+      expect(screen.getByTestId("first-scope-summary").textContent).toBe(
+        "Newsletter + VIP Customers",
+      );
+      expect(screen.getByTestId("first-stage").textContent).toBe(
+        "Import completed",
       );
     });
 
@@ -416,6 +438,28 @@ describe("useMailchimpSyncLogs", () => {
 
     await waitFor(() => {
       expect(screen.getByTestId("running-progress").textContent).toBe("45");
+    });
+  });
+
+  it("maps technical Mailchimp failures into user-facing stage and error text", async () => {
+    importJobs = [
+      buildJob(1, {
+        id: "job-failed",
+        status: "failed",
+        current_stage: "Mailchimp token expired",
+        error_details: [{ message: "Mailchimp token expired" }],
+      }),
+    ];
+
+    render(<HookProbe />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("first-stage").textContent).toBe(
+        "Import needs attention",
+      );
+      expect(screen.getByTestId("first-error").textContent).toBe(
+        "Your Mailchimp connection needs to be reconnected before the import can continue.",
+      );
     });
   });
 
