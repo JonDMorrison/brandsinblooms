@@ -141,11 +141,6 @@ export function AppSidebar() {
           url: "/crm/forms",
           icon: FileInput,
         },
-        {
-          title: "Playbooks",
-          url: "/playbooks",
-          icon: BookOpen,
-        },
       ],
     },
     {
