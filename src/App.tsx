@@ -115,6 +115,7 @@ import FormsPage from "@/pages/crm/FormsPage";
 import FormEditorPage from "@/pages/crm/FormEditorPage";
 import ActivityCenterPage from "@/pages/ActivityCenterPage";
 import ActivityDetailsPage from "@/pages/ActivityDetailsPage";
+import Playbooks from "@/pages/Playbooks";
 
 // Public compliance pages
 import { SmsPage } from "@/pages/public/SmsPage";
@@ -308,6 +309,16 @@ function App() {
                 <ProtectedRoute>
                   <SidebarLayout>
                     <ActivityDetailsPage />
+                  </SidebarLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/playbooks"
+              element={
+                <ProtectedRoute>
+                  <SidebarLayout>
+                    <Playbooks />
                   </SidebarLayout>
                 </ProtectedRoute>
               }
