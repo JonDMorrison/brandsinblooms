@@ -308,6 +308,17 @@ serve(async (req) => {
             isFoundingCustomer: true,
           });
 
+          // Persist Stripe customer ID for future lookups
+          if (session.customer) {
+            const { error: custIdError } = await supabaseClient
+              .from('subscriptions')
+              .update({ stripe_customer_id: session.customer as string })
+              .eq('user_id', userId);
+            if (custIdError) {
+              logStep("Warning: Failed to persist stripe_customer_id", { error: custIdError.message });
+            }
+          }
+
           logStep("Successfully updated subscription after checkout", {
             userId,
             tenantId,

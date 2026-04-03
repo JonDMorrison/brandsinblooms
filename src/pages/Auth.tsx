@@ -50,43 +50,34 @@ const Auth = () => {
 
   const checkOnboardingAndRedirect = async (userId: string) => {
     try {
-      console.log('🔍 Auth: Checking onboarding status for user:', userId);
-      
-      // Check sticky completion flag first - if set, user has completed onboarding
-      const stickyCompleted = localStorage.getItem('onboarding-has-completed') === '1';
-      if (stickyCompleted) {
-        console.log('✅ Auth: Sticky completion flag found, going to dashboard');
+      // Check localStorage cache first
+      const cached = localStorage.getItem(`onboarding-completed:${userId}`) === '1';
+      if (cached) {
         navigate('/', { replace: true });
         return;
       }
-      
-      // Check if user has completed onboarding by looking for company profile
+
+      // Check DB for completion
       const { data: profile, error } = await supabase
         .from('company_profiles')
-        .select('id, first_content_generated')
+        .select('id, first_content_generated, onboarding_completed_at')
         .eq('user_id', userId)
         .maybeSingle();
 
       if (error && error.code !== 'PGRST116') {
-        console.error('❌ Auth: Error checking profile:', error);
-        // On error, assume they need onboarding for safety
         navigate('/onboarding', { replace: true });
         return;
       }
 
-      // If no profile exists or content not generated, they need onboarding
-      if (!profile || !profile.first_content_generated) {
-        console.log('⏳ Auth: New user needs onboarding, redirecting to onboarding');
+      const completed = !!(profile?.onboarding_completed_at || profile?.first_content_generated);
+      if (!completed) {
         navigate('/onboarding', { replace: true });
       } else {
-        console.log('✅ Auth: User has completed onboarding, going to dashboard');
-        // Set sticky flag when we discover completion
-        localStorage.setItem('onboarding-has-completed', '1');
+        localStorage.setItem(`onboarding-completed:${userId}`, '1');
         navigate('/', { replace: true });
       }
     } catch (error) {
-      console.error('❌ Auth: Error in checkOnboardingAndRedirect:', error);
-      // Default to onboarding for safety
+      console.error('Auth: Error in checkOnboardingAndRedirect:', error);
       navigate('/onboarding', { replace: true });
     }
   };

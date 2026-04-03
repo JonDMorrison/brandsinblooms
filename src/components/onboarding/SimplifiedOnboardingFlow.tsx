@@ -34,15 +34,7 @@ export const SimplifiedOnboardingFlow = ({ onComplete }: SimplifiedOnboardingFlo
   const { completeOnboarding } = useOnboardingCompletion();
   const { markAsCompleted } = useOnboardingStatus();
 
-  // Prevent any redirects while completing onboarding
-  useEffect(() => {
-    if (isCompletingOnboarding) {
-      // Store completion state in sessionStorage to survive any redirects
-      sessionStorage.setItem('onboarding-completing', 'true');
-    } else {
-      sessionStorage.removeItem('onboarding-completing');
-    }
-  }, [isCompletingOnboarding]);
+  // OnboardingGuard exempts /onboarding paths, so no handoff flag needed
 
   // No navigation logic here - OnboardingPage handles all navigation
 

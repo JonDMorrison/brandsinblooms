@@ -39,13 +39,9 @@ export const BloomSuiteDashboard = () => {
   const { data: socialConnections = [], isLoading: loadingConnections } = useConnectedAccounts();
   const { data: twilioData, isLoading: loadingTwilio } = useTwilioSetup();
 
-  // Show setup wizard for new users
-  useEffect(() => {
-    if (user && !onboardingLoading && !isCompleted && !hasEverCompleted) {
-      // Show setup wizard for first-time users automatically
-      setShowSetupWizard(true);
-    }
-  }, [user, onboardingLoading, isCompleted, hasEverCompleted]);
+  // OnboardingGuard redirects incomplete users to /onboarding,
+  // so if we reach the dashboard, onboarding is complete.
+  // The setup wizard can still be opened manually via the "Complete Your Setup" button.
 
   // Check if user should see the quick start tour
   useEffect(() => {

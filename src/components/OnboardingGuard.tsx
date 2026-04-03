@@ -15,6 +15,14 @@ const debug = (message: string, data?: any) => {
   }
 };
 
+// Routes that should never trigger an onboarding redirect
+const ONBOARDING_EXEMPT_PATHS = [
+  '/onboarding',
+  '/auth',
+  '/account-setup',
+  '/settings',
+];
+
 export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
   const { user, loading: authLoading } = useAuth();
   const onboardingStatus = useOnboardingStatus();
@@ -27,23 +35,15 @@ export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
   const hasEverCompleted = onboardingStatus?.hasEverCompleted ?? false;
   const onboardingLoading = onboardingStatus?.isLoading ?? false;
   const error = onboardingStatus?.error ?? null;
-  
-  // Use sessionStorage to persist across navigation - this prevents loading on every route change
-  const [hasCheckedOnce, setHasCheckedOnce] = useState(() => {
-    return sessionStorage.getItem('onboarding-checked') === 'true';
-  });
 
-  // Clean up stale handoff flags and reactive redirect logic
-  const inHandoff = sessionStorage.getItem('onboarding-completing') === 'true';
-  
   // Only show loading during the very first auth/onboarding check
+  const [hasCheckedOnce, setHasCheckedOnce] = useState(false);
   const shouldShowLoading = authLoading || (onboardingLoading && !hasCheckedOnce && !error);
 
   // Track when initial checks are done
   useEffect(() => {
     if (!authLoading && !onboardingLoading && !hasCheckedOnce) {
       setHasCheckedOnce(true);
-      sessionStorage.setItem('onboarding-checked', 'true');
     }
   }, [authLoading, onboardingLoading, hasCheckedOnce]);
 
@@ -58,47 +58,44 @@ export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
     } else {
       clearLoading('onboarding');
     }
-    
-    // Always clear onboarding loading on unmount
+
     return () => {
       clearLoading('onboarding');
     };
   }, [shouldShowLoading, setLoading, clearLoading]);
 
-  // Clean up stale handoff flags
+  // Redirect incomplete users to /onboarding
   useEffect(() => {
-    if (user && (isCompleted || hasEverCompleted) && inHandoff) {
-      debug('Cleaning up stale handoff flag');
-      sessionStorage.removeItem('onboarding-completing');
-    }
-  }, [user, isCompleted, hasEverCompleted, inHandoff]);
-  
-  useEffect(() => {
-    // Don't redirect during loading states or handoff
-    if (authLoading || onboardingLoading || inHandoff) {
-      debug('Skipping redirect check', { authLoading, onboardingLoading, inHandoff });
+    if (authLoading || onboardingLoading) {
+      debug('Skipping redirect check — still loading', { authLoading, onboardingLoading });
       return;
     }
-    
-    // Don't redirect if already on onboarding path
-    if (location.pathname.startsWith('/onboarding')) {
-      debug('Already on onboarding path, no redirect needed');
-      return;
-    }
-    
-    // Allow access to dashboard for all authenticated users
-    // The dashboard will show setup wizard if onboarding is incomplete
-    debug('Allowing dashboard access', { 
-      user: !!user, 
-      isCompleted, 
-      hasEverCompleted,
-      error, 
-      hasCheckedOnce,
-      pathname: location.pathname 
-    });
-  }, [user, isCompleted, hasEverCompleted, error, hasCheckedOnce, authLoading, onboardingLoading, inHandoff, location.pathname, navigate]);
 
-  // Don't render anything while loading - let GlobalLoadingOverlay handle it
+    // No user — let ProtectedRoute handle auth redirect
+    if (!user) return;
+
+    // Already on an exempt path — don't redirect
+    const isExempt = ONBOARDING_EXEMPT_PATHS.some(p => location.pathname.startsWith(p));
+    if (isExempt) {
+      debug('On exempt path, no redirect', { pathname: location.pathname });
+      return;
+    }
+
+    // If onboarding is not complete and has never been completed, redirect
+    if (!isCompleted && !hasEverCompleted && !error) {
+      debug('Onboarding incomplete — redirecting to /onboarding', {
+        isCompleted,
+        hasEverCompleted,
+        pathname: location.pathname,
+      });
+      navigate('/onboarding', { replace: true });
+      return;
+    }
+
+    debug('Onboarding complete — allowing access', { pathname: location.pathname });
+  }, [user, isCompleted, hasEverCompleted, error, authLoading, onboardingLoading, location.pathname, navigate]);
+
+  // Don't render anything while loading — let GlobalLoadingOverlay handle it
   if (shouldShowLoading) {
     return null;
   }
@@ -108,12 +105,11 @@ export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
     return <>{children}</>;
   }
 
-  // Allow dashboard access during handoff even if status hasn't updated yet
-  if (location.pathname === '/dashboard' && inHandoff) {
-    debug('Allowing dashboard access during handoff');
-    return <>{children}</>;
+  // If onboarding incomplete and not on an exempt path, render nothing (redirect is pending)
+  const isExempt = ONBOARDING_EXEMPT_PATHS.some(p => location.pathname.startsWith(p));
+  if (!isCompleted && !hasEverCompleted && !error && !isExempt) {
+    return null;
   }
 
-  // Default to allowing access - better user experience than blocking
   return <>{children}</>;
 };

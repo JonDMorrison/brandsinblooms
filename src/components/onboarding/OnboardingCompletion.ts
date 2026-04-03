@@ -83,7 +83,7 @@ export const useOnboardingCompletion = () => {
           });
         });
       
-      // Store the onboarding data in localStorage as backup
+      // Store onboarding data in localStorage for downstream consumers (Index, CompanyProfileForm, etc.)
       localStorage.setItem(`garden-center-onboarding-${userId}`, JSON.stringify(finalData));
       
       // Clear the progress since onboarding is complete
