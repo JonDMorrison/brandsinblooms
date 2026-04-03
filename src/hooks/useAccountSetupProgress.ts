@@ -22,7 +22,6 @@ export interface AccountSetupProgress {
   googleAnalyticsConnected: boolean;
   smsSetupComplete: boolean;
   firstEmailCampaignSent: boolean;
-  firstSocialPostPublished: boolean;
   firstAutomationCreated: boolean;
   customerSegmentsCreated: boolean;
   newsletterTemplateSent: boolean;
@@ -43,7 +42,6 @@ export const useAccountSetupProgress = () => {
     googleAnalyticsConnected: false,
     smsSetupComplete: false,
     firstEmailCampaignSent: false,
-    firstSocialPostPublished: false,
     firstAutomationCreated: false,
     customerSegmentsCreated: false,
     newsletterTemplateSent: false,
@@ -138,13 +136,6 @@ export const useAccountSetupProgress = () => {
         .eq('tenant_id', tenant.id)
         .eq('status', 'sent');
 
-      // Check first social post published
-      const { count: publishedPostCount } = await supabase
-        .from('content_tasks')
-        .select('id', { count: 'exact', head: true })
-        .eq('tenant_id', tenant.id)
-        .eq('status', 'published');
-
       // Check first automation created
       const { count: automationCount } = await supabase
         .from('crm_automations')
@@ -186,7 +177,6 @@ export const useAccountSetupProgress = () => {
         googleAnalyticsConnected: !!gaConnection,
         smsSetupComplete: smsComplete,
         firstEmailCampaignSent: (sentCampaignCount || 0) > 0,
-        firstSocialPostPublished: (publishedPostCount || 0) > 0,
         firstAutomationCreated: (automationCount || 0) > 0,
         customerSegmentsCreated: (segmentCount || 0) > 0,
         newsletterTemplateSent: (newsletterCount || 0) > 0,
@@ -238,7 +228,6 @@ export const useAccountSetupProgress = () => {
       { completed: progress.googleAnalyticsConnected, skipped: skippedSteps.includes('analytics') },
       { completed: progress.smsSetupComplete, skipped: skippedSteps.includes('sms') },
       { completed: progress.firstEmailCampaignSent, skipped: skippedSteps.includes('first-email') },
-      { completed: progress.firstSocialPostPublished, skipped: skippedSteps.includes('first-post') },
       { completed: progress.firstAutomationCreated, skipped: skippedSteps.includes('first-automation') },
       { completed: progress.customerSegmentsCreated, skipped: skippedSteps.includes('segments') },
       { completed: progress.newsletterTemplateSent, skipped: skippedSteps.includes('newsletter') },
