@@ -65,7 +65,7 @@ serve(async (req) => {
 
         const limits = tierLimits[plan] || tierLimits.seed;
 
-        // Update subscription in database with new tier system
+        // Update subscription in database with new tier system + persist Stripe customer ID
         const { error } = await supabaseClient
           .from('subscriptions')
           .update({
@@ -74,6 +74,7 @@ serve(async (req) => {
             billing_interval: billingInterval as 'monthly' | 'annual',
             start_date: startDate,
             end_date: endDate,
+            stripe_customer_id: session.customer as string,
             email_quota: limits.email_quota,
             sms_quota: limits.sms_quota,
             email_usage: 0, // Reset usage on new subscription

@@ -114,20 +114,38 @@ serve(async (req) => {
     const stripe = new Stripe(stripeKey, { apiVersion: "2023-10-16" });
     logStep("Stripe initialized");
 
-    // Check for existing customer
+    // Check for stored Stripe customer ID first, then fall back to email lookup
     let customerId;
     try {
-      const customers = await stripe.customers.list({ email: user.email, limit: 1 });
-      if (customers.data.length > 0) {
-        customerId = customers.data[0].id;
-        logStep("Existing customer found", { customerId });
+      const { data: sub } = await supabaseClient
+        .from('subscriptions')
+        .select('stripe_customer_id')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (sub?.stripe_customer_id) {
+        customerId = sub.stripe_customer_id;
+        logStep("Using stored Stripe customer ID", { customerId });
       } else {
-        logStep("No existing customer found");
+        const customers = await stripe.customers.list({ email: user.email, limit: 1 });
+        if (customers.data.length > 0) {
+          customerId = customers.data[0].id;
+          logStep("Existing customer found via email lookup", { customerId });
+
+          // Persist for future use
+          await supabaseClient
+            .from('subscriptions')
+            .update({ stripe_customer_id: customerId, updated_at: new Date().toISOString() })
+            .eq('user_id', user.id);
+          logStep("Saved stripe_customer_id to subscriptions");
+        } else {
+          logStep("No existing customer found");
+        }
       }
     } catch (error) {
       logStep("ERROR: Failed to check customers", { error: error.message });
-      return new Response(JSON.stringify({ 
-        error: "Payment system error. Please try again." 
+      return new Response(JSON.stringify({
+        error: "Payment system error. Please try again."
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 500,

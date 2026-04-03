@@ -4,6 +4,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 
+const CACHE_KEY_PREFIX = 'onboarding-completed:';
+
 interface OnboardingStatusContextType {
   isCompleted: boolean;
   hasEverCompleted: boolean;
@@ -29,38 +31,37 @@ interface OnboardingStatusProviderProps {
 
 export const OnboardingStatusProvider = ({ children }: OnboardingStatusProviderProps) => {
   const { user } = useAuth();
-  
-  console.log('🔍 OnboardingStatusProvider: Rendering with user:', !!user);
-  
-  // Clean up legacy global flag (once per app load)
+
+  // Single localStorage cache key: onboarding-completed:<userId>
   const [hasEverCompleted, setHasEverCompleted] = useState(false);
-  
-  // Initialize user-specific flag when user becomes available
+
+  // Initialize from cache + clean up legacy keys
   useEffect(() => {
-    // Clean up legacy global flag once
-    const legacyFlag = localStorage.getItem('onboarding-has-completed');
-    if (legacyFlag) {
-      localStorage.removeItem('onboarding-has-completed');
-    }
-    
-    // Set user-specific flag when user is available
+    // Clean up all legacy flags (one-time migration)
+    localStorage.removeItem('onboarding-has-completed');
     if (user) {
-      const userSpecificFlag = localStorage.getItem(`onboarding-has-completed:${user.id}`) === '1';
-      setHasEverCompleted(userSpecificFlag);
+      // Migrate old key format if present
+      const legacyUserFlag = localStorage.getItem(`onboarding-has-completed:${user.id}`);
+      if (legacyUserFlag === '1') {
+        localStorage.setItem(`${CACHE_KEY_PREFIX}${user.id}`, '1');
+        localStorage.removeItem(`onboarding-has-completed:${user.id}`);
+      }
+
+      const cached = localStorage.getItem(`${CACHE_KEY_PREFIX}${user.id}`) === '1';
+      setHasEverCompleted(cached);
     } else {
       setHasEverCompleted(false);
     }
   }, [user]);
 
-  // Fetch onboarding status with optimized React Query
+  // Fetch onboarding status from DB
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['onboarding_status', user?.id],
     queryFn: async () => {
       if (!user) {
         return { isCompleted: false };
       }
-      
-      // Optimized query with proper timeout handling
+
       try {
         const queryPromise = supabase
           .from('company_profiles')
@@ -70,73 +71,64 @@ export const OnboardingStatusProvider = ({ children }: OnboardingStatusProviderP
           .limit(1)
           .maybeSingle();
 
-        // Use Promise.race for proper timeout handling
-        const timeoutPromise = new Promise((_, reject) => 
+        const timeoutPromise = new Promise((_, reject) =>
           setTimeout(() => reject(new Error('Onboarding status check timed out')), 15000)
         );
 
         const result = await Promise.race([queryPromise, timeoutPromise]) as any;
-
         const { data: profile, error: dbError } = result;
 
         if (dbError && dbError.code !== 'PGRST116') {
           throw new Error(dbError.message);
         }
-        
+
         if (!profile) {
           return { isCompleted: false };
         }
-        
+
         const completed = !!(
           (profile.onboarding_completed_at && profile.company_name) ||
           profile.first_content_generated
         );
-        
+
         return { isCompleted: completed };
-      } catch (error) {
-        if (error instanceof Error && error.message.includes('timed out')) {
-          console.warn('⚠️ Onboarding check timed out, using default state');
+      } catch (err) {
+        if (err instanceof Error && err.message.includes('timed out')) {
+          console.warn('Onboarding check timed out, using default state');
           return { isCompleted: false };
         }
-        throw error;
+        throw err;
       }
     },
     enabled: !!user,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
-    staleTime: 300_000, // 5 minutes - longer cache
+    staleTime: 300_000,
     retry: 1,
-    gcTime: 300_000, // Keep in cache for 5 minutes
+    gcTime: 300_000,
   });
 
   const isCompleted = data?.isCompleted ?? false;
 
-  // Update hasEverCompleted when isCompleted becomes true (prevent infinite loop with dependency check)
+  // Sync hasEverCompleted when DB says completed
   useEffect(() => {
     if (user && isCompleted && !hasEverCompleted) {
       setHasEverCompleted(true);
-      localStorage.setItem(`onboarding-has-completed:${user.id}`, '1');
-      console.log('✅ OnboardingStatusProvider: Set hasEverCompleted to true for user:', user.id);
+      localStorage.setItem(`${CACHE_KEY_PREFIX}${user.id}`, '1');
     }
-  }, [isCompleted, user]); // Remove hasEverCompleted from deps to prevent infinite loop
+  }, [isCompleted, user]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Memoized functions to prevent re-renders
   const refreshStatus = useCallback(async () => {
-    console.log('🔄 OnboardingStatusProvider: Force refreshing status...');
     await refetch();
   }, [refetch]);
 
-  // Function to mark as completed immediately (for avoiding race conditions)
   const markAsCompleted = useCallback(() => {
     if (user) {
-      console.log('✅ OnboardingStatusProvider: Marking as completed immediately for user:', user.id);
       setHasEverCompleted(true);
-      localStorage.setItem(`onboarding-has-completed:${user.id}`, '1');
-      // Note: The query will update on next refetch
+      localStorage.setItem(`${CACHE_KEY_PREFIX}${user.id}`, '1');
     }
   }, [user]);
 
-  // Memoize the context value to prevent unnecessary re-renders
   const value = useMemo(() => ({
     isCompleted,
     hasEverCompleted,
@@ -145,8 +137,6 @@ export const OnboardingStatusProvider = ({ children }: OnboardingStatusProviderP
     refreshStatus,
     markAsCompleted
   }), [isCompleted, hasEverCompleted, isLoading, error, refreshStatus, markAsCompleted]);
-
-  console.log('🔍 OnboardingStatusProvider: Providing context value:', value);
 
   return (
     <OnboardingStatusContext.Provider value={value}>

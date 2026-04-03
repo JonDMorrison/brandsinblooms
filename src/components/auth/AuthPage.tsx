@@ -98,7 +98,7 @@ export const AuthPage = () => {
 
         if (data.user.email_confirmed_at) {
           toast.success('Account created successfully!');
-          navigate('/dashboard');
+          navigate('/onboarding');
         } else {
           toast.success('Please check your email to confirm your account');
         }

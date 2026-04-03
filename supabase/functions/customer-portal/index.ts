@@ -44,14 +44,36 @@ serve(async (req) => {
     logStep("User authenticated", { userId: user.id });
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2023-10-16" });
-    const customers = await stripe.customers.list({ email: user.email, limit: 1 });
-    
-    if (customers.data.length === 0) {
+
+    // Try stored Stripe customer ID first, fall back to email lookup
+    let customerId: string | undefined;
+
+    const { data: sub } = await supabaseClient
+      .from('subscriptions')
+      .select('stripe_customer_id')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (sub?.stripe_customer_id) {
+      customerId = sub.stripe_customer_id;
+      logStep("Using stored Stripe customer ID", { customerId });
+    } else {
+      const customers = await stripe.customers.list({ email: user.email, limit: 1 });
+      if (customers.data.length > 0) {
+        customerId = customers.data[0].id;
+        logStep("Found Stripe customer via email fallback", { customerId });
+
+        // Persist for future use
+        await supabaseClient
+          .from('subscriptions')
+          .update({ stripe_customer_id: customerId, updated_at: new Date().toISOString() })
+          .eq('user_id', user.id);
+      }
+    }
+
+    if (!customerId) {
       throw new Error("No Stripe customer found for this user. Please contact support.");
     }
-    
-    const customerId = customers.data[0].id;
-    logStep("Found Stripe customer", { customerId });
 
     const origin = req.headers.get("origin") || "http://localhost:3000";
     const portalSession = await stripe.billingPortal.sessions.create({

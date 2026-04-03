@@ -18,6 +18,14 @@ export interface AccountSetupProgress {
   posIntegrated: boolean;
   clientListImported: boolean;
   domainConfigured: boolean;
+  socialConnected: boolean;
+  googleAnalyticsConnected: boolean;
+  smsSetupComplete: boolean;
+  firstEmailCampaignSent: boolean;
+  firstSocialPostPublished: boolean;
+  firstAutomationCreated: boolean;
+  customerSegmentsCreated: boolean;
+  newsletterTemplateSent: boolean;
 }
 
 const SETUP_PROGRESS_KEY = 'bloomsuite-account-setup-progress';
@@ -31,6 +39,14 @@ export const useAccountSetupProgress = () => {
     posIntegrated: false,
     clientListImported: false,
     domainConfigured: false,
+    socialConnected: false,
+    googleAnalyticsConnected: false,
+    smsSetupComplete: false,
+    firstEmailCampaignSent: false,
+    firstSocialPostPublished: false,
+    firstAutomationCreated: false,
+    customerSegmentsCreated: false,
+    newsletterTemplateSent: false,
   });
   const [skippedSteps, setSkippedSteps] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -58,7 +74,7 @@ export const useAccountSetupProgress = () => {
       // Check company profile for colors and basic info
       const { data: profile } = await supabase
         .from('company_profiles')
-        .select('brand_primary_color, brand_secondary_color, company_name, company_overview, brand_voice')
+        .select('brand_primary_color, brand_secondary_color, company_name, company_overview, brand_voice, feature_flags')
         .eq('user_id', user.id)
         .maybeSingle();
 
@@ -95,6 +111,60 @@ export const useAccountSetupProgress = () => {
         .in('status', ['verified', 'warming_up', 'active'])
         .limit(1);
 
+      // Check social connections (Facebook or Instagram)
+      const { count: socialCount } = await supabase
+        .from('social_connections')
+        .select('id', { count: 'exact', head: true })
+        .eq('tenant_id', tenant.id)
+        .eq('is_active', true);
+
+      // Check Google Analytics connection
+      const { data: gaConnection } = await supabase
+        .from('google_analytics_settings')
+        .select('id, connection_status')
+        .eq('tenant_id', tenant.id)
+        .eq('connection_status', 'connected')
+        .limit(1)
+        .maybeSingle();
+
+      // Check SMS/Twilio setup via feature_flags
+      const smsSetup = profile?.feature_flags as Record<string, unknown> | null;
+      const smsComplete = !!(smsSetup && (smsSetup as Record<string, unknown>).sms_setup_completed === true);
+
+      // Check first email campaign sent
+      const { count: sentCampaignCount } = await supabase
+        .from('crm_campaigns')
+        .select('id', { count: 'exact', head: true })
+        .eq('tenant_id', tenant.id)
+        .eq('status', 'sent');
+
+      // Check first social post published
+      const { count: publishedPostCount } = await supabase
+        .from('content_tasks')
+        .select('id', { count: 'exact', head: true })
+        .eq('tenant_id', tenant.id)
+        .eq('status', 'published');
+
+      // Check first automation created
+      const { count: automationCount } = await supabase
+        .from('crm_automations')
+        .select('id', { count: 'exact', head: true })
+        .eq('tenant_id', tenant.id);
+
+      // Check customer segments created
+      const { count: segmentCount } = await supabase
+        .from('crm_segments')
+        .select('id', { count: 'exact', head: true })
+        .eq('tenant_id', tenant.id);
+
+      // Check newsletter sent (newsletters are crm_campaigns with type newsletter)
+      const { count: newsletterCount } = await supabase
+        .from('crm_campaigns')
+        .select('id', { count: 'exact', head: true })
+        .eq('tenant_id', tenant.id)
+        .eq('campaign_type', 'newsletter')
+        .eq('status', 'sent');
+
       // Determine completion status
       const colorsConfirmed = !!(profile?.brand_primary_color && profile?.brand_secondary_color);
       const companyProfileComplete = !!(profile?.company_name && profile?.company_overview);
@@ -112,6 +182,14 @@ export const useAccountSetupProgress = () => {
         posIntegrated,
         clientListImported,
         domainConfigured,
+        socialConnected: (socialCount || 0) > 0,
+        googleAnalyticsConnected: !!gaConnection,
+        smsSetupComplete: smsComplete,
+        firstEmailCampaignSent: (sentCampaignCount || 0) > 0,
+        firstSocialPostPublished: (publishedPostCount || 0) > 0,
+        firstAutomationCreated: (automationCount || 0) > 0,
+        customerSegmentsCreated: (segmentCount || 0) > 0,
+        newsletterTemplateSent: (newsletterCount || 0) > 0,
       });
     } catch (error) {
       console.error('Error checking setup progress:', error);
@@ -156,8 +234,16 @@ export const useAccountSetupProgress = () => {
       { completed: progress.posIntegrated, skipped: skippedSteps.includes('pos') },
       { completed: progress.clientListImported, skipped: skippedSteps.includes('clients') },
       { completed: progress.domainConfigured, skipped: skippedSteps.includes('domain') },
+      { completed: progress.socialConnected, skipped: skippedSteps.includes('social') },
+      { completed: progress.googleAnalyticsConnected, skipped: skippedSteps.includes('analytics') },
+      { completed: progress.smsSetupComplete, skipped: skippedSteps.includes('sms') },
+      { completed: progress.firstEmailCampaignSent, skipped: skippedSteps.includes('first-email') },
+      { completed: progress.firstSocialPostPublished, skipped: skippedSteps.includes('first-post') },
+      { completed: progress.firstAutomationCreated, skipped: skippedSteps.includes('first-automation') },
+      { completed: progress.customerSegmentsCreated, skipped: skippedSteps.includes('segments') },
+      { completed: progress.newsletterTemplateSent, skipped: skippedSteps.includes('newsletter') },
     ];
-    
+
     const completedOrSkipped = steps.filter(s => s.completed || s.skipped).length;
     return Math.round((completedOrSkipped / steps.length) * 100);
   }, [progress, skippedSteps]);

@@ -4,16 +4,24 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Palette, 
-  Building2, 
-  Store, 
-  Users, 
-  Globe, 
+import {
+  Palette,
+  Building2,
+  Store,
+  Users,
+  Globe,
   Rocket,
   CheckCircle2,
   ArrowRight,
-  Sparkles
+  Sparkles,
+  Share2,
+  BarChart3,
+  MessageSquare,
+  Mail,
+  Send,
+  Zap,
+  Tags,
+  Newspaper
 } from 'lucide-react';
 import { SetupStepCard } from '@/components/account-setup/SetupStepCard';
 import { SetupCelebration } from '@/components/account-setup/SetupCelebration';
@@ -42,14 +50,22 @@ const AccountSetupPage: React.FC = () => {
   const isAllComplete = completionPercentage === 100;
 
   const getCelebrationStepName = () => {
-    switch (lastCompletedStep) {
-      case 'colors': return 'Brand Colors';
-      case 'profile': return 'Company Profile';
-      case 'pos': return 'POS Integration';
-      case 'clients': return 'Client Import';
-      case 'domain': return 'Domain Setup';
-      default: return '';
-    }
+    const names: Record<string, string> = {
+      colors: 'Brand Colors',
+      profile: 'Company Profile',
+      pos: 'POS Integration',
+      clients: 'Client Import',
+      domain: 'Domain Setup',
+      social: 'Social Media',
+      analytics: 'Google Analytics',
+      sms: 'SMS Setup',
+      'first-email': 'First Email Campaign',
+      'first-post': 'First Social Post',
+      'first-automation': 'First Automation',
+      segments: 'Customer Segments',
+      newsletter: 'Newsletter',
+    };
+    return names[lastCompletedStep || ''] || '';
   };
 
   if (isLoading) {
@@ -249,13 +265,141 @@ const AccountSetupPage: React.FC = () => {
           actionLabel="Configure Domain"
         >
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm">
-            <p className="font-medium text-blue-800 mb-2">✨ One-click setup with Entri</p>
+            <p className="font-medium text-blue-800 mb-2">One-click setup with Entri</p>
             <p className="text-blue-700">
-              We partner with Entri for automatic DNS configuration. 
+              We partner with Entri for automatic DNS configuration.
               Just enter your domain and we'll handle the rest!
             </p>
           </div>
         </SetupStepCard>
+
+        {/* Step 6: Social Media Connections */}
+        <SetupStepCard
+          icon={<Share2 className="w-6 h-6" />}
+          title="Connect Social Media"
+          description="Link your Facebook and Instagram accounts for one-click posting"
+          helpText="Once connected, you can create and schedule posts directly from BloomSuite."
+          completed={progress.socialConnected}
+          skipped={skippedSteps.includes('social')}
+          expanded={expandedStep === 'social'}
+          onToggle={() => toggleStep('social')}
+          onAction={() => navigate('/social-accounts')}
+          onSkip={() => skipStep('social')}
+          onUnskip={() => unskipStep('social')}
+          actionLabel="Connect Accounts"
+        />
+
+        {/* Step 7: Google Analytics */}
+        <SetupStepCard
+          icon={<BarChart3 className="w-6 h-6" />}
+          title="Connect Google Analytics"
+          description="Track website traffic and campaign performance in one place"
+          helpText="See which campaigns drive the most traffic and conversions to your website."
+          completed={progress.googleAnalyticsConnected}
+          skipped={skippedSteps.includes('analytics')}
+          expanded={expandedStep === 'analytics'}
+          onToggle={() => toggleStep('analytics')}
+          onAction={() => navigate('/analytics')}
+          onSkip={() => skipStep('analytics')}
+          onUnskip={() => unskipStep('analytics')}
+          actionLabel="Connect Analytics"
+        />
+
+        {/* Step 8: SMS/Twilio Setup */}
+        <SetupStepCard
+          icon={<MessageSquare className="w-6 h-6" />}
+          title="Set Up SMS Messaging"
+          description="Send text message campaigns and automated SMS sequences"
+          helpText="SMS has 98% open rates — perfect for flash sales, event reminders, and time-sensitive offers."
+          completed={progress.smsSetupComplete}
+          skipped={skippedSteps.includes('sms')}
+          expanded={expandedStep === 'sms'}
+          onToggle={() => toggleStep('sms')}
+          onAction={() => navigate('/sms')}
+          onSkip={() => skipStep('sms')}
+          onUnskip={() => unskipStep('sms')}
+          actionLabel="Set Up SMS"
+        />
+
+        {/* Step 9: First Email Campaign */}
+        <SetupStepCard
+          icon={<Mail className="w-6 h-6" />}
+          title="Send Your First Email Campaign"
+          description="Create and send your first marketing email to customers"
+          helpText="Start with a simple announcement or seasonal promotion to get familiar with the campaign builder."
+          completed={progress.firstEmailCampaignSent}
+          skipped={skippedSteps.includes('first-email')}
+          expanded={expandedStep === 'first-email'}
+          onToggle={() => toggleStep('first-email')}
+          onAction={() => navigate('/crm/campaigns/new')}
+          onSkip={() => skipStep('first-email')}
+          onUnskip={() => unskipStep('first-email')}
+          actionLabel="Create Campaign"
+        />
+
+        {/* Step 10: First Social Post */}
+        <SetupStepCard
+          icon={<Send className="w-6 h-6" />}
+          title="Publish Your First Social Post"
+          description="Create and publish a post to your connected social accounts"
+          helpText="Our AI will help you write engaging content tailored to your business and audience."
+          completed={progress.firstSocialPostPublished}
+          skipped={skippedSteps.includes('first-post')}
+          expanded={expandedStep === 'first-post'}
+          onToggle={() => toggleStep('first-post')}
+          onAction={() => navigate('/publish')}
+          onSkip={() => skipStep('first-post')}
+          onUnskip={() => unskipStep('first-post')}
+          actionLabel="Create Post"
+        />
+
+        {/* Step 11: First Automation */}
+        <SetupStepCard
+          icon={<Zap className="w-6 h-6" />}
+          title="Create Your First Automation"
+          description="Set up an automated welcome email or birthday campaign"
+          helpText="Automations run 24/7 so you never miss an opportunity to engage customers."
+          completed={progress.firstAutomationCreated}
+          skipped={skippedSteps.includes('first-automation')}
+          expanded={expandedStep === 'first-automation'}
+          onToggle={() => toggleStep('first-automation')}
+          onAction={() => navigate('/crm/automations/new')}
+          onSkip={() => skipStep('first-automation')}
+          onUnskip={() => unskipStep('first-automation')}
+          actionLabel="Build Automation"
+        />
+
+        {/* Step 12: Customer Segments */}
+        <SetupStepCard
+          icon={<Tags className="w-6 h-6" />}
+          title="Create Customer Segments"
+          description="Group customers by behavior, purchase history, or demographics"
+          helpText="Targeted campaigns to specific segments perform 3-5x better than mass emails."
+          completed={progress.customerSegmentsCreated}
+          skipped={skippedSteps.includes('segments')}
+          expanded={expandedStep === 'segments'}
+          onToggle={() => toggleStep('segments')}
+          onAction={() => navigate('/crm/segments')}
+          onSkip={() => skipStep('segments')}
+          onUnskip={() => unskipStep('segments')}
+          actionLabel="Create Segment"
+        />
+
+        {/* Step 13: Newsletter */}
+        <SetupStepCard
+          icon={<Newspaper className="w-6 h-6" />}
+          title="Send Your First Newsletter"
+          description="Design and send a professional newsletter to your subscriber list"
+          helpText="Newsletters keep your brand top-of-mind and drive repeat visits to your garden center."
+          completed={progress.newsletterTemplateSent}
+          skipped={skippedSteps.includes('newsletter')}
+          expanded={expandedStep === 'newsletter'}
+          onToggle={() => toggleStep('newsletter')}
+          onAction={() => navigate('/newsletters/new')}
+          onSkip={() => skipStep('newsletter')}
+          onUnskip={() => unskipStep('newsletter')}
+          actionLabel="Create Newsletter"
+        />
       </div>
 
       {/* Bottom CTA */}
