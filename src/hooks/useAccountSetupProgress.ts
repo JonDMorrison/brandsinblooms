@@ -109,11 +109,11 @@ export const useAccountSetupProgress = () => {
         .in('status', ['verified', 'warming_up', 'active'])
         .limit(1);
 
-      // Check social connections (Facebook or Instagram)
+      // FIX: C2 - social_connections has no tenant_id column, use user_id instead
       const { count: socialCount } = await supabase
         .from('social_connections')
         .select('id', { count: 'exact', head: true })
-        .eq('tenant_id', tenant.id)
+        .eq('user_id', user.id)
         .eq('is_active', true);
 
       // Check Google Analytics connection
@@ -125,9 +125,10 @@ export const useAccountSetupProgress = () => {
         .limit(1)
         .maybeSingle();
 
-      // Check SMS/Twilio setup via feature_flags
-      const smsSetup = profile?.feature_flags as Record<string, unknown> | null;
-      const smsComplete = !!(smsSetup && (smsSetup as Record<string, unknown>).sms_setup_completed === true);
+      // FIX: M4 - Runtime validation on feature_flags JSON instead of unsafe cast
+      const flags = profile?.feature_flags;
+      const smsComplete = !!(flags && typeof flags === 'object' && !Array.isArray(flags)
+        && (flags as Record<string, unknown>).sms_setup_completed === true);
 
       // Check first email campaign sent
       const { count: sentCampaignCount } = await supabase
@@ -148,12 +149,13 @@ export const useAccountSetupProgress = () => {
         .select('id', { count: 'exact', head: true })
         .eq('tenant_id', tenant.id);
 
-      // Check newsletter sent (newsletters are crm_campaigns with type newsletter)
+      // FIX: C3 - crm_campaigns has no campaign_type column; detect newsletter by checking
+      // for any sent campaign with delivery_method = 'email' (newsletters are email campaigns)
       const { count: newsletterCount } = await supabase
         .from('crm_campaigns')
         .select('id', { count: 'exact', head: true })
         .eq('tenant_id', tenant.id)
-        .eq('campaign_type', 'newsletter')
+        .eq('delivery_method', 'email')
         .eq('status', 'sent');
 
       // Determine completion status
@@ -190,6 +192,10 @@ export const useAccountSetupProgress = () => {
 
   useEffect(() => {
     checkProgress();
+
+    // FIX: L3 - Auto-refresh every 60 seconds so checklist updates if user completes steps in other tabs
+    const interval = setInterval(checkProgress, 60_000);
+    return () => clearInterval(interval);
   }, [checkProgress]);
 
   const markStepComplete = useCallback((stepId: string) => {

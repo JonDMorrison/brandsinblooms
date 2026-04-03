@@ -15,26 +15,58 @@ interface SimplifiedOnboardingFlowProps {
   onComplete: (data: any) => void;
 }
 
+// FIX: H5 - localStorage key for persisting onboarding progress across page refreshes
+const PROGRESS_KEY_PREFIX = 'onboarding-progress:';
+
 export const SimplifiedOnboardingFlow = ({ onComplete }: SimplifiedOnboardingFlowProps) => {
   const { user } = useAuth();
-  const [currentStep, setCurrentStep] = useState(1);
-  const [websiteUrl, setWebsiteUrl] = useState('');
+
+  // FIX: H5 - Restore progress from localStorage on mount
+  const [currentStep, setCurrentStep] = useState(() => {
+    if (!user?.id) return 1;
+    try {
+      const saved = localStorage.getItem(`${PROGRESS_KEY_PREFIX}${user.id}`);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return parsed.currentStep || 1;
+      }
+    } catch { /* ignore */ }
+    return 1;
+  });
+  const [websiteUrl, setWebsiteUrl] = useState(() => {
+    if (!user?.id) return '';
+    try {
+      const saved = localStorage.getItem(`${PROGRESS_KEY_PREFIX}${user.id}`);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return parsed.websiteUrl || '';
+      }
+    } catch { /* ignore */ }
+    return '';
+  });
   const [isCompletingOnboarding, setIsCompletingOnboarding] = useState(false);
-  const [isLocationConfirmed, setIsLocationConfirmed] = useState(true); // Default true for non-location cases
-  
-  const { 
-    isAnalyzing, 
-    analysisError, 
-    extractedData, 
-    analyzeWebsite, 
-    updateExtractedData, 
-    resetAnalysis 
+  const [isLocationConfirmed, setIsLocationConfirmed] = useState(true);
+
+  const {
+    isAnalyzing,
+    analysisError,
+    extractedData,
+    analyzeWebsite,
+    updateExtractedData,
+    resetAnalysis
   } = useWebsiteAnalysis();
-  
+
   const { completeOnboarding } = useOnboardingCompletion();
   const { markAsCompleted } = useOnboardingStatus();
 
-  // OnboardingGuard exempts /onboarding paths, so no handoff flag needed
+  // FIX: H5 - Persist currentStep and websiteUrl to localStorage on change
+  useEffect(() => {
+    if (!user?.id) return;
+    localStorage.setItem(`${PROGRESS_KEY_PREFIX}${user.id}`, JSON.stringify({
+      currentStep,
+      websiteUrl,
+    }));
+  }, [currentStep, websiteUrl, user?.id]);
 
   // No navigation logic here - OnboardingPage handles all navigation
 
@@ -54,7 +86,8 @@ export const SimplifiedOnboardingFlow = ({ onComplete }: SimplifiedOnboardingFlo
   };
 
   const handleComplete = async () => {
-    if (!extractedData || !websiteUrl || !user || !isLocationConfirmed) return;
+    // FIX: H4 - Add isCompletingOnboarding to early return guard to prevent double-submit
+    if (!extractedData || !websiteUrl || !user || !isLocationConfirmed || isCompletingOnboarding) return;
     
     try {
       setIsCompletingOnboarding(true);
@@ -78,8 +111,9 @@ export const SimplifiedOnboardingFlow = ({ onComplete }: SimplifiedOnboardingFlo
         websiteUrl: websiteUrl
       };
       
-      // Clear progress
+      // FIX: H5 - Clear persisted progress on completion
       if (user) {
+        localStorage.removeItem(`${PROGRESS_KEY_PREFIX}${user.id}`);
         localStorage.removeItem(`onboarding-progress-${user.id}`);
       }
       

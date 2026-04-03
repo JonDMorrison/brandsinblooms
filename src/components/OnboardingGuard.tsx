@@ -15,12 +15,19 @@ const debug = (message: string, data?: any) => {
   }
 };
 
-// Routes that should never trigger an onboarding redirect
+// FIX: C1 - Add OAuth/integration callback paths to prevent losing OAuth state during onboarding
 const ONBOARDING_EXEMPT_PATHS = [
   '/onboarding',
   '/auth',
+  '/auth/callback',
   '/account-setup',
   '/settings',
+  '/oauth/callback',
+  '/integrations/lightspeed/callback',
+  '/integrations/square/callback',
+  '/integrations/clover/callback',
+  '/integrations/mailchimp/callback',
+  '/integrations/constant-contact/callback',
 ];
 
 export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
@@ -74,8 +81,9 @@ export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
     // No user — let ProtectedRoute handle auth redirect
     if (!user) return;
 
-    // Already on an exempt path — don't redirect
-    const isExempt = ONBOARDING_EXEMPT_PATHS.some(p => location.pathname.startsWith(p));
+    // FIX: C1 - Also exempt any path containing /callback (wildcard catch-all for OAuth)
+    const isExempt = ONBOARDING_EXEMPT_PATHS.some(p => location.pathname.startsWith(p))
+      || location.pathname.includes('/callback');
     if (isExempt) {
       debug('On exempt path, no redirect', { pathname: location.pathname });
       return;
@@ -106,7 +114,9 @@ export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
   }
 
   // If onboarding incomplete and not on an exempt path, render nothing (redirect is pending)
-  const isExempt = ONBOARDING_EXEMPT_PATHS.some(p => location.pathname.startsWith(p));
+  // FIX: C1 - Match wildcard callback check from redirect logic
+  const isExempt = ONBOARDING_EXEMPT_PATHS.some(p => location.pathname.startsWith(p))
+    || location.pathname.includes('/callback');
   if (!isCompleted && !hasEverCompleted && !error && !isExempt) {
     return null;
   }

@@ -11,7 +11,6 @@ import {
   Loader2,
   CheckCircle,
   Bookmark,
-  RefreshCw,
   FileText,
   Mail,
   Share2,
@@ -43,8 +42,8 @@ const OnboardingPage = () => {
   const { user, loading } = useAuth();
   const {
     isCompleted,
+    hasEverCompleted,
     isLoading: onboardingLoading,
-    markAsCompleted,
     refreshStatus,
   } = useOnboardingStatus();
   const navigate = useNavigate();
@@ -52,6 +51,8 @@ const OnboardingPage = () => {
   const [step, setStep] = useState<OnboardingStep>("flow");
   const [generatedContent, setGeneratedContent] = useState<ContentPreviewItem[]>([]);
   const [pollAttempts, setPollAttempts] = useState(0);
+  // FIX: M3 - Track whether content poll timed out so we can show a message
+  const [contentTimedOut, setContentTimedOut] = useState(false);
   const MAX_POLL_ATTEMPTS = 20; // ~60 seconds at 3s intervals
 
   useEffect(() => {
@@ -60,22 +61,36 @@ const OnboardingPage = () => {
     }
   }, [user, loading, navigate]);
 
-  // Redirect to dashboard if onboarding is already complete and we're still on "flow"
+  // FIX: M2 - Redirect completed users to dashboard (also catches manual /onboarding visits via hasEverCompleted)
   useEffect(() => {
-    if (!loading && !onboardingLoading && user && isCompleted && step === "flow") {
+    if (!loading && !onboardingLoading && user && (isCompleted || hasEverCompleted) && step === "flow") {
       navigate("/dashboard", { replace: true });
     }
-  }, [user, loading, onboardingLoading, isCompleted, navigate, step]);
+  }, [user, loading, onboardingLoading, isCompleted, hasEverCompleted, navigate, step]);
 
-  // Poll for generated content when in "generating" step
+  // FIX: H1 - Add tenant_id filter for defense-in-depth isolation
   const pollForContent = useCallback(async () => {
     if (!user) return;
 
     try {
-      const { data: tasks, error } = await supabase
+      // Look up tenant_id from the user's profile for proper scoping
+      const { data: profileData } = await supabase
+        .from("users")
+        .select("tenant_id")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      let query = supabase
         .from("content_tasks")
         .select("id, post_type, title, content, status")
-        .eq("user_id", user.id)
+        .eq("user_id", user.id);
+
+      // FIX: H1 - Scope to tenant if available
+      if (profileData?.tenant_id) {
+        query = query.eq("tenant_id", profileData.tenant_id);
+      }
+
+      const { data: tasks, error } = await query
         .order("created_at", { ascending: false })
         .limit(10);
 
@@ -111,8 +126,9 @@ const OnboardingPage = () => {
       setPollAttempts((prev) => {
         const next = prev + 1;
         if (next >= MAX_POLL_ATTEMPTS) {
-          // Timeout — skip preview and go to complete
+          // FIX: M3 - Mark timeout so completion screen shows appropriate message
           clearInterval(interval);
+          setContentTimedOut(true);
           setStep("complete");
           return next;
         }
@@ -135,8 +151,13 @@ const OnboardingPage = () => {
         `garden-center-onboarding-${user.id}`,
         JSON.stringify(data)
       );
-      markAsCompleted();
+
+      // FIX: H2 - Do NOT call markAsCompleted() here (sets localStorage before DB write).
+      // The background CompanyProfileCreator calls finalize-onboarding which sets the DB flag.
+      // OnboardingStatusContext will pick it up on next refetch. We only set the cache
+      // after refreshStatus confirms DB completion.
       await refreshStatus();
+      // If DB says complete after refresh, the context auto-sets localStorage (line 114-118 in OnboardingStatusContext)
 
       // Move to generating step — content is being created in the background
       setStep("generating");
@@ -306,6 +327,12 @@ const OnboardingPage = () => {
               where to go.
             </p>
           </div>
+          {/* FIX: M3 - Show timeout message when content generation is still running */}
+          {contentTimedOut && (
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
+              Your content is still being generated — check your content library in a few minutes.
+            </div>
+          )}
           <Button
             className="w-full"
             onClick={() => {

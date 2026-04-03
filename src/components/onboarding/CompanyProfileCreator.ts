@@ -9,8 +9,21 @@ export const createCompanyProfileFromOnboarding = async (onboardingData: any, us
     // STEP 1: Clean up any existing duplicate profiles before proceeding
     console.log('🧹 STEP 1: Cleaning up existing duplicate profiles...');
     try {
+      // FIX: H3 - Check if a completed profile exists; if so, skip cleanup entirely
+      const { data: completedCheck } = await supabase
+        .from('company_profiles')
+        .select('id, onboarding_completed_at')
+        .eq('user_id', userId)
+        .not('onboarding_completed_at', 'is', null)
+        .limit(1)
+        .maybeSingle();
+
+      if (completedCheck) {
+        console.log('✅ STEP 1: Completed profile exists, skipping cleanup');
+      }
+
       // Delete duplicate profiles, keeping only the most recent one
-      const { data: existingProfiles, error: fetchError } = await supabase
+      const { data: existingProfiles, error: fetchError } = completedCheck ? { data: null, error: null } : await supabase
         .from('company_profiles')
         .select('id, created_at')
         .eq('user_id', userId)
@@ -187,12 +200,11 @@ export const createCompanyProfileFromOnboarding = async (onboardingData: any, us
       if (existingProfile) {
         // Update existing profile - DO NOT set onboarding_completed_at here
         console.log('🔄 Updating existing profile:', existingProfile.id);
+        // FIX: C4 - Do NOT set first_content_generated here; set it after Step 6 content generation succeeds
         const { data: updatedProfile, error: updateError } = await supabase
           .from('company_profiles')
           .update({
             ...profileData,
-            first_content_generated: true,
-            // onboarding_completed_at is set by finalize-onboarding edge function
             updated_at: new Date().toISOString()
           })
           .eq('user_id', userId)
@@ -210,13 +222,12 @@ export const createCompanyProfileFromOnboarding = async (onboardingData: any, us
         // Create new profile - DO NOT set onboarding_completed_at here
         console.log('🆕 Creating new profile');
         
+        // FIX: C4 - Do NOT set first_content_generated here; set it after Step 6 content generation succeeds
         const { data: newProfile, error: insertError } = await supabase
           .from('company_profiles')
           .insert({
             user_id: userId,
-            ...profileData,
-            first_content_generated: true
-            // onboarding_completed_at is set by finalize-onboarding edge function
+            ...profileData
           })
           .select()
           .single();
@@ -341,7 +352,7 @@ export const createCompanyProfileFromOnboarding = async (onboardingData: any, us
         );
         
         console.log('🎉 IMMEDIATE CONTENT GENERATED! User will see ready content on dashboard');
-        
+
         // Verify content was created
         const { data: verifyContent, error: verifyError } = await supabase
           .from('content_tasks')
@@ -354,6 +365,17 @@ export const createCompanyProfileFromOnboarding = async (onboardingData: any, us
         } else {
           console.log('✅ Content verification - Generated tasks:', verifyContent?.length || 0, 'for tenant:', tenant.id);
         }
+      }
+
+      // FIX: C4 - Set first_content_generated ONLY after content generation succeeds
+      const { error: flagError } = await supabase
+        .from('company_profiles')
+        .update({ first_content_generated: true })
+        .eq('user_id', userId);
+      if (flagError) {
+        console.error('⚠️ Error setting first_content_generated:', flagError);
+      } else {
+        console.log('✅ first_content_generated set to true after successful content generation');
       }
       
     } catch (contentError) {
