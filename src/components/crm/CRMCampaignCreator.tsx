@@ -4713,6 +4713,10 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         padding-right: 0 !important;
         padding-bottom: 20px !important;
       }
+      .mobile-full-width img {
+        width: 100% !important;
+        height: auto !important;
+      }
       .mobile-stack table,
       .mobile-stack tbody,
       .mobile-stack tr,
@@ -4724,6 +4728,17 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         padding-left: 0 !important;
         padding-right: 0 !important;
         padding-bottom: 20px !important;
+      }
+      /* Footer three-column to single-column stacking on mobile */
+      .footer-column {
+        display: block !important;
+        width: 100% !important;
+        text-align: center !important;
+        padding: 12px 8px !important;
+      }
+      .footer-social {
+        text-align: center !important;
+        margin-top: 16px !important;
       }
       .cta-button {
         width: auto !important;
@@ -5132,18 +5147,18 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                       ${
                         isImgLeft
                           ? `
-                        <td width="50%" style="padding-right: 20px; vertical-align: top;" class="mobile-full-width mobile-stack">
+                        <td width="50%" style="display: inline-block; vertical-align: top; width: 50%; padding-right: 20px;" class="mobile-full-width mobile-stack">
                           ${imgTcImageHtml}
                         </td>
-                        <td width="50%" style="padding-left: 20px; vertical-align: top; text-align: left;" class="mobile-full-width mobile-stack">
+                        <td width="50%" style="display: inline-block; vertical-align: top; width: 50%; padding-left: 20px; text-align: left;" class="mobile-full-width mobile-stack">
                           ${imgTcTextContentHtml}
                         </td>
                       `
                           : `
-                        <td width="50%" style="padding-right: 20px; vertical-align: top; text-align: left;" class="mobile-full-width mobile-stack">
+                        <td width="50%" style="display: inline-block; vertical-align: top; width: 50%; padding-right: 20px; text-align: left;" class="mobile-full-width mobile-stack">
                           ${imgTcTextContentHtml}
                         </td>
-                        <td width="50%" style="padding-left: 20px; vertical-align: top;" class="mobile-full-width mobile-stack">
+                        <td width="50%" style="display: inline-block; vertical-align: top; width: 50%; padding-left: 20px;" class="mobile-full-width mobile-stack">
                           ${imgTcImageHtml}
                         </td>
                       `
@@ -5390,18 +5405,18 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                     ${
                       isImageLeft
                         ? `
-                      <td width="50%" style="padding-right: 20px; vertical-align: top;" class="mobile-full-width mobile-stack">
+                      <td width="50%" style="display: inline-block; vertical-align: top; width: 50%; padding-right: 20px;" class="mobile-full-width mobile-stack">
                         ${imageCellHtml}
                       </td>
-                      <td width="50%" style="padding-left: 20px; vertical-align: top; text-align: left;" class="mobile-full-width mobile-stack">
+                      <td width="50%" style="display: inline-block; vertical-align: top; width: 50%; padding-left: 20px; text-align: left;" class="mobile-full-width mobile-stack">
                         ${textContentHtml}
                       </td>
                     `
                         : `
-                      <td width="50%" style="padding-right: 20px; vertical-align: top; text-align: left;" class="mobile-full-width mobile-stack">
+                      <td width="50%" style="display: inline-block; vertical-align: top; width: 50%; padding-right: 20px; text-align: left;" class="mobile-full-width mobile-stack">
                         ${textContentHtml}
                       </td>
-                      <td width="50%" style="padding-left: 20px; vertical-align: top;" class="mobile-full-width mobile-stack">
+                      <td width="50%" style="display: inline-block; vertical-align: top; width: 50%; padding-left: 20px;" class="mobile-full-width mobile-stack">
                         ${imageCellHtml}
                       </td>
                     `

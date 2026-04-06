@@ -166,24 +166,24 @@ export function generateNewsletterFooterHtml(props: NewsletterFooterProps, appBa
         <td width="33%" valign="top" style="padding: 0 8px;">
         <![endif]-->
         
-        <!-- Three Column Layout for Desktop -->
+        <!-- Three Column Layout for Desktop, stacks on mobile via footer-column class -->
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse: collapse;">
           <tr>
             <!-- Left Column: Logo & Brand -->
-            <td width="33%" valign="top" style="padding: 0 8px; text-align: left;">
+            <td width="33%" valign="top" class="footer-column" style="display: inline-block; vertical-align: top; padding: 0 8px; text-align: left; width: 33%;">
               ${buildLogoHtml(props, styles)}
               ${props.companyName ? `<div style="font-size: 14px; font-weight: 500; color: ${styles.textPrimary}; margin-bottom: 4px;">${props.companyName}</div>` : ''}
               ${props.websiteUrl ? `<a href="${props.websiteUrl}" style="font-size: 12px; color: ${styles.textMuted}; text-decoration: none;">${props.websiteUrl.replace(/^https?:\/\//, '')}</a>` : ''}
             </td>
-            
+
             <!-- Middle Column: Address & Contact -->
-            <td width="34%" valign="top" style="padding: 0 8px; text-align: left;">
+            <td width="34%" valign="top" class="footer-column" style="display: inline-block; vertical-align: top; padding: 0 8px; text-align: left; width: 34%;">
               ${hasAddress ? buildAddressHtml(props, styles) : ''}
               ${hasContact ? buildContactHtml(props, styles) : ''}
             </td>
-            
+
             <!-- Right Column: Social Icons -->
-            <td width="33%" valign="top" style="padding: 0 8px; text-align: right;">
+            <td width="33%" valign="top" class="footer-column footer-social" style="display: inline-block; vertical-align: top; padding: 0 8px; text-align: right; width: 33%;">
               ${hasSocial ? buildSocialIconsHtml(props, baseUrl) : ''}
             </td>
           </tr>
