@@ -85,6 +85,13 @@ export const TestSendModal: React.FC<TestSendModalProps> = ({
       return;
     }
 
+    // Validate email format before sending to edge function
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(toEmail.trim())) {
+      toast.error('Please enter a valid email address');
+      return;
+    }
+
     setIsSending(true);
     setLastResult(null);
 

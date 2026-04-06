@@ -10,7 +10,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { sendCampaignTestEmail, isValidEmail } from "@/lib/sendTestEmail";
+import { isValidEmail } from "@/lib/sendTestEmail";
+import { supabase } from "@/integrations/supabase/client";
 import { useCompanyInfo } from "@/hooks/useCompanyInfo";
 import { useFooterSettings } from "@/hooks/useFooterSettings";
 import { generateNewsletterFooterHtml } from "@/utils/newsletterFooterHtml";
@@ -186,34 +187,42 @@ export const FullEmailPreview: React.FC<FullEmailPreviewProps> = ({
     setSendingTest(true);
 
     try {
-      // IMPORTANT: Send raw content WITHOUT footer - the server-side edge function
-      // will strip any existing footer and add the canonical server footer.
-      // This prevents double footers in sent emails.
-      const result = await sendCampaignTestEmail({
-        email,
-        subject: subject || "Test Email Campaign",
-        content: content, // Use RAW content - server adds footer
-        campaignId: campaignId,
+      // Use send-test-email-v2 for full personalization and merge tag support
+      const { data, error } = await supabase.functions.invoke('send-test-email-v2', {
+        body: {
+          toEmail: email,
+          subject: subject || "Test Email Campaign",
+          html: content, // Raw content — server adds footer and resolves merge tags
+          campaignId: campaignId,
+          sampleCustomer: {
+            first_name: 'Jane',
+            last_name: 'Gardener',
+            email: 'jane@example.com',
+            phone: '(555) 123-4567',
+          },
+        },
       });
 
-      if (result.success) {
+      if (error) throw error;
+
+      if (data?.success) {
         toast({
           title: "Test Email Sent!",
-          description: result.message,
+          description: `Test email sent to ${email}`,
         });
         setTestEmail("");
       } else {
         toast({
           title: "Failed to Send Test Email",
-          description: result.message,
+          description: data?.error || "Unknown error",
           variant: "destructive",
         });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error sending test email:", error);
       toast({
         title: "Error",
-        description: "An unexpected error occurred. Please try again.",
+        description: error?.message || "An unexpected error occurred. Please try again.",
         variant: "destructive",
       });
     } finally {

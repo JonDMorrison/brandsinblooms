@@ -1,14 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { sendCampaignTestEmail, isValidEmail } from '@/lib/sendTestEmail';
-import { 
-  Monitor, 
-  Smartphone, 
-  Send, 
+import { isValidEmail } from '@/lib/sendTestEmail';
+import { supabase } from '@/integrations/supabase/client';
+import { useCompanyInfo } from '@/hooks/useCompanyInfo';
+import { useFooterSettings } from '@/hooks/useFooterSettings';
+import { generateNewsletterFooterHtml } from '@/utils/newsletterFooterHtml';
+import {
+  Monitor,
+  Smartphone,
+  Send,
   Loader2,
   Mail
 } from 'lucide-react';
@@ -29,13 +33,73 @@ export const EmailPreview: React.FC<EmailPreviewProps> = ({
   campaignId
 }) => {
   const { toast } = useToast();
+  const { companyInfo } = useCompanyInfo();
+  const { footerSettings, campaignOverrides } = useFooterSettings(campaignId);
   const [viewMode, setViewMode] = useState<'desktop' | 'mobile'>('desktop');
   const [testEmail, setTestEmail] = useState('');
   const [sendingTest, setSendingTest] = useState(false);
 
+  // Generate complete email HTML with footer (matches FullEmailPreview logic)
+  const completeEmailHtml = useMemo(() => {
+    const hasUnsubscribe = content.toLowerCase().includes('unsubscribe');
+    const hasFooterStructure = content.includes('Manage Preferences') || content.includes('margin-top: 40px') || content.includes('max-width: 640px');
+    const hasSocialIcons = content.includes('social-icons/');
+    const hasFooter = hasUnsubscribe && (hasFooterStructure || hasSocialIcons);
+
+    if (hasFooter) return content;
+
+    const footerStyling = campaignOverrides?.footerStyling;
+    const brandFooterColors = companyInfo?.brandFooterColors;
+
+    const effectiveColors = {
+      backgroundColor: footerStyling?.backgroundColor || brandFooterColors?.backgroundColor || companyInfo?.brandPrimaryColor || '#283024',
+      textColor: footerStyling?.textColor || brandFooterColors?.textColor || '#F3F4F6',
+      linkColor: footerStyling?.linkColor || brandFooterColors?.linkColor || '#E5BFA7',
+      dividerColor: footerStyling?.dividerColor || brandFooterColors?.dividerColor || '#3D4A38',
+      logoBackgroundColor: footerStyling?.logoBackgroundColor || brandFooterColors?.logoBackgroundColor || '#22C55E',
+      logoTextColor: footerStyling?.logoTextColor || brandFooterColors?.logoTextColor || '#FFFFFF',
+    };
+
+    const footerHtml = generateNewsletterFooterHtml({
+      logoUrl: companyInfo?.logoUrl,
+      companyName: companyInfo?.name,
+      addressLine1: companyInfo?.streetAddress,
+      city: companyInfo?.city,
+      region: companyInfo?.stateProvince,
+      postalCode: companyInfo?.postalCode,
+      country: companyInfo?.country,
+      websiteUrl: companyInfo?.websiteUrl,
+      email: companyInfo?.email,
+      phone: companyInfo?.phone,
+      facebookUrl: companyInfo?.facebookUrl,
+      instagramUrl: companyInfo?.instagramUrl,
+      tiktokUrl: companyInfo?.tiktokUrl,
+      pinterestUrl: companyInfo?.pinterestUrl,
+      youtubeUrl: companyInfo?.youtubeUrl,
+      linkedinUrl: companyInfo?.linkedinUrl,
+      unsubscribeUrl: '#unsubscribe',
+      managePreferencesUrl: '#preferences',
+      legalText: companyInfo?.footerLegalText || footerSettings?.complianceText,
+      footerBackgroundColor: effectiveColors.backgroundColor,
+      footerTextColor: effectiveColors.textColor,
+      footerLinkColor: effectiveColors.linkColor,
+      footerDividerColor: effectiveColors.dividerColor,
+      footerLogoBackgroundColor: effectiveColors.logoBackgroundColor,
+      footerLogoTextColor: effectiveColors.logoTextColor,
+      brandPrimaryColor: companyInfo?.brandPrimaryColor,
+    });
+
+    if (content.includes('</body>')) {
+      return content.replace('</body>', `${footerHtml}</body>`);
+    } else if (content.includes('</html>')) {
+      return content.replace('</html>', `${footerHtml}</html>`);
+    }
+    return `${content}${footerHtml}`;
+  }, [content, companyInfo, footerSettings, campaignOverrides]);
+
   const sendTestEmail = async () => {
     const email = testEmail.trim();
-    
+
     if (!email) {
       toast({
         title: "Email Required",
@@ -55,33 +119,44 @@ export const EmailPreview: React.FC<EmailPreviewProps> = ({
     }
 
     setSendingTest(true);
-    
+
     try {
-      const result = await sendCampaignTestEmail({
-        email,
-        subject: subject || 'Test Email Campaign',
-        content: content,
-        campaignId: campaignId
+      // Use send-test-email-v2 for full personalization and merge tag support
+      const { data, error } = await supabase.functions.invoke('send-test-email-v2', {
+        body: {
+          toEmail: email,
+          subject: subject || 'Test Email Campaign',
+          html: content, // Raw content — server adds footer
+          campaignId,
+          sampleCustomer: {
+            first_name: 'Jane',
+            last_name: 'Gardener',
+            email: 'jane@example.com',
+            phone: '(555) 123-4567',
+          },
+        },
       });
 
-      if (result.success) {
+      if (error) throw error;
+
+      if (data?.success) {
         toast({
           title: "Test Email Sent!",
-          description: result.message
+          description: `Test email sent to ${email}`
         });
         setTestEmail('');
       } else {
         toast({
           title: "Failed to Send Test Email",
-          description: result.message,
+          description: data?.error || 'Unknown error',
           variant: "destructive"
         });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error sending test email:', error);
       toast({
         title: "Error",
-        description: "An unexpected error occurred. Please try again.",
+        description: error?.message || "An unexpected error occurred. Please try again.",
         variant: "destructive"
       });
     } finally {
@@ -173,7 +248,7 @@ export const EmailPreview: React.FC<EmailPreviewProps> = ({
                 }}
               >
                 <iframe
-                  srcDoc={content}
+                  srcDoc={completeEmailHtml}
                   className="w-full h-full border-0"
                   style={{ 
                     minHeight: '600px',
