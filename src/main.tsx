@@ -22,11 +22,8 @@ import { logDevError, logPromiseRejection } from '@/utils/devErrorLogger'
 // initUptrace() // TEMPORARILY DISABLED
 
 // Global error handlers for enhanced debugging visibility
-const isDev = import.meta.env.DEV || 
-  (typeof window !== 'undefined' && (
-    window.location.hostname.includes('lovableproject.com') ||
-    window.location.hostname === 'localhost'
-  ));
+const isDev = import.meta.env.DEV ||
+  (typeof window !== 'undefined' && window.location.hostname === 'localhost');
 
 if (isDev) {
   // Catch uncaught errors

@@ -39,9 +39,7 @@ const notifyListeners = () => {
 const generateId = () => Math.random().toString(36).substring(2, 10);
 
 const isDev = () => {
-  return import.meta.env.DEV || 
-         window.location.hostname.includes('lovableproject.com') ||
-         window.location.hostname === 'localhost';
+  return import.meta.env.DEV || window.location.hostname === 'localhost';
 };
 
 /**

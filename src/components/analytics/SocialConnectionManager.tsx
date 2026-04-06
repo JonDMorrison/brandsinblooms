@@ -149,9 +149,7 @@ export const SocialConnectionManager = () => {
         redirectUri,
         origin: window.location.origin,
         hostname: window.location.hostname,
-        environment: window.location.hostname.includes('localhost') ||
-                     window.location.hostname.includes('lovableproject.com') ||
-                     window.location.hostname.includes('lovable.app')
+        environment: window.location.hostname.includes('localhost')
                      ? 'development'
                      : 'production',
         timestamp: new Date().toISOString()

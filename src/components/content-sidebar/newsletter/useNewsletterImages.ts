@@ -179,7 +179,7 @@ export const useNewsletterImages = (
 
         console.log(`🎨 Generating ${imageRequests.length} AI images in parallel`);
 
-        // Generate all images in parallel using Lovable AI
+        // Generate all images in parallel using AI
         const imagePromises = imageRequests.map(async (request) => {
           try {
             const { data, error } = await supabase.functions.invoke('generate-ai-image', {

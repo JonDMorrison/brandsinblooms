@@ -36,8 +36,8 @@ export const testOAuthSetup = async (): Promise<{
     info.redirectUri = `${currentDomain}/auth/callback`;
     
     if (currentDomain.includes('localhost')) {
-      errors.push('Running on localhost - Facebook OAuth will not work. Use the Lovable preview domain instead.');
-    } else if (!currentDomain.includes('lovable.app') && !currentDomain.includes('brandsinblooms.com')) {
+      errors.push('Running on localhost - Facebook OAuth will not work. Deploy to production first.');
+    } else if (!currentDomain.includes('bloomsuite.app') && !currentDomain.includes('brandsinblooms.com')) {
       warnings.push(`Unknown domain: ${currentDomain}. Make sure this is whitelisted in Facebook app settings.`);
     }
 
@@ -119,6 +119,6 @@ export const getTestRedirectUri = (): string => {
  */
 export const isOAuthTestEnvironment = (): boolean => {
   const origin = window.location.origin;
-  return !origin.includes('localhost') && 
-         (origin.includes('lovable.app') || origin.includes('brandsinblooms.com'));
+  return !origin.includes('localhost') &&
+         (origin.includes('bloomsuite.app') || origin.includes('brandsinblooms.com'));
 };

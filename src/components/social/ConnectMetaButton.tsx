@@ -128,8 +128,7 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
       const currentOrigin = window.location.origin;
       const currentHostname = window.location.hostname;
       const isDev = currentHostname.includes('localhost') || 
-                    currentHostname.includes('lovableproject.com') || 
-                    currentHostname.includes('lovable.app');
+                    currentHostname.includes('localhost');
       
       console.log('🌍 Environment Detection:', {
         origin: currentOrigin,
@@ -288,8 +287,7 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
         {/* Development Diagnostics Panel */}
         {(() => {
           const isDevelopment = window.location.hostname.includes('localhost') || 
-                               window.location.hostname.includes('lovableproject.com') || 
-                               window.location.hostname.includes('lovable.app');
+                               window.location.hostname.includes('localhost');
           
           const diagnosticsInfo = {
             origin: window.location.origin,
@@ -329,9 +327,7 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
                   {oauthError}
                 </p>
                 {(() => {
-                  const isDevelopment = window.location.hostname.includes('localhost') || 
-                                       window.location.hostname.includes('lovableproject.com') || 
-                                       window.location.hostname.includes('lovable.app');
+                  const isDevelopment = window.location.hostname.includes('localhost');
                   
                   return isDevelopment ? (
                     <p className="text-xs text-yellow-700 dark:text-yellow-300 mb-3">

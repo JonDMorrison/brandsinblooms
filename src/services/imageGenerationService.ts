@@ -48,7 +48,7 @@ export interface ImageGenerationResult {
 export class ImageGenerationService {
   
   /**
-   * Fetch optimized image for specific channel using Lovable AI
+   * Fetch optimized image for specific channel using AI generation
    */
   async fetchImageForChannel(request: ChannelImageRequest): Promise<ImageGenerationResult> {
     console.log(`🎨 Generating AI image for ${request.channel}:`, request.contentTitle || request.contentContext.substring(0, 50));
