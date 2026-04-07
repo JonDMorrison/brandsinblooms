@@ -83,14 +83,14 @@ export const TenantTable = ({
     return <Badge variant="destructive">Expired</Badge>;
   };
 
-  // Dates near Unix epoch (1970) mean "no data" — the DB uses epoch as a COALESCE fallback
-  const isEpochFallback = (dateStr: string | null): boolean => {
+  // Treat null or epoch-era dates as "no activity"
+  const hasNoActivity = (dateStr: string | null): boolean => {
     if (!dateStr) return true;
     return new Date(dateStr).getFullYear() < 2000;
   };
 
   const getActivityDot = (lastActivity: string | null) => {
-    if (isEpochFallback(lastActivity))
+    if (hasNoActivity(lastActivity))
       return <div className="w-2 h-2 rounded-full bg-gray-400" />;
 
     const hoursAgo =
@@ -161,6 +161,7 @@ export const TenantTable = ({
             <TableRow
               key={tenant.tenant_id}
               className="cursor-pointer hover:bg-muted/50"
+              onClick={() => onViewTenant(tenant)}
             >
               <TableCell>
                 <div className="font-medium">
@@ -186,6 +187,7 @@ export const TenantTable = ({
                   <a
                     href={`mailto:${tenant.primary_contact_email}`}
                     className="text-sm text-muted-foreground hover:text-primary"
+                    onClick={(e) => e.stopPropagation()}
                   >
                     {tenant.primary_contact_email}
                   </a>
@@ -227,7 +229,7 @@ export const TenantTable = ({
                 <div className="flex items-center gap-2">
                   {getActivityDot(tenant.last_activity_at)}
                   <span className="text-sm">
-                    {!isEpochFallback(tenant.last_activity_at)
+                    {!hasNoActivity(tenant.last_activity_at)
                       ? formatDistanceToNow(new Date(tenant.last_activity_at!)) +
                         " ago"
                       : "Never"}
@@ -239,7 +241,7 @@ export const TenantTable = ({
                 {format(new Date(tenant.tenant_created_at), "MMM d, yyyy")}
               </TableCell>
 
-              <TableCell>
+              <TableCell onClick={(e) => e.stopPropagation()}>
                 <Popover
                   open={openPopovers.has(tenant.tenant_id)}
                   onOpenChange={(open) => {
