@@ -57,28 +57,29 @@ export const DividerBlockEditor: React.FC<DividerBlockEditorProps> = ({
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <Label htmlFor="divider-margin">Margin</Label>
+          <Label htmlFor="divider-thickness">Thickness</Label>
           <NativeSelect
-            value={block.margin || 'medium'}
-            onChange={(e) => onUpdate({ margin: e.target.value as any })}
+            value={String(block.dividerThickness || 1)}
+            onChange={(e) => onUpdate({ dividerThickness: Number(e.target.value) })}
             options={[
-              { value: 'none', label: 'None' },
-              { value: 'small', label: 'Small' },
-              { value: 'medium', label: 'Medium' },
-              { value: 'large', label: 'Large' }
+              { value: '1', label: '1px' },
+              { value: '2', label: '2px' },
+              { value: '3', label: '3px' },
+              { value: '4', label: '4px' }
             ]}
           />
         </div>
 
         <div>
-          <Label htmlFor="divider-alignment">Alignment</Label>
+          <Label htmlFor="divider-margin">Spacing</Label>
           <NativeSelect
-            value={block.alignment || 'center'}
-            onChange={(e) => onUpdate({ alignment: e.target.value as any })}
+            value={block.margin || 'medium'}
+            onChange={(e) => onUpdate({ margin: e.target.value as any })}
             options={[
-              { value: 'left', label: 'Left' },
-              { value: 'center', label: 'Center' },
-              { value: 'right', label: 'Right' }
+              { value: 'none', label: 'None' },
+              { value: 'small', label: 'Small (8px)' },
+              { value: 'medium', label: 'Medium (16px)' },
+              { value: 'large', label: 'Large (32px)' }
             ]}
           />
         </div>

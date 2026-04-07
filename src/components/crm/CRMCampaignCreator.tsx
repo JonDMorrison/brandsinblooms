@@ -5488,10 +5488,23 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
             break;
 
           case "divider":
+            const divColor = block.textColor || "#e2e8f0";
+            const divStyle = (typeof block.content === "string" && block.content) || "solid";
+            const divThickness = block.dividerThickness || 1;
+            const divSpacingMap: Record<string, string> = { none: "0", small: "8px", medium: "16px", large: "32px" };
+            const divSpacing = divSpacingMap[block.margin || "medium"] || "16px";
             html += `
-            <div style="margin: 30px 0;">
-              <hr style="border: none; height: 1px; background: #e2e8f0; margin: 0;" />
-            </div>
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation">
+              <tr>
+                <td style="padding: ${divSpacing} 0;">
+                  ${divStyle !== "space" ? `<table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation">
+                    <tr>
+                      <td style="border-top: ${divThickness}px ${divStyle} ${divColor}; font-size: 0; line-height: 0;">&nbsp;</td>
+                    </tr>
+                  </table>` : ""}
+                </td>
+              </tr>
+            </table>
           `;
             break;
 
