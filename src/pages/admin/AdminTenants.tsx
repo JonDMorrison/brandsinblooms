@@ -10,6 +10,7 @@ import { AdminStats } from "@/components/admin/AdminStats";
 import { AdminFilters } from "@/components/admin/AdminFilters";
 import { TenantTable, type AdminTenant } from "@/components/admin/TenantTable";
 import { TenantDrawer } from "@/components/admin/TenantDrawer";
+import { ChangePlanModal } from "@/components/admin/ChangePlanModal";
 import {
   Pagination,
   PaginationContent,
@@ -32,6 +33,7 @@ const AdminPage = () => {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [currentSearch, setCurrentSearch] = useState("");
   const [currentStatus, setCurrentStatus] = useState("");
+  const [changePlanTenant, setChangePlanTenant] = useState<AdminTenant | null>(null);
 
   const {
     tenants,
@@ -170,6 +172,7 @@ const AdminPage = () => {
             onExtendTrial={extendTrial}
             onToggleActive={toggleTenantActive}
             onEmailManagement={handleEmailManagement}
+            onChangePlan={setChangePlanTenant}
           />
 
           {/* Pagination Controls */}
@@ -268,7 +271,20 @@ const AdminPage = () => {
           onClose={handleCloseDrawer}
           onExtendTrial={extendTrial}
           onToggleActive={toggleTenantActive}
+          onChangePlan={setChangePlanTenant}
         />
+
+        {changePlanTenant && (
+          <ChangePlanModal
+            open={!!changePlanTenant}
+            onClose={() => setChangePlanTenant(null)}
+            tenantId={changePlanTenant.tenant_id}
+            tenantName={changePlanTenant.company_name || "Unnamed Company"}
+            contactEmail={changePlanTenant.primary_contact_email}
+            currentPlan={changePlanTenant.plan}
+            onSuccess={refetch}
+          />
+        )}
       </div>
     </ProtectedPageWrapper>
   );

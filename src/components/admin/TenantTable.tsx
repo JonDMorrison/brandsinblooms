@@ -10,7 +10,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Eye, Clock, MoreHorizontal, Mail } from "lucide-react";
+import { Eye, Clock, MoreHorizontal, Mail, CreditCard } from "lucide-react";
 import {
   Popover,
   PopoverContent,
@@ -49,6 +49,7 @@ interface TenantTableProps {
   onExtendTrial: (tenantId: string, days: number) => void;
   onToggleActive: (tenantId: string, active: boolean) => void;
   onEmailManagement: (tenantId: string) => void;
+  onChangePlan: (tenant: AdminTenant) => void;
 }
 
 export const TenantTable = ({
@@ -58,6 +59,7 @@ export const TenantTable = ({
   onExtendTrial,
   onToggleActive,
   onEmailManagement,
+  onChangePlan,
 }: TenantTableProps) => {
   const [openPopovers, setOpenPopovers] = useState<Set<string>>(new Set());
   const getStatusBadge = (tenant: AdminTenant) => {
@@ -284,6 +286,18 @@ export const TenantTable = ({
                       >
                         <Mail className="mr-2 h-4 w-4" />
                         Email Management
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="justify-start"
+                        onClick={() => {
+                          onChangePlan(tenant);
+                          setOpenPopovers(new Set());
+                        }}
+                      >
+                        <CreditCard className="mr-2 h-4 w-4" />
+                        Change Plan
                       </Button>
                       {tenant.is_trialing && (
                         <Button

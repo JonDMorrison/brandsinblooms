@@ -60,6 +60,7 @@ interface TenantDrawerProps {
   onClose: () => void;
   onExtendTrial: (tenantId: string, days: number) => void;
   onToggleActive: (tenantId: string, active: boolean) => void;
+  onChangePlan?: (tenant: AdminTenant) => void;
 }
 
 type OverrideFieldState = {
@@ -216,6 +217,7 @@ export const TenantDrawer = ({
   onClose,
   onExtendTrial,
   onToggleActive,
+  onChangePlan,
 }: TenantDrawerProps) => {
   const navigate = useNavigate();
   const [overrideState, setOverrideState] = useState<OverrideFormState>(
@@ -542,6 +544,16 @@ export const TenantDrawer = ({
                   >
                     <Clock className="mr-2 h-4 w-4" />
                     Extend Trial (+7 days)
+                  </Button>
+                )}
+                {onChangePlan && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onChangePlan(tenant)}
+                  >
+                    <CreditCard className="mr-2 h-4 w-4" />
+                    Change Plan
                   </Button>
                 )}
                 <Button
