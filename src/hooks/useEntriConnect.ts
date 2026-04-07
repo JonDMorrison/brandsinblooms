@@ -141,7 +141,8 @@ export const useEntriConnect = () => {
     accountId: string,
     dnsRecords?: EntriDnsRecord[],
     onSuccess?: () => void,
-    onCancel?: () => void
+    onCancel?: () => void,
+    onClose?: () => void
   ) => {
     setIsLoading(true);
 
@@ -295,6 +296,10 @@ export const useEntriConnect = () => {
             onCancel?.();
           }
         }
+
+        // Always notify caller that the Entri overlay has closed,
+        // so the parent component can clean up modal state.
+        onClose?.();
 
         window.removeEventListener(successEventName, onSuccessEvent as EventListener);
         window.removeEventListener(closeEventName, onCloseEvent as EventListener);

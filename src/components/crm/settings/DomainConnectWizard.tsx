@@ -223,7 +223,6 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({
         // onSuccess
         () => {
           console.log(`✅ Entri setup completed for ${cleanDomain}`);
-          setIsEntriModalOpen(false);
           refetch();
           setStep("entri_success");
         },
@@ -232,8 +231,12 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({
           console.log(
             `⚠️ Entri setup cancelled for ${cleanDomain}, falling back to manual`,
           );
-          setIsEntriModalOpen(false);
           setStep("dns_pending"); // Show manual DNS setup since domain is provisioned
+        },
+        // onClose - always fires when Entri overlay closes (after success or cancel)
+        () => {
+          console.log(`🔒 Entri overlay closed, restoring wizard`);
+          setIsEntriModalOpen(false);
         },
       );
     } catch (err: any) {
