@@ -5053,26 +5053,40 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           case "graphic-hero":
             // Use empty alt if not provided (no "Untitled" or "Hero image" defaults)
             const graphicHeroAlt = block.altText || "";
-            html += `
-            <!-- Graphic Hero: Full-width clickable image -->
-            <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">
-              <tr>
-                <td align="center" style="padding: 0;">
-                  ${block.ctaUrl ? `<a href="${block.ctaUrl}" target="_blank" style="display: block;">` : ""}
-                    ${
-                      safeImageUrl
-                        ? `<img
-                      src="${safeImageUrl}"
-                      alt="${graphicHeroAlt}"
-                      style="display: block; width: 100%; max-width: 640px; border: 0; outline: none; text-decoration: none;"
-                    />`
-                        : ""
-                    }
-                  ${block.ctaUrl ? `</a>` : ""}
-                </td>
-              </tr>
-            </table>
-          `;
+            // Graphic hero images are always user-uploaded — fall back to original URL
+            // if the safety check strips it (e.g. uncommon CDN domain)
+            const graphicHeroImgUrl = safeImageUrl || block.imageUrl || "";
+
+            if (graphicHeroImgUrl) {
+              html += `
+              <!-- Graphic Hero: Full-width clickable image -->
+              <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td align="center" style="padding: 0;">
+                    ${block.ctaUrl ? `<a href="${block.ctaUrl}" target="_blank" style="display: block;">` : ""}
+                      <img
+                        src="${graphicHeroImgUrl}"
+                        alt="${graphicHeroAlt}"
+                        style="display: block; width: 100%; max-width: 640px; border: 0; outline: none; text-decoration: none;"
+                      />
+                    ${block.ctaUrl ? `</a>` : ""}
+                  </td>
+                </tr>
+              </table>
+            `;
+            } else {
+              // No image at all — render a visible placeholder so the block isn't invisible
+              html += `
+              <!-- Graphic Hero: Missing image placeholder -->
+              <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td align="center" style="padding: 40px 20px; background-color: #f1f5f9; border-radius: 8px;">
+                    <p style="margin: 0; font-size: 14px; color: #94a3b8; font-family: sans-serif;">Add your graphic hero image</p>
+                  </td>
+                </tr>
+              </table>
+            `;
+            }
             break;
 
           case "image":

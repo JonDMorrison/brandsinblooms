@@ -18,14 +18,16 @@
  */
 
 // Known safe Supabase storage domains for this project
-const SUPABASE_STORAGE_PATTERN = /^https:\/\/[a-z0-9-]+\.supabase\.co\/storage\/v1\/object\/public\//i;
+const SUPABASE_STORAGE_PATTERN = /^https:\/\/[a-z0-9-]+\.supabase\.(co|in)\/storage\/v1\/object\/public\//i;
 
 // Common image CDN patterns we trust
 const TRUSTED_CDN_PATTERNS = [
   /^https:\/\/images\.unsplash\.com\//i,
   /^https:\/\/[a-z0-9-]+\.supabase\.co\/storage\//i,
+  /^https:\/\/[a-z0-9-]+\.supabase\.in\/storage\//i,
   /^https:\/\/cdn\.pixabay\.com\//i,
   /^https:\/\/images\.pexels\.com\//i,
+  /^https:\/\/res\.cloudinary\.com\//i,
 ];
 
 // Patterns that should NEVER appear in email HTML
@@ -171,7 +173,7 @@ export function getEmailSafeImageUrl(
     return url!.trim();
   }
   
-  // Try to normalize if it looks like a Supabase URL
+  // Try to normalize if it looks like a Supabase URL (.co or .in)
   if (url && (url.includes('supabase') || url.includes('/storage/'))) {
     const normalized = normalizeSupabaseStorageUrl(url);
     if (normalized) {
