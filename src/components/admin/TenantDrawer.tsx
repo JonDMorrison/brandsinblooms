@@ -58,6 +58,9 @@ interface AdminTenant {
   is_paid_active: boolean;
   trial_not_expired: boolean;
   is_active: boolean;
+  health_score: number | null;
+  onboarding_steps_done: number | null;
+  onboarding_steps_total: number | null;
 }
 
 interface TenantDrawerProps {

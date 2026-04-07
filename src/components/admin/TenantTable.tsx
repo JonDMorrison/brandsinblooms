@@ -40,6 +40,9 @@ export interface AdminTenant {
   is_paid_active: boolean;
   trial_not_expired: boolean;
   is_active: boolean;
+  health_score: number | null;
+  onboarding_steps_done: number | null;
+  onboarding_steps_total: number | null;
 }
 
 interface TenantTableProps {
@@ -153,6 +156,8 @@ export const TenantTable = ({
             <TableHead>Plan</TableHead>
             <TableHead>Trial Ends</TableHead>
             <TableHead>Status</TableHead>
+            <TableHead>Health</TableHead>
+            <TableHead>Setup</TableHead>
             <TableHead>Last Activity</TableHead>
             <TableHead>Created</TableHead>
             <TableHead className="w-[100px]">Actions</TableHead>
@@ -226,6 +231,37 @@ export const TenantTable = ({
               </TableCell>
 
               <TableCell>{getStatusBadge(tenant)}</TableCell>
+
+              <TableCell>
+                {tenant.health_score != null ? (
+                  <Badge
+                    variant="outline"
+                    className={
+                      tenant.health_score >= 80
+                        ? "border-green-500 text-green-700 bg-green-50"
+                        : tenant.health_score >= 50
+                          ? "border-yellow-500 text-yellow-700 bg-yellow-50"
+                          : "border-red-500 text-red-700 bg-red-50"
+                    }
+                  >
+                    {tenant.health_score}
+                  </Badge>
+                ) : (
+                  "—"
+                )}
+              </TableCell>
+
+              <TableCell>
+                {tenant.onboarding_steps_done != null && tenant.onboarding_steps_total ? (
+                  <span className="text-sm">
+                    {tenant.onboarding_steps_done >= tenant.onboarding_steps_total
+                      ? "Complete"
+                      : `${tenant.onboarding_steps_done}/${tenant.onboarding_steps_total}`}
+                  </span>
+                ) : (
+                  "—"
+                )}
+              </TableCell>
 
               <TableCell>
                 <div className="flex items-center gap-2">
