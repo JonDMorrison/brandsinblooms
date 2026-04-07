@@ -11,6 +11,7 @@ import { AdminFilters } from "@/components/admin/AdminFilters";
 import { TenantTable, type AdminTenant } from "@/components/admin/TenantTable";
 import { TenantDrawer } from "@/components/admin/TenantDrawer";
 import { ChangePlanModal } from "@/components/admin/ChangePlanModal";
+import { TenantOutreachModal } from "@/components/admin/TenantOutreachModal";
 import {
   Pagination,
   PaginationContent,
@@ -34,6 +35,7 @@ const AdminPage = () => {
   const [currentSearch, setCurrentSearch] = useState("");
   const [currentStatus, setCurrentStatus] = useState("");
   const [changePlanTenant, setChangePlanTenant] = useState<AdminTenant | null>(null);
+  const [outreachTenant, setOutreachTenant] = useState<AdminTenant | null>(null);
 
   const {
     tenants,
@@ -173,6 +175,7 @@ const AdminPage = () => {
             onToggleActive={toggleTenantActive}
             onEmailManagement={handleEmailManagement}
             onChangePlan={setChangePlanTenant}
+            onOutreach={setOutreachTenant}
           />
 
           {/* Pagination Controls */}
@@ -283,6 +286,17 @@ const AdminPage = () => {
             contactEmail={changePlanTenant.primary_contact_email}
             currentPlan={changePlanTenant.plan}
             onSuccess={refetch}
+          />
+        )}
+
+        {outreachTenant && (
+          <TenantOutreachModal
+            open={!!outreachTenant}
+            onClose={() => setOutreachTenant(null)}
+            tenantId={outreachTenant.tenant_id}
+            companyName={outreachTenant.company_name || "Unnamed Company"}
+            contactEmail={outreachTenant.primary_contact_email}
+            contactFirstName={outreachTenant.primary_contact_name?.split(" ")[0] || ""}
           />
         )}
       </div>
