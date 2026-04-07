@@ -4701,7 +4701,28 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         max-width: 100% !important;
       }
       .content-block {
-        padding: 20px 15px !important;
+        padding: 20px 16px !important;
+      }
+      /* Enforce minimum readable font size on mobile */
+      .content-block p,
+      .content-block div,
+      .content-block td,
+      .content-block li {
+        font-size: 16px !important;
+        line-height: 1.5 !important;
+      }
+      .content-block h1 {
+        font-size: 24px !important;
+        line-height: 1.2 !important;
+      }
+      .content-block h2 {
+        font-size: 20px !important;
+        line-height: 1.3 !important;
+      }
+      /* Header/banner block mobile styles */
+      .email-header-text {
+        padding-left: 16px !important;
+        padding-right: 16px !important;
       }
       .mobile-center {
         text-align: center !important;
@@ -4741,10 +4762,11 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         margin-top: 16px !important;
       }
       .cta-button {
-        width: auto !important;
-        max-width: 85% !important;
-        padding: 14px 20px !important;
-        font-size: 16px !important;
+        display: block !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        padding: 16px 20px !important;
+        font-size: 18px !important;
         text-align: center !important;
         box-sizing: border-box !important;
       }
@@ -4856,6 +4878,11 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
             // Use campaign name as fallback headline for header blocks
             const headerHeadline = blockHeadline || campaignName || "";
 
+            // Header blocks should always show text — use company name as last-resort fallback
+            const headerDisplayTitle = headerHeadline && !isBlockTypeLabel(headerHeadline)
+              ? sanitizeCampaignTitle(headerHeadline)
+              : (companyInfo?.companyName || campaignName || "");
+
             if (safeBackgroundImageUrl) {
               // Table-based layout with background image and RGBA overlay for email compatibility
               // Use nested div structure so overlay sits ON TOP of background image
@@ -4876,9 +4903,9 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                     <v:textbox style="mso-fit-shape-to-text:true" inset="0,0,0,0">
                     <![endif]-->
                     <!-- Overlay div sits on top of background image -->
-                    <div style="background-color: ${overlayColor}; padding: 40px 20px; text-align: ${headerAlign};">
-                      ${!shouldHideContent(block) && headerHeadline && !isBlockTypeLabel(headerHeadline) ? `<h1 class="email-header-text" style="font-size: 28px; font-weight: 600; margin: 0 0 16px 0; font-family: ${fonts.headlineFont}; color: ${block.textColor || "#ffffff"} !important;">${sanitizeCampaignTitle(headerHeadline)}</h1>` : ""}
-                      ${!shouldHideContent(block) && blockBody ? `<div class="email-header-text" style="font-size: 18px; margin: 0; opacity: 0.9; font-family: ${fonts.bodyFont}; color: ${block.textColor || "#ffffff"} !important;">${blockBody}</div>` : ""}
+                    <div style="background-color: ${overlayColor}; padding: 40px 24px; text-align: ${headerAlign};">
+                      ${headerDisplayTitle ? `<h1 class="email-header-text" style="font-size: 28px; font-weight: 600; margin: 0 0 16px 0; font-family: ${fonts.headlineFont}; color: ${block.textColor || "#ffffff"} !important;">${headerDisplayTitle}</h1>` : ""}
+                      ${blockBody ? `<div class="email-header-text" style="font-size: 18px; margin: 0; opacity: 0.9; font-family: ${fonts.bodyFont}; color: ${block.textColor || "#ffffff"} !important;">${blockBody}</div>` : ""}
                     </div>
                     <!--[if gte mso 9]>
                     </v:textbox>
@@ -4896,9 +4923,9 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
               html += `
               <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin: 20px 0; border-radius: 8px; overflow: hidden;">
                 <tr>
-                  <td style="background-color: ${headerBgColor}; padding: 40px 20px; text-align: ${headerAlign};">
-                    ${!shouldHideContent(block) && headerHeadline && !isBlockTypeLabel(headerHeadline) ? `<h1 class="email-header-text" style="font-size: 28px; font-weight: 600; margin: 0 0 16px 0; font-family: ${fonts.headlineFont}; color: ${block.textColor || "#ffffff"} !important;">${headerHeadline}</h1>` : ""}
-                    ${!shouldHideContent(block) && blockBody ? `<div class="email-header-text" style="font-size: 18px; margin: 0; opacity: 0.9; font-family: ${fonts.bodyFont}; color: ${block.textColor || "#ffffff"} !important;">${blockBody}</div>` : ""}
+                  <td style="background-color: ${headerBgColor}; padding: 40px 24px; text-align: ${headerAlign};">
+                    ${headerDisplayTitle ? `<h1 class="email-header-text" style="font-size: 28px; font-weight: 600; margin: 0 0 16px 0; font-family: ${fonts.headlineFont}; color: ${block.textColor || "#ffffff"} !important;">${headerDisplayTitle}</h1>` : ""}
+                    ${blockBody ? `<div class="email-header-text" style="font-size: 18px; margin: 0; opacity: 0.9; font-family: ${fonts.bodyFont}; color: ${block.textColor || "#ffffff"} !important;">${blockBody}</div>` : ""}
                   </td>
                 </tr>
               </table>
@@ -5495,9 +5522,9 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
               nhTextColor,
             });
 
-            // Use campaign name as fallback headline for newsletter-header blocks
+            // Use campaign name then company name as fallback headline for newsletter-header blocks
             const nhHeadline =
-              block.title || block.headline || campaignName || "";
+              block.title || block.headline || campaignName || companyInfo?.companyName || "";
 
             // Format publish date if exists
             let formattedDate = "";
