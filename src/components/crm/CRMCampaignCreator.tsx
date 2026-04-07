@@ -4835,6 +4835,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
       // Debug: Log any blocks with unsafe image URLs before rendering
       debugBlockImageUrls(blocks);
 
+      let renderedBlockCount = 0;
       blocks.forEach((block) => {
         if (block.visible === false) return; // Only skip blocks explicitly set to false
 
@@ -4862,6 +4863,9 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
             safeImageUrl,
           });
         }
+
+        // Insert spacer between blocks (not before the first one)
+        const htmlLenBefore = html.length;
 
         // CANONICAL: Use both headline and title as fallbacks for text display
         const blockHeadline = block.headline || block.title || "";
@@ -5893,6 +5897,16 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
             // Footer rendering is handled separately at the end of the function
             // This case is just for the switch statement - actual footer HTML is added below
             break;
+        }
+
+        // Add spacer between blocks if this block emitted HTML
+        if (html.length > htmlLenBefore) {
+          renderedBlockCount++;
+          // Spacer row: reliable in all email clients including Outlook
+          html += `
+          <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation">
+            <tr><td style="height: 24px; font-size: 24px; line-height: 24px;">&nbsp;</td></tr>
+          </table>`;
         }
       });
 
