@@ -4938,115 +4938,96 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
             }
             break;
 
-          // NEW: Email Safe Hero - text on solid background, image below (Mailchimp/Klaviyo pattern)
+          // Email Safe Hero - two-column on desktop (text left, image right), stacked on mobile
           // Uses light neutral background (#f5f5f7) and near-black text (#111111) to prevent
           // dark mode inversion issues in email clients like Gmail mobile
           case "email-safe-hero":
-            const safeHeroAlign = block.alignment || "center";
-            // Use light neutral instead of pure white to prevent dark mode inversion
+            const safeHeroAlign = block.alignment || "left";
             const safeHeroBgColor = block.backgroundColor || "#f5f5f7";
-            // Respect block's textColor, with fallback to near-black for dark mode handling
             const safeHeroTextColor = block.textColor || "#111111";
             const safeHeroButtonColor =
               block.buttonColor || companyInfo?.brandPrimaryColor || "#22c55e";
 
-            html += `
-            <!-- Email Safe Hero: Text Section (dark mode safe: light neutral bg + near-black text) -->
-            <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: ${safeHeroBgColor};">
-              <tr>
-                <td align="center" style="padding: 32px 16px; background-color: ${safeHeroBgColor};">
-                  <table role="presentation" border="0" cellspacing="0" cellpadding="0" width="100%" style="max-width: 640px;">
-                    <tr>
-                      <td align="${safeHeroAlign}" style="font-family: ${fonts.bodyFont}; color: ${safeHeroTextColor} !important; background-color: ${safeHeroBgColor};">
-                        ${
-                          block.eyebrow
-                            ? `
-                          <p style="font-size: 12px; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 8px 0; color: ${safeHeroTextColor} !important; opacity: 0.6;">
-                            ${block.eyebrow}
-                          </p>
-                        `
-                            : ""
-                        }
-                        ${
-                          blockHeadline && !isBlockTypeLabel(blockHeadline)
-                            ? `
-                          <h1 style="font-size: 28px; font-weight: 600; margin: 0 0 12px 0; font-family: ${fonts.headlineFont}; color: ${safeHeroTextColor} !important; line-height: 1.2;">
-                            ${sanitizeCampaignTitle(blockHeadline)}
-                          </h1>
-                        `
-                            : ""
-                        }
-                        ${
-                          block.subtitle
-                            ? `
-                          <p style="font-size: 16px; margin: 0 0 8px 0; color: ${safeHeroTextColor} !important; opacity: 0.8; line-height: 1.5;">
-                            ${block.subtitle}
-                          </p>
-                        `
-                            : ""
-                        }
-                        ${
-                          block.body
-                            ? `
-                          <div style="font-size: 16px; margin: 0 0 16px 0; color: ${safeHeroTextColor} !important; line-height: 1.6;">
-                            ${block.body}
-                          </div>
-                        `
-                            : ""
-                        }
-                        ${
-                          block.publishDate
-                            ? `
-                          <p style="font-size: 12px; margin: 0 0 16px 0; color: ${safeHeroTextColor} !important; opacity: 0.6;">
-                            ${new Date(block.publishDate).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}
-                          </p>
-                        `
-                            : ""
-                        }
-                        ${
-                          block.ctaText && block.ctaUrl
-                            ? `
-                          <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-top: 16px;">
-                            <tr>
-                              <td align="center" style="border-radius: 9999px; background: ${safeHeroButtonColor};">
-                                <a href="${block.ctaUrl}" style="display: inline-block; padding: 12px 24px; background: ${safeHeroButtonColor}; color: #ffffff !important; text-decoration: none; border-radius: 9999px; font-weight: 600; font-family: ${fonts.buttonFont}; font-size: 14px;">
-                                  ${block.ctaText}
-                                </a>
-                              </td>
-                            </tr>
-                          </table>
-                        `
-                            : ""
-                        }
-                      </td>
-                    </tr>
-                  </table>
-                </td>
-              </tr>
-            </table>
-            ${
-              safeImageUrl
-                ? `
-              <!-- Spacer between text/CTA and image -->
-              <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation">
-                <tr><td style="height: 32px; font-size: 32px; line-height: 32px;">&nbsp;</td></tr>
-              </table>
-              <!-- Email Safe Hero: Image Section -->
-              <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">
+            // Build text content column
+            const safeHeroTextHtml = `
+              ${block.eyebrow ? `<p style="font-size: 12px; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 8px 0; color: ${safeHeroTextColor} !important; opacity: 0.6;">${block.eyebrow}</p>` : ""}
+              ${blockHeadline && !isBlockTypeLabel(blockHeadline) ? `<h1 style="font-size: 28px; font-weight: 600; margin: 0 0 12px 0; font-family: ${fonts.headlineFont}; color: ${safeHeroTextColor} !important; line-height: 1.2;">${sanitizeCampaignTitle(blockHeadline)}</h1>` : ""}
+              ${block.subtitle ? `<p style="font-size: 16px; margin: 0 0 8px 0; color: ${safeHeroTextColor} !important; opacity: 0.8; line-height: 1.5;">${block.subtitle}</p>` : ""}
+              ${block.body ? `<div style="font-size: 16px; margin: 0 0 16px 0; color: ${safeHeroTextColor} !important; line-height: 1.6;">${block.body}</div>` : ""}
+              ${block.publishDate ? `<p style="font-size: 12px; margin: 0 0 16px 0; color: ${safeHeroTextColor} !important; opacity: 0.6;">${new Date(block.publishDate).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}</p>` : ""}
+              ${block.ctaText && block.ctaUrl ? `
+                <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-top: 16px;">
+                  <tr>
+                    <td align="center" style="border-radius: 9999px; background: ${safeHeroButtonColor};">
+                      <a href="${block.ctaUrl}" class="cta-button" style="display: inline-block; width: auto; padding: 12px 24px; background: ${safeHeroButtonColor}; color: #ffffff !important; text-decoration: none; border-radius: 9999px; font-weight: 600; font-family: ${fonts.buttonFont}; font-size: 14px;">${block.ctaText}</a>
+                    </td>
+                  </tr>
+                </table>
+              ` : ""}
+            `;
+
+            if (safeImageUrl) {
+              // Two-column layout: text left (60%), image right (40%)
+              html += `
+              <!-- Email Safe Hero: Two-column desktop, stacked mobile -->
+              <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: ${safeHeroBgColor};">
                 <tr>
-                  <td align="center" style="padding: 0 16px 16px 16px;">
-                    <img
-                      src="${safeImageUrl}"
-                      alt="${block.altText || blockHeadline || ""}"
-                      style="display: block; width: 100%; max-width: 640px; border: 0; outline: none; text-decoration: none; border-radius: 16px;"
-                    />
+                  <td align="center" style="padding: 0;">
+                    <!--[if mso]>
+                    <table role="presentation" width="640" align="center" cellpadding="0" cellspacing="0" border="0"><tr>
+                    <td width="384" valign="middle">
+                    <![endif]-->
+                    <div style="display: inline-block; width: 100%; max-width: 384px; vertical-align: middle;" class="mobile-full-width">
+                      <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">
+                        <tr>
+                          <td align="${safeHeroAlign}" style="padding: 32px 24px; font-family: ${fonts.bodyFont}; color: ${safeHeroTextColor} !important;">
+                            ${safeHeroTextHtml}
+                          </td>
+                        </tr>
+                      </table>
+                    </div>
+                    <!--[if mso]>
+                    </td><td width="256" valign="middle">
+                    <![endif]-->
+                    <div style="display: inline-block; width: 100%; max-width: 256px; vertical-align: middle;" class="mobile-full-width">
+                      <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">
+                        <tr>
+                          <td align="center" style="padding: 16px;">
+                            <img
+                              src="${safeImageUrl}"
+                              alt="${block.altText || blockHeadline || ""}"
+                              style="display: block; width: 100%; max-width: 256px; height: auto; border: 0; outline: none; text-decoration: none; border-radius: 8px;"
+                            />
+                          </td>
+                        </tr>
+                      </table>
+                    </div>
+                    <!--[if mso]>
+                    </td></tr></table>
+                    <![endif]-->
                   </td>
                 </tr>
               </table>
-            `
-                : ""
+            `;
+            } else {
+              // No image — full-width text-only layout
+              html += `
+              <!-- Email Safe Hero: Text only (no image) -->
+              <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: ${safeHeroBgColor};">
+                <tr>
+                  <td align="center" style="padding: 32px 16px; background-color: ${safeHeroBgColor};">
+                    <table role="presentation" border="0" cellspacing="0" cellpadding="0" width="100%" style="max-width: 640px;">
+                      <tr>
+                        <td align="${safeHeroAlign}" style="font-family: ${fonts.bodyFont}; color: ${safeHeroTextColor} !important;">
+                          ${safeHeroTextHtml}
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+            `;
             }
-          `;
             break;
 
           // NEW: Graphic Hero - single clickable image (text baked in)
