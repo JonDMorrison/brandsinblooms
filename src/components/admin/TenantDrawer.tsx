@@ -812,7 +812,7 @@ export const TenantDrawer = ({
                 <div>
                   <p className="text-sm font-medium">Last Activity</p>
                   <p className="text-sm text-muted-foreground">
-                    {tenant.last_activity_at
+                    {tenant.last_activity_at && new Date(tenant.last_activity_at).getFullYear() >= 2000
                       ? formatDistanceToNow(new Date(tenant.last_activity_at)) +
                         " ago"
                       : "Never"}

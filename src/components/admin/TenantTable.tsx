@@ -83,12 +83,18 @@ export const TenantTable = ({
     return <Badge variant="destructive">Expired</Badge>;
   };
 
+  // Dates near Unix epoch (1970) mean "no data" — the DB uses epoch as a COALESCE fallback
+  const isEpochFallback = (dateStr: string | null): boolean => {
+    if (!dateStr) return true;
+    return new Date(dateStr).getFullYear() < 2000;
+  };
+
   const getActivityDot = (lastActivity: string | null) => {
-    if (!lastActivity)
+    if (isEpochFallback(lastActivity))
       return <div className="w-2 h-2 rounded-full bg-gray-400" />;
 
     const hoursAgo =
-      (Date.now() - new Date(lastActivity).getTime()) / (1000 * 60 * 60);
+      (Date.now() - new Date(lastActivity!).getTime()) / (1000 * 60 * 60);
 
     if (hoursAgo < 24) {
       return <div className="w-2 h-2 rounded-full bg-green-400" />;
@@ -221,8 +227,8 @@ export const TenantTable = ({
                 <div className="flex items-center gap-2">
                   {getActivityDot(tenant.last_activity_at)}
                   <span className="text-sm">
-                    {tenant.last_activity_at
-                      ? formatDistanceToNow(new Date(tenant.last_activity_at)) +
+                    {!isEpochFallback(tenant.last_activity_at)
+                      ? formatDistanceToNow(new Date(tenant.last_activity_at!)) +
                         " ago"
                       : "Never"}
                   </span>
