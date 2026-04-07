@@ -137,7 +137,19 @@ export const EmailPreview: React.FC<EmailPreviewProps> = ({
         },
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Edge function invoke error:", error);
+        const errorContext = (error as any)?.context;
+        let message = "Failed to reach email service. Please try again.";
+        if (errorContext) {
+          try {
+            const body = await errorContext.json();
+            message = body?.error || message;
+          } catch { /* ignore parse failure */ }
+        }
+        toast({ title: "Error", description: message, variant: "destructive" });
+        return;
+      }
 
       if (data?.success) {
         toast({

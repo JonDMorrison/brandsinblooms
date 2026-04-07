@@ -203,7 +203,22 @@ export const FullEmailPreview: React.FC<FullEmailPreviewProps> = ({
         },
       });
 
-      if (error) throw error;
+      // Edge function now returns 200 for all responses, so error here means
+      // a network/infrastructure failure, not an application error.
+      if (error) {
+        console.error("Edge function invoke error:", error);
+        // Try to extract the actual error from the context if available
+        const errorContext = (error as any)?.context;
+        let message = "Failed to reach email service. Please try again.";
+        if (errorContext) {
+          try {
+            const body = await errorContext.json();
+            message = body?.error || message;
+          } catch { /* ignore parse failure */ }
+        }
+        toast({ title: "Error", description: message, variant: "destructive" });
+        return;
+      }
 
       if (data?.success) {
         toast({

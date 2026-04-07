@@ -38,20 +38,23 @@ const handler = async (req: Request): Promise<Response> => {
     const payload: TestSendPayload = await req.json();
     const { toEmail, subject, html, customerId, sampleCustomer, campaignId, automationId, automationNodeId } = payload;
 
+    // Return 200 for all application errors so supabase.functions.invoke()
+    // passes the error message through in data instead of wrapping it in a
+    // generic "non-2xx status code" FunctionsHttpError.
+    const ok = (body: Record<string, unknown>) =>
+      new Response(JSON.stringify(body), {
+        status: 200,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+
     if (!toEmail || !html) {
-      return new Response(
-        JSON.stringify({ success: false, error: "Missing required fields: toEmail and html" }),
-        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
-      );
+      return ok({ success: false, error: "Missing required fields: toEmail and html" });
     }
 
     // Auth
     const authHeader = req.headers.get('authorization');
     if (!authHeader) {
-      return new Response(
-        JSON.stringify({ success: false, error: "Missing authorization" }),
-        { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
-      );
+      return ok({ success: false, error: "Missing authorization — please sign in and try again" });
     }
 
     const supabaseClient = createClient(
@@ -62,10 +65,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
     if (userError || !user) {
-      return new Response(
-        JSON.stringify({ success: false, error: "Unauthorized" }),
-        { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
-      );
+      return ok({ success: false, error: "Session expired — please sign in again" });
     }
 
     // Get tenant
@@ -74,13 +74,10 @@ const handler = async (req: Request): Promise<Response> => {
       .select('tenant_id')
       .eq('id', user.id)
       .single();
-    
+
     const tenantId = userRecord?.tenant_id;
     if (!tenantId) {
-      return new Response(
-        JSON.stringify({ success: false, error: "Tenant not found" }),
-        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
-      );
+      return ok({ success: false, error: "Account setup incomplete — please complete onboarding first" });
     }
 
     // Fetch company profile
@@ -134,6 +131,12 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log(`📧 Rendered: usedTags=${renderResult.diagnostics.usedTags.length}, missing=${renderResult.diagnostics.missingTags.length}`);
 
+    // Verify Resend API key is configured
+    if (!Deno.env.get("RESEND_API_KEY")) {
+      console.error("❌ RESEND_API_KEY not configured");
+      return ok({ success: false, error: "Email service not configured — contact support" });
+    }
+
     // Resolve sender
     const senderConfig = await resolveSender(supabaseClient, tenantId, { userId: user.id });
     const fromAddress = senderConfig ? buildFromAddress(senderConfig) : `${companyProfile?.company_name || 'BloomSuite'} <hello@notify.bloomsuite.app>`;
@@ -180,9 +183,10 @@ const handler = async (req: Request): Promise<Response> => {
 
   } catch (error: any) {
     console.error("❌ send-test-email-v2 error:", error);
+    // Return 200 with error in body so frontend sees the actual message
     return new Response(
-      JSON.stringify({ success: false, error: error.message }),
-      { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      JSON.stringify({ success: false, error: error.message || "An unexpected error occurred" }),
+      { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   }
 };
