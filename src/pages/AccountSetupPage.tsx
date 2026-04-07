@@ -18,6 +18,7 @@ import {
   BarChart3,
   MessageSquare,
   Mail,
+  Send,
   Zap,
   Tags,
   Newspaper
@@ -59,6 +60,7 @@ const AccountSetupPage: React.FC = () => {
       analytics: 'Google Analytics',
       sms: 'SMS Setup',
       'first-email': 'First Email Campaign',
+      'first-post': 'First Social Post',
       'first-automation': 'First Automation',
       segments: 'Customer Segments',
       newsletter: 'Newsletter',
@@ -335,7 +337,23 @@ const AccountSetupPage: React.FC = () => {
           actionLabel="Create Campaign"
         />
 
-        {/* Step 10: First Automation */}
+        {/* Step 10: First Social Post */}
+        <SetupStepCard
+          icon={<Send className="w-6 h-6" />}
+          title="Publish Your First Social Post"
+          description="Create and publish a post to your connected social accounts"
+          helpText="Our AI will help you write engaging content tailored to your business and audience."
+          completed={progress.firstSocialPostPublished}
+          skipped={skippedSteps.includes('first-post')}
+          expanded={expandedStep === 'first-post'}
+          onToggle={() => toggleStep('first-post')}
+          onAction={() => navigate('/publish')}
+          onSkip={() => skipStep('first-post')}
+          onUnskip={() => unskipStep('first-post')}
+          actionLabel="Create Post"
+        />
+
+        {/* Step 11: First Automation */}
         <SetupStepCard
           icon={<Zap className="w-6 h-6" />}
           title="Create Your First Automation"
