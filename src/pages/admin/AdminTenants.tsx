@@ -12,6 +12,8 @@ import { TenantTable, type AdminTenant } from "@/components/admin/TenantTable";
 import { TenantDrawer } from "@/components/admin/TenantDrawer";
 import { ChangePlanModal } from "@/components/admin/ChangePlanModal";
 import { TenantOutreachModal } from "@/components/admin/TenantOutreachModal";
+import { supabase } from "@/integrations/supabase/client";
+import { toast as sonnerToast } from "sonner";
 import {
   Pagination,
   PaginationContent,
@@ -111,6 +113,35 @@ const AdminPage = () => {
     navigate(`/admin/tenants/${tenantId}/email`);
   };
 
+  const handleImpersonate = async (tenant: AdminTenant) => {
+    if (!tenant.primary_contact_email) {
+      sonnerToast.error("No contact email for this tenant");
+      return;
+    }
+    try {
+      const { data, error } = await supabase.functions.invoke(
+        "admin-impersonate-user",
+        {
+          body: {
+            target_user_email: tenant.primary_contact_email,
+            target_tenant_id: tenant.tenant_id,
+          },
+        },
+      );
+      if (error) throw error;
+      if (!data?.success || !data?.login_url) {
+        throw new Error(data?.error || "Failed to generate login link");
+      }
+      window.open(data.login_url, "_blank");
+      sonnerToast.warning(
+        `You are now logged in as ${tenant.company_name || tenant.primary_contact_email}. Close that tab when done.`,
+        { duration: 10000 },
+      );
+    } catch (err: any) {
+      sonnerToast.error(err.message || "Impersonation failed");
+    }
+  };
+
   return (
     <ProtectedPageWrapper>
       <div className="min-h-screen bg-background">
@@ -176,6 +207,7 @@ const AdminPage = () => {
             onEmailManagement={handleEmailManagement}
             onChangePlan={setChangePlanTenant}
             onOutreach={setOutreachTenant}
+            onImpersonate={handleImpersonate}
           />
 
           {/* Pagination Controls */}
