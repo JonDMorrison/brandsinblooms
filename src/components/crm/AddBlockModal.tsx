@@ -2,7 +2,7 @@ import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { ContentBlock } from '@/types/emailBuilder';
-import { X } from 'lucide-react';
+import { X, Minus } from 'lucide-react';
 
 interface AddBlockModalProps {
   isOpen: boolean;
@@ -67,11 +67,11 @@ export const AddBlockModal: React.FC<AddBlockModalProps> = ({
       icon: '📦',
       description: 'Product showcase'
     },
-    { 
-      type: 'divider' as const, 
-      label: 'Divider', 
-      icon: '➖',
-      description: 'Section separator'
+    {
+      type: 'divider' as const,
+      label: 'Divider',
+      icon: 'divider-line',
+      description: 'Styled horizontal line to separate content sections'
     },
     // Legacy overlay header - kept for backwards compatibility
     { 
@@ -114,7 +114,13 @@ export const AddBlockModal: React.FC<AddBlockModalProps> = ({
                   Recommended
                 </span>
               )}
-              <span className="text-2xl">{icon}</span>
+              {icon === 'divider-line' ? (
+                <svg width="32" height="32" viewBox="0 0 32 32" fill="none" className="text-muted-foreground">
+                  <line x1="4" y1="16" x2="28" y2="16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                </svg>
+              ) : (
+                <span className="text-2xl">{icon}</span>
+              )}
               <span className="text-sm font-medium">{label}</span>
               <span className="text-xs text-muted-foreground text-center leading-tight">
                 {description}

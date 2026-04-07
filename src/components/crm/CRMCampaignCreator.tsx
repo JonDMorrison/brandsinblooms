@@ -5027,6 +5027,10 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
             ${
               safeImageUrl
                 ? `
+              <!-- Spacer between text/CTA and image -->
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation">
+                <tr><td style="height: 32px; font-size: 32px; line-height: 32px;">&nbsp;</td></tr>
+              </table>
               <!-- Email Safe Hero: Image Section -->
               <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">
                 <tr>
