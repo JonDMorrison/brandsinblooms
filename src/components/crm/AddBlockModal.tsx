@@ -30,48 +30,49 @@ export const AddBlockModal: React.FC<AddBlockModalProps> = ({
       icon: '🖼️',
       description: 'Image only – text baked into graphic'
     },
-    // Existing blocks
-    { 
-      type: 'image-text' as const, 
-      label: 'Content with Image', 
-      icon: '📝',
-      description: 'Text content with image'
-    },
-    { 
-      type: 'image' as const, 
-      label: 'Image', 
-      icon: '🖼️',
-      description: 'Photos and graphics'
-    },
-    { 
-      type: 'image-gallery' as const, 
-      label: 'Image Gallery', 
-      icon: '🖼️🖼️🖼️',
-      description: 'Grid of 3, 6, or 9 images'
-    },
-    { 
-      type: 'image-gallery' as const, 
-      label: 'Product Gallery', 
-      icon: '🪴',
-      description: '2×2 product grid with badges'
-    },
-    { 
-      type: 'button' as const, 
-      label: 'Button', 
-      icon: '🔘',
-      description: 'Call-to-action'
-    },
-    { 
-      type: 'product' as const, 
-      label: 'Product', 
-      icon: '📦',
-      description: 'Product showcase'
-    },
+    // Structure
     {
       type: 'divider' as const,
       label: 'Divider',
       icon: 'divider-line',
       description: 'Styled horizontal line to separate content sections'
+    },
+    {
+      type: 'button' as const,
+      label: 'Button',
+      icon: '🔘',
+      description: 'Call-to-action'
+    },
+    // Content blocks
+    {
+      type: 'image-text' as const,
+      label: 'Content with Image',
+      icon: '📝',
+      description: 'Text content with image'
+    },
+    {
+      type: 'image' as const,
+      label: 'Image',
+      icon: '🖼️',
+      description: 'Photos and graphics'
+    },
+    {
+      type: 'image-gallery' as const,
+      label: 'Image Gallery',
+      icon: '🖼️🖼️🖼️',
+      description: 'Grid of 3, 6, or 9 images'
+    },
+    {
+      type: 'image-gallery' as const,
+      label: 'Product Gallery',
+      icon: '🪴',
+      description: '2×2 product grid with badges'
+    },
+    {
+      type: 'product' as const,
+      label: 'Product',
+      icon: '📦',
+      description: 'Product showcase'
     },
     // Legacy overlay header - kept for backwards compatibility
     { 
