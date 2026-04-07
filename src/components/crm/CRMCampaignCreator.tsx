@@ -4701,7 +4701,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         max-width: 100% !important;
       }
       .content-block {
-        padding: 20px 16px !important;
+        padding: 20px 24px !important;
       }
       /* Enforce minimum readable font size on mobile */
       .content-block p,
@@ -4828,7 +4828,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
 
       let html = `
       <div class="email-container" style="width: 100%; background: white;">
-        <div class="content-block" style="padding: 30px 24px;">
+        <div class="content-block" style="padding: 30px 32px;">
     `;
 
       // Debug: Log any blocks with unsafe image URLs before rendering
@@ -5262,7 +5262,9 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
               }
 
               html += `
-              <div style="text-align: ${imgAlign}; margin: 20px 0; ${block.backgroundColor ? `background-color: ${block.backgroundColor}; padding: 20px; border-radius: 8px;` : ""}">
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation">
+                <tr>
+                  <td style="padding-top: 16px; padding-bottom: 20px; text-align: ${imgAlign}; ${block.backgroundColor ? `background-color: ${block.backgroundColor}; padding: 16px 20px 20px 20px; border-radius: 8px;` : ""}">
                 ${imageHtml}
                 ${!shouldHideContent(block) && blockHeadline && !isBlockTypeLabel(blockHeadline) ? `<h2 style="font-size: 24px; font-weight: 600; margin: 16px 0; color: ${imgHeadlineColor}; font-family: ${fonts.subheadingFont}; text-align: ${imgAlign};">${blockHeadline}</h2>` : ""}
                 ${!shouldHideContent(block) && blockBody ? `<div style="color: ${imgTextColor}; line-height: 1.6; margin: 0; font-family: ${fonts.bodyFont}; text-align: ${imgAlign};">${blockBody}</div>` : ""}
@@ -5277,7 +5279,9 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                 `
                     : ""
                 }
-              </div>
+                  </td>
+                </tr>
+              </table>
             `;
             }
             break;
@@ -5458,13 +5462,17 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           case "button":
             const btnAlign = block.textAlign || "center";
             html += `
-             <div style="text-align: ${btnAlign}; margin: 30px 0;">
-               ${blockHeadline ? `<h3 style="color: ${block.textColor || companyInfo?.brandTextColor || "#1f2937"}; margin: 0 0 10px 0; font-size: 20px; font-family: ${fonts.subheadingFont}; font-weight: 600;">${blockHeadline}</h3>` : ""}
-               ${blockBody ? `<div style="color: ${companyInfo?.brandTextColor || "#64748b"}; margin: 0 0 20px 0; line-height: 1.6; font-family: ${fonts.bodyFont};">${blockBody}</div>` : ""}
-               <a href="${block.buttonUrl || "#"}" class="cta-button" style="display: inline-block; padding: 14px 28px; background: ${block.buttonColor || companyInfo?.brandPrimaryColor || "#22c55e"}; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; font-family: ${fonts.buttonFont}; text-align: center; max-width: 90%; box-sizing: border-box;">
-                 ${block.buttonText || "Learn More"}
-               </a>
-             </div>
+             <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation">
+               <tr>
+                 <td style="padding: 16px 0 24px 0; text-align: ${btnAlign};">
+                   ${blockHeadline ? `<h3 style="color: ${block.textColor || companyInfo?.brandTextColor || "#1f2937"}; margin: 0 0 10px 0; font-size: 20px; font-family: ${fonts.subheadingFont}; font-weight: 600;">${blockHeadline}</h3>` : ""}
+                   ${blockBody ? `<div style="color: ${companyInfo?.brandTextColor || "#64748b"}; margin: 0 0 20px 0; line-height: 1.6; font-family: ${fonts.bodyFont};">${blockBody}</div>` : ""}
+                   <a href="${block.buttonUrl || "#"}" class="cta-button" style="display: inline-block; padding: 14px 28px; background: ${block.buttonColor || companyInfo?.brandPrimaryColor || "#22c55e"}; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; font-family: ${fonts.buttonFont}; text-align: center; max-width: 90%; box-sizing: border-box;">
+                     ${block.buttonText || "Learn More"}
+                   </a>
+                 </td>
+               </tr>
+             </table>
           `;
             break;
 
