@@ -27,7 +27,13 @@ import {
   ExternalLink,
   Save,
   RotateCcw,
+  ChevronDown,
 } from "lucide-react";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { format, formatDistanceToNow } from "date-fns";
 
 interface AdminTenant {
@@ -225,6 +231,7 @@ export const TenantDrawer = ({
   );
   const [loadingOverrides, setLoadingOverrides] = useState(false);
   const [savingOverrides, setSavingOverrides] = useState(false);
+  const [governanceOpen, setGovernanceOpen] = useState(false);
 
   const loadOverrides = useCallback(async () => {
     if (!tenant?.tenant_id) return;
@@ -650,13 +657,20 @@ export const TenantDrawer = ({
           </Card>
 
           <Card>
+            <Collapsible open={governanceOpen} onOpenChange={setGovernanceOpen}>
             <CardHeader>
-              <CardTitle>Governance Overrides</CardTitle>
+              <CollapsibleTrigger asChild>
+                <button className="flex items-center justify-between w-full text-left">
+                  <CardTitle>Governance Overrides</CardTitle>
+                  <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform ${governanceOpen ? "rotate-180" : ""}`} />
+                </button>
+              </CollapsibleTrigger>
               <p className="text-sm text-muted-foreground">
                 Optional per-tenant overrides. Disabled fields automatically use
                 global governance configuration.
               </p>
             </CardHeader>
+            <CollapsibleContent>
             <CardContent className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {renderOverrideField(
@@ -761,6 +775,8 @@ export const TenantDrawer = ({
                 </Button>
               </div>
             </CardContent>
+            </CollapsibleContent>
+            </Collapsible>
           </Card>
 
           {/* Primary Contact */}
