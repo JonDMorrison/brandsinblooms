@@ -2,11 +2,11 @@
 import React from 'react';
 import { EnhancedBlockLayoutModal } from './block-layout-modal/EnhancedBlockLayoutModal';
 
-export type LayoutType = 
+export type LayoutType =
   | 'email-safe-hero'
   | 'graphic-hero'
   | 'image-left'
-  | 'image-right' 
+  | 'image-right'
   | 'image-vertical-left'
   | 'image-vertical-right'
   | 'text-double'
@@ -18,7 +18,9 @@ export type LayoutType =
   | 'quote-featured'
   | 'image-background'
   | 'image-gallery'
-  | 'product-gallery';
+  | 'product-gallery'
+  | 'divider'
+  | 'button';
 
 interface BlockLayoutModalProps {
   isOpen: boolean;

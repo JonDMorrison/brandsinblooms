@@ -2,7 +2,7 @@
 import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Grid, Mail, FileText, Image, ArrowLeft, ArrowRight, Quote, MousePointer, ShoppingBag, Star, ImageIcon } from 'lucide-react';
+import { Plus, Grid, Mail, FileText, Image, ArrowLeft, ArrowRight, Quote, MousePointer, ShoppingBag, Star, ImageIcon, Minus, SeparatorHorizontal } from 'lucide-react';
 import { LayoutType } from '../BlockLayoutModal';
 import { LayoutOption } from './LayoutOption';
 import { LayoutPreview } from './LayoutPreview';
@@ -91,8 +91,25 @@ const layoutOptions = [
     isPopular: true,
     previewType: 'text-plain' as const
   },
-  
-  
+
+  // Structure
+  {
+    id: 'divider' as LayoutType,
+    title: 'Divider',
+    description: 'Styled horizontal line to separate content sections',
+    category: 'Structure',
+    icon: <Minus className="h-4 w-4 text-muted-foreground" />,
+    previewType: 'divider' as const
+  },
+  {
+    id: 'button' as LayoutType,
+    title: 'Button',
+    description: 'Call-to-action button with customizable text and link',
+    category: 'Structure',
+    icon: <MousePointer className="h-4 w-4 text-muted-foreground" />,
+    isPopular: true,
+    previewType: 'button' as const
+  },
 ];
 
 export const EnhancedBlockLayoutModal: React.FC<EnhancedBlockLayoutModalProps> = ({ 

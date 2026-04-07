@@ -2,7 +2,7 @@
 import React from 'react';
 
 interface LayoutPreviewProps {
-  type: 'email-safe-hero' | 'graphic-hero' | 'header-hero' | 'header-simple' | 'image-full' | 'image-left' | 'image-right' | 'button-centered' | 'button-left' | 'button-right' | 'text-double' | 'text-triple' | 'text-plain' | 'newsletter-header' | 'quote-featured' | 'cta-primary' | 'image-60-40' | 'image-70-30' | 'image-overlay' | 'image-background' | 'image-gallery' | 'product-gallery';
+  type: 'email-safe-hero' | 'graphic-hero' | 'header-hero' | 'header-simple' | 'image-full' | 'image-left' | 'image-right' | 'button-centered' | 'button-left' | 'button-right' | 'text-double' | 'text-triple' | 'text-plain' | 'newsletter-header' | 'quote-featured' | 'cta-primary' | 'image-60-40' | 'image-70-30' | 'image-overlay' | 'image-background' | 'image-gallery' | 'product-gallery' | 'divider' | 'button';
 }
 
 export const LayoutPreview: React.FC<LayoutPreviewProps> = ({ type }) => {
@@ -272,6 +272,24 @@ export const LayoutPreview: React.FC<LayoutPreviewProps> = ({ type }) => {
           </div>
         );
       
+      case 'divider':
+        return (
+          <div className="h-full bg-white rounded-md flex flex-col items-center justify-center px-4 gap-2">
+            <div className="w-full h-1.5 rounded bg-gray-100" />
+            <div className="w-full border-t border-gray-300" />
+            <div className="w-full h-1.5 rounded bg-gray-100" />
+          </div>
+        );
+
+      case 'button':
+        return (
+          <div className="h-full bg-white rounded-md flex flex-col items-center justify-center gap-1 px-3">
+            <div className="w-3/4 h-1.5 rounded bg-gray-200" />
+            <div className="w-1/2 h-1 rounded bg-gray-100" />
+            <div className="mt-1 px-4 py-1.5 bg-emerald-500 rounded text-[8px] font-semibold text-white">Button</div>
+          </div>
+        );
+
       default:
         return (
           <div className="h-full bg-gray-100 rounded-md flex items-center justify-center">

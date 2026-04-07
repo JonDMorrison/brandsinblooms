@@ -221,6 +221,29 @@ const mapLayoutToBlock = async (layoutType: LayoutType): Promise<{ type: Content
           autoImageMode: false
         }
       };
+    case 'divider':
+      return {
+        type: 'divider',
+        config: {
+          content: 'solid',
+          textColor: '#e2e8f0',
+          dividerThickness: 1,
+          margin: 'medium'
+        }
+      };
+    case 'button':
+      return {
+        type: 'button',
+        config: {
+          heading: '',
+          body: '',
+          buttonText: '',
+          buttonUrl: '',
+          buttonColor: '',
+          alignment: 'center',
+          padding: 'medium'
+        }
+      };
     default:
       return {
         type: 'image-text',
