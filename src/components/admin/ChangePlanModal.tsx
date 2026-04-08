@@ -59,60 +59,42 @@ export const ChangePlanModal = ({
 
     setSaving(true);
     try {
-      // Update subscription via direct query on the subscriptions table
-      // Join through auth.users → public.users → tenants to find the right subscription
-      const { data: userData, error: userError } = await supabase
-        .from("users")
-        .select("id")
-        .eq("tenant_id", tenantId)
-        .limit(1)
-        .single();
+      // Call the admin_change_tenant_plan RPC. Direct client-side UPDATEs on
+      // public.subscriptions are blocked by RLS (an admin cannot see another
+      // user's subscription row, so UPDATE silently affects 0 rows with no
+      // error). The RPC runs SECURITY DEFINER, validates the caller against
+      // app_admin_emails, updates every subscription for every user in the
+      // tenant, and inserts the admin_audit_log row server-side.
+      const { data, error } = await supabase.rpc("admin_change_tenant_plan", {
+        p_tenant_id: tenantId,
+        p_plan: plan,
+        p_end_date: endDate,
+        p_reason: reason.trim(),
+      });
 
-      if (userError || !userData) {
-        toast.error("Could not find user for this tenant");
-        setSaving(false);
-        return;
-      }
-
-      const { error: subError } = await supabase
-        .from("subscriptions")
-        .update({
+      if (error) {
+        console.error("admin_change_tenant_plan RPC failed:", {
+          error,
+          code: error.code,
+          details: error.details,
+          hint: error.hint,
+          message: error.message,
+          tenantId,
           plan,
-          tier: plan,
-          end_date: endDate,
-          crm_enabled: plan !== "free_trial" && plan !== "expired",
-          updated_at: new Date().toISOString(),
-        })
-        .eq("user_id", userData.id);
-
-      if (subError) {
-        toast.error(subError.message || "Failed to update subscription");
+          endDate,
+        });
+        toast.error(error.message || "Failed to change plan");
         setSaving(false);
         return;
       }
 
-      // Log to admin_audit_log
-      const { data: sessionData } = await supabase.auth.getUser();
-      if (sessionData?.user) {
-        await supabase.from("admin_audit_log").insert({
-          admin_user_id: sessionData.user.id,
-          target_tenant_id: tenantId,
-          action_type: "change_plan",
-          action_details: {
-            previous_plan: currentPlan,
-            new_plan: plan,
-            end_date: endDate,
-            reason: reason.trim(),
-            tenant_name: tenantName,
-            contact_email: contactEmail,
-          },
-        });
-      }
+      console.log("admin_change_tenant_plan RPC result:", data);
 
       toast.success(`Plan changed to ${plan} for ${tenantName}`);
       onSuccess();
       onClose();
     } catch (err: any) {
+      console.error("ChangePlanModal handleSave threw:", err);
       toast.error(err.message || "Failed to change plan");
     } finally {
       setSaving(false);
