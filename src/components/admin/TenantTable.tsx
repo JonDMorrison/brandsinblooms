@@ -1,4 +1,3 @@
-import { useState } from "react";
 import {
   Table,
   TableBody,
@@ -12,10 +11,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Eye, Clock, MoreHorizontal, Mail, CreditCard, MessageSquare, LogIn } from "lucide-react";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { formatDistanceToNow, format } from "date-fns";
 
 export interface AdminTenant {
@@ -68,7 +68,6 @@ export const TenantTable = ({
   onOutreach,
   onImpersonate,
 }: TenantTableProps) => {
-  const [openPopovers, setOpenPopovers] = useState<Set<string>>(new Set());
   const getStatusBadge = (tenant: AdminTenant) => {
     if (!tenant.is_active) {
       return <Badge variant="secondary">Inactive</Badge>;
@@ -281,133 +280,76 @@ export const TenantTable = ({
                 {format(new Date(tenant.tenant_created_at), "MMM d, yyyy")}
               </TableCell>
 
-              <TableCell onClick={(e) => e.stopPropagation()}>
-                <Popover
-                  open={openPopovers.has(tenant.tenant_id)}
-                  onOpenChange={(open) => {
-                    const newSet = new Set(openPopovers);
-                    if (open) {
-                      newSet.add(tenant.tenant_id);
-                    } else {
-                      newSet.delete(tenant.tenant_id);
-                    }
-                    setOpenPopovers(newSet);
-                  }}
-                >
-                  <PopoverTrigger asChild>
+              <TableCell
+                onClick={(e) => e.stopPropagation()}
+                onPointerDown={(e) => e.stopPropagation()}
+              >
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
                     <Button
                       variant="ghost"
                       size="sm"
                       aria-label={`Actions for ${tenant.company_name || "tenant"}`}
                       data-testid={`tenant-actions-${tenant.tenant_id}`}
+                      onClick={(e) => e.stopPropagation()}
+                      onPointerDown={(e) => e.stopPropagation()}
                     >
                       <MoreHorizontal className="h-4 w-4" />
                     </Button>
-                  </PopoverTrigger>
-                  <PopoverContent
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent
                     align="end"
-                    className="w-48 p-2"
-                    style={{ zIndex: 1000010, pointerEvents: "auto" }}
+                    className="w-48"
+                    onClick={(e) => e.stopPropagation()}
                   >
-                    <div className="flex flex-col gap-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="justify-start"
-                        onClick={() => {
-                          console.log("View tenant clicked:", tenant.tenant_id);
-                          onViewTenant(tenant);
-                          setOpenPopovers(new Set());
-                        }}
+                    <DropdownMenuItem
+                      onSelect={() => onViewTenant(tenant)}
+                    >
+                      <Eye className="mr-2 h-4 w-4" />
+                      View Details
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="text-amber-600 focus:text-amber-700"
+                      onSelect={() => onImpersonate(tenant)}
+                    >
+                      <LogIn className="mr-2 h-4 w-4" />
+                      Login as User
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onSelect={() => onOutreach(tenant)}
+                    >
+                      <MessageSquare className="mr-2 h-4 w-4" />
+                      Outreach
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onSelect={() => onChangePlan(tenant)}
+                    >
+                      <CreditCard className="mr-2 h-4 w-4" />
+                      Change Plan
+                    </DropdownMenuItem>
+                    {tenant.is_trialing && (
+                      <DropdownMenuItem
+                        onSelect={() => onExtendTrial(tenant.tenant_id, 7)}
                       >
-                        <Eye className="mr-2 h-4 w-4" />
-                        View Details
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="justify-start"
-                        onClick={() => {
-                          onEmailManagement(tenant.tenant_id);
-                          setOpenPopovers(new Set());
-                        }}
-                      >
-                        <Mail className="mr-2 h-4 w-4" />
-                        Email Management
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="justify-start"
-                        onClick={() => {
-                          onChangePlan(tenant);
-                          setOpenPopovers(new Set());
-                        }}
-                      >
-                        <CreditCard className="mr-2 h-4 w-4" />
-                        Change Plan
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="justify-start"
-                        onClick={() => {
-                          onOutreach(tenant);
-                          setOpenPopovers(new Set());
-                        }}
-                      >
-                        <MessageSquare className="mr-2 h-4 w-4" />
-                        Outreach
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="justify-start text-amber-600"
-                        onClick={() => {
-                          onImpersonate(tenant);
-                          setOpenPopovers(new Set());
-                        }}
-                      >
-                        <LogIn className="mr-2 h-4 w-4" />
-                        Login as User
-                      </Button>
-                      {tenant.is_trialing && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="justify-start"
-                          onClick={() => {
-                            console.log(
-                              "Extend trial clicked:",
-                              tenant.tenant_id,
-                            );
-                            onExtendTrial(tenant.tenant_id, 7);
-                            setOpenPopovers(new Set());
-                          }}
-                        >
-                          <Clock className="mr-2 h-4 w-4" />
-                          Extend Trial (+7 days)
-                        </Button>
-                      )}
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="justify-start"
-                        onClick={() => {
-                          console.log(
-                            "Toggle active clicked:",
-                            tenant.tenant_id,
-                            !tenant.is_active,
-                          );
-                          onToggleActive(tenant.tenant_id, !tenant.is_active);
-                          setOpenPopovers(new Set());
-                        }}
-                      >
-                        {tenant.is_active ? "Deactivate" : "Activate"}
-                      </Button>
-                    </div>
-                  </PopoverContent>
-                </Popover>
+                        <Clock className="mr-2 h-4 w-4" />
+                        Extend Trial (+7 days)
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuItem
+                      onSelect={() => onEmailManagement(tenant.tenant_id)}
+                    >
+                      <Mail className="mr-2 h-4 w-4" />
+                      Email Management
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onSelect={() =>
+                        onToggleActive(tenant.tenant_id, !tenant.is_active)
+                      }
+                    >
+                      {tenant.is_active ? "Deactivate" : "Activate"}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </TableCell>
             </TableRow>
           ))}
