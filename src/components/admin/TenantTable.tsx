@@ -10,7 +10,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Eye, Clock, MoreHorizontal, Mail, CreditCard, MessageSquare, LogIn } from "lucide-react";
+import { Eye, Clock, MoreHorizontal, Mail, CreditCard, MessageSquare, LogIn, Trash2 } from "lucide-react";
 import {
   Popover,
   PopoverContent,
@@ -20,6 +20,7 @@ import { formatDistanceToNow, format } from "date-fns";
 
 export interface AdminTenant {
   tenant_id: string;
+  primary_contact_user_id: string | null;
   company_name: string;
   website: string;
   city: string;
@@ -55,6 +56,7 @@ interface TenantTableProps {
   onChangePlan: (tenant: AdminTenant) => void;
   onOutreach: (tenant: AdminTenant) => void;
   onImpersonate: (tenant: AdminTenant) => void;
+  onDelete: (tenant: AdminTenant) => void;
 }
 
 export const TenantTable = ({
@@ -67,8 +69,9 @@ export const TenantTable = ({
   onChangePlan,
   onOutreach,
   onImpersonate,
+  onDelete,
 }: TenantTableProps) => {
-  const [openPopovers, setOpenPopovers] = useState<Set<string>>(new Set());
+  const [openPopoverId, setOpenPopoverId] = useState<string | null>(null);
   const getStatusBadge = (tenant: AdminTenant) => {
     if (!tenant.is_active) {
       return <Badge variant="secondary">Inactive</Badge>;
@@ -283,16 +286,10 @@ export const TenantTable = ({
 
               <TableCell onClick={(e) => e.stopPropagation()}>
                 <Popover
-                  open={openPopovers.has(tenant.tenant_id)}
-                  onOpenChange={(open) => {
-                    const newSet = new Set(openPopovers);
-                    if (open) {
-                      newSet.add(tenant.tenant_id);
-                    } else {
-                      newSet.delete(tenant.tenant_id);
-                    }
-                    setOpenPopovers(newSet);
-                  }}
+                  open={openPopoverId === tenant.tenant_id}
+                  onOpenChange={(open) =>
+                    setOpenPopoverId(open ? tenant.tenant_id : null)
+                  }
                 >
                   <PopoverTrigger asChild>
                     <Button
@@ -300,13 +297,14 @@ export const TenantTable = ({
                       size="sm"
                       aria-label={`Actions for ${tenant.company_name || "tenant"}`}
                       data-testid={`tenant-actions-${tenant.tenant_id}`}
+                      onClick={(e) => e.stopPropagation()}
                     >
                       <MoreHorizontal className="h-4 w-4" />
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent
                     align="end"
-                    className="w-48 p-2"
+                    className="w-48 p-2 z-50"
                     style={{ zIndex: 1000010, pointerEvents: "auto" }}
                   >
                     <div className="flex flex-col gap-1">
@@ -317,7 +315,7 @@ export const TenantTable = ({
                         onClick={() => {
                           console.log("View tenant clicked:", tenant.tenant_id);
                           onViewTenant(tenant);
-                          setOpenPopovers(new Set());
+                          setOpenPopoverId(null);
                         }}
                       >
                         <Eye className="mr-2 h-4 w-4" />
@@ -329,7 +327,7 @@ export const TenantTable = ({
                         className="justify-start"
                         onClick={() => {
                           onEmailManagement(tenant.tenant_id);
-                          setOpenPopovers(new Set());
+                          setOpenPopoverId(null);
                         }}
                       >
                         <Mail className="mr-2 h-4 w-4" />
@@ -341,7 +339,7 @@ export const TenantTable = ({
                         className="justify-start"
                         onClick={() => {
                           onChangePlan(tenant);
-                          setOpenPopovers(new Set());
+                          setOpenPopoverId(null);
                         }}
                       >
                         <CreditCard className="mr-2 h-4 w-4" />
@@ -353,7 +351,7 @@ export const TenantTable = ({
                         className="justify-start"
                         onClick={() => {
                           onOutreach(tenant);
-                          setOpenPopovers(new Set());
+                          setOpenPopoverId(null);
                         }}
                       >
                         <MessageSquare className="mr-2 h-4 w-4" />
@@ -365,7 +363,7 @@ export const TenantTable = ({
                         className="justify-start text-amber-600"
                         onClick={() => {
                           onImpersonate(tenant);
-                          setOpenPopovers(new Set());
+                          setOpenPopoverId(null);
                         }}
                       >
                         <LogIn className="mr-2 h-4 w-4" />
@@ -382,7 +380,7 @@ export const TenantTable = ({
                               tenant.tenant_id,
                             );
                             onExtendTrial(tenant.tenant_id, 7);
-                            setOpenPopovers(new Set());
+                            setOpenPopoverId(null);
                           }}
                         >
                           <Clock className="mr-2 h-4 w-4" />
@@ -400,11 +398,28 @@ export const TenantTable = ({
                             !tenant.is_active,
                           );
                           onToggleActive(tenant.tenant_id, !tenant.is_active);
-                          setOpenPopovers(new Set());
+                          setOpenPopoverId(null);
                         }}
                       >
                         {tenant.is_active ? "Deactivate" : "Activate"}
                       </Button>
+                      {!tenant.is_paid_active && (
+                        <>
+                          <div className="my-1 border-t border-border" />
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="justify-start text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => {
+                              onDelete(tenant);
+                              setOpenPopoverId(null);
+                            }}
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Delete Client
+                          </Button>
+                        </>
+                      )}
                     </div>
                   </PopoverContent>
                 </Popover>

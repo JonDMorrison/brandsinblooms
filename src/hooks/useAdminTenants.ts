@@ -4,6 +4,7 @@ import { useToast } from "@/hooks/use-toast";
 
 interface AdminTenant {
   tenant_id: string;
+  primary_contact_user_id: string | null;
   company_name: string;
   website: string;
   city: string;
