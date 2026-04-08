@@ -6,7 +6,7 @@ CREATE OR REPLACE VIEW admin_tenant_overview AS
 SELECT
   t.id as tenant_id,
   t.name as company_name,
-  COALESCE(t.website, cp.website, '') as website,
+  COALESCE(t.website, cp.website_url, '') as website,
   COALESCE(cp.city, '') as city,
   COALESCE(cp.state_province, '') as region,
   COALESCE(cp.country, '') as country,
@@ -95,14 +95,12 @@ LEFT JOIN LATERAL (
   SELECT COUNT(*)::int as cnt
   FROM crm_customers cc
   WHERE cc.tenant_id = t.id
-  LIMIT 1
 ) customer_ct ON true
 LEFT JOIN LATERAL (
   SELECT COUNT(*)::int as cnt
   FROM crm_campaigns camp
   WHERE camp.tenant_id = t.id
     AND camp.status = 'sent'
-  LIMIT 1
 ) campaign_ct ON true;
 
 -- Update admin_list_tenants RPC to include new columns
