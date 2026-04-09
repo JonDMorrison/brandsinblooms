@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Progress } from '@/components/ui/progress';
-import { Users, Plus, Search, Mail, Phone, Calendar, DollarSign, Upload, MoreVertical, Eye, Trash2, X } from 'lucide-react';
+import { Users, Plus, Search, Mail, Phone, Calendar, DollarSign, Upload, MoreVertical, Eye, Trash2, X, RefreshCw } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,6 +26,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { EnhancedSegmentImportDialog } from '@/components/crm/segments/EnhancedSegmentImportDialog';
+import { SyncFromCRMModal } from '@/components/crm/customers/SyncFromCRMModal';
 import { useCustomers } from '@/hooks/useCustomers';
 import { useAllPersonas } from '@/hooks/useAllPersonas';
 import { useAllSegments } from '@/hooks/useAllSegments';
@@ -47,6 +48,7 @@ export const CRMCustomersPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [showImportDialog, setShowImportDialog] = useState(false);
+  const [showSyncFromCRM, setShowSyncFromCRM] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
@@ -229,7 +231,11 @@ export const CRMCustomersPage: React.FC = () => {
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => setShowImportDialog(true)}>
               <Upload className="h-4 w-4 mr-2" />
-              Import Customers
+              Upload List
+            </Button>
+            <Button variant="outline" onClick={() => setShowSyncFromCRM(true)}>
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Sync From CRM
             </Button>
             <Button onClick={() => navigate('/crm/customers/new')}>
               <Plus className="h-4 w-4 mr-2" />
@@ -251,7 +257,11 @@ export const CRMCustomersPage: React.FC = () => {
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => setShowImportDialog(true)}>
             <Upload className="h-4 w-4 mr-2" />
-            Import Customers
+            Upload List
+          </Button>
+          <Button variant="outline" onClick={() => setShowSyncFromCRM(true)}>
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Sync From CRM
           </Button>
           <Button onClick={() => navigate('/crm/customers/new')}>
             <Plus className="h-4 w-4 mr-2" />
@@ -539,6 +549,12 @@ export const CRMCustomersPage: React.FC = () => {
         open={showImportDialog}
         onOpenChange={setShowImportDialog}
         onImportComplete={handleImportComplete}
+      />
+
+      <SyncFromCRMModal
+        open={showSyncFromCRM}
+        onOpenChange={setShowSyncFromCRM}
+        onSyncComplete={invalidateCustomers}
       />
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
