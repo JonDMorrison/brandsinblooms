@@ -160,7 +160,7 @@ Deno.serve(async (req) => {
             subject: "Your BloomSuite access is ready",
             html: `<h2>Welcome to BloomSuite</h2>
          <p>Your account is set up and ready to go.</p>
-         <p><strong><a href="https://app.bloomsuite.app">Log in to BloomSuite →</a></strong></p>
+         <p><strong><a href="https://www.bloomsuite.app">Log in to BloomSuite →</a></strong></p>
          <h3>What happens next:</h3>
          <ol>
            <li>Log in and complete your brand profile</li>

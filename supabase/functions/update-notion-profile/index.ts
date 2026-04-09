@@ -369,7 +369,7 @@ Deno.serve(async (req) => {
                   from: "BloomSuite <hello@brandsinblooms.com>",
                   to: email,
                   subject: `${gardenCenter} is live on BloomSuite 🌱`,
-                  html: `<h2>You're live!</h2><p>Your BloomSuite setup is complete. Your first content is ready to go.</p><p><a href="https://app.bloomsuite.app">Open your dashboard →</a></p><p>Need help? Reply to this email and we'll get you sorted.</p>`,
+                  html: `<h2>You're live!</h2><p>Your BloomSuite setup is complete. Your first content is ready to go.</p><p><a href="https://www.bloomsuite.app">Open your dashboard →</a></p><p>Need help? Reply to this email and we'll get you sorted.</p>`,
                 }),
               });
             } catch (e) {
