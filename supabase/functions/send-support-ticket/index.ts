@@ -100,26 +100,30 @@ Your job is to read the client's support request and write a helpful, specific, 
 Rules:
 - Be warm and human. Write like Jeff — knowledgeable but approachable.
 - Answer their specific question directly if you can, based on the knowledge base below.
-- If you can answer it: give a clear, step-by-step answer. Link to bloomsuite.notion.site/bloomsuite-help for more detail.
+- If you can answer it: give a clear, step-by-step answer. Link to https://bloomsuite.notion.site/bloomsuite-help for more detail.
 - If you cannot fully answer it: acknowledge their question specifically, tell them a human is looking into it, and give them the KB link as a starting point.
 - Never make up features or settings that don't exist.
 - Never promise specific outcomes.
 - Always end with: "We've also flagged this for our team and will follow up if anything needs a closer look. — Jeff & Jon, BloomSuite"
 - Keep it under 200 words. Conversational paragraphs, not bullet walls.
+- Do NOT start your response with any greeting like "Hi", "Hello", or the customer's name. Start directly with the answer. The email template adds the greeting automatically.
+- Do NOT use markdown link syntax like [text](url). Instead write plain URLs directly or use HTML anchor tags like <a href="url">text</a>.
+- Do NOT use markdown bold (**text**) or italic (*text*). Write in plain prose.
+- When referencing any URL, always write the full URL including https:// so it is a valid clickable link.
 
 KNOWLEDGE BASE SUMMARY:
-- Getting Started: 5-step setup wizard — brand colors (bloomsuite.app/profile/brand-colors), company profile (bloomsuite.app/profile/company), POS connection (bloomsuite.app/integrations), import contacts (bloomsuite.app/crm/customers), email domain (bloomsuite.app/crm/settings/email-sending)
+- Getting Started: 5-step setup wizard — brand colors (https://www.bloomsuite.app/profile/brand-colors), company profile (https://www.bloomsuite.app/profile/company), POS connection (https://www.bloomsuite.app/integrations), import contacts (https://www.bloomsuite.app/crm/customers), email domain (https://www.bloomsuite.app/crm/settings/email-sending)
 - Supported POS: Square, Shopify, Lightspeed (requires setup call), Clover
 - Email domain: requires SPF, DKIM, DMARC DNS records. Can take 48 hours to verify.
-- Campaigns: Go to bloomsuite.app/newsletters/new. Target open rate 25%+, click rate 2-5%, bounce rate under 3%.
-- Automations: bloomsuite.app/crm/automations. Win-back, post-purchase, seasonal triggers available.
-- Contacts/segments: bloomsuite.app/crm/customers and bloomsuite.app/crm/segments
-- Analytics: bloomsuite.app/analytics
+- Campaigns: Go to https://www.bloomsuite.app/newsletters/new. Target open rate 25%+, click rate 2-5%, bounce rate under 3%.
+- Automations: https://www.bloomsuite.app/crm/automations. Win-back, post-purchase, seasonal triggers available.
+- Contacts/segments: https://www.bloomsuite.app/crm/customers and https://www.bloomsuite.app/crm/segments
+- Analytics: https://www.bloomsuite.app/analytics
 - Social media: Facebook and Instagram via OAuth. Tokens expire every 60 days.
 - CASL: Canadian anti-spam. Implied consent = purchased in last 24 months. Express consent = explicit opt-in.
 - SMS: US and Canada only. STOP keyword handled automatically.
-- If emails go to spam: check domain verification at bloomsuite.app/crm/settings/email-sending
-- Full help: bloomsuite.notion.site/bloomsuite-help`,
+- If emails go to spam: check domain verification at https://www.bloomsuite.app/crm/settings/email-sending
+- Full help: https://bloomsuite.notion.site/bloomsuite-help`,
               },
               {
                 role: "user",
@@ -135,26 +139,33 @@ KNOWLEDGE BASE SUMMARY:
         openAiData?.choices?.[0]?.message?.content ?? null;
 
       if (aiReply) {
-        const aiParagraphs = aiReply
-          .split(/\n+/)
-          .map((p: string) => p.trim())
-          .filter((p: string) => p.length > 0)
-          .map((p: string) => `<p>${p}</p>`)
-          .join("\n");
+        const htmlBody = aiReply
+          .split('\n')
+          .filter((line: string) => line.trim().length > 0)
+          .map((line: string) => {
+            // Convert markdown links [text](url) to HTML anchors
+            let html = line.replace(/\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/g, '<a href="$2" style="color:#1abc9c;">$1</a>')
+            // Convert **bold** to <strong>
+            html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+            return `<p style="margin:0 0 12px 0;line-height:1.6;">${html}</p>`
+          })
+          .join('')
 
-        const autoReplyHtml = `
-          <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; line-height: 1.6; color: #1f2937;">
-            <p>Hi ${name},</p>
-            ${aiParagraphs}
-          </div>
-        `;
+        const emailHtml = `
+  <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:600px;margin:0 auto;color:#1f2937;padding:24px;">
+    <p style="margin:0 0 12px 0;line-height:1.6;">Hi ${name},</p>
+    ${htmlBody}
+    <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0;">
+    <p style="margin:0;font-size:13px;color:#6b7280;">Need more help? Visit our <a href="https://bloomsuite.notion.site/bloomsuite-help" style="color:#1abc9c;">Knowledge Base</a> or reply to this email.</p>
+  </div>
+`;
 
         const autoReplyResponse = await resend.emails.send({
           from: "BloomSuite Support <hello@brandsinblooms.com>",
           to: [email],
           reply_to: SUPPORT_INBOX,
           subject: `Re: ${subject}`,
-          html: autoReplyHtml,
+          html: emailHtml,
         });
 
         console.log("send-support-ticket: AI auto-reply sent", autoReplyResponse);
