@@ -382,6 +382,205 @@ serve(async (req) => {
     const summary = { trials: trials.length, sent, skipped, errors };
     logStep("Run complete", summary);
 
+    // ─────────────────────────────────────────────────────────────────
+    // Daily cron add-ons: Last Login sync, inactivity flag, onboarding SLA
+    // ─────────────────────────────────────────────────────────────────
+    const NOTION_TOKEN_VAL = Deno.env.get('NOTION_TOKEN') || Deno.env.get('NOTION_API_KEY') || ''
+    const NOTION_DB_ID_VAL = Deno.env.get('NOTION_PIPELINE_DB_ID') || 'ffbcd532-783d-48a2-b60a-d78866910cd1'
+    const RESEND_KEY = Deno.env.get('RESEND_API_KEY') || ''
+    const ALERT_EMAIL = Deno.env.get('INTERNAL_ALERT_EMAIL') || 'jon@getclear.ca'
+
+    const notionHdrs = {
+      'Authorization': `Bearer ${NOTION_TOKEN_VAL}`,
+      'Content-Type': 'application/json',
+      'Notion-Version': '2022-06-28'
+    }
+
+    // Block A: Sync Last Login
+    try {
+      const { data: { users } } = await sb.auth.admin.listUsers()
+
+      for (const user of users) {
+        if (!user.last_sign_in_at || !user.email) continue
+
+        const lastLogin = new Date(user.last_sign_in_at).toISOString().split('T')[0]
+
+        const notionRes = await fetch(`https://api.notion.com/v1/databases/${NOTION_DB_ID_VAL}/query`, {
+          method: 'POST',
+          headers: notionHdrs,
+          body: JSON.stringify({
+            filter: { property: 'Email', email: { equals: user.email } }
+          })
+        })
+        const notionData = await notionRes.json()
+        if (!notionData.results?.length) continue
+
+        const pageId = notionData.results[0].id
+        await fetch(`https://api.notion.com/v1/pages/${pageId}`, {
+          method: 'PATCH',
+          headers: notionHdrs,
+          body: JSON.stringify({
+            properties: {
+              'Last Login': { date: { start: lastLogin } }
+            }
+          })
+        })
+      }
+      console.log('[cron] Last Login sync complete')
+    } catch (e) {
+      console.error('[cron] Last Login sync failed:', e)
+    }
+
+    // Block B: Flag clients inactive 14+ days
+    try {
+      const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+
+      const inactiveRes = await fetch(`https://api.notion.com/v1/databases/${NOTION_DB_ID_VAL}/query`, {
+        method: 'POST',
+        headers: notionHdrs,
+        body: JSON.stringify({
+          filter: {
+            and: [
+              { property: 'Stage', select: { equals: 'Active' } },
+              { property: 'Last Login', date: { before: fourteenDaysAgo } }
+            ]
+          }
+        })
+      })
+      const inactiveData = await inactiveRes.json()
+      const inactiveClients = inactiveData.results || []
+
+      if (inactiveClients.length > 0) {
+        const list = inactiveClients.map((p: any) => {
+          const name = p.properties['Garden Center']?.title?.[0]?.plain_text || 'Unknown'
+          const lastLogin = p.properties['Last Login']?.date?.start || 'Never'
+          const mrr = p.properties['MRR']?.number || 0
+          return `<li><strong>${name}</strong> — Last login: ${lastLogin} — MRR: ${mrr}</li>`
+        }).join('')
+
+        for (const page of inactiveClients) {
+          const currentNextAction = page.properties['Next Action']?.rich_text?.[0]?.plain_text || ''
+          if (!currentNextAction.toLowerCase().includes('re-engagement')) {
+            await fetch(`https://api.notion.com/v1/pages/${page.id}`, {
+              method: 'PATCH',
+              headers: notionHdrs,
+              body: JSON.stringify({
+                properties: {
+                  'Next Action': { rich_text: [{ text: { content: 'Re-engagement call — client inactive 14+ days' } }] },
+                  'Next Action Date': { date: { start: new Date().toISOString().split('T')[0] } }
+                }
+              })
+            })
+          }
+        }
+
+        await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${RESEND_KEY}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            from: 'BloomSuite System <system@bloomsuite.app>',
+            to: ALERT_EMAIL,
+            subject: `🚨 ${inactiveClients.length} client(s) inactive 14+ days`,
+            html: `<h2>Inactive Clients</h2><p>These active clients haven't logged in for 14+ days:</p><ul>${list}</ul>`
+          })
+        })
+      }
+      console.log(`[cron] Inactive check complete — ${inactiveClients.length} flagged`)
+    } catch (e) {
+      console.error('[cron] Inactive client check failed:', e)
+    }
+
+    // Block C: Onboarding timeline checks
+    try {
+      const today = new Date()
+
+      const onboardingRes = await fetch(`https://api.notion.com/v1/databases/${NOTION_DB_ID_VAL}/query`, {
+        method: 'POST',
+        headers: notionHdrs,
+        body: JSON.stringify({
+          filter: {
+            or: [
+              { property: 'Stage', select: { equals: 'Won' } },
+              { property: 'Stage', select: { equals: 'Account Setup & Welcome' } },
+              { property: 'Stage', select: { equals: 'Onboarding & Setup' } }
+            ]
+          }
+        })
+      })
+      const onboardingData = await onboardingRes.json()
+      const escalations: string[] = []
+
+      for (const page of (onboardingData.results || [])) {
+        const name = page.properties['Garden Center']?.title?.[0]?.plain_text || 'Unknown'
+        const wonDateStr = page.properties['Won Date']?.date?.start
+        const kickoffBooked = page.properties['Kickoff Booked']?.checkbox === true
+        const brandSetup = page.properties['Onboarding: Brand Setup']?.checkbox === true
+        const notes = page.properties['Notes']?.rich_text?.[0]?.plain_text || ''
+
+        if (!wonDateStr) continue
+
+        const wonDate = new Date(wonDateStr)
+        const daysSinceWon = Math.floor((today.getTime() - wonDate.getTime()) / (1000 * 60 * 60 * 24))
+
+        if (daysSinceWon >= 3 && !kickoffBooked && !notes.includes('DAY3-BREACH')) {
+          await fetch(`https://api.notion.com/v1/pages/${page.id}`, {
+            method: 'PATCH',
+            headers: notionHdrs,
+            body: JSON.stringify({
+              properties: {
+                'Notes': { rich_text: [{ text: { content: notes + '\nDAY3-BREACH: Kickoff not booked 3 days post-Won.' } }] },
+                'Next Action': { rich_text: [{ text: { content: 'OVERDUE: Book kickoff call immediately' } }] },
+                'Next Action Date': { date: { start: today.toISOString().split('T')[0] } }
+              }
+            })
+          })
+          escalations.push(`<li><strong>${name}</strong>: Won ${daysSinceWon} days ago — kickoff not booked (Jeff)</li>`)
+        }
+
+        if (daysSinceWon >= 7 && !brandSetup && !notes.includes('DAY7-BREACH')) {
+          await fetch(`https://api.notion.com/v1/pages/${page.id}`, {
+            method: 'PATCH',
+            headers: notionHdrs,
+            body: JSON.stringify({
+              properties: {
+                'Notes': { rich_text: [{ text: { content: notes + '\nDAY7-BREACH: Brand setup incomplete 7 days post-Won.' } }] }
+              }
+            })
+          })
+          escalations.push(`<li><strong>${name}</strong>: Won ${daysSinceWon} days ago — brand setup incomplete (Jon)</li>`)
+        }
+
+        if (daysSinceWon >= 30 && !notes.includes('DAY30-INCIDENT')) {
+          await fetch(`https://api.notion.com/v1/pages/${page.id}`, {
+            method: 'PATCH',
+            headers: notionHdrs,
+            body: JSON.stringify({
+              properties: {
+                'Notes': { rich_text: [{ text: { content: notes + '\nDAY30-INCIDENT: Still in onboarding 30 days post-Won.' } }] }
+              }
+            })
+          })
+          escalations.push(`<li><strong>${name}</strong>: Won ${daysSinceWon} days ago — still in onboarding (escalate)</li>`)
+        }
+      }
+
+      if (escalations.length > 0) {
+        await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${RESEND_KEY}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            from: 'BloomSuite System <system@bloomsuite.app>',
+            to: ALERT_EMAIL,
+            subject: `⏰ BloomSuite: ${escalations.length} onboarding timeline breach(es)`,
+            html: `<h2>Onboarding Timeline Alerts</h2><ul>${escalations.join('')}</ul>`
+          })
+        })
+      }
+      console.log(`[cron] Timeline check complete — ${escalations.length} escalations`)
+    } catch (e) {
+      console.error('[cron] Timeline check failed:', e)
+    }
+
     return new Response(JSON.stringify({ success: true, ...summary }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

@@ -1,5 +1,6 @@
 import { corsHeaders } from "../_shared/cors.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { updateNotionRecord } from "../_shared/notion-client.ts";
 
 /**
  * update-notion-profile
@@ -305,6 +306,103 @@ Deno.serve(async (req) => {
     const ok = await notionPatch(notionKey, pageId, properties);
 
     console.log(`update-notion-profile: ${table} → tenant ${tenantId} → page ${pageId} → ${ok ? "ok" : "failed"}`);
+
+    // ── Auto-graduate to Active when all onboarding checkboxes are complete ──
+    // Runs only if the preceding patch succeeded, so the read-back reflects the
+    // just-written state. Uses NOTION_TOKEN if set (preferred — matches shared
+    // notion-client), falling back to the existing NOTION_API_KEY.
+    if (ok) {
+      try {
+        const readKey = Deno.env.get("NOTION_TOKEN") || notionKey;
+        const checkRes = await fetch(`https://api.notion.com/v1/pages/${pageId}`, {
+          headers: {
+            "Authorization": `Bearer ${readKey}`,
+            "Notion-Version": "2022-06-28",
+          },
+        });
+        const checkData = await checkRes.json();
+        const props = checkData.properties ?? {};
+
+        const allComplete = (
+          props["Onboarding: Brand Setup"]?.checkbox === true &&
+          props["Onboarding: Profile Complete"]?.checkbox === true &&
+          props["Onboarding: POS Connected"]?.checkbox === true &&
+          props["Onboarding: Clients Imported"]?.checkbox === true &&
+          props["Onboarding: Email Domain"]?.checkbox === true
+        );
+
+        const currentStage = props["Stage"]?.select?.name;
+
+        if (allComplete && currentStage !== "Active") {
+          const today = new Date().toISOString().split("T")[0];
+          const thirtyDaysOut = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+            .toISOString()
+            .split("T")[0];
+
+          await updateNotionRecord(
+            pageId,
+            {
+              "Stage": { select: { name: "Active" } },
+              "Go Live Date": { date: { start: today } },
+              "Onboarding Completed": { date: { start: today } },
+              "Next Action": {
+                rich_text: [{ text: { content: "30-day check-in call" } }],
+              },
+              "Next Action Date": { date: { start: thirtyDaysOut } },
+            },
+            "update-notion-profile:auto-graduate-to-active",
+          );
+
+          const email = props["Email"]?.email;
+          const gardenCenter =
+            props["Garden Center"]?.title?.[0]?.plain_text || "your garden center";
+
+          if (email) {
+            try {
+              await fetch("https://api.resend.com/emails", {
+                method: "POST",
+                headers: {
+                  "Authorization": `Bearer ${Deno.env.get("RESEND_API_KEY")}`,
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  from: "BloomSuite <hello@brandsinblooms.com>",
+                  to: email,
+                  subject: `${gardenCenter} is live on BloomSuite 🌱`,
+                  html: `<h2>You're live!</h2><p>Your BloomSuite setup is complete. Your first content is ready to go.</p><p><a href="https://app.bloomsuite.app">Open your dashboard →</a></p><p>Need help? Reply to this email and we'll get you sorted.</p>`,
+                }),
+              });
+            } catch (e) {
+              console.error("Go-live email failed:", e);
+            }
+          }
+
+          try {
+            await fetch("https://api.resend.com/emails", {
+              method: "POST",
+              headers: {
+                "Authorization": `Bearer ${Deno.env.get("RESEND_API_KEY")}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                from: "BloomSuite System <system@bloomsuite.app>",
+                to: Deno.env.get("INTERNAL_ALERT_EMAIL") || "jon@getclear.ca",
+                subject: `🌱 ${gardenCenter} just went live`,
+                html: `<p>${gardenCenter} has completed all onboarding steps and is now Active. Go Live Date: ${today}.</p>`,
+              }),
+            });
+          } catch (e) {
+            console.error("Internal go-live alert failed:", e);
+          }
+
+          console.log(
+            `update-notion-profile: auto-graduated ${gardenCenter} (page ${pageId}) to Active`,
+          );
+        }
+      } catch (e) {
+        console.error("update-notion-profile: auto-graduate check failed", e);
+      }
+    }
 
     return new Response(
       JSON.stringify({ success: ok, notion_page_id: pageId, table }),
