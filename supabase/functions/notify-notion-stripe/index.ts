@@ -206,10 +206,22 @@ async function sendPaidConversionEmail(
     const firstName =
       (customerName?.trim().split(/\s+/)[0]) || "there";
 
+    const month = new Date().getMonth(); // 0-indexed
+    let seasonLine = "";
+    if (month >= 2 && month <= 4) {
+      seasonLine = "Quick note on timing: spring is the highest-value marketing window of the year for garden centers. Your customers are thinking about their gardens right now. The stores that show up in their inbox this month are the ones they visit first.";
+    } else if (month >= 8 && month <= 9) {
+      seasonLine = "Quick note on timing: fall is your second-biggest selling season. Mums, bulbs, and fall color are on your customers minds right now. Show up in their inbox before your competitors do.";
+    } else if (month >= 10 || month <= 1) {
+      seasonLine = "The holiday season and early new year are a great time to stay connected with your customers through gift guides, houseplant content, and early spring teasers.";
+    } else {
+      seasonLine = "Summer is a great time to build loyalty with educational content and keep your customers engaged between the big selling seasons.";
+    }
+
     const emailHtml = `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:600px;margin:0 auto;color:#1f2937;padding:24px;">
   <p style="margin:0 0 16px 0;line-height:1.6;">Hi ${firstName},</p>
   <p style="margin:0 0 16px 0;line-height:1.6;">${companyName} is now a full BloomSuite member. Your account is fully unlocked and you are ready to start marketing to your customers in a way most independent garden centers never get to.</p>
-  <p style="margin:0 0 16px 0;line-height:1.6;">Quick note on timing: April is the highest-value marketing window of the year for garden centers. Your customers are thinking about their gardens right now. The stores that show up in their inbox this month are the ones they visit first.</p>
+  <p style="margin:0 0 16px 0;line-height:1.6;">${seasonLine}</p>
   ${incompleteStepHtml}
   ${oncePara}
   <p style="margin:0 0 16px 0;line-height:1.6;">👉 <a href="https://www.bloomsuite.app/newsletters/new" style="color:#1abc9c;">Start a new campaign</a></p>
