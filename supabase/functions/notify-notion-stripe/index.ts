@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@14";
+import { createClient } from "npm:@supabase/supabase-js@2";
 import {
   findNotionRecord,
   updateNotionRecord,
@@ -49,6 +50,203 @@ async function fetchStripeCustomerEmail(
   } catch (err) {
     logStep("Stripe customer fetch error", { error: String(err) });
     return null;
+  }
+}
+
+/**
+ * Sends a personalised paid conversion email from Jeff with a setup-step
+ * nudge based on the customer's current onboarding state.
+ *
+ * Wrapped end-to-end in try/catch — every failure mode is non-fatal so the
+ * Notion update remains the critical path. Returns void.
+ */
+async function sendPaidConversionEmail(
+  stripeKey: string,
+  stripeCustomerId: string,
+  customerEmail: string,
+): Promise<void> {
+  try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const resendKey = Deno.env.get("RESEND_API_KEY");
+
+    if (!supabaseUrl || !serviceKey || !resendKey) {
+      logStep("Conversion email skipped — missing env vars");
+      return;
+    }
+
+    const supabase = createClient(supabaseUrl, serviceKey, {
+      auth: { persistSession: false },
+    });
+
+    // Fetch customer name from Stripe (separate fetch — keeps the existing
+    // fetchStripeCustomerEmail helper untouched for the other code paths).
+    let customerName: string | null = null;
+    try {
+      const stripeCustomerRes = await fetch(
+        `https://api.stripe.com/v1/customers/${stripeCustomerId}`,
+        { headers: { Authorization: `Bearer ${stripeKey}` } },
+      );
+      if (stripeCustomerRes.ok) {
+        const stripeCustomerData = await stripeCustomerRes.json();
+        customerName = (stripeCustomerData?.name as string) ?? null;
+      }
+    } catch (e) {
+      logStep("Conversion email: Stripe name fetch failed", { error: String(e) });
+    }
+
+    // Find the user by email, then their tenant_id from company_profiles.
+    const { data: userRow } = await supabase
+      .from("users")
+      .select("id")
+      .eq("email", customerEmail)
+      .maybeSingle();
+
+    const userId = (userRow as { id?: string } | null)?.id;
+    if (!userId) {
+      logStep("Conversion email skipped — no user found", { customerEmail });
+      return;
+    }
+
+    const { data: tenantRow } = await supabase
+      .from("company_profiles")
+      .select("tenant_id")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    const tenantId = (tenantRow as { tenant_id?: string } | null)?.tenant_id;
+    if (!tenantId) {
+      logStep("Conversion email skipped — no tenant_id found", { userId });
+      return;
+    }
+
+    // Run setup-status queries in parallel.
+    const [
+      profileResult,
+      customerCount,
+      emailDomainResult,
+      squareResult,
+      cloverResult,
+      lightspeedResult,
+    ] = await Promise.all([
+      supabase
+        .from("company_profiles")
+        .select("company_name, brand_primary_color, company_overview")
+        .eq("user_id", userId)
+        .single(),
+      supabase
+        .from("crm_customers")
+        .select("id", { count: "exact", head: true })
+        .eq("tenant_id", tenantId),
+      supabase
+        .from("email_domains")
+        .select("status")
+        .eq("tenant_id", tenantId)
+        .in("status", ["verified", "warming_up", "active"])
+        .limit(1),
+      supabase
+        .from("square_connections")
+        .select("id")
+        .eq("tenant_id", tenantId)
+        .limit(1),
+      supabase
+        .from("clover_connections")
+        .select("id")
+        .eq("tenant_id", tenantId)
+        .limit(1),
+      supabase
+        .from("lightspeed_connections")
+        .select("id")
+        .eq("tenant_id", tenantId)
+        .eq("status", "connected")
+        .limit(1),
+    ]);
+
+    const profileData = profileResult.data as
+      | {
+          company_name?: string | null;
+          brand_primary_color?: string | null;
+          company_overview?: string | null;
+        }
+      | null;
+
+    const domainConfigured =
+      ((emailDomainResult.data as unknown[] | null)?.length ?? 0) > 0;
+    const clientListImported = (customerCount.count ?? 0) > 0;
+    const posIntegrated =
+      ((squareResult.data as unknown[] | null)?.length ?? 0) > 0 ||
+      ((cloverResult.data as unknown[] | null)?.length ?? 0) > 0 ||
+      ((lightspeedResult.data as unknown[] | null)?.length ?? 0) > 0;
+    const companyProfileComplete = !!(
+      profileData?.company_name && profileData?.company_overview
+    );
+    const colorsConfirmed = !!profileData?.brand_primary_color;
+
+    // Determine first incomplete step in priority order.
+    let incompleteStepHtml = "";
+    let oncePara = `<p style="margin:0 0 16px 0;line-height:1.6;">Once that is done, you are ready to send. A simple "what's new this spring" newsletter to your full list is all you need to start.</p>`;
+
+    if (!domainConfigured) {
+      incompleteStepHtml = `<p style="margin:0 0 12px 0;line-height:1.6;"><strong>One thing to finish before your first campaign:</strong> Your email domain is not connected yet. This is what gets your emails into inboxes instead of spam folders. It takes about 15 minutes and makes everything else work better.</p><p style="margin:0 0 16px 0;line-height:1.6;">👉 <a href="https://www.bloomsuite.app/crm/settings/email-sending" style="color:#1abc9c;">Connect your email domain</a></p>`;
+    } else if (!clientListImported) {
+      incompleteStepHtml = `<p style="margin:0 0 12px 0;line-height:1.6;"><strong>One thing to finish before your first campaign:</strong> Your customer list has not been imported yet. Without it, your campaigns have no one to go to. Export your list from your POS or email tool as a CSV and upload it.</p><p style="margin:0 0 16px 0;line-height:1.6;">👉 <a href="https://www.bloomsuite.app/crm/customers" style="color:#1abc9c;">Import your customer list</a></p>`;
+    } else if (!posIntegrated) {
+      incompleteStepHtml = `<p style="margin:0 0 12px 0;line-height:1.6;"><strong>One thing to finish before your first campaign:</strong> Your POS system is not connected yet. Connecting it lets BloomSuite build smart segments automatically based on what your customers actually buy.</p><p style="margin:0 0 16px 0;line-height:1.6;">👉 <a href="https://www.bloomsuite.app/integrations" style="color:#1abc9c;">Connect your POS</a></p>`;
+    } else if (!companyProfileComplete) {
+      incompleteStepHtml = `<p style="margin:0 0 12px 0;line-height:1.6;"><strong>One thing to finish before your first campaign:</strong> Your company profile is not complete yet. This trains the AI content generator on your business so the emails it writes actually sound like you.</p><p style="margin:0 0 16px 0;line-height:1.6;">👉 <a href="https://www.bloomsuite.app/profile/company" style="color:#1abc9c;">Complete your company profile</a></p>`;
+    } else if (!colorsConfirmed) {
+      incompleteStepHtml = `<p style="margin:0 0 12px 0;line-height:1.6;"><strong>One thing to finish before your first campaign:</strong> Your brand colors are not set yet. These appear in every email you send to make sure everything looks like your business.</p><p style="margin:0 0 16px 0;line-height:1.6;">👉 <a href="https://www.bloomsuite.app/profile/brand-colors" style="color:#1abc9c;">Set your brand colors</a></p>`;
+    } else {
+      incompleteStepHtml = "";
+      oncePara = `<p style="margin:0 0 16px 0;line-height:1.6;">Everything looks set up on your end. You are ready to go.</p>`;
+    }
+
+    const companyName =
+      profileData?.company_name || customerName || "your garden center";
+    const firstName =
+      (customerName?.trim().split(/\s+/)[0]) || "there";
+
+    const emailHtml = `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:600px;margin:0 auto;color:#1f2937;padding:24px;">
+  <p style="margin:0 0 16px 0;line-height:1.6;">Hi ${firstName},</p>
+  <p style="margin:0 0 16px 0;line-height:1.6;">${companyName} is now a full BloomSuite member. Your account is fully unlocked and you are ready to start marketing to your customers in a way most independent garden centers never get to.</p>
+  <p style="margin:0 0 16px 0;line-height:1.6;">Quick note on timing: April is the highest-value marketing window of the year for garden centers. Your customers are thinking about their gardens right now. The stores that show up in their inbox this month are the ones they visit first.</p>
+  ${incompleteStepHtml}
+  ${oncePara}
+  <p style="margin:0 0 16px 0;line-height:1.6;">👉 <a href="https://www.bloomsuite.app/newsletters/new" style="color:#1abc9c;">Start a new campaign</a></p>
+  <p style="margin:0 0 16px 0;line-height:1.6;">If you would like to walk through any of this with someone, Jon Morrison does a free 30-minute call with every new member. Most people leave with their first campaign scheduled.</p>
+  <p style="margin:0 0 16px 0;line-height:1.6;">👉 <a href="https://calendly.com/jonmorrison/chat-with-jon" style="color:#1abc9c;">Book a time with Jon</a></p>
+  <p style="margin:0 0 16px 0;line-height:1.6;">This is going to be a great season. Let's make it count.</p>
+  <p style="margin:0 0 4px 0;line-height:1.6;">Jeff</p>
+  <p style="margin:0 0 4px 0;line-height:1.6;">Co-Founder, BloomSuite</p>
+  <p style="margin:0;line-height:1.6;"><a href="mailto:jeff@brandsinblooms.com" style="color:#1abc9c;">jeff@brandsinblooms.com</a></p>
+</div>`;
+
+    const resendRes = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${resendKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: "Jeff at BloomSuite <hello@brandsinblooms.com>",
+        reply_to: "jeff@brandsinblooms.com",
+        to: customerEmail,
+        subject: `${companyName} is officially on BloomSuite. Here's what's next.`,
+        html: emailHtml,
+      }),
+    });
+
+    if (!resendRes.ok) {
+      const body = await resendRes.text();
+      logStep("Conversion email Resend failed", {
+        status: resendRes.status,
+        body,
+      });
+    } else {
+      logStep("Conversion email sent", { customerEmail, companyName });
+    }
+  } catch (err) {
+    logStep("Conversion email failed (non-fatal)", { error: String(err) });
   }
 }
 
@@ -146,6 +344,9 @@ serve(async (req) => {
               { status: 500, headers: { "Content-Type": "application/json" } },
             );
           }
+
+          await sendPaidConversionEmail(stripeKey, stripeCustomerId, email);
+
           return new Response(
             JSON.stringify({ received: true, updated: pageId }),
             { status: 200, headers: { "Content-Type": "application/json" } },
@@ -173,6 +374,9 @@ serve(async (req) => {
             { status: 500, headers: { "Content-Type": "application/json" } },
           );
         }
+
+        await sendPaidConversionEmail(stripeKey, stripeCustomerId, email);
+
         return new Response(
           JSON.stringify({ received: true, created: newPageId }),
           { status: 200, headers: { "Content-Type": "application/json" } },
