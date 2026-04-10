@@ -186,6 +186,69 @@ Deno.serve(async (req) => {
       console.error("notify-notion-trial: welcome email error", e);
     }
 
+    // Send Jeff's personal welcome email — failure must NOT fail the function
+    try {
+      const resendKey = Deno.env.get("RESEND_API_KEY");
+      if (!resendKey) {
+        console.warn(
+          "notify-notion-trial: RESEND_API_KEY not set, skipping Jeff welcome email",
+        );
+      } else {
+        const firstName =
+          (user.name?.trim().split(/\s+/)[0]) || "there";
+
+        const jeffHtml = `
+<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:600px;margin:0 auto;color:#1f2937;padding:24px;">
+  <p style="margin:0 0 16px 0;line-height:1.6;">Hi ${firstName},</p>
+  <p style="margin:0 0 16px 0;line-height:1.6;">Welcome to BloomSuite. We're really glad you're here.</p>
+  <p style="margin:0 0 16px 0;line-height:1.6;">A bit of background on why we built this. Jon and I spent years watching independent garden centers struggle to compete with big box stores, not because they had worse products or less passion, but because they didn't have the marketing tools to stay in front of their customers year-round. BloomSuite exists to give independent garden centers the same kind of marketing power that used to take a full-time marketing team.</p>
+  <p style="margin:0 0 16px 0;line-height:1.6;">You're exactly who we built this for.</p>
+  <p style="margin:0 0 16px 0;line-height:1.6;">Start with the setup wizard. It walks you through five steps that take about 20 minutes and get everything connected: your brand colors, your company profile, your POS system, your customer list, and your email domain. Once those are done, you're ready to send your first campaign.</p>
+  <p style="margin:0 0 16px 0;line-height:1.6;">👉 <a href="https://www.bloomsuite.app/account-setup" style="color:#1abc9c;">Start the setup wizard</a></p>
+  <p style="margin:0 0 16px 0;line-height:1.6;">If you get stuck at any point, our Knowledge Base has step-by-step guides for everything:</p>
+  <p style="margin:0 0 16px 0;line-height:1.6;">👉 <a href="https://bloomsuite.notion.site/bloomsuite-help" style="color:#1abc9c;">Visit the Knowledge Base</a></p>
+  <p style="margin:0 0 16px 0;line-height:1.6;">If you'd like a hand getting set up, our co-founder Jon Morrison does a free 30-minute kickoff call with every new member. You'll walk through your setup together, connect your accounts, and have your first campaign ready before you hang up.</p>
+  <p style="margin:0 0 16px 0;line-height:1.6;">👉 <a href="https://calendly.com/jonmorrison/chat-with-jon" style="color:#1abc9c;">Book a Time with Jon</a></p>
+  <p style="margin:0 0 16px 0;line-height:1.6;">Looking forward to seeing what you build this season.</p>
+  <p style="margin:0 0 4px 0;line-height:1.6;">Jeff</p>
+  <p style="margin:0 0 4px 0;line-height:1.6;">Co-Founder, BloomSuite</p>
+  <p style="margin:0;line-height:1.6;"><a href="mailto:jeff@brandsinblooms.com" style="color:#1abc9c;">jeff@brandsinblooms.com</a></p>
+</div>
+`;
+
+        const jeffRes = await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${resendKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            from: "Jeff at BloomSuite <hello@brandsinblooms.com>",
+            reply_to: "jeff@brandsinblooms.com",
+            to: userEmail,
+            subject: "Welcome to BloomSuite. Here's how to get started.",
+            html: jeffHtml,
+          }),
+        });
+
+        if (!jeffRes.ok) {
+          const body = await jeffRes.text();
+          console.error(
+            "notify-notion-trial: Jeff welcome email failed",
+            jeffRes.status,
+            body,
+          );
+        } else {
+          console.log(
+            "notify-notion-trial: Jeff welcome email sent to",
+            userEmail,
+          );
+        }
+      }
+    } catch (e) {
+      console.error("notify-notion-trial: Jeff welcome email error", e);
+    }
+
     return new Response(
       JSON.stringify({ success: true, notion_page_id: resultPageId }),
       {
