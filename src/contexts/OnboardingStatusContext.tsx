@@ -11,7 +11,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 
-const CACHE_KEY_PREFIX = 'onboarding-completed:';
+const CACHE_KEY_PREFIX = "onboarding-completed:";
 
 interface OnboardingStatusContextType {
   isCompleted: boolean;
@@ -138,7 +138,7 @@ export const OnboardingStatusProvider = ({
   useEffect(() => {
     if (user && isCompleted && !hasEverCompleted) {
       setHasEverCompleted(true);
-    localStorage.setItem(`${CACHE_KEY_PREFIX}${user.id}`, "1");
+      localStorage.setItem(`${CACHE_KEY_PREFIX}${user.id}`, "1");
     }
   }, [isCompleted, user]); // eslint-disable-line react-hooks/exhaustive-deps
 

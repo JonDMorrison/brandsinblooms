@@ -51,8 +51,8 @@ export const useCRMCustomers = () => {
         `,
         )
         .eq("tenant_id", tenant.id)
-            .order("created_at", { ascending: false })
-            .limit(500); // FIX: [issue #37] - Add pagination limit to prevent unbounded fetches
+        .order("created_at", { ascending: false })
+        .limit(500); // FIX: [issue #37] - Add pagination limit to prevent unbounded fetches
 
       if (error) throw error;
 

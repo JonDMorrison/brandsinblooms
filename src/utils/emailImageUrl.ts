@@ -18,7 +18,8 @@
  */
 
 // Known safe Supabase storage domains for this project
-const SUPABASE_STORAGE_PATTERN = /^https:\/\/[a-z0-9-]+\.supabase\.(co|in)\/storage\/v1\/object\/public\//i;
+const SUPABASE_STORAGE_PATTERN =
+  /^https:\/\/[a-z0-9-]+\.supabase\.(co|in)\/storage\/v1\/object\/public\//i;
 
 // Common image CDN patterns we trust
 const TRUSTED_CDN_PATTERNS = [

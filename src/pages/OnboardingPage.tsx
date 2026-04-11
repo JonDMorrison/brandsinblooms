@@ -48,7 +48,9 @@ const OnboardingPage = () => {
   const navigate = useNavigate();
 
   const [step, setStep] = useState<OnboardingStep>("flow");
-  const [generatedContent, setGeneratedContent] = useState<ContentPreviewItem[]>([]);
+  const [generatedContent, setGeneratedContent] = useState<
+    ContentPreviewItem[]
+  >([]);
   const [pollAttempts, setPollAttempts] = useState(0);
   // FIX: M3 - Track whether content poll timed out so we can show a message
   const [contentTimedOut, setContentTimedOut] = useState(false);
@@ -62,10 +64,24 @@ const OnboardingPage = () => {
 
   // FIX: M2 - Redirect completed users to dashboard (also catches manual /onboarding visits via hasEverCompleted)
   useEffect(() => {
-    if (!loading && !onboardingLoading && user && (isCompleted || hasEverCompleted) && step === "flow") {
+    if (
+      !loading &&
+      !onboardingLoading &&
+      user &&
+      (isCompleted || hasEverCompleted) &&
+      step === "flow"
+    ) {
       navigate("/dashboard", { replace: true });
     }
-  }, [user, loading, onboardingLoading, isCompleted, hasEverCompleted, navigate, step]);
+  }, [
+    user,
+    loading,
+    onboardingLoading,
+    isCompleted,
+    hasEverCompleted,
+    navigate,
+    step,
+  ]);
 
   // FIX: H1 - Add tenant_id filter for defense-in-depth isolation
   const pollForContent = useCallback(async () => {
@@ -106,7 +122,7 @@ const OnboardingPage = () => {
             title: t.title || `${t.post_type || "Content"} Post`,
             content: t.content || "",
             status: t.status || "draft",
-          }))
+          })),
         );
         setStep("preview");
       }
@@ -222,12 +238,16 @@ const OnboardingPage = () => {
               style={{
                 width: `${Math.min(
                   95,
-                  (pollAttempts / MAX_POLL_ATTEMPTS) * 100
+                  (pollAttempts / MAX_POLL_ATTEMPTS) * 100,
                 )}%`,
               }}
             />
           </div>
-          <Button variant="ghost" onClick={handleSkipPreview} className="text-gray-500">
+          <Button
+            variant="ghost"
+            onClick={handleSkipPreview}
+            className="text-gray-500"
+          >
             Skip preview and go to dashboard
           </Button>
         </div>
@@ -332,7 +352,8 @@ const OnboardingPage = () => {
           {/* FIX: M3 - Show timeout message when content generation is still running */}
           {contentTimedOut && (
             <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
-              Your content is still being generated — check your content library in a few minutes.
+              Your content is still being generated — check your content library
+              in a few minutes.
             </div>
           )}
           <Button

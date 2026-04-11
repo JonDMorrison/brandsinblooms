@@ -10,10 +10,10 @@ export const createCompanyProfileFromOnboarding = async (
     try {
       // FIX: H3 - Check if a completed profile exists; if so, skip cleanup entirely
       const { data: completedCheck } = await supabase
-        .from('company_profiles')
-        .select('id, onboarding_completed_at')
-        .eq('user_id', userId)
-        .not('onboarding_completed_at', 'is', null)
+        .from("company_profiles")
+        .select("id, onboarding_completed_at")
+        .eq("user_id", userId)
+        .not("onboarding_completed_at", "is", null)
         .limit(1)
         .maybeSingle();
 
@@ -33,7 +33,6 @@ export const createCompanyProfileFromOnboarding = async (
       if (fetchError) {
         console.error("❌ Error fetching existing profiles:", fetchError);
       } else if (existingProfiles && existingProfiles.length > 1) {
-
         // Keep the first (most recent) profile, delete the rest
         const profilesToDelete = existingProfiles.slice(1);
 
@@ -75,7 +74,6 @@ export const createCompanyProfileFromOnboarding = async (
       if (existingUser?.tenant_id && existingUser.tenants) {
         tenant = existingUser.tenants;
       } else {
-
         // Get user info from auth for tenant creation
         const { data: authUser, error: authUserError } =
           await supabase.auth.getUser();
@@ -108,7 +106,6 @@ export const createCompanyProfileFromOnboarding = async (
           });
           throw new Error(`Failed to create tenant: ${tenantError.message}`);
         }
-
 
         // Update/create user record in public.users table with tenant_id
         const { error: updateUserError } = await supabase.from("users").upsert({
@@ -231,9 +228,9 @@ export const createCompanyProfileFromOnboarding = async (
         savedProfile = updatedProfile;
       } else {
         // Create new profile - DO NOT set onboarding_completed_at here
-  console.log("🆕 Creating new profile");
+        console.log("🆕 Creating new profile");
 
-  // FIX: C4 - Do NOT set first_content_generated here; set it after Step 6 content generation succeeds
+        // FIX: C4 - Do NOT set first_content_generated here; set it after Step 6 content generation succeeds
         const { data: newProfile, error: insertError } = await supabase
           .from("company_profiles")
           .insert({
@@ -274,7 +271,6 @@ export const createCompanyProfileFromOnboarding = async (
           finalizeResult?.error || "Failed to finalize onboarding",
         );
       }
-
     } catch (saveError) {
       console.error("❌ Critical error saving profile:", saveError);
       throw new Error(`Profile save failed: ${saveError.message}`);
@@ -352,8 +348,7 @@ export const createCompanyProfileFromOnboarding = async (
 
       if (existingContent && existingContent.length > 0) {
       } else {
-        const dummyTaskUpdate = () => {
-        };
+        const dummyTaskUpdate = () => {};
 
         await generateRequiredTasks(
           immediateCampaign.id,
@@ -392,7 +387,6 @@ export const createCompanyProfileFromOnboarding = async (
           "✅ first_content_generated set to true after successful content generation",
         );
       }
-
     } catch (contentError) {
       console.error(
         "⚠️ Error generating immediate content during onboarding:",
@@ -460,7 +454,6 @@ export const createCompanyProfileFromOnboarding = async (
       // Don't throw - this is optional background work
     }
 
-
     return savedProfile;
   } catch (error) {
     console.error("🚨 CRITICAL ONBOARDING ERROR:", error);
@@ -487,7 +480,6 @@ export const saveOnboardingResponse = async (
   onboardingData: any,
   userId: string,
 ) => {
-
   try {
     // Clean up any existing duplicate onboarding responses first
     const { data: existingResponses, error: fetchError } = await supabase
@@ -499,7 +491,6 @@ export const saveOnboardingResponse = async (
     if (fetchError && fetchError.code !== "PGRST116") {
       console.error("❌ Error fetching existing responses:", fetchError);
     } else if (existingResponses && existingResponses.length > 1) {
-
       // Keep the first (most recent) response, delete the rest
       const responsesToDelete = existingResponses.slice(1);
 

@@ -5,8 +5,6 @@ import Underline from "@tiptap/extension-underline";
 import TextAlign from "@tiptap/extension-text-align";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { NewsletterContentBlock } from "@/components/content-sidebar/newsletter/NewsletterContentBlock";
-import { useNewsletterImages } from "@/components/content-sidebar/newsletter/useNewsletterImages";
 import { processNewsletterContent } from "@/utils/newsletterContentProcessor";
 import { sanitizeWeekNumbers } from "@/utils/weekNumberSanitizer";
 import { sanitizeHtml } from "@/utils/htmlSanitizer";
@@ -32,14 +30,91 @@ interface EditableNewsletterPreviewProps {
   className?: string;
 }
 
+const EMPTY_PREVIEW_MESSAGE =
+  "No content available. Click edit to add newsletter content.";
+
+const HTML_TAG_PATTERN = /<[^>]+>/;
+
+const renderPlainTextPreview = (value: string) => {
+  const paragraphs = value
+    .split(/\n\s*\n/)
+    .map((paragraph) => paragraph.trim())
+    .filter(Boolean);
+
+  if (paragraphs.length === 0) {
+    return EMPTY_PREVIEW_MESSAGE;
+  }
+
+  return paragraphs
+    .map(
+      (paragraph) =>
+        `<p class="text-slate-700 leading-relaxed mb-4">${paragraph.replace(/\n/g, "<br>")}</p>`,
+    )
+    .join("");
+};
+
+const renderSectionBody = (value: string) => {
+  if (!value.trim()) {
+    return "";
+  }
+
+  if (HTML_TAG_PATTERN.test(value)) {
+    return value;
+  }
+
+  return renderPlainTextPreview(value);
+};
+
+const renderStructuredPreview = (
+  processedNewsletter: ReturnType<typeof processNewsletterContent>,
+) => {
+  const sections =
+    processedNewsletter.blocks.length > 0
+      ? processedNewsletter.blocks.map((block) => ({
+          title: block.title || block.headline || "",
+          body: block.body || block.content || "",
+          cta: block.cta || block.ctaText || "",
+          link: block.link || "",
+        }))
+      : (processedNewsletter.unstructuredSections ?? []).map((section) => ({
+          title: section.title || "",
+          body: section.content || "",
+          cta: section.cta || "",
+          link: section.link || "",
+        }));
+
+  if (sections.length === 0) {
+    return "";
+  }
+
+  return sections
+    .map((section) => {
+      const titleHtml = section.title
+        ? `<h2 class="text-2xl font-semibold text-slate-900 mb-3">${section.title}</h2>`
+        : "";
+      const bodyHtml = renderSectionBody(section.body);
+      const ctaHtml = section.cta
+        ? section.link && section.link.startsWith("http")
+          ? `<a href="${section.link}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center text-primary font-semibold hover:text-primary/80 transition-colors">${section.cta} &rarr;</a>`
+          : `<span class="inline-flex items-center text-primary font-semibold">${section.cta} &rarr;</span>`
+        : "";
+
+      return `
+        <section class="mb-8 last:mb-0">
+          ${titleHtml}
+          ${bodyHtml}
+          ${ctaHtml ? `<div class="mt-6">${ctaHtml}</div>` : ""}
+        </section>
+      `;
+    })
+    .join("");
+};
+
 export const EditableNewsletterPreview: React.FC<
   EditableNewsletterPreviewProps
 > = ({ content, title, onChange, onSave, className = "" }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(content);
-  const [selectedImages, setSelectedImages] = useState<Record<number, string>>(
-    {},
-  );
 
   // Rich text editor configuration
   const editor = useEditor({
@@ -82,18 +157,26 @@ export const EditableNewsletterPreview: React.FC<
 
   // Process newsletter content to get structured blocks
   const processedNewsletter = useMemo(() => {
-    const result = processNewsletterContent(content);
+    const result = processNewsletterContent(content, title);
     return result;
-  }, [content]);
+  }, [content, title]);
 
-  // Load images for the newsletter blocks
-  const { images, imageErrors, loadingImages } = useNewsletterImages(
-    processedNewsletter.blocks,
-    processedNewsletter.needsRegeneration,
-    undefined, // contentTaskId
-    processedNewsletter.meta?.theme,
-    processedNewsletter.unstructuredSections,
-  );
+  const previewHtml = useMemo(() => {
+    if (!content.trim()) {
+      return EMPTY_PREVIEW_MESSAGE;
+    }
+
+    if (HTML_TAG_PATTERN.test(content)) {
+      return content;
+    }
+
+    const structuredPreview = renderStructuredPreview(processedNewsletter);
+    if (structuredPreview) {
+      return structuredPreview;
+    }
+
+    return renderPlainTextPreview(content);
+  }, [content, processedNewsletter]);
 
   const handleStartEdit = () => {
     setEditContent(content);
@@ -114,7 +197,6 @@ export const EditableNewsletterPreview: React.FC<
     onChange(latestContent);
     setIsEditing(false);
     onSave?.();
-    // Note: selectedImages will be preserved even after content changes
   };
 
   const handleCancel = () => {
@@ -124,17 +206,6 @@ export const EditableNewsletterPreview: React.FC<
     if (editor && !editor.isDestroyed) {
       editor.commands.setContent(content || "");
     }
-  };
-
-  const handleImageSelect = (
-    blockIndex: number,
-    imageUrl: string,
-    metadata?: any,
-  ) => {
-    setSelectedImages((prev) => ({
-      ...prev,
-      [blockIndex]: imageUrl,
-    }));
   };
 
   if (isEditing) {
@@ -275,77 +346,10 @@ export const EditableNewsletterPreview: React.FC<
         {/* Newsletter Content */}
         <div className="prose prose-slate max-w-none">
           <div
-            className="whitespace-pre-wrap text-slate-700 leading-relaxed"
+            className="text-slate-700 leading-relaxed"
             // SECURITY: X2 - Sanitize HTML to prevent XSS
             dangerouslySetInnerHTML={{
-              __html: sanitizeHtml((() => {
-                if (!content) {
-                  return "No content available. Click edit to add newsletter content.";
-                }
-
-                // Check if content is already HTML (contains HTML tags)
-                const isHTML = /<[^>]*>/g.test(content);
-
-                if (isHTML) {
-                  // Content is already HTML, render it directly
-                  return content;
-                }
-
-                // Parse YAML-like content to extract readable text and convert to HTML
-                let cleanContent = content;
-
-                // Extract newsletter title
-                const titleMatch = cleanContent.match(/# (.+)/);
-                const title = titleMatch
-                  ? titleMatch[1].replace(/Newsletter$/, "").trim()
-                  : "";
-
-                // Extract blocks content
-                const blockPattern = /title: "([^"]+)"\s*body: "([^"]+)"/g;
-                const blocks = [];
-                let match;
-
-                while ((match = blockPattern.exec(cleanContent)) !== null) {
-                  blocks.push({
-                    title: match[1],
-                    body: match[2],
-                  });
-                }
-
-                // If we have structured content, convert to HTML
-                if (blocks.length > 0) {
-                  let html = "";
-                  if (title) {
-                    html += `<h1 class="text-3xl font-bold mb-6">${title}</h1>`;
-                  }
-                  blocks.forEach((block) => {
-                    html += `
-                      <div class="mb-8">
-                        <h2 class="text-xl font-semibold mb-3">${block.title}</h2>
-                        <p class="text-slate-700 leading-relaxed">${block.body}</p>
-                      </div>
-                    `;
-                  });
-                  return html;
-
-                // Fallback: clean up YAML syntax and convert to HTML
-                  })()),
-                  )
-                  .replace(
-                    /body:\s*"([^"]+)"/g,
-                    '<p class="text-slate-700 leading-relaxed mb-4">$1</p>',
-                  )
-                  .replace(/cta:\s*"[^"]*"/g, "")
-                  .replace(/link:\s*"[^"]*"/g, "")
-                  .replace(/reading_time:\s*"[^"]*"/g, "")
-                  .replace(/theme:\s*"[^"]*"/g, "")
-                  .replace(/week_focus:\s*"[^"]*"/g, "")
-                  .replace(/\n\s*\n\s*\n/g, "<br><br>")
-                  .replace(/\n/g, "<br>")
-                  .trim();
-
-                return cleaned || "No content available. Click edit to add newsletter content.";
-              })()),
+              __html: sanitizeHtml(previewHtml),
             }}
           />
         </div>

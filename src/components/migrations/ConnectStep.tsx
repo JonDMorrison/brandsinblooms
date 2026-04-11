@@ -192,21 +192,21 @@ export const ConnectStep = ({
         setMailchimpStatus("connected");
         setMailchimpAccount(mailchimp.metadata);
         // If this was the provider we were connecting, clear the ref so grace period doesn't cancel
-        if (currentProviderRef.current === 'mailchimp') {
+        if (currentProviderRef.current === "mailchimp") {
           currentProviderRef.current = null;
         }
       }
       if (klaviyo) {
         setKlaviyoStatus("connected");
         setKlaviyoAccount(klaviyo.metadata);
-        if (currentProviderRef.current === 'klaviyo') {
+        if (currentProviderRef.current === "klaviyo") {
           currentProviderRef.current = null;
         }
       }
       if (constantContact) {
         setConstantContactStatus("connected");
         setConstantContactAccount(constantContact.metadata);
-        if (currentProviderRef.current === 'constant_contact') {
+        if (currentProviderRef.current === "constant_contact") {
           currentProviderRef.current = null;
         }
       }
@@ -274,7 +274,7 @@ export const ConnectStep = ({
       popupRef.current = window.open(
         authUrl,
         `oauth_${provider}`,
-        `width=${width},height=${height},left=${left},top=${top}`
+        `width=${width},height=${height},left=${left},top=${top}`,
       );
 
       if (!popupRef.current || popupRef.current.closed) {
@@ -291,7 +291,9 @@ export const ConnectStep = ({
       // This allows time for the postMessage to arrive after the popup navigates and closes
       popupCheckIntervalRef.current = setInterval(() => {
         if (popupRef.current?.closed) {
-          console.log(`🪟 Popup was closed for ${provider}, starting grace period`);
+          console.log(
+            `🪟 Popup was closed for ${provider}, starting grace period`,
+          );
           clearInterval(popupCheckIntervalRef.current!);
           popupCheckIntervalRef.current = null;
 
@@ -299,22 +301,30 @@ export const ConnectStep = ({
           popupCloseGraceRef.current = setTimeout(() => {
             // Only show cancellation if we didn't receive a success/error message during grace period
             if (currentProviderRef.current === provider) {
-              console.log(`⚠️ Grace period expired without OAuth message for ${provider}, checking DB`);
+              console.log(
+                `⚠️ Grace period expired without OAuth message for ${provider}, checking DB`,
+              );
               // IMPROVEMENT: Fallback connection check — query DB before declaring cancellation
               refreshConnections().then(() => {
                 // Re-check after refresh — if status updated to connected, don't show cancel
-                const statusGetter = provider === 'mailchimp' ? mailchimpStatus
-                  : provider === 'klaviyo' ? klaviyoStatus
-                  : constantContactStatus;
+                const statusGetter =
+                  provider === "mailchimp"
+                    ? mailchimpStatus
+                    : provider === "klaviyo"
+                      ? klaviyoStatus
+                      : constantContactStatus;
                 if (currentProviderRef.current === provider) {
-                  const providerName = provider === 'mailchimp' ? 'Mailchimp'
-                    : provider === 'klaviyo' ? 'Klaviyo'
-                    : 'Constant Contact';
+                  const providerName =
+                    provider === "mailchimp"
+                      ? "Mailchimp"
+                      : provider === "klaviyo"
+                        ? "Klaviyo"
+                        : "Constant Contact";
                   toast({
-                    title: 'Connection Cancelled',
+                    title: "Connection Cancelled",
                     description: `You closed the ${providerName} authorization window`,
                   });
-                  setStatus('idle');
+                  setStatus("idle");
                   currentProviderRef.current = null;
                 }
               });
