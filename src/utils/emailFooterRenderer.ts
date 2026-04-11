@@ -1,24 +1,24 @@
 /**
  * Email Footer Renderer
  * Generates HTML for email footers with brand-aware styling
- * 
+ *
  * This is the legacy renderer - kept for backward compatibility.
  * New implementations should use generateNewsletterFooterHtml from newsletterFooterHtml.ts
  */
 
-import { processEmailTokens, TokenData } from './emailTokenProcessor';
-import { generateNewsletterFooterHtml } from './newsletterFooterHtml';
-import { NewsletterFooterProps } from '@/types/newsletterFooter';
+import { processEmailTokens, TokenData } from "./emailTokenProcessor";
+import { generateNewsletterFooterHtml } from "./newsletterFooterHtml";
+import { NewsletterFooterProps } from "@/types/newsletterFooter";
 
 interface FooterSettings {
   showPhone: boolean;
   showLogo: boolean;
   showManagePreferences: boolean;
-  padding: 'compact' | 'normal' | 'spacious';
-  alignment: 'left' | 'center';
+  padding: "compact" | "normal" | "spacious";
+  alignment: "left" | "center";
   showDivider: boolean;
-  backgroundColor: 'light' | 'dark' | 'white';
-  fontSize: 'xs' | 'sm';
+  backgroundColor: "light" | "dark" | "white";
+  fontSize: "xs" | "sm";
   complianceText: string;
   customFooterText?: string;
   // Extended fields
@@ -80,25 +80,29 @@ export const generateFooterHTML = (
   companyInfo: CompanyInfo,
   tokenData?: TokenData,
   footerBackgroundColor?: string,
-  footerStyling?: { 
+  footerStyling?: {
     backgroundColor?: string;
-    textColor?: string; 
-    linkColor?: string; 
+    textColor?: string;
+    linkColor?: string;
     dividerColor?: string;
     logoBackgroundColor?: string;
     logoTextColor?: string;
-  }
+  },
 ): string => {
   const tokens = tokenData || {
-    companyName: companyInfo?.name || 'Your Company',
-    companyAddress: companyInfo?.address || '123 Business St, Suite 100, City, State 12345',
-    companyPhone: companyInfo?.phone || '',
-    unsubscribeUrl: '[Unsubscribe Link]',
-    managePreferencesUrl: '[Manage Preferences Link]',
+    companyName: companyInfo?.name || "Your Company",
+    companyAddress:
+      companyInfo?.address || "123 Business St, Suite 100, City, State 12345",
+    companyPhone: companyInfo?.phone || "",
+    unsubscribeUrl: "[Unsubscribe Link]",
+    managePreferencesUrl: "[Manage Preferences Link]",
   };
 
   // Use fresh companyInfo data, fallback to footerSettings for backward compatibility
-  const addressLine1 = companyInfo?.streetAddress || footerSettings.addressLine1 || companyInfo?.address;
+  const addressLine1 =
+    companyInfo?.streetAddress ||
+    footerSettings.addressLine1 ||
+    companyInfo?.address;
   const city = companyInfo?.city || footerSettings.city;
   const region = companyInfo?.stateProvince || footerSettings.region;
   const postalCode = companyInfo?.postalCode || footerSettings.postalCode;
@@ -106,7 +110,7 @@ export const generateFooterHTML = (
   const email = companyInfo?.email || footerSettings.email;
   const websiteUrl = companyInfo?.websiteUrl || footerSettings.websiteUrl;
   const phone = companyInfo?.phone || tokens.companyPhone;
-  
+
   // Social URLs from companyInfo (fresh data)
   const facebookUrl = companyInfo?.facebookUrl || footerSettings.facebookUrl;
   const instagramUrl = companyInfo?.instagramUrl || footerSettings.instagramUrl;
@@ -114,54 +118,46 @@ export const generateFooterHTML = (
   const pinterestUrl = companyInfo?.pinterestUrl || footerSettings.pinterestUrl;
   const youtubeUrl = companyInfo?.youtubeUrl || footerSettings.youtubeUrl;
   const linkedinUrl = companyInfo?.linkedinUrl || footerSettings.linkedinUrl;
-  
+
   // Legal text from companyInfo
-  const legalText = companyInfo?.footerLegalText || footerSettings.complianceText;
+  const legalText =
+    companyInfo?.footerLegalText || footerSettings.complianceText;
 
   // Check if we have extended footer settings - use new renderer
-  const hasExtendedSettings = facebookUrl || 
-    instagramUrl || 
-    addressLine1 ||
-    footerBackgroundColor;
+  const hasExtendedSettings =
+    facebookUrl || instagramUrl || addressLine1 || footerBackgroundColor;
 
   if (hasExtendedSettings) {
     // Get brand footer colors from profile
     const brandFooterColors = companyInfo?.brandFooterColors;
-    
+
     // Build complete effective colors with full fallback chain
     // Priority cascade: 1) Campaign footerStyling → 2) Brand footer_colors → 3) footerBackgroundColor → 4) brandPrimaryColor → 5) defaults
     const effectiveColors = {
-      backgroundColor: 
-        footerStyling?.backgroundColor || 
-        brandFooterColors?.backgroundColor || 
+      backgroundColor:
+        footerStyling?.backgroundColor ||
+        brandFooterColors?.backgroundColor ||
         footerBackgroundColor ||
         companyInfo?.brandPrimaryColor ||
-        '#FFFFFF', // Default white
-      textColor: 
-        footerStyling?.textColor || 
-        brandFooterColors?.textColor ||
-        '#1F2937', // Default dark text
-      linkColor: 
-        footerStyling?.linkColor || 
-        brandFooterColors?.linkColor ||
-        '#2563EB', // Default blue accent
-      dividerColor: 
-        footerStyling?.dividerColor || 
+        "#FFFFFF", // Default white
+      textColor:
+        footerStyling?.textColor || brandFooterColors?.textColor || "#1F2937", // Default dark text
+      linkColor:
+        footerStyling?.linkColor || brandFooterColors?.linkColor || "#2563EB", // Default blue accent
+      dividerColor:
+        footerStyling?.dividerColor ||
         brandFooterColors?.dividerColor ||
-        '#E5E7EB', // Default light gray
-      logoBackgroundColor: 
-        footerStyling?.logoBackgroundColor || 
+        "#E5E7EB", // Default light gray
+      logoBackgroundColor:
+        footerStyling?.logoBackgroundColor ||
         brandFooterColors?.logoBackgroundColor ||
         companyInfo?.brandPrimaryColor ||
-        '#22C55E', // Default brand green
-      logoTextColor: 
-        footerStyling?.logoTextColor || 
+        "#22C55E", // Default brand green
+      logoTextColor:
+        footerStyling?.logoTextColor ||
         brandFooterColors?.logoTextColor ||
-        '#FFFFFF', // Default white
+        "#FFFFFF", // Default white
     };
-    
-    console.log('🎨 Footer effective colors:', effectiveColors);
-    
     // Use the new newsletter footer HTML generator with fresh data and priority cascade
     const footerProps: NewsletterFooterProps = {
       logoUrl: footerSettings.showLogo ? companyInfo?.logoUrl : undefined,
@@ -181,8 +177,10 @@ export const generateFooterHTML = (
       pinterestUrl,
       youtubeUrl,
       linkedinUrl,
-      unsubscribeUrl: tokens.unsubscribeUrl || '#',
-      managePreferencesUrl: footerSettings.showManagePreferences ? tokens.managePreferencesUrl : undefined,
+      unsubscribeUrl: tokens.unsubscribeUrl || "#",
+      managePreferencesUrl: footerSettings.showManagePreferences
+        ? tokens.managePreferencesUrl
+        : undefined,
       legalText: processEmailTokens(legalText, tokens),
       // Pass all effective colors with full fallbacks
       footerBackgroundColor: effectiveColors.backgroundColor,
@@ -198,20 +196,31 @@ export const generateFooterHTML = (
   }
 
   // Legacy footer rendering for backward compatibility
-  const alignment = footerSettings.alignment === 'center' ? 'center' : 'left';
-  const bgColor = footerSettings.backgroundColor === 'dark' ? '#1F2937' : 
-                  footerSettings.backgroundColor === 'white' ? '#ffffff' : '#f9fafb';
-  const textColor = footerSettings.backgroundColor === 'dark' ? '#F3F4F6' : '#6b7280';
-  const linkColor = footerSettings.backgroundColor === 'dark' ? '#60A5FA' : '#2563EB';
-  const fontSize = footerSettings.fontSize === 'xs' ? '11px' : '12px';
-  const padding = footerSettings.padding === 'spacious' ? '32px 16px' : 
-                  footerSettings.padding === 'compact' ? '16px 16px' : '24px 16px';
+  const alignment = footerSettings.alignment === "center" ? "center" : "left";
+  const bgColor =
+    footerSettings.backgroundColor === "dark"
+      ? "#1F2937"
+      : footerSettings.backgroundColor === "white"
+        ? "#ffffff"
+        : "#f9fafb";
+  const textColor =
+    footerSettings.backgroundColor === "dark" ? "#F3F4F6" : "#6b7280";
+  const linkColor =
+    footerSettings.backgroundColor === "dark" ? "#60A5FA" : "#2563EB";
+  const fontSize = footerSettings.fontSize === "xs" ? "11px" : "12px";
+  const padding =
+    footerSettings.padding === "spacious"
+      ? "32px 16px"
+      : footerSettings.padding === "compact"
+        ? "16px 16px"
+        : "24px 16px";
 
-  let footerContent = '';
+  let footerContent = "";
 
   // Add divider if enabled
   if (footerSettings.showDivider) {
-    const dividerColor = footerSettings.backgroundColor === 'dark' ? '#3D4A38' : '#e5e7eb';
+    const dividerColor =
+      footerSettings.backgroundColor === "dark" ? "#3D4A38" : "#e5e7eb";
     footerContent += `
       <div style="border-top: 1px solid ${dividerColor}; margin: 20px 0;"></div>
     `;
@@ -242,7 +251,7 @@ export const generateFooterHTML = (
   // Company info section
   footerContent += `
     <div style="margin-bottom: 16px;">
-      <strong style="color: ${footerSettings.backgroundColor === 'dark' ? '#F3F4F6' : '#1f2937'};">${tokens.companyName}</strong>
+      <strong style="color: ${footerSettings.backgroundColor === "dark" ? "#F3F4F6" : "#1f2937"};">${tokens.companyName}</strong>
   `;
 
   if (tokens.companyAddress) {
@@ -263,7 +272,10 @@ export const generateFooterHTML = (
 
   // Custom footer text if provided
   if (footerSettings.customFooterText) {
-    const processedCustomText = processEmailTokens(footerSettings.customFooterText, tokens);
+    const processedCustomText = processEmailTokens(
+      footerSettings.customFooterText,
+      tokens,
+    );
     footerContent += `
       <div style="margin-bottom: 16px;">
         ${processedCustomText}
@@ -272,7 +284,10 @@ export const generateFooterHTML = (
   }
 
   // Compliance notice
-  const processedComplianceText = processEmailTokens(footerSettings.complianceText, tokens);
+  const processedComplianceText = processEmailTokens(
+    footerSettings.complianceText,
+    tokens,
+  );
   footerContent += `
     <div style="margin-bottom: 16px; font-size: ${fontSize};">
       ${processedComplianceText}
@@ -285,17 +300,23 @@ export const generateFooterHTML = (
   `;
 
   const links = [];
-  
+
   if (tokens.unsubscribeUrl) {
-    links.push(`<a href="${tokens.unsubscribeUrl}" style="color: ${linkColor}; text-decoration: underline;">Unsubscribe</a>`);
+    links.push(
+      `<a href="${tokens.unsubscribeUrl}" style="color: ${linkColor}; text-decoration: underline;">Unsubscribe</a>`,
+    );
   }
 
   if (footerSettings.showManagePreferences && tokens.managePreferencesUrl) {
-    links.push(`<a href="${tokens.managePreferencesUrl}" style="color: ${linkColor}; text-decoration: underline;">Manage Preferences</a>`);
+    links.push(
+      `<a href="${tokens.managePreferencesUrl}" style="color: ${linkColor}; text-decoration: underline;">Manage Preferences</a>`,
+    );
   }
 
   if (links.length > 0) {
-    footerContent += links.join(` <span style="color: ${textColor}; margin: 0 8px;">|</span> `);
+    footerContent += links.join(
+      ` <span style="color: ${textColor}; margin: 0 8px;">|</span> `,
+    );
   }
 
   footerContent += `

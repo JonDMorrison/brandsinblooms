@@ -1,6 +1,10 @@
-
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -19,7 +23,11 @@ interface NewCampaignModalProps {
   onCampaignCreated: () => void;
 }
 
-export const NewCampaignModal = ({ open, onOpenChange, onCampaignCreated }: NewCampaignModalProps) => {
+export const NewCampaignModal = ({
+  open,
+  onOpenChange,
+  onCampaignCreated,
+}: NewCampaignModalProps) => {
   const { user } = useAuth();
   const { tenant } = useTenant();
   const { toast } = useToast();
@@ -30,13 +38,15 @@ export const NewCampaignModal = ({ open, onOpenChange, onCampaignCreated }: NewC
   const [generatingContent, setGeneratingContent] = useState(false);
   const [contentGenerated, setContentGenerated] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [creationStep, setCreationStep] = useState<'idle' | 'creating' | 'generating' | 'done'>('idle');
+  const [creationStep, setCreationStep] = useState<
+    "idle" | "creating" | "generating" | "done"
+  >("idle");
 
   const isInProgress = loading || generatingContent;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!user) {
       setError("You must be logged in to create a campaign");
       return;
@@ -53,18 +63,20 @@ export const NewCampaignModal = ({ open, onOpenChange, onCampaignCreated }: NewC
     }
 
     setLoading(true);
-    setCreationStep('creating');
+    setCreationStep("creating");
     setError(null);
 
     try {
-      console.log('🔒 SECURITY: Creating campaign for user:', user.id, 'tenant:', tenant?.id || 'none');
-
-      const campaignPrompt = `Create a marketing campaign for "${title}" ${theme ? `with theme: ${theme}` : ''} ${description ? `- ${description}` : ''}. Generate engaging content that promotes this campaign effectively.`;
+      const campaignPrompt = `Create a marketing campaign for "${title}" ${theme ? `with theme: ${theme}` : ""} ${description ? `- ${description}` : ""}. Generate engaging content that promotes this campaign effectively.`;
 
       // Use current date and week for start_date and week_number
       const currentDate = new Date();
-      const startDate = currentDate.toISOString().split('T')[0];
-      const weekNumber = Math.ceil(((currentDate.getTime() - new Date(currentDate.getFullYear(), 0, 1).getTime()) / (7 * 24 * 60 * 60 * 1000)));
+      const startDate = currentDate.toISOString().split("T")[0];
+      const weekNumber = Math.ceil(
+        (currentDate.getTime() -
+          new Date(currentDate.getFullYear(), 0, 1).getTime()) /
+          (7 * 24 * 60 * 60 * 1000),
+      );
 
       // 🔒 SECURITY: Always set user_id, only set tenant_id if tenant exists
       const campaignData = {
@@ -74,74 +86,68 @@ export const NewCampaignModal = ({ open, onOpenChange, onCampaignCreated }: NewC
         prompt: campaignPrompt,
         start_date: startDate,
         week_number: weekNumber,
-        source: 'quick_action',
+        source: "quick_action",
         user_id: user.id, // 🔒 CRITICAL: Always set user_id for RLS
         created_by_user_id: user.id, // 🔒 Track who created it
-        ...(tenant?.id && { tenant_id: tenant.id }) // 🔒 Only set tenant_id if real tenant exists
+        ...(tenant?.id && { tenant_id: tenant.id }), // 🔒 Only set tenant_id if real tenant exists
       };
 
-      console.log('🔒 SECURITY: Creating campaign with proper user isolation:', {
-        user_id: campaignData.user_id,
-        tenant_id: campaignData.tenant_id || 'none',
-        title: campaignData.title
-      });
-
       const { data: insertedCampaign, error: insertError } = await supabase
-        .from('campaigns')
+        .from("campaigns")
         .insert(campaignData)
         .select()
         .single();
 
       if (insertError) {
-        console.error('❌ NewCampaignModal: Error creating campaign:', insertError);
+        console.error(
+          "❌ NewCampaignModal: Error creating campaign:",
+          insertError,
+        );
         throw new Error(insertError.message);
       }
-
-      console.log('✅ NewCampaignModal: Campaign created with proper isolation:', insertedCampaign);
-
       // Immediately notify parent to refresh the campaign list
       onCampaignCreated();
-      
+
       // Campaign draft created — move to content generation step
       setLoading(false);
       setGeneratingContent(true);
-      setCreationStep('generating');
+      setCreationStep("generating");
 
       try {
-        console.log('🔒 SECURITY: Starting content generation with proper user isolation');
-        
         const result = await generateRequiredTasks(
           insertedCampaign.id,
           [insertedCampaign],
           user.id, // 🔒 CRITICAL: Pass user_id for RLS
           onCampaignCreated,
-          tenant?.id // 🔒 Pass tenant_id only if it exists
+          tenant?.id, // 🔒 Pass tenant_id only if it exists
         );
 
         if (result.success) {
-          console.log('✅ NewCampaignModal: Content generated successfully with user isolation');
           setContentGenerated(true);
-          setCreationStep('done');
+          setCreationStep("done");
           toast({
             title: "Campaign created!",
             description: `Your campaign is ready with ${result.tasks?.length || 5} content pieces.`,
           });
         } else {
-          console.warn('⚠️ NewCampaignModal: Content generation had issues:', result.message);
           setContentGenerated(true);
-          setCreationStep('done');
+          setCreationStep("done");
           toast({
             title: "Campaign created",
             description: `Campaign saved. Content generation had issues: ${result.message}`,
           });
         }
       } catch (contentError) {
-        console.error('❌ NewCampaignModal: Content generation failed:', contentError);
+        console.error(
+          "❌ NewCampaignModal: Content generation failed:",
+          contentError,
+        );
         setContentGenerated(true);
-        setCreationStep('done');
+        setCreationStep("done");
         toast({
           title: "Campaign created",
-          description: "Campaign saved, but content generation failed. You can generate content manually.",
+          description:
+            "Campaign saved, but content generation failed. You can generate content manually.",
           variant: "destructive",
         });
       }
@@ -157,16 +163,15 @@ export const NewCampaignModal = ({ open, onOpenChange, onCampaignCreated }: NewC
         onOpenChange(false);
         setContentGenerated(false);
         setGeneratingContent(false);
-        setCreationStep('idle');
+        setCreationStep("idle");
       }, 2000);
-      
     } catch (error: any) {
-      console.error('❌ NewCampaignModal: Error creating campaign:', error);
-      setError(error.message || 'Failed to create campaign');
-      setCreationStep('idle');
+      console.error("❌ NewCampaignModal: Error creating campaign:", error);
+      setError(error.message || "Failed to create campaign");
+      setCreationStep("idle");
       toast({
         title: "Error",
-        description: error.message || 'Failed to create campaign',
+        description: error.message || "Failed to create campaign",
         variant: "destructive",
       });
     } finally {
@@ -181,7 +186,7 @@ export const NewCampaignModal = ({ open, onOpenChange, onCampaignCreated }: NewC
       setTheme("");
       setError(null);
       setContentGenerated(false);
-      setCreationStep('idle');
+      setCreationStep("idle");
       onOpenChange(false);
     }
   };
@@ -190,9 +195,11 @@ export const NewCampaignModal = ({ open, onOpenChange, onCampaignCreated }: NewC
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-[425px] bg-white">
         <DialogHeader>
-          <DialogTitle className="text-garden-green-dark">Create New Campaign</DialogTitle>
+          <DialogTitle className="text-garden-green-dark">
+            Create New Campaign
+          </DialogTitle>
         </DialogHeader>
-        
+
         {error && (
           <Alert variant="destructive">
             <AlertTriangle className="h-4 w-4" />
@@ -200,53 +207,64 @@ export const NewCampaignModal = ({ open, onOpenChange, onCampaignCreated }: NewC
           </Alert>
         )}
 
-        {creationStep !== 'idle' && (
+        {creationStep !== "idle" && (
           <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 space-y-2">
-            <p className="text-sm font-medium text-gray-700 mb-3">Campaign creation progress</p>
+            <p className="text-sm font-medium text-gray-700 mb-3">
+              Campaign creation progress
+            </p>
             <div className="flex items-center gap-3">
-              {creationStep === 'creating' ? (
+              {creationStep === "creating" ? (
                 <Loader2 className="h-4 w-4 animate-spin text-garden-green shrink-0" />
               ) : (
                 <CheckCircle className="h-4 w-4 text-green-600 shrink-0" />
               )}
-              <span className={`text-sm ${creationStep === 'creating' ? 'text-gray-900 font-medium' : 'text-gray-500'}`}>
+              <span
+                className={`text-sm ${creationStep === "creating" ? "text-gray-900 font-medium" : "text-gray-500"}`}
+              >
                 Draft created
               </span>
             </div>
             <div className="flex items-center gap-3">
-              {creationStep === 'generating' ? (
+              {creationStep === "generating" ? (
                 <Loader2 className="h-4 w-4 animate-spin text-garden-green shrink-0" />
-              ) : creationStep === 'done' ? (
+              ) : creationStep === "done" ? (
                 <CheckCircle className="h-4 w-4 text-green-600 shrink-0" />
               ) : (
                 <Circle className="h-4 w-4 text-gray-300 shrink-0" />
               )}
-              <span className={`text-sm ${creationStep === 'generating' ? 'text-gray-900 font-medium' : creationStep === 'done' ? 'text-gray-500' : 'text-gray-400'}`}>
+              <span
+                className={`text-sm ${creationStep === "generating" ? "text-gray-900 font-medium" : creationStep === "done" ? "text-gray-500" : "text-gray-400"}`}
+              >
                 Generating campaign content
               </span>
             </div>
             <div className="flex items-center gap-3">
-              {creationStep === 'done' ? (
+              {creationStep === "done" ? (
                 <CheckCircle className="h-4 w-4 text-green-600 shrink-0" />
               ) : (
                 <Circle className="h-4 w-4 text-gray-300 shrink-0" />
               )}
-              <span className={`text-sm ${creationStep === 'done' ? 'text-green-700 font-medium' : 'text-gray-400'}`}>
-                {creationStep === 'done' ? 'All done — closing shortly…' : 'Finalizing content'}
+              <span
+                className={`text-sm ${creationStep === "done" ? "text-green-700 font-medium" : "text-gray-400"}`}
+              >
+                {creationStep === "done"
+                  ? "All done — closing shortly…"
+                  : "Finalizing content"}
               </span>
             </div>
           </div>
         )}
 
-        {contentGenerated && creationStep === 'done' && (
+        {contentGenerated && creationStep === "done" && (
           <Alert className="border-green-200 bg-green-50">
             <CheckCircle className="h-4 w-4 text-green-600" />
             <AlertDescription className="text-green-800">
-              Campaign created successfully! Check your dashboard to review and approve the content.
+              Campaign created successfully! Check your dashboard to review and
+              approve the content.
             </AlertDescription>
           </Alert>
         )}
-        
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <Label htmlFor="title" className="text-garden-green-dark">
@@ -266,7 +284,6 @@ export const NewCampaignModal = ({ open, onOpenChange, onCampaignCreated }: NewC
             />
           </div>
 
-          
           <div>
             <Label htmlFor="theme" className="text-garden-green-dark">
               Campaign Theme
@@ -280,7 +297,7 @@ export const NewCampaignModal = ({ open, onOpenChange, onCampaignCreated }: NewC
               disabled={isInProgress}
             />
           </div>
-          
+
           <div>
             <Label htmlFor="description" className="text-garden-green-dark">
               Description
@@ -294,7 +311,7 @@ export const NewCampaignModal = ({ open, onOpenChange, onCampaignCreated }: NewC
               disabled={isInProgress}
             />
           </div>
-          
+
           <div className="flex justify-end gap-2 pt-4">
             <Button
               type="button"
@@ -310,23 +327,23 @@ export const NewCampaignModal = ({ open, onOpenChange, onCampaignCreated }: NewC
               disabled={!title.trim() || isInProgress}
               className="bg-garden-green hover:bg-garden-green-dark text-white"
             >
-              {creationStep === 'creating' ? (
+              {creationStep === "creating" ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                   Creating draft…
                 </>
-              ) : creationStep === 'generating' ? (
+              ) : creationStep === "generating" ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                   Generating content…
                 </>
-              ) : creationStep === 'done' ? (
+              ) : creationStep === "done" ? (
                 <>
                   <CheckCircle className="w-4 h-4 mr-2" />
                   Done!
                 </>
               ) : (
-                'Create Campaign'
+                "Create Campaign"
               )}
             </Button>
           </div>

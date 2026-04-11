@@ -112,6 +112,39 @@ async function loadGoogleAnalyticsConnection(tenantId: string, userId: string) {
     .maybeSingle();
 }
 
+async function loadMailchimpConnection(tenantId: string) {
+  return await supabase
+    .from("provider_connections")
+    .select(
+      "id, provider, provider_account_name, status, connected_at, updated_at, revoked_at, tenant_id, user_id",
+    )
+    .eq("tenant_id", tenantId)
+    .eq("provider", "mailchimp")
+    .eq("status", "connected")
+    .is("revoked_at", null)
+    .order("updated_at", { ascending: false })
+    .order("connected_at", { ascending: false })
+    .limit(1);
+}
+
+async function loadUserScopedMarketingConnections(
+  tenantId: string,
+  userId: string,
+) {
+  return await supabase
+    .from("provider_connections")
+    .select(
+      "id, provider, provider_account_name, status, connected_at, updated_at, revoked_at, tenant_id, user_id",
+    )
+    .eq("tenant_id", tenantId)
+    .eq("user_id", userId)
+    .in("provider", ["klaviyo", "constant_contact"])
+    .eq("status", "connected")
+    .is("revoked_at", null)
+    .order("updated_at", { ascending: false })
+    .order("connected_at", { ascending: false });
+}
+
 export function useIntegrationsHubData() {
   const { user } = useAuth();
   const { tenant } = useTenant();
@@ -126,7 +159,8 @@ export function useIntegrationsHubData() {
         squareResult,
         cloverResult,
         lightspeedResult,
-        providerConnectionsResult,
+        mailchimpConnectionResult,
+        marketingConnectionsResult,
         socialConnectionsResult,
         googleAnalyticsResult,
         emailDomainsResult,
@@ -167,17 +201,11 @@ export function useIntegrationsHubData() {
               .order("connected_at", { ascending: false })
               .limit(1)
           : Promise.resolve({ data: [], error: null }),
+        tenant?.id
+          ? loadMailchimpConnection(tenant.id)
+          : Promise.resolve({ data: [], error: null }),
         tenant?.id && user?.id
-          ? supabase
-              .from("provider_connections")
-              .select(
-                "id, provider, provider_account_name, status, connected_at, revoked_at, tenant_id, user_id",
-              )
-              .eq("tenant_id", tenant.id)
-              .eq("user_id", user.id)
-              .in("provider", ["mailchimp", "klaviyo", "constant_contact"])
-              .eq("status", "connected")
-              .is("revoked_at", null)
+          ? loadUserScopedMarketingConnections(tenant.id, user.id)
           : Promise.resolve({ data: [], error: null }),
         user?.id
           ? supabase
@@ -209,7 +237,8 @@ export function useIntegrationsHubData() {
         squareResult.error,
         cloverResult.error,
         lightspeedResult.error,
-        providerConnectionsResult.error,
+        mailchimpConnectionResult.error,
+        marketingConnectionsResult.error,
         socialConnectionsResult.error,
         googleAnalyticsResult.error,
         emailDomainsResult.error,
@@ -223,7 +252,10 @@ export function useIntegrationsHubData() {
       const squareConnection = squareResult.data?.[0] ?? null;
       const cloverConnection = cloverResult.data?.[0] ?? null;
       const lightspeedConnection = lightspeedResult.data?.[0] ?? null;
-      const providerConnections = providerConnectionsResult.data ?? [];
+      const providerConnections = [
+        ...(mailchimpConnectionResult.data ?? []),
+        ...(marketingConnectionsResult.data ?? []),
+      ];
       const socialConnections = socialConnectionsResult.data ?? [];
       const googleAnalyticsConnection = googleAnalyticsResult.data;
       const emailDomains = emailDomainsResult.data ?? [];
@@ -272,12 +304,13 @@ export function useIntegrationsHubData() {
         });
       }
 
-      const providerByName = new Map(
-        providerConnections.map((connection) => [
-          connection.provider,
-          connection,
-        ]),
-      );
+      const providerByName = new Map();
+
+      for (const connection of providerConnections) {
+        if (!providerByName.has(connection.provider)) {
+          providerByName.set(connection.provider, connection);
+        }
+      }
 
       const mailchimpConnection = providerByName.get("mailchimp");
       if (mailchimpConnection) {

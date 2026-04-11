@@ -1,17 +1,27 @@
-
-import React, { useMemo, useState } from 'react';
-import { cleanContentForDisplay } from '@/utils/contentUtils';
-import { cleanVideoContent, isVideoScriptContent } from '@/utils/videoContentCleaner';
-import { convertMarkdownToHtml } from '@/utils/markdownUtils';
-import { SafeHtml } from '@/components/ui/safe-html';
-import { RichTextEditor } from '@/components/ui/rich-text-editor';
-import { stripEmojis } from '@/utils/contentValidation';
-import { validateFormattedContent, repairFormattedContent } from '@/utils/contentFormatValidator';
-import { useNewsletterRenderer } from '@/hooks/useNewsletterRenderer';
-import { MagazineNewsletterRenderer } from '@/components/newsletter/MagazineNewsletterRenderer';
-import { PlainEmailRenderer } from '@/components/newsletter/PlainEmailRenderer';
-import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import React, { useMemo, useState } from "react";
+import { cleanContentForDisplay } from "@/utils/contentUtils";
+import {
+  cleanVideoContent,
+  isVideoScriptContent,
+} from "@/utils/videoContentCleaner";
+import { convertMarkdownToHtml } from "@/utils/markdownUtils";
+import { SafeHtml } from "@/components/ui/safe-html";
+import { RichTextEditor } from "@/components/ui/rich-text-editor";
+import { stripEmojis } from "@/utils/contentValidation";
+import {
+  validateFormattedContent,
+  repairFormattedContent,
+} from "@/utils/contentFormatValidator";
+import { useNewsletterRenderer } from "@/hooks/useNewsletterRenderer";
+import { MagazineNewsletterRenderer } from "@/components/newsletter/MagazineNewsletterRenderer";
+import { PlainEmailRenderer } from "@/components/newsletter/PlainEmailRenderer";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface MagazineContentDisplayProps {
   content: string;
@@ -23,59 +33,63 @@ interface MagazineContentDisplayProps {
   onContentChange?: (content: string) => void;
 }
 
-export const MagazineContentDisplay = ({ 
-  content, 
-  postType, 
-  contentTaskId, 
-  campaignTitle, 
+export const MagazineContentDisplay = ({
+  content,
+  postType,
+  contentTaskId,
+  campaignTitle,
   task,
   className = "",
-  onContentChange
+  onContentChange,
 }: MagazineContentDisplayProps) => {
-  
   // State for format toggle
-  const [format, setFormat] = useState<'magazine' | 'plain'>('magazine');
+  const [format, setFormat] = useState<"magazine" | "plain">("magazine");
   // State for editable content - blogs now come as HTML directly
   const [editableContent, setEditableContent] = useState(content);
-  
-  console.log('🔍 [MagazineContentDisplay] Input:', {
-    contentLength: content?.length || 0,
-    postType,
-    contentPreview: content?.substring(0, 100) + '...',
-    hasContent: !!content
-  });
 
   // Use newsletter renderer hook for newsletters
   const newsletterRenderer = useNewsletterRenderer({
-    content: postType === 'newsletter' ? content : '',
+    content: postType === "newsletter" ? content : "",
     campaignTitle,
     contentTaskId,
     format,
-    className
+    className,
   });
 
-  const processedNewsletter = postType === 'newsletter' ? newsletterRenderer.processedNewsletter : null;
-  const { images, featuredImage, loadingImages, handleImageSelect, needsRegeneration, isStructured } = newsletterRenderer;
+  const processedNewsletter =
+    postType === "newsletter" ? newsletterRenderer.processedNewsletter : null;
+  const {
+    images,
+    featuredImage,
+    loadingImages,
+    handleImageSelect,
+    needsRegeneration,
+    isStructured,
+  } = newsletterRenderer;
 
   if (!content) {
     return (
-      <div className={`bg-white rounded-lg border border-gray-200 p-4 ${className}`}>
-        <div className="text-gray-400 italic text-sm">
-          No content available
-        </div>
+      <div
+        className={`bg-white rounded-lg border border-gray-200 p-4 ${className}`}
+      >
+        <div className="text-gray-400 italic text-sm">No content available</div>
       </div>
     );
   }
 
   // Handle newsletter content with rich block display
-  if (postType === 'newsletter' && processedNewsletter) {
+  if (postType === "newsletter" && processedNewsletter) {
     // Handle newsletter content being prepared
     if (needsRegeneration) {
       return (
-        <div className={`bg-white rounded-lg border border-gray-200 p-4 ${className}`}>
+        <div
+          className={`bg-white rounded-lg border border-gray-200 p-4 ${className}`}
+        >
           <div className="text-center py-12 bg-muted/30 rounded-lg border border-dashed border-muted-foreground/30">
             <LoadingSpinner size="lg" />
-            <p className="mt-4 text-muted-foreground">Newsletter content is being prepared...</p>
+            <p className="mt-4 text-muted-foreground">
+              Newsletter content is being prepared...
+            </p>
           </div>
         </div>
       );
@@ -84,37 +98,45 @@ export const MagazineContentDisplay = ({
     // If structured newsletter, use conditional renderer based on format
     if (isStructured && processedNewsletter.blocks.length > 0) {
       return (
-        <div className={`bg-white rounded-lg border border-gray-200 overflow-hidden ${className}`}>
+        <div
+          className={`bg-white rounded-lg border border-gray-200 overflow-hidden ${className}`}
+        >
           {/* Format Toggle */}
           <div className="flex justify-end p-4 pb-0">
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button
-                    onClick={() => setFormat(format === 'magazine' ? 'plain' : 'magazine')}
+                    onClick={() =>
+                      setFormat(format === "magazine" ? "plain" : "magazine")
+                    }
                     className="text-sm px-3 py-1 border border-border rounded bg-background hover:bg-muted transition-colors"
                   >
-                    {format === 'magazine' ? 'Switch to Plain Email' : 'Switch to Magazine Format'}
+                    {format === "magazine"
+                      ? "Switch to Plain Email"
+                      : "Switch to Magazine Format"}
                   </button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  {format === 'magazine'
-                    ? 'Show as simple email (text only, stacked format)'
-                    : 'Show with images and blocks like a printed magazine'}
+                  {format === "magazine"
+                    ? "Show as simple email (text only, stacked format)"
+                    : "Show with images and blocks like a printed magazine"}
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
           </div>
-          
+
           <div className="p-6 pt-2">
-            {loadingImages && format === 'magazine' && (
+            {loadingImages && format === "magazine" && (
               <div className="text-center py-4 mb-6">
                 <LoadingSpinner />
-                <p className="text-sm text-muted-foreground mt-2">Loading newsletter images...</p>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Loading newsletter images...
+                </p>
               </div>
             )}
-            
-            {format === 'magazine' ? (
+
+            {format === "magazine" ? (
               <MagazineNewsletterRenderer
                 title={campaignTitle || processedNewsletter.meta.week_focus}
                 blocks={processedNewsletter.blocks}
@@ -139,17 +161,22 @@ export const MagazineContentDisplay = ({
 
     // Fallback for unstructured newsletter content
     return (
-      <div className={`bg-white rounded-lg border border-gray-200 overflow-hidden ${className}`}>
+      <div
+        className={`bg-white rounded-lg border border-gray-200 overflow-hidden ${className}`}
+      >
         <div className="p-6">
           <div className="prose prose-lg max-w-none">
             <h1 className="text-4xl font-bold text-foreground mb-6">
               {campaignTitle || processedNewsletter.meta.week_focus}
             </h1>
-            <div 
+            <div
               className="text-muted-foreground leading-relaxed"
-              dangerouslySetInnerHTML={{ 
-                __html: processedNewsletter.newsletter_md.replace(/\n/g, '<br/>') 
-              }} 
+              dangerouslySetInnerHTML={{
+                __html: processedNewsletter.newsletter_md.replace(
+                  /\n/g,
+                  "<br/>",
+                ),
+              }}
             />
           </div>
         </div>
@@ -159,45 +186,31 @@ export const MagazineContentDisplay = ({
 
   // Minimal content processing for non-newsletter content - avoid over-cleaning
   let processedContent = content;
-  
+
   try {
     // Special handling for video content only
-    if (postType === 'video') {
-      console.log('🎬 Processing video content for display');
+    if (postType === "video") {
       processedContent = cleanVideoContent(content);
-    } else if (postType === 'blog') {
-      console.log('📝 Blog content is already HTML');
+    } else if (postType === "blog") {
       processedContent = content; // Blog content is now HTML directly
-    } else {
-      // For other content types, use minimal processing to preserve content
-      console.log('📝 Preserving content with minimal processing:', {
-        postType,
-        originalLength: content.length
-      });
       processedContent = content; // Use original content to prevent over-processing
     }
 
     // Final safety check - always ensure we have content
     if (!processedContent.trim()) {
-      console.warn('⚠️ Content became empty, reverting to original');
       processedContent = content;
     }
-
   } catch (error) {
-    console.error('❌ Content processing failed, using original:', error);
+    console.error("❌ Content processing failed, using original:", error);
     processedContent = content;
   }
-
-  console.log('✅ Final processed content:', {
-    finalLength: processedContent.length,
-    isEmpty: !processedContent.trim(),
-    preview: processedContent.substring(0, 100) + '...'
-  });
 
   // Final safety check - if processed content is empty, show raw content with warning
   if (!processedContent.trim()) {
     return (
-      <div className={`bg-white rounded-lg border border-gray-200 overflow-hidden ${className}`}>
+      <div
+        className={`bg-white rounded-lg border border-gray-200 overflow-hidden ${className}`}
+      >
         <div className="p-6">
           <div className="mb-3 p-3 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-800">
             ⚠️ Content processing encountered issues. Showing raw content.
@@ -213,7 +226,7 @@ export const MagazineContentDisplay = ({
   return (
     <div className={`overflow-hidden ${className}`}>
       <div className="overflow-hidden max-w-full break-words">
-        {postType === 'video' ? (
+        {postType === "video" ? (
           // Video content gets special formatting as conversational script
           <div className="prose prose-lg max-w-none">
             <div className="text-sm text-gray-600 mb-3 font-medium">
@@ -223,7 +236,7 @@ export const MagazineContentDisplay = ({
               {processedContent}
             </div>
           </div>
-        ) : postType === 'blog' ? (
+        ) : postType === "blog" ? (
           // Blog content uses RichTextEditor for editing
           <div className="prose prose-lg max-w-none prose-headings:text-gray-900 prose-p:text-gray-700 prose-strong:text-gray-900 prose-ul:text-gray-700">
             <RichTextEditor
@@ -236,7 +249,7 @@ export const MagazineContentDisplay = ({
               className="min-h-[300px]"
             />
           </div>
-        ) : postType === 'newsletter' ? (
+        ) : postType === "newsletter" ? (
           // This should not be reached as newsletters are handled above
           <div className="prose prose-lg max-w-none">
             <div className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
@@ -246,7 +259,7 @@ export const MagazineContentDisplay = ({
         ) : (
           // Other content types use simple text display with fallback
           <div className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
-            {processedContent.replace(/<[^>]*>/g, '') || content}
+            {processedContent.replace(/<[^>]*>/g, "") || content}
           </div>
         )}
       </div>

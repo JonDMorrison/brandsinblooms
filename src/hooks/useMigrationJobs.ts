@@ -59,7 +59,6 @@ export const useMigrationJobs = () => {
           table: "migration_jobs" as any,
         },
         (payload) => {
-          console.log("📡 Migration job update:", payload);
           queryClient.invalidateQueries({ queryKey: ["migration-jobs"] });
 
           // Show toast notifications for status changes

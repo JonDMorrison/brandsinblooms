@@ -60,7 +60,7 @@ export const UserManagementSection = ({ users }: UserManagementSectionProps) => 
               description="Invite your first user or verify your Stripe setup."
               action={{
                 label: "Invite User",
-                onClick: () => console.log("Invite user clicked")
+                onClick: () => {}
               }}
             />
           ) : (

@@ -180,7 +180,7 @@ export const ContentLibrary = ({ onboardingData }: ContentLibraryProps) => {
                 templates={filteredTemplates}
                 loading={templatesLoading}
                 onUseTemplate={handleUseTemplate}
-                onEditTemplate={(template) => console.log("Editing template:", template)}
+                onEditTemplate={(template) => {}}
                 onDeleteTemplate={deleteTemplate}
               />
             </CardContent>

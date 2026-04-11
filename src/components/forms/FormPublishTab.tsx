@@ -1,481 +1,327 @@
-import React, { useState, useMemo } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Separator } from '@/components/ui/separator';
-import { 
-  Globe, 
-  Code, 
-  Copy, 
-  Check, 
-  AlertTriangle, 
+import React, { useMemo, useState } from "react";
+import {
+  AlertTriangle,
+  Check,
+  Code,
+  Copy,
   ExternalLink,
-  Loader2,
-  Send,
   FileCode,
-  BookOpen,
-  Shield,
+  Globe,
   Zap,
-  AlertCircle
-} from 'lucide-react';
-import { Form, FormField } from '@/types/formBuilder';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
-import { useQueryClient } from '@tanstack/react-query';
+} from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useToast } from "@/hooks/use-toast";
+import {
+  buildIframeEmbedCode,
+  buildJavaScriptEmbedCode,
+  buildReactEmbedCode,
+  FormEmbedDisplayMode,
+  getLegacyEdgeEmbedScriptUrl,
+  getPublicFormUrl,
+  getStaticEmbedScriptUrl,
+} from "@/lib/forms/share";
+import { Form } from "@/types/formBuilder";
 
 interface FormPublishTabProps {
-  form: Form;
-  fields: FormField[];
-  hasChanges: boolean;
-  onSave: () => Promise<void>;
-  isSaving: boolean;
+  form: Pick<Form, "embed_key" | "name">;
+  initialTab?: "direct-link" | "iframe" | "javascript" | "react";
 }
 
-// Fix 5: Pre-publish validation
-function validateForPublish(fields: FormField[]): string[] {
-  const errors: string[] = [];
-  
-  if (fields.length === 0) {
-    errors.push('Form must have at least one field');
-  }
-  
-  if (!fields.some(f => f.type === 'email')) {
-    errors.push('Form must have an email field (required for customer identification)');
-  }
-  
-  const hasSmsConsent = fields.some(f => f.type === 'sms_consent');
-  const hasPhone = fields.some(f => f.type === 'phone');
-  if (hasSmsConsent && !hasPhone) {
-    errors.push('SMS consent field requires a phone field to be present');
-  }
-  
-  return errors;
-}
+const DISPLAY_MODE_OPTIONS: Array<{
+  value: FormEmbedDisplayMode;
+  label: string;
+  description: string;
+}> = [
+  {
+    value: "inline",
+    label: "Inline",
+    description: "Render the form directly inside a page section.",
+  },
+  {
+    value: "modal",
+    label: "Modal",
+    description: "Open the form inside a centered dialog.",
+  },
+  {
+    value: "slide-in",
+    label: "Slide-In",
+    description: "Open the form in a side panel.",
+  },
+];
 
-export function FormPublishTab({ form, fields, hasChanges, onSave, isSaving }: FormPublishTabProps) {
+export function FormPublishTab({
+  form,
+  initialTab = "direct-link",
+}: FormPublishTabProps) {
   const { toast } = useToast();
-  const queryClient = useQueryClient();
-  const [isPublishing, setIsPublishing] = useState(false);
   const [copiedItem, setCopiedItem] = useState<string | null>(null);
+  const [iframeHeight, setIframeHeight] = useState("600");
+  const [displayMode, setDisplayMode] =
+    useState<FormEmbedDisplayMode>("inline");
+  const [containerSelector, setContainerSelector] =
+    useState("#bloomsuite-form");
+  const [buttonText, setButtonText] = useState("Open Form");
 
-  const isPublished = form.status === 'published';
-  // Fix 8: Use window.location.origin instead of hardcoded domain
-  const publishedDomain = window.location.origin;
-  const formUrl = `${publishedDomain}/f/${form.embed_key}`;
-  const embedKey = form.embed_key;
-  
-  // Fix 5: Validation errors
-  const validationErrors = useMemo(() => validateForPublish(fields), [fields]);
-  const canPublish = validationErrors.length === 0 && !hasChanges;
-  
-  // Embed code snippets use published domain for stable embedding
-  const iframeCode = `<iframe 
-  src="${formUrl}" 
-  width="100%" 
-  height="500" 
-  frameborder="0"
-  style="border: none; max-width: 500px;"
-></iframe>`;
+  const publicUrl = useMemo(
+    () => getPublicFormUrl(form.embed_key),
+    [form.embed_key],
+  );
+  const staticRuntimeUrl = useMemo(() => getStaticEmbedScriptUrl(), []);
+  const legacyRuntimeUrl = useMemo(() => getLegacyEdgeEmbedScriptUrl(), []);
+  const normalizedIframeHeight = Math.max(320, Number(iframeHeight) || 600);
 
-  // Supabase Edge Function URL for embed script
-  const embedScriptUrl = `${import.meta.env.VITE_SUPABASE_URL || 'https://udldmkqwnxhdeztyqcau.supabase.co'}/functions/v1/serve-embed-js`;
-  
-  const jsEmbedCode = `<!-- BloomSuite Form Embed -->
-<div data-bloomsuite-form="${embedKey}"></div>
-<script src="${embedScriptUrl}" async></script>`;
+  const iframeCode = useMemo(
+    () =>
+      buildIframeEmbedCode({
+        embedKey: form.embed_key,
+        iframeHeight: normalizedIframeHeight,
+      }),
+    [form.embed_key, normalizedIframeHeight],
+  );
 
-  const reactCode = `// React Component
-import { useEffect } from 'react';
+  const jsEmbedCode = useMemo(
+    () =>
+      buildJavaScriptEmbedCode({
+        embedKey: form.embed_key,
+        formName: form.name,
+        displayMode,
+        containerSelector,
+        buttonText,
+      }),
+    [buttonText, containerSelector, displayMode, form.embed_key, form.name],
+  );
 
-export function BloomSuiteForm() {
-  useEffect(() => {
-    const script = document.createElement('script');
-    script.src = '${embedScriptUrl}';
-    script.async = true;
-    document.body.appendChild(script);
-    return () => { document.body.removeChild(script); };
-  }, []);
+  const reactCode = useMemo(
+    () =>
+      buildReactEmbedCode({
+        embedKey: form.embed_key,
+        formName: form.name,
+        displayMode,
+        buttonText,
+      }),
+    [buttonText, displayMode, form.embed_key, form.name],
+  );
 
-  return <div data-bloomsuite-form="${embedKey}" />;
-}`;
-
-  const handlePublish = async () => {
-    if (hasChanges) {
-      toast({
-        title: 'Save changes first',
-        description: 'Please save your changes before publishing.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    if (validationErrors.length > 0) {
-      toast({
-        title: 'Cannot publish',
-        description: 'Please fix the validation errors first.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    setIsPublishing(true);
-    try {
-      const { error } = await supabase
-        .from('forms')
-        .update({ status: 'published' })
-        .eq('id', form.id);
-
-      if (error) throw error;
-
-      queryClient.invalidateQueries({ queryKey: ['form', form.id] });
-      queryClient.invalidateQueries({ queryKey: ['forms'] });
-
-      toast({
-        title: 'Form published!',
-        description: 'Your form is now live and accepting submissions.',
-      });
-    } catch (err: any) {
-      toast({
-        title: 'Error publishing form',
-        description: err.message,
-        variant: 'destructive',
-      });
-    } finally {
-      setIsPublishing(false);
-    }
-  };
-
-  const handleUnpublish = async () => {
-    setIsPublishing(true);
-    try {
-      const { error } = await supabase
-        .from('forms')
-        .update({ status: 'draft' })
-        .eq('id', form.id);
-
-      if (error) throw error;
-
-      queryClient.invalidateQueries({ queryKey: ['form', form.id] });
-      queryClient.invalidateQueries({ queryKey: ['forms'] });
-
-      toast({
-        title: 'Form unpublished',
-        description: 'Your form is now a draft and no longer accepting submissions.',
-      });
-    } catch (err: any) {
-      toast({
-        title: 'Error unpublishing form',
-        description: err.message,
-        variant: 'destructive',
-      });
-    } finally {
-      setIsPublishing(false);
-    }
-  };
-
-  const copyToClipboard = async (text: string, id: string) => {
+  const copyToClipboard = async (text: string, key: string) => {
     await navigator.clipboard.writeText(text);
-    setCopiedItem(id);
-    setTimeout(() => setCopiedItem(null), 2000);
+    setCopiedItem(key);
+    window.setTimeout(() => setCopiedItem(null), 2000);
     toast({
-      title: 'Copied!',
-      description: 'Code copied to clipboard.',
+      title: "Copied",
+      description: "The embed code was copied to your clipboard.",
     });
   };
 
   return (
-    <div className="space-y-6">
-      {/* Publish Status */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            <span className="flex items-center gap-2">
-              <Globe className="h-5 w-5" />
-              Publish Status
-            </span>
-            <Badge 
-              variant={isPublished ? 'default' : 'secondary'}
-              className={isPublished ? 'bg-green-100 text-green-800' : ''}
-            >
-              {isPublished ? 'Published' : 'Draft'}
-            </Badge>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {hasChanges && (
-            <Alert>
-              <AlertTriangle className="h-4 w-4" />
-              <AlertDescription>
-                You have unsaved changes. Save before publishing.
-              </AlertDescription>
-            </Alert>
-          )}
+    <Tabs defaultValue={initialTab} className="w-full space-y-4">
+      <TabsList className="grid h-auto w-full grid-cols-2 gap-1 rounded-xl p-1 sm:grid-cols-4">
+        <TabsTrigger value="direct-link" className="gap-2">
+          <Globe className="h-4 w-4" />
+          Direct Link
+        </TabsTrigger>
+        <TabsTrigger value="iframe" className="gap-2">
+          <FileCode className="h-4 w-4" />
+          Iframe
+        </TabsTrigger>
+        <TabsTrigger value="javascript" className="gap-2">
+          <Zap className="h-4 w-4" />
+          JavaScript
+        </TabsTrigger>
+        <TabsTrigger value="react" className="gap-2">
+          <Code className="h-4 w-4" />
+          React
+        </TabsTrigger>
+      </TabsList>
 
-          {/* Fix 5: Show validation errors */}
-          {!isPublished && validationErrors.length > 0 && (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>
-                <p className="font-medium mb-1">Cannot publish — fix these issues:</p>
-                <ul className="list-disc list-inside text-sm space-y-0.5">
-                  {validationErrors.map((err, i) => (
-                    <li key={i}>{err}</li>
-                  ))}
-                </ul>
-              </AlertDescription>
-            </Alert>
-          )}
+      <TabsContent value="direct-link" className="space-y-4">
+        <div className="rounded-2xl border bg-muted/20 p-4">
+          <div className="space-y-1">
+            <h3 className="text-sm font-semibold text-foreground">
+              Public form URL
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              Share this direct link anywhere you want visitors to open the
+              form.
+            </p>
+          </div>
 
-          <div className="flex items-center gap-4">
-            {isPublished ? (
-              <Button 
-                variant="outline" 
-                onClick={handleUnpublish}
-                disabled={isPublishing}
+          <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+            <Input value={publicUrl} readOnly className="font-mono text-sm" />
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => void copyToClipboard(publicUrl, "direct-link")}
               >
-                {isPublishing && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                Unpublish
-              </Button>
-            ) : (
-              <Button 
-                onClick={handlePublish}
-                disabled={isPublishing || !canPublish}
-              >
-                {isPublishing ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                {copiedItem === "direct-link" ? (
+                  <Check className="mr-2 h-4 w-4" />
                 ) : (
-                  <Globe className="h-4 w-4 mr-2" />
+                  <Copy className="mr-2 h-4 w-4" />
                 )}
-                Publish Form
+                Copy
               </Button>
-            )}
-
-            {isPublished && (
               <Button variant="outline" asChild>
-                <a href={formUrl} target="_blank" rel="noopener noreferrer">
-                  <ExternalLink className="h-4 w-4 mr-2" />
-                  View Live Form
+                <a href={publicUrl} target="_blank" rel="noopener noreferrer">
+                  <ExternalLink className="mr-2 h-4 w-4" />
+                  Open
                 </a>
               </Button>
+            </div>
+          </div>
+        </div>
+      </TabsContent>
+
+      <TabsContent value="iframe" className="space-y-4">
+        <div className="rounded-2xl border bg-card p-4">
+          <div className="grid gap-3 sm:grid-cols-[160px_minmax(0,1fr)] sm:items-end">
+            <div className="space-y-2">
+              <Label htmlFor="iframe-height">Height (px)</Label>
+              <Input
+                id="iframe-height"
+                type="number"
+                min={320}
+                value={iframeHeight}
+                onChange={(event) => setIframeHeight(event.target.value)}
+              />
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Use iframe embeds when you want the safest drop-in option across
+              different CMS or website builders.
+            </p>
+          </div>
+
+          <CodeBlock value={iframeCode} />
+
+          <Button
+            variant="outline"
+            onClick={() => void copyToClipboard(iframeCode, "iframe")}
+          >
+            {copiedItem === "iframe" ? (
+              <Check className="mr-2 h-4 w-4" />
+            ) : (
+              <Copy className="mr-2 h-4 w-4" />
+            )}
+            Copy iframe code
+          </Button>
+        </div>
+      </TabsContent>
+
+      <TabsContent value="javascript" className="space-y-4">
+        <Alert>
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>
+            Older embed codes that point to {legacyRuntimeUrl} are deprecated.
+            Replace them with the static runtime below: {staticRuntimeUrl}
+          </AlertDescription>
+        </Alert>
+
+        <div className="rounded-2xl border bg-card p-4">
+          <div className="space-y-4">
+            <div className="space-y-3">
+              <Label>Display Mode</Label>
+              <RadioGroup
+                value={displayMode}
+                onValueChange={(value) =>
+                  setDisplayMode(value as FormEmbedDisplayMode)
+                }
+                className="grid gap-3 sm:grid-cols-3"
+              >
+                {DISPLAY_MODE_OPTIONS.map((option) => (
+                  <label
+                    key={option.value}
+                    className="flex cursor-pointer gap-3 rounded-xl border px-4 py-3"
+                  >
+                    <RadioGroupItem value={option.value} />
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium text-foreground">
+                        {option.label}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {option.description}
+                      </p>
+                    </div>
+                  </label>
+                ))}
+              </RadioGroup>
+            </div>
+
+            {displayMode === "inline" ? (
+              <div className="space-y-2">
+                <Label htmlFor="container-selector">Container selector</Label>
+                <Input
+                  id="container-selector"
+                  value={containerSelector}
+                  onChange={(event) => setContainerSelector(event.target.value)}
+                  placeholder="#bloomsuite-form"
+                />
+                <p className="text-xs text-muted-foreground">
+                  The generated placeholder uses this selector as the inline
+                  mount point.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Label htmlFor="button-text">Trigger button text</Label>
+                <Input
+                  id="button-text"
+                  value={buttonText}
+                  onChange={(event) => setButtonText(event.target.value)}
+                  placeholder="Open Form"
+                />
+              </div>
             )}
           </div>
-        </CardContent>
-      </Card>
 
-      {/* Share & Embed Options */}
-      {isPublished && (
-        <>
-          {/* Direct Link */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Direct Link</CardTitle>
-              <CardDescription>
-                Share this link directly with your audience
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex gap-2">
-                <Input value={formUrl} readOnly className="font-mono text-sm" />
-                <Button 
-                  variant="outline" 
-                  onClick={() => copyToClipboard(formUrl, 'link')}
-                >
-                  {copiedItem === 'link' ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+          <CodeBlock value={jsEmbedCode} />
 
-          {/* Embed Code Options */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Code className="h-5 w-5" />
-                Embed Code
-              </CardTitle>
-              <CardDescription>
-                Add this code to your website to embed the form
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Tabs defaultValue="iframe" className="w-full">
-                <TabsList className="grid w-full grid-cols-3">
-                  <TabsTrigger value="iframe" className="flex items-center gap-2">
-                    <FileCode className="h-4 w-4" />
-                    iFrame
-                  </TabsTrigger>
-                  <TabsTrigger value="js" className="flex items-center gap-2">
-                    <Zap className="h-4 w-4" />
-                    JavaScript
-                  </TabsTrigger>
-                  <TabsTrigger value="react" className="flex items-center gap-2">
-                    <Code className="h-4 w-4" />
-                    React
-                  </TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="iframe" className="mt-4">
-                  <div className="space-y-3">
-                    <div className="flex items-start gap-2 p-3 bg-primary/10 border border-primary/20 rounded-lg">
-                      <Check className="h-4 w-4 text-primary mt-0.5" />
-                      <div className="text-sm text-foreground">
-                        <strong>Recommended:</strong> Simple to add - just paste the code. Works on most websites.
-                      </div>
-                    </div>
-                    <pre className="p-4 bg-muted rounded-lg overflow-x-auto text-sm">
-                      <code>{iframeCode}</code>
-                    </pre>
-                    <Button 
-                      variant="outline" 
-                      onClick={() => copyToClipboard(iframeCode, 'iframe')}
-                    >
-                      {copiedItem === 'iframe' ? <Check className="h-4 w-4 mr-2" /> : <Copy className="h-4 w-4 mr-2" />}
-                      Copy Code
-                    </Button>
-                  </div>
-                </TabsContent>
-
-                <TabsContent value="js" className="mt-4">
-                  <div className="space-y-3">
-                    <div className="flex items-start gap-2 p-3 bg-muted border border-border rounded-lg">
-                      <Zap className="h-4 w-4 text-muted-foreground mt-0.5" />
-                      <div className="text-sm text-muted-foreground">
-                        <strong>Advanced:</strong> Inline rendering, better performance. Requires CSP configuration on some websites.
-                      </div>
-                    </div>
-                    <pre className="p-4 bg-muted rounded-lg overflow-x-auto text-sm">
-                      <code>{jsEmbedCode}</code>
-                    </pre>
-                    <Button 
-                      variant="outline" 
-                      onClick={() => copyToClipboard(jsEmbedCode, 'js')}
-                    >
-                      {copiedItem === 'js' ? <Check className="h-4 w-4 mr-2" /> : <Copy className="h-4 w-4 mr-2" />}
-                      Copy Code
-                    </Button>
-                  </div>
-                </TabsContent>
-
-                <TabsContent value="react" className="mt-4">
-                  <div className="space-y-3">
-                    <div className="flex items-start gap-2 p-3 bg-muted border border-border rounded-lg">
-                      <Code className="h-4 w-4 text-muted-foreground mt-0.5" />
-                      <div className="text-sm text-muted-foreground">
-                        <strong>Developers:</strong> For React/Next.js applications.
-                      </div>
-                    </div>
-                    <pre className="p-4 bg-muted rounded-lg overflow-x-auto text-sm">
-                      <code>{reactCode}</code>
-                    </pre>
-                    <Button 
-                      variant="outline" 
-                      onClick={() => copyToClipboard(reactCode, 'react')}
-                    >
-                      {copiedItem === 'react' ? <Check className="h-4 w-4 mr-2" /> : <Copy className="h-4 w-4 mr-2" />}
-                      Copy Code
-                    </Button>
-                  </div>
-                </TabsContent>
-              </Tabs>
-            </CardContent>
-          </Card>
-
-          {/* Integration Guide */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <BookOpen className="h-5 w-5" />
-                Integration Guide
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="p-4 border rounded-lg">
-                  <h4 className="font-medium flex items-center gap-2 mb-2">
-                    <Shield className="h-4 w-4 text-green-600" />
-                    Consent & Compliance
-                  </h4>
-                  <ul className="text-sm text-muted-foreground space-y-1">
-                    <li>• Consent checkboxes are never pre-checked</li>
-                    <li>• All consent proofs stored in database</li>
-                    <li>• CASL & TCPA compliant by default</li>
-                    <li>• Existing opt-ins never downgraded</li>
-                  </ul>
-                </div>
-                <div className="p-4 border rounded-lg">
-                  <h4 className="font-medium flex items-center gap-2 mb-2">
-                    <Zap className="h-4 w-4 text-blue-600" />
-                    Features
-                  </h4>
-                  <ul className="text-sm text-muted-foreground space-y-1">
-                    <li>• Automatic UTM parameter capture</li>
-                    <li>• Spam protection with honeypot</li>
-                    <li>• Rate limiting (5/min per IP)</li>
-                    <li>• Real-time submission tracking</li>
-                  </ul>
-                </div>
-              </div>
-
-              <Separator />
-
-              <div>
-                <h4 className="font-medium mb-2">Content Security Policy (CSP)</h4>
-                <p className="text-sm text-muted-foreground mb-2">
-                  If your site uses CSP and you're using the JavaScript embed, add these directives:
-                </p>
-                <pre className="p-3 bg-muted rounded-lg text-xs overflow-x-auto">
-                  <code>{`script-src 'self' ${import.meta.env.VITE_SUPABASE_URL || 'https://udldmkqwnxhdeztyqcau.supabase.co'};`}</code>
-                  {'\n'}
-                  <code>{`connect-src 'self' ${import.meta.env.VITE_SUPABASE_URL || 'https://udldmkqwnxhdeztyqcau.supabase.co'};`}</code>
-                  {'\n'}
-                  <code>{`frame-src 'self' ${window.location.hostname};`}</code>
-                </pre>
-              </div>
-            </CardContent>
-          </Card>
-        </>
-      )}
-
-      {/* Test Submission */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Send className="h-5 w-5" />
-            Test Submission
-          </CardTitle>
-          <CardDescription>
-            Submit a test entry to verify your form works correctly
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground mb-4">
-            {isPublished 
-              ? 'Click the button below to open your form in a new tab and test it.'
-              : 'Publish your form first to test submissions.'
-            }
-          </p>
-          <Button 
-            variant="outline" 
-            disabled={!isPublished}
-            asChild={isPublished}
+          <Button
+            variant="outline"
+            onClick={() => void copyToClipboard(jsEmbedCode, "javascript")}
           >
-            {isPublished ? (
-              <a href={formUrl} target="_blank" rel="noopener noreferrer">
-                <ExternalLink className="h-4 w-4 mr-2" />
-                Open Form for Testing
-              </a>
+            {copiedItem === "javascript" ? (
+              <Check className="mr-2 h-4 w-4" />
             ) : (
-              <>
-                <ExternalLink className="h-4 w-4 mr-2" />
-                Publish to Test
-              </>
+              <Copy className="mr-2 h-4 w-4" />
             )}
+            Copy JavaScript code
           </Button>
-        </CardContent>
-      </Card>
-    </div>
+        </div>
+      </TabsContent>
+
+      <TabsContent value="react" className="space-y-4">
+        <div className="rounded-2xl border bg-card p-4">
+          <p className="text-sm text-muted-foreground">
+            This snippet loads the static runtime once and renders the form via
+            the same data attributes used by the JavaScript embed.
+          </p>
+
+          <CodeBlock value={reactCode} />
+
+          <Button
+            variant="outline"
+            onClick={() => void copyToClipboard(reactCode, "react")}
+          >
+            {copiedItem === "react" ? (
+              <Check className="mr-2 h-4 w-4" />
+            ) : (
+              <Copy className="mr-2 h-4 w-4" />
+            )}
+            Copy React code
+          </Button>
+        </div>
+      </TabsContent>
+    </Tabs>
+  );
+}
+
+function CodeBlock({ value }: { value: string }) {
+  return (
+    <pre className="mt-4 overflow-x-auto rounded-xl bg-muted p-4 text-sm">
+      <code>{value}</code>
+    </pre>
   );
 }

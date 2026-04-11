@@ -49,15 +49,6 @@ export const CurrentCampaignSection = ({
     if (success) {
       setTimeout(onTaskUpdate, 1000); // Refresh after generation
     }
-  };
-
-  console.log('🔍 CurrentCampaignSection: Rendering with:', {
-    hasActiveCampaign: !!activeCampaign,
-    activeCampaignTitle: activeCampaign?.title,
-    tasksCount,
-    isCurrentlyGenerating,
-    loading
-  });
 
   if (loading) {
     return (

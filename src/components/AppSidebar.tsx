@@ -63,12 +63,6 @@ const AppSidebar: React.FC = () => {
   const { data: isSuperAdmin, isLoading: isLoadingSuperAdmin } =
     useIsSuperAdmin();
   const location = useLocation();
-  const { state } = useSidebar();
-
-  console.log("🎨 AppSidebar - Admin status:", {
-    isSuperAdmin,
-    isLoadingSuperAdmin,
-  });
 
   const currentPath = location.pathname;
   const isCollapsed = state === "collapsed";

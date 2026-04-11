@@ -3,12 +3,6 @@ import { VIDEO_SCENE_PATTERNS, cleanVideoScript } from './contentValidation';
 import { sanitizeWeekNumbers } from './weekNumberSanitizer';
 
 export function cleanVideoContent(content: string): string {
-  if (!content) return content;
-  
-  console.log('🎬 Cleaning video content:', {
-    originalLength: content.length,
-    hasScenePatterns: VIDEO_SCENE_PATTERNS.some(pattern => pattern.test(content))
-  });
   
   // First pass: Remove all scene information
   let cleaned = cleanVideoScript(content);
@@ -30,12 +24,6 @@ export function cleanVideoContent(content: string): string {
     // Clean up multiple spaces and line breaks
     .replace(/\s{3,}/g, '  ')
     .replace(/\n{3,}/g, '\n\n')
-    .trim();
-  
-  console.log('🎬 Video content cleaned:', {
-    cleanedLength: cleaned.length,
-    removedCharacters: content.length - cleaned.length
-  });
   
   return cleaned;
 }

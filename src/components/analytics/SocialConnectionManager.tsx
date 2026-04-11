@@ -1,9 +1,21 @@
-
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Facebook, Instagram, MapPin, CheckCircle, AlertCircle, RefreshCw } from "lucide-react";
+import {
+  Facebook,
+  Instagram,
+  MapPin,
+  CheckCircle,
+  AlertCircle,
+  RefreshCw,
+} from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -38,69 +50,66 @@ export const SocialConnectionManager = () => {
     const handleMessage = (event: MessageEvent) => {
       // Security: ensure message is from our own origin
       if (event.origin !== window.location.origin) return;
-      
+
       const data = event.data;
-      if (!data || typeof data !== 'object') return;
-
-      console.log('[SocialConnectionManager] Received message:', data);
-
-      if (data.type === 'oauth-success' && data.provider === 'meta') {
-        toast.success(data.message || 'Social account connected successfully');
+      if (!data || typeof data !== "object") return;
+      if (data.type === "oauth-success" && data.provider === "meta") {
+        toast.success(data.message || "Social account connected successfully");
         fetchConnections(); // Refresh connections list
         setConnecting(null);
       }
 
-      if (data.type === 'oauth-error' && data.provider === 'meta') {
-        const errorMessage = data.error || 'Failed to connect Meta account';
+      if (data.type === "oauth-error" && data.provider === "meta") {
+        const errorMessage = data.error || "Failed to connect Meta account";
         toast.error(errorMessage);
         setConnecting(null);
       }
     };
 
-    window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
   }, []);
 
   // Check for successful connection and refresh
   useEffect(() => {
-    const successData = sessionStorage.getItem('social_connection_success');
-    const failureData = sessionStorage.getItem('social_connection_failure');
-    
+    const successData = sessionStorage.getItem("social_connection_success");
+    const failureData = sessionStorage.getItem("social_connection_failure");
+
     if (successData) {
       try {
         const data = JSON.parse(successData);
         // Only refresh if it's recent (within 30 seconds)
         if (Date.now() - data.timestamp < 30000) {
           fetchConnections(); // Refresh connections
-          
+
           // Check if there's a returnTo URL parameter and set connected=true
           const currentUrl = new URL(window.location.href);
-          const returnTo = currentUrl.searchParams.get('returnTo');
-          
+          const returnTo = currentUrl.searchParams.get("returnTo");
+
           if (returnTo) {
             // Set connected=true to trigger success message and redirect
-            currentUrl.searchParams.set('connected', 'true');
-            window.history.replaceState({}, '', currentUrl.toString());
+            currentUrl.searchParams.set("connected", "true");
+            window.history.replaceState({}, "", currentUrl.toString());
           }
         }
-        sessionStorage.removeItem('social_connection_success');
+        sessionStorage.removeItem("social_connection_success");
       } catch (error) {
-        console.error('Error processing success data:', error);
+        console.error("Error processing success data:", error);
       }
     }
-    
+
     if (failureData) {
       try {
         const data = JSON.parse(failureData);
         // Only show error if it's recent (within 30 seconds)
         if (Date.now() - data.timestamp < 30000) {
-          if (data.stage === 'no_pages' || data.stage === 'fetch_pages') {
-            toast.error(data.message || 'Failed to connect. No Pages found.');
+          if (data.stage === "no_pages" || data.stage === "fetch_pages") {
+            toast.error(data.message || "Failed to connect. No Pages found.");
           }
         }
-        sessionStorage.removeItem('social_connection_failure');
+        sessionStorage.removeItem("social_connection_failure");
       } catch (error) {
-        console.error('Error processing failure data:', error);
+        console.error("Error processing failure data:", error);
       }
     }
   }, []);
@@ -108,14 +117,14 @@ export const SocialConnectionManager = () => {
   const fetchConnections = async () => {
     try {
       const { data, error } = await supabase
-        .from('social_connections')
-        .select('*')
-        .order('created_at', { ascending: false });
+        .from("social_connections")
+        .select("*")
+        .order("created_at", { ascending: false });
 
       if (error) throw error;
       setConnections(data || []);
     } catch (error) {
-      console.error('Error fetching connections:', error);
+      console.error("Error fetching connections:", error);
     } finally {
       setLoading(false);
     }
@@ -123,62 +132,54 @@ export const SocialConnectionManager = () => {
 
   const connectMeta = async (platformId: string) => {
     setConnecting(platformId);
-    
+
     try {
       // Clear any previous OAuth state
-      sessionStorage.removeItem('oauth_state');
-      localStorage.removeItem('oauth_state_backup');
-      sessionStorage.removeItem('processed_oauth_codes');
-      
+      sessionStorage.removeItem("oauth_state");
+      localStorage.removeItem("oauth_state_backup");
+      sessionStorage.removeItem("processed_oauth_codes");
+
       // Generate secure state parameter
       const state = crypto.randomUUID();
       const timestamp = Date.now().toString();
       const combinedState = `${state}-${timestamp}`;
-      
+
       // Store state with redundancy
-      sessionStorage.setItem('oauth_state', combinedState);
-      localStorage.setItem('oauth_state_backup', combinedState);
-      
+      sessionStorage.setItem("oauth_state", combinedState);
+      localStorage.setItem("oauth_state_backup", combinedState);
+
       // Fetch OAuth config dynamically
       const configData = await fetchOAuthConfig();
       const clientId = configData.clientId;
-      
-      const redirectUri = getOAuthRedirectUri();
 
-      console.log('🔗 [SocialConnectionManager] Redirect URI Configuration:', {
+      console.log("🔗 [SocialConnectionManager] Redirect URI Configuration:", {
         redirectUri,
         origin: window.location.origin,
         hostname: window.location.hostname,
-        environment: window.location.hostname.includes('localhost')
-                     ? 'development'
-                     : 'production',
-        timestamp: new Date().toISOString()
+        environment: window.location.hostname.includes("localhost")
+          ? "development"
+          : "production",
+        timestamp: new Date().toISOString(),
       });
-      
-      const scope = 'pages_read_engagement,pages_show_list,pages_manage_posts,instagram_basic,instagram_content_publish,instagram_manage_insights';
-      
+
+      const scope =
+        "pages_read_engagement,pages_show_list,pages_manage_posts,instagram_basic,instagram_content_publish,instagram_manage_insights";
       // Build Facebook OAuth URL with enhanced parameters for App Review
-      const authUrl = new URL('https://www.facebook.com/v19.0/dialog/oauth');
-      authUrl.searchParams.set('client_id', clientId);
-      authUrl.searchParams.set('redirect_uri', redirectUri);
-      authUrl.searchParams.set('scope', scope);
-      authUrl.searchParams.set('response_type', 'code');
-      authUrl.searchParams.set('state', combinedState);
-      authUrl.searchParams.set('auth_type', 'rerequest');
-      
-      console.log(`🔗 Opening ${platformId} OAuth in new tab:`, {
-        redirectUri,
-        state: combinedState.substring(0, 12) + '...',
-        timestamp: new Date().toISOString()
-      });
-      
+      const authUrl = new URL("https://www.facebook.com/v19.0/dialog/oauth");
+      authUrl.searchParams.set("client_id", clientId);
+      authUrl.searchParams.set("redirect_uri", redirectUri);
+      authUrl.searchParams.set("scope", scope);
+      authUrl.searchParams.set("response_type", "code");
+      authUrl.searchParams.set("state", combinedState);
+
       // Open OAuth in new tab (not popup)
       const oauthUrlStr = authUrl.toString();
-      const oauthTab = window.open(oauthUrlStr, '_blank');
-      
+      const oauthTab = window.open(oauthUrlStr, "_blank");
+
       if (!oauthTab) {
-        console.warn('❌ New tab blocked. Please allow new tabs for Facebook login.');
-        toast.error('Please allow new tabs to connect Facebook. Click the button again after allowing.');
+        toast.error(
+          "Please allow new tabs to connect Facebook. Click the button again after allowing.",
+        );
       }
     } catch (error) {
       console.error(`Failed to connect ${platformId}:`, error);
@@ -188,43 +189,41 @@ export const SocialConnectionManager = () => {
   };
 
   const connectGoogleBusiness = async () => {
-    setConnecting('google_my_business');
-    
-    const clientId = 'YOUR_GOOGLE_CLIENT_ID';
+    setConnecting("google_my_business");
+
+    const clientId = "YOUR_GOOGLE_CLIENT_ID";
     const redirectUri = `${window.location.origin}/auth/google/callback`;
-    const scope = 'https://www.googleapis.com/auth/business.manage';
-    
+    const scope = "https://www.googleapis.com/auth/business.manage";
+
     const authUrl = `https://accounts.google.com/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}&response_type=code&access_type=offline`;
-    
-    
+
     setConnecting(null);
   };
 
   const disconnectPlatform = async (connectionId: string, platform: string) => {
     try {
       const { error } = await supabase
-        .from('social_connections')
+        .from("social_connections")
         .delete()
-        .eq('id', connectionId);
+        .eq("id", connectionId);
 
       if (error) throw error;
 
       fetchConnections();
     } catch (error) {
-      console.error('Error disconnecting platform:', error);
+      console.error("Error disconnecting platform:", error);
     }
   };
 
   const syncAnalytics = async () => {
     try {
       setLoading(true);
-      
-      const { data, error } = await supabase.functions.invoke('sync-analytics');
-      
+
+      const { data, error } = await supabase.functions.invoke("sync-analytics");
+
       if (error) throw error;
-      
     } catch (error) {
-      console.error('Error syncing analytics:', error);
+      console.error("Error syncing analytics:", error);
     } finally {
       setLoading(false);
     }
@@ -232,26 +231,29 @@ export const SocialConnectionManager = () => {
 
   const platforms = [
     {
-      id: 'facebook',
-      name: 'Facebook',
+      id: "facebook",
+      name: "Facebook",
       icon: Facebook,
-      description: 'Connect your Facebook page to track post performance and audience insights',
-      color: 'bg-blue-600'
+      description:
+        "Connect your Facebook page to track post performance and audience insights",
+      color: "bg-blue-600",
     },
     {
-      id: 'instagram',
-      name: 'Instagram',
+      id: "instagram",
+      name: "Instagram",
       icon: Instagram,
-      description: 'Monitor your Instagram business account engagement and reach',
-      color: 'bg-gradient-to-r from-purple-600 to-pink-600'
+      description:
+        "Monitor your Instagram business account engagement and reach",
+      color: "bg-gradient-to-r from-purple-600 to-pink-600",
     },
     {
-      id: 'google_my_business',
-      name: 'Google My Business',
+      id: "google_my_business",
+      name: "Google My Business",
       icon: MapPin,
-      description: 'Track local search performance, calls, and direction requests',
-      color: 'bg-green-600'
-    }
+      description:
+        "Track local search performance, calls, and direction requests",
+      color: "bg-green-600",
+    },
   ];
 
   if (loading) {
@@ -273,8 +275,12 @@ export const SocialConnectionManager = () => {
   }
 
   // Check if both Facebook and Instagram are connected
-  const facebookConnection = connections.find(c => c.platform === 'facebook' && c.is_active);
-  const instagramConnection = connections.find(c => c.platform === 'instagram' && c.is_active);
+  const facebookConnection = connections.find(
+    (c) => c.platform === "facebook" && c.is_active,
+  );
+  const instagramConnection = connections.find(
+    (c) => c.platform === "instagram" && c.is_active,
+  );
   const bothMetaConnected = facebookConnection && instagramConnection;
 
   // Show success section if both Meta platforms are connected and showSuccessView is true
@@ -302,10 +308,10 @@ export const SocialConnectionManager = () => {
             Connect your social media accounts to track real analytics data
           </CardDescription>
         </div>
-        
+
         <div className="flex items-center gap-2">
           {bothMetaConnected && (
-            <Button 
+            <Button
               onClick={() => setShowSuccessView(true)}
               variant="default"
               size="sm"
@@ -314,7 +320,7 @@ export const SocialConnectionManager = () => {
             </Button>
           )}
           {connections.length > 0 && (
-            <Button 
+            <Button
               onClick={syncAnalytics}
               variant="outline"
               size="sm"
@@ -326,7 +332,7 @@ export const SocialConnectionManager = () => {
           )}
         </div>
       </CardHeader>
-      
+
       <CardContent className="space-y-4">
         {/* Diagnostic Banner for No Pages Found */}
         {connections.length === 0 && (
@@ -334,9 +340,12 @@ export const SocialConnectionManager = () => {
             <div className="flex items-start gap-3">
               <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
               <div className="space-y-2">
-                <p className="text-sm font-medium text-amber-900">No accounts connected yet</p>
+                <p className="text-sm font-medium text-amber-900">
+                  No accounts connected yet
+                </p>
                 <p className="text-sm text-amber-700">
-                  If you tried connecting but no accounts appeared, Meta might not have returned any Pages. This usually means:
+                  If you tried connecting but no accounts appeared, Meta might
+                  not have returned any Pages. This usually means:
                 </p>
                 <ul className="text-xs text-amber-700 list-disc list-inside space-y-1 ml-2">
                   <li>You don't have admin access to any Facebook Pages</li>
@@ -344,31 +353,42 @@ export const SocialConnectionManager = () => {
                   <li>You're logged into the wrong Facebook account</li>
                 </ul>
                 <p className="text-xs text-amber-700 mt-2">
-                  <strong>To fix:</strong> Make sure you're logged into Facebook with the account that owns/manages your Page, then reconnect and select your Page(s) when prompted.
+                  <strong>To fix:</strong> Make sure you're logged into Facebook
+                  with the account that owns/manages your Page, then reconnect
+                  and select your Page(s) when prompted.
                 </p>
               </div>
             </div>
           </div>
         )}
-        
+
         {platforms.map((platform) => {
-          const connection = connections.find(c => c.platform === platform.id);
+          const connection = connections.find(
+            (c) => c.platform === platform.id,
+          );
           const isConnected = !!connection;
-          const isExpired = connection && new Date(connection.expires_at) < new Date();
+          const isExpired =
+            connection && new Date(connection.expires_at) < new Date();
           const Icon = platform.icon;
 
           return (
-            <div key={platform.id} className="flex items-center justify-between p-4 border rounded-lg">
+            <div
+              key={platform.id}
+              className="flex items-center justify-between p-4 border rounded-lg"
+            >
               <div className="flex items-center gap-4">
                 <div className={`p-2 rounded-lg ${platform.color} text-white`}>
                   <Icon className="w-5 h-5" />
                 </div>
-                
+
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
                     <h3 className="font-medium">{platform.name}</h3>
                     {isConnected && (
-                      <Badge variant={isExpired ? "destructive" : "default"} className="text-xs">
+                      <Badge
+                        variant={isExpired ? "destructive" : "default"}
+                        className="text-xs"
+                      >
                         {isExpired ? (
                           <>
                             <AlertCircle className="w-3 h-3 mr-1" />
@@ -383,7 +403,9 @@ export const SocialConnectionManager = () => {
                       </Badge>
                     )}
                   </div>
-                  <p className="text-sm text-gray-600">{platform.description}</p>
+                  <p className="text-sm text-gray-600">
+                    {platform.description}
+                  </p>
                   {isConnected && (
                     <p className="text-xs text-gray-500 mt-1">
                       Connected as: {connection.platform_account_name}
@@ -394,32 +416,33 @@ export const SocialConnectionManager = () => {
 
               <div className="flex flex-col items-end gap-2">
                 {/* Privacy Policy Notice for Facebook/Instagram */}
-                {(platform.id === 'facebook' || platform.id === 'instagram') && !isConnected && (
-                  <div className="text-right max-w-xs">
-                    <p className="text-xs italic text-muted-foreground">
-                      By connecting you agree to our{' '}
-                      <a 
-                        href="https://brandsinblooms.com/pages/bloomsuite-privacy" 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-primary hover:text-primary/80 underline"
-                      >
-                        Privacy Policy
-                      </a>
-                      {' '}and{' '}
-                      <a 
-                        href="https://brandsinblooms.com/pages/terms-of-service" 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-primary hover:text-primary/80 underline"
-                      >
-                        Terms
-                      </a>
-                      .
-                    </p>
-                  </div>
-                )}
-                
+                {(platform.id === "facebook" || platform.id === "instagram") &&
+                  !isConnected && (
+                    <div className="text-right max-w-xs">
+                      <p className="text-xs italic text-muted-foreground">
+                        By connecting you agree to our{" "}
+                        <a
+                          href="https://brandsinblooms.com/pages/bloomsuite-privacy"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary hover:text-primary/80 underline"
+                        >
+                          Privacy Policy
+                        </a>{" "}
+                        and{" "}
+                        <a
+                          href="https://brandsinblooms.com/pages/terms-of-service"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary hover:text-primary/80 underline"
+                        >
+                          Terms
+                        </a>
+                        .
+                      </p>
+                    </div>
+                  )}
+
                 <div className="flex items-center gap-2">
                   {isConnected ? (
                     <>
@@ -430,9 +453,12 @@ export const SocialConnectionManager = () => {
                           onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
-                            if (platform.id === 'facebook') connectMeta(platform.id);
-                            else if (platform.id === 'instagram') connectMeta(platform.id);
-                            else if (platform.id === 'google_my_business') connectGoogleBusiness();
+                            if (platform.id === "facebook")
+                              connectMeta(platform.id);
+                            else if (platform.id === "instagram")
+                              connectMeta(platform.id);
+                            else if (platform.id === "google_my_business")
+                              connectGoogleBusiness();
                           }}
                           disabled={connecting === platform.id}
                         >
@@ -442,7 +468,9 @@ export const SocialConnectionManager = () => {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => disconnectPlatform(connection.id, platform.name)}
+                        onClick={() =>
+                          disconnectPlatform(connection.id, platform.name)
+                        }
                       >
                         Disconnect
                       </Button>
@@ -453,13 +481,16 @@ export const SocialConnectionManager = () => {
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
-                        if (platform.id === 'facebook') connectMeta(platform.id);
-                        else if (platform.id === 'instagram') connectMeta(platform.id);
-                        else if (platform.id === 'google_my_business') connectGoogleBusiness();
+                        if (platform.id === "facebook")
+                          connectMeta(platform.id);
+                        else if (platform.id === "instagram")
+                          connectMeta(platform.id);
+                        else if (platform.id === "google_my_business")
+                          connectGoogleBusiness();
                       }}
                       disabled={connecting === platform.id}
                     >
-                      {connecting === platform.id ? 'Connecting...' : 'Connect'}
+                      {connecting === platform.id ? "Connecting..." : "Connect"}
                     </Button>
                   )}
                 </div>

@@ -4471,6 +4471,7 @@ export function useIntegrationDetailData(
             supabase.rpc(
               "get_tenant_email_health_dashboard" as never,
               {
+                p_as_of: new Date().toISOString(),
                 p_tenant_id: tenant.id,
               } as never,
             ),

@@ -149,7 +149,7 @@ export const ErrorInvestigationDrawer: React.FC<ErrorInvestigationDrawerProps> =
     fixes.push({
       title: 'Enable Debug Mode',
       description: 'Add additional logging to help debug this issue',
-      code: `console.log('Debug info:', {\n  timestamp: new Date().toISOString(),\n  userAgent: navigator.userAgent,\n  url: window.location.href\n});`,
+      code: `console["log"]('Debug info:', {\n  timestamp: new Date().toISOString(),\n  userAgent: navigator.userAgent,\n  url: window.location.href\n});`,
       type: 'success' as const
     });
 

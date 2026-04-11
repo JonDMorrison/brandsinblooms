@@ -1,27 +1,29 @@
-
-import React, { useEffect, useState, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { useToast } from '@/hooks/use-toast';
-import { ReviewLaunchModal } from '@/components/automation/flow/ReviewLaunchModal';
-import { AutomationFlowCanvas } from '@/components/automation/flow/AutomationFlowCanvas';
-import { Save, ArrowLeft } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
-import { useDraftAutosave } from '@/hooks/useDraftAutosave';
-import { ConflictBanner } from '@/components/autosave/ConflictBanner';
-import { AutoSaveIndicator } from '@/components/crm/AutoSaveIndicator';
-import { compileFlow } from '@/lib/automation/compiler';
-import { normalizeTriggerId } from '@/lib/automation/normalize';
-import { extractTriggerConditions } from '@/lib/automation/extractTriggerConditions';
+import React, { useEffect, useState, useMemo } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { useToast } from "@/hooks/use-toast";
+import { ReviewLaunchModal } from "@/components/automation/flow/ReviewLaunchModal";
+import { AutomationFlowCanvas } from "@/components/automation/flow/AutomationFlowCanvas";
+import { Save, ArrowLeft } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useDraftAutosave } from "@/hooks/useDraftAutosave";
+import { ConflictBanner } from "@/components/autosave/ConflictBanner";
+import { AutoSaveIndicator } from "@/components/crm/AutoSaveIndicator";
+import { compileFlow } from "@/lib/automation/compiler";
+import { normalizeTriggerId } from "@/lib/automation/normalize";
+import { extractTriggerConditions } from "@/lib/automation/extractTriggerConditions";
 
 export const CRMAutomationCanvasPage: React.FC = () => {
   const { id: automationId } = useParams();
-  const [automationName, setAutomationName] = useState('New Automation');
+  const [automationName, setAutomationName] = useState("New Automation");
   const [isSaving, setIsSaving] = useState(false);
   const [isReviewOpen, setIsReviewOpen] = useState(false);
-  const [flowState, setFlowState] = useState<{ nodes: any[]; edges: any[] }>({ nodes: [], edges: [] });
+  const [flowState, setFlowState] = useState<{ nodes: any[]; edges: any[] }>({
+    nodes: [],
+    edges: [],
+  });
   const [selectedPersonas, setSelectedPersonas] = useState<any[]>([]);
   const [selectedSegments, setSelectedSegments] = useState<any[]>([]);
   const [tenantId, setTenantId] = useState<string | null>(null);
@@ -32,7 +34,11 @@ export const CRMAutomationCanvasPage: React.FC = () => {
   useEffect(() => {
     document.title = `${automationName} – Automation Canvas`;
     const meta = document.querySelector('meta[name="description"]');
-    if (meta) meta.setAttribute('content', 'Design and edit your automation on the canvas.');
+    if (meta)
+      meta.setAttribute(
+        "content",
+        "Design and edit your automation on the canvas.",
+      );
   }, [automationName]);
 
   useEffect(() => {
@@ -43,9 +49,9 @@ export const CRMAutomationCanvasPage: React.FC = () => {
     const fetchTenant = async () => {
       if (!user?.id) return;
       const { data, error } = await supabase
-        .from('users')
-        .select('tenant_id')
-        .eq('id', user.id)
+        .from("users")
+        .select("tenant_id")
+        .eq("id", user.id)
         .single();
       if (!error) setTenantId(data?.tenant_id ?? null);
     };
@@ -53,44 +59,48 @@ export const CRMAutomationCanvasPage: React.FC = () => {
   }, [user?.id]);
 
   type FlowState = { nodes: any[]; edges: any[] };
-  const isFlowState = (value: any): value is FlowState => !!value && typeof value === 'object' && Array.isArray(value.nodes) && Array.isArray(value.edges);
+  const isFlowState = (value: any): value is FlowState =>
+    !!value &&
+    typeof value === "object" &&
+    Array.isArray(value.nodes) &&
+    Array.isArray(value.edges);
 
   const loadAutomation = async () => {
     try {
       const { data, error } = await supabase
-        .from('crm_automations')
-        .select('*')
-        .eq('id', automationId)
+        .from("crm_automations")
+        .select("*")
+        .eq("id", automationId)
         .single();
       if (error) throw error;
       if (data) {
-        setAutomationName((data as any).name || 'Untitled Automation');
-        const dbOverlapBehavior = (data as any).overlap_behavior || 'ignore';
-        
+        setAutomationName((data as any).name || "Untitled Automation");
+        const dbOverlapBehavior = (data as any).overlap_behavior || "ignore";
+
         // Priority 1: Load from flow_state (contains full trigger node data)
         const fs = (data as any).flow_state;
         if (isFlowState(fs)) {
           // Ensure trigger node has overlapBehavior from DB column as fallback
           const updatedNodes = fs.nodes.map((node: any) => {
-            if (node.type === 'trigger' && !node.data?.overlapBehavior) {
+            if (node.type === "trigger" && !node.data?.overlapBehavior) {
               return {
                 ...node,
-                data: { ...node.data, overlapBehavior: dbOverlapBehavior }
+                data: { ...node.data, overlapBehavior: dbOverlapBehavior },
               };
             }
             return node;
           });
           setFlowState({ nodes: updatedNodes, edges: fs.edges });
-        } 
+        }
         // Priority 2: Fallback to workflow_steps for legacy automations
         else {
           const ws = (data as any).workflow_steps;
           if (isFlowState(ws)) {
             const updatedNodes = ws.nodes.map((node: any) => {
-              if (node.type === 'trigger' && !node.data?.overlapBehavior) {
+              if (node.type === "trigger" && !node.data?.overlapBehavior) {
                 return {
                   ...node,
-                  data: { ...node.data, overlapBehavior: dbOverlapBehavior }
+                  data: { ...node.data, overlapBehavior: dbOverlapBehavior },
                 };
               }
               return node;
@@ -98,17 +108,20 @@ export const CRMAutomationCanvasPage: React.FC = () => {
             setFlowState({ nodes: updatedNodes, edges: ws.edges });
           } else {
             // Priority 3: Create initial state from trigger_type
-            const subtype = (data as any)?.trigger_conditions?.subtype || (data as any)?.trigger_type || 'manual';
+            const subtype =
+              (data as any)?.trigger_conditions?.subtype ||
+              (data as any)?.trigger_type ||
+              "manual";
             const initial: FlowState = {
               nodes: [
                 {
-                  id: 'trigger-1',
-                  type: 'trigger',
+                  id: "trigger-1",
+                  type: "trigger",
                   position: { x: 160, y: 80 },
-                  data: { 
-                    label: String(subtype).replace(/_/g, ' '), 
+                  data: {
+                    label: String(subtype).replace(/_/g, " "),
                     triggerType: subtype,
-                    overlapBehavior: dbOverlapBehavior 
+                    overlapBehavior: dbOverlapBehavior,
                   },
                 },
               ],
@@ -119,29 +132,44 @@ export const CRMAutomationCanvasPage: React.FC = () => {
         }
       }
     } catch (e) {
-      console.error('Error loading automation:', e);
-      toast({ title: 'Error', description: 'Failed to load automation', variant: 'destructive' });
+      console.error("Error loading automation:", e);
+      toast({
+        title: "Error",
+        description: "Failed to load automation",
+        variant: "destructive",
+      });
     }
   };
 
   const handleSaveDraft = async () => {
     if (!user?.id) {
-      toast({ title: 'Not signed in', description: 'Please sign in to save.', variant: 'destructive' });
+      toast({
+        title: "Not signed in",
+        description: "Please sign in to save.",
+        variant: "destructive",
+      });
       return;
     }
     setIsSaving(true);
-    
+
     // Compile flow state to workflow steps
-    const compilation = compileFlow({ nodes: flowState.nodes, edges: flowState.edges });
-    const triggerNode = flowState.nodes.find((n: any) => n.type === 'trigger');
-    const normalizedTrigger = triggerNode ? normalizeTriggerId(String(triggerNode.data?.triggerType) || 'loyalty_join') : 'loyalty_join';
-    
+    const compilation = compileFlow({
+      nodes: flowState.nodes,
+      edges: flowState.edges,
+    });
+    const triggerNode = flowState.nodes.find((n: any) => n.type === "trigger");
+    const normalizedTrigger = triggerNode
+      ? normalizeTriggerId(
+          String(triggerNode.data?.triggerType) || "loyalty_join",
+        )
+      : "loyalty_join";
+
     // Extract trigger conditions (segment_id, persona_id, etc.) from flow state
     const triggerConditions = extractTriggerConditions(flowState);
-    
+
     // Extract overlap behavior from trigger node
-    const overlapBehavior = triggerNode?.data?.overlapBehavior || 'ignore';
-    
+    const overlapBehavior = triggerNode?.data?.overlapBehavior || "ignore";
+
     const payload: any = {
       name: automationName,
       is_active: false,
@@ -157,17 +185,29 @@ export const CRMAutomationCanvasPage: React.FC = () => {
     };
     try {
       if (automationId) {
-        const { error } = await supabase.from('crm_automations').update(payload).eq('id', automationId);
+        const { error } = await supabase
+          .from("crm_automations")
+          .update(payload)
+          .eq("id", automationId);
         if (error) throw error;
       } else {
-        const { data, error } = await supabase.from('crm_automations').insert(payload).select().single();
+        const { data, error } = await supabase
+          .from("crm_automations")
+          .insert(payload)
+          .select()
+          .single();
         if (error) throw error;
-        if (data?.id) window.history.replaceState({}, '', `/crm/automations/${data.id}`);
+        if (data?.id)
+          window.history.replaceState({}, "", `/crm/automations/${data.id}`);
       }
-      toast({ title: 'Saved', description: 'Draft saved successfully.' });
+      toast({ title: "Saved", description: "Draft saved successfully." });
     } catch (e) {
       console.error(e);
-      toast({ title: 'Error', description: 'Failed to save draft.', variant: 'destructive' });
+      toast({
+        title: "Error",
+        description: "Failed to save draft.",
+        variant: "destructive",
+      });
     } finally {
       setIsSaving(false);
     }
@@ -175,22 +215,33 @@ export const CRMAutomationCanvasPage: React.FC = () => {
 
   const handleActivate = async () => {
     if (!user?.id) {
-      toast({ title: 'Not signed in', description: 'Please sign in to activate.', variant: 'destructive' });
+      toast({
+        title: "Not signed in",
+        description: "Please sign in to activate.",
+        variant: "destructive",
+      });
       return;
     }
     setIsSaving(true);
-    
+
     // Compile flow state to workflow steps
-    const compilation = compileFlow({ nodes: flowState.nodes, edges: flowState.edges });
-    const triggerNode = flowState.nodes.find((n: any) => n.type === 'trigger');
-    const normalizedTrigger = triggerNode ? normalizeTriggerId(String(triggerNode.data?.triggerType) || 'loyalty_join') : 'loyalty_join';
-    
+    const compilation = compileFlow({
+      nodes: flowState.nodes,
+      edges: flowState.edges,
+    });
+    const triggerNode = flowState.nodes.find((n: any) => n.type === "trigger");
+    const normalizedTrigger = triggerNode
+      ? normalizeTriggerId(
+          String(triggerNode.data?.triggerType) || "loyalty_join",
+        )
+      : "loyalty_join";
+
     // Extract trigger conditions (segment_id, persona_id, etc.) from flow state
     const triggerConditions = extractTriggerConditions(flowState);
-    
+
     // Extract overlap behavior from trigger node
-    const overlapBehavior = triggerNode?.data?.overlapBehavior || 'ignore';
-    
+    const overlapBehavior = triggerNode?.data?.overlapBehavior || "ignore";
+
     const payload: any = {
       name: automationName,
       is_active: true,
@@ -206,17 +257,29 @@ export const CRMAutomationCanvasPage: React.FC = () => {
     };
     try {
       if (automationId) {
-        const { error } = await supabase.from('crm_automations').update(payload).eq('id', automationId);
+        const { error } = await supabase
+          .from("crm_automations")
+          .update(payload)
+          .eq("id", automationId);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from('crm_automations').insert(payload);
+        const { error } = await supabase
+          .from("crm_automations")
+          .insert(payload);
         if (error) throw error;
       }
-      toast({ title: 'Activated', description: 'Automation has been activated successfully.' });
+      toast({
+        title: "Activated",
+        description: "Automation has been activated successfully.",
+      });
       setIsReviewOpen(false);
     } catch (e) {
       console.error(e);
-      toast({ title: 'Error', description: 'Failed to activate automation.', variant: 'destructive' });
+      toast({
+        title: "Error",
+        description: "Failed to activate automation.",
+        variant: "destructive",
+      });
     } finally {
       setIsSaving(false);
     }
@@ -225,13 +288,18 @@ export const CRMAutomationCanvasPage: React.FC = () => {
   // Merge-safe autosave: only if we have a real automationId (UUID)
   const autosaveEnabled = useMemo(() => Boolean(automationId), [automationId]);
 
-  const { status: autoStatus, lastSavedAt, conflicts, scheduleSave, saveNow, clearConflicts } = useDraftAutosave({
-    docType: 'automation',
+  const {
+    status: autoStatus,
+    lastSavedAt,
+    conflicts,
+    scheduleSave,
+    saveNow,
+    clearConflicts,
+  } = useDraftAutosave({
+    docType: "automation",
     docId: autosaveEnabled ? automationId! : null,
     throttleMs: 5000,
-    onHeadNotice: ({ version }) => {
-      console.log('Head changed to version', version);
-    }
+    onHeadNotice: ({ version }) => {},
   });
 
   // Schedule autosave whenever flowState changes
@@ -256,7 +324,7 @@ export const CRMAutomationCanvasPage: React.FC = () => {
           <div className="flex items-center gap-3">
             <Button
               variant="ghost"
-              onClick={() => navigate('/crm/automations')}
+              onClick={() => navigate("/crm/automations")}
               className="h-8 w-8 p-0"
               aria-label="Go back"
             >
@@ -275,17 +343,31 @@ export const CRMAutomationCanvasPage: React.FC = () => {
             <div className="hidden sm:block">
               <AutoSaveIndicator
                 status={
-                  autoStatus === 'saving' ? 'saving' :
-                  autoStatus === 'error' ? 'error' : 'saved'
+                  autoStatus === "saving"
+                    ? "saving"
+                    : autoStatus === "error"
+                      ? "error"
+                      : "saved"
                 }
                 onRetry={() => saveNow(flowState)}
               />
             </div>
-            <Button variant="outline" onClick={handleSaveDraft} disabled={isSaving} className="flex items-center gap-2" aria-label="Save draft">
+            <Button
+              variant="outline"
+              onClick={handleSaveDraft}
+              disabled={isSaving}
+              className="flex items-center gap-2"
+              aria-label="Save draft"
+            >
               <Save className="w-4 h-4" />
-              {isSaving ? 'Saving...' : 'Save Draft'}
+              {isSaving ? "Saving..." : "Save Draft"}
             </Button>
-            <Button onClick={() => setIsReviewOpen(true)} aria-label="Review and launch">Review & Launch</Button>
+            <Button
+              onClick={() => setIsReviewOpen(true)}
+              aria-label="Review and launch"
+            >
+              Review & Launch
+            </Button>
           </div>
         </div>
       </header>
@@ -299,8 +381,11 @@ export const CRMAutomationCanvasPage: React.FC = () => {
               onDiscardBanner={() => clearConflicts()}
               onViewDiff={() => {
                 // Simple diff view: log to console for now
-                console.log('Conflicts:', conflicts);
-                toast({ title: 'Conflict details logged', description: 'Open the console to inspect field-level differences.' });
+                toast({
+                  title: "Conflict details logged",
+                  description:
+                    "Open the console to inspect field-level differences.",
+                });
               }}
             />
           </div>
@@ -326,9 +411,17 @@ export const CRMAutomationCanvasPage: React.FC = () => {
         onOpenChange={setIsReviewOpen}
         automation={{
           name: automationName,
-          triggerType: flowState.nodes.find((n: any) => n.type === 'trigger')?.data.triggerType || 'manual',
-          flowSteps: (flowState.nodes || []).filter((n: any) => n.type !== 'trigger'),
-          selectedAudience: { personas: selectedPersonas, segments: selectedSegments, totalContacts: 0 },
+          triggerType:
+            flowState.nodes.find((n: any) => n.type === "trigger")?.data
+              .triggerType || "manual",
+          flowSteps: (flowState.nodes || []).filter(
+            (n: any) => n.type !== "trigger",
+          ),
+          selectedAudience: {
+            personas: selectedPersonas,
+            segments: selectedSegments,
+            totalContacts: 0,
+          },
         }}
         onLaunch={handleActivate}
         onTestSend={() => {}}

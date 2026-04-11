@@ -1,164 +1,194 @@
-import React from 'react';
+import React from "react";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogDescription,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { 
-  Mail, 
-  Users, 
-  Calendar, 
-  Sparkles, 
-  CheckCircle,
-  MessageSquare,
-  Shield
-} from 'lucide-react';
-import { FORM_TEMPLATES, createFormFromTemplate } from '@/lib/formTemplates';
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { ArrowRight, FileText, Plus, Sparkles } from "lucide-react";
+import { cn } from "@/lib/utils";
+import {
+  FORM_TEMPLATES,
+  createFormFromTemplate,
+  getTemplateFieldPreview,
+} from "@/lib/formTemplates";
+
+type TemplateSelection = ReturnType<typeof createFormFromTemplate> & {
+  name: string;
+};
 
 interface FormTemplatesDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSelect: (templateData: any) => void;
+  onSelect: (templateData: TemplateSelection) => void | Promise<void>;
+  onStartFromScratch?: () => void | Promise<void>;
+  isCreating?: boolean;
 }
 
-export function FormTemplatesDialog({ open, onOpenChange, onSelect }: FormTemplatesDialogProps) {
+export function FormTemplatesDialog({
+  open,
+  onOpenChange,
+  onSelect,
+  onStartFromScratch,
+  isCreating = false,
+}: FormTemplatesDialogProps) {
   const handleSelect = (templateId: string) => {
-    const template = FORM_TEMPLATES.find(t => t.id === templateId);
+    const template = FORM_TEMPLATES.find((item) => item.id === templateId);
     if (!template) return;
 
     const formData = createFormFromTemplate(template);
-    onSelect({
+    void onSelect({
       name: template.name,
       ...formData,
     });
-    onOpenChange(false);
   };
-
-  const templateCards = [
-    {
-      id: 'newsletter-signup',
-      name: 'Newsletter Signup',
-      description: 'Perfect for growing your email list. Collects email and optional first name with email marketing consent.',
-      icon: Mail,
-      color: 'text-blue-600',
-      bgColor: 'bg-blue-50',
-      features: [
-        { icon: Mail, label: 'Email collection' },
-        { icon: CheckCircle, label: 'Email consent (CASL)' },
-      ],
-      bestFor: 'Blog subscriptions, updates, promotions',
-    },
-    {
-      id: 'vip-waitlist',
-      name: 'VIP / Loyalty Signup',
-      description: 'Build an exclusive waitlist or loyalty program. Collects email, phone, and both marketing consents.',
-      icon: Users,
-      color: 'text-purple-600',
-      bgColor: 'bg-purple-50',
-      features: [
-        { icon: Mail, label: 'Email collection' },
-        { icon: MessageSquare, label: 'Phone + SMS consent (TCPA)' },
-        { icon: Shield, label: 'Full compliance' },
-      ],
-      bestFor: 'VIP lists, early access, loyalty programs',
-    },
-    {
-      id: 'event-signup',
-      name: 'Event Signup',
-      description: 'Register attendees for events, webinars, or classes. Includes session selection and email consent.',
-      icon: Calendar,
-      color: 'text-green-600',
-      bgColor: 'bg-green-50',
-      features: [
-        { icon: Calendar, label: 'Event time selection' },
-        { icon: Mail, label: 'Email consent for updates' },
-      ],
-      bestFor: 'Workshops, webinars, in-store events',
-    },
-  ];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-primary" />
-            Start with a Template
-          </DialogTitle>
-          <DialogDescription>
-            Choose a template designed for common use cases. Each template is pre-configured with the right fields and compliance settings—you can customize everything after.
-          </DialogDescription>
-        </DialogHeader>
+      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto p-0">
+        <div className="space-y-6 p-6">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-primary" />
+              Create a Form
+            </DialogTitle>
+            <DialogDescription>
+              Start from a lightweight starter form or choose a template
+              designed for common lead capture workflows.
+            </DialogDescription>
+          </DialogHeader>
 
-        <div className="grid gap-4 mt-4">
-          {templateCards.map((template) => {
-            const Icon = template.icon;
-            
-            return (
-              <Card
-                key={template.id}
-                className="cursor-pointer transition-all hover:border-primary hover:shadow-md group"
-                onClick={() => handleSelect(template.id)}
-              >
-                <CardHeader className="pb-3">
-                  <div className="flex items-start gap-4">
-                    <div className={`p-3 rounded-lg ${template.bgColor}`}>
-                      <Icon className={`h-6 w-6 ${template.color}`} />
-                    </div>
-                    <div className="flex-1">
-                      <CardTitle className="text-lg group-hover:text-primary transition-colors">
-                        {template.name}
+          <div
+            className={cn(
+              "grid gap-4",
+              onStartFromScratch ? "md:grid-cols-2" : "md:grid-cols-1",
+            )}
+          >
+            {onStartFromScratch && (
+              <Card className="border-primary/20 bg-primary/5 shadow-sm">
+                <CardHeader className="space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <div className="rounded-full bg-primary/10 p-2 text-primary">
+                        <Plus className="h-4 w-4" />
+                      </div>
+                      <CardTitle className="text-base">
+                        Start from Scratch
                       </CardTitle>
-                      <CardDescription className="mt-1">
-                        {template.description}
-                      </CardDescription>
                     </div>
-                    <Button 
-                      size="sm" 
-                      className="opacity-0 group-hover:opacity-100 transition-opacity"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleSelect(template.id);
-                      }}
-                    >
-                      Use Template
-                    </Button>
+                    <Badge variant="secondary">Recommended</Badge>
                   </div>
+                  <CardDescription>
+                    Start with a clean form scaffold containing one required
+                    email field, then customize the rest in the editor.
+                  </CardDescription>
                 </CardHeader>
-                <CardContent className="pt-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    {template.features.map((feature, idx) => {
-                      const FeatureIcon = feature.icon;
-                      return (
-                        <Badge 
-                          key={idx} 
-                          variant="secondary" 
-                          className="text-xs font-normal flex items-center gap-1"
-                        >
-                          <FeatureIcon className="h-3 w-3" />
-                          {feature.label}
-                        </Badge>
-                      );
-                    })}
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-3">
-                    <span className="font-medium">Best for:</span> {template.bestFor}
-                  </p>
+                <CardContent>
+                  <Button
+                    className="w-full gap-2"
+                    onClick={() => void onStartFromScratch()}
+                    disabled={isCreating}
+                  >
+                    <Plus className="h-4 w-4" />
+                    {isCreating ? "Creating Form..." : "Start from Scratch"}
+                  </Button>
                 </CardContent>
               </Card>
-            );
-          })}
-        </div>
+            )}
 
-        <div className="flex justify-end mt-4">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
+            <Card className="shadow-sm">
+              <CardHeader className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <div className="rounded-full bg-muted p-2 text-muted-foreground">
+                    <FileText className="h-4 w-4" />
+                  </div>
+                  <CardTitle className="text-base">Use a Template</CardTitle>
+                </div>
+                <CardDescription>
+                  Choose from {FORM_TEMPLATES.length} starter templates below to
+                  launch faster with preconfigured fields and consent settings.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center justify-between rounded-lg border bg-card px-4 py-3 text-sm">
+                  <span className="text-muted-foreground">
+                    Template library
+                  </span>
+                  <Badge variant="secondary">
+                    {FORM_TEMPLATES.length} templates
+                  </Badge>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="space-y-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h3 className="text-sm font-semibold text-foreground">
+                  Templates
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  Pick a starting point and tailor it once you land in the
+                  editor.
+                </p>
+              </div>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              {FORM_TEMPLATES.map((template) => (
+                <Card
+                  key={template.id}
+                  className="bg-card shadow-sm transition-shadow hover:shadow-md"
+                >
+                  <CardHeader className="space-y-3 pb-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <CardTitle className="text-base">
+                            {template.name}
+                          </CardTitle>
+                          <Badge variant="outline">{template.category}</Badge>
+                        </div>
+                        <CardDescription>
+                          {template.description}
+                        </CardDescription>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-4 pt-0">
+                    <div className="rounded-lg border bg-muted/30 px-3 py-3 text-sm text-muted-foreground">
+                      {getTemplateFieldPreview(template)}
+                    </div>
+                    <Button
+                      className="w-full gap-2"
+                      onClick={() => handleSelect(template.id)}
+                      disabled={isCreating}
+                    >
+                      <span>Use Template</span>
+                      <ArrowRight className="h-4 w-4" />
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex justify-end border-t px-6 py-4">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

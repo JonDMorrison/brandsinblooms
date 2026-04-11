@@ -98,7 +98,6 @@ export const ImportProgressDialog = ({
           filter: `id=eq.${jobId}`,
         },
         (payload) => {
-          console.log("[ImportProgress] Real-time update:", payload);
           updateFromPayload(payload.new);
         },
       )

@@ -1,4 +1,4 @@
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from "@/integrations/supabase/client";
 
 export interface Session {
   id: string;
@@ -14,7 +14,11 @@ export interface Session {
 export interface MessageData {
   id: string;
   sessionId: string;
-  messageType: 'user_prompt' | 'thinking_text' | 'assistant_response' | 'images';
+  messageType:
+    | "user_prompt"
+    | "thinking_text"
+    | "assistant_response"
+    | "images";
   content: string;
   sequenceNumber: number;
   metadata: Record<string, any>;
@@ -56,32 +60,32 @@ export class AIChatPersistenceService {
     channel?: string;
   }): Promise<string> {
     const { data: userData } = await supabase.auth.getUser();
-    if (!userData?.user) throw new Error('User not authenticated');
+    if (!userData?.user) throw new Error("User not authenticated");
 
     const { data: userProfile } = await supabase
-      .from('users')
-      .select('tenant_id')
-      .eq('id', userData.user.id)
+      .from("users")
+      .select("tenant_id")
+      .eq("id", userData.user.id)
       .single();
 
-    if (!userProfile) throw new Error('User profile not found');
+    if (!userProfile) throw new Error("User profile not found");
 
     // Try to find existing session for this context
     let query = supabase
-      .from('ai_assistant_sessions' as AnyTable)
-      .select('id')
-      .eq('user_id', userData.user.id)
-      .eq('context_type', params.contextType || 'general')
-      .order('last_activity_at', { ascending: false })
+      .from("ai_assistant_sessions" as AnyTable)
+      .select("id")
+      .eq("user_id", userData.user.id)
+      .eq("context_type", params.contextType || "general")
+      .order("last_activity_at", { ascending: false })
       .limit(1);
-    
+
     // Handle context_id properly - use .is() for null, .eq() for values
     if (params.contextId) {
-      query = query.eq('context_id', params.contextId);
+      query = query.eq("context_id", params.contextId);
     } else {
-      query = query.is('context_id', null);
+      query = query.is("context_id", null);
     }
-    
+
     const { data: existingSession } = await query.maybeSingle();
 
     if (existingSession) {
@@ -90,15 +94,15 @@ export class AIChatPersistenceService {
 
     // Create new session
     const { data: newSession, error } = await supabase
-      .from('ai_assistant_sessions' as AnyTable)
+      .from("ai_assistant_sessions" as AnyTable)
       .insert({
         user_id: userData.user.id,
         tenant_id: userProfile.tenant_id,
-        context_type: params.contextType || 'general',
+        context_type: params.contextType || "general",
         context_id: params.contextId || null,
-        channel: params.channel || 'newsletter'
+        channel: params.channel || "newsletter",
       })
-      .select('id')
+      .select("id")
       .single();
 
     if (error) throw error;
@@ -111,17 +115,17 @@ export class AIChatPersistenceService {
   static async loadMessages(
     sessionId: string,
     limit: number = 15,
-    beforeSequence?: number
+    beforeSequence?: number,
   ): Promise<MessageData[]> {
     let query = supabase
-      .from('ai_assistant_messages' as AnyTable)
-      .select('*')
-      .eq('session_id', sessionId)
-      .order('sequence_number', { ascending: false })
+      .from("ai_assistant_messages" as AnyTable)
+      .select("*")
+      .eq("session_id", sessionId)
+      .order("sequence_number", { ascending: false })
       .limit(limit);
 
     if (beforeSequence !== undefined) {
-      query = query.lt('sequence_number', beforeSequence);
+      query = query.lt("sequence_number", beforeSequence);
     }
 
     const { data, error } = await query;
@@ -135,7 +139,7 @@ export class AIChatPersistenceService {
       content: msg.content,
       sequenceNumber: msg.sequence_number,
       metadata: msg.metadata || {},
-      createdAt: msg.created_at
+      createdAt: msg.created_at,
     }));
   }
 
@@ -144,15 +148,16 @@ export class AIChatPersistenceService {
    */
   static async loadGlobalMessages(
     limit: number = 15,
-    beforeTimestamp?: string
+    beforeTimestamp?: string,
   ): Promise<MessageWithSession[]> {
     const { data: userData } = await supabase.auth.getUser();
-    if (!userData?.user) throw new Error('User not authenticated');
+    if (!userData?.user) throw new Error("User not authenticated");
 
     // Query messages with session info joined
     let query = supabase
-      .from('ai_assistant_messages' as AnyTable)
-      .select(`
+      .from("ai_assistant_messages" as AnyTable)
+      .select(
+        `
         *,
         ai_assistant_sessions!inner(
           id,
@@ -162,13 +167,14 @@ export class AIChatPersistenceService {
           created_at,
           user_id
         )
-      `)
-      .eq('ai_assistant_sessions.user_id', userData.user.id)
-      .order('created_at', { ascending: false })
+      `,
+      )
+      .eq("ai_assistant_sessions.user_id", userData.user.id)
+      .order("created_at", { ascending: false })
       .limit(limit);
 
     if (beforeTimestamp) {
-      query = query.lt('created_at', beforeTimestamp);
+      query = query.lt("created_at", beforeTimestamp);
     }
 
     const { data, error } = await query;
@@ -188,40 +194,32 @@ export class AIChatPersistenceService {
         title: msg.ai_assistant_sessions.title,
         contextType: msg.ai_assistant_sessions.context_type,
         channel: msg.ai_assistant_sessions.channel,
-        createdAt: msg.ai_assistant_sessions.created_at
-      }
+        createdAt: msg.ai_assistant_sessions.created_at,
+      },
     }));
   }
 
   /**
    * Load images associated with a message
    */
-  static async loadImagesForMessage(messageId: string): Promise<GeneratedImageData[]> {
-    console.log('📸 Loading images for message:', messageId);
-    
+  static async loadImagesForMessage(
+    messageId: string,
+  ): Promise<GeneratedImageData[]> {
     const { data, error } = await supabase
-      .from('ai_assistant_generated_images' as AnyTable)
-      .select(`
+      .from("ai_assistant_generated_images" as AnyTable)
+      .select(
+        `
         *,
         global_image_gallery!inner(public_url)
-      `)
-      .eq('message_id', messageId)
-      .order('generation_order', { ascending: true });
+      `,
+      )
+      .eq("message_id", messageId)
+      .order("generation_order", { ascending: true });
 
     if (error) {
-      console.error('❌ Error loading images:', error);
+      console.error("❌ Error loading images:", error);
       throw error;
     }
-
-    console.log('✅ Loaded images from database:', {
-      count: data?.length || 0,
-      imageData: data?.map((img: any) => ({
-        id: img.id,
-        globalImageId: img.global_image_id,
-        hasGalleryData: !!img.global_image_gallery,
-        publicUrl: img.global_image_gallery?.public_url
-      }))
-    });
 
     return (data || []).map((img: any) => ({
       id: img.id,
@@ -232,7 +230,7 @@ export class AIChatPersistenceService {
       userPrompt: img.user_prompt,
       enhancedPrompt: img.enhanced_prompt,
       generationOrder: img.generation_order,
-      isSelected: img.is_selected
+      isSelected: img.is_selected,
     }));
   }
 
@@ -242,31 +240,37 @@ export class AIChatPersistenceService {
    */
   static async saveMessage(params: {
     sessionId: string;
-    messageType: 'user_prompt' | 'thinking_text' | 'assistant_response' | 'images';
+    messageType:
+      | "user_prompt"
+      | "thinking_text"
+      | "assistant_response"
+      | "images";
     content: string;
     metadata?: Record<string, any>;
   }): Promise<string> {
     // Use atomic database function to get next sequence number
-    const { data: sequenceData, error: sequenceError } = await supabase
-      .rpc('get_next_message_sequence', { p_session_id: params.sessionId });
+    const { data: sequenceData, error: sequenceError } = await supabase.rpc(
+      "get_next_message_sequence",
+      { p_session_id: params.sessionId },
+    );
 
     if (sequenceError) {
-      console.error('❌ Failed to get next sequence:', sequenceError);
+      console.error("❌ Failed to get next sequence:", sequenceError);
       throw sequenceError;
     }
 
     const nextSequence = sequenceData as number;
 
     const { data, error } = await supabase
-      .from('ai_assistant_messages' as AnyTable)
+      .from("ai_assistant_messages" as AnyTable)
       .insert({
         session_id: params.sessionId,
         message_type: params.messageType,
         content: params.content,
         sequence_number: nextSequence,
-        metadata: params.metadata || {}
+        metadata: params.metadata || {},
       } as AnyTable)
-      .select('id')
+      .select("id")
       .single();
 
     if (error) throw error;
@@ -286,17 +290,17 @@ export class AIChatPersistenceService {
       order: number;
     }>;
   }): Promise<void> {
-    const inserts = params.images.map(img => ({
+    const inserts = params.images.map((img) => ({
       session_id: params.sessionId,
       message_id: params.messageId,
       global_image_id: img.globalImageId,
       user_prompt: params.userPrompt,
       enhanced_prompt: params.enhancedPrompt,
-      generation_order: img.order
+      generation_order: img.order,
     }));
 
     const { error } = await supabase
-      .from('ai_assistant_generated_images' as AnyTable)
+      .from("ai_assistant_generated_images" as AnyTable)
       .insert(inserts as AnyTable);
 
     if (error) throw error;
@@ -311,14 +315,14 @@ export class AIChatPersistenceService {
     usedInId: string;
   }): Promise<void> {
     const { error } = await supabase
-      .from('ai_assistant_generated_images' as AnyTable)
+      .from("ai_assistant_generated_images" as AnyTable)
       .update({
         is_selected: true,
         selected_at: new Date().toISOString(),
         used_in_context: params.usedInContext,
-        used_in_id: params.usedInId
+        used_in_id: params.usedInId,
       } as AnyTable)
-      .eq('id', params.imageRecordId);
+      .eq("id", params.imageRecordId);
 
     if (error) throw error;
   }

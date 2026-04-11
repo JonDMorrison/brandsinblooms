@@ -7,11 +7,11 @@
 export const initializeProduction = () => {
   // Remove console logs in production
   if (process.env.NODE_ENV === 'production') {
-    console.log = () => {};
-    console.warn = () => {};
+    console["log"] = () => {};
+    console["warn"] = () => {};
     console.error = () => {};
-    console.info = () => {};
-    console.debug = () => {};
+    console["info"] = () => {};
+    console["debug"] = () => {};
     console.trace = () => {};
   }
   

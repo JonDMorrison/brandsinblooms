@@ -1,27 +1,36 @@
-
-import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { ImageCarousel } from '@/components/ui/image-carousel';
-import { useImageSuggestions } from '@/hooks/useImageSuggestions';
-import { Search, Image, RefreshCw } from 'lucide-react';
-import { extractDynamicQuery } from '@/utils/dynamicImageSearch';
+import React, { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { ImageCarousel } from "@/components/ui/image-carousel";
+import { useImageSuggestions } from "@/hooks/useImageSuggestions";
+import { Search, Image, RefreshCw } from "lucide-react";
+import { extractDynamicQuery } from "@/utils/dynamicImageSearch";
 
 interface ImageSuggestionPanelProps {
   task: any;
   campaignTheme?: string;
 }
 
-export const ImageSuggestionPanel = ({ task, campaignTheme }: ImageSuggestionPanelProps) => {
-  const { images, loading, query, hasStoredImages, fetchNewImages, shuffleImages, usingPlaceholders } = useImageSuggestions(task?.id);
-  const [searchInput, setSearchInput] = useState('');
+export const ImageSuggestionPanel = ({
+  task,
+  campaignTheme,
+}: ImageSuggestionPanelProps) => {
+  const {
+    images,
+    loading,
+    query,
+    hasStoredImages,
+    fetchNewImages,
+    shuffleImages,
+    usingPlaceholders,
+  } = useImageSuggestions(task?.id);
+  const [searchInput, setSearchInput] = useState("");
 
   // Extract dynamic query prioritizing campaign theme for consistency
   const getInitialQuery = () => {
     const campaign = campaignTheme ? { theme: campaignTheme } : task?.campaigns;
     const query = extractDynamicQuery(task, campaign);
-    console.log('[IMAGE_PANEL] Dynamic query for task:', task?.id, 'query:', query);
     return query;
   };
 
@@ -32,7 +41,7 @@ export const ImageSuggestionPanel = ({ task, campaignTheme }: ImageSuggestionPan
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
+    if (e.key === "Enter") {
       handleSearch();
     }
   };
@@ -90,11 +99,12 @@ export const ImageSuggestionPanel = ({ task, campaignTheme }: ImageSuggestionPan
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <p className="text-sm text-gray-600">
-                {hasStoredImages ? '📁 Saved images' : '🔄 Fresh images'} for "{query}"
+                {hasStoredImages ? "📁 Saved images" : "🔄 Fresh images"} for "
+                {query}"
               </p>
-              <Button 
-                onClick={shuffleImages} 
-                variant="outline" 
+              <Button
+                onClick={shuffleImages}
+                variant="outline"
                 size="sm"
                 disabled={loading}
               >
@@ -102,7 +112,7 @@ export const ImageSuggestionPanel = ({ task, campaignTheme }: ImageSuggestionPan
                 Get New
               </Button>
             </div>
-            
+
             <ImageCarousel
               images={images}
               query={query}
@@ -115,7 +125,8 @@ export const ImageSuggestionPanel = ({ task, campaignTheme }: ImageSuggestionPan
 
         {/* Help text */}
         <p className="text-xs text-gray-500">
-          💡 Tip: Images are automatically saved. Click "Get New" to refresh with different images.
+          💡 Tip: Images are automatically saved. Click "Get New" to refresh
+          with different images.
         </p>
       </CardContent>
     </Card>

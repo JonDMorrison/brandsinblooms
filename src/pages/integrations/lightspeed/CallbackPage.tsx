@@ -31,23 +31,15 @@ const CallbackPage = () => {
       }, 30000); // 30 second timeout
 
       try {
-        console.log(
-          "[LS-Callback] Processing OAuth callback (no session required)",
-        );
         setStep("Processing OAuth callback...");
 
         // Extract parameters from URL
         const code = searchParams.get("code");
         const state = searchParams.get("state");
         const error = searchParams.get("error");
-        const errorDescription = searchParams.get("error_description");
-
-        console.log("[LS-Callback] Processing callback:", {
-          hasCode: !!code,
-          hasState: !!state,
-          error,
-          timestamp: new Date().toISOString(),
-        });
+        const errorDescription =
+          searchParams.get("error_description") ||
+          searchParams.get("errorDescription");
 
         // Handle OAuth errors
         if (error) {
@@ -101,8 +93,6 @@ const CallbackPage = () => {
           setTimeout(() => window.close(), 3000);
           return;
         }
-
-        console.log("[LS-Callback] Invoking callback edge function...");
         setStep("Exchanging authorization code for access tokens...");
 
         // Get the current origin for redirect URI
@@ -175,7 +165,6 @@ const CallbackPage = () => {
         }
 
         // Success!
-        console.log("[LS-Callback] Connection successful:", data);
         setStatus("success");
         setMessage("Connected Successfully!");
         setStep(`Connected to ${data.retailerName || "Lightspeed"}`);
@@ -223,11 +212,7 @@ const CallbackPage = () => {
       const channel = new BroadcastChannel("lightspeed_oauth");
       channel.postMessage(result);
       channel.close();
-    } catch (e) {
-      console.log(
-        "[LS-Callback] BroadcastChannel not supported, using localStorage only",
-      );
-    }
+    } catch (e) {}
 
     // Method 3: Try to message opener window
     if (window.opener && !window.opener.closed) {
@@ -236,9 +221,7 @@ const CallbackPage = () => {
           { type: "lightspeed_oauth_result", data: result },
           window.location.origin,
         );
-      } catch (e) {
-        console.log("[LS-Callback] Could not message opener window");
-      }
+      } catch (e) {}
     }
   };
 

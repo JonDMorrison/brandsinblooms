@@ -1,14 +1,14 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { ContentBlock } from '@/types/emailBuilder';
-import { Label } from '@/components/ui/label';
-import { RichTextEditor } from '@/components/ui/rich-text-editor';
-import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { InputWithMergeTags } from '@/components/ui/input-with-merge-tags';
-import { Input } from '@/components/ui/input';
-import { AlignLeft, AlignCenter, AlignRight } from 'lucide-react';
-import { useCompanyInfo } from '@/hooks/useCompanyInfo';
-import { cn } from '@/lib/utils';
+import React, { useState, useEffect, useMemo } from "react";
+import { ContentBlock } from "@/types/emailBuilder";
+import { Label } from "@/components/ui/label";
+import { RichTextEditor } from "@/components/ui/rich-text-editor";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { InputWithMergeTags } from "@/components/ui/input-with-merge-tags";
+import { Input } from "@/components/ui/input";
+import { AlignLeft, AlignCenter, AlignRight } from "lucide-react";
+import { useCompanyInfo } from "@/hooks/useCompanyInfo";
+import { cn } from "@/lib/utils";
 
 interface TextEditModeProps {
   block: ContentBlock;
@@ -21,42 +21,59 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
   block,
   onUpdate,
   onSave,
-  onCancel
+  onCancel,
 }) => {
   const { companyInfo } = useCompanyInfo();
-  
+
   // Brand color swatches
-  const brandColorSwatches = useMemo(() => [
-    { label: 'Primary', value: companyInfo?.brandPrimaryColor || '#22c55e' },
-    { label: 'Secondary', value: companyInfo?.brandSecondaryColor || '#1e40af' },
-    { label: 'Accent', value: companyInfo?.brandAccentColor || '#f59e0b' },
-    { label: 'Text', value: companyInfo?.brandTextColor || '#1f2937' },
-    { label: 'White', value: '#ffffff' },
-    { label: 'Black', value: '#000000' },
-  ], [companyInfo?.brandPrimaryColor, companyInfo?.brandSecondaryColor, companyInfo?.brandAccentColor, companyInfo?.brandTextColor]);
+  const brandColorSwatches = useMemo(
+    () => [
+      { label: "Primary", value: companyInfo?.brandPrimaryColor || "#22c55e" },
+      {
+        label: "Secondary",
+        value: companyInfo?.brandSecondaryColor || "#1e40af",
+      },
+      { label: "Accent", value: companyInfo?.brandAccentColor || "#f59e0b" },
+      { label: "Text", value: companyInfo?.brandTextColor || "#1f2937" },
+      { label: "White", value: "#ffffff" },
+      { label: "Black", value: "#000000" },
+    ],
+    [
+      companyInfo?.brandPrimaryColor,
+      companyInfo?.brandSecondaryColor,
+      companyInfo?.brandAccentColor,
+      companyInfo?.brandTextColor,
+    ],
+  );
 
   // Local state for input fields to preserve cursor position
-  const [headline, setHeadline] = useState(block.headline || block.title || '');
-  const [subheading, setSubheading] = useState(block.subtitle || '');
-  const [bodyContent, setBodyContent] = useState(block.body || block.content || '');
-  const [altText, setAltText] = useState(block.altText || '');
-  const [ctaText, setCtaText] = useState(block.ctaText || block.buttonText || '');
-  const [ctaUrl, setCtaUrl] = useState(block.ctaUrl || block.buttonUrl || '');
-  const [publishDate, setPublishDate] = useState(block.publishDate || '');
-  const [backgroundColor, setBackgroundColor] = useState(block.backgroundColor || '#2d5a27');
-  const [textColor, setTextColor] = useState(block.textColor || '#ffffff');
+  const [headline, setHeadline] = useState(block.headline || block.title || "");
+  const [subheading, setSubheading] = useState(block.subtitle || "");
+  const [bodyContent, setBodyContent] = useState(
+    block.body || block.content || "",
+  );
+  const [altText, setAltText] = useState(block.altText || "");
+  const [ctaText, setCtaText] = useState(
+    block.ctaText || block.buttonText || "",
+  );
+  const [ctaUrl, setCtaUrl] = useState(block.ctaUrl || block.buttonUrl || "");
+  const [publishDate, setPublishDate] = useState(block.publishDate || "");
+  const [backgroundColor, setBackgroundColor] = useState(
+    block.backgroundColor || "#2d5a27",
+  );
+  const [textColor, setTextColor] = useState(block.textColor || "#ffffff");
 
   // Sync local state when block changes externally
   useEffect(() => {
-    setHeadline(block.headline || block.title || '');
-    setSubheading(block.subtitle || '');
-    setBodyContent(block.body || block.content || '');
-    setAltText(block.altText || '');
-    setCtaText(block.ctaText || block.buttonText || '');
-    setCtaUrl(block.ctaUrl || block.buttonUrl || '');
-    setPublishDate(block.publishDate || '');
-    setBackgroundColor(block.backgroundColor || '#2d5a27');
-    setTextColor(block.textColor || '#ffffff');
+    setHeadline(block.headline || block.title || "");
+    setSubheading(block.subtitle || "");
+    setBodyContent(block.body || block.content || "");
+    setAltText(block.altText || "");
+    setCtaText(block.ctaText || block.buttonText || "");
+    setCtaUrl(block.ctaUrl || block.buttonUrl || "");
+    setPublishDate(block.publishDate || "");
+    setBackgroundColor(block.backgroundColor || "#2d5a27");
+    setTextColor(block.textColor || "#ffffff");
   }, [block.id]); // Only sync when block ID changes, not on every update
 
   const handleSave = () => {
@@ -73,7 +90,7 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
       // Always include this field if it exists
       publishDate,
       backgroundColor,
-      textColor
+      textColor,
     };
 
     // Always save body/content for content block types
@@ -82,15 +99,9 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
       updates.content = bodyContent;
     }
 
-    console.log('📝 TextEditMode: Save & Close clicked - saving all fields:', {
-      subtitle: subheading,
-      publishDate,
-      allUpdates: updates
-    });
-    
     // Sync all updates before calling onSave
     onUpdate(updates);
-    
+
     // Small delay to ensure state updates are processed
     setTimeout(() => {
       onSave?.();
@@ -104,7 +115,7 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
       </div>
 
       {/* Color Controls for email-safe-hero blocks */}
-      {block.type === 'email-safe-hero' && (
+      {block.type === "email-safe-hero" && (
         <div className="space-y-3 p-3 bg-muted/50 rounded-lg mb-2">
           {/* Background Color */}
           <div className="grid grid-cols-[60px_40px_1fr] items-center gap-3">
@@ -119,7 +130,7 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
               className="w-8 h-8 p-0.5 cursor-pointer rounded border"
             />
             <div className="flex gap-1.5 justify-end">
-              {brandColorSwatches.map(swatch => (
+              {brandColorSwatches.map((swatch) => (
                 <button
                   key={`bg-${swatch.value}`}
                   onClick={() => {
@@ -128,9 +139,10 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
                   }}
                   className={cn(
                     "w-6 h-6 rounded border-2 transition-all",
-                    backgroundColor?.toLowerCase() === swatch.value.toLowerCase()
-                      ? "border-primary ring-2 ring-primary/20" 
-                      : "border-gray-300 hover:border-gray-400"
+                    backgroundColor?.toLowerCase() ===
+                      swatch.value.toLowerCase()
+                      ? "border-primary ring-2 ring-primary/20"
+                      : "border-gray-300 hover:border-gray-400",
                   )}
                   style={{ backgroundColor: swatch.value }}
                   title={swatch.label}
@@ -139,7 +151,7 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
               ))}
             </div>
           </div>
-          
+
           {/* Text Color */}
           <div className="grid grid-cols-[60px_40px_1fr] items-center gap-3">
             <Label className="text-xs">Text</Label>
@@ -153,7 +165,7 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
               className="w-8 h-8 p-0.5 cursor-pointer rounded border"
             />
             <div className="flex gap-1.5 justify-end">
-              {brandColorSwatches.map(swatch => (
+              {brandColorSwatches.map((swatch) => (
                 <button
                   key={`text-${swatch.value}`}
                   onClick={() => {
@@ -163,8 +175,8 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
                   className={cn(
                     "w-6 h-6 rounded border-2 transition-all",
                     textColor?.toLowerCase() === swatch.value.toLowerCase()
-                      ? "border-primary ring-2 ring-primary/20" 
-                      : "border-gray-300 hover:border-gray-400"
+                      ? "border-primary ring-2 ring-primary/20"
+                      : "border-gray-300 hover:border-gray-400",
                   )}
                   style={{ backgroundColor: swatch.value }}
                   title={swatch.label}
@@ -173,7 +185,7 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
               ))}
             </div>
           </div>
-          
+
           {/* Alignment */}
           <div className="grid grid-cols-[60px_1fr] items-center gap-3">
             <Label className="text-xs">Align</Label>
@@ -181,8 +193,8 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
               <Button
                 type="button"
                 size="sm"
-                variant={block.textAlign === 'left' ? 'default' : 'ghost'}
-                onClick={() => onUpdate({ textAlign: 'left' })}
+                variant={block.textAlign === "left" ? "default" : "ghost"}
+                onClick={() => onUpdate({ textAlign: "left" })}
                 className="h-7 w-7 p-0"
               >
                 <AlignLeft className="h-3.5 w-3.5" />
@@ -190,8 +202,12 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
               <Button
                 type="button"
                 size="sm"
-                variant={block.textAlign === 'center' || !block.textAlign ? 'default' : 'ghost'}
-                onClick={() => onUpdate({ textAlign: 'center' })}
+                variant={
+                  block.textAlign === "center" || !block.textAlign
+                    ? "default"
+                    : "ghost"
+                }
+                onClick={() => onUpdate({ textAlign: "center" })}
                 className="h-7 w-7 p-0"
               >
                 <AlignCenter className="h-3.5 w-3.5" />
@@ -199,8 +215,8 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
               <Button
                 type="button"
                 size="sm"
-                variant={block.textAlign === 'right' ? 'default' : 'ghost'}
-                onClick={() => onUpdate({ textAlign: 'right' })}
+                variant={block.textAlign === "right" ? "default" : "ghost"}
+                onClick={() => onUpdate({ textAlign: "right" })}
                 className="h-7 w-7 p-0"
               >
                 <AlignRight className="h-3.5 w-3.5" />
@@ -211,7 +227,10 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
       )}
 
       {/* Headline (for blocks that support it) */}
-      {(block.type === 'header' || block.type === 'email-safe-hero' || block.headline !== undefined || block.title !== undefined) && (
+      {(block.type === "header" ||
+        block.type === "email-safe-hero" ||
+        block.headline !== undefined ||
+        block.title !== undefined) && (
         <div className="space-y-2">
           <Label htmlFor="headline">Headline</Label>
           <InputWithMergeTags
@@ -219,26 +238,28 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
             value={headline}
             onChange={(value) => {
               setHeadline(value);
-              onUpdate({ 
+              onUpdate({
                 headline: value,
-                title: value 
+                title: value,
               });
             }}
             onKeyDown={(e) => {
               e.stopPropagation();
-              if (e.key === ' ') {
+              if (e.key === " ") {
                 e.stopPropagation();
               }
             }}
             placeholder="Enter headline"
             className="w-full"
-            excludeCategories={['system']}
+            excludeCategories={["system"]}
           />
         </div>
       )}
 
       {/* Subheading (for blocks that support it) */}
-      {(block.type === 'header' || block.type === 'newsletter-header' || block.subtitle !== undefined) && (
+      {(block.type === "header" ||
+        block.type === "newsletter-header" ||
+        block.subtitle !== undefined) && (
         <div className="space-y-2">
           <Label htmlFor="subheading">Subheading</Label>
           <InputWithMergeTags
@@ -250,19 +271,19 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
             }}
             onKeyDown={(e) => {
               e.stopPropagation();
-              if (e.key === ' ') {
+              if (e.key === " ") {
                 e.stopPropagation();
               }
             }}
             placeholder="Enter subheading"
             className="w-full"
-            excludeCategories={['system']}
+            excludeCategories={["system"]}
           />
         </div>
       )}
 
       {/* Newsletter Meta Information (for newsletter-header blocks) */}
-      {block.type === 'newsletter-header' && (
+      {block.type === "newsletter-header" && (
         <div className="space-y-2">
           <Label htmlFor="publishDate">Publish Date</Label>
           <Input
@@ -282,13 +303,13 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
       )}
 
       {/* Body Text (for blocks that support it) - Always show for content block types */}
-      {(block.type === 'text' || 
-        block.type === 'image-text' || 
-        block.type === 'header' || 
-        block.type === 'newsletter-header' ||
-        block.type === 'email-safe-hero' ||
-        block.type === 'button' ||
-        block.body !== undefined || 
+      {(block.type === "text" ||
+        block.type === "image-text" ||
+        block.type === "header" ||
+        block.type === "newsletter-header" ||
+        block.type === "email-safe-hero" ||
+        block.type === "button" ||
+        block.body !== undefined ||
         block.content !== undefined) && (
         <div className="space-y-2">
           <Label htmlFor="bodyText">Body Text</Label>
@@ -320,7 +341,7 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
             }}
             onKeyDown={(e) => {
               e.stopPropagation();
-              if (e.key === ' ') {
+              if (e.key === " ") {
                 e.stopPropagation();
               }
             }}
@@ -330,7 +351,13 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
       )}
 
       {/* CTA Text and URL (for blocks that support it) */}
-      {(block.ctaText !== undefined || block.ctaUrl !== undefined || block.buttonText !== undefined || block.buttonUrl !== undefined || block.type === 'image' || block.type === 'image-text' || block.type === 'text') && (
+      {(block.ctaText !== undefined ||
+        block.ctaUrl !== undefined ||
+        block.buttonText !== undefined ||
+        block.buttonUrl !== undefined ||
+        block.type === "image" ||
+        block.type === "image-text" ||
+        block.type === "text") && (
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="ctaText">Button Text</Label>
@@ -339,14 +366,14 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
               value={ctaText}
               onChange={(e) => {
                 setCtaText(e.target.value);
-                onUpdate({ 
+                onUpdate({
                   ctaText: e.target.value,
-                  buttonText: e.target.value 
+                  buttonText: e.target.value,
                 });
               }}
               onKeyDown={(e) => {
                 e.stopPropagation();
-                if (e.key === ' ') {
+                if (e.key === " ") {
                   e.stopPropagation();
                 }
               }}
@@ -360,14 +387,14 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
               value={ctaUrl}
               onChange={(e) => {
                 setCtaUrl(e.target.value);
-                onUpdate({ 
+                onUpdate({
                   ctaUrl: e.target.value,
-                  buttonUrl: e.target.value 
+                  buttonUrl: e.target.value,
                 });
               }}
               onKeyDown={(e) => {
                 e.stopPropagation();
-                if (e.key === ' ') {
+                if (e.key === " ") {
                   e.stopPropagation();
                 }
               }}
@@ -379,16 +406,11 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
 
       {/* Save/Cancel Buttons */}
       <div className="flex justify-end gap-2 pt-2 border-t border-border">
-        <Button 
-          variant="outline" 
-          size="sm"
-          onClick={onCancel}
-          className="px-4"
-        >
+        <Button variant="outline" size="sm" onClick={onCancel} className="px-4">
           Cancel
         </Button>
-        <Button 
-          variant="default" 
+        <Button
+          variant="default"
           size="sm"
           onClick={handleSave}
           className="px-4"

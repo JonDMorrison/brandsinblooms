@@ -1,10 +1,12 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTenant } from "@/hooks/useTenant";
 
-export const useCurrentCampaignSection = (activeCampaign: any, tasks: any[]) => {
+export const useCurrentCampaignSection = (
+  activeCampaign: any,
+  tasks: any[],
+) => {
   const { user } = useAuth();
   const { tenant } = useTenant();
   const [loading, setLoading] = useState(true);
@@ -24,7 +26,7 @@ export const useCurrentCampaignSection = (activeCampaign: any, tasks: any[]) => 
   const handleTaskClick = (task: any) => {
     // Security check based on available model
     if (!user || !task.campaigns) {
-      console.error('useCurrentCampaignSection: Invalid task or user data');
+      console.error("useCurrentCampaignSection: Invalid task or user data");
       return;
     }
 
@@ -34,15 +36,16 @@ export const useCurrentCampaignSection = (activeCampaign: any, tasks: any[]) => 
       hasAccess = task.campaigns.tenant_id === tenant.id;
     } else {
       // User-based access control
-      hasAccess = task.campaigns.user_id === user.id || task.user_id === user.id;
+      hasAccess =
+        task.campaigns.user_id === user.id || task.user_id === user.id;
     }
 
     if (!hasAccess) {
-      console.error('useCurrentCampaignSection: Attempted to access task without proper permissions');
+      console.error(
+        "useCurrentCampaignSection: Attempted to access task without proper permissions",
+      );
       return;
     }
-    
-    console.log('useCurrentCampaignSection: Opening task:', task.id, task.post_type);
     setSelectedTask(task);
     setShowContentViewer(true);
   };
@@ -50,16 +53,6 @@ export const useCurrentCampaignSection = (activeCampaign: any, tasks: any[]) => 
   const handleContentViewerClose = () => {
     setShowContentViewer(false);
     setSelectedTask(null);
-  };
-
-  console.log('useCurrentCampaignSection: Hook returning:', {
-    tasksCount,
-    loading,
-    selectedTask: selectedTask?.id,
-    showContentViewer,
-    isDevelopment,
-    usesTenantModel
-  });
 
   return {
     tasks,
@@ -70,6 +63,6 @@ export const useCurrentCampaignSection = (activeCampaign: any, tasks: any[]) => 
     isDevelopment,
     usesTenantModel,
     handleTaskClick,
-    handleContentViewerClose
+    handleContentViewerClose,
   };
 };

@@ -1,13 +1,13 @@
-import React, { useState } from 'react';
-import { ContentBlock } from '@/types/emailBuilder';
-import { Button } from '@/components/ui/button';
-import { ImageIcon } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { GalleryLayout } from './GalleryLayoutSelector';
-import { GalleryImageSlot } from './GalleryImageSlot';
-import { MediaSelectorSidebar } from '@/components/crm/MediaSelectorSidebar';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
+import React, { useState } from "react";
+import { ContentBlock } from "@/types/emailBuilder";
+import { Button } from "@/components/ui/button";
+import { ImageIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { GalleryLayout } from "./GalleryLayoutSelector";
+import { GalleryImageSlot } from "./GalleryImageSlot";
+import { MediaSelectorSidebar } from "@/components/crm/MediaSelectorSidebar";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 interface GalleryImage {
   id: string;
@@ -23,94 +23,105 @@ interface ImageGalleryBlockPreviewProps {
 
 // Strip HTML tags from content
 const stripHtml = (html: string | undefined): string => {
-  if (!html) return '';
-  const tmp = document.createElement('div');
+  if (!html) return "";
+  const tmp = document.createElement("div");
   tmp.innerHTML = html;
-  return tmp.textContent || tmp.innerText || '';
+  return tmp.textContent || tmp.innerText || "";
 };
 
-const getImageCount = (layout: GalleryLayout, rows?: number, cols?: number): number => {
-  if (layout === 'custom' && rows && cols) {
+const getImageCount = (
+  layout: GalleryLayout,
+  rows?: number,
+  cols?: number,
+): number => {
+  if (layout === "custom" && rows && cols) {
     return rows * cols;
   }
   switch (layout) {
-    case '3-across': return 3;
-    case '6-across': return 6;
-    case '9-images': return 9;
-    default: return 3;
+    case "3-across":
+      return 3;
+    case "6-across":
+      return 6;
+    case "9-images":
+      return 9;
+    default:
+      return 3;
   }
 };
 
 const getGridColumns = (layout: GalleryLayout, cols?: number): number => {
-  if (layout === 'custom' && cols) {
+  if (layout === "custom" && cols) {
     return cols;
   }
   return 3;
 };
 
 const radiusMap = {
-  none: 'rounded-none',
-  small: 'rounded',
-  medium: 'rounded-lg',
-  large: 'rounded-xl',
+  none: "rounded-none",
+  small: "rounded",
+  medium: "rounded-lg",
+  large: "rounded-xl",
 };
 
 const gapMap = {
-  small: 'gap-2',
-  medium: 'gap-3',
-  large: 'gap-4',
+  small: "gap-2",
+  medium: "gap-3",
+  large: "gap-4",
 };
 
-export const ImageGalleryBlockPreview: React.FC<ImageGalleryBlockPreviewProps> = ({
-  block,
-  onUpdate,
-  isGenerating = false,
-}) => {
+export const ImageGalleryBlockPreview: React.FC<
+  ImageGalleryBlockPreviewProps
+> = ({ block, onUpdate, isGenerating = false }) => {
   const { toast } = useToast();
   const [mediaSelectorOpen, setMediaSelectorOpen] = useState(false);
   const [activeSlotIndex, setActiveSlotIndex] = useState<number | null>(null);
-  const [generatingSlots, setGeneratingSlots] = useState<Set<number>>(new Set());
+  const [generatingSlots, setGeneratingSlots] = useState<Set<number>>(
+    new Set(),
+  );
 
-  const galleryLayout = ((block as any).galleryLayout || '3-across') as GalleryLayout;
+  const galleryLayout = ((block as any).galleryLayout ||
+    "3-across") as GalleryLayout;
   const galleryRows = (block as any).galleryRows || 2;
   const galleryColumns = (block as any).galleryColumns || 3;
   const galleryImages: GalleryImage[] = (block as any).galleryImages || [];
-  const galleryImageRadius = (block as any).galleryImageRadius || 'medium';
-  const galleryGap = (block as any).galleryGap || 'medium';
+  const galleryImageRadius = (block as any).galleryImageRadius || "medium";
+  const galleryGap = (block as any).galleryGap || "medium";
   const imageCount = getImageCount(galleryLayout, galleryRows, galleryColumns);
   const gridCols = getGridColumns(galleryLayout, galleryColumns);
 
   const imageSlots: (GalleryImage | undefined)[] = Array.from(
     { length: imageCount },
-    (_, i) => galleryImages[i]
+    (_, i) => galleryImages[i],
   );
 
   const hasHeadline = block.headline || block.title;
   const hasBody = block.body || block.content;
   const hasCta = block.ctaText && block.ctaUrl;
 
-  const handleImageSelect = (index: number, imageUrl: string, metadata?: { alt?: string }) => {
+  const handleImageSelect = (
+    index: number,
+    imageUrl: string,
+    metadata?: { alt?: string },
+  ) => {
     // Create a new array with the right length, preserving existing images
-    const newImages: GalleryImage[] = Array.from({ length: imageCount }, (_, i) => 
-      galleryImages[i] || { id: `img_placeholder_${i}`, url: '', alt: '' }
+    const newImages: GalleryImage[] = Array.from(
+      { length: imageCount },
+      (_, i) =>
+        galleryImages[i] || { id: `img_placeholder_${i}`, url: "", alt: "" },
     );
-    
+
     // Set the new image at the specified index
     newImages[index] = {
       id: `img_${Date.now()}_${index}`,
       url: imageUrl,
       alt: metadata?.alt || `Gallery image ${index + 1}`,
     };
-    
+
     // Filter out placeholder/empty images for storage
-    const imagesToSave = newImages.filter(img => img.url && img.url.length > 0);
-    
-    console.log('[ImageGalleryBlockPreview] Saving gallery images:', {
-      index,
-      imageUrl: imageUrl.substring(0, 50) + '...',
-      totalImages: imagesToSave.length,
-    });
-    
+    const imagesToSave = newImages.filter(
+      (img) => img.url && img.url.length > 0,
+    );
+
     onUpdate({
       galleryImages: imagesToSave,
       galleryLayout,
@@ -118,16 +129,13 @@ export const ImageGalleryBlockPreview: React.FC<ImageGalleryBlockPreviewProps> =
       galleryColumns,
       userEdited: true,
     } as any);
-    
+
     setMediaSelectorOpen(false);
     setActiveSlotIndex(null);
   };
 
   const handleImageRemove = (index: number) => {
     const newImages = galleryImages.filter((_, i) => i !== index);
-    
-    console.log('[ImageGalleryBlockPreview] Removing image at index:', index);
-    
     onUpdate({
       galleryImages: newImages,
       userEdited: true,
@@ -140,24 +148,29 @@ export const ImageGalleryBlockPreview: React.FC<ImageGalleryBlockPreviewProps> =
   };
 
   const generateImageForSlot = async (index: number) => {
-    setGeneratingSlots(prev => new Set(prev).add(index));
-    
+    setGeneratingSlots((prev) => new Set(prev).add(index));
+
     try {
       const contentContext = [
         block.headline,
         block.body,
         `gallery image ${index + 1}`,
-      ].filter(Boolean).join(' - ');
+      ]
+        .filter(Boolean)
+        .join(" - ");
 
-      const { data, error } = await supabase.functions.invoke('generate-ai-image', {
-        body: {
-          channel: 'email',
-          contentType: 'gallery',
-          headline: block.headline || 'Gallery Image',
-          bodyText: block.body || '',
-          additionalContext: contentContext,
-        }
-      });
+      const { data, error } = await supabase.functions.invoke(
+        "generate-ai-image",
+        {
+          body: {
+            channel: "email",
+            contentType: "gallery",
+            headline: block.headline || "Gallery Image",
+            bodyText: block.body || "",
+            additionalContext: contentContext,
+          },
+        },
+      );
 
       if (error) throw error;
 
@@ -165,14 +178,14 @@ export const ImageGalleryBlockPreview: React.FC<ImageGalleryBlockPreviewProps> =
         handleImageSelect(index, data.imageUrl, { alt: data.altText });
       }
     } catch (err) {
-      console.error('Failed to generate image:', err);
+      console.error("Failed to generate image:", err);
       toast({
         title: "Image generation failed",
         description: "Please try again or upload an image manually.",
         variant: "destructive",
       });
     } finally {
-      setGeneratingSlots(prev => {
+      setGeneratingSlots((prev) => {
         const next = new Set(prev);
         next.delete(index);
         return next;
@@ -184,24 +197,27 @@ export const ImageGalleryBlockPreview: React.FC<ImageGalleryBlockPreviewProps> =
     <div className="py-6 px-4">
       {/* Headline */}
       {hasHeadline && (
-        <h2 className="text-2xl font-bold text-center mb-2" style={{ color: '#1f2937' }}>
+        <h2
+          className="text-2xl font-bold text-center mb-2"
+          style={{ color: "#1f2937" }}
+        >
           {block.headline || block.title}
         </h2>
       )}
 
       {/* Subheadline */}
       {hasBody && (
-        <p className="text-center mb-6 max-w-2xl mx-auto" style={{ color: '#6b7280' }}>
+        <p
+          className="text-center mb-6 max-w-2xl mx-auto"
+          style={{ color: "#6b7280" }}
+        >
           {stripHtml(block.body || block.content)}
         </p>
       )}
 
       {/* Interactive Image Grid */}
       <div
-        className={cn(
-          "grid max-w-3xl mx-auto",
-          gapMap[galleryGap]
-        )}
+        className={cn("grid max-w-3xl mx-auto", gapMap[galleryGap])}
         style={{
           gridTemplateColumns: `repeat(${gridCols}, 1fr)`,
         }}
@@ -225,11 +241,7 @@ export const ImageGalleryBlockPreview: React.FC<ImageGalleryBlockPreviewProps> =
       {/* CTA Button */}
       {hasCta && (
         <div className="flex justify-center mt-6">
-          <Button
-            variant="default"
-            size="lg"
-            asChild
-          >
+          <Button variant="default" size="lg" asChild>
             <a href={block.ctaUrl} target="_blank" rel="noopener noreferrer">
               {block.ctaText}
             </a>
@@ -264,10 +276,12 @@ export const ImageGalleryBlockPreview: React.FC<ImageGalleryBlockPreviewProps> =
         }}
         onImageSelect={(imageUrl, metadata) => {
           if (activeSlotIndex !== null) {
-            handleImageSelect(activeSlotIndex, imageUrl, { alt: metadata?.alt });
+            handleImageSelect(activeSlotIndex, imageUrl, {
+              alt: metadata?.alt,
+            });
           }
         }}
-        contentContext={block.headline || 'Gallery image'}
+        contentContext={block.headline || "Gallery image"}
       />
     </div>
   );

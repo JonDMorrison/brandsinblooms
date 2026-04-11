@@ -16,16 +16,7 @@ export const OAuthCallbackHandler = () => {
     const callbackMessage = searchParams.get("message");
 
     // Add a small delay to ensure component has mounted
-    const timer = setTimeout(() => {
-      console.log("[OAuthCallbackHandler] params check", {
-        href: window.location.href,
-        status,
-        provider,
-        code: !!code,
-        state: !!state,
-        hasOpener: !!window.opener,
-      });
-
+    const timer = window.setTimeout(() => {
       // New flow: when server handled token exchange and redirected back
       if (status && provider) {
         if (window.opener) {
@@ -47,9 +38,7 @@ export const OAuthCallbackHandler = () => {
               },
               window.location.origin,
             );
-          } catch (e) {
-            console.warn("[OAuthCallbackHandler] postMessage failed", e);
-          }
+          } catch (e) {}
         }
 
         // Try to close the window, show fallback if it fails
@@ -67,15 +56,6 @@ export const OAuthCallbackHandler = () => {
 
       // Meta OAuth flow: handle exchange directly in the popup
       if (code && state) {
-        console.log(
-          "[OAuthCallbackHandler] Meta OAuth - exchanging code in popup",
-          {
-            code: code.substring(0, 10) + "...",
-            state: state.substring(0, 12) + "...",
-            hasOpener: !!window.opener,
-          },
-        );
-
         (async () => {
           try {
             // Call exchange-oauth-code edge function
@@ -91,9 +71,6 @@ export const OAuthCallbackHandler = () => {
             );
 
             if (error) throw error;
-
-            console.log("[OAuthCallbackHandler] Exchange response:", data);
-
             // Notify opener window of success
             if (window.opener && !window.opener.closed) {
               window.opener.postMessage(
@@ -104,10 +81,6 @@ export const OAuthCallbackHandler = () => {
                   message: data?.message || "Connected successfully",
                 },
                 window.location.origin,
-              );
-
-              console.log(
-                "[OAuthCallbackHandler] Posted success message to opener",
               );
             }
 
@@ -134,10 +107,6 @@ export const OAuthCallbackHandler = () => {
                   error: error.message || "Failed to connect Meta account",
                 },
                 window.location.origin,
-              );
-
-              console.log(
-                "[OAuthCallbackHandler] Posted error message to opener",
               );
             }
 

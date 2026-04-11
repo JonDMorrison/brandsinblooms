@@ -109,8 +109,8 @@ export const AutomationCanvas: React.FC<AutomationCanvasProps> = ({
         nodes={flowState?.nodes || []}
         hasAudience={false}
         isReadyToLaunch={false}
-        onAddNode={(type) => console.warn('onAddNode not wired in AutomationCanvas yet:', type)}
-        onOpenAudienceSelector={() => console.warn('onOpenAudienceSelector not wired in AutomationCanvas yet')}
+        onAddNode={(type) => {}}
+        onOpenAudienceSelector={() => {}}
       />
     </section>
   );

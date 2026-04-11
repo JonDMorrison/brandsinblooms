@@ -28,7 +28,6 @@ const CallbackPage = () => {
       }, 30000);
 
       try {
-        console.log("[CLOVER-Callback] Processing OAuth callback");
         setStep("Processing OAuth callback...");
 
         // Clover OAuth returns different params than Square
@@ -36,13 +35,6 @@ const CallbackPage = () => {
         const merchantId = searchParams.get("merchant_id");
         const employeeId = searchParams.get("employee_id");
         const error = searchParams.get("error");
-        const errorDescription = searchParams.get("error_description");
-
-        console.log("[CLOVER-Callback] Processing:", {
-          hasCode: !!code,
-          hasMerchantId: !!merchantId,
-          error,
-        });
 
         if (error) {
           clearTimeout(timeoutId);
@@ -87,8 +79,6 @@ const CallbackPage = () => {
           });
           return;
         }
-
-        console.log("[CLOVER-Callback] Invoking callback edge function...");
         setStep("Exchanging authorization code for access tokens...");
 
         const redirectUri = `${window.location.origin}/integrations/clover/callback`;
@@ -137,8 +127,6 @@ const CallbackPage = () => {
           });
           return;
         }
-
-        console.log("[CLOVER-Callback] Connection successful");
         setStatus("success");
         setMessage("Connected Successfully!");
         setStep(`Connected to ${data.merchantName || "Clover"}`);
@@ -184,9 +172,7 @@ const CallbackPage = () => {
       const channel = new BroadcastChannel("clover_oauth");
       channel.postMessage(result);
       channel.close();
-    } catch (e) {
-      console.log("[CLOVER-Callback] BroadcastChannel not supported");
-    }
+    } catch (e) {}
 
     if (window.opener && !window.opener.closed) {
       try {
@@ -194,9 +180,7 @@ const CallbackPage = () => {
           { type: "clover_oauth_result", data: result },
           window.location.origin,
         );
-      } catch (e) {
-        console.log("[CLOVER-Callback] Could not message opener window");
-      }
+      } catch (e) {}
     }
   };
 

@@ -1,7 +1,10 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { showToast } from "@/utils/toastUtils";
-import { generatePersonalizedContent, generateNewsletterContent, generateVideoScript } from "../homepage/ContentGenerationServices";
+import {
+  generatePersonalizedContent,
+  generateNewsletterContent,
+  generateVideoScript,
+} from "../homepage/ContentGenerationServices";
 
 interface ContentGenerationTask {
   taskId: string;
@@ -21,194 +24,216 @@ export const generateContentInParallel = async (
   campaignTitle: string,
   tasksNeedingContent: any[],
   userId: string,
-  weekDescription?: string
+  weekDescription?: string,
 ): Promise<ParallelGenerationResult> => {
-  console.log('🚀 Starting parallel content generation for', tasksNeedingContent.length, 'tasks');
   const startTime = Date.now();
-  
+
   // Check token balance first
-  const { data: tokenBalance, error: balanceError } = await supabase.rpc('get_token_balance', {
-    p_user_id: userId
-  });
+  const { data: tokenBalance, error: balanceError } = await supabase.rpc(
+    "get_token_balance",
+    {
+      p_user_id: userId,
+    },
+  );
 
   if (balanceError) {
-    console.error('❌ Error checking token balance:', balanceError);
-    toast.error('Failed to check token balance');
+    console.error("❌ Error checking token balance:", balanceError);
+    toast.error("Failed to check token balance");
     return { success: false, generatedCount: 0, failedTypes: [], totalTime: 0 };
   }
 
-  const balance = tokenBalance && tokenBalance.length > 0 ? tokenBalance[0] : null;
+  const balance =
+    tokenBalance && tokenBalance.length > 0 ? tokenBalance[0] : null;
   if (!balance) {
-    toast.error('Unable to verify token balance');
+    toast.error("Unable to verify token balance");
     return { success: false, generatedCount: 0, failedTypes: [], totalTime: 0 };
   }
 
   // Calculate total tokens needed
   const totalTokensNeeded = tasksNeedingContent.reduce((total, task) => {
-    if (task.post_type === 'newsletter' || task.post_type === 'video') {
+    if (task.post_type === "newsletter" || task.post_type === "video") {
       return total + 2; // Complex content types cost 2 tokens
     }
     return total + 1; // Simple content types cost 1 token
   }, 0);
-
-  console.log(`💰 Total tokens needed: ${totalTokensNeeded}, Current balance: ${balance.tokens_balance}`);
-
   // Check if user has enough tokens or if they'll go into overage
   const willGoIntoOverage = balance.tokens_balance < totalTokensNeeded;
-  const overageAmount = willGoIntoOverage ? totalTokensNeeded - Math.max(0, balance.tokens_balance) : 0;
+  const overageAmount = willGoIntoOverage
+    ? totalTokensNeeded - Math.max(0, balance.tokens_balance)
+    : 0;
   const overageCost = overageAmount * 0.25;
 
   // Auto-proceed with generation - no confirmation needed
   if (willGoIntoOverage) {
-    showToast.info(`Generating ${tasksNeedingContent.length} pieces of content with ${overageAmount} token overage (+$${overageCost.toFixed(2)})`);
+    showToast.info(
+      `Generating ${tasksNeedingContent.length} pieces of content with ${overageAmount} token overage (+$${overageCost.toFixed(2)})`,
+    );
   }
 
   // Phase 1: Generate all content in parallel
   const contentPromises = tasksNeedingContent.map(async (task) => {
     try {
-      console.log(`🤖 Starting ${task.post_type} generation for task:`, task.id);
-      
       // Update task status to generating
       await supabase
-        .from('content_tasks')
-        .update({ status: 'generating' })
-        .eq('id', task.id);
+        .from("content_tasks")
+        .update({ status: "generating" })
+        .eq("id", task.id);
 
-      let generatedContent = '';
-      
+      let generatedContent = "";
+
       // Spend tokens for this specific generation
-      const tokensToSpend = (task.post_type === 'newsletter' || task.post_type === 'video') ? 2 : 1;
-      
-      const { error: tokenError } = await supabase.rpc('spend_tokens', {
+      const tokensToSpend =
+        task.post_type === "newsletter" || task.post_type === "video" ? 2 : 1;
+
+      const { error: tokenError } = await supabase.rpc("spend_tokens", {
         p_user_id: userId,
         p_tokens: tokensToSpend,
-        p_action_type: 'generation',
-        p_content_type: task.post_type
+        p_action_type: "generation",
+        p_content_type: task.post_type,
       });
 
       if (tokenError) {
         throw new Error(`Token spending failed: ${tokenError.message}`);
       }
-      
+
       // Generate content
-      if (task.post_type === 'newsletter') {
-        const result = await generateNewsletterContent(campaignId, campaignTitle, 1, userId, weekDescription);
-        generatedContent = typeof result === 'string' ? result : result?.content || '';
-      } else if (task.post_type === 'video') {
-        const result = await generateVideoScript(campaignTitle, userId, weekDescription);
-        generatedContent = typeof result === 'string' ? result : result?.content || '';
+      if (task.post_type === "newsletter") {
+        const result = await generateNewsletterContent(
+          campaignId,
+          campaignTitle,
+          1,
+          userId,
+          weekDescription,
+        );
+        generatedContent =
+          typeof result === "string" ? result : result?.content || "";
+      } else if (task.post_type === "video") {
+        const result = await generateVideoScript(
+          campaignTitle,
+          userId,
+          weekDescription,
+        );
+        generatedContent =
+          typeof result === "string" ? result : result?.content || "";
       } else {
-        const result = await generatePersonalizedContent(task.post_type, campaignTitle, userId, weekDescription);
-        generatedContent = typeof result === 'string' ? result : result?.content || '';
+        const result = await generatePersonalizedContent(
+          task.post_type,
+          campaignTitle,
+          userId,
+          weekDescription,
+        );
+        generatedContent =
+          typeof result === "string" ? result : result?.content || "";
       }
-      
-      console.log(`✅ Generated ${task.post_type} content (${generatedContent.length} chars)`);
-      
       // Validate content before updating
-      if (!generatedContent || generatedContent.trim() === '') {
+      if (!generatedContent || generatedContent.trim() === "") {
         throw new Error(`Generated content is empty for ${task.post_type}`);
       }
-      
+
       // Update task with content immediately (no image yet)
       const { error: updateError } = await supabase
-        .from('content_tasks')
-        .update({ 
+        .from("content_tasks")
+        .update({
           ai_output: generatedContent,
-          status: 'review'
+          status: "review",
         })
-        .eq('id', task.id);
-      
+        .eq("id", task.id);
+
       if (updateError) {
         throw updateError;
       }
-      
-      console.log(`✅ Successfully updated ${task.post_type} task ${task.id} with content`);
-      
-      return { 
-        taskId: task.id, 
-        postType: task.post_type, 
-        success: true, 
+      return {
+        taskId: task.id,
+        postType: task.post_type,
+        success: true,
         content: generatedContent,
-        needsImage: ['facebook', 'instagram'].includes(task.post_type)
+        needsImage: ["facebook", "instagram"].includes(task.post_type),
       };
-      
     } catch (error) {
-      console.error(`❌ Error generating ${task.post_type} content for task ${task.id}:`, error);
-      
+      console.error(
+        `❌ Error generating ${task.post_type} content for task ${task.id}:`,
+        error,
+      );
+
       // Reset task status to planned on error
       await supabase
-        .from('content_tasks')
-        .update({ status: 'planned' })
-        .eq('id', task.id);
-        
-      return { 
-        taskId: task.id, 
-        postType: task.post_type, 
-        success: false, 
-        error: error.message 
+        .from("content_tasks")
+        .update({ status: "planned" })
+        .eq("id", task.id);
+
+      return {
+        taskId: task.id,
+        postType: task.post_type,
+        success: false,
+        error: error.message,
       };
     }
   });
 
   // Wait for all content generation to complete
   const contentResults = await Promise.allSettled(contentPromises);
-  
+
   // Phase 2: Generate all images in parallel (only for tasks needing images)
   const tasksNeedingImages = contentResults
-    .filter((result): result is PromiseFulfilledResult<any> => 
-      result.status === 'fulfilled' && result.value.success && result.value.needsImage
+    .filter(
+      (result): result is PromiseFulfilledResult<any> =>
+        result.status === "fulfilled" &&
+        result.value.success &&
+        result.value.needsImage,
     )
-    .map(result => result.value);
+    .map((result) => result.value);
 
   if (tasksNeedingImages.length > 0) {
-    console.log(`🎨 Starting parallel AI image generation for ${tasksNeedingImages.length} tasks`);
-    
     const imagePromises = tasksNeedingImages.map(async (task) => {
       try {
-        const { data, error } = await supabase.functions.invoke('generate-ai-image', {
-          body: {
-            contentContext: task.content,
-            contentTitle: campaignTitle,
-            channel: task.postType === 'instagram' ? 'instagram' : 'facebook',
-            uploadToStorage: true,
-            userId: userId
-          }
-        });
-        
+        const { data, error } = await supabase.functions.invoke(
+          "generate-ai-image",
+          {
+            body: {
+              contentContext: task.content,
+              contentTitle: campaignTitle,
+              channel: task.postType === "instagram" ? "instagram" : "facebook",
+              uploadToStorage: true,
+              userId: userId,
+            },
+          },
+        );
+
         if (error) throw error;
-        
+
         // Update task with generated image
         await supabase
-          .from('content_tasks')
+          .from("content_tasks")
           .update({ image_url: data.imageUrl })
-          .eq('id', task.taskId);
-          
-        console.log(`✅ AI image generated for ${task.postType} task ${task.taskId}`);
-        
+          .eq("id", task.taskId);
         return { taskId: task.taskId, success: true };
       } catch (error) {
-        console.error(`❌ Failed to generate image for task ${task.taskId}:`, error);
+        console.error(
+          `❌ Failed to generate image for task ${task.taskId}:`,
+          error,
+        );
         return { taskId: task.taskId, success: false };
       }
     });
-    
+
     await Promise.allSettled(imagePromises);
   }
 
   // Process final results from content generation
-  
+
   const successfulResults = contentResults
-    .filter((result): result is PromiseFulfilledResult<any> => 
-      result.status === 'fulfilled' && result.value.success
+    .filter(
+      (result): result is PromiseFulfilledResult<any> =>
+        result.status === "fulfilled" && result.value.success,
     )
-    .map(result => result.value);
-    
+    .map((result) => result.value);
+
   const failedResults = contentResults
-    .map(result => {
-      if (result.status === 'fulfilled' && !result.value.success) {
+    .map((result) => {
+      if (result.status === "fulfilled" && !result.value.success) {
         return result.value.postType;
-      } else if (result.status === 'rejected') {
-        return 'unknown';
+      } else if (result.status === "rejected") {
+        return "unknown";
       }
       return null;
     })
@@ -216,27 +241,25 @@ export const generateContentInParallel = async (
 
   const totalTime = Date.now() - startTime;
   const generatedCount = successfulResults.length;
-  
-  console.log(`🎯 Parallel generation completed in ${totalTime}ms: ${generatedCount}/${tasksNeedingContent.length} successful`);
-  
   if (generatedCount > 0) {
-    const message = generatedCount === tasksNeedingContent.length 
-      ? `🎉 Generated ${generatedCount} pieces of content in ${Math.round(totalTime/1000)}s!`
-      : `⚠️ Generated ${generatedCount}/${tasksNeedingContent.length} pieces of content. ${failedResults.length} failed.`;
-    
+    const message =
+      generatedCount === tasksNeedingContent.length
+        ? `🎉 Generated ${generatedCount} pieces of content in ${Math.round(totalTime / 1000)}s!`
+        : `⚠️ Generated ${generatedCount}/${tasksNeedingContent.length} pieces of content. ${failedResults.length} failed.`;
+
     toast.success(message);
   } else {
-    toast.error('Failed to generate any content. Please try again.');
+    toast.error("Failed to generate any content. Please try again.");
   }
 
   if (willGoIntoOverage && overageAmount > 0) {
     toast.info(`Overage charge: $${overageCost.toFixed(2)}`);
   }
-  
+
   return {
     success: generatedCount > 0,
     generatedCount,
     failedTypes: failedResults,
-    totalTime
+    totalTime,
   };
 };

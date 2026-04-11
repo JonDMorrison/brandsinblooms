@@ -1,25 +1,29 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { RichTextEditor } from '@/components/ui/rich-text-editor';
-import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
-import { NativeSelect } from '@/components/ui/NativeSelect';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Separator } from '@/components/ui/separator';
-import { usePagePersistence } from '@/hooks/usePagePersistence';
-import { toast } from 'sonner';
-import { supabase } from '@/integrations/supabase/client';
-import { cn } from '@/lib/utils';
-import { format } from 'date-fns';
-import { 
-  Save, 
-  Eye, 
-  Smartphone, 
-  Monitor, 
+import React, { useState, useEffect, useRef } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { RichTextEditor } from "@/components/ui/rich-text-editor";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { NativeSelect } from "@/components/ui/NativeSelect";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Separator } from "@/components/ui/separator";
+import { usePagePersistence } from "@/hooks/usePagePersistence";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { cn } from "@/lib/utils";
+import { format } from "date-fns";
+import {
+  Save,
+  Eye,
+  Smartphone,
+  Monitor,
   Send,
   Paintbrush,
   User,
@@ -35,8 +39,8 @@ import {
   X,
   CheckCircle,
   AlertCircle,
-  Loader
-} from 'lucide-react';
+  Loader,
+} from "lucide-react";
 
 interface CRMSimpleEmailBuilderProps {
   campaignId: string;
@@ -47,29 +51,39 @@ interface CRMSimpleEmailBuilderProps {
 export const CRMSimpleEmailBuilder: React.FC<CRMSimpleEmailBuilderProps> = ({
   campaignId,
   selectedSegments,
-  onSwitchToAdvanced
+  onSwitchToAdvanced,
 }) => {
   // Form state
-  const [campaignName, setCampaignName] = useState('');
-  const [subjectLine, setSubjectLine] = useState('');
-  const [message, setMessage] = useState('');
-  const [coverImage, setCoverImage] = useState<{url: string; alt: string} | null>(null);
-  const [ctaButton, setCtaButton] = useState<{text: string; url: string} | null>(null);
+  const [campaignName, setCampaignName] = useState("");
+  const [subjectLine, setSubjectLine] = useState("");
+  const [message, setMessage] = useState("");
+  const [coverImage, setCoverImage] = useState<{
+    url: string;
+    alt: string;
+  } | null>(null);
+  const [ctaButton, setCtaButton] = useState<{
+    text: string;
+    url: string;
+  } | null>(null);
   const [showCtaButton, setShowCtaButton] = useState(false);
-  
+
   // Send options
-  const [sendOption, setSendOption] = useState<'immediate' | 'scheduled'>('immediate');
+  const [sendOption, setSendOption] = useState<"immediate" | "scheduled">(
+    "immediate",
+  );
   const [scheduledDate, setScheduledDate] = useState<Date>();
-  const [testEmail, setTestEmail] = useState('');
-  
+  const [testEmail, setTestEmail] = useState("");
+
   // UI state
-  const [previewMode, setPreviewMode] = useState<'desktop' | 'mobile'>('desktop');
+  const [previewMode, setPreviewMode] = useState<"desktop" | "mobile">(
+    "desktop",
+  );
   const [autoSaving, setAutoSaving] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [segments, setSegments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Page persistence hook
@@ -77,10 +91,10 @@ export const CRMSimpleEmailBuilder: React.FC<CRMSimpleEmailBuilderProps> = ({
     campaignName: string;
     subjectLine: string;
     message: string;
-    coverImage: {url: string; alt: string} | null;
-    ctaButton: {text: string; url: string} | null;
+    coverImage: { url: string; alt: string } | null;
+    ctaButton: { text: string; url: string } | null;
     showCtaButton: boolean;
-    sendOption: 'immediate' | 'scheduled';
+    sendOption: "immediate" | "scheduled";
     scheduledDate?: Date;
     showPreview: boolean;
   }>({
@@ -97,29 +111,40 @@ export const CRMSimpleEmailBuilder: React.FC<CRMSimpleEmailBuilderProps> = ({
         showCtaButton,
         sendOption,
         scheduledDate,
-        showPreview
+        showPreview,
       });
-    }
+    },
   });
 
   // Personalization tokens
   const personalizationTokens = [
-    { label: 'First Name', value: '{{ first_name | default: "Friend" }}', icon: User },
-    { label: 'Last Name', value: '{{ last_name | default: "" }}', icon: User },
-    { label: 'Email', value: '{{ email }}', icon: Mail },
-    { label: 'Purchase Date', value: '{{ last_purchase_date }}', icon: CalendarIcon },
-    { label: 'Favorite Product', value: '{{ custom.favorite_product | default: "" }}', icon: Package },
+    {
+      label: "First Name",
+      value: '{{ first_name | default: "Friend" }}',
+      icon: User,
+    },
+    { label: "Last Name", value: '{{ last_name | default: "" }}', icon: User },
+    { label: "Email", value: "{{ email }}", icon: Mail },
+    {
+      label: "Purchase Date",
+      value: "{{ last_purchase_date }}",
+      icon: CalendarIcon,
+    },
+    {
+      label: "Favorite Product",
+      value: '{{ custom.favorite_product | default: "" }}',
+      icon: Package,
+    },
   ];
 
   useEffect(() => {
     loadCampaign();
     loadSegments();
-    
+
     // Try to restore persisted state
     const restoredData = restoreState();
     if (restoredData) {
       const persistedState = restoredData.state;
-      console.log('📋 Restoring simple email builder state');
       setCampaignName(persistedState.campaignName);
       setSubjectLine(persistedState.subjectLine);
       setMessage(persistedState.message);
@@ -148,30 +173,30 @@ export const CRMSimpleEmailBuilder: React.FC<CRMSimpleEmailBuilderProps> = ({
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (hasUnsavedChanges) {
         e.preventDefault();
-        e.returnValue = '';
+        e.returnValue = "";
       }
     };
-    
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [hasUnsavedChanges]);
 
   const loadCampaign = async () => {
     try {
       const { data, error } = await supabase
-        .from('crm_campaigns')
-        .select('*')
-        .eq('id', campaignId)
+        .from("crm_campaigns")
+        .select("*")
+        .eq("id", campaignId)
         .single();
-      
+
       if (error) throw error;
-      
-      setCampaignName(data.name || '');
-      setSubjectLine(data.subject_line || '');
-      setMessage(data.content || '');
+
+      setCampaignName(data.name || "");
+      setSubjectLine(data.subject_line || "");
+      setMessage(data.content || "");
     } catch (error) {
-      console.error('Error loading campaign:', error);
-      toast.error('Failed to load campaign');
+      console.error("Error loading campaign:", error);
+      toast.error("Failed to load campaign");
     } finally {
       setLoading(false);
     }
@@ -180,99 +205,111 @@ export const CRMSimpleEmailBuilder: React.FC<CRMSimpleEmailBuilderProps> = ({
   const loadSegments = async () => {
     try {
       const { data, error } = await supabase
-        .from('crm_segments')
-        .select('*')
-        .in('id', selectedSegments);
-      
+        .from("crm_segments")
+        .select("*")
+        .in("id", selectedSegments);
+
       if (error) throw error;
       setSegments(data || []);
     } catch (error) {
-      console.error('Error loading segments:', error);
+      console.error("Error loading segments:", error);
     }
   };
 
   const saveContent = async () => {
     if (!campaignId) return;
-    
+
     setAutoSaving(true);
-    
+
     try {
       const { error } = await supabase
-        .from('crm_campaigns')
+        .from("crm_campaigns")
         .update({
           name: campaignName,
           subject_line: subjectLine,
           content: message,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
         })
-        .eq('id', campaignId);
-      
+        .eq("id", campaignId);
+
       if (error) throw error;
       setHasUnsavedChanges(false);
-      
     } catch (error) {
-      console.error('Error saving content:', error);
-      toast.error('Failed to save changes');
+      console.error("Error saving content:", error);
+      toast.error("Failed to save changes");
     } finally {
       setAutoSaving(false);
     }
   };
 
-  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
     try {
-      const fileExt = file.name.split('.').pop();
+      const fileExt = file.name.split(".").pop();
       const fileName = `${Date.now()}.${fileExt}`;
-      
+
       const { error: uploadError } = await supabase.storage
-        .from('content-assets')
+        .from("content-assets")
         .upload(fileName, file);
 
       if (uploadError) throw uploadError;
 
-      const { data: { publicUrl } } = supabase.storage
-        .from('content-assets')
-        .getPublicUrl(fileName);
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from("content-assets").getPublicUrl(fileName);
 
-      setCoverImage({ url: publicUrl, alt: '' });
+      setCoverImage({ url: publicUrl, alt: "" });
     } catch (error) {
-      console.error('Error uploading image:', error);
-      toast.error('Failed to upload image');
+      console.error("Error uploading image:", error);
+      toast.error("Failed to upload image");
     }
   };
 
   const insertToken = (token: string) => {
-    setMessage(prev => prev + token);
+    setMessage((prev) => prev + token);
   };
 
   const generatePreviewHTML = () => {
     // Use simple preview replacements for now
     const processedMessage = message
-      .replace(/\{\{\s*first_name\s*(?:\|[^}]*)?\}\}/g, 'Sarah')
-      .replace(/\{\{\s*last_name\s*(?:\|[^}]*)?\}\}/g, 'Johnson')
-      .replace(/\{\{\s*email\s*(?:\|[^}]*)?\}\}/g, 'sarah@example.com')
-      .replace(/\{\{\s*last_purchase_date\s*(?:\|[^}]*)?\}\}/g, 'March 15, 2024')
-      .replace(/\{\{\s*[^}]+\}\}/g, ''); // Remove any remaining tags
+      .replace(/\{\{\s*first_name\s*(?:\|[^}]*)?\}\}/g, "Sarah")
+      .replace(/\{\{\s*last_name\s*(?:\|[^}]*)?\}\}/g, "Johnson")
+      .replace(/\{\{\s*email\s*(?:\|[^}]*)?\}\}/g, "sarah@example.com")
+      .replace(
+        /\{\{\s*last_purchase_date\s*(?:\|[^}]*)?\}\}/g,
+        "March 15, 2024",
+      )
+      .replace(/\{\{\s*[^}]+\}\}/g, ""); // Remove any remaining tags
 
     return `
       <div style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; width: 100%; background-color: #ffffff;">
-        ${coverImage ? `
+        ${
+          coverImage
+            ? `
           <div style="margin-bottom: 32px;">
             <img src="${coverImage.url}" alt="${coverImage.alt}" style="width: 100%; height: auto; border-radius: 12px;" />
           </div>
-        ` : ''}
+        `
+            : ""
+        }
         <div style="padding: 32px;">
           <div style="margin-bottom: 24px;">
-            <h1 style="margin: 0; font-size: 28px; font-weight: 700; color: #111827; line-height: 1.2;">${subjectLine || 'Your Email Subject'}</h1>
+            <h1 style="margin: 0; font-size: 28px; font-weight: 700; color: #111827; line-height: 1.2;">${subjectLine || "Your Email Subject"}</h1>
           </div>
-          <div style="font-size: 16px; line-height: 1.7; color: #374151; white-space: pre-wrap; margin-bottom: 32px;">${processedMessage || 'Your email message will appear here...'}</div>
-          ${ctaButton && showCtaButton ? `
+          <div style="font-size: 16px; line-height: 1.7; color: #374151; white-space: pre-wrap; margin-bottom: 32px;">${processedMessage || "Your email message will appear here..."}</div>
+          ${
+            ctaButton && showCtaButton
+              ? `
             <div style="margin: 32px 0;">
               <a href="${ctaButton.url}" style="display: inline-block; background-color: #22C55E; color: white; padding: 16px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">${ctaButton.text}</a>
             </div>
-          ` : ''}
+          `
+              : ""
+          }
           <div style="margin-top: 48px; padding-top: 24px; border-top: 1px solid #E5E7EB; font-size: 14px; color: #6B7280;">
             <p style="margin: 0;">Best regards,<br>Your Garden Center Team</p>
           </div>
@@ -283,17 +320,21 @@ export const CRMSimpleEmailBuilder: React.FC<CRMSimpleEmailBuilderProps> = ({
 
   const handleSendTest = async () => {
     if (!testEmail) {
-      toast.error('Please enter a test email address');
+      toast.error("Please enter a test email address");
       return;
     }
-    
+
     // Here you would implement the test email sending logic
     toast.success(`Test email sent to ${testEmail}`);
   };
 
   const handleSwitchToAdvanced = () => {
     if (hasUnsavedChanges || message.trim() || subjectLine.trim()) {
-      if (confirm('Switching to Advanced mode will convert your content. Any unsaved changes will be lost. Continue?')) {
+      if (
+        confirm(
+          "Switching to Advanced mode will convert your content. Any unsaved changes will be lost. Continue?",
+        )
+      ) {
         onSwitchToAdvanced();
       }
     } else {
@@ -317,8 +358,12 @@ export const CRMSimpleEmailBuilder: React.FC<CRMSimpleEmailBuilderProps> = ({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">Simple Email Builder</h1>
-                <p className="text-gray-600 mt-1">Create a beautiful email in minutes</p>
+                <h1 className="text-2xl font-bold text-gray-900">
+                  Simple Email Builder
+                </h1>
+                <p className="text-gray-600 mt-1">
+                  Create a beautiful email in minutes
+                </p>
               </div>
               {autoSaving && (
                 <div className="flex items-center gap-2 text-sm text-green-600 bg-green-50 px-3 py-1 rounded-full">
@@ -333,7 +378,7 @@ export const CRMSimpleEmailBuilder: React.FC<CRMSimpleEmailBuilderProps> = ({
                 </div>
               )}
             </div>
-            
+
             <div className="flex items-center gap-3">
               <Button
                 variant="outline"
@@ -343,14 +388,14 @@ export const CRMSimpleEmailBuilder: React.FC<CRMSimpleEmailBuilderProps> = ({
                 <Paintbrush className="w-4 h-4" />
                 Switch to Advanced
               </Button>
-              
+
               <Button
                 variant="outline"
                 onClick={() => setShowPreview(!showPreview)}
                 className="gap-2"
               >
                 <Eye className="w-4 h-4" />
-                {showPreview ? 'Hide Preview' : 'Show Preview'}
+                {showPreview ? "Hide Preview" : "Show Preview"}
               </Button>
             </div>
           </div>
@@ -358,7 +403,12 @@ export const CRMSimpleEmailBuilder: React.FC<CRMSimpleEmailBuilderProps> = ({
       </div>
 
       <div className="max-w-7xl mx-auto px-6 py-8">
-        <div className={cn("grid gap-8", showPreview ? "grid-cols-1 lg:grid-cols-2" : "grid-cols-1")}>
+        <div
+          className={cn(
+            "grid gap-8",
+            showPreview ? "grid-cols-1 lg:grid-cols-2" : "grid-cols-1",
+          )}
+        >
           {/* Main Content */}
           <div className="space-y-8">
             {/* Email Summary Section */}
@@ -371,7 +421,12 @@ export const CRMSimpleEmailBuilder: React.FC<CRMSimpleEmailBuilderProps> = ({
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="space-y-2">
-                  <Label htmlFor="campaign-name" className="text-base font-medium">Campaign Name</Label>
+                  <Label
+                    htmlFor="campaign-name"
+                    className="text-base font-medium"
+                  >
+                    Campaign Name
+                  </Label>
                   <Input
                     id="campaign-name"
                     value={campaignName}
@@ -382,7 +437,12 @@ export const CRMSimpleEmailBuilder: React.FC<CRMSimpleEmailBuilderProps> = ({
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="subject-line" className="text-base font-medium">Subject Line</Label>
+                  <Label
+                    htmlFor="subject-line"
+                    className="text-base font-medium"
+                  >
+                    Subject Line
+                  </Label>
                   <Input
                     id="subject-line"
                     value={subjectLine}
@@ -390,7 +450,9 @@ export const CRMSimpleEmailBuilder: React.FC<CRMSimpleEmailBuilderProps> = ({
                     placeholder="e.g., 🌸 Spring is here! Get 20% off everything"
                     className="h-12 text-lg"
                   />
-                  <p className="text-sm text-gray-500">Keep it engaging and under 50 characters for best results</p>
+                  <p className="text-sm text-gray-500">
+                    Keep it engaging and under 50 characters for best results
+                  </p>
                 </div>
 
                 <div className="space-y-2">
@@ -398,19 +460,27 @@ export const CRMSimpleEmailBuilder: React.FC<CRMSimpleEmailBuilderProps> = ({
                   <div className="flex flex-wrap gap-2">
                     {segments.length > 0 ? (
                       segments.map((segment) => (
-                        <Badge key={segment.id} variant="secondary" className="gap-2 px-3 py-1">
+                        <Badge
+                          key={segment.id}
+                          variant="secondary"
+                          className="gap-2 px-3 py-1"
+                        >
                           <Users className="w-3 h-3" />
                           {segment.name}
-                          <span className="text-xs opacity-70">({segment.customer_count} customers)</span>
+                          <span className="text-xs opacity-70">
+                            ({segment.customer_count} customers)
+                          </span>
                         </Badge>
                       ))
-                    ) : selectedSegments.includes('all') ? (
+                    ) : selectedSegments.includes("all") ? (
                       <Badge variant="secondary" className="gap-2 px-3 py-1">
                         <Users className="w-3 h-3" />
                         All Customers
                       </Badge>
                     ) : (
-                      <span className="text-sm text-gray-500">No segments selected</span>
+                      <span className="text-sm text-gray-500">
+                        No segments selected
+                      </span>
                     )}
                   </div>
                 </div>
@@ -428,11 +498,13 @@ export const CRMSimpleEmailBuilder: React.FC<CRMSimpleEmailBuilderProps> = ({
               <CardContent className="space-y-8">
                 {/* Cover Image */}
                 <div className="space-y-4">
-                  <Label className="text-base font-medium">Cover Image (Optional)</Label>
+                  <Label className="text-base font-medium">
+                    Cover Image (Optional)
+                  </Label>
                   {coverImage ? (
                     <div className="relative group">
-                      <img 
-                        src={coverImage.url} 
+                      <img
+                        src={coverImage.url}
                         alt={coverImage.alt}
                         className="w-full h-48 object-cover rounded-lg border"
                       />
@@ -451,19 +523,28 @@ export const CRMSimpleEmailBuilder: React.FC<CRMSimpleEmailBuilderProps> = ({
                         <Input
                           placeholder="Add alt text for accessibility"
                           value={coverImage.alt}
-                          onChange={(e) => setCoverImage({...coverImage, alt: e.target.value})}
+                          onChange={(e) =>
+                            setCoverImage({
+                              ...coverImage,
+                              alt: e.target.value,
+                            })
+                          }
                           className="text-sm"
                         />
                       </div>
                     </div>
                   ) : (
-                    <div 
+                    <div
                       className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-primary/50 transition-colors cursor-pointer"
                       onClick={() => fileInputRef.current?.click()}
                     >
                       <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                      <p className="text-gray-600 mb-1">Click to upload cover image</p>
-                      <p className="text-sm text-gray-500">PNG, JPG up to 10MB</p>
+                      <p className="text-gray-600 mb-1">
+                        Click to upload cover image
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        PNG, JPG up to 10MB
+                      </p>
                     </div>
                   )}
                   <input
@@ -477,7 +558,12 @@ export const CRMSimpleEmailBuilder: React.FC<CRMSimpleEmailBuilderProps> = ({
 
                 {/* Message Editor */}
                 <div className="space-y-4">
-                  <Label htmlFor="message-content" className="text-base font-medium">Email Message</Label>
+                  <Label
+                    htmlFor="message-content"
+                    className="text-base font-medium"
+                  >
+                    Email Message
+                  </Label>
                   <RichTextEditor
                     content={message}
                     onChange={setMessage}
@@ -522,25 +608,41 @@ export const CRMSimpleEmailBuilder: React.FC<CRMSimpleEmailBuilderProps> = ({
                       onChange={(e) => setShowCtaButton(e.target.checked)}
                       className="w-4 h-4 text-primary"
                     />
-                    <Label htmlFor="show-cta" className="text-base font-medium">Add Call-to-Action Button</Label>
+                    <Label htmlFor="show-cta" className="text-base font-medium">
+                      Add Call-to-Action Button
+                    </Label>
                   </div>
-                  
+
                   {showCtaButton && (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg">
                       <div>
-                        <Label className="text-sm font-medium">Button Text</Label>
+                        <Label className="text-sm font-medium">
+                          Button Text
+                        </Label>
                         <Input
-                          value={ctaButton?.text || ''}
-                          onChange={(e) => setCtaButton(prev => ({...prev!, text: e.target.value}))}
+                          value={ctaButton?.text || ""}
+                          onChange={(e) =>
+                            setCtaButton((prev) => ({
+                              ...prev!,
+                              text: e.target.value,
+                            }))
+                          }
                           placeholder="e.g., Shop Now"
                           className="mt-1"
                         />
                       </div>
                       <div>
-                        <Label className="text-sm font-medium">Button Link</Label>
+                        <Label className="text-sm font-medium">
+                          Button Link
+                        </Label>
                         <Input
-                          value={ctaButton?.url || ''}
-                          onChange={(e) => setCtaButton(prev => ({...prev!, url: e.target.value}))}
+                          value={ctaButton?.url || ""}
+                          onChange={(e) =>
+                            setCtaButton((prev) => ({
+                              ...prev!,
+                              url: e.target.value,
+                            }))
+                          }
                           placeholder="https://your-website.com"
                           className="mt-1"
                         />
@@ -560,40 +662,63 @@ export const CRMSimpleEmailBuilder: React.FC<CRMSimpleEmailBuilderProps> = ({
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
-                <RadioGroup value={sendOption} onValueChange={(value: 'immediate' | 'scheduled') => setSendOption(value)}>
+                <RadioGroup
+                  value={sendOption}
+                  onValueChange={(value: "immediate" | "scheduled") =>
+                    setSendOption(value)
+                  }
+                >
                   <div className="flex items-center space-x-3 p-4 border rounded-lg hover:bg-gray-50">
                     <RadioGroupItem value="immediate" id="immediate" />
                     <div className="flex-1">
-                      <Label htmlFor="immediate" className="font-medium cursor-pointer">Send Immediately</Label>
-                      <p className="text-sm text-gray-500">Email will be sent right after you click send</p>
+                      <Label
+                        htmlFor="immediate"
+                        className="font-medium cursor-pointer"
+                      >
+                        Send Immediately
+                      </Label>
+                      <p className="text-sm text-gray-500">
+                        Email will be sent right after you click send
+                      </p>
                     </div>
                     <Zap className="w-5 h-5 text-orange-500" />
                   </div>
-                  
+
                   <div className="flex items-center space-x-3 p-4 border rounded-lg hover:bg-gray-50">
                     <RadioGroupItem value="scheduled" id="scheduled" />
                     <div className="flex-1">
-                      <Label htmlFor="scheduled" className="font-medium cursor-pointer">Schedule for Later</Label>
-                      <p className="text-sm text-gray-500">Choose a specific date and time</p>
+                      <Label
+                        htmlFor="scheduled"
+                        className="font-medium cursor-pointer"
+                      >
+                        Schedule for Later
+                      </Label>
+                      <p className="text-sm text-gray-500">
+                        Choose a specific date and time
+                      </p>
                     </div>
                     <Clock className="w-5 h-5 text-blue-500" />
                   </div>
                 </RadioGroup>
 
-                {sendOption === 'scheduled' && (
+                {sendOption === "scheduled" && (
                   <div className="pl-8 space-y-3">
-                    <Label className="text-sm font-medium">Schedule Date & Time</Label>
+                    <Label className="text-sm font-medium">
+                      Schedule Date & Time
+                    </Label>
                     <Popover>
                       <PopoverTrigger asChild>
                         <Button
                           variant="outline"
                           className={cn(
                             "w-full justify-start text-left font-normal h-12",
-                            !scheduledDate && "text-muted-foreground"
+                            !scheduledDate && "text-muted-foreground",
                           )}
                         >
                           <CalendarIcon className="mr-2 h-4 w-4" />
-                          {scheduledDate ? format(scheduledDate, "PPP 'at' p") : "Pick a date and time"}
+                          {scheduledDate
+                            ? format(scheduledDate, "PPP 'at' p")
+                            : "Pick a date and time"}
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
@@ -622,8 +747,8 @@ export const CRMSimpleEmailBuilder: React.FC<CRMSimpleEmailBuilderProps> = ({
                       placeholder="your-email@example.com"
                       className="flex-1"
                     />
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       onClick={handleSendTest}
                       disabled={!testEmail || !subjectLine || !message}
                       className="gap-2"
@@ -632,22 +757,26 @@ export const CRMSimpleEmailBuilder: React.FC<CRMSimpleEmailBuilderProps> = ({
                       Send Test
                     </Button>
                   </div>
-                  <p className="text-sm text-gray-500">Preview how your email looks before sending to customers</p>
+                  <p className="text-sm text-gray-500">
+                    Preview how your email looks before sending to customers
+                  </p>
                 </div>
 
                 <Separator />
 
                 {/* Final Send Button */}
                 <div className="flex gap-3 pt-4">
-                  <Button 
+                  <Button
                     className="flex-1 h-12 text-lg font-medium gap-2 bg-primary hover:bg-primary/90"
                     disabled={!campaignName || !subjectLine || !message}
                   >
                     <Send className="w-5 h-5" />
-                    {sendOption === 'immediate' ? 'Send Email Now' : 'Schedule Email'}
+                    {sendOption === "immediate"
+                      ? "Send Email Now"
+                      : "Schedule Email"}
                   </Button>
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     onClick={saveContent}
                     disabled={autoSaving}
                     className="gap-2"
@@ -672,18 +801,20 @@ export const CRMSimpleEmailBuilder: React.FC<CRMSimpleEmailBuilderProps> = ({
                     </CardTitle>
                     <div className="flex items-center border rounded-lg overflow-hidden">
                       <Button
-                        variant={previewMode === 'desktop' ? 'default' : 'ghost'}
+                        variant={
+                          previewMode === "desktop" ? "default" : "ghost"
+                        }
                         size="sm"
-                        onClick={() => setPreviewMode('desktop')}
+                        onClick={() => setPreviewMode("desktop")}
                         className="rounded-none border-0 gap-1"
                       >
                         <Monitor className="w-3 h-3" />
                         Desktop
                       </Button>
                       <Button
-                        variant={previewMode === 'mobile' ? 'default' : 'ghost'}
+                        variant={previewMode === "mobile" ? "default" : "ghost"}
                         size="sm"
-                        onClick={() => setPreviewMode('mobile')}
+                        onClick={() => setPreviewMode("mobile")}
                         className="rounded-none border-0 gap-1"
                       >
                         <Smartphone className="w-3 h-3" />
@@ -693,23 +824,30 @@ export const CRMSimpleEmailBuilder: React.FC<CRMSimpleEmailBuilderProps> = ({
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className={cn(
-                    "bg-white shadow-xl rounded-lg border overflow-hidden",
-                    previewMode === 'mobile' ? 'max-w-sm mx-auto' : 'w-full'
-                  )}>
-                    <div 
+                  <div
+                    className={cn(
+                      "bg-white shadow-xl rounded-lg border overflow-hidden",
+                      previewMode === "mobile" ? "max-w-sm mx-auto" : "w-full",
+                    )}
+                  >
+                    <div
                       className="overflow-auto max-h-[600px]"
-                      dangerouslySetInnerHTML={{ __html: generatePreviewHTML() }}
+                      dangerouslySetInnerHTML={{
+                        __html: generatePreviewHTML(),
+                      }}
                     />
                   </div>
-                  
+
                   <div className="mt-4 p-3 bg-blue-50 rounded-lg text-sm">
                     <div className="flex items-start gap-2">
                       <CheckCircle className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
                       <div>
-                        <p className="font-medium text-blue-900 mb-1">Preview Notes</p>
+                        <p className="font-medium text-blue-900 mb-1">
+                          Preview Notes
+                        </p>
                         <p className="text-blue-700">
-                          Personalization tokens show sample data. Real customer data will be used when sent.
+                          Personalization tokens show sample data. Real customer
+                          data will be used when sent.
                         </p>
                       </div>
                     </div>

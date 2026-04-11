@@ -122,9 +122,7 @@ export const CloverIntegration = () => {
       channel.onmessage = (event) => {
         handleOAuthResult(event.data);
       };
-    } catch (e) {
-      console.log("[CLOVER-Integration] BroadcastChannel not supported");
-    }
+    } catch (e) {}
 
     const handleMessage = (event: MessageEvent) => {
       if (
@@ -218,8 +216,6 @@ export const CloverIntegration = () => {
 
     try {
       const appEnv = detectEnvironment();
-      console.log("[OAuth] Auto-detected environment:", appEnv);
-
       const { data: userData } = await supabase.auth.getUser();
       if (userData.user) {
         const { data: user } = await supabase

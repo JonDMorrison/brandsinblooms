@@ -195,10 +195,6 @@ export const ScheduledCampaignBanner: React.FC<
 
         if (cancelled) return;
         if (error) {
-          console.warn("Failed to load campaign delivery progress", {
-            campaignId,
-            error,
-          });
           setProgressError((prev) => {
             const next = toUserFriendlyProgressMessage(error.message);
             return prev === next ? prev : next;
@@ -214,10 +210,6 @@ export const ScheduledCampaignBanner: React.FC<
         }
       } catch (e: unknown) {
         if (cancelled) return;
-        console.warn("Failed to load campaign delivery progress", {
-          campaignId,
-          error: e,
-        });
         setProgressError((prev) => {
           const next = toUserFriendlyProgressMessage(
             hasErrorMessage(e) ? e.message : undefined,
@@ -266,7 +258,6 @@ export const ScheduledCampaignBanner: React.FC<
       if (error) throw error;
       toast({ title: "Triggered a retry. Progress should update shortly." });
     } catch (e: unknown) {
-      console.warn("Failed to trigger process-email-send-queue", { error: e });
       toast({
         title: "Couldn't trigger a retry. Please try again.",
         variant: "destructive",
@@ -302,7 +293,6 @@ export const ScheduledCampaignBanner: React.FC<
         description: `Kept ${failedCount} failed recipient(s) as failed.`,
       });
     } catch (e: unknown) {
-      console.warn("Failed to mark campaign completed", { error: e });
       toast({
         title: "Couldn't mark completed. Please try again.",
         variant: "destructive",

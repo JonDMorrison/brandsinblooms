@@ -26,55 +26,42 @@ interface PersonaSelectorProps {
   showFullCard?: boolean;
 }
 
-export function PersonaSelector({ 
-  value, 
-  onChange, 
-  customerId, 
-  showFullCard = false 
+export function PersonaSelector({
+  value,
+  onChange,
+  customerId,
+  showFullCard = false,
 }: PersonaSelectorProps) {
   const [showLibrary, setShowLibrary] = useState(false);
 
   // Add component instance debugging
-  const componentId = useState(() => Math.random().toString(36).substr(2, 9))[0];
-  
-  console.log(`PersonaSelector ${componentId} rendered with:`, { 
-    value, 
-    customerId, 
-    showFullCard, 
-    showLibrary 
-  });
+  const componentId = useState(() =>
+    Math.random().toString(36).substr(2, 9),
 
   const handleOpenLibrary = (e: React.MouseEvent) => {
     e.preventDefault();
-    e.stopPropagation();
-    console.log(`PersonaSelector ${componentId} - Opening persona library...`, { 
-      showLibrary, 
-      value, 
-      customerId 
-    });
     setShowLibrary(true);
   };
 
   const handleCloseLibrary = () => {
-    console.log(`PersonaSelector ${componentId} - Closing persona library...`);
     setShowLibrary(false);
   };
 
   const { data: selectedPersona } = useQuery({
-    queryKey: ['persona', value],
+    queryKey: ["persona", value],
     queryFn: async () => {
       if (!value) return null;
-      
+
       const { data, error } = await supabase
-        .from('personas')
-        .select('*')
-        .eq('id', value)
+        .from("personas")
+        .select("*")
+        .eq("id", value)
         .single();
-      
+
       if (error) throw error;
       return data as Persona;
     },
-    enabled: !!value
+    enabled: !!value,
   });
 
   const handlePersonaSelect = (persona: Persona) => {
@@ -91,51 +78,47 @@ export function PersonaSelector({
         <div className="bg-card border rounded-lg p-4 space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div 
+              <div
                 className="w-12 h-12 rounded-full flex items-center justify-center text-2xl"
-                style={{ backgroundColor: selectedPersona.color_theme + '20' }}
+                style={{ backgroundColor: selectedPersona.color_theme + "20" }}
               >
                 {selectedPersona.icon}
               </div>
               <div>
                 <h3 className="font-semibold">{selectedPersona.name}</h3>
-                <p className="text-sm text-muted-foreground">{selectedPersona.tone}</p>
+                <p className="text-sm text-muted-foreground">
+                  {selectedPersona.tone}
+                </p>
               </div>
             </div>
             <div className="flex gap-2">
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={handleOpenLibrary}
-              >
+              <Button variant="outline" size="sm" onClick={handleOpenLibrary}>
                 <Edit3 className="h-4 w-4 mr-1" />
                 Change
               </Button>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={handleRemovePersona}
-              >
+              <Button variant="outline" size="sm" onClick={handleRemovePersona}>
                 Remove
               </Button>
             </div>
           </div>
-          
+
           <p className="text-sm text-muted-foreground">
             {selectedPersona.description}
           </p>
-          
+
           <div className="space-y-2">
             <div>
               <p className="text-xs font-medium text-muted-foreground mb-1">
                 Buying Triggers:
               </p>
               <div className="flex flex-wrap gap-1">
-                {selectedPersona.buying_triggers.slice(0, 4).map((trigger, index) => (
-                  <Badge key={index} variant="secondary" className="text-xs">
-                    {trigger}
-                  </Badge>
-                ))}
+                {selectedPersona.buying_triggers
+                  .slice(0, 4)
+                  .map((trigger, index) => (
+                    <Badge key={index} variant="secondary" className="text-xs">
+                      {trigger}
+                    </Badge>
+                  ))}
                 {selectedPersona.buying_triggers.length > 4 && (
                   <Badge variant="outline" className="text-xs">
                     +{selectedPersona.buying_triggers.length - 4} more
@@ -143,7 +126,7 @@ export function PersonaSelector({
                 )}
               </div>
             </div>
-            
+
             <div>
               <p className="text-xs font-medium text-muted-foreground mb-1">
                 Sample Messaging:
@@ -153,11 +136,13 @@ export function PersonaSelector({
               </p>
             </div>
           </div>
-          
+
           <div className="text-xs text-muted-foreground bg-muted/50 p-2 rounded">
-            <strong>Example:</strong> Assigning '{selectedPersona.name}' gives you content ideas like{' '}
-            {selectedPersona.ideal_products.slice(0, 2).join(', ')} and messaging that resonates 
-            with their {selectedPersona.tone} personality.
+            <strong>Example:</strong> Assigning '{selectedPersona.name}' gives
+            you content ideas like{" "}
+            {selectedPersona.ideal_products.slice(0, 2).join(", ")} and
+            messaging that resonates with their {selectedPersona.tone}{" "}
+            personality.
           </div>
         </div>
 
@@ -174,32 +159,30 @@ export function PersonaSelector({
 
   return (
     <>
-      {console.log('PersonaSelector rendering, showLibrary:', showLibrary)}
-      <div className="space-y-2" style={{ position: 'relative', zIndex: 1 }}>
+      
+      <div className="space-y-2" style={{ position: "relative", zIndex: 1 }}>
         {selectedPersona ? (
           <div className="flex items-center gap-3 p-3 bg-card border rounded-lg">
-            <div 
+            <div
               className="w-8 h-8 rounded-full flex items-center justify-center text-lg"
-              style={{ backgroundColor: selectedPersona.color_theme + '20' }}
+              style={{ backgroundColor: selectedPersona.color_theme + "20" }}
             >
               {selectedPersona.icon}
             </div>
             <div className="flex-1">
               <p className="font-medium text-sm">{selectedPersona.name}</p>
-              <p className="text-xs text-muted-foreground">{selectedPersona.tone}</p>
+              <p className="text-xs text-muted-foreground">
+                {selectedPersona.tone}
+              </p>
             </div>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={handleOpenLibrary}
-            >
+            <Button variant="outline" size="sm" onClick={handleOpenLibrary}>
               <Edit3 className="h-4 w-4 mr-1" />
               Change
             </Button>
           </div>
         ) : (
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             onClick={handleOpenLibrary}
             className="w-full justify-start"
           >

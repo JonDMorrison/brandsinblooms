@@ -1,63 +1,77 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
-import { Separator } from '@/components/ui/separator';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { IdeaGrid } from './IdeaGrid';
-import { NewsletterLayoutPicker } from '../NewsletterLayoutPicker';
-import { NewsletterIdea, NewsletterTemplate } from '@/types/newsletter';
-import { useNewsletterIdeas } from '@/hooks/useNewsletterIdeas';
-import { ArrowLeft, Sparkles, Search, X } from 'lucide-react';
-import { useMediaQuery } from '@/hooks/useMediaQuery';
-import { cn } from '@/lib/utils';
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { IdeaGrid } from "./IdeaGrid";
+import { NewsletterLayoutPicker } from "../NewsletterLayoutPicker";
+import { NewsletterIdea, NewsletterTemplate } from "@/types/newsletter";
+import { useNewsletterIdeas } from "@/hooks/useNewsletterIdeas";
+import { ArrowLeft, Sparkles, Search, X } from "lucide-react";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { cn } from "@/lib/utils";
 
 interface NewsletterPickerProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-type PickerStep = 'ideas' | 'layout';
+type PickerStep = "ideas" | "layout";
 
-export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onClose }) => {
+export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({
+  isOpen,
+  onClose,
+}) => {
   const navigate = useNavigate();
-  const isMobile = useMediaQuery('(max-width: 768px)');
-  const { ideas, templates, loading, generateAIIdeas, refetch } = useNewsletterIdeas();
-  
-  const [currentStep, setCurrentStep] = useState<PickerStep>('ideas');
+  const isMobile = useMediaQuery("(max-width: 768px)");
+  const { ideas, templates, loading, generateAIIdeas, refetch } =
+    useNewsletterIdeas();
+
+  const [currentStep, setCurrentStep] = useState<PickerStep>("ideas");
   const [selectedIdea, setSelectedIdea] = useState<NewsletterIdea | null>(null);
-  const [selectedLayout, setSelectedLayout] = useState<'block-builder' | 'simple-email' | null>('block-builder');
-  const [aiPrompt, setAiPrompt] = useState('');
+  const [selectedLayout, setSelectedLayout] = useState<
+    "block-builder" | "simple-email" | null
+  >("block-builder");
+  const [aiPrompt, setAiPrompt] = useState("");
   const [generatingAI, setGeneratingAI] = useState(false);
   const [textareaRows, setTextareaRows] = useState(1);
 
   // Default to block-builder layout
   useEffect(() => {
     if (!selectedLayout) {
-      setSelectedLayout('block-builder');
+      setSelectedLayout("block-builder");
     }
   }, [selectedLayout]);
 
   const handleSelectIdea = (idea: NewsletterIdea) => {
     setSelectedIdea(idea);
-    setCurrentStep('layout');
+    setCurrentStep("layout");
   };
 
   const handleGenerateAI = async () => {
     if (!aiPrompt.trim()) return;
-    
-    console.log('🚀 Starting AI generation with prompt:', aiPrompt);
     setGeneratingAI(true);
     try {
       const newIdeas = await generateAIIdeas(aiPrompt);
-      console.log('✅ Generated ideas:', newIdeas?.length || 0);
-      setAiPrompt('');
+      setAiPrompt("");
       setTextareaRows(1); // Reset to default rows
     } catch (error) {
-      console.error('❌ Failed to generate AI ideas:', error);
+      console.error("❌ Failed to generate AI ideas:", error);
     } finally {
       setGeneratingAI(false);
     }
@@ -66,19 +80,22 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
   const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
     setAiPrompt(value);
-    
+
     // Auto-expand functionality
     const textarea = e.target;
     const lineHeight = 24; // Approximate line height
     const padding = 24; // Top and bottom padding (p-3 = 12px * 2)
     const minRows = 1;
     const maxRows = 5;
-    
+
     // Reset height to auto to get accurate scrollHeight
-    textarea.style.height = 'auto';
+    textarea.style.height = "auto";
     const scrollHeight = textarea.scrollHeight;
-    const newRows = Math.min(maxRows, Math.max(minRows, Math.ceil((scrollHeight - padding) / lineHeight)));
-    
+    const newRows = Math.min(
+      maxRows,
+      Math.max(minRows, Math.ceil((scrollHeight - padding) / lineHeight)),
+    );
+
     setTextareaRows(newRows);
   };
 
@@ -91,40 +108,43 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
 
     // Navigate to newsletter builder with template data
     const params = new URLSearchParams({
-      type: 'newsletter',
-      flow: 'template-picker',
+      type: "newsletter",
+      flow: "template-picker",
       templateId: selectedIdea.id,
       layout: selectedLayout,
-      source: 'picker',
+      source: "picker",
       title: selectedIdea.title,
       description: selectedIdea.description,
-      category: selectedIdea.category
+      category: selectedIdea.category,
     });
-    
+
     navigate(`/crm/campaigns/new?${params.toString()}`);
     onClose();
   };
 
   const handleBack = () => {
-    if (currentStep === 'layout') {
-      setCurrentStep('ideas');
+    if (currentStep === "layout") {
+      setCurrentStep("ideas");
       setSelectedIdea(null);
     }
   };
 
   const handleSkipToBlank = () => {
-    navigate('/crm/campaigns/new?type=newsletter');
+    navigate("/crm/campaigns/new?type=newsletter");
     onClose();
   };
 
   const renderContent = () => (
     <div className="flex flex-col h-full">
       {/* Main Content Area */}
-      {currentStep === 'ideas' && (
-        <div className="flex-1 overflow-hidden" style={{ paddingBottom: textareaRows >= 3 ? '120px' : '80px' }}>
-          <IdeaGrid 
-            ideas={ideas} 
-            onSelectIdea={handleSelectIdea} 
+      {currentStep === "ideas" && (
+        <div
+          className="flex-1 overflow-hidden"
+          style={{ paddingBottom: textareaRows >= 3 ? "120px" : "80px" }}
+        >
+          <IdeaGrid
+            ideas={ideas}
+            onSelectIdea={handleSelectIdea}
             onGenerateIdeas={generateAIIdeas}
             loading={loading}
             className="h-full"
@@ -132,7 +152,7 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
         </div>
       )}
 
-      {currentStep === 'layout' && selectedIdea && (
+      {currentStep === "layout" && selectedIdea && (
         <div className="flex-1 overflow-y-auto">
           {/* Back Button Section */}
           <div className="mb-8">
@@ -145,7 +165,7 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
               Back to Ideas
             </Button>
           </div>
-          
+
           {/* Selected Idea Showcase */}
           <div className="mb-12">
             <div className="bg-gradient-to-br from-background via-muted/30 to-muted/50 rounded-2xl p-8 border border-border/60 shadow-sm">
@@ -166,20 +186,22 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
               </div>
             </div>
           </div>
-          
+
           {/* Layout Selection Section */}
           <div className="space-y-6">
             <div>
-              <h4 className="text-lg font-semibold text-foreground mb-2">Choose Your Layout</h4>
+              <h4 className="text-lg font-semibold text-foreground mb-2">
+                Choose Your Layout
+              </h4>
               <p className="text-sm text-muted-foreground mb-8">
                 Select a layout style that best fits your newsletter content
               </p>
             </div>
-            
+
             <div className="px-2">
-              <NewsletterLayoutPicker 
-                value={selectedLayout} 
-                onChange={setSelectedLayout} 
+              <NewsletterLayoutPicker
+                value={selectedLayout}
+                onChange={setSelectedLayout}
               />
             </div>
           </div>
@@ -187,26 +209,27 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
       )}
 
       {/* AI Idea Generator - Fixed at bottom */}
-      {currentStep === 'ideas' && (
-        <div 
-          className="fixed left-1/2 transform -translate-x-1/2 z-[1000020] pointer-events-auto" 
-          style={{ bottom: '48px' }}
+      {currentStep === "ideas" && (
+        <div
+          className="fixed left-1/2 transform -translate-x-1/2 z-[1000020] pointer-events-auto"
+          style={{ bottom: "48px" }}
           onClick={(e) => {
-            console.log('🎯 AI Prompt container clicked');
             e.stopPropagation();
           }}
         >
-          <div 
-            className="bg-white backdrop-blur-sm border-2 border-primary/30 rounded-xl p-4 shadow-2xl transition-all duration-200" 
-            style={{ 
-              width: '600px',
+          <div
+            className="bg-white backdrop-blur-sm border-2 border-primary/30 rounded-xl p-4 shadow-2xl transition-all duration-200"
+            style={{
+              width: "600px",
               minHeight: `${1 * 24 + 120}px`,
-              height: `${textareaRows * 24 + 120}px`
+              height: `${textareaRows * 24 + 120}px`,
             }}
           >
             <div className="space-y-3">
               <div className="w-full">
-                <Label htmlFor="ai-prompt" className="sr-only">Describe your newsletter</Label>
+                <Label htmlFor="ai-prompt" className="sr-only">
+                  Describe your newsletter
+                </Label>
                 <Textarea
                   id="ai-prompt"
                   placeholder="Write your AI prompt here..."
@@ -214,20 +237,19 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
                   value={aiPrompt}
                   onChange={handleTextareaChange}
                   onKeyDown={handleKeyDown}
-                  onFocus={() => console.log('✏️ AI Prompt textarea focused')}
-                  onBlur={() => console.log('👋 AI Prompt textarea blurred')}
+                  onFocus={() => {}}
+                  onBlur={() => {}}
                   rows={textareaRows}
-                  style={{ 
+                  style={{
                     minHeight: `${1 * 24 + 24}px`,
                     maxHeight: `${5 * 24 + 24}px`,
-                    overflowY: textareaRows >= 5 ? 'auto' : 'hidden'
+                    overflowY: textareaRows >= 5 ? "auto" : "hidden",
                   }}
                 />
               </div>
               <div className="flex justify-end mt-3">
-                <Button 
+                <Button
                   onClick={(e) => {
-                    console.log('🚀 Generate button clicked with prompt:', aiPrompt);
                     handleGenerateAI();
                   }}
                   disabled={!aiPrompt.trim() || generatingAI}
@@ -253,9 +275,9 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
       )}
 
       {/* Footer */}
-      {currentStep === 'layout' && (
+      {currentStep === "layout" && (
         <div className="flex-shrink-0 mt-6 pt-4 border-t flex justify-center">
-          <Button 
+          <Button
             onClick={handleContinue}
             disabled={!selectedIdea || !selectedLayout}
             className="px-8"
@@ -283,41 +305,52 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className={cn(
-        "!fixed !inset-0 !w-full !h-full !max-w-none !max-h-none !m-0 !p-0",
-        "!transform-none !translate-x-0 !translate-y-0 !left-0 !top-0",
-        "overflow-hidden border-0 rounded-none bg-white text-foreground",
-        "z-[1000010]"
-      )}>
+      <DialogContent
+        className={cn(
+          "!fixed !inset-0 !w-full !h-full !max-w-none !max-h-none !m-0 !p-0",
+          "!transform-none !translate-x-0 !translate-y-0 !left-0 !top-0",
+          "overflow-hidden border-0 rounded-none bg-white text-foreground",
+          "z-[1000010]",
+        )}
+      >
         {/* Corner gradient effects */}
         <div className="absolute inset-0 pointer-events-none">
           {/* Top left corner gradient */}
           <div className="absolute top-0 left-0 w-80 h-80 bg-gradient-radial from-brand-teal/20 via-brand-teal/10 to-transparent rounded-full -translate-x-1/2 -translate-y-1/2" />
-          
+
           {/* Bottom right corner gradient */}
           <div className="absolute bottom-0 right-0 w-96 h-96 bg-gradient-radial from-brand-teal/15 via-brand-teal/8 to-transparent rounded-full translate-x-1/3 translate-y-1/3" />
         </div>
 
         {/* Blurry effect layer */}
         <div className="absolute inset-0 pointer-events-none backdrop-blur-[0.5px] bg-white/10" />
-        
+
         {/* Additional subtle blur elements */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-20 left-20 w-32 h-32 bg-brand-teal/8 rounded-full blur-2xl animate-pulse" style={{ animationDelay: '0s', animationDuration: '6s' }} />
-          <div className="absolute bottom-32 right-32 w-24 h-24 bg-brand-teal/12 rounded-full blur-xl animate-pulse" style={{ animationDelay: '2s', animationDuration: '8s' }} />
-          <div className="absolute top-1/2 left-1/3 w-16 h-16 bg-brand-teal/6 rounded-full blur-lg animate-pulse" style={{ animationDelay: '4s', animationDuration: '10s' }} />
+          <div
+            className="absolute top-20 left-20 w-32 h-32 bg-brand-teal/8 rounded-full blur-2xl animate-pulse"
+            style={{ animationDelay: "0s", animationDuration: "6s" }}
+          />
+          <div
+            className="absolute bottom-32 right-32 w-24 h-24 bg-brand-teal/12 rounded-full blur-xl animate-pulse"
+            style={{ animationDelay: "2s", animationDuration: "8s" }}
+          />
+          <div
+            className="absolute top-1/2 left-1/3 w-16 h-16 bg-brand-teal/6 rounded-full blur-lg animate-pulse"
+            style={{ animationDelay: "4s", animationDuration: "10s" }}
+          />
         </div>
-        
+
         {/* Close button in top left */}
-        <Button 
-          variant="ghost" 
+        <Button
+          variant="ghost"
           size="sm"
           onClick={onClose}
           className="absolute top-4 left-4 z-30 w-8 h-8 p-0 rounded-full hover:bg-brand-teal/10 backdrop-blur-sm border border-brand-teal/20"
         >
           <X className="w-4 h-4 text-brand-teal" />
         </Button>
-        
+
         {/* Content layer */}
         <div className="w-full h-full p-6 pt-16 relative z-20 flex flex-col overflow-hidden bg-white/40 backdrop-blur-sm">
           {renderContent()}

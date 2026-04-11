@@ -4,9 +4,9 @@ interface LocationExtraction {
   postal_code: string | null;
   city: string | null;
   state_province: string | null;
-  country: 'US' | 'CA' | null;
-  source: 'jsonld' | 'footer' | 'contact' | 'regex' | 'none';
-  confidence: 'high' | 'medium' | 'low';
+  country: "US" | "CA" | null;
+  source: "jsonld" | "footer" | "contact" | "regex" | "none";
+  confidence: "high" | "medium" | "low";
   snippet: string | null;
   candidates: any[];
   requires_confirmation: boolean;
@@ -29,52 +29,56 @@ interface PersistLocationResult {
 
 /**
  * Persists location extraction results to company_profiles.
- * 
+ *
  * SAFE OVERWRITE POLICY:
  * - If location_detection_source === 'manual' AND location_confidence === 'high':
  *   - DO NOT overwrite postal_code, city, state_province, country
  *   - DO NOT change location_detection_source from 'manual'
  *   - DO NOT set location_needs_confirmation back to true
  *   - ONLY update: location_detection_candidates, location_detection_snippet, location_last_detected_at
- * 
+ *
  * - Only forceOverwrite=true (from explicit user action) can override this
  */
 export async function persistLocationExtraction(
-  options: PersistLocationOptions
+  options: PersistLocationOptions,
 ): Promise<PersistLocationResult> {
-  const { userId, websiteUrl, locationExtraction, forceOverwrite = false } = options;
-
-  console.log('📍 Persisting location extraction for user:', userId);
-  console.log('📍 Location data:', locationExtraction);
-  console.log('📍 forceOverwrite:', forceOverwrite);
+  const {
+    userId,
+    websiteUrl,
+    locationExtraction,
+    forceOverwrite = false,
+  } = options;
 
   try {
     // First, get the existing profile to check current values AND confirmation status
     const { data: existingProfile, error: fetchError } = await supabase
-      .from('company_profiles')
-      .select(`
+      .from("company_profiles")
+      .select(
+        `
         id, postal_code, city, state_province, country, website_url,
         location_detection_source, location_confidence, location_needs_confirmation
-      `)
-      .eq('user_id', userId)
+      `,
+      )
+      .eq("user_id", userId)
       .maybeSingle();
 
-    if (fetchError && fetchError.code !== 'PGRST116') {
-      console.error('❌ Error fetching existing profile:', fetchError);
-      return { success: false, needsConfirmation: false, wasManuallyConfirmed: false, error: fetchError.message };
+    if (fetchError && fetchError.code !== "PGRST116") {
+      console.error("❌ Error fetching existing profile:", fetchError);
+      return {
+        success: false,
+        needsConfirmation: false,
+        wasManuallyConfirmed: false,
+        error: fetchError.message,
+      };
     }
 
     // Check if location was manually confirmed (HIGH CONFIDENCE + MANUAL SOURCE)
-    const wasManuallyConfirmed = existingProfile && 
-      existingProfile.location_detection_source === 'manual' && 
-      existingProfile.location_confidence === 'high';
-
-    console.log('📍 Was manually confirmed:', wasManuallyConfirmed);
-
+    const wasManuallyConfirmed =
+      existingProfile &&
+      existingProfile.location_detection_source === "manual" &&
+      existingProfile.location_confidence === "high";
     // If manually confirmed and NOT force overwriting, use METADATA-ONLY update
     if (wasManuallyConfirmed && !forceOverwrite) {
-      console.log('📍 Metadata-only update (preserving manual confirmation)');
-      
       const metadataPayload: Record<string, any> = {
         // Update ONLY detection metadata - NOT source/confidence/needs_confirmation
         location_detection_candidates: locationExtraction.candidates || [],
@@ -89,37 +93,40 @@ export async function persistLocationExtraction(
       }
 
       const { data: updatedProfile, error: updateError } = await supabase
-        .from('company_profiles')
+        .from("company_profiles")
         .update(metadataPayload)
-        .eq('user_id', userId)
-        .select('id')
+        .eq("user_id", userId)
+        .select("id")
         .single();
 
       if (updateError) {
-        console.error('❌ Error updating profile metadata:', updateError);
-        return { success: false, needsConfirmation: false, wasManuallyConfirmed: true, error: updateError.message };
+        console.error("❌ Error updating profile metadata:", updateError);
+        return {
+          success: false,
+          needsConfirmation: false,
+          wasManuallyConfirmed: true,
+          error: updateError.message,
+        };
       }
-
-      console.log('✅ Metadata updated, manual confirmation preserved:', updatedProfile.id);
-      return { 
-        success: true, 
-        profileId: updatedProfile.id, 
+      return {
+        success: true,
+        profileId: updatedProfile.id,
         needsConfirmation: false, // Stays false because manually confirmed
-        wasManuallyConfirmed: true 
+        wasManuallyConfirmed: true,
       };
     }
 
     // Calculate whether confirmation is needed (only for non-confirmed profiles)
-    const needsConfirmation = 
-      locationExtraction.requires_confirmation || 
+    const needsConfirmation =
+      locationExtraction.requires_confirmation ||
       !locationExtraction.postal_code ||
-      locationExtraction.confidence === 'low';
+      locationExtraction.confidence === "low";
 
     // Build the full update payload
     const updatePayload: Record<string, any> = {
       // Update detection metadata
-      location_detection_source: locationExtraction.source || 'none',
-      location_confidence: locationExtraction.confidence || 'low',
+      location_detection_source: locationExtraction.source || "none",
+      location_confidence: locationExtraction.confidence || "low",
       location_detection_snippet: locationExtraction.snippet || null,
       location_detection_candidates: locationExtraction.candidates || [],
       location_last_detected_at: new Date().toISOString(),
@@ -135,16 +142,28 @@ export async function persistLocationExtraction(
     // Conditionally update structured address fields
     // Only set if currently NULL OR forceOverwrite is true
     if (existingProfile) {
-      if ((existingProfile.postal_code === null || forceOverwrite) && locationExtraction.postal_code) {
+      if (
+        (existingProfile.postal_code === null || forceOverwrite) &&
+        locationExtraction.postal_code
+      ) {
         updatePayload.postal_code = locationExtraction.postal_code;
       }
-      if ((existingProfile.city === null || forceOverwrite) && locationExtraction.city) {
+      if (
+        (existingProfile.city === null || forceOverwrite) &&
+        locationExtraction.city
+      ) {
         updatePayload.city = locationExtraction.city;
       }
-      if ((existingProfile.state_province === null || forceOverwrite) && locationExtraction.state_province) {
+      if (
+        (existingProfile.state_province === null || forceOverwrite) &&
+        locationExtraction.state_province
+      ) {
         updatePayload.state_province = locationExtraction.state_province;
       }
-      if ((existingProfile.country === null || forceOverwrite) && locationExtraction.country) {
+      if (
+        (existingProfile.country === null || forceOverwrite) &&
+        locationExtraction.country
+      ) {
         updatePayload.country = locationExtraction.country;
       }
     } else {
@@ -162,47 +181,71 @@ export async function persistLocationExtraction(
         updatePayload.country = locationExtraction.country;
       }
     }
-
-    console.log('📍 Update payload:', updatePayload);
-
     if (existingProfile) {
       // Update existing profile
       const { data: updatedProfile, error: updateError } = await supabase
-        .from('company_profiles')
+        .from("company_profiles")
         .update(updatePayload)
-        .eq('user_id', userId)
-        .select('id')
+        .eq("user_id", userId)
+        .select("id")
         .single();
 
       if (updateError) {
-        console.error('❌ Error updating profile with location data:', updateError);
-        return { success: false, needsConfirmation, wasManuallyConfirmed: false, error: updateError.message };
+        console.error(
+          "❌ Error updating profile with location data:",
+          updateError,
+        );
+        return {
+          success: false,
+          needsConfirmation,
+          wasManuallyConfirmed: false,
+          error: updateError.message,
+        };
       }
-
-      console.log('✅ Location data persisted to existing profile:', updatedProfile.id);
-      return { success: true, profileId: updatedProfile.id, needsConfirmation, wasManuallyConfirmed: false };
+      return {
+        success: true,
+        profileId: updatedProfile.id,
+        needsConfirmation,
+        wasManuallyConfirmed: false,
+      };
     } else {
       // Create new profile with location data
       const { data: newProfile, error: insertError } = await supabase
-        .from('company_profiles')
+        .from("company_profiles")
         .insert({
           user_id: userId,
           ...updatePayload,
         })
-        .select('id')
+        .select("id")
         .single();
 
       if (insertError) {
-        console.error('❌ Error creating profile with location data:', insertError);
-        return { success: false, needsConfirmation, wasManuallyConfirmed: false, error: insertError.message };
+        console.error(
+          "❌ Error creating profile with location data:",
+          insertError,
+        );
+        return {
+          success: false,
+          needsConfirmation,
+          wasManuallyConfirmed: false,
+          error: insertError.message,
+        };
       }
-
-      console.log('✅ Location data persisted to new profile:', newProfile.id);
-      return { success: true, profileId: newProfile.id, needsConfirmation, wasManuallyConfirmed: false };
+      return {
+        success: true,
+        profileId: newProfile.id,
+        needsConfirmation,
+        wasManuallyConfirmed: false,
+      };
     }
   } catch (error: any) {
-    console.error('❌ Unexpected error persisting location:', error);
-    return { success: false, needsConfirmation: false, wasManuallyConfirmed: false, error: error.message };
+    console.error("❌ Unexpected error persisting location:", error);
+    return {
+      success: false,
+      needsConfirmation: false,
+      wasManuallyConfirmed: false,
+      error: error.message,
+    };
   }
 }
 
@@ -215,37 +258,34 @@ export async function confirmLocationSelection(
   selectedPostalCode: string,
   selectedCity?: string,
   selectedStateProvince?: string,
-  selectedCountry?: 'US' | 'CA'
+  selectedCountry?: "US" | "CA",
 ): Promise<{ success: boolean; error?: string }> {
-  console.log('📍 Confirming location selection for user:', userId);
-
   try {
     const updatePayload: Record<string, any> = {
       postal_code: selectedPostalCode,
       location_needs_confirmation: false,
-      location_detection_source: 'manual', // User confirmed = manual
-      location_confidence: 'high', // User confirmed = high confidence
+      location_detection_source: "manual", // User confirmed = manual
+      location_confidence: "high", // User confirmed = high confidence
       updated_at: new Date().toISOString(),
     };
 
     if (selectedCity) updatePayload.city = selectedCity;
-    if (selectedStateProvince) updatePayload.state_province = selectedStateProvince;
+    if (selectedStateProvince)
+      updatePayload.state_province = selectedStateProvince;
     if (selectedCountry) updatePayload.country = selectedCountry;
 
     const { error } = await supabase
-      .from('company_profiles')
+      .from("company_profiles")
       .update(updatePayload)
-      .eq('user_id', userId);
+      .eq("user_id", userId);
 
     if (error) {
-      console.error('❌ Error confirming location:', error);
+      console.error("❌ Error confirming location:", error);
       return { success: false, error: error.message };
     }
-
-    console.log('✅ Location confirmed successfully');
     return { success: true };
   } catch (error: any) {
-    console.error('❌ Unexpected error confirming location:', error);
+    console.error("❌ Unexpected error confirming location:", error);
     return { success: false, error: error.message };
   }
 }
@@ -253,14 +293,18 @@ export async function confirmLocationSelection(
 /**
  * Checks if a profile needs location confirmation.
  */
-export async function checkLocationConfirmationNeeded(
-  userId: string
-): Promise<{ needed: boolean; candidates?: any[]; currentPostalCode?: string }> {
+export async function checkLocationConfirmationNeeded(userId: string): Promise<{
+  needed: boolean;
+  candidates?: any[];
+  currentPostalCode?: string;
+}> {
   try {
     const { data: profile, error } = await supabase
-      .from('company_profiles')
-      .select('location_needs_confirmation, location_detection_candidates, postal_code')
-      .eq('user_id', userId)
+      .from("company_profiles")
+      .select(
+        "location_needs_confirmation, location_detection_candidates, postal_code",
+      )
+      .eq("user_id", userId)
       .maybeSingle();
 
     if (error || !profile) {
@@ -269,7 +313,7 @@ export async function checkLocationConfirmationNeeded(
 
     return {
       needed: profile.location_needs_confirmation === true,
-      candidates: profile.location_detection_candidates as any[] || [],
+      candidates: (profile.location_detection_candidates as any[]) || [],
       currentPostalCode: profile.postal_code || undefined,
     };
   } catch {

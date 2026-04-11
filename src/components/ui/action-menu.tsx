@@ -4,10 +4,10 @@ import React, {
   useEffect,
   useCallback,
   ReactNode,
-} from 'react';
-import { createPortal } from 'react-dom';
-import { MoreHorizontal, MoreVertical, LucideIcon } from 'lucide-react';
-import { cn } from '@/lib/utils';
+} from "react";
+import { createPortal } from "react-dom";
+import { MoreHorizontal, MoreVertical, LucideIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 // ============================================================================
 // Types
@@ -17,7 +17,7 @@ export interface ActionMenuItem {
   label: string;
   icon?: LucideIcon;
   onClick?: () => void;
-  variant?: 'default' | 'destructive';
+  variant?: "default" | "destructive";
   disabled?: boolean;
   shortcut?: string;
   requiresConfirmation?: boolean;
@@ -27,7 +27,7 @@ export interface ActionMenuItem {
 }
 
 export interface ActionMenuSeparator {
-  type: 'separator';
+  type: "separator";
 }
 
 export interface ActionMenuGroup {
@@ -35,15 +35,18 @@ export interface ActionMenuGroup {
   items: (ActionMenuItem | ActionMenuSeparator)[];
 }
 
-export type ActionMenuItemType = ActionMenuItem | ActionMenuSeparator | ActionMenuGroup;
+export type ActionMenuItemType =
+  | ActionMenuItem
+  | ActionMenuSeparator
+  | ActionMenuGroup;
 
 export interface ActionMenuProps {
   items: ActionMenuItemType[];
-  trigger?: 'horizontal' | 'vertical' | ReactNode;
+  trigger?: "horizontal" | "vertical" | ReactNode;
   triggerClassName?: string;
   contentClassName?: string;
-  align?: 'start' | 'center' | 'end';
-  side?: 'top' | 'right' | 'bottom' | 'left';
+  align?: "start" | "center" | "end";
+  side?: "top" | "right" | "bottom" | "left";
   disabled?: boolean;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
@@ -54,15 +57,15 @@ export interface ActionMenuProps {
 // ============================================================================
 
 const isSeparator = (item: ActionMenuItemType): item is ActionMenuSeparator => {
-  return 'type' in item && item.type === 'separator';
+  return "type" in item && item.type === "separator";
 };
 
 const isGroup = (item: ActionMenuItemType): item is ActionMenuGroup => {
-  return 'items' in item && Array.isArray(item.items);
+  return "items" in item && Array.isArray(item.items);
 };
 
 const isActionItem = (item: ActionMenuItemType): item is ActionMenuItem => {
-  return 'label' in item && !('items' in item);
+  return "label" in item && !("items" in item);
 };
 
 // ============================================================================
@@ -74,7 +77,7 @@ function useClickOutside(
   dropdownRef: React.RefObject<HTMLElement | null>,
   handler: () => void,
   enabled: boolean,
-  ignoreNextRef?: React.MutableRefObject<boolean>
+  ignoreNextRef?: React.MutableRefObject<boolean>,
 ) {
   useEffect(() => {
     if (!enabled) return;
@@ -87,8 +90,10 @@ function useClickOutside(
 
       const target = event.target as Node;
 
-      const isOutsideTrigger = !triggerRef.current || !triggerRef.current.contains(target);
-      const isOutsideDropdown = !dropdownRef.current || !dropdownRef.current.contains(target);
+      const isOutsideTrigger =
+        !triggerRef.current || !triggerRef.current.contains(target);
+      const isOutsideDropdown =
+        !dropdownRef.current || !dropdownRef.current.contains(target);
 
       if (isOutsideTrigger && isOutsideDropdown) {
         handler();
@@ -96,10 +101,10 @@ function useClickOutside(
     };
 
     // Capture = true prevents edge-cases where other handlers stop propagation.
-    document.addEventListener('pointerdown', handlePointerDown, true);
+    document.addEventListener("pointerdown", handlePointerDown, true);
 
     return () => {
-      document.removeEventListener('pointerdown', handlePointerDown, true);
+      document.removeEventListener("pointerdown", handlePointerDown, true);
     };
   }, [triggerRef, dropdownRef, handler, enabled, ignoreNextRef]);
 }
@@ -112,8 +117,8 @@ function useDropdownPosition(
   triggerRef: React.RefObject<HTMLElement | null>,
   dropdownRef: React.RefObject<HTMLElement | null>,
   isOpen: boolean,
-  align: 'start' | 'center' | 'end',
-  side: 'top' | 'right' | 'bottom' | 'left'
+  align: "start" | "center" | "end",
+  side: "top" | "right" | "bottom" | "left",
 ) {
   const [position, setPosition] = useState({ top: 0, left: 0 });
 
@@ -133,29 +138,29 @@ function useDropdownPosition(
       let left = 0;
 
       // Calculate vertical position
-      if (side === 'bottom') {
+      if (side === "bottom") {
         top = rect.bottom + 4;
         if (top + dropdownHeight > window.innerHeight) {
           top = rect.top - dropdownHeight - 4;
         }
-      } else if (side === 'top') {
+      } else if (side === "top") {
         top = rect.top - dropdownHeight - 4;
         if (top < 0) {
           top = rect.bottom + 4;
         }
-      } else if (side === 'left' || side === 'right') {
+      } else if (side === "left" || side === "right") {
         top = rect.top;
       }
 
       // Calculate horizontal position
-      if (side === 'left') {
+      if (side === "left") {
         left = rect.left - dropdownWidth - 4;
-      } else if (side === 'right') {
+      } else if (side === "right") {
         left = rect.right + 4;
       } else {
-        if (align === 'start') {
+        if (align === "start") {
           left = rect.left;
-        } else if (align === 'end') {
+        } else if (align === "end") {
           left = rect.right - dropdownWidth;
         } else {
           left = rect.left + (rect.width - dropdownWidth) / 2;
@@ -174,12 +179,12 @@ function useDropdownPosition(
       updatePosition();
     });
 
-    window.addEventListener('scroll', updatePosition, true);
-    window.addEventListener('resize', updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
+    window.addEventListener("resize", updatePosition);
 
     return () => {
-      window.removeEventListener('scroll', updatePosition, true);
-      window.removeEventListener('resize', updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
+      window.removeEventListener("resize", updatePosition);
     };
   }, [isOpen, triggerRef, dropdownRef, align, side]);
 
@@ -213,24 +218,24 @@ function ConfirmationModal({
     if (!isOpen) return;
 
     const handleKeyDown = (e: globalThis.KeyboardEvent) => {
-      if (e.key === 'Escape') {
+      if (e.key === "Escape") {
         onCancel();
       }
     };
 
-    document.addEventListener('keydown', handleKeyDown);
-    
+    document.addEventListener("keydown", handleKeyDown);
+
     // Focus the cancel button
-    const firstButton = modalRef.current?.querySelector('button');
+    const firstButton = modalRef.current?.querySelector("button");
     firstButton?.focus();
 
-    return () => document.removeEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, onCancel]);
 
   if (!isOpen) return null;
 
   return createPortal(
-    <div 
+    <div
       data-app-portal="confirmation-modal"
       className="fixed inset-0 z-[1000050] flex items-center justify-center"
       role="dialog"
@@ -238,25 +243,26 @@ function ConfirmationModal({
       aria-labelledby="confirm-title"
     >
       {/* Backdrop */}
-      <div 
+      <div
         className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200"
         onClick={onCancel}
       />
-      
+
       {/* Modal */}
-      <div 
+      <div
         ref={modalRef}
         className="relative z-10 w-full max-w-md mx-4 bg-background border border-border rounded-lg shadow-xl animate-in fade-in zoom-in-95 duration-200"
       >
         <div className="p-6">
-          <h3 id="confirm-title" className="text-lg font-semibold text-foreground">
+          <h3
+            id="confirm-title"
+            className="text-lg font-semibold text-foreground"
+          >
             {title}
           </h3>
-          <p className="mt-2 text-sm text-muted-foreground">
-            {description}
-          </p>
+          <p className="mt-2 text-sm text-muted-foreground">{description}</p>
         </div>
-        
+
         <div className="flex justify-end gap-3 px-6 pb-6">
           <button
             type="button"
@@ -275,7 +281,7 @@ function ConfirmationModal({
         </div>
       </div>
     </div>,
-    document.body
+    document.body,
   );
 }
 
@@ -290,9 +296,14 @@ interface MenuItemButtonProps {
   onFocus: () => void;
 }
 
-function MenuItemButton({ item, isFocused, onSelect, onFocus }: MenuItemButtonProps) {
+function MenuItemButton({
+  item,
+  isFocused,
+  onSelect,
+  onFocus,
+}: MenuItemButtonProps) {
   const Icon = item.icon;
-  
+
   return (
     <button
       type="button"
@@ -306,13 +317,13 @@ function MenuItemButton({ item, isFocused, onSelect, onFocus }: MenuItemButtonPr
       onMouseEnter={onFocus}
       onFocus={onFocus}
       className={cn(
-        'flex w-full items-center gap-2 px-3 py-2 text-sm rounded-md outline-none transition-colors',
-        'focus:bg-brand-teal-mint/15 focus:text-brand-steel-blue',
-        isFocused && 'bg-brand-teal-mint/15 text-brand-steel-blue',
-        item.disabled && 'opacity-50 cursor-not-allowed',
-        item.variant === 'destructive' 
-          ? 'text-destructive focus:bg-destructive/10 focus:text-destructive hover:bg-destructive/10 hover:text-destructive' 
-          : 'text-foreground hover:bg-brand-teal-mint/15 hover:text-brand-steel-blue'
+        "flex w-full items-center gap-2 px-3 py-2 text-sm rounded-md outline-none transition-colors",
+        "focus:bg-brand-teal-mint/15 focus:text-brand-steel-blue",
+        isFocused && "bg-brand-teal-mint/15 text-brand-steel-blue",
+        item.disabled && "opacity-50 cursor-not-allowed",
+        item.variant === "destructive"
+          ? "text-destructive focus:bg-destructive/10 focus:text-destructive hover:bg-destructive/10 hover:text-destructive"
+          : "text-foreground hover:bg-brand-teal-mint/15 hover:text-brand-steel-blue",
       )}
     >
       {Icon && <Icon className="h-4 w-4 shrink-0" />}
@@ -332,11 +343,11 @@ function MenuItemButton({ item, isFocused, onSelect, onFocus }: MenuItemButtonPr
 
 export const ActionMenu: React.FC<ActionMenuProps> = ({
   items,
-  trigger = 'horizontal',
+  trigger = "horizontal",
   triggerClassName,
   contentClassName,
-  align = 'end',
-  side = 'bottom',
+  align = "end",
+  side = "bottom",
   disabled = false,
   open: controlledOpen,
   onOpenChange,
@@ -351,9 +362,9 @@ export const ActionMenu: React.FC<ActionMenuProps> = ({
     onConfirm: () => void;
   }>({
     isOpen: false,
-    title: '',
-    description: '',
-    actionLabel: 'Confirm',
+    title: "",
+    description: "",
+    actionLabel: "Confirm",
     onConfirm: () => {},
   });
 
@@ -365,22 +376,26 @@ export const ActionMenu: React.FC<ActionMenuProps> = ({
   // Support controlled and uncontrolled modes
   const isControlled = controlledOpen !== undefined;
   const isOpen = isControlled ? controlledOpen : internalOpen;
-  
-  // Get the active trigger ref
-  const activeTriggerRef = typeof trigger === 'string' ? triggerRef : customTriggerRef;
 
-  const setIsOpen = useCallback((value: boolean) => {
-    if (!isControlled) {
-      setInternalOpen(value);
-    }
-    onOpenChange?.(value);
-  }, [isControlled, onOpenChange]);
+  // Get the active trigger ref
+  const activeTriggerRef =
+    typeof trigger === "string" ? triggerRef : customTriggerRef;
+
+  const setIsOpen = useCallback(
+    (value: boolean) => {
+      if (!isControlled) {
+        setInternalOpen(value);
+      }
+      onOpenChange?.(value);
+    },
+    [isControlled, onOpenChange],
+  );
 
   // Flatten items for keyboard navigation
   const flattenedItems: ActionMenuItem[] = [];
-  items.forEach(item => {
+  items.forEach((item) => {
     if (isGroup(item)) {
-      item.items.forEach(subItem => {
+      item.items.forEach((subItem) => {
         if (isActionItem(subItem)) {
           flattenedItems.push(subItem);
         }
@@ -397,78 +412,110 @@ export const ActionMenu: React.FC<ActionMenuProps> = ({
   }, [setIsOpen]);
 
   // Handle item selection
-  const handleItemClick = useCallback((item: ActionMenuItem) => {
-    if (item.disabled) return;
+  const handleItemClick = useCallback(
+    (item: ActionMenuItem) => {
+      if (item.disabled) return;
 
-    if (item.requiresConfirmation) {
-      setConfirmationState({
-        isOpen: true,
-        title: item.confirmationTitle || 'Are you sure?',
-        description: item.confirmationDescription || 'This action cannot be undone.',
-        actionLabel: item.confirmationActionLabel || 'Confirm',
-        onConfirm: () => {
-          item.onClick?.();
-          setConfirmationState(prev => ({ ...prev, isOpen: false }));
-        },
-      });
-      setIsOpen(false);
-    } else {
-      item.onClick?.();
-      closeDropdown();
-    }
-  }, [closeDropdown, setIsOpen]);
+      if (item.requiresConfirmation) {
+        setConfirmationState({
+          isOpen: true,
+          title: item.confirmationTitle || "Are you sure?",
+          description:
+            item.confirmationDescription || "This action cannot be undone.",
+          actionLabel: item.confirmationActionLabel || "Confirm",
+          onConfirm: () => {
+            item.onClick?.();
+            setConfirmationState((prev) => ({ ...prev, isOpen: false }));
+          },
+        });
+        setIsOpen(false);
+      } else {
+        item.onClick?.();
+        closeDropdown();
+      }
+    },
+    [closeDropdown, setIsOpen],
+  );
 
   // Handle keyboard navigation
-  const handleKeyDown = useCallback((event: React.KeyboardEvent<HTMLElement>) => {
-    if (!isOpen) {
-      // Open on arrow down or enter/space when closed
-      if (event.key === 'ArrowDown' || event.key === 'Enter' || event.key === ' ') {
-        event.preventDefault();
-        setIsOpen(true);
-        setFocusedIndex(0);
-      }
-      return;
-    }
-
-    switch (event.key) {
-      case 'ArrowDown':
-        event.preventDefault();
-        setFocusedIndex(prev => (prev < flattenedItems.length - 1 ? prev + 1 : 0));
-        break;
-      case 'ArrowUp':
-        event.preventDefault();
-        setFocusedIndex(prev => (prev > 0 ? prev - 1 : flattenedItems.length - 1));
-        break;
-      case 'Enter':
-      case ' ':
-        event.preventDefault();
-        if (focusedIndex >= 0 && flattenedItems[focusedIndex]) {
-          handleItemClick(flattenedItems[focusedIndex]);
+  const handleKeyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLElement>) => {
+      if (!isOpen) {
+        // Open on arrow down or enter/space when closed
+        if (
+          event.key === "ArrowDown" ||
+          event.key === "Enter" ||
+          event.key === " "
+        ) {
+          event.preventDefault();
+          setIsOpen(true);
+          setFocusedIndex(0);
         }
-        break;
-      case 'Escape':
-        event.preventDefault();
-        closeDropdown();
-        break;
-      case 'Tab':
-        closeDropdown();
-        break;
-    }
-  }, [isOpen, flattenedItems, focusedIndex, handleItemClick, closeDropdown, setIsOpen]);
+        return;
+      }
+
+      switch (event.key) {
+        case "ArrowDown":
+          event.preventDefault();
+          setFocusedIndex((prev) =>
+            prev < flattenedItems.length - 1 ? prev + 1 : 0,
+          );
+          break;
+        case "ArrowUp":
+          event.preventDefault();
+          setFocusedIndex((prev) =>
+            prev > 0 ? prev - 1 : flattenedItems.length - 1,
+          );
+          break;
+        case "Enter":
+        case " ":
+          event.preventDefault();
+          if (focusedIndex >= 0 && flattenedItems[focusedIndex]) {
+            handleItemClick(flattenedItems[focusedIndex]);
+          }
+          break;
+        case "Escape":
+          event.preventDefault();
+          closeDropdown();
+          break;
+        case "Tab":
+          closeDropdown();
+          break;
+      }
+    },
+    [
+      isOpen,
+      flattenedItems,
+      focusedIndex,
+      handleItemClick,
+      closeDropdown,
+      setIsOpen,
+    ],
+  );
 
   // Click outside detection
-  useClickOutside(activeTriggerRef, dropdownRef, closeDropdown, isOpen, ignoreNextDocPointerDownRef);
+  useClickOutside(
+    activeTriggerRef,
+    dropdownRef,
+    closeDropdown,
+    isOpen,
+    ignoreNextDocPointerDownRef,
+  );
 
   // Dropdown positioning
-  const position = useDropdownPosition(activeTriggerRef, dropdownRef, isOpen, align, side);
+  const position = useDropdownPosition(
+    activeTriggerRef,
+    dropdownRef,
+    isOpen,
+    align,
+    side,
+  );
 
   // Toggle dropdown - simplified click handler
   const handleTriggerClick = useCallback(() => {
     if (disabled) return;
 
     const newState = !isOpen;
-    console.log('[ActionMenu] toggle', { newState, wasOpen: isOpen });
-
     setIsOpen(newState);
     if (newState) {
       setFocusedIndex(0);
@@ -479,24 +526,27 @@ export const ActionMenu: React.FC<ActionMenuProps> = ({
 
   // Render trigger button for string triggers
   const renderTrigger = () => {
-    if (typeof trigger === 'string') {
-      const IconComponent = trigger === 'vertical' ? MoreVertical : MoreHorizontal;
+    if (typeof trigger === "string") {
+      const IconComponent =
+        trigger === "vertical" ? MoreVertical : MoreHorizontal;
       return (
         <button
           ref={triggerRef}
           type="button"
-          onPointerDownCapture={() => { ignoreNextDocPointerDownRef.current = true; }}
+          onPointerDownCapture={() => {
+            ignoreNextDocPointerDownRef.current = true;
+          }}
           onClick={handleTriggerClick}
           onKeyDown={handleKeyDown}
           disabled={disabled}
           aria-haspopup="menu"
           aria-expanded={isOpen}
           className={cn(
-            'inline-flex items-center justify-center rounded-md h-8 w-8 p-0 text-sm font-medium transition-colors',
-            'hover:bg-brand-teal-mint/15 hover:text-brand-steel-blue',
-            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-teal-mint focus-visible:ring-offset-2',
-            'disabled:pointer-events-none disabled:opacity-50',
-            triggerClassName
+            "inline-flex items-center justify-center rounded-md h-8 w-8 p-0 text-sm font-medium transition-colors",
+            "hover:bg-brand-teal-mint/15 hover:text-brand-steel-blue",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-teal-mint focus-visible:ring-offset-2",
+            "disabled:pointer-events-none disabled:opacity-50",
+            triggerClassName,
           )}
         >
           <IconComponent className="h-4 w-4" />
@@ -509,7 +559,9 @@ export const ActionMenu: React.FC<ActionMenuProps> = ({
     return (
       <div
         ref={customTriggerRef}
-        onPointerDownCapture={() => { ignoreNextDocPointerDownRef.current = true; }}
+        onPointerDownCapture={() => {
+          ignoreNextDocPointerDownRef.current = true;
+        }}
         onClick={handleTriggerClick}
         onKeyDown={handleKeyDown}
         role="button"
@@ -517,9 +569,9 @@ export const ActionMenu: React.FC<ActionMenuProps> = ({
         aria-haspopup="menu"
         aria-expanded={isOpen}
         className={cn(
-          'cursor-pointer inline-flex',
-          disabled && 'pointer-events-none opacity-50',
-          triggerClassName
+          "cursor-pointer inline-flex",
+          disabled && "pointer-events-none opacity-50",
+          triggerClassName,
         )}
       >
         {trigger}
@@ -546,7 +598,9 @@ export const ActionMenu: React.FC<ActionMenuProps> = ({
       if (isGroup(item)) {
         return (
           <div key={`group-${index}`} className="py-1">
-            {index > 0 && <div className="my-1 h-px bg-border" role="separator" />}
+            {index > 0 && (
+              <div className="my-1 h-px bg-border" role="separator" />
+            )}
             {item.label && (
               <div className="px-3 py-1.5 text-xs font-normal text-muted-foreground">
                 {item.label}
@@ -554,7 +608,13 @@ export const ActionMenu: React.FC<ActionMenuProps> = ({
             )}
             {item.items.map((subItem, subIndex) => {
               if (isSeparator(subItem)) {
-                return <div key={`group-${index}-sep-${subIndex}`} className="my-1 h-px bg-border" role="separator" />;
+                return (
+                  <div
+                    key={`group-${index}-sep-${subIndex}`}
+                    className="my-1 h-px bg-border"
+                    role="separator"
+                  />
+                );
               }
               if (isActionItem(subItem)) {
                 currentFlatIndex++;
@@ -597,27 +657,28 @@ export const ActionMenu: React.FC<ActionMenuProps> = ({
     <>
       {renderTrigger()}
 
-      {isOpen && createPortal(
-        <div
-          ref={dropdownRef}
-          data-app-portal="action-menu"
-          role="menu"
-          aria-orientation="vertical"
-          onKeyDown={handleKeyDown}
-          className={cn(
-            'fixed z-[1000040] min-w-[180px] overflow-hidden rounded-md border border-brand-teal-mint/30 bg-popover p-1 text-popover-foreground shadow-lg shadow-brand-teal-mint/10',
-            'animate-in fade-in-0 zoom-in-95 duration-150',
-            contentClassName
-          )}
-          style={{
-            top: position.top,
-            left: position.left,
-          }}
-        >
-          {renderItems()}
-        </div>,
-        document.body
-      )}
+      {isOpen &&
+        createPortal(
+          <div
+            ref={dropdownRef}
+            data-app-portal="action-menu"
+            role="menu"
+            aria-orientation="vertical"
+            onKeyDown={handleKeyDown}
+            className={cn(
+              "fixed z-[1000040] min-w-[180px] overflow-hidden rounded-md border border-brand-teal-mint/30 bg-popover p-1 text-popover-foreground shadow-lg shadow-brand-teal-mint/10",
+              "animate-in fade-in-0 zoom-in-95 duration-150",
+              contentClassName,
+            )}
+            style={{
+              top: position.top,
+              left: position.left,
+            }}
+          >
+            {renderItems()}
+          </div>,
+          document.body,
+        )}
 
       {/* Custom Confirmation Modal */}
       <ConfirmationModal
@@ -626,7 +687,9 @@ export const ActionMenu: React.FC<ActionMenuProps> = ({
         description={confirmationState.description}
         actionLabel={confirmationState.actionLabel}
         onConfirm={confirmationState.onConfirm}
-        onCancel={() => setConfirmationState(prev => ({ ...prev, isOpen: false }))}
+        onCancel={() =>
+          setConfirmationState((prev) => ({ ...prev, isOpen: false }))
+        }
       />
     </>
   );

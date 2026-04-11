@@ -1,31 +1,46 @@
-import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
-import { Facebook, Instagram, AlertCircle, Image, Hash, Eye, Sparkles, X, Images } from 'lucide-react';
+import React, { useState, useEffect } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import {
+  Facebook,
+  Instagram,
+  AlertCircle,
+  Image,
+  Hash,
+  Eye,
+  Sparkles,
+  X,
+  Images,
+} from "lucide-react";
 // Removed sonner import - using global toast replacement
-import { supabase } from '@/integrations/supabase/client';
-import { ContentOptimizer } from './ContentOptimizer';
-import { ImageSelectButton } from '@/components/image';
-import { CarouselImageSelector } from './CarouselImageSelector';
+import { supabase } from "@/integrations/supabase/client";
+import { ContentOptimizer } from "./ContentOptimizer";
+import { ImageSelectButton } from "@/components/image";
+import { CarouselImageSelector } from "./CarouselImageSelector";
 
 interface SmartPostComposerProps {
   isOpen: boolean;
   onClose: () => void;
   task: any;
-  platform: 'facebook' | 'instagram';
+  platform: "facebook" | "instagram";
   onSuccess: () => void;
   onPostingStart: () => void;
 }
 
 const PLATFORM_LIMITS = {
   facebook: { text: 63206, hashtags: 30 },
-  instagram: { text: 2200, hashtags: 30 }
+  instagram: { text: 2200, hashtags: 30 },
 };
 
 export const SmartPostComposer: React.FC<SmartPostComposerProps> = ({
@@ -34,36 +49,37 @@ export const SmartPostComposer: React.FC<SmartPostComposerProps> = ({
   task,
   platform,
   onSuccess,
-  onPostingStart
+  onPostingStart,
 }) => {
-  const [content, setContent] = useState('');
-  const [hashtags, setHashtags] = useState('');
+  const [content, setContent] = useState("");
+  const [hashtags, setHashtags] = useState("");
   const [isPosting, setIsPosting] = useState(false);
-  const [activeTab, setActiveTab] = useState('compose');
+  const [activeTab, setActiveTab] = useState("compose");
   const [showImageSection, setShowImageSection] = useState(true);
   const [isCarousel, setIsCarousel] = useState(false);
   const [carouselImages, setCarouselImages] = useState<string[]>([]);
 
   const limits = PLATFORM_LIMITS[platform];
   const contentLength = content.length;
-  const hashtagCount = hashtags.split(' ').filter(tag => tag.trim().startsWith('#')).length;
+  const hashtagCount = hashtags
+    .split(" ")
+    .filter((tag) => tag.trim().startsWith("#")).length;
 
   useEffect(() => {
     if (task?.ai_output) {
       // Extract content and hashtags from AI output
-      const cleanContent = task.ai_output.replace(/<[^>]*>/g, '').trim();
+      const cleanContent = task.ai_output.replace(/<[^>]*>/g, "").trim();
       const hashtagMatch = cleanContent.match(/#\w+/g);
-      
+
       if (hashtagMatch) {
-        const extractedHashtags = hashtagMatch.join(' ');
-        const contentWithoutHashtags = cleanContent.replace(/#\w+/g, '').trim();
+        const extractedHashtags = hashtagMatch.join(" ");
+        const contentWithoutHashtags = cleanContent.replace(/#\w+/g, "").trim();
         setContent(contentWithoutHashtags);
         setHashtags(extractedHashtags);
       } else {
         setContent(cleanContent);
       }
     }
-
   }, [task]);
 
   const handlePost = async () => {
@@ -72,51 +88,38 @@ export const SmartPostComposer: React.FC<SmartPostComposerProps> = ({
 
     try {
       // Get session first and validate thoroughly
-      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      const { data: sessionData, error: sessionError } =
+        await supabase.auth.getSession();
       if (sessionError || !sessionData.session) {
-        toast.error('Authentication session expired. Please refresh the page and try again.');
+        toast.error(
+          "Authentication session expired. Please refresh the page and try again.",
+        );
         return;
       }
 
       const token = sessionData.session.access_token;
       if (!token) {
-        toast.error('No authentication token found. Please refresh the page and try again.');
+        toast.error(
+          "No authentication token found. Please refresh the page and try again.",
+        );
         return;
       }
 
-      // SECURITY: [L2] - Removed JWT token logging to prevent credential exposure
-      console.log('Auth validation:', {
-        hasSession: !!sessionData.session,
-        hasToken: !!token,
-        userId: sessionData.session.user?.id
-      });
-
       const fullContent = hashtags ? `${content}\n\n${hashtags}` : content;
-      
-      console.log('🔍 Posting debug info:', {
-        taskId: task.id,
-        taskStatus: task.status,
-        platform,
-        hasContent: !!fullContent,
-        contentLength: fullContent.length,
-        userId: sessionData.session.user.id
-      });
-      
+
       // Update the task with the edited content and ensure it's approved
       await supabase
-        .from('content_tasks')
-        .update({ 
+        .from("content_tasks")
+        .update({
           ai_output: fullContent,
-          status: 'approved' // Ensure task is approved for posting
+          status: "approved", // Ensure task is approved for posting
         })
-        .eq('id', task.id);
-      
-      console.log('📤 Calling publish-task edge function...');
-      
+        .eq("id", task.id);
+
       // Prepare payload with carousel support
       const payload: any = {
         taskId: task.id,
-        platforms: [platform]
+        platforms: [platform],
       };
 
       // Add carousel data if enabled
@@ -124,24 +127,22 @@ export const SmartPostComposer: React.FC<SmartPostComposerProps> = ({
         payload.isCarousel = true;
         payload.mediaUrls = carouselImages;
       }
-      
+
       // Call edge function with proper headers
-      const functionResponse = await supabase.functions.invoke('publish-task', {
+      const functionResponse = await supabase.functions.invoke("publish-task", {
         headers: {
-          Authorization: `Bearer ${token}`
+          Authorization: `Bearer ${token}`,
         },
-        body: payload
+        body: payload,
       });
-        
-      console.log('📥 Raw edge function response:', functionResponse);
-      console.log('📥 Response data:', functionResponse.data);
-      console.log('📥 Response error:', functionResponse.error);
 
       const { data: responseData, error } = functionResponse;
 
       if (error) {
-        console.error('❌ Edge function returned error:', error);
-        throw new Error(error.message || `Edge function error: ${JSON.stringify(error)}`);
+        console.error("❌ Edge function returned error:", error);
+        throw new Error(
+          error.message || `Edge function error: ${JSON.stringify(error)}`,
+        );
       }
 
       if (responseData?.success) {
@@ -154,7 +155,9 @@ export const SmartPostComposer: React.FC<SmartPostComposerProps> = ({
           throw new Error(result?.error || `Failed to post to ${platform}`);
         }
       } else {
-        throw new Error(responseData?.message || `Failed to post to ${platform}`);
+        throw new Error(
+          responseData?.message || `Failed to post to ${platform}`,
+        );
       }
     } catch (error: any) {
       console.error(`Error posting to ${platform}:`, error);
@@ -168,19 +171,20 @@ export const SmartPostComposer: React.FC<SmartPostComposerProps> = ({
     // Extract hashtags from optimized content
     const hashtagMatch = optimizedContent.match(/#\w+/g);
     if (hashtagMatch) {
-      const extractedHashtags = hashtagMatch.join(' ');
-      const contentWithoutHashtags = optimizedContent.replace(/#\w+/g, '').trim();
+      const extractedHashtags = hashtagMatch.join(" ");
+      const contentWithoutHashtags = optimizedContent
+        .replace(/#\w+/g, "")
+        .trim();
       setContent(contentWithoutHashtags);
       setHashtags(extractedHashtags);
     } else {
       setContent(optimizedContent);
     }
-    setActiveTab('compose');
+    setActiveTab("compose");
   };
 
-
-  const PlatformIcon = platform === 'facebook' ? Facebook : Instagram;
-  const platformName = platform === 'facebook' ? 'Facebook' : 'Instagram';
+  const PlatformIcon = platform === "facebook" ? Facebook : Instagram;
+  const platformName = platform === "facebook" ? "Facebook" : "Instagram";
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -192,7 +196,11 @@ export const SmartPostComposer: React.FC<SmartPostComposerProps> = ({
           </DialogTitle>
         </DialogHeader>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        <Tabs
+          value={activeTab}
+          onValueChange={setActiveTab}
+          className="space-y-4"
+        >
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="compose" className="flex items-center gap-2">
               <Eye className="w-4 h-4" />
@@ -216,7 +224,9 @@ export const SmartPostComposer: React.FC<SmartPostComposerProps> = ({
                 maxLength={limits.text}
               />
               <div className="flex justify-between text-xs text-gray-500">
-                <span>{contentLength}/{limits.text} characters</span>
+                <span>
+                  {contentLength}/{limits.text} characters
+                </span>
                 {contentLength > limits.text * 0.9 && (
                   <Badge variant="outline" className="text-orange-600">
                     <AlertCircle className="w-3 h-3 mr-1" />
@@ -232,15 +242,18 @@ export const SmartPostComposer: React.FC<SmartPostComposerProps> = ({
               <div className="flex items-center justify-between">
                 <label className="text-sm font-medium flex items-center gap-2">
                   <Images className="w-4 h-4" />
-                  {isCarousel ? 'Carousel Images' : 'Image'}
+                  {isCarousel ? "Carousel Images" : "Image"}
                 </label>
                 <div className="flex items-center gap-2">
-                  <Switch 
-                    checked={isCarousel} 
+                  <Switch
+                    checked={isCarousel}
                     onCheckedChange={setIsCarousel}
                     id="carousel-mode"
                   />
-                  <Label htmlFor="carousel-mode" className="text-sm cursor-pointer">
+                  <Label
+                    htmlFor="carousel-mode"
+                    className="text-sm cursor-pointer"
+                  >
                     Carousel Mode (2-10 images)
                   </Label>
                 </div>
@@ -256,7 +269,6 @@ export const SmartPostComposer: React.FC<SmartPostComposerProps> = ({
               ) : (
                 <ImageSelectButton
                   onImageSelect={async (imageUrl, metadata) => {
-                    console.log('Image selected in composer:', imageUrl);
                     // The component handles database updates internally
                   }}
                   contentContext={content || task?.ai_output}
@@ -277,7 +289,9 @@ export const SmartPostComposer: React.FC<SmartPostComposerProps> = ({
                 className="min-h-20"
               />
               <div className="flex justify-between text-xs text-gray-500">
-                <span>{hashtagCount}/{limits.hashtags} hashtags</span>
+                <span>
+                  {hashtagCount}/{limits.hashtags} hashtags
+                </span>
                 {hashtagCount > limits.hashtags && (
                   <Badge variant="destructive">
                     <AlertCircle className="w-3 h-3 mr-1" />
@@ -292,10 +306,17 @@ export const SmartPostComposer: React.FC<SmartPostComposerProps> = ({
               <div className="flex items-start gap-2">
                 <Eye className="w-4 h-4 mt-0.5 text-blue-600" />
                 <div className="text-sm text-blue-700">
-                  {platform === 'facebook' ? (
-                    <p>Facebook tips: Posts with images get 2.3x more engagement. Keep it conversational and ask questions to encourage comments.</p>
+                  {platform === "facebook" ? (
+                    <p>
+                      Facebook tips: Posts with images get 2.3x more engagement.
+                      Keep it conversational and ask questions to encourage
+                      comments.
+                    </p>
                   ) : (
-                    <p>Instagram tips: Images are required for Instagram posts. Use all 30 hashtags for maximum reach.</p>
+                    <p>
+                      Instagram tips: Images are required for Instagram posts.
+                      Use all 30 hashtags for maximum reach.
+                    </p>
                   )}
                 </div>
               </div>
@@ -304,39 +325,62 @@ export const SmartPostComposer: React.FC<SmartPostComposerProps> = ({
             {/* Actions */}
             <div className="space-y-3 pt-4">
               {/* Carousel Warnings */}
-              {isCarousel && carouselImages.length > 0 && carouselImages.length < 2 && (
-                <Badge variant="outline" className="w-full justify-center py-2 text-amber-600 border-amber-200">
-                  <AlertCircle className="w-3 h-3 mr-1" />
-                  Add at least 2 images for carousel mode
-                </Badge>
-              )}
+              {isCarousel &&
+                carouselImages.length > 0 &&
+                carouselImages.length < 2 && (
+                  <Badge
+                    variant="outline"
+                    className="w-full justify-center py-2 text-amber-600 border-amber-200"
+                  >
+                    <AlertCircle className="w-3 h-3 mr-1" />
+                    Add at least 2 images for carousel mode
+                  </Badge>
+                )}
               {isCarousel && carouselImages.length > 10 && (
-                <Badge variant="destructive" className="w-full justify-center py-2">
+                <Badge
+                  variant="destructive"
+                  className="w-full justify-center py-2"
+                >
                   <AlertCircle className="w-3 h-3 mr-1" />
                   Carousel cannot exceed 10 images
                 </Badge>
               )}
-              {platform === 'instagram' && isCarousel && carouselImages.length >= 2 && (
-                <Badge variant="outline" className="w-full justify-center py-2 text-blue-600 border-blue-200">
-                  Instagram requires all carousel images to have the same aspect ratio
-                </Badge>
-              )}
+              {platform === "instagram" &&
+                isCarousel &&
+                carouselImages.length >= 2 && (
+                  <Badge
+                    variant="outline"
+                    className="w-full justify-center py-2 text-blue-600 border-blue-200"
+                  >
+                    Instagram requires all carousel images to have the same
+                    aspect ratio
+                  </Badge>
+                )}
 
               <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={onClose} disabled={isPosting}>
+                <Button
+                  variant="outline"
+                  onClick={onClose}
+                  disabled={isPosting}
+                >
                   Cancel
                 </Button>
-                <Button 
-                  onClick={handlePost} 
+                <Button
+                  onClick={handlePost}
                   disabled={
-                    isPosting || 
-                    contentLength === 0 || 
+                    isPosting ||
+                    contentLength === 0 ||
                     hashtagCount > limits.hashtags ||
-                    (isCarousel && (carouselImages.length < 2 || carouselImages.length > 10))
+                    (isCarousel &&
+                      (carouselImages.length < 2 || carouselImages.length > 10))
                   }
-                  className={platform === 'facebook' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600'}
+                  className={
+                    platform === "facebook"
+                      ? "bg-blue-600 hover:bg-blue-700"
+                      : "bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
+                  }
                 >
-                  {isPosting ? 'Posting...' : `Post to ${platformName}`}
+                  {isPosting ? "Posting..." : `Post to ${platformName}`}
                 </Button>
               </div>
             </div>
@@ -344,13 +388,12 @@ export const SmartPostComposer: React.FC<SmartPostComposerProps> = ({
 
           <TabsContent value="optimize">
             <ContentOptimizer
-              content={content + (hashtags ? `\n\n${hashtags}` : '')}
+              content={content + (hashtags ? `\n\n${hashtags}` : "")}
               platform={platform}
               onOptimize={handleOptimizeContent}
             />
           </TabsContent>
         </Tabs>
-
       </DialogContent>
     </Dialog>
   );

@@ -68,14 +68,6 @@ export const FullEmailPreview: React.FC<FullEmailPreviewProps> = ({
       content.includes('viewBox="0 0 24 24"');
 
     // If we have unsubscribe AND either footer structure or social icons, don't add another footer
-    const hasFooter = hasUnsubscribe && (hasFooterStructure || hasSocialIcons);
-
-    console.log("[FullEmailPreview] Footer detection:", {
-      hasUnsubscribe,
-      hasFooterStructure,
-      hasSocialIcons,
-      hasFooter,
-    });
 
     if (hasFooter) {
       return content;

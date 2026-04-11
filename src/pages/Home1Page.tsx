@@ -1,30 +1,33 @@
-import React, { useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { LandingPageHeader } from '@/components/landing/LandingPageHeader';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { BarChart3, Target, Smartphone, Users, TrendingUp, Heart, Brain } from 'lucide-react';
-import { Swiper, SwiperSlide } from 'swiper/react';
-import { Navigation, Pagination, EffectCoverflow } from 'swiper/modules';
+import React, { useState, useRef } from "react";
+import { useNavigate } from "react-router-dom";
+import { LandingPageHeader } from "@/components/landing/LandingPageHeader";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import {
+  BarChart3,
+  Target,
+  Smartphone,
+  Users,
+  TrendingUp,
+  Heart,
+  Brain,
+} from "lucide-react";
+import { Swiper, SwiperSlide } from "swiper/react";
+import { Navigation, Pagination, EffectCoverflow } from "swiper/modules";
 
 // @ts-ignore - Swiper CSS imports
-import 'swiper/css';
+import "swiper/css";
 // @ts-ignore
-import 'swiper/css/navigation';
+import "swiper/css/navigation";
 // @ts-ignore
-import 'swiper/css/pagination';
+import "swiper/css/pagination";
 // @ts-ignore
-import 'swiper/css/effect-coverflow';
+import "swiper/css/effect-coverflow";
 
 export const Home1Page = () => {
-  console.log('🏠 Home1Page: Component rendering...');
-  
   const navigate = useNavigate();
   const [currentSlide, setCurrentSlide] = useState(2); // Start with slide 3 (index 2) in center
-
-  console.log('🏠 Home1Page: Current slide:', currentSlide);
-
   const slides = [
     {
       id: 1,
@@ -33,7 +36,7 @@ export const Home1Page = () => {
       icon: BarChart3,
       gradient: "from-blue-50 to-indigo-50",
       iconBg: "bg-blue-500/20",
-      iconColor: "text-blue-600"
+      iconColor: "text-blue-600",
     },
     {
       id: 2,
@@ -42,7 +45,7 @@ export const Home1Page = () => {
       icon: Target,
       gradient: "from-green-50 to-emerald-50",
       iconBg: "bg-green-500/20",
-      iconColor: "text-green-600"
+      iconColor: "text-green-600",
     },
     {
       id: 3,
@@ -51,7 +54,7 @@ export const Home1Page = () => {
       icon: Brain,
       gradient: "from-purple-50 to-violet-50",
       iconBg: "bg-purple-500/20",
-      iconColor: "text-purple-600"
+      iconColor: "text-purple-600",
     },
     {
       id: 4,
@@ -60,7 +63,7 @@ export const Home1Page = () => {
       icon: TrendingUp,
       gradient: "from-orange-50 to-amber-50",
       iconBg: "bg-orange-500/20",
-      iconColor: "text-orange-600"
+      iconColor: "text-orange-600",
     },
     {
       id: 5,
@@ -69,35 +72,35 @@ export const Home1Page = () => {
       icon: Heart,
       gradient: "from-pink-50 to-rose-50",
       iconBg: "bg-pink-500/20",
-      iconColor: "text-pink-600"
-    }
+      iconColor: "text-pink-600",
+    },
   ];
 
   const handleLogin = () => {
-    navigate('/auth');
+    navigate("/auth");
   };
 
   return (
     <div className="min-h-screen bg-background">
       <LandingPageHeader onLogin={handleLogin} />
-      
+
       {/* Hero Section */}
       <section className="py-20 px-6">
         <div className="max-w-7xl mx-auto">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div className="space-y-6">
               <h1 className="text-5xl lg:text-6xl font-bold leading-tight">
-                <span className="text-foreground">The Most Powerful</span>{' '}
-                <span className="text-primary">Marketing Tool</span>{' '}
-                <span className="text-foreground">Ever Built for</span>{' '}
+                <span className="text-foreground">The Most Powerful</span>{" "}
+                <span className="text-primary">Marketing Tool</span>{" "}
+                <span className="text-foreground">Ever Built for</span>{" "}
                 <span className="text-primary">Garden Centers</span>
               </h1>
               <p className="text-xl text-muted-foreground max-w-lg">
                 Track your calories and protein intake with NutriBot. That's it.
               </p>
               <div className="flex items-center gap-4 pt-4">
-                <Button 
-                  onClick={() => navigate('/auth')}
+                <Button
+                  onClick={() => navigate("/auth")}
                   size="lg"
                   className="bg-primary hover:bg-primary/90 text-primary-foreground px-8 py-3 text-lg rounded-full"
                 >
@@ -106,10 +109,18 @@ export const Home1Page = () => {
               </div>
               <div className="flex flex-wrap items-center gap-6 pt-6 whitespace-nowrap">
                 <div className="text-sm text-muted-foreground">Features:</div>
-                <Badge variant="secondary" className="text-xs">Nutrition</Badge>
-                <Badge variant="secondary" className="text-xs">Healthy Food</Badge>
-                <Badge variant="secondary" className="text-xs">Consultation</Badge>
-                <Badge variant="secondary" className="text-xs">AI Bot</Badge>
+                <Badge variant="secondary" className="text-xs">
+                  Nutrition
+                </Badge>
+                <Badge variant="secondary" className="text-xs">
+                  Healthy Food
+                </Badge>
+                <Badge variant="secondary" className="text-xs">
+                  Consultation
+                </Badge>
+                <Badge variant="secondary" className="text-xs">
+                  AI Bot
+                </Badge>
               </div>
             </div>
             <div className="relative">
@@ -117,7 +128,9 @@ export const Home1Page = () => {
                 <div className="w-64 h-80 bg-white rounded-2xl shadow-xl p-4 flex items-center justify-center">
                   <div className="text-center space-y-4">
                     <Smartphone className="w-16 h-16 text-primary mx-auto" />
-                    <p className="text-sm text-muted-foreground">App Interface Mockup</p>
+                    <p className="text-sm text-muted-foreground">
+                      App Interface Mockup
+                    </p>
                   </div>
                 </div>
               </div>
@@ -130,10 +143,14 @@ export const Home1Page = () => {
       <section className="py-20 px-6 bg-gray-900">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-12">
-            <h2 className="text-4xl font-bold text-white mb-4">Powerful Features</h2>
-            <p className="text-gray-300 text-lg">Everything you need to transform your nutrition habits</p>
+            <h2 className="text-4xl font-bold text-white mb-4">
+              Powerful Features
+            </h2>
+            <p className="text-gray-300 text-lg">
+              Everything you need to transform your nutrition habits
+            </p>
           </div>
-          
+
           <Swiper
             modules={[Navigation, Pagination]}
             grabCursor={true}
@@ -143,8 +160,8 @@ export const Home1Page = () => {
             initialSlide={2}
             pagination={{
               clickable: true,
-              bulletClass: 'swiper-pagination-bullet',
-              bulletActiveClass: 'swiper-pagination-bullet-active',
+              bulletClass: "swiper-pagination-bullet",
+              bulletActiveClass: "swiper-pagination-bullet-active",
               dynamicBullets: true,
             }}
             onSlideChange={(swiper) => setCurrentSlide(swiper.activeIndex)}
@@ -167,40 +184,53 @@ export const Home1Page = () => {
               },
             }}
             className="!pb-16 material-you-slider"
-            style={{
-              '--swiper-pagination-color': '#22c55e',
-              '--swiper-pagination-bullet-inactive-color': 'rgba(255, 255, 255, 0.3)',
-              '--swiper-pagination-bullet-inactive-opacity': '1',
-              '--swiper-pagination-bullet-size': '8px',
-              '--swiper-pagination-bullet-horizontal-gap': '4px'
-            } as React.CSSProperties}
+            style={
+              {
+                "--swiper-pagination-color": "#22c55e",
+                "--swiper-pagination-bullet-inactive-color":
+                  "rgba(255, 255, 255, 0.3)",
+                "--swiper-pagination-bullet-inactive-opacity": "1",
+                "--swiper-pagination-bullet-size": "8px",
+                "--swiper-pagination-bullet-horizontal-gap": "4px",
+              } as React.CSSProperties
+            }
           >
             {slides.map((slide, index) => {
               const Icon = slide.icon;
               const isActive = index === currentSlide;
-              
+
               // Define proper gradients for each slide
               const getGradientClasses = (slideId: number) => {
-                switch(slideId) {
-                  case 1: return "from-blue-800 to-blue-900";
-                  case 2: return "from-green-800 to-green-900"; 
-                  case 3: return "from-purple-800 to-purple-900";
-                  case 4: return "from-orange-800 to-orange-900";
-                  case 5: return "from-pink-800 to-pink-900";
-                  default: return "from-gray-800 to-gray-900";
+                switch (slideId) {
+                  case 1:
+                    return "from-blue-800 to-blue-900";
+                  case 2:
+                    return "from-green-800 to-green-900";
+                  case 3:
+                    return "from-purple-800 to-purple-900";
+                  case 4:
+                    return "from-orange-800 to-orange-900";
+                  case 5:
+                    return "from-pink-800 to-pink-900";
+                  default:
+                    return "from-gray-800 to-gray-900";
                 }
               };
-              
+
               return (
                 <SwiperSlide key={slide.id} className="!h-auto">
-                  <div className={`
-                    relative overflow-hidden rounded-3xl aspect-[3/4] 
+                  <div
+                    className={`
+                    relative overflow-hidden rounded-3xl aspect-[3/4]
                     transition-all duration-500 ease-out
-                    ${isActive ? 'scale-105' : 'scale-95 opacity-70'}
-                  `}>
+                    ${isActive ? "scale-105" : "scale-95 opacity-70"}
+                  `}
+                  >
                     {/* Gradient Background */}
-                    <div className={`absolute inset-0 bg-gradient-to-br ${getGradientClasses(slide.id)} opacity-90`} />
-                    
+                    <div
+                      className={`absolute inset-0 bg-gradient-to-br ${getGradientClasses(slide.id)} opacity-90`}
+                    />
+
                     {/* Content */}
                     <div className="relative z-10 h-full flex flex-col justify-between p-8 text-white">
                       <div className="flex-1 flex flex-col justify-center items-center text-center space-y-6">
@@ -208,11 +238,15 @@ export const Home1Page = () => {
                           <Icon className="w-10 h-10 text-white" />
                         </div>
                         <div className="space-y-3">
-                          <h3 className="text-2xl font-bold leading-tight">{slide.title}</h3>
-                          <p className="text-white/80 text-sm leading-relaxed px-2">{slide.description}</p>
+                          <h3 className="text-2xl font-bold leading-tight">
+                            {slide.title}
+                          </h3>
+                          <p className="text-white/80 text-sm leading-relaxed px-2">
+                            {slide.description}
+                          </p>
                         </div>
                       </div>
-                      
+
                       {/* Bottom accent */}
                       <div className="flex justify-center mt-6">
                         <div className="w-12 h-1 bg-white/30 rounded-full">
@@ -220,13 +254,15 @@ export const Home1Page = () => {
                         </div>
                       </div>
                     </div>
-                    
+
                     {/* Material You inspired overlay pattern */}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent" />
-                    
+
                     {/* Slide label */}
                     <div className="absolute top-4 left-4 bg-black/20 backdrop-blur-sm px-3 py-1 rounded-full">
-                      <span className="text-white/90 text-xs font-medium">Feature {index + 1}</span>
+                      <span className="text-white/90 text-xs font-medium">
+                        Feature {index + 1}
+                      </span>
                     </div>
                   </div>
                 </SwiperSlide>
@@ -246,7 +282,9 @@ export const Home1Page = () => {
                   <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
                     <Users className="w-12 h-12 text-primary" />
                   </div>
-                  <h3 className="text-xl font-semibold">AI Assistant Interface</h3>
+                  <h3 className="text-xl font-semibold">
+                    AI Assistant Interface
+                  </h3>
                   <p className="text-muted-foreground">
                     Your personal nutrition coach powered by advanced AI
                   </p>
@@ -262,7 +300,7 @@ export const Home1Page = () => {
                 Essential AI NutriBot
               </div>
               <h2 className="text-4xl font-bold text-foreground">
-                Not Harder Your <span className="text-primary">AI-Powered</span>{' '}
+                Not Harder Your <span className="text-primary">AI-Powered</span>{" "}
                 Nutrition Assistant
               </h2>
               <div className="space-y-4">
@@ -271,8 +309,9 @@ export const Home1Page = () => {
                   Data-Driven Insights
                 </div>
                 <p className="text-lg text-muted-foreground">
-                  It Effortlessly reach your health goals with AI that simplifies tracking and meal planning, allowing 
-                  you to focus on progress.
+                  It Effortlessly reach your health goals with AI that
+                  simplifies tracking and meal planning, allowing you to focus
+                  on progress.
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4">
                   <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg">
@@ -294,7 +333,7 @@ export const Home1Page = () => {
       <section className="py-16 px-6 bg-muted/30">
         <div className="max-w-7xl mx-auto text-center">
           <h2 className="text-3xl font-bold text-foreground mb-12">
-            Effortless <span className="text-primary">Nutrition Tracking</span>,{' '}
+            Effortless <span className="text-primary">Nutrition Tracking</span>,{" "}
             Tailored for You
           </h2>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -314,7 +353,9 @@ export const Home1Page = () => {
                 <div className="w-full h-40 bg-white/10 rounded-lg flex items-center justify-center">
                   <Smartphone className="w-16 h-16" />
                 </div>
-                <h3 className="font-semibold">Get Instant Insights On Calories, Macros, And Nutrients</h3>
+                <h3 className="font-semibold">
+                  Get Instant Insights On Calories, Macros, And Nutrients
+                </h3>
                 <p className="text-sm opacity-90">
                   Real-time tracking and analysis of your daily nutrition
                 </p>
@@ -325,7 +366,9 @@ export const Home1Page = () => {
                 <div className="w-full h-40 bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg flex items-center justify-center">
                   <Heart className="w-16 h-16 text-orange-500" />
                 </div>
-                <h3 className="font-semibold">Not Harder Your AI-Powered Nutrition Assistant</h3>
+                <h3 className="font-semibold">
+                  Not Harder Your AI-Powered Nutrition Assistant
+                </h3>
                 <p className="text-sm text-muted-foreground">
                   AI-powered recommendations tailored to your goals
                 </p>
@@ -345,18 +388,19 @@ export const Home1Page = () => {
             Your Health Journey Starts Now
           </h2>
           <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-            Join thousands of users who have transformed their nutrition habits with our AI-powered platform.
+            Join thousands of users who have transformed their nutrition habits
+            with our AI-powered platform.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button 
-              onClick={() => navigate('/auth')}
+            <Button
+              onClick={() => navigate("/auth")}
               size="lg"
               className="bg-primary hover:bg-primary/90 text-primary-foreground px-8 py-3 text-lg rounded-full"
             >
               Start Your Journey
             </Button>
-            <Button 
-              onClick={() => navigate('/about')}
+            <Button
+              onClick={() => navigate("/about")}
               variant="outline"
               size="lg"
               className="border-primary text-primary hover:bg-primary/10 px-8 py-3 text-lg rounded-full"

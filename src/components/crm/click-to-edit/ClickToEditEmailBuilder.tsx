@@ -1,26 +1,26 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { ContentBlock } from '@/types/emailBuilder';
-import { Button } from '@/components/ui/button';
-import { Plus, Bug } from 'lucide-react';
-import { ClickToEditBlock } from './ClickToEditBlock';
-import { HeaderBlock } from './blocks/HeaderBlock';
-import { NewsletterHeaderBlock } from './blocks/NewsletterHeaderBlock';
-import { EmailSafeHeroBlock } from './blocks/EmailSafeHeroBlock';
-import { GraphicHeroBlock } from './blocks/GraphicHeroBlock';
-import { TextBlock } from './blocks/TextBlock';
-import { ImageBlock } from './blocks/ImageBlock';
-import { ImageTextBlock } from './blocks/ImageTextBlock';
-import { DividerBlock } from './blocks/DividerBlock';
-import { ButtonBlock } from './blocks/ButtonBlock';
-import { SocialFollowBlock } from './blocks/SocialFollowBlock';
-import { FooterBlock } from './blocks/FooterBlock';
-import { ImageGalleryBlock } from './blocks/ImageGalleryBlock';
-import { MediaSelectorSidebar } from '@/components/crm/MediaSelectorSidebar';
-import { useFooterSettings } from '@/hooks/useFooterSettings';
-import { useCompanyInfo } from '@/hooks/useCompanyInfo';
-import { SaveIndicator } from '@/components/crm/SaveIndicator';
-import { useHeaderBackgroundImage } from '@/hooks/useHeaderBackgroundImage';
-import { trackImageUsage } from '@/lib/imageUsageTracking';
+import React, { useState, useEffect, useCallback, useRef } from "react";
+import { ContentBlock } from "@/types/emailBuilder";
+import { Button } from "@/components/ui/button";
+import { Plus, Bug } from "lucide-react";
+import { ClickToEditBlock } from "./ClickToEditBlock";
+import { HeaderBlock } from "./blocks/HeaderBlock";
+import { NewsletterHeaderBlock } from "./blocks/NewsletterHeaderBlock";
+import { EmailSafeHeroBlock } from "./blocks/EmailSafeHeroBlock";
+import { GraphicHeroBlock } from "./blocks/GraphicHeroBlock";
+import { TextBlock } from "./blocks/TextBlock";
+import { ImageBlock } from "./blocks/ImageBlock";
+import { ImageTextBlock } from "./blocks/ImageTextBlock";
+import { DividerBlock } from "./blocks/DividerBlock";
+import { ButtonBlock } from "./blocks/ButtonBlock";
+import { SocialFollowBlock } from "./blocks/SocialFollowBlock";
+import { FooterBlock } from "./blocks/FooterBlock";
+import { ImageGalleryBlock } from "./blocks/ImageGalleryBlock";
+import { MediaSelectorSidebar } from "@/components/crm/MediaSelectorSidebar";
+import { useFooterSettings } from "@/hooks/useFooterSettings";
+import { useCompanyInfo } from "@/hooks/useCompanyInfo";
+import { SaveIndicator } from "@/components/crm/SaveIndicator";
+import { useHeaderBackgroundImage } from "@/hooks/useHeaderBackgroundImage";
+import { trackImageUsage } from "@/lib/imageUsageTracking";
 
 interface ClickToEditEmailBuilderProps {
   blocks: ContentBlock[];
@@ -32,10 +32,14 @@ interface ClickToEditEmailBuilderProps {
   onOpenAIImageDialog?: (blockId: string) => void;
   footerBackgroundColor?: string;
   onFooterColorChange?: (color: string | undefined) => void;
-  onFooterStylingChange?: (styling: import('@/types/footerStyling').FooterStyling) => void;
+  onFooterStylingChange?: (
+    styling: import("@/types/footerStyling").FooterStyling,
+  ) => void;
 }
 
-export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = ({
+export const ClickToEditEmailBuilder: React.FC<
+  ClickToEditEmailBuilderProps
+> = ({
   blocks,
   onBlocksChange,
   onOpenAddModal,
@@ -45,49 +49,50 @@ export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = (
   onOpenAIImageDialog,
   footerBackgroundColor,
   onFooterColorChange,
-  onFooterStylingChange
+  onFooterStylingChange,
 }) => {
   const [saving, setSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date>();
   const [saveError, setSaveError] = useState(false);
-  
+
   // Debug state for MediaSelector
   const [debugMediaSelectorOpen, setDebugMediaSelectorOpen] = useState(false);
-  
+
   // PHASE 2: Use ref to access latest blocks in updateBlock
   const blocksRef = useRef(blocks);
-  
+
   // Keep ref in sync with blocks
   useEffect(() => {
     blocksRef.current = blocks;
   }, [blocks]);
 
   // Find the first header block (header or newsletter-header)
-  const headerBlock = blocks.find(b => b.type === 'header' || b.type === 'newsletter-header');
+  const headerBlock = blocks.find(
+    (b) => b.type === "header" || b.type === "newsletter-header",
+  );
 
   // Use header background image generation hook
   const { isGenerating: isGeneratingHeaderImage } = useHeaderBackgroundImage({
-    blocks: blocks.map(b => ({
+    blocks: blocks.map((b) => ({
       type: b.type,
       content: {
         title: b.title || b.headline,
         subtitle: b.subtitle || b.body,
         content: b.content,
-        text: typeof b.content === 'string' ? b.content : undefined
+        text: typeof b.content === "string" ? b.content : undefined,
       },
       isGenerating: generatingBlocks.has(b.id),
-      backgroundImageUrl: b.backgroundImageUrl
+      backgroundImageUrl: b.backgroundImageUrl,
     })),
-    campaignTitle: campaignName || 'Newsletter',
+    campaignTitle: campaignName || "Newsletter",
     onImageReady: (imageUrl, metadata) => {
-      console.log('[ClickToEditEmailBuilder] Header image ready:', imageUrl, 'subtitle:', metadata?.generatedSubtitle);
       if (headerBlock) {
         const updates: Partial<ContentBlock> = {
           backgroundImageUrl: imageUrl,
           // Set a subtle dark overlay for better text readability (using dark green instead of black)
-          backgroundColor: '#1f2937',
+          backgroundColor: "#1f2937",
           colorOverlayOpacity: 40,
-          backgroundOpacity: 60
+          backgroundOpacity: 60,
         };
 
         // Set the generated subtitle if available
@@ -96,29 +101,29 @@ export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = (
         }
 
         updateBlock(headerBlock.id, updates);
-        
+
         // Track image usage if globalImageId is available
         if (metadata?.globalImageId) {
           trackImageUsage({
             globalImageId: metadata.globalImageId,
-            context: 'header_block',
-            blockId: headerBlock.id
+            context: "header_block",
+            blockId: headerBlock.id,
           });
         }
       }
     },
-    enabled: !!headerBlock && !headerBlock.backgroundImageUrl // Only generate if no image exists
+    enabled: !!headerBlock && !headerBlock.backgroundImageUrl, // Only generate if no image exists
   });
-  
+
   // Create a dummy footer block for display (not included in the actual blocks array)
   const footerBlock: ContentBlock = {
-    id: 'email-footer',
-    type: 'footer',
-    source: 'manual',
+    id: "email-footer",
+    type: "footer",
+    source: "manual",
     visible: true,
     collapsed: false,
-    textAlign: 'center',
-    padding: 'medium'
+    textAlign: "center",
+    padding: "medium",
   };
 
   // Auto-save to localStorage with debouncing
@@ -129,17 +134,18 @@ export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = (
         clearTimeout(timeoutId);
         setSaving(true);
         setSaveError(false);
-        
+
         timeoutId = setTimeout(() => {
           try {
-            localStorage.setItem('emailBuilder_draft', JSON.stringify({
-              blocks: blocksToSave,
-              timestamp: Date.now()
-            }));
+            localStorage.setItem(
+              "emailBuilder_draft",
+              JSON.stringify({
+                blocks: blocksToSave,
+                timestamp: Date.now(),
+              }),
+            );
             setLastSaved(new Date());
             setSaveError(false);
-          } catch (error) {
-            console.warn('Failed to save draft to localStorage:', error);
             setSaveError(true);
           } finally {
             setSaving(false);
@@ -147,7 +153,7 @@ export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = (
         }, 500);
       };
     })(),
-    []
+    [],
   );
 
   // Auto-save whenever blocks change
@@ -156,102 +162,90 @@ export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = (
       debouncedSave(blocks);
     }
   }, [blocks, debouncedSave]);
-  const createBlock = (type: ContentBlock['type'], afterIndex?: number): ContentBlock => {
+  const createBlock = (
+    type: ContentBlock["type"],
+    afterIndex?: number,
+  ): ContentBlock => {
     const id = `block_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     const baseBlock: ContentBlock = {
       id,
       type,
-      source: 'manual',
+      source: "manual",
       visible: true,
       collapsed: false,
-      layout: type === 'image-text' ? 'image-right' : undefined,
-      textAlign: 'left',
-      padding: 'medium'
+      layout: type === "image-text" ? "image-right" : undefined,
+      textAlign: "left",
+      padding: "medium",
     };
 
     return baseBlock;
   };
 
-  const addBlock = (type: ContentBlock['type'], afterIndex?: number) => {
+  const addBlock = (type: ContentBlock["type"], afterIndex?: number) => {
     const newBlock = createBlock(type);
     const newBlocks = [...blocks];
-    
+
     if (afterIndex !== undefined) {
       newBlocks.splice(afterIndex + 1, 0, newBlock);
     } else {
       newBlocks.push(newBlock);
     }
-    
+
     onBlocksChange(newBlocks);
   };
 
   // PHASE 2: Fix state update race condition - use ref to access latest blocks
-  const updateBlock = useCallback((id: string, updates: Partial<ContentBlock>) => {
-    console.log('📝 updateBlock called:', {
-      blockId: id,
-      updates: Object.keys(updates),
-      hasOverlayData: !!(updates.overlayOpacity !== undefined || updates.overlayColor),
-      overlayValues: { opacity: updates.overlayOpacity, color: updates.overlayColor }
-    });
-    
-    // Use ref to get the latest blocks (avoiding stale closure)
-    const latestBlocks = blocksRef.current;
-    const newBlocks = latestBlocks.map(block => {
-      if (block.id !== id) return block;
-      
-      // Merge updates and preserve content generation flags
-      const updatedBlock: ContentBlock = { 
-        ...block, 
-        ...updates,
-        // Preserve content generation flags from previous state
-        hasGeneratedContent: (block as any).hasGeneratedContent || (updates as any).hasGeneratedContent,
-        contentGeneratedAt: (block as any).contentGeneratedAt || (updates as any).contentGeneratedAt,
-        contentVersion: (block as any).contentVersion || (updates as any).contentVersion
-      };
-      
-      console.log('📝 Block updated (from latest state via ref):', {
-        blockId: id,
-        blockType: block.type,
-        updates: Object.keys(updates),
-        overlayBefore: { opacity: block.overlayOpacity, color: block.overlayColor },
-        overlayAfter: { opacity: updatedBlock.overlayOpacity, color: updatedBlock.overlayColor },
-        preservedFlags: {
-          hasGeneratedContent: updatedBlock.hasGeneratedContent,
-          contentGeneratedAt: updatedBlock.contentGeneratedAt
-        }
+  const updateBlock = useCallback(
+    (id: string, updates: Partial<ContentBlock>) => {
+      // Use ref to get the latest blocks (avoiding stale closure)
+      const latestBlocks = blocksRef.current;
+      const newBlocks = latestBlocks.map((block) => {
+        if (block.id !== id) return block;
+
+        // Merge updates and preserve content generation flags
+        const updatedBlock: ContentBlock = {
+          ...block,
+          ...updates,
+          // Preserve content generation flags from previous state
+          hasGeneratedContent:
+            (block as any).hasGeneratedContent ||
+            (updates as any).hasGeneratedContent,
+          contentGeneratedAt:
+            (block as any).contentGeneratedAt ||
+            (updates as any).contentGeneratedAt,
+          contentVersion:
+            (block as any).contentVersion || (updates as any).contentVersion,
+        };
+
+        return updatedBlock;
       });
-      
-      return updatedBlock;
-    });
-    
-    console.log('📝 Calling onBlocksChange with', newBlocks.length, 'blocks');
-    onBlocksChange(newBlocks);
-  }, [onBlocksChange]);
+
+      onBlocksChange(newBlocks);
+    },
+    [onBlocksChange],
+  );
 
   const removeBlock = (id: string) => {
-    console.log('🗑️ removeBlock called with id:', id);
-    console.log('🗑️ Current blocks before removal:', blocks.map(b => ({ id: b.id, type: b.type })));
-    const filteredBlocks = blocks.filter(block => block.id !== id);
-    console.log('🗑️ Filtered blocks after removal:', filteredBlocks.map(b => ({ id: b.id, type: b.type })));
+    const filteredBlocks = blocks.filter((block) => block.id !== id);
     onBlocksChange(filteredBlocks);
   };
 
   const duplicateBlock = (block: ContentBlock) => {
     const newBlock = {
       ...block,
-      id: `block_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+      id: `block_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
     };
-    const blockIndex = blocks.findIndex(b => b.id === block.id);
+    const blockIndex = blocks.findIndex((b) => b.id === block.id);
     const newBlocks = [...blocks];
     newBlocks.splice(blockIndex + 1, 0, newBlock);
     onBlocksChange(newBlocks);
   };
 
-  const moveBlock = (id: string, direction: 'up' | 'down') => {
-    const currentIndex = blocks.findIndex(block => block.id === id);
+  const moveBlock = (id: string, direction: "up" | "down") => {
+    const currentIndex = blocks.findIndex((block) => block.id === id);
     if (currentIndex === -1) return;
 
-    const newIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+    const newIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
     if (newIndex < 0 || newIndex >= blocks.length) return;
 
     const newBlocks = [...blocks];
@@ -263,48 +257,122 @@ export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = (
   const renderBlock = (block: ContentBlock) => {
     const props = {
       block,
-      onUpdate: (updates: Partial<ContentBlock>) => updateBlock(block.id, updates)
+      onUpdate: (updates: Partial<ContentBlock>) =>
+        updateBlock(block.id, updates),
     };
 
-    const isHeaderGeneratingImage = (block.type === 'header' || block.type === 'newsletter-header') && 
+    const isHeaderGeneratingImage =
+      (block.type === "header" || block.type === "newsletter-header") &&
       (isGeneratingHeaderImage || (block as any).isGeneratingImage === true);
 
     switch (block.type) {
-      case 'header':
-        return <HeaderBlock {...props} isPreview={false} isGeneratingImage={isHeaderGeneratingImage} />;
-      case 'newsletter-header':
-        return <NewsletterHeaderBlock {...props} isPreview={false} isGeneratingImage={isHeaderGeneratingImage} />;
-      case 'email-safe-hero':
-        return <EmailSafeHeroBlock {...props} isPreview={false} isGenerating={generatingBlocks.has(block.id)} />;
-      case 'graphic-hero':
-        return <GraphicHeroBlock {...props} isPreview={false} isGenerating={generatingBlocks.has(block.id)} />;
-      case 'text':
+      case "header":
+        return (
+          <HeaderBlock
+            {...props}
+            isPreview={false}
+            isGeneratingImage={isHeaderGeneratingImage}
+          />
+        );
+      case "newsletter-header":
+        return (
+          <NewsletterHeaderBlock
+            {...props}
+            isPreview={false}
+            isGeneratingImage={isHeaderGeneratingImage}
+          />
+        );
+      case "email-safe-hero":
+        return (
+          <EmailSafeHeroBlock
+            {...props}
+            isPreview={false}
+            isGenerating={generatingBlocks.has(block.id)}
+          />
+        );
+      case "graphic-hero":
+        return (
+          <GraphicHeroBlock
+            {...props}
+            isPreview={false}
+            isGenerating={generatingBlocks.has(block.id)}
+          />
+        );
+      case "text":
         // Use ImageTextBlock for text blocks that have images, image-centric layouts, or headlines
-        const hasImageLayout = block.layout && ['two-column-left', 'two-column-right', 'image-left', 'image-right'].includes(block.layout);
+        const hasImageLayout =
+          block.layout &&
+          [
+            "two-column-left",
+            "two-column-right",
+            "image-left",
+            "image-right",
+          ].includes(block.layout);
         // Only render as image-text if there's an actual image OR an explicit image layout was chosen
         if (block.imageUrl || hasImageLayout) {
-          return <ImageTextBlock {...props} isPreview={false} isGenerating={generatingBlocks.has(block.id)} />;
+          return (
+            <ImageTextBlock
+              {...props}
+              isPreview={false}
+              isGenerating={generatingBlocks.has(block.id)}
+            />
+          );
         }
         return <TextBlock {...props} isPreview={false} />;
-      case 'image':
+      case "image":
         // Use ImageTextBlock for image blocks with two-column layouts
-        const hasTwoColumnLayout = block.layout && ['two-column-left', 'two-column-right'].includes(block.layout);
+        const hasTwoColumnLayout =
+          block.layout &&
+          ["two-column-left", "two-column-right"].includes(block.layout);
         if (hasTwoColumnLayout) {
-          return <ImageTextBlock {...props} isPreview={false} isGenerating={generatingBlocks.has(block.id)} />;
+          return (
+            <ImageTextBlock
+              {...props}
+              isPreview={false}
+              isGenerating={generatingBlocks.has(block.id)}
+            />
+          );
         }
-        return <ImageBlock {...props} isPreview={false} isGenerating={generatingBlocks.has(block.id)} />;
-      case 'image-text':
-        return <ImageTextBlock {...props} isPreview={false} isGenerating={generatingBlocks.has(block.id)} />;
-      case 'divider':
+        return (
+          <ImageBlock
+            {...props}
+            isPreview={false}
+            isGenerating={generatingBlocks.has(block.id)}
+          />
+        );
+      case "image-text":
+        return (
+          <ImageTextBlock
+            {...props}
+            isPreview={false}
+            isGenerating={generatingBlocks.has(block.id)}
+          />
+        );
+      case "divider":
         return <DividerBlock {...props} isPreview={false} />;
-      case 'button':
+      case "button":
         return <ButtonBlock {...props} isPreview={false} />;
-      case 'social-follow':
+      case "social-follow":
         return <SocialFollowBlock {...props} isPreview={false} />;
-      case 'footer':
-        return <FooterBlock {...props} isPreview={false} campaignId={campaignId} footerBackgroundColor={footerBackgroundColor} onFooterColorChange={onFooterColorChange} onFooterStylingChange={onFooterStylingChange} />;
-      case 'image-gallery':
-        return <ImageGalleryBlock {...props} isPreview={false} isGenerating={generatingBlocks.has(block.id)} />;
+      case "footer":
+        return (
+          <FooterBlock
+            {...props}
+            isPreview={false}
+            campaignId={campaignId}
+            footerBackgroundColor={footerBackgroundColor}
+            onFooterColorChange={onFooterColorChange}
+            onFooterStylingChange={onFooterStylingChange}
+          />
+        );
+      case "image-gallery":
+        return (
+          <ImageGalleryBlock
+            {...props}
+            isPreview={false}
+            isGenerating={generatingBlocks.has(block.id)}
+          />
+        );
       default:
         return <div>Unknown block type</div>;
     }
@@ -313,56 +381,131 @@ export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = (
   const renderBlockPreview = (block: ContentBlock) => {
     const props = {
       block,
-      onUpdate: (updates: Partial<ContentBlock>) => updateBlock(block.id, updates)
+      onUpdate: (updates: Partial<ContentBlock>) =>
+        updateBlock(block.id, updates),
     };
 
-    const isHeaderGeneratingImage = (block.type === 'header' || block.type === 'newsletter-header') && 
+    const isHeaderGeneratingImage =
+      (block.type === "header" || block.type === "newsletter-header") &&
       (isGeneratingHeaderImage || (block as any).isGeneratingImage === true);
 
     switch (block.type) {
-      case 'header':
-        return <HeaderBlock {...props} isPreview={true} isGeneratingImage={isHeaderGeneratingImage} />;
-      case 'newsletter-header':
-        return <NewsletterHeaderBlock {...props} isPreview={true} isGeneratingImage={isHeaderGeneratingImage} />;
-      case 'email-safe-hero':
-        return <EmailSafeHeroBlock {...props} isPreview={true} isGenerating={generatingBlocks.has(block.id)} />;
-      case 'graphic-hero':
-        return <GraphicHeroBlock {...props} isPreview={true} isGenerating={generatingBlocks.has(block.id)} />;
-      case 'text':
+      case "header":
+        return (
+          <HeaderBlock
+            {...props}
+            isPreview={true}
+            isGeneratingImage={isHeaderGeneratingImage}
+          />
+        );
+      case "newsletter-header":
+        return (
+          <NewsletterHeaderBlock
+            {...props}
+            isPreview={true}
+            isGeneratingImage={isHeaderGeneratingImage}
+          />
+        );
+      case "email-safe-hero":
+        return (
+          <EmailSafeHeroBlock
+            {...props}
+            isPreview={true}
+            isGenerating={generatingBlocks.has(block.id)}
+          />
+        );
+      case "graphic-hero":
+        return (
+          <GraphicHeroBlock
+            {...props}
+            isPreview={true}
+            isGenerating={generatingBlocks.has(block.id)}
+          />
+        );
+      case "text":
         // Use ImageTextBlock for text blocks that have images, image-centric layouts, or headlines
-        const hasImageLayout = block.layout && ['two-column-left', 'two-column-right', 'image-left', 'image-right'].includes(block.layout);
+        const hasImageLayout =
+          block.layout &&
+          [
+            "two-column-left",
+            "two-column-right",
+            "image-left",
+            "image-right",
+          ].includes(block.layout);
         // Only render as image-text if there's an actual image OR an explicit image layout was chosen
         if (block.imageUrl || hasImageLayout) {
-          return <ImageTextBlock {...props} isPreview={true} isGenerating={generatingBlocks.has(block.id)} />;
+          return (
+            <ImageTextBlock
+              {...props}
+              isPreview={true}
+              isGenerating={generatingBlocks.has(block.id)}
+            />
+          );
         }
         return <TextBlock {...props} isPreview={true} />;
-      case 'image':
+      case "image":
         // Use ImageTextBlock for image blocks with two-column layouts
-        const hasTwoColumnLayoutPreview = block.layout && ['two-column-left', 'two-column-right'].includes(block.layout);
+        const hasTwoColumnLayoutPreview =
+          block.layout &&
+          ["two-column-left", "two-column-right"].includes(block.layout);
         if (hasTwoColumnLayoutPreview) {
-          return <ImageTextBlock {...props} isPreview={true} isGenerating={generatingBlocks.has(block.id)} />;
+          return (
+            <ImageTextBlock
+              {...props}
+              isPreview={true}
+              isGenerating={generatingBlocks.has(block.id)}
+            />
+          );
         }
-        return <ImageBlock {...props} isPreview={true} isGenerating={generatingBlocks.has(block.id)} />;
-      case 'image-text':
-        return <ImageTextBlock {...props} isPreview={true} isGenerating={generatingBlocks.has(block.id)} />;
-      case 'divider':
+        return (
+          <ImageBlock
+            {...props}
+            isPreview={true}
+            isGenerating={generatingBlocks.has(block.id)}
+          />
+        );
+      case "image-text":
+        return (
+          <ImageTextBlock
+            {...props}
+            isPreview={true}
+            isGenerating={generatingBlocks.has(block.id)}
+          />
+        );
+      case "divider":
         return <DividerBlock {...props} isPreview={true} />;
-      case 'button':
+      case "button":
         return <ButtonBlock {...props} isPreview={true} />;
-      case 'social-follow':
+      case "social-follow":
         return <SocialFollowBlock {...props} isPreview={true} />;
-      case 'footer':
-        return <FooterBlock {...props} isPreview={true} campaignId={campaignId} footerBackgroundColor={footerBackgroundColor} onFooterColorChange={onFooterColorChange} onFooterStylingChange={onFooterStylingChange} />;
-      case 'image-gallery':
-        return <ImageGalleryBlock {...props} isPreview={true} isGenerating={generatingBlocks.has(block.id)} />;
+      case "footer":
+        return (
+          <FooterBlock
+            {...props}
+            isPreview={true}
+            campaignId={campaignId}
+            footerBackgroundColor={footerBackgroundColor}
+            onFooterColorChange={onFooterColorChange}
+            onFooterStylingChange={onFooterStylingChange}
+          />
+        );
+      case "image-gallery":
+        return (
+          <ImageGalleryBlock
+            {...props}
+            isPreview={true}
+            isGenerating={generatingBlocks.has(block.id)}
+          />
+        );
       default:
         return <div>Unknown block type</div>;
     }
   };
 
-  const AddBlockButton: React.FC<{ afterIndex?: number }> = ({ afterIndex }) => {
+  const AddBlockButton: React.FC<{ afterIndex?: number }> = ({
+    afterIndex,
+  }) => {
     const handleAddBlock = () => {
-      console.log('Opening add modal for index:', afterIndex);
       if (onOpenAddModal) {
         onOpenAddModal(afterIndex);
       }
@@ -370,9 +513,9 @@ export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = (
 
     return (
       <div className="flex justify-center py-4">
-        <Button 
-          variant="outline" 
-          size="sm" 
+        <Button
+          variant="outline"
+          size="sm"
           className="gap-2 bg-background hover:bg-accent"
           onClick={handleAddBlock}
         >
@@ -385,7 +528,6 @@ export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = (
 
   return (
     <div className="max-w-4xl mx-auto space-y-2">
-      
       {/* Add block button at top */}
       <AddBlockButton afterIndex={-1} />
 
@@ -408,10 +550,10 @@ export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = (
           >
             {{
               preview: renderBlockPreview(block),
-              editor: renderBlock(block)
+              editor: renderBlock(block),
             }}
           </ClickToEditBlock>
-          
+
           {/* Add block button between blocks */}
           <AddBlockButton afterIndex={index} />
         </div>
@@ -421,18 +563,21 @@ export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = (
       {blocks.length === 0 && (
         <div className="text-center py-12 text-muted-foreground">
           <div className="text-6xl mb-4">📧</div>
-          <h3 className="text-lg font-medium mb-2">Start building your email</h3>
-          <p className="text-sm mb-4">Add your first content block to get started</p>
+          <h3 className="text-lg font-medium mb-2">
+            Start building your email
+          </h3>
+          <p className="text-sm mb-4">
+            Add your first content block to get started
+          </p>
         </div>
       )}
-
 
       {/* Auto-included Footer (always at bottom, cannot be deleted) */}
       <div className="border-t-2 border-dashed border-gray-300 mt-8 pt-4">
         <div className="text-center text-sm text-muted-foreground mb-2 uppercase tracking-wide">
           📧 Auto-Included Email Footer
         </div>
-        <FooterBlock 
+        <FooterBlock
           block={footerBlock}
           onUpdate={() => {}} // Footer settings managed separately
           isPreview={true}
@@ -447,11 +592,9 @@ export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = (
         <MediaSelectorSidebar
           isOpen={debugMediaSelectorOpen}
           onClose={() => {
-            console.log('[DEBUG] Closing debug MediaSelector');
             setDebugMediaSelectorOpen(false);
           }}
-          onImageSelect={(imageUrl, metadata) => {
-            console.log('[DEBUG] Image selected:', { imageUrl, metadata });
+          onImageSelect={() => {
             setDebugMediaSelectorOpen(false);
           }}
           contentContext="Debug test"

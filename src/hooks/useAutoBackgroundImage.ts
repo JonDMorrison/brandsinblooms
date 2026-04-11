@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
+import { useState, useEffect, useCallback } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 interface UseAutoBackgroundImageProps {
   headline?: string;
@@ -30,7 +30,7 @@ export const useAutoBackgroundImage = ({
   currentBackgroundUrl,
   onImageSelected,
   enabled = true,
-  shouldAutoFetch = true
+  shouldAutoFetch = true,
 }: UseAutoBackgroundImageProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [autoImage, setAutoImage] = useState<UnsplashImage | null>(null);
@@ -39,87 +39,131 @@ export const useAutoBackgroundImage = ({
 
   // Extract meaningful keywords from headline for better search results
   const extractSearchKeywords = useCallback((text: string): string => {
-    if (!text) return '';
-    
+    if (!text) return "";
+
     // Remove common words and focus on meaningful terms
-    const commonWords = ['the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'your', 'our', 'this', 'that', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'can', 'a', 'an'];
-    
-    const words = text.toLowerCase()
-      .replace(/[^\w\s]/g, ' ') // Replace punctuation with spaces
+    const commonWords = [
+      "the",
+      "and",
+      "or",
+      "but",
+      "in",
+      "on",
+      "at",
+      "to",
+      "for",
+      "of",
+      "with",
+      "by",
+      "your",
+      "our",
+      "this",
+      "that",
+      "is",
+      "are",
+      "was",
+      "were",
+      "be",
+      "been",
+      "being",
+      "have",
+      "has",
+      "had",
+      "do",
+      "does",
+      "did",
+      "will",
+      "would",
+      "could",
+      "should",
+      "may",
+      "might",
+      "can",
+      "a",
+      "an",
+    ];
+
+    const words = text
+      .toLowerCase()
+      .replace(/[^\w\s]/g, " ") // Replace punctuation with spaces
       .split(/\s+/)
-      .filter(word => word.length > 2 && !commonWords.includes(word));
-    
+      .filter((word) => word.length > 2 && !commonWords.includes(word));
+
     // Take the most relevant keywords (first 3-4 words)
-    return words.slice(0, 4).join(' ');
+    return words.slice(0, 4).join(" ");
   }, []);
 
-  const fetchBackgroundImage = useCallback(async (searchText: string) => {
-    if (!searchText.trim() || !enabled) return;
+  const fetchBackgroundImage = useCallback(
+    async (searchText: string) => {
+      if (!searchText.trim() || !enabled) return;
 
-    setIsLoading(true);
-    setError(null);
+      setIsLoading(true);
+      setError(null);
 
-    try {
-      console.log('[useAutoBackgroundImage] Generating AI image for:', searchText);
-      
-      // Get current user
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        throw new Error('No authenticated user');
-      }
-
-      const { data, error: functionError } = await supabase.functions.invoke('generate-ai-image', {
-        body: {
-          contentContext: searchText,
-          contentTitle: searchText,
-          channel: 'newsletter',
-          uploadToStorage: true,
-          userId: user.id
+      try {
+        // Get current user
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (!user) {
+          throw new Error("No authenticated user");
         }
-      });
 
-      if (functionError) {
-        throw new Error(functionError.message);
-      }
+        const { data, error: functionError } = await supabase.functions.invoke(
+          "generate-ai-image",
+          {
+            body: {
+              contentContext: searchText,
+              contentTitle: searchText,
+              channel: "newsletter",
+              uploadToStorage: true,
+              userId: user.id,
+            },
+          },
+        );
 
-      const selectedImage = {
-        id: data.imageId,
-        urls: {
-          regular: data.imageUrl,
-          small: data.imageUrl,
-          thumb: data.imageUrl
-        },
-        alt_description: data.metadata?.prompt || searchText,
-        description: data.metadata?.prompt || searchText,
-        user: {
-          name: 'AI Generated',
-          username: 'ai'
+        if (functionError) {
+          throw new Error(functionError.message);
         }
-      };
-      
-      setAutoImage(selectedImage);
-      
-      // Automatically apply the image if callback is provided
-      if (onImageSelected) {
-        onImageSelected(selectedImage.urls.regular, {
-          alt: selectedImage.alt_description,
-          photographer: 'AI Generated'
+
+        const selectedImage = {
+          id: data.imageId,
+          urls: {
+            regular: data.imageUrl,
+            small: data.imageUrl,
+            thumb: data.imageUrl,
+          },
+          alt_description: data.metadata?.prompt || searchText,
+          description: data.metadata?.prompt || searchText,
+          user: {
+            name: "AI Generated",
+            username: "ai",
+          },
+        };
+
+        setAutoImage(selectedImage);
+
+        // Automatically apply the image if callback is provided
+        if (onImageSelected) {
+          onImageSelected(selectedImage.urls.regular, {
+            alt: selectedImage.alt_description,
+            photographer: "AI Generated",
+          });
+        }
+      } catch (err: any) {
+        console.error("[useAutoBackgroundImage] Error fetching image:", err);
+        setError(err.message);
+        toast({
+          title: "Could not fetch background image",
+          description: "Using default background instead.",
+          variant: "destructive",
         });
+      } finally {
+        setIsLoading(false);
       }
-
-      console.log('[useAutoBackgroundImage] AI image applied:', selectedImage.urls.regular);
-    } catch (err: any) {
-      console.error('[useAutoBackgroundImage] Error fetching image:', err);
-      setError(err.message);
-      toast({
-        title: "Could not fetch background image",
-        description: "Using default background instead.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  }, [enabled, onImageSelected, toast]);
+    },
+    [enabled, onImageSelected, toast],
+  );
 
   // Debounced effect to fetch image when headline changes
   useEffect(() => {
@@ -137,7 +181,14 @@ export const useAutoBackgroundImage = ({
     }, 1000); // Wait 1 second after user stops typing
 
     return () => clearTimeout(timeoutId);
-  }, [headline, currentBackgroundUrl, enabled, shouldAutoFetch, extractSearchKeywords, fetchBackgroundImage]);
+  }, [
+    headline,
+    currentBackgroundUrl,
+    enabled,
+    shouldAutoFetch,
+    extractSearchKeywords,
+    fetchBackgroundImage,
+  ]);
 
   const refetchImage = useCallback(() => {
     if (headline) {
@@ -150,6 +201,6 @@ export const useAutoBackgroundImage = ({
     isLoading,
     autoImage,
     error,
-    refetchImage
+    refetchImage,
   };
 };

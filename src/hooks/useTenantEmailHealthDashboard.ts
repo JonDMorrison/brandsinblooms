@@ -36,9 +36,12 @@ export const useTenantEmailHealthDashboard = (
     queryKey: ["tenant-email-health-dashboard", tenantId],
     enabled: Boolean(tenantId) && (options?.enabled ?? true),
     queryFn: async (): Promise<TenantEmailHealthDashboard | null> => {
+      const asOf = new Date().toISOString();
+
       const { data, error } = await supabase.rpc(
         "get_tenant_email_health_dashboard" as never,
         {
+          p_as_of: asOf,
           p_tenant_id: tenantId,
         } as never,
       );
@@ -47,9 +50,9 @@ export const useTenantEmailHealthDashboard = (
 
       if (!data) return null;
 
-      const row = (Array.isArray(data) ? data[0] : data) as
-        | TenantEmailHealthDashboard
-        | null;
+      const row = (
+        Array.isArray(data) ? data[0] : data
+      ) as TenantEmailHealthDashboard | null;
 
       return row || null;
     },

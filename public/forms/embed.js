@@ -50,11 +50,11 @@
     for (var i = scripts.length - 1; i >= 0; i--) {
       var src = scripts[i].src || '';
       // Match any embed script URL pattern
-      if (src.indexOf('/forms/embed') !== -1 || 
-          (src.indexOf('embed') !== -1 && (
-            src.indexOf('bloomsuite') !== -1 ||
-            src.indexOf('supabase.co/storage') !== -1
-          ))) {
+      if (src.indexOf('/forms/embed') !== -1 ||
+        (src.indexOf('embed') !== -1 && (
+          src.indexOf('bloomsuite') !== -1 ||
+          src.indexOf('supabase.co/storage') !== -1
+        ))) {
         // Handle Supabase Storage URLs: .../assets/forms/embed.v1.js
         // Handle standard URLs: .../forms/embed.v1.js
         // Extract base path up to and including /forms/
@@ -862,6 +862,322 @@
       '</div>';
   }
 
+  function isCheckboxField(field) {
+    return field.type === 'checkbox' || field.type === 'email_consent' || field.type === 'sms_consent';
+  }
+
+  function getFieldDefaultValue(field) {
+    if (field.type === 'email_consent' || field.type === 'sms_consent') {
+      return false;
+    }
+
+    if (field.type === 'checkbox') {
+      return field.default_value === true;
+    }
+
+    return typeof field.default_value === 'string' ? field.default_value : '';
+  }
+
+  function getFieldTextValue(value) {
+    if (value === undefined || value === null) {
+      return '';
+    }
+
+    return String(value);
+  }
+
+  function getFieldMaxLength(field) {
+    return field && field.rules && typeof field.rules.max_length === 'number' && field.rules.max_length > 0
+      ? field.rules.max_length
+      : null;
+  }
+
+  function getConsentText(field, compliance) {
+    if (field.type === 'email_consent') {
+      return (compliance && compliance.email_consent_text) || field.label || 'I agree to receive email communications';
+    }
+
+    if (field.type === 'sms_consent') {
+      return (compliance && compliance.sms_consent_text) || field.label || 'I agree to receive SMS communications';
+    }
+
+    return field.label || '';
+  }
+
+  function getOptionValue(option) {
+    if (option && typeof option === 'object') {
+      if (option.value !== undefined && option.value !== null) {
+        return String(option.value);
+      }
+
+      if (option.label !== undefined && option.label !== null) {
+        return String(option.label);
+      }
+    }
+
+    return getFieldTextValue(option);
+  }
+
+  function getOptionLabel(option) {
+    if (option && typeof option === 'object' && option.label !== undefined && option.label !== null) {
+      return String(option.label);
+    }
+
+    return getOptionValue(option);
+  }
+
+  function getFieldInput(formEl, fieldId) {
+    var inputs = formEl.querySelectorAll('input, select, textarea');
+
+    for (var i = 0; i < inputs.length; i++) {
+      if (inputs[i].name === fieldId) {
+        return inputs[i];
+      }
+    }
+
+    return null;
+  }
+
+  function getFieldWrapper(formEl, fieldId) {
+    var wrappers = formEl.querySelectorAll('.' + CSS_PREFIX + 'field');
+
+    for (var i = 0; i < wrappers.length; i++) {
+      if (wrappers[i].getAttribute('data-field-id') === fieldId) {
+        return wrappers[i];
+      }
+    }
+
+    return null;
+  }
+
+  function getFieldErrorElement(formEl, fieldId) {
+    var wrapper = getFieldWrapper(formEl, fieldId);
+    if (!wrapper) {
+      return null;
+    }
+
+    var errors = wrapper.querySelectorAll('[data-field-error]');
+    for (var i = 0; i < errors.length; i++) {
+      if (errors[i].getAttribute('data-field-error') === fieldId) {
+        return errors[i];
+      }
+    }
+
+    return null;
+  }
+
+  function getInputValue(field, input) {
+    if (!input) {
+      return getFieldDefaultValue(field);
+    }
+
+    if (isCheckboxField(field)) {
+      return input.checked === true;
+    }
+
+    return input.value || '';
+  }
+
+  function clearFieldError(formEl, fieldId) {
+    var input = getFieldInput(formEl, fieldId);
+    var errorEl = getFieldErrorElement(formEl, fieldId);
+
+    if (errorEl && errorEl.parentNode) {
+      errorEl.parentNode.removeChild(errorEl);
+    }
+
+    if (input) {
+      input.removeAttribute('aria-invalid');
+      input.removeAttribute('aria-describedby');
+    }
+  }
+
+  function clearSubmissionError(formEl) {
+    var errors = formEl.querySelectorAll('[data-form-error="true"]');
+
+    for (var i = 0; i < errors.length; i++) {
+      if (errors[i].parentNode) {
+        errors[i].parentNode.removeChild(errors[i]);
+      }
+    }
+  }
+
+  function showFieldError(formEl, fieldId, message) {
+    var wrapper = getFieldWrapper(formEl, fieldId);
+    var input = getFieldInput(formEl, fieldId);
+    var errorEl = getFieldErrorElement(formEl, fieldId);
+
+    if (!wrapper) {
+      return;
+    }
+
+    if (!errorEl) {
+      errorEl = createElement('div', 'error-msg');
+      errorEl.setAttribute('data-field-error', fieldId);
+      wrapper.appendChild(errorEl);
+    }
+
+    errorEl.id = CSS_PREFIX + 'error-' + fieldId;
+    errorEl.textContent = message;
+
+    if (input) {
+      input.setAttribute('aria-invalid', 'true');
+      input.setAttribute('aria-describedby', errorEl.id);
+    }
+  }
+
+  function validateFieldValue(field, rawValue, compliance) {
+    var isRequired = field.required === true;
+
+    if (field.type === 'email_consent' && compliance && compliance.email_consent_required) {
+      isRequired = true;
+    }
+
+    if (field.type === 'sms_consent' && compliance && compliance.sms_consent_required) {
+      isRequired = true;
+    }
+
+    if (isCheckboxField(field)) {
+      if (isRequired && rawValue !== true) {
+        if (field.type === 'email_consent') {
+          return 'Email consent is required';
+        }
+
+        if (field.type === 'sms_consent') {
+          return 'SMS consent is required';
+        }
+
+        return 'This field is required';
+      }
+
+      return null;
+    }
+
+    var textValue = getFieldTextValue(rawValue);
+    var trimmedValue = textValue.trim();
+
+    if (isRequired && !trimmedValue) {
+      return 'This field is required';
+    }
+
+    if (!trimmedValue) {
+      return null;
+    }
+
+    if (field.type === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedValue)) {
+      return 'Please enter a valid email';
+    }
+
+    if (field.type === 'phone') {
+      if (!/^[\d\s\-+()]+$/.test(trimmedValue)) {
+        return 'Please enter a valid phone number';
+      }
+
+      if (trimmedValue.replace(/\D/g, '').length < 10) {
+        return 'Please enter a valid phone number';
+      }
+    }
+
+    var minLength = field.rules && field.rules.min_length;
+    if (typeof minLength === 'number' && minLength > 0 && textValue.length < minLength) {
+      return 'Please enter at least ' + minLength + ' characters';
+    }
+
+    var maxLength = getFieldMaxLength(field);
+    if (typeof maxLength === 'number' && textValue.length > maxLength) {
+      return 'Please keep this answer under ' + maxLength + ' characters';
+    }
+
+    var pattern = field.rules && field.rules.pattern;
+    if (pattern) {
+      try {
+        if (!(new RegExp(pattern)).test(textValue)) {
+          if (
+            field.rules &&
+            typeof field.rules.pattern_message === 'string' &&
+            field.rules.pattern_message.trim()
+          ) {
+            return field.rules.pattern_message.trim();
+          }
+
+          return 'Please match the expected format';
+        }
+      } catch (e) {
+        return null;
+      }
+    }
+
+    return null;
+  }
+
+  function validateFormFields(formEl, fields, compliance) {
+    var firstInvalidInput = null;
+    var isValid = true;
+
+    fields.forEach(function (field) {
+      if (field.type === 'hidden') {
+        return;
+      }
+
+      clearFieldError(formEl, field.id);
+
+      var input = getFieldInput(formEl, field.id);
+      var error = validateFieldValue(field, getInputValue(field, input), compliance);
+
+      if (error) {
+        isValid = false;
+        showFieldError(formEl, field.id, error);
+
+        if (!firstInvalidInput && input && typeof input.focus === 'function') {
+          firstInvalidInput = input;
+        }
+      }
+    });
+
+    return {
+      valid: isValid,
+      firstInvalidInput: firstInvalidInput
+    };
+  }
+
+  function attachValidationListeners(formEl, fields, compliance) {
+    fields.forEach(function (field) {
+      if (field.type === 'hidden') {
+        return;
+      }
+
+      var input = getFieldInput(formEl, field.id);
+      if (!input) {
+        return;
+      }
+
+      var revalidate = function () {
+        var hasError = getFieldErrorElement(formEl, field.id);
+        if (!hasError) {
+          return;
+        }
+
+        var nextError = validateFieldValue(field, getInputValue(field, input), compliance);
+        if (nextError) {
+          showFieldError(formEl, field.id, nextError);
+        } else {
+          clearFieldError(formEl, field.id);
+        }
+      };
+
+      var eventName = isCheckboxField(field) || field.type === 'select' ? 'change' : 'input';
+      input.addEventListener(eventName, revalidate);
+      input.addEventListener('blur', function () {
+        var nextError = validateFieldValue(field, getInputValue(field, input), compliance);
+        if (nextError) {
+          showFieldError(formEl, field.id, nextError);
+        } else {
+          clearFieldError(formEl, field.id);
+        }
+      });
+    });
+  }
+
   // ─── Field Rendering ─────────────────────────────────────────────────────
 
   /**
@@ -870,13 +1186,16 @@
   function renderField(field, compliance) {
     var wrapper = createElement('div', 'field');
     var fieldId = CSS_PREFIX + 'f-' + field.id;
+    var defaultValue = getFieldDefaultValue(field);
+
+    wrapper.setAttribute('data-field-id', field.id);
 
     // Hidden field
     if (field.type === 'hidden') {
       var hidden = createElement('input', null, {
         type: 'hidden',
         name: field.id,
-        value: field.default_value || ''
+        value: typeof defaultValue === 'string' ? defaultValue : ''
       });
       wrapper.appendChild(hidden);
       return wrapper;
@@ -896,11 +1215,14 @@
       });
       // NEVER pre-check consent checkboxes (CASL/TCPA requirement)
       checkbox.checked = false;
-      if (field.required) checkbox.required = true;
+      if (field.required || (field.type === 'email_consent' && compliance && compliance.email_consent_required) || (field.type === 'sms_consent' && compliance && compliance.sms_consent_required)) {
+        checkbox.required = true;
+      }
 
       var labelText = createElement('label', 'checkbox-text', { for: fieldId });
-      labelText.innerHTML = escapeHtml(field.label);
-      if (field.required) {
+      var consentText = getConsentText(field, compliance);
+      labelText.innerHTML = escapeHtml(consentText);
+      if (field.required || (field.type === 'email_consent' && compliance && compliance.email_consent_required) || (field.type === 'sms_consent' && compliance && compliance.sms_consent_required)) {
         labelText.innerHTML += ' <span class="' + CSS_PREFIX + 'required">*</span>';
       }
 
@@ -919,10 +1241,17 @@
         id: fieldId,
         name: field.id
       });
-      checkbox2.checked = false; // Never pre-checked
+      checkbox2.checked = defaultValue === true;
+      if (field.required) checkbox2.required = true;
 
       var labelText2 = createElement('label', 'checkbox-text', { for: fieldId });
       labelText2.textContent = field.label;
+      if (field.required) {
+        var requiredMark = document.createElement('span');
+        requiredMark.className = CSS_PREFIX + 'required';
+        requiredMark.textContent = ' *';
+        labelText2.appendChild(requiredMark);
+      }
 
       checkWrap2.appendChild(checkbox2);
       checkWrap2.appendChild(labelText2);
@@ -953,10 +1282,14 @@
 
       (field.options || []).forEach(function (opt) {
         var option = document.createElement('option');
-        option.value = opt;
-        option.textContent = opt;
+        option.value = getOptionValue(opt);
+        option.textContent = getOptionLabel(opt);
         select.appendChild(option);
       });
+
+      if (typeof defaultValue === 'string' && defaultValue) {
+        select.value = defaultValue;
+      }
 
       wrapper.appendChild(select);
       return wrapper;
@@ -982,6 +1315,15 @@
         break;
       default:
         input.type = 'text';
+    }
+
+    if (typeof defaultValue === 'string' && defaultValue) {
+      input.value = defaultValue;
+    }
+
+    var maxLength = getFieldMaxLength(field);
+    if (typeof maxLength === 'number') {
+      input.maxLength = maxLength;
     }
 
     wrapper.appendChild(input);
@@ -1025,6 +1367,8 @@
       formEl.appendChild(renderField(field, compliance));
     });
 
+    attachValidationListeners(formEl, fields, compliance);
+
     // Submit button
     var submitBtn = createElement('button', 'submit', { type: 'submit' });
     submitBtn.textContent = settings.submit_button_text || 'Submit';
@@ -1048,7 +1392,7 @@
     // Form submission handler - SINGLE PATH, never duplicated
     formEl.addEventListener('submit', function (e) {
       e.preventDefault();
-      handleSubmit(formEl, container, embedKey, settings, compliance);
+      handleSubmit(formEl, container, embedKey, settings, compliance, fields);
     });
 
     formContainer.appendChild(formEl);
@@ -1062,9 +1406,21 @@
    * Handle form submission
    * NOTE: This is the ONLY submission handler. Display modes never duplicate this.
    */
-  function handleSubmit(formEl, container, embedKey, settings, compliance) {
+  function handleSubmit(formEl, container, embedKey, settings, compliance, fields) {
     var submitBtn = formEl.querySelector('.' + CSS_PREFIX + 'submit');
     var originalText = submitBtn.textContent;
+
+    clearSubmissionError(formEl);
+
+    var validationResult = validateFormFields(formEl, fields || [], compliance || {});
+    if (!validationResult.valid) {
+      if (validationResult.firstInvalidInput) {
+        validationResult.firstInvalidInput.focus();
+      }
+
+      announceToScreenReader('Please correct the highlighted fields before submitting.');
+      return;
+    }
 
     // Collect form data
     var formData = {};
@@ -1103,8 +1459,7 @@
     submitBtn.textContent = 'Submitting...';
 
     // Clear previous errors
-    var existingError = formEl.querySelector('.' + CSS_PREFIX + 'error-msg');
-    if (existingError) existingError.remove();
+    clearSubmissionError(formEl);
 
     // Submit - SINGLE SUBMISSION PATH
     submitData(embedKey, formData, meta, function (err, result) {
@@ -1114,6 +1469,7 @@
         submitBtn.textContent = originalText;
 
         var errorDiv = createElement('div', 'error-msg');
+        errorDiv.setAttribute('data-form-error', 'true');
         errorDiv.textContent = err.message || 'Submission failed. Please try again.';
         submitBtn.parentNode.insertBefore(errorDiv, submitBtn);
         return;

@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { useState, useEffect, useRef } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface UseBlockImageGenerationProps {
   blockId: string;
@@ -18,7 +18,7 @@ export const useBlockImageGeneration = ({
   currentImageUrl,
   isContentGenerating,
   onImageReady,
-  enabled = true
+  enabled = true,
 }: UseBlockImageGenerationProps) => {
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -31,7 +31,7 @@ export const useBlockImageGeneration = ({
     // 3. Content is NOT currently generating
     // 4. No existing image
     // 5. Haven't already triggered
-    
+
     if (
       enabled &&
       content &&
@@ -40,7 +40,6 @@ export const useBlockImageGeneration = ({
       !currentImageUrl &&
       !hasTriggeredRef.current
     ) {
-      console.log(`[useBlockImageGeneration] Triggering image generation for block ${blockId}`);
       hasTriggeredRef.current = true;
       generateImage();
     }
@@ -53,35 +52,38 @@ export const useBlockImageGeneration = ({
     setError(null);
 
     try {
-      console.log(`[useBlockImageGeneration] Generating AI image for ${blockType} block:`, content.substring(0, 100));
-
-      const { data, error: functionError } = await supabase.functions.invoke('generate-ai-image', {
-        body: {
-          contentContext: content,
-          contentTitle: content.substring(0, 100),
-          channel: 'newsletter',
-          uploadToStorage: true,
-          userId: (await supabase.auth.getUser()).data.user?.id
-        }
-      });
+      const { data, error: functionError } = await supabase.functions.invoke(
+        "generate-ai-image",
+        {
+          body: {
+            contentContext: content,
+            contentTitle: content.substring(0, 100),
+            channel: "newsletter",
+            uploadToStorage: true,
+            userId: (await supabase.auth.getUser()).data.user?.id,
+          },
+        },
+      );
 
       if (functionError) {
-        console.error('[useBlockImageGeneration] Function error:', functionError);
+        console.error(
+          "[useBlockImageGeneration] Function error:",
+          functionError,
+        );
         setError(functionError.message);
         setIsGeneratingImage(false);
         return;
       }
 
       if (data?.imageUrl) {
-        console.log(`[useBlockImageGeneration] Image ready for block ${blockId}:`, data.imageUrl);
         onImageReady(data.imageUrl, data.metadata);
       } else {
-        console.error('[useBlockImageGeneration] No image URL returned');
-        setError('No image URL returned');
+        console.error("[useBlockImageGeneration] No image URL returned");
+        setError("No image URL returned");
       }
     } catch (err: any) {
-      console.error('[useBlockImageGeneration] Error:', err);
-      setError(err.message || 'Failed to generate image');
+      console.error("[useBlockImageGeneration] Error:", err);
+      setError(err.message || "Failed to generate image");
     } finally {
       setIsGeneratingImage(false);
     }

@@ -1,21 +1,38 @@
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Textarea } from '@/components/ui/textarea';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Edit, Save, CheckCircle, Loader2, Instagram, Facebook, Mail, BookOpen, Video, FileText, Calendar } from 'lucide-react';
-import { format } from 'date-fns';
-import { useScheduledPosts } from '@/hooks/useScheduledPosts';
-import { cn } from '@/lib/utils';
+import React, { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+  Edit,
+  Save,
+  CheckCircle,
+  Loader2,
+  Instagram,
+  Facebook,
+  Mail,
+  BookOpen,
+  Video,
+  FileText,
+  Calendar,
+} from "lucide-react";
+import { format } from "date-fns";
+import { useScheduledPosts } from "@/hooks/useScheduledPosts";
+import { cn } from "@/lib/utils";
 
-import { supabase } from '@/integrations/supabase/client';
-import { Draggable, Droppable } from 'react-beautiful-dnd';
-import { useDashboardContext } from '@/contexts/DashboardContext';
-import { useComposerImages } from './hooks/useComposerImages';
-import { ApprovalButton } from './components/ApprovalButton';
-import { ContentDisplay } from './components/ContentDisplay';
-import { ImageSection } from './components/ImageSection';
+import { supabase } from "@/integrations/supabase/client";
+import { Draggable, Droppable } from "@hello-pangea/dnd";
+import { useDashboardContext } from "@/contexts/DashboardContext";
+import { useComposerImages } from "./hooks/useComposerImages";
+import { ApprovalButton } from "./components/ApprovalButton";
+import { ContentDisplay } from "./components/ContentDisplay";
+import { ImageSection } from "./components/ImageSection";
 
 interface ComposerPanelProps {
   selectedDraft?: any;
@@ -26,30 +43,41 @@ interface ComposerPanelProps {
 
 const getPostTypeIcon = (postType: string) => {
   switch (postType?.toLowerCase()) {
-    case 'instagram': return Instagram;
-    case 'facebook': return Facebook;
-    case 'email': return Mail;
-    case 'newsletter': return BookOpen;
-    case 'video': return Video;
-    default: return FileText;
+    case "instagram":
+      return Instagram;
+    case "facebook":
+      return Facebook;
+    case "email":
+      return Mail;
+    case "newsletter":
+      return BookOpen;
+    case "video":
+      return Video;
+    default:
+      return FileText;
   }
 };
 
 const getPostTypeLabel = (postType: string) => {
-  if (!postType) return 'Content';
+  if (!postType) return "Content";
   return postType.charAt(0).toUpperCase() + postType.slice(1);
 };
 
-export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpdate, onApproved }: ComposerPanelProps) => {
+export const ComposerPanel = ({
+  selectedDraft,
+  socialConnections = [],
+  onTaskUpdate,
+  onApproved,
+}: ComposerPanelProps) => {
   const { handleClickToPost, openTimePopover } = useDashboardContext();
-  const [editContent, setEditContent] = useState('');
+  const [editContent, setEditContent] = useState("");
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [approving, setApproving] = useState(false);
   const [isDragMode, setIsDragMode] = useState(false);
 
   const { scheduledPosts } = useScheduledPosts();
-  
+
   const {
     images,
     selectedImageId,
@@ -61,20 +89,27 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
     handleImageSelect,
     handleImageRefresh,
     handleImageSearch,
-    getSelectedImage
+    getSelectedImage,
   } = useComposerImages(selectedDraft);
 
-  const relatedScheduledPosts = scheduledPosts.filter(post => 
-    post.content_id === selectedDraft?.id
+  const relatedScheduledPosts = scheduledPosts.filter(
+    (post) => post.content_id === selectedDraft?.id,
   );
 
   const isScheduled = relatedScheduledPosts.length > 0;
-  const isApproved = selectedDraft?.status === 'approved';
-  const isDraft = !isApproved && selectedDraft?.status !== 'posted';
+  const isApproved = selectedDraft?.status === "approved";
+  const isDraft = !isApproved && selectedDraft?.status !== "posted";
 
-  const isInstagram = selectedDraft?.post_type?.toLowerCase().includes('instagram');
-  const needsImage = isInstagram || (!postWithoutImage && selectedDraft?.post_type?.toLowerCase() === 'facebook');
-  const hasValidImage = Boolean(selectedImageId && images.find(img => img.id === selectedImageId));
+  const isInstagram = selectedDraft?.post_type
+    ?.toLowerCase()
+    .includes("instagram");
+  const needsImage =
+    isInstagram ||
+    (!postWithoutImage &&
+      selectedDraft?.post_type?.toLowerCase() === "facebook");
+  const hasValidImage = Boolean(
+    selectedImageId && images.find((img) => img.id === selectedImageId),
+  );
   const canApprove = hasValidImage || (!needsImage && postWithoutImage);
 
   useEffect(() => {
@@ -89,24 +124,24 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
     setSaving(true);
     try {
       const selectedImage = getSelectedImage();
-      const attachments = selectedImage ? { image: selectedImage as any } : null;
+      const attachments = selectedImage
+        ? { image: selectedImage as any }
+        : null;
 
       const { error } = await supabase
-        .from('content_tasks')
-        .update({ 
+        .from("content_tasks")
+        .update({
           ai_output: editContent,
-          status: 'draft',
-          attachments
+          status: "draft",
+          attachments,
         })
-        .eq('id', selectedDraft.id);
+        .eq("id", selectedDraft.id);
 
       if (error) throw error;
 
-      
       if (onTaskUpdate) onTaskUpdate();
     } catch (error) {
-      console.error('Error saving draft:', error);
-      
+      console.error("Error saving draft:", error);
     } finally {
       setSaving(false);
     }
@@ -114,40 +149,39 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
 
   const handleApprove = async () => {
     if (!selectedDraft || !editContent.trim()) return;
-    
+
     if (!canApprove) {
-      
       return;
     }
 
     const confirmed = window.confirm(
-      'Are you sure you want to approve this content? It will be ready for scheduling after approval.'
+      "Are you sure you want to approve this content? It will be ready for scheduling after approval.",
     );
-    
+
     if (!confirmed) return;
 
     setApproving(true);
     try {
       const selectedImage = getSelectedImage();
-      const attachments = selectedImage ? { image: selectedImage as any } : null;
+      const attachments = selectedImage
+        ? { image: selectedImage as any }
+        : null;
 
       const { error } = await supabase
-        .from('content_tasks')
-        .update({ 
+        .from("content_tasks")
+        .update({
           ai_output: editContent,
-          status: 'approved',
-          attachments
+          status: "approved",
+          attachments,
         })
-        .eq('id', selectedDraft.id);
+        .eq("id", selectedDraft.id);
 
       if (error) throw error;
 
-      
       if (onApproved) onApproved(selectedDraft.id);
       if (onTaskUpdate) onTaskUpdate();
     } catch (error) {
-      console.error('Error approving draft:', error);
-      
+      console.error("Error approving draft:", error);
     } finally {
       setApproving(false);
     }
@@ -158,17 +192,17 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
     setIsEditing(false);
   };
 
-
   const renderActionButtons = () => {
     if (!selectedDraft) {
       return (
         <div className="text-center">
           <div className="text-sm text-gray-600 mb-3">
-            This is where you'll edit and approve your content before scheduling.
+            This is where you'll edit and approve your content before
+            scheduling.
           </div>
           <div className="flex gap-2">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               className="flex-1 border-gray-300 text-gray-500"
               disabled
             >
@@ -177,10 +211,7 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
             </Button>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button 
-                  className="flex-1 bg-gray-300 text-gray-500"
-                  disabled
-                >
+                <Button className="flex-1 bg-gray-300 text-gray-500" disabled>
                   <CheckCircle className="w-4 h-4 mr-2" />
                   Approve & Post
                 </Button>
@@ -206,7 +237,13 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
             This content is already scheduled for posting.
           </div>
           <div className="text-xs text-gray-500">
-            Scheduled for: {relatedScheduledPosts[0] ? format(new Date(relatedScheduledPosts[0].publish_at), 'MMM d, yyyy \'at\' h:mm a') : 'Unknown time'}
+            Scheduled for:{" "}
+            {relatedScheduledPosts[0]
+              ? format(
+                  new Date(relatedScheduledPosts[0].publish_at),
+                  "MMM d, yyyy 'at' h:mm a",
+                )
+              : "Unknown time"}
           </div>
         </div>
       );
@@ -219,7 +256,7 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
           <div className="text-sm text-gray-600 mb-3">
             Content approved! Ready to schedule for posting.
           </div>
-          
+
           <Button
             className="w-full bg-[#68BEB9] hover:bg-[#56a7a1] text-white"
             onClick={() => handleClickToPost(selectedDraft)}
@@ -227,7 +264,7 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
             <Calendar className="w-4 h-4 mr-2" />
             Click to Post
           </Button>
-          
+
           <Button
             variant="outline"
             className="w-full border-[#68BEB9] text-[#68BEB9] hover:bg-[#68BEB9] hover:text-white"
@@ -236,9 +273,10 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
             <Calendar className="w-4 h-4 mr-2" />
             Custom Date & Time
           </Button>
-          
+
           <p className="text-xs text-gray-500">
-            Click to Post uses AI to pick the optimal time, or choose a custom schedule
+            Click to Post uses AI to pick the optimal time, or choose a custom
+            schedule
           </p>
         </div>
       );
@@ -251,16 +289,16 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
           Review your content and approve when ready to schedule.
         </div>
         <div className="flex gap-2">
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             className="flex-1 border-[#68BEB9] text-[#68BEB9] hover:bg-[#68BEB9] hover:text-white"
             onClick={handleSave}
             disabled={saving || approving}
           >
             <Save className="w-4 h-4 mr-2" />
-            {saving ? 'Saving...' : 'Save Draft'}
+            {saving ? "Saving..." : "Save Draft"}
           </Button>
-          
+
           <ApprovalButton
             selectedDraft={selectedDraft}
             editContent={editContent}
@@ -281,23 +319,31 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
 
   return (
     <TooltipProvider>
-      <Card className={cn(
-        "h-full flex flex-col overflow-hidden transition-all duration-300",
-        isDragMode && "transform scale-95 shadow-xl border-[#68BEB9]"
-      )}>
+      <Card
+        className={cn(
+          "h-full flex flex-col overflow-hidden transition-all duration-300",
+          isDragMode && "transform scale-95 shadow-xl border-[#68BEB9]",
+        )}
+      >
         <CardHeader className="flex-shrink-0">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-lg font-semibold text-[#3E5A6B]">Composer</CardTitle>
+            <CardTitle className="text-lg font-semibold text-[#3E5A6B]">
+              Composer
+            </CardTitle>
             <div className="flex items-center gap-2">
               {selectedDraft && (
-                <Badge 
-                  variant={isApproved ? 'default' : 'secondary'}
+                <Badge
+                  variant={isApproved ? "default" : "secondary"}
                   className={cn(
                     isApproved && "bg-[#68BEB9] text-white hover:bg-[#56a7a1]",
-                    isDraft && "bg-yellow-100 text-yellow-800"
+                    isDraft && "bg-yellow-100 text-yellow-800",
                   )}
                 >
-                  {isScheduled ? 'SCHEDULED' : isApproved ? 'APPROVED' : 'DRAFT'}
+                  {isScheduled
+                    ? "SCHEDULED"
+                    : isApproved
+                      ? "APPROVED"
+                      : "DRAFT"}
                 </Badge>
               )}
               {socialConnections.length === 0 && (
@@ -307,14 +353,17 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
               )}
             </div>
           </div>
-        
+
           <div className="flex items-center gap-2 text-sm text-gray-600">
             <Edit className="w-4 h-4" />
             <span>
-              {!selectedDraft ? 'Select a draft to start editing' :
-               isScheduled ? 'Managing scheduled content' : 
-               isApproved ? 'Approved content ready for scheduling' : 
-               'Draft content - review and approve when ready'}
+              {!selectedDraft
+                ? "Select a draft to start editing"
+                : isScheduled
+                  ? "Managing scheduled content"
+                  : isApproved
+                    ? "Approved content ready for scheduling"
+                    : "Draft content - review and approve when ready"}
             </span>
           </div>
         </CardHeader>
@@ -326,7 +375,9 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
                 {selectedDraft && (
                   <>
                     <PostTypeIcon className="w-4 h-4 text-[#3E5A6B]" />
-                    <h3 className="font-medium text-[#3E5A6B]">{postTypeLabel} Content</h3>
+                    <h3 className="font-medium text-[#3E5A6B]">
+                      {postTypeLabel} Content
+                    </h3>
                   </>
                 )}
                 {!selectedDraft && (
@@ -340,7 +391,7 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
                   onClick={() => setIsEditing(!isEditing)}
                 >
                   <Edit className="w-4 h-4 mr-2" />
-                  {isEditing ? 'Cancel' : 'Edit'}
+                  {isEditing ? "Cancel" : "Edit"}
                 </Button>
               )}
             </div>
@@ -353,14 +404,14 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
                   className="flex-1 min-h-[350px] resize-none"
                   placeholder="Write your content here..."
                 />
-              
+
                 <div className="flex justify-end gap-2 mt-4 flex-shrink-0">
                   <Button variant="outline" onClick={() => setIsEditing(false)}>
                     Cancel
                   </Button>
                   <Button onClick={handleSaveEdit} disabled={saving}>
                     <Save className="w-4 h-4 mr-2" />
-                    {saving ? 'Saving...' : 'Save Changes'}
+                    {saving ? "Saving..." : "Save Changes"}
                   </Button>
                 </div>
               </div>

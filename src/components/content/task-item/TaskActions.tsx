@@ -1,8 +1,12 @@
-
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Edit, MoreHorizontal, Copy, Trash2, Save, X } from "lucide-react";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { ApproveButton } from "@/components/ui/approve-button";
 import { PostToSocialButton } from "@/components/social/PostToSocialButton";
 import { PostToCRMButton } from "@/components/crm/PostToCRMButton";
@@ -18,25 +22,30 @@ interface TaskActionsProps {
   onCancel?: () => void;
 }
 
-export const TaskActions = ({ 
-  task, 
-  onTaskUpdate, 
-  onEdit, 
-  isEditing = false, 
-  onSave, 
-  onCancel 
+export const TaskActions = ({
+  task,
+  onTaskUpdate,
+  onEdit,
+  isEditing = false,
+  onSave,
+  onCancel,
 }: TaskActionsProps) => {
   const [deletingTask, setDeletingTask] = useState(false);
 
-  const canApprove = ['scheduled', 'pending', 'draft', 'ready', 'review'].includes(task.status) && task.ai_output;
-  const isApproved = ['approved', 'scheduled', 'published'].includes(task.status);
+  const canApprove =
+    ["scheduled", "pending", "draft", "ready", "review"].includes(
+      task.status,
+    ) && task.ai_output;
+  const isApproved = ["approved", "scheduled", "published"].includes(
+    task.status,
+  );
 
   const handleApprove = async () => {
     try {
       const { error } = await supabase
-        .from('content_tasks')
-        .update({ status: 'approved' })
-        .eq('id', task.id);
+        .from("content_tasks")
+        .update({ status: "approved" })
+        .eq("id", task.id);
 
       if (error) {
         toast.error(`Failed to approve content: ${error.message}`);
@@ -44,43 +53,45 @@ export const TaskActions = ({
         if (onTaskUpdate) onTaskUpdate();
       }
     } catch (error) {
-      toast.error('Failed to approve content');
+      toast.error("Failed to approve content");
     }
   };
 
   const handleCopy = () => {
     if (task.ai_output) {
-      const textToCopy = task.ai_output.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
+      const textToCopy = task.ai_output
+        .replace(/<[^>]*>/g, "")
+        .replace(/\s+/g, " ")
+        .trim();
       navigator.clipboard.writeText(textToCopy);
-      toast.success('Content copied to clipboard');
+      toast.success("Content copied to clipboard");
     }
   };
 
   const handleDelete = async () => {
-    if (!confirm('Are you sure you want to delete this content?')) return;
+    if (!confirm("Are you sure you want to delete this content?")) return;
 
     setDeletingTask(true);
     try {
       const { error } = await supabase
-        .from('content_tasks')
+        .from("content_tasks")
         .delete()
-        .eq('id', task.id);
+        .eq("id", task.id);
 
       if (error) {
-        toast.error('Failed to delete content');
+        toast.error("Failed to delete content");
       } else {
-        toast.success('Content deleted successfully');
+        toast.success("Content deleted successfully");
         if (onTaskUpdate) onTaskUpdate();
       }
     } catch (error) {
-      toast.error('Failed to delete content');
+      toast.error("Failed to delete content");
     } finally {
       setDeletingTask(false);
     }
   };
 
   const handleSave = () => {
-    console.log('[TASK_ACTIONS] Save button clicked - always executing save and close');
     if (onSave) {
       onSave();
     }
@@ -103,7 +114,6 @@ export const TaskActions = ({
             size="sm"
             variant="ghost"
             onClick={() => {
-              console.log('[TASK_ACTIONS] Cancel button clicked');
               onCancel?.();
             }}
             className="h-8 px-2 text-gray-600 hover:text-gray-700 hover:bg-gray-50"
@@ -134,17 +144,19 @@ export const TaskActions = ({
         />
       )}
 
-      {!isEditing && isApproved && (task.post_type === 'facebook' || task.post_type === 'instagram') && (
-        <PostToSocialButton
-          task={task}
-          onSuccess={onTaskUpdate}
-          variant="ghost"
-          size="sm"
-          className="h-8 px-2 text-xs"
-        />
-      )}
+      {!isEditing &&
+        isApproved &&
+        (task.post_type === "facebook" || task.post_type === "instagram") && (
+          <PostToSocialButton
+            task={task}
+            onSuccess={onTaskUpdate}
+            variant="ghost"
+            size="sm"
+            className="h-8 px-2 text-xs"
+          />
+        )}
 
-      {!isEditing && isApproved && task.post_type === 'newsletter' && (
+      {!isEditing && isApproved && task.post_type === "newsletter" && (
         <PostToCRMButton
           task={task}
           variant="ghost"
@@ -165,8 +177,8 @@ export const TaskActions = ({
               <Copy className="w-3 h-3 mr-2" />
               Copy Content
             </DropdownMenuItem>
-            <DropdownMenuItem 
-              onClick={handleDelete} 
+            <DropdownMenuItem
+              onClick={handleDelete}
               disabled={deletingTask}
               className="text-red-600 focus:text-red-600"
             >

@@ -45,15 +45,6 @@ export const validateLocationConfirmation = async (userId: string): Promise<Loca
     const needsConfirmation = profile.location_needs_confirmation === true;
 
     // Invariant check: postal_code must exist AND location_needs_confirmation must be false
-    const isValid = !!postalCode && !needsConfirmation;
-
-    if (!isValid) {
-      console.warn('⚠️ Location confirmation invariant violated:', {
-        userId,
-        postalCode: postalCode || 'NULL',
-        needsConfirmation
-      });
-    }
 
     return {
       isValid,

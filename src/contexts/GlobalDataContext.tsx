@@ -1,18 +1,25 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+} from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTenant } from "@/hooks/useTenant";
-import { 
-  createCampaignFilter, 
-  createContentTasksFilter, 
-  securityFilterCampaigns, 
+import {
+  createCampaignFilter,
+  createContentTasksFilter,
+  securityFilterCampaigns,
   securityFilterTasks,
   getCustomCampaigns,
   getCustomCampaignTasks,
   getSystemCampaignTasks,
   getApprovedTasks,
   deduplicateById,
-  type FilterConfig 
+  type FilterConfig,
 } from "@/utils/dataFilters";
 import { Campaign } from "@/types/content";
 
@@ -44,23 +51,23 @@ interface GlobalDataContextType {
   customTasks: any[];
   userCreatedCampaigns: Campaign[];
   approvedTasks: any[];
-  
+
   // Loading states
   loading: boolean;
   loadingStates: LoadingStates;
   isRefreshing: boolean;
-  
+
   // Error handling
   error: string | null;
-  
+
   // Cache info
   isCached: boolean;
   lastUpdated: number | null;
-  
+
   // Actions
   refreshData: (force?: boolean) => Promise<void>;
   invalidateCache: () => void;
-  
+
   // Route state persistence
   routeStates: Record<string, any>;
   saveRouteState: (route: string, state: any) => void;
@@ -68,45 +75,43 @@ interface GlobalDataContextType {
   clearRouteState: (route: string) => void;
 }
 
-const GlobalDataContext = createContext<GlobalDataContextType | undefined>(undefined);
+const GlobalDataContext = createContext<GlobalDataContextType | undefined>(
+  undefined,
+);
 
 export const useGlobalData = () => {
   const context = useContext(GlobalDataContext);
   if (context === undefined) {
-    throw new Error('useGlobalData must be used within a GlobalDataProvider');
+    throw new Error("useGlobalData must be used within a GlobalDataProvider");
   }
   return context;
 };
 
 // Session storage keys
-const CACHE_KEY = 'globalDataCache';
-const ROUTE_STATES_KEY = 'routeStates';
+const CACHE_KEY = "globalDataCache";
+const ROUTE_STATES_KEY = "routeStates";
 
-export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
   const { user } = useAuth();
   const { tenant, loading: tenantLoading } = useTenant();
-  
-  console.log('🌍 GlobalDataProvider: Initializing with', {
-    hasUser: !!user,
-    tenantLoading,
-    tenantId: tenant?.id
-  });
-  
+
   // Core data state
   const [cachedData, setCachedData] = useState<CachedData | null>(null);
   const [loadingStates, setLoadingStates] = useState<LoadingStates>({
     campaigns: false,
     tasks: false,
-    initial: true
+    initial: true,
   });
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   // Route state persistence
   const [routeStates, setRouteStates] = useState<Record<string, any>>({});
 
-  // FIX: [issue #61] - TODO: Move developer check to a database role/flag instead of hardcoded email
-  const isDeveloper = user?.email === 'jon@getclear.ca';
+  // TODO: Move developer check to a database role/flag instead of hardcoded email.
+  const isDeveloper = user?.email === "jon@getclear.ca";
 
   // Load cached data and route states from session storage on mount
   useEffect(() => {
@@ -125,7 +130,7 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         setRouteStates(JSON.parse(routeStatesData));
       }
     } catch (error) {
-      console.error('Error loading cached data:', error);
+      console.error("Error loading cached data:", error);
     }
   }, []);
 
@@ -134,111 +139,134 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     try {
       sessionStorage.setItem(ROUTE_STATES_KEY, JSON.stringify(routeStates));
     } catch (error) {
-      console.error('Error saving route states:', error);
+      console.error("Error saving route states:", error);
     }
   }, [routeStates]);
 
-  const fetchData = useCallback(async (force = false) => {
-    if (!user || tenantLoading) {
-      setLoadingStates(prev => ({ ...prev, initial: false }));
-      return;
-    }
-
-    // Check if we can use cached data (if not forced and cache is fresh)
-    if (!force && cachedData && !cachedData.isStale) {
-      setLoadingStates(prev => ({ ...prev, initial: false }));
-      return;
-    }
-
-    try {
-      setError(null);
-      
-      // Set appropriate loading states
-      if (!cachedData) {
-        setLoadingStates(prev => ({ ...prev, initial: true }));
-      } else {
-        setIsRefreshing(true);
+  const fetchData = useCallback(
+    async (force = false) => {
+      if (!user || tenantLoading) {
+        setLoadingStates((prev) => ({ ...prev, initial: false }));
+        return;
       }
 
-      const filterConfig: FilterConfig = {
-        userId: user.id,
-        tenantId: tenant?.id,
-        isDeveloper
-      };
+      // Check if we can use cached data (if not forced and cache is fresh)
+      if (!force && cachedData && !cachedData.isStale) {
+        setLoadingStates((prev) => ({ ...prev, initial: false }));
+        return;
+      }
 
-      // Fetch campaigns and tasks in parallel
-      const [campaignResult, taskResult] = await Promise.all([
-        (async () => {
-          setLoadingStates(prev => ({ ...prev, campaigns: true }));
-          const campaignQuery = createCampaignFilter(supabase, filterConfig);
-          const { data: campaignsData, error: campaignError } = await campaignQuery
-            .order('created_at', { ascending: false });
-
-          if (campaignError) {
-            throw new Error(`Failed to fetch campaigns: ${campaignError.message}`);
-          }
-
-          const securedCampaigns = securityFilterCampaigns(campaignsData || [], filterConfig);
-          const deduplicatedCampaigns = deduplicateById(securedCampaigns);
-          const customCampaigns = getCustomCampaigns(deduplicatedCampaigns, filterConfig);
-          
-          setLoadingStates(prev => ({ ...prev, campaigns: false }));
-          return { campaigns: deduplicatedCampaigns, userCreatedCampaigns: customCampaigns };
-        })(),
-        
-        (async () => {
-          setLoadingStates(prev => ({ ...prev, tasks: true }));
-          const taskQuery = createContentTasksFilter(supabase, filterConfig);
-          const { data: tasksData, error: taskError } = await taskQuery;
-
-          if (taskError) {
-            throw new Error(`Failed to fetch tasks: ${taskError.message}`);
-          }
-
-          const securedTasks = securityFilterTasks(tasksData || [], filterConfig);
-          const deduplicatedTasks = deduplicateById(securedTasks);
-          
-          setLoadingStates(prev => ({ ...prev, tasks: false }));
-          return { 
-            tasks: deduplicatedTasks,
-            approvedTasks: getApprovedTasks(deduplicatedTasks, filterConfig)
-          };
-        })()
-      ]);
-
-      // Combine results and split tasks by campaign source
-      const systemTasksList = getSystemCampaignTasks(taskResult.tasks, campaignResult.campaigns, filterConfig);
-      const customTasksList = getCustomCampaignTasks(taskResult.tasks, campaignResult.campaigns, filterConfig);
-      
-      const newCachedData: CachedData = {
-        campaigns: campaignResult.campaigns,
-        userCreatedCampaigns: campaignResult.userCreatedCampaigns,
-        tasks: taskResult.tasks,
-        systemTasks: systemTasksList,
-        customTasks: customTasksList,
-        approvedTasks: taskResult.approvedTasks,
-        timestamp: Date.now(),
-        isStale: false
-      };
-
-      setCachedData(newCachedData);
-
-      // Save to session storage
       try {
-        sessionStorage.setItem(CACHE_KEY, JSON.stringify(newCachedData));
-      } catch (error) {
-        // FIX: [issue #64] - Warn when session storage quota is exceeded
-        console.warn('Session storage quota exceeded, cache not persisted');
-      }
+        setError(null);
 
-    } catch (err: any) {
-      console.error('GlobalDataProvider: Error fetching data:', err);
-      setError(err.message || 'Failed to load content data');
-    } finally {
-      setLoadingStates(prev => ({ ...prev, initial: false }));
-      setIsRefreshing(false);
-    }
-  }, [user, tenant, tenantLoading, isDeveloper, cachedData?.isStale]);
+        // Set appropriate loading states
+        if (!cachedData) {
+          setLoadingStates((prev) => ({ ...prev, initial: true }));
+        } else {
+          setIsRefreshing(true);
+        }
+
+        const filterConfig: FilterConfig = {
+          userId: user.id,
+          tenantId: tenant?.id,
+          isDeveloper,
+        };
+
+        // Fetch campaigns and tasks in parallel
+        const [campaignResult, taskResult] = await Promise.all([
+          (async () => {
+            setLoadingStates((prev) => ({ ...prev, campaigns: true }));
+            const campaignQuery = createCampaignFilter(supabase, filterConfig);
+            const { data: campaignsData, error: campaignError } =
+              await campaignQuery.order("created_at", { ascending: false });
+
+            if (campaignError) {
+              throw new Error(
+                `Failed to fetch campaigns: ${campaignError.message}`,
+              );
+            }
+
+            const securedCampaigns = securityFilterCampaigns(
+              campaignsData || [],
+              filterConfig,
+            );
+            const deduplicatedCampaigns = deduplicateById(securedCampaigns);
+            const customCampaigns = getCustomCampaigns(
+              deduplicatedCampaigns,
+              filterConfig,
+            );
+
+            setLoadingStates((prev) => ({ ...prev, campaigns: false }));
+            return {
+              campaigns: deduplicatedCampaigns,
+              userCreatedCampaigns: customCampaigns,
+            };
+          })(),
+
+          (async () => {
+            setLoadingStates((prev) => ({ ...prev, tasks: true }));
+            const taskQuery = createContentTasksFilter(supabase, filterConfig);
+            const { data: tasksData, error: taskError } = await taskQuery;
+
+            if (taskError) {
+              throw new Error(`Failed to fetch tasks: ${taskError.message}`);
+            }
+
+            const securedTasks = securityFilterTasks(
+              tasksData || [],
+              filterConfig,
+            );
+            const deduplicatedTasks = deduplicateById(securedTasks);
+
+            setLoadingStates((prev) => ({ ...prev, tasks: false }));
+            return {
+              tasks: deduplicatedTasks,
+              approvedTasks: getApprovedTasks(deduplicatedTasks, filterConfig),
+            };
+          })(),
+        ]);
+
+        // Combine results and split tasks by campaign source
+        const systemTasksList = getSystemCampaignTasks(
+          taskResult.tasks,
+          campaignResult.campaigns,
+          filterConfig,
+        );
+        const customTasksList = getCustomCampaignTasks(
+          taskResult.tasks,
+          campaignResult.campaigns,
+          filterConfig,
+        );
+
+        const newCachedData: CachedData = {
+          campaigns: campaignResult.campaigns,
+          userCreatedCampaigns: campaignResult.userCreatedCampaigns,
+          tasks: taskResult.tasks,
+          systemTasks: systemTasksList,
+          customTasks: customTasksList,
+          approvedTasks: taskResult.approvedTasks,
+          timestamp: Date.now(),
+          isStale: false,
+        };
+
+        setCachedData(newCachedData);
+
+        // Save to session storage
+        try {
+          sessionStorage.setItem(CACHE_KEY, JSON.stringify(newCachedData));
+        } catch (error) {
+          console.error("Error saving to session storage:", error);
+        }
+      } catch (err: any) {
+        console.error("GlobalDataProvider: Error fetching data:", err);
+        setError(err.message || "Failed to load content data");
+      } finally {
+        setLoadingStates((prev) => ({ ...prev, initial: false }));
+        setIsRefreshing(false);
+      }
+    },
+    [user, tenant, tenantLoading, isDeveloper, cachedData?.isStale],
+  );
 
   // Initial data fetch
   useEffect(() => {
@@ -250,41 +278,44 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     if (!user) return;
 
     const channelId = `${user.id}-${Date.now()}`;
-    
+
     const campaignSubscription = supabase
       .channel(`global-campaigns-channel-${channelId}`)
-      .on('postgres_changes', 
-        { event: '*', schema: 'public', table: 'campaigns' },
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "campaigns" },
         () => {
           // Mark cache as stale and trigger background refresh
-          setCachedData(prev => prev ? { ...prev, isStale: true } : null);
+          setCachedData((prev) => (prev ? { ...prev, isStale: true } : null));
           fetchData(false);
-        }
+        },
       )
       .subscribe();
 
     const taskSubscription = supabase
       .channel(`global-content-tasks-channel-${channelId}`)
-      .on('postgres_changes', 
-        { event: '*', schema: 'public', table: 'content_tasks' },
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "content_tasks" },
         () => {
           // Mark cache as stale and trigger background refresh
-          setCachedData(prev => prev ? { ...prev, isStale: true } : null);
+          setCachedData((prev) => (prev ? { ...prev, isStale: true } : null));
           fetchData(false);
-        }
+        },
       )
       .subscribe();
 
     // Subscribe to master template changes to invalidate cache
     const templateSubscription = supabase
       .channel(`global-templates-channel-${channelId}`)
-      .on('postgres_changes', 
-        { event: '*', schema: 'public', table: 'master_campaign_templates' },
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "master_campaign_templates" },
         () => {
           // Mark cache as stale and trigger background refresh
-          setCachedData(prev => prev ? { ...prev, isStale: true } : null);
+          setCachedData((prev) => (prev ? { ...prev, isStale: true } : null));
           fetchData(false);
-        }
+        },
       )
       .subscribe();
 
@@ -297,72 +328,89 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   // Route state management
   const saveRouteState = useCallback((route: string, state: any) => {
-    setRouteStates(prev => ({
+    setRouteStates((prev) => ({
       ...prev,
-      [route]: { ...state, timestamp: Date.now() }
+      [route]: { ...state, timestamp: Date.now() },
     }));
   }, []);
 
-  const getRouteState = useCallback((route: string) => {
-    return routeStates[route] || null;
-  }, [routeStates]);
+  const getRouteState = useCallback(
+    (route: string) => {
+      return routeStates[route] || null;
+    },
+    [routeStates],
+  );
 
   const clearRouteState = useCallback((route: string) => {
-    setRouteStates(prev => {
+    setRouteStates((prev) => {
       const newStates = { ...prev };
       delete newStates[route];
       return newStates;
     });
   }, []);
 
-  const refreshData = useCallback(async (force = false) => {
-    await fetchData(force);
-  }, [fetchData]);
+  const refreshData = useCallback(
+    async (force = false) => {
+      await fetchData(force);
+    },
+    [fetchData],
+  );
 
   const invalidateCache = useCallback(() => {
     setCachedData(null);
     try {
       sessionStorage.removeItem(CACHE_KEY);
     } catch (error) {
-      console.error('Error clearing cache:', error);
+      console.error("Error clearing cache:", error);
     }
   }, []);
 
   // Memoized computed values
-  const value = useMemo((): GlobalDataContextType => ({
-    // Data
-    campaigns: cachedData?.campaigns || [],
-    tasks: cachedData?.tasks || [],
-    systemTasks: cachedData?.systemTasks || [],
-    customTasks: cachedData?.customTasks || [],
-    userCreatedCampaigns: cachedData?.userCreatedCampaigns || [],
-    approvedTasks: cachedData?.approvedTasks || [],
-    
-    // Loading states
-    loading: loadingStates.initial,
-    loadingStates,
-    isRefreshing,
-    
-    // Error handling
-    error,
-    
-    // Cache info
-    isCached: !!cachedData && !cachedData.isStale,
-    lastUpdated: cachedData?.timestamp || null,
-    
-    // Actions
-    refreshData,
-    invalidateCache,
-    
-    // Route state persistence
-    routeStates,
-    saveRouteState,
-    getRouteState,
-    clearRouteState
-  }), [
-    cachedData, loadingStates, isRefreshing, error, refreshData, invalidateCache,
-    routeStates, saveRouteState, getRouteState, clearRouteState
-  ]);
+  const value = useMemo(
+    (): GlobalDataContextType => ({
+      // Data
+      campaigns: cachedData?.campaigns || [],
+      tasks: cachedData?.tasks || [],
+      systemTasks: cachedData?.systemTasks || [],
+      customTasks: cachedData?.customTasks || [],
+      userCreatedCampaigns: cachedData?.userCreatedCampaigns || [],
+      approvedTasks: cachedData?.approvedTasks || [],
+
+      // Loading states
+      loading: loadingStates.initial,
+      loadingStates,
+      isRefreshing,
+
+      // Error handling
+      error,
+
+      // Cache info
+      isCached: !!cachedData && !cachedData.isStale,
+      lastUpdated: cachedData?.timestamp || null,
+
+      // Actions
+      refreshData,
+      invalidateCache,
+
+      // Route state persistence
+      routeStates,
+      saveRouteState,
+      getRouteState,
+      clearRouteState,
+    }),
+    [
+      cachedData,
+      loadingStates,
+      isRefreshing,
+      error,
+      refreshData,
+      invalidateCache,
+      routeStates,
+      saveRouteState,
+      getRouteState,
+      clearRouteState,
+    ],
+  );
 
   return (
     <GlobalDataContext.Provider value={value}>

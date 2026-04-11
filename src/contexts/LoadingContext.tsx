@@ -1,6 +1,13 @@
-import React, { createContext, useContext, useState, useMemo, useCallback, ReactNode } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useMemo,
+  useCallback,
+  ReactNode,
+} from "react";
 
-type LoadingPriority = 'auth' | 'onboarding' | 'page';
+type LoadingPriority = "auth" | "onboarding" | "page";
 
 interface LoadingState {
   isLoading: boolean;
@@ -20,7 +27,7 @@ const LoadingContext = createContext<LoadingContextType | undefined>(undefined);
 export const useLoading = () => {
   const context = useContext(LoadingContext);
   if (context === undefined) {
-    throw new Error('useLoading must be used within a LoadingProvider');
+    throw new Error("useLoading must be used within a LoadingProvider");
   }
   return context;
 };
@@ -32,25 +39,28 @@ const PRIORITY_ORDER: Record<LoadingPriority, number> = {
 };
 
 export const LoadingProvider = ({ children }: { children: ReactNode }) => {
-  const [loadingStates, setLoadingStates] = useState<Map<string, LoadingState>>(new Map());
+  const [loadingStates, setLoadingStates] = useState<Map<string, LoadingState>>(
+    new Map(),
+  );
 
   const setLoading = useCallback((key: string, state: LoadingState | null) => {
-    setLoadingStates(prev => {
+    setLoadingStates((prev) => {
       const newStates = new Map(prev);
       if (state === null) {
         newStates.delete(key);
-        console.log(`🔄 LoadingContext: Cleared loading for '${key}'. Active keys:`, Array.from(newStates.keys()));
       } else {
         newStates.set(key, state);
-        console.log(`🔄 LoadingContext: Set loading for '${key}' (${state.priority}). Active keys:`, Array.from(newStates.keys()));
       }
       return newStates;
     });
   }, []);
 
-  const clearLoading = useCallback((key: string) => {
-    setLoading(key, null);
-  }, [setLoading]);
+  const clearLoading = useCallback(
+    (key: string) => {
+      setLoading(key, null);
+    },
+    [setLoading],
+  );
 
   const currentLoading = useMemo(() => {
     if (loadingStates.size === 0) return null;
@@ -72,16 +82,17 @@ export const LoadingProvider = ({ children }: { children: ReactNode }) => {
 
   const isAnyLoading = loadingStates.size > 0;
 
-  const value = useMemo(() => ({
-    currentLoading,
-    setLoading,
-    clearLoading,
-    isAnyLoading,
-  }), [currentLoading, setLoading, clearLoading, isAnyLoading]);
+  const value = useMemo(
+    () => ({
+      currentLoading,
+      setLoading,
+      clearLoading,
+      isAnyLoading,
+    }),
+    [currentLoading, setLoading, clearLoading, isAnyLoading],
+  );
 
   return (
-    <LoadingContext.Provider value={value}>
-      {children}
-    </LoadingContext.Provider>
+    <LoadingContext.Provider value={value}>{children}</LoadingContext.Provider>
   );
 };

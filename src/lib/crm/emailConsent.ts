@@ -1,13 +1,13 @@
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from "@/integrations/supabase/client";
 
-export type EmailConsentStatus = 'unknown' | 'opted_in' | 'opted_out';
+export type EmailConsentStatus = "unknown" | "opted_in" | "opted_out";
 
 export type ConsentEventType =
-  | 'opt_in'
-  | 'opt_out'
-  | 'opt_in_request_sent'
-  | 'imported_unknown'
-  | 'updated_by_admin';
+  | "opt_in"
+  | "opt_out"
+  | "opt_in_request_sent"
+  | "imported_unknown"
+  | "updated_by_admin";
 
 export interface ConsentEvent {
   id: string;
@@ -31,10 +31,12 @@ export interface ConsentStats {
 /**
  * Get the consent status from a customer's email_opt_in value
  */
-export function getEmailConsentStatus(customer: { email_opt_in: boolean | null }): EmailConsentStatus {
-  if (customer.email_opt_in === true) return 'opted_in';
-  if (customer.email_opt_in === false) return 'opted_out';
-  return 'unknown';
+export function getEmailConsentStatus(customer: {
+  email_opt_in: boolean | null;
+}): EmailConsentStatus {
+  if (customer.email_opt_in === true) return "opted_in";
+  if (customer.email_opt_in === false) return "opted_out";
+  return "unknown";
 }
 
 /**
@@ -42,20 +44,28 @@ export function getEmailConsentStatus(customer: { email_opt_in: boolean | null }
  */
 export function getConsentStatusLabel(status: EmailConsentStatus): string {
   switch (status) {
-    case 'opted_in': return 'Opted In';
-    case 'opted_out': return 'Opted Out';
-    case 'unknown': return 'Unknown';
+    case "opted_in":
+      return "Opted In";
+    case "opted_out":
+      return "Opted Out";
+    case "unknown":
+      return "Unknown";
   }
 }
 
 /**
  * Get badge color variant for consent status
  */
-export function getConsentStatusColor(status: EmailConsentStatus): 'default' | 'secondary' | 'destructive' | 'outline' {
+export function getConsentStatusColor(
+  status: EmailConsentStatus,
+): "default" | "secondary" | "destructive" | "outline" {
   switch (status) {
-    case 'opted_in': return 'default';
-    case 'opted_out': return 'destructive';
-    case 'unknown': return 'secondary';
+    case "opted_in":
+      return "default";
+    case "opted_out":
+      return "destructive";
+    case "unknown":
+      return "secondary";
   }
 }
 
@@ -72,27 +82,25 @@ export async function recordEmailConsentEvent(params: {
   userAgent?: string | null;
 }): Promise<{ success: boolean; error?: string }> {
   try {
-    const { error } = await supabase
-      .from('crm_email_consent_events')
-      .insert({
-        tenant_id: params.tenantId,
-        customer_id: params.customerId,
-        email: params.email,
-        event_type: params.eventType,
-        source: params.source,
-        ip_address: params.ipAddress || null,
-        user_agent: params.userAgent || null,
-      });
+    const { error } = await supabase.from("crm_email_consent_events").insert({
+      tenant_id: params.tenantId,
+      customer_id: params.customerId,
+      email: params.email,
+      event_type: params.eventType,
+      source: params.source,
+      ip_address: params.ipAddress || null,
+      user_agent: params.userAgent || null,
+    });
 
     if (error) {
-      console.error('Failed to record consent event:', error);
+      console.error("Failed to record consent event:", error);
       return { success: false, error: error.message };
     }
 
     return { success: true };
   } catch (err) {
-    console.error('Error recording consent event:', err);
-    return { success: false, error: 'Failed to record consent event' };
+    console.error("Error recording consent event:", err);
+    return { success: false, error: "Failed to record consent event" };
   }
 }
 
@@ -111,63 +119,66 @@ export async function updateCustomerConsent(params: {
   userAgent?: string | null;
 }): Promise<{ success: boolean; error?: string }> {
   try {
-    const normalizedEmail = String(params.email || '').toLowerCase().trim();
+    const normalizedEmail = String(params.email || "")
+      .toLowerCase()
+      .trim();
 
     // Canonical suppression_list maintenance (single source of truth for blocking)
     if (normalizedEmail) {
       if (params.optIn) {
         const { error: liftError } = await supabase
-          .from('suppression_list')
+          .from("suppression_list")
           .update({
             lifted_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           })
-          .eq('tenant_id', params.tenantId)
-          .eq('email', normalizedEmail)
-          .eq('channel', 'email')
-          .eq('suppression_type', 'unsubscribed')
-          .is('lifted_at', null);
+          .eq("tenant_id", params.tenantId)
+          .eq("email", normalizedEmail)
+          .eq("channel", "email")
+          .eq("suppression_type", "unsubscribed")
+          .is("lifted_at", null);
 
         if (liftError) {
-          console.warn('Failed to lift unsubscribed suppression:', liftError);
         }
       } else {
         const { error: suppressError } = await supabase
-          .from('suppression_list')
-          .upsert({
-            tenant_id: params.tenantId,
-            customer_id: params.customerId,
-            email: normalizedEmail,
-            suppression_type: 'unsubscribed',
-            channel: 'email',
-            reason: 'admin_opt_out',
-            auto_suppressed: false,
-            suppressed_at: new Date().toISOString(),
-            lifted_at: null,
-          }, {
-            onConflict: 'tenant_id,email,channel,suppression_type',
-            ignoreDuplicates: false,
-          });
+          .from("suppression_list")
+          .upsert(
+            {
+              tenant_id: params.tenantId,
+              customer_id: params.customerId,
+              email: normalizedEmail,
+              suppression_type: "unsubscribed",
+              channel: "email",
+              reason: "admin_opt_out",
+              auto_suppressed: false,
+              suppressed_at: new Date().toISOString(),
+              lifted_at: null,
+            },
+            {
+              onConflict: "tenant_id,email,channel,suppression_type",
+              ignoreDuplicates: false,
+            },
+          );
 
         if (suppressError) {
-          console.warn('Failed to upsert unsubscribe suppression:', suppressError);
         }
       }
     }
 
     // Update the customer record
     const { error: updateError } = await supabase
-      .from('crm_customers')
+      .from("crm_customers")
       .update({
         email_opt_in: params.optIn,
         email_opt_in_at: params.optIn ? new Date().toISOString() : null,
         email_consent_source: params.source,
         updated_at: new Date().toISOString(),
       })
-      .eq('id', params.customerId);
+      .eq("id", params.customerId);
 
     if (updateError) {
-      console.error('Failed to update customer consent:', updateError);
+      console.error("Failed to update customer consent:", updateError);
       return { success: false, error: updateError.message };
     }
 
@@ -176,7 +187,7 @@ export async function updateCustomerConsent(params: {
       tenantId: params.tenantId,
       customerId: params.customerId,
       email: params.email,
-      eventType: params.optIn ? 'opt_in' : 'opt_out',
+      eventType: params.optIn ? "opt_in" : "opt_out",
       source: params.source,
       ipAddress: params.ipAddress,
       userAgent: params.userAgent,
@@ -184,21 +195,24 @@ export async function updateCustomerConsent(params: {
 
     return { success: true };
   } catch (err) {
-    console.error('Error updating customer consent:', err);
-    return { success: false, error: 'Failed to update consent' };
+    console.error("Error updating customer consent:", err);
+    return { success: false, error: "Failed to update consent" };
   }
 }
 
 /**
  * Get consent statistics for a tenant
  */
-export async function getConsentStats(tenantId: string): Promise<ConsentStats | null> {
+export async function getConsentStats(
+  tenantId: string,
+): Promise<ConsentStats | null> {
   try {
-    const { data, error } = await supabase
-      .rpc('get_email_consent_stats', { p_tenant_id: tenantId });
+    const { data, error } = await supabase.rpc("get_email_consent_stats", {
+      p_tenant_id: tenantId,
+    });
 
     if (error) {
-      console.error('Failed to get consent stats:', error);
+      console.error("Failed to get consent stats:", error);
       return null;
     }
 
@@ -218,7 +232,7 @@ export async function getConsentStats(tenantId: string): Promise<ConsentStats | 
       unknown_count: 0,
     };
   } catch (err) {
-    console.error('Error getting consent stats:', err);
+    console.error("Error getting consent stats:", err);
     return null;
   }
 }
@@ -228,25 +242,32 @@ export async function getConsentStats(tenantId: string): Promise<ConsentStats | 
  */
 export async function getUnknownConsentCustomers(
   tenantId: string,
-  limit = 500
-): Promise<Array<{ id: string; email: string; first_name: string | null; last_name: string | null }>> {
+  limit = 500,
+): Promise<
+  Array<{
+    id: string;
+    email: string;
+    first_name: string | null;
+    last_name: string | null;
+  }>
+> {
   try {
     const { data, error } = await supabase
-      .from('crm_customers')
-      .select('id, email, first_name, last_name')
-      .eq('tenant_id', tenantId)
-      .is('email_opt_in', null)
-      .not('email', 'is', null)
+      .from("crm_customers")
+      .select("id, email, first_name, last_name")
+      .eq("tenant_id", tenantId)
+      .is("email_opt_in", null)
+      .not("email", "is", null)
       .limit(limit);
 
     if (error) {
-      console.error('Failed to get unknown consent customers:', error);
+      console.error("Failed to get unknown consent customers:", error);
       return [];
     }
 
     return data || [];
   } catch (err) {
-    console.error('Error getting unknown consent customers:', err);
+    console.error("Error getting unknown consent customers:", err);
     return [];
   }
 }
@@ -255,23 +276,23 @@ export async function getUnknownConsentCustomers(
  * Get consent history for a customer
  */
 export async function getCustomerConsentHistory(
-  customerId: string
+  customerId: string,
 ): Promise<ConsentEvent[]> {
   try {
     const { data, error } = await supabase
-      .from('crm_email_consent_events')
-      .select('*')
-      .eq('customer_id', customerId)
-      .order('created_at', { ascending: false });
+      .from("crm_email_consent_events")
+      .select("*")
+      .eq("customer_id", customerId)
+      .order("created_at", { ascending: false });
 
     if (error) {
-      console.error('Failed to get consent history:', error);
+      console.error("Failed to get consent history:", error);
       return [];
     }
 
     return (data || []) as ConsentEvent[];
   } catch (err) {
-    console.error('Error getting consent history:', err);
+    console.error("Error getting consent history:", err);
     return [];
   }
 }
@@ -288,30 +309,30 @@ export async function generatePreferenceToken(params: {
 }): Promise<{ token: string | null; error?: string }> {
   try {
     // Generate a secure random token
-    const token = crypto.randomUUID() + '-' + crypto.randomUUID();
+    const token = crypto.randomUUID() + "-" + crypto.randomUUID();
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + (params.expiresInDays || 30));
 
     const { error } = await supabase
-      .from('crm_email_preference_tokens')
+      .from("crm_email_preference_tokens")
       .insert({
         tenant_id: params.tenantId,
         customer_id: params.customerId,
         email: params.email,
         token,
-        purpose: params.purpose || 'opt_in_request',
+        purpose: params.purpose || "opt_in_request",
         expires_at: expiresAt.toISOString(),
       });
 
     if (error) {
-      console.error('Failed to generate preference token:', error);
+      console.error("Failed to generate preference token:", error);
       return { token: null, error: error.message };
     }
 
     return { token };
   } catch (err) {
-    console.error('Error generating preference token:', err);
-    return { token: null, error: 'Failed to generate token' };
+    console.error("Error generating preference token:", err);
+    return { token: null, error: "Failed to generate token" };
   }
 }
 
@@ -331,18 +352,18 @@ export async function validatePreferenceToken(token: string): Promise<{
 }> {
   try {
     const { data, error } = await supabase
-      .from('crm_email_preference_tokens')
-      .select('id, tenant_id, customer_id, email, purpose, expires_at')
-      .eq('token', token)
+      .from("crm_email_preference_tokens")
+      .select("id, tenant_id, customer_id, email, purpose, expires_at")
+      .eq("token", token)
       .single();
 
     if (error || !data) {
-      return { valid: false, error: 'Token not found' };
+      return { valid: false, error: "Token not found" };
     }
 
     // Check expiration
     if (new Date(data.expires_at) < new Date()) {
-      return { valid: false, error: 'Token expired' };
+      return { valid: false, error: "Token expired" };
     }
 
     return {
@@ -356,7 +377,7 @@ export async function validatePreferenceToken(token: string): Promise<{
       },
     };
   } catch (err) {
-    console.error('Error validating preference token:', err);
-    return { valid: false, error: 'Failed to validate token' };
+    console.error("Error validating preference token:", err);
+    return { valid: false, error: "Failed to validate token" };
   }
 }

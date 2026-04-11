@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { showToast } from "@/utils/toastUtils";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,7 +14,13 @@ interface ContentViewerProps {
   onTaskUpdate?: () => void;
 }
 
-export const ContentViewer = ({ campaignId, campaignTitle, isOpen, onClose, onTaskUpdate }: ContentViewerProps) => {
+export const ContentViewer = ({
+  campaignId,
+  campaignTitle,
+  isOpen,
+  onClose,
+  onTaskUpdate,
+}: ContentViewerProps) => {
   const { user } = useAuth();
   const { tenant } = useTenant();
   const [tasks, setTasks] = useState<any[]>([]);
@@ -25,108 +30,109 @@ export const ContentViewer = ({ campaignId, campaignTitle, isOpen, onClose, onTa
 
   const fetchTasks = async () => {
     if (!campaignId || !isOpen || !user) {
-      console.log('ContentViewer: Skipping fetch - campaignId:', campaignId, 'isOpen:', isOpen, 'user:', !!user);
       return;
     }
-    
-    console.log('ContentViewer: Starting fetch for campaignId:', campaignId, 'user:', user.id, 'tenant:', tenant?.id || 'none');
     setLoading(true);
-    
+
     try {
       // SECURITY FIX: First verify the campaign belongs to the current user/tenant
       let campaignQuery = supabase
-        .from('campaigns')
-        .select('user_id, tenant_id')
-        .eq('id', campaignId);
+        .from("campaigns")
+        .select("user_id, tenant_id")
+        .eq("id", campaignId);
 
       if (tenant?.id) {
-        campaignQuery = campaignQuery.eq('tenant_id', tenant.id);
+        campaignQuery = campaignQuery.eq("tenant_id", tenant.id);
       } else {
-        campaignQuery = campaignQuery.eq('user_id', user.id);
+        campaignQuery = campaignQuery.eq("user_id", user.id);
       }
 
-      const { data: campaignData, error: campaignError } = await campaignQuery.single();
+      const { data: campaignData, error: campaignError } =
+        await campaignQuery.single();
 
       if (campaignError || !campaignData) {
-        console.error('ContentViewer: Campaign not found or not owned by user/tenant:', campaignError);
-        toast.error('Access denied: Campaign not found or you do not have permission to view it');
+        console.error(
+          "ContentViewer: Campaign not found or not owned by user/tenant:",
+          campaignError,
+        );
+        toast.error(
+          "Access denied: Campaign not found or you do not have permission to view it",
+        );
         setTasks([]);
         return;
       }
 
       // Now fetch tasks for the verified campaign with tenant-aware query
       let tasksQuery = supabase
-        .from('content_tasks')
-        .select(`
+        .from("content_tasks")
+        .select(
+          `
           *,
           campaigns!inner (
             title,
             user_id,
             tenant_id
           )
-        `)
-        .eq('campaign_id', campaignId)
-        .order('created_at', { ascending: true });
+        `,
+        )
+        .eq("campaign_id", campaignId)
+        .order("created_at", { ascending: true });
 
       if (tenant?.id) {
         // Tenant-based access control
-        tasksQuery = tasksQuery.eq('campaigns.tenant_id', tenant.id);
-        console.log('ContentViewer: Using tenant-based query for tenant:', tenant.id);
+        tasksQuery = tasksQuery.eq("campaigns.tenant_id", tenant.id);
       } else {
         // User-based access control
-        tasksQuery = tasksQuery.eq('campaigns.user_id', user.id);
-        console.log('ContentViewer: Using user-based query for user:', user.id);
+        tasksQuery = tasksQuery.eq("campaigns.user_id", user.id);
       }
 
       const { data, error } = await tasksQuery;
-
-      console.log('ContentViewer: Fetch result - data:', data?.length || 0, 'tasks, error:', error);
-
       if (error) {
-        console.error('ContentViewer: Error fetching tasks:', error);
+        console.error("ContentViewer: Error fetching tasks:", error);
         toast.error(`Failed to load content: ${error.message}`);
         setTasks([]);
       } else {
-        console.log('ContentViewer: Successfully fetched', data?.length || 0, 'tasks');
-        
         // Additional security verification
-        const userTasks = data?.filter(task => 
-          task.campaigns && (
-            tenant?.id ? task.campaigns.tenant_id === tenant.id : task.campaigns.user_id === user.id
-          )
-        ) || [];
-        
+        const userTasks =
+          data?.filter(
+            (task) =>
+              task.campaigns &&
+              (tenant?.id
+                ? task.campaigns.tenant_id === tenant.id
+                : task.campaigns.user_id === user.id),
+          ) || [];
+
         if (userTasks.length !== data?.length) {
-          console.warn('ContentViewer: Security alert - some tasks did not belong to current user/tenant');
         }
-        
+
         // Log detailed task status for debugging
         if (userTasks.length > 0) {
-          console.log('📊 Task details:');
-          userTasks.forEach(task => {
-            const hasContent = task.ai_output && task.ai_output.trim() !== '';
-            console.log(`  - ${task.post_type}: ${hasContent ? 'HAS CONTENT' : 'MISSING CONTENT'} (status: ${task.status})`);
+          userTasks.forEach((task) => {
+            const hasContent = task.ai_output && task.ai_output.trim() !== "";
           });
         }
-        
+
         setTasks(userTasks);
-        
+
         // Check if we have content or if we need to auto-generate
-        const tasksWithContent = userTasks.filter(task => task.ai_output && task.ai_output.trim() !== '');
-        const tasksNeedingContent = userTasks.filter(task => !task.ai_output || task.ai_output.trim() === '');
-        
-        console.log('ContentViewer: Tasks with content:', tasksWithContent.length, 'out of', userTasks.length);
-        console.log('ContentViewer: Tasks needing content:', tasksNeedingContent.length);
-        
+        const tasksWithContent = userTasks.filter(
+          (task) => task.ai_output && task.ai_output.trim() !== "",
+        );
+        const tasksNeedingContent = userTasks.filter(
+          (task) => !task.ai_output || task.ai_output.trim() === "",
+        );
+
         // Auto-generate missing content if this is the first load and there are tasks without content
         if (!hasAutoGenerated && tasksNeedingContent.length > 0) {
-          console.log('ContentViewer: Auto-generating missing content for campaign:', campaignTitle);
           setHasAutoGenerated(true); // Set this first to prevent multiple calls
-          
+
           try {
-            const success = await generateMissingContent(campaignId, campaignTitle, user.id);
+            const success = await generateMissingContent(
+              campaignId,
+              campaignTitle,
+              user.id,
+            );
             if (success && onTaskUpdate) {
-              console.log('ContentViewer: Auto-generation successful, updating tasks');
               onTaskUpdate();
               // Refetch tasks after generation
               setTimeout(() => {
@@ -134,19 +140,22 @@ export const ContentViewer = ({ campaignId, campaignTitle, isOpen, onClose, onTa
               }, 3000); // Give more time for generation to complete
             }
           } catch (autoGenError) {
-            console.error('ContentViewer: Auto-generation failed:', autoGenError);
-            toast.error('Failed to auto-generate content. You can try generating manually.');
+            console.error(
+              "ContentViewer: Auto-generation failed:",
+              autoGenError,
+            );
+            toast.error(
+              "Failed to auto-generate content. You can try generating manually.",
+            );
             setHasAutoGenerated(false); // Reset so user can retry
           }
         } else if (tasksNeedingContent.length === 0) {
-          console.log('ContentViewer: All tasks have content, no auto-generation needed');
         } else if (hasAutoGenerated) {
-          console.log('ContentViewer: Auto-generation already attempted');
         }
       }
     } catch (error) {
-      console.error('ContentViewer: Exception in fetchTasks:', error);
-      toast.error('An unexpected error occurred loading content');
+      console.error("ContentViewer: Exception in fetchTasks:", error);
+      toast.error("An unexpected error occurred loading content");
       setTasks([]);
     } finally {
       setLoading(false);
@@ -154,7 +163,6 @@ export const ContentViewer = ({ campaignId, campaignTitle, isOpen, onClose, onTa
   };
 
   useEffect(() => {
-    console.log('ContentViewer: useEffect triggered - campaignId:', campaignId, 'isOpen:', isOpen, 'user:', !!user, 'tenant:', !!tenant);
     if (isOpen && campaignId && user) {
       // Only reset auto-generation flag when opening a different campaign
       fetchTasks();
@@ -166,29 +174,30 @@ export const ContentViewer = ({ campaignId, campaignTitle, isOpen, onClose, onTa
   }, [campaignId, isOpen, user, tenant]);
 
   const handleTaskUpdate = () => {
-    console.log('ContentViewer: Task update requested');
     fetchTasks();
     if (onTaskUpdate) onTaskUpdate();
   };
 
   const handleManualGeneration = async () => {
     if (!user) {
-      toast.error('Please log in to generate content');
+      toast.error("Please log in to generate content");
       return;
     }
-    
-    console.log('ContentViewer: Manual generation requested for user:', user.id);
     setLoading(true);
-    
+
     try {
-      const success = await generateMissingContent(campaignId, campaignTitle, user.id);
+      const success = await generateMissingContent(
+        campaignId,
+        campaignTitle,
+        user.id,
+      );
       if (success) {
-        toast.success('Content generation started');
+        toast.success("Content generation started");
         handleTaskUpdate();
       }
     } catch (error) {
-      console.error('ContentViewer: Manual generation failed:', error);
-      toast.error('Failed to generate content');
+      console.error("ContentViewer: Manual generation failed:", error);
+      toast.error("Failed to generate content");
     } finally {
       setLoading(false);
     }

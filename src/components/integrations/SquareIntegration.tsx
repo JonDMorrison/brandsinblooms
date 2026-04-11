@@ -134,9 +134,7 @@ export const SquareIntegration = () => {
       channel.onmessage = (event) => {
         handleOAuthResult(event.data);
       };
-    } catch (e) {
-      console.log("[SQUARE-Integration] BroadcastChannel not supported");
-    }
+    } catch (e) {}
 
     const handleMessage = (event: MessageEvent) => {
       if (
@@ -230,14 +228,6 @@ export const SquareIntegration = () => {
 
     try {
       const appEnv = detectEnvironment();
-      const squareEnv = appEnv === "development" ? "sandbox" : "production";
-
-      console.log(
-        "[OAuth] Auto-detected environment:",
-        appEnv,
-        "→ Square:",
-        squareEnv,
-      );
 
       const { data: userData } = await supabase.auth.getUser();
       if (userData.user) {

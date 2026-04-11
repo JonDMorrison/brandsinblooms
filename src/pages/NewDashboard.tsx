@@ -1,31 +1,39 @@
-
-import React from 'react';
-import { DashboardProvider, useDashboardContext } from '@/contexts/DashboardContext';
-import { ProtectedPageWrapper } from '@/components/ProtectedPageWrapper';
-import { FocusCarousel } from '@/components/focus/FocusCarousel';
-import { DraftTray } from '@/components/new-dashboard/DraftTray';
-import { ComposerPanel } from '@/components/new-dashboard/ComposerPanel';
-import { TimePopoverModal } from '@/components/smart-time/TimePopoverModal';
-import { DragDropContext, DropResult } from 'react-beautiful-dnd';
+import React from "react";
+import {
+  DashboardProvider,
+  useDashboardContext,
+} from "@/contexts/DashboardContext";
+import { ProtectedPageWrapper } from "@/components/ProtectedPageWrapper";
+import { FocusCarousel } from "@/components/focus/FocusCarousel";
+import { DraftTray } from "@/components/new-dashboard/DraftTray";
+import { ComposerPanel } from "@/components/new-dashboard/ComposerPanel";
+import { TimePopoverModal } from "@/components/smart-time/TimePopoverModal";
+import { DragDropContext, DropResult } from "@hello-pangea/dnd";
 
 const NewDashboardContent = () => {
-  const { data, refetch, activeDraft, setActiveDraft, stopDragging, timePopoverTask, setTimePopoverTask } = useDashboardContext();
+  const {
+    data,
+    refetch,
+    activeDraft,
+    setActiveDraft,
+    stopDragging,
+    timePopoverTask,
+    setTimePopoverTask,
+  } = useDashboardContext();
 
   const handleDragEnd = (result: DropResult) => {
     const { destination, source } = result;
-    console.log('🎯 Dashboard drag ended:', result);
-
     // Nothing actually moved – ignore
     if (!destination) return;
 
-    const droppedInDock = destination.droppableId.startsWith('day-');
+    const droppedInDock = destination.droppableId.startsWith("day-");
 
     // Only close the dock after a *successful* dock-drop,
     // and give the UI time to render the new pill first.
     if (droppedInDock) {
-      setTimeout(stopDragging, 400);   // tweak as required
+      setTimeout(stopDragging, 400); // tweak as required
     } else {
-      stopDragging();                  // re-order in draft tray
+      stopDragging(); // re-order in draft tray
     }
   };
 
@@ -35,7 +43,9 @@ const NewDashboardContent = () => {
         <div className="max-w-full mx-auto">
           {/* Header */}
           <div className="mb-8">
-            <h1 className="text-3xl font-semibold text-[#3E5A6B] mb-2">Social Dashboard</h1>
+            <h1 className="text-3xl font-semibold text-[#3E5A6B] mb-2">
+              Social Dashboard
+            </h1>
             <p className="text-gray-600">Your daily content creation rhythm</p>
           </div>
 
@@ -43,14 +53,12 @@ const NewDashboardContent = () => {
           <div className="grid grid-cols-12 gap-6 mb-6">
             {/* Today's Focus - Columns 1-4 */}
             <div className="col-span-4">
-              <FocusCarousel 
-                onTaskUpdate={refetch}
-              />
+              <FocusCarousel onTaskUpdate={refetch} />
             </div>
 
             {/* Draft Tray - Columns 5-8 */}
             <div className="col-span-4">
-              <DraftTray 
+              <DraftTray
                 tasks={data?.drafts || []}
                 selectedDraft={activeDraft}
                 onSelectDraft={setActiveDraft}
@@ -59,7 +67,7 @@ const NewDashboardContent = () => {
 
             {/* Composer Panel - Columns 9-12 */}
             <div className="col-span-4">
-              <ComposerPanel 
+              <ComposerPanel
                 selectedDraft={activeDraft}
                 socialConnections={data?.socialConnections || []}
                 onTaskUpdate={refetch}
@@ -84,7 +92,7 @@ const NewDashboard = () => {
   return (
     <ProtectedPageWrapper>
       <DashboardProvider>
-          <NewDashboardContent />
+        <NewDashboardContent />
       </DashboardProvider>
     </ProtectedPageWrapper>
   );

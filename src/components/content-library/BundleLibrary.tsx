@@ -3,7 +3,14 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { Trash2, Search, Filter, Clock, CheckCircle2, ChevronRight } from "lucide-react";
+import {
+  Trash2,
+  Search,
+  Filter,
+  Clock,
+  CheckCircle2,
+  ChevronRight,
+} from "lucide-react";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { useContentLibrary, useDeleteBundle } from "@/hooks/useContentLibrary";
 import type { Channel } from "@/lib/content/libraryTypes";
@@ -31,11 +38,11 @@ import {
 } from "@/components/ui/alert-dialog";
 
 const channelLabels: Record<Channel, string> = {
-  instagram: 'IG',
-  facebook: 'FB',
-  newsletter: 'Newsletter',
-  video: 'Video',
-  blog: 'Blog',
+  instagram: "IG",
+  facebook: "FB",
+  newsletter: "Newsletter",
+  video: "Video",
+  blog: "Blog",
 };
 
 function useQueryParams() {
@@ -43,56 +50,76 @@ function useQueryParams() {
   return useMemo(() => new URLSearchParams(location.search), [location.search]);
 }
 
-function getBundleDisplayName(it: { sourceLabel?: string; mode: 'event'|'seasonal'|'custom'; channels?: Channel[]; updatedAt: string }): string {
-  const raw = (it.sourceLabel || '').trim();
-  const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(raw);
+function getBundleDisplayName(it: {
+  sourceLabel?: string;
+  mode: "event" | "seasonal" | "custom";
+  channels?: Channel[];
+  updatedAt: string;
+}): string {
+  const raw = (it.sourceLabel || "").trim();
+  const isUUID =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      raw,
+    );
   const isNonTitle = !raw || isUUID || /^untitled$/i.test(raw);
   if (!isNonTitle) return raw;
-  const modeLabel = it.mode === 'event' ? 'Event' : it.mode === 'seasonal' ? 'Seasonal' : 'Custom';
-  let channelPart = 'General';
+  const modeLabel =
+    it.mode === "event"
+      ? "Event"
+      : it.mode === "seasonal"
+        ? "Seasonal"
+        : "Custom";
+  let channelPart = "General";
   if (it.channels && it.channels.length > 0) {
-    channelPart = it.channels.length === 1 ? channelLabels[it.channels[0]] : 'Multi-channel';
+    channelPart =
+      it.channels.length === 1
+        ? channelLabels[it.channels[0]]
+        : "Multi-channel";
   }
   const datePart = new Date(it.updatedAt).toLocaleDateString();
   return `${modeLabel} • ${channelPart} • Updated ${datePart}`;
 }
 
-function BundleCard({ it, openBundle, handleDelete, isHighlighted }: { it: any; openBundle: (bundleId: string, snapshotId?: string) => void; handleDelete: (bundleId: string) => Promise<any> | void; isHighlighted?: boolean }) {
-  const { title } = useBundlePreviewTitle(it.bundleId, { includeChannelTag: false });
-  const displayTitle = title || getBundleDisplayName(it);
-  
-  // Debug: Log image data for troubleshooting
-  console.log('Bundle image data:', {
-    bundleId: it.bundleId,
-    thumbnail: it.thumbnail,
-    featuredImage: it.featuredImage,
-    recommendedImages: it.recommendedImages,
-    itemsWithImages: it.items?.filter((item: any) => item.media?.url || item.image?.url || item.image?.thumb)
+function BundleCard({
+  it,
+  openBundle,
+  handleDelete,
+  isHighlighted,
+}: {
+  it: any;
+  openBundle: (bundleId: string, snapshotId?: string) => void;
+  handleDelete: (bundleId: string) => Promise<any> | void;
+  isHighlighted?: boolean;
+}) {
+  const { title } = useBundlePreviewTitle(it.bundleId, {
+    includeChannelTag: false,
   });
   return (
-    <Card 
-      key={it.bundleId} 
+    <Card
+      key={it.bundleId}
       data-bundle-id={it.bundleId}
       className={`relative p-3 hover:shadow-md transition cursor-pointer group ${
-        isHighlighted 
-          ? 'ring-2 ring-primary shadow-lg animate-pulse-subtle bg-primary/5' 
-          : ''
-      }`} 
+        isHighlighted
+          ? "ring-2 ring-primary shadow-lg animate-pulse-subtle bg-primary/5"
+          : ""
+      }`}
       onClick={(e) => {
         const target = e.target as HTMLElement;
-        if (target.closest('[data-trash]')) return;
+        if (target.closest("[data-trash]")) return;
         openBundle(it.bundleId, it.snapshotId);
       }}
     >
       {it.thumbnail ? (
-        <img 
-          src={it.thumbnail} 
-          alt={`${displayTitle} featured image`} 
-          className="w-full aspect-video object-cover rounded-lg mb-3" 
+        <img
+          src={it.thumbnail}
+          alt={`${displayTitle} featured image`}
+          className="w-full aspect-video object-cover rounded-lg mb-3"
           loading="lazy"
-          onLoad={() => console.log('✅ Thumbnail loaded successfully:', it.thumbnail)}
+          onLoad={() =>
+            {}
+          }
           onError={(e) => {
-            console.error('❌ Thumbnail failed to load:', it.thumbnail, e);
+            console.error("❌ Thumbnail failed to load:", it.thumbnail, e);
           }}
         />
       ) : (
@@ -100,12 +127,16 @@ function BundleCard({ it, openBundle, handleDelete, isHighlighted }: { it: any; 
           <div className="text-center p-4">
             <div className="text-2xl mb-2">📄</div>
             <div className="text-xs text-muted-foreground font-medium">
-              {it.mode === 'seasonal' ? 'Seasonal Content' : 
-               it.mode === 'holiday' ? 'Holiday Content' : 
-               it.mode === 'custom' ? 'Custom Content' : 'Content Bundle'}
+              {it.mode === "seasonal"
+                ? "Seasonal Content"
+                : it.mode === "holiday"
+                  ? "Holiday Content"
+                  : it.mode === "custom"
+                    ? "Custom Content"
+                    : "Content Bundle"}
             </div>
             <div className="text-xs text-muted-foreground mt-1">
-              {it.totalItems} item{it.totalItems !== 1 ? 's' : ''}
+              {it.totalItems} item{it.totalItems !== 1 ? "s" : ""}
             </div>
           </div>
         </div>
@@ -116,7 +147,6 @@ function BundleCard({ it, openBundle, handleDelete, isHighlighted }: { it: any; 
         aria-label="Delete"
         className="absolute right-3 top-3 p-2 rounded-full bg-red-500/90 border hover:bg-red-600 z-10"
         onClick={(e) => {
-          console.log('🗑️ Delete button clicked for bundle:', it.bundleId);
           e.stopPropagation();
           handleDelete(it.bundleId);
         }}
@@ -130,25 +160,40 @@ function BundleCard({ it, openBundle, handleDelete, isHighlighted }: { it: any; 
       </div>
 
       <div className="mt-2 flex flex-wrap gap-1">
-        <Badge variant="secondary" className="text-xs capitalize">{it.mode}</Badge>
+        <Badge variant="secondary" className="text-xs capitalize">
+          {it.mode}
+        </Badge>
         {it.channels?.map((ch: Channel) => (
-          <Badge key={ch} variant="outline" className="text-xs">{channelLabels[ch]}</Badge>
+          <Badge key={ch} variant="outline" className="text-xs">
+            {channelLabels[ch]}
+          </Badge>
         ))}
       </div>
 
       <div className="mt-2 text-xs text-muted-foreground flex items-center justify-between">
-        <span className="flex items-center gap-1"><CheckCircle2 className="h-3 w-3" /> {it.approvedCount}/{it.totalItems} approved</span>
-        <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> Updated {new Date(it.updatedAt).toLocaleDateString()}</span>
+        <span className="flex items-center gap-1">
+          <CheckCircle2 className="h-3 w-3" /> {it.approvedCount}/
+          {it.totalItems} approved
+        </span>
+        <span className="flex items-center gap-1">
+          <Clock className="h-3 w-3" /> Updated{" "}
+          {new Date(it.updatedAt).toLocaleDateString()}
+        </span>
       </div>
 
       <div className="mt-2 text-xs text-primary inline-flex items-center group-hover:translate-x-1 transition-transform">
         {isHighlighted ? (
-          <>✨ Just Generated! Click to review <ChevronRight className="h-3 w-3 ml-1" /></>
+          <>
+            ✨ Just Generated! Click to review{" "}
+            <ChevronRight className="h-3 w-3 ml-1" />
+          </>
         ) : (
-          <>Open <ChevronRight className="h-3 w-3 ml-1" /></>
+          <>
+            Open <ChevronRight className="h-3 w-3 ml-1" />
+          </>
         )}
       </div>
-      
+
       {isHighlighted && (
         <div className="absolute -top-2 -right-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full animate-bounce">
           New!
@@ -163,21 +208,32 @@ export const BundleLibrary = () => {
   const params = useQueryParams();
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const { getJobsByType, getActiveJobs, getJobById, jobs } = useGenerationJobTracker();
-  
-  // Handle new content highlighting from generation
-  const [highlightedBundles, setHighlightedBundles] = useState<Set<string>>(new Set());
-  const [shouldAutoSort, setShouldAutoSort] = useState(false);
-  const fromGeneration = params.get('from') === 'generation';
-  const trackingJobId = params.get('jobId');
+  const { getJobsByType, getActiveJobs, getJobById, jobs } =
+    useGenerationJobTracker();
 
-  const [search, setSearch] = useState(params.get('q') || '');
-  const [mode, setMode] = useState<("event"|"seasonal"|"custom"|"all")>((params.get('mode') as any) || 'all');
-  const [channel, setChannel] = useState<Channel | 'all'>(((params.get('channel') as any) || 'all'));
-  const [sort, setSort] = useState<'newest'|'updated'>(
-    shouldAutoSort || fromGeneration ? 'newest' : ((params.get('sort') as any) || 'updated')
+  // Handle new content highlighting from generation
+  const [highlightedBundles, setHighlightedBundles] = useState<Set<string>>(
+    new Set(),
   );
-  const [page, setPage] = useState<number>(parseInt(params.get('page') || '1', 10));
+  const [shouldAutoSort, setShouldAutoSort] = useState(false);
+  const fromGeneration = params.get("from") === "generation";
+  const trackingJobId = params.get("jobId");
+
+  const [search, setSearch] = useState(params.get("q") || "");
+  const [mode, setMode] = useState<"event" | "seasonal" | "custom" | "all">(
+    (params.get("mode") as any) || "all",
+  );
+  const [channel, setChannel] = useState<Channel | "all">(
+    (params.get("channel") as any) || "all",
+  );
+  const [sort, setSort] = useState<"newest" | "updated">(
+    shouldAutoSort || fromGeneration
+      ? "newest"
+      : (params.get("sort") as any) || "updated",
+  );
+  const [page, setPage] = useState<number>(
+    parseInt(params.get("page") || "1", 10),
+  );
 
   const debouncedSearch = useDebounce(search, 300);
 
@@ -187,9 +243,12 @@ export const BundleLibrary = () => {
       setShouldAutoSort(true);
       // Clear URL params after handling
       const newParams = new URLSearchParams(params);
-      newParams.delete('from');
-      newParams.delete('jobId');
-      navigate({ pathname: '/content/library', search: newParams.toString() }, { replace: true });
+      newParams.delete("from");
+      newParams.delete("jobId");
+      navigate(
+        { pathname: "/content/library", search: newParams.toString() },
+        { replace: true },
+      );
     }
   }, [fromGeneration, params, navigate]);
 
@@ -197,11 +256,11 @@ export const BundleLibrary = () => {
   useEffect(() => {
     if (trackingJobId) {
       const job = getJobById(trackingJobId);
-      if (job?.status === 'completed' && job.bundleId) {
-        setHighlightedBundles(prev => new Set([...prev, job.bundleId!]));
+      if (job?.status === "completed" && job.bundleId) {
+        setHighlightedBundles((prev) => new Set([...prev, job.bundleId!]));
         // Auto-remove highlight after 5 seconds
         setTimeout(() => {
-          setHighlightedBundles(prev => {
+          setHighlightedBundles((prev) => {
             const next = new Set(prev);
             next.delete(job.bundleId!);
             return next;
@@ -211,10 +270,17 @@ export const BundleLibrary = () => {
     }
   }, [trackingJobId, getJobById]);
 
-  const { data, isLoading } = useContentLibrary({ search: debouncedSearch, mode, channel, page, pageSize: 24, sort });
+  const { data, isLoading } = useContentLibrary({
+    search: debouncedSearch,
+    mode,
+    channel,
+    page,
+    pageSize: 24,
+    sort,
+  });
   const total = data?.total || 0;
   const items = data?.items || [];
-  
+
   // Track if initial load has completed
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
   useEffect(() => {
@@ -224,71 +290,75 @@ export const BundleLibrary = () => {
   }, [isLoading]);
 
   // Track completed jobs to trigger refresh
-  const [lastCompletedJobs, setLastCompletedJobs] = useState<Set<string>>(new Set());
+  const [lastCompletedJobs, setLastCompletedJobs] = useState<Set<string>>(
+    new Set(),
+  );
 
   // Watch for job completions and refresh content library
   useEffect(() => {
     const completedJobs = Object.values(jobs).filter(
-      job => job.status === 'completed' && !lastCompletedJobs.has(job.id)
+      (job) => job.status === "completed" && !lastCompletedJobs.has(job.id),
     );
-    
+
     if (completedJobs.length > 0) {
-      console.log(`🔄 ${completedJobs.length} job(s) completed, refreshing library...`);
-      
       // Invalidate queries to fetch fresh data
-      queryClient.invalidateQueries({ queryKey: ['content-library'] });
-      queryClient.invalidateQueries({ queryKey: ['content-library-count'] });
-      
+      queryClient.invalidateQueries({ queryKey: ["content-library"] });
+      queryClient.invalidateQueries({ queryKey: ["content-library-count"] });
+
       // Update tracking to avoid duplicate refreshes
-      setLastCompletedJobs(prev => {
+      setLastCompletedJobs((prev) => {
         const next = new Set(prev);
-        completedJobs.forEach(job => next.add(job.id));
+        completedJobs.forEach((job) => next.add(job.id));
         return next;
       });
-      
+
       // Auto-highlight newly completed bundles
       const newBundleIds = completedJobs
-        .filter(job => job.bundleId)
-        .map(job => job.bundleId!);
-        
+        .filter((job) => job.bundleId)
+        .map((job) => job.bundleId!);
+
       if (newBundleIds.length > 0) {
-        setHighlightedBundles(prev => {
+        setHighlightedBundles((prev) => {
           const next = new Set([...prev, ...newBundleIds]);
           return next;
         });
-        
+
         // Show success feedback
         toast({
           title: "Content Generated!",
-          description: `${completedJobs.length} new bundle${completedJobs.length > 1 ? 's' : ''} added to your library.`,
-          duration: 5000
+          description: `${completedJobs.length} new bundle${completedJobs.length > 1 ? "s" : ""} added to your library.`,
+          duration: 5000,
         });
-        
+
         // Auto-remove highlight after 8 seconds
         setTimeout(() => {
-          setHighlightedBundles(prev => {
+          setHighlightedBundles((prev) => {
             const next = new Set(prev);
-            newBundleIds.forEach(id => next.delete(id));
+            newBundleIds.forEach((id) => next.delete(id));
             return next;
           });
         }, 8000);
       }
     }
   }, [jobs, lastCompletedJobs, queryClient, toast]);
-  
+
   // Check for active generation jobs
   const activeJobs = getActiveJobs();
-  const bundleJobs = getJobsByType('bundle').concat(getJobsByType('custom'));
+  const bundleJobs = getJobsByType("bundle").concat(getJobsByType("custom"));
 
   // Auto-scroll to highlighted content when it appears
   useEffect(() => {
     if (highlightedBundles.size > 0 && items.length > 0) {
-      const firstHighlighted = items.find(item => highlightedBundles.has(item.bundleId));
+      const firstHighlighted = items.find((item) =>
+        highlightedBundles.has(item.bundleId),
+      );
       if (firstHighlighted) {
         setTimeout(() => {
-          const element = document.querySelector(`[data-bundle-id="${firstHighlighted.bundleId}"]`);
+          const element = document.querySelector(
+            `[data-bundle-id="${firstHighlighted.bundleId}"]`,
+          );
           if (element) {
-            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            element.scrollIntoView({ behavior: "smooth", block: "center" });
           }
         }, 100);
       }
@@ -307,7 +377,9 @@ export const BundleLibrary = () => {
     // hydrate create flow and open modal
     setBundleIds(bundleId, snapshotId || null);
     setModalOpen(true);
-    window.dispatchEvent(new CustomEvent('library_card_open', { detail: { bundleId } }));
+    window.dispatchEvent(
+      new CustomEvent("library_card_open", { detail: { bundleId } }),
+    );
   };
 
   const confirmDelete = (bundleId: string) => {
@@ -317,23 +389,36 @@ export const BundleLibrary = () => {
 
   const handleDelete = async () => {
     if (!bundleToDelete) return;
-    
-    window.dispatchEvent(new CustomEvent('library_delete_confirm', { detail: { bundleId: bundleToDelete } }));
-    await del.mutateAsync({ bundleId: bundleToDelete, deletedAt: new Date().toISOString() });
-    
+
+    window.dispatchEvent(
+      new CustomEvent("library_delete_confirm", {
+        detail: { bundleId: bundleToDelete },
+      }),
+    );
+    await del.mutateAsync({
+      bundleId: bundleToDelete,
+      deletedAt: new Date().toISOString(),
+    });
+
     toast({
-      title: 'Deleted',
-      description: 'Bundle moved to trash',
+      title: "Deleted",
+      description: "Bundle moved to trash",
       action: (
-        <ToastAction altText="Undo" onClick={async () => {
-          await del.mutateAsync({ bundleId: bundleToDelete, deletedAt: null });
-          toast({ title: 'Restored', description: 'Bundle restored' });
-        }}>
+        <ToastAction
+          altText="Undo"
+          onClick={async () => {
+            await del.mutateAsync({
+              bundleId: bundleToDelete,
+              deletedAt: null,
+            });
+            toast({ title: "Restored", description: "Bundle restored" });
+          }}
+        >
           Undo
         </ToastAction>
-      )
+      ),
     });
-    
+
     setDeleteDialogOpen(false);
     setBundleToDelete(null);
   };
@@ -342,7 +427,9 @@ export const BundleLibrary = () => {
     <div className="space-y-6">
       <header>
         <h1 className="text-2xl font-bold">My Content</h1>
-        <p className="text-sm text-muted-foreground">Previously generated posts, newsletters, and more.</p>
+        <p className="text-sm text-muted-foreground">
+          Previously generated posts, newsletters, and more.
+        </p>
       </header>
 
       <section className="flex flex-col md:flex-row gap-3 md:items-center">
@@ -350,20 +437,38 @@ export const BundleLibrary = () => {
           <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1); window.dispatchEvent(new CustomEvent('library_filter_change')); }}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+              window.dispatchEvent(new CustomEvent("library_filter_change"));
+            }}
             placeholder="Search by title"
             className="pl-9"
           />
         </div>
         <div className="flex gap-2 items-center">
           <Filter className="h-4 w-4 text-muted-foreground" />
-          <select className="border rounded-md px-2 py-1 text-sm" value={mode} onChange={e => { setMode(e.target.value as any); setPage(1); }}>
+          <select
+            className="border rounded-md px-2 py-1 text-sm"
+            value={mode}
+            onChange={(e) => {
+              setMode(e.target.value as any);
+              setPage(1);
+            }}
+          >
             <option value="all">All Modes</option>
             <option value="event">Event</option>
             <option value="seasonal">Seasonal</option>
             <option value="custom">Custom</option>
           </select>
-          <select className="border rounded-md px-2 py-1 text-sm" value={channel} onChange={e => { setChannel(e.target.value as any); setPage(1); }}>
+          <select
+            className="border rounded-md px-2 py-1 text-sm"
+            value={channel}
+            onChange={(e) => {
+              setChannel(e.target.value as any);
+              setPage(1);
+            }}
+          >
             <option value="all">All Channels</option>
             <option value="instagram">Instagram</option>
             <option value="facebook">Facebook</option>
@@ -371,7 +476,11 @@ export const BundleLibrary = () => {
             <option value="video">Video</option>
             <option value="blog">Blog</option>
           </select>
-          <select className="border rounded-md px-2 py-1 text-sm" value={sort} onChange={e => setSort(e.target.value as any)}>
+          <select
+            className="border rounded-md px-2 py-1 text-sm"
+            value={sort}
+            onChange={(e) => setSort(e.target.value as any)}
+          >
             <option value="newest">Newest</option>
             <option value="updated">Last Updated</option>
           </select>
@@ -384,8 +493,8 @@ export const BundleLibrary = () => {
       <main>
         {isLoading || !hasLoadedOnce ? (
           <div className="flex items-center justify-center py-24">
-            <LoadingSpinner 
-              size="lg" 
+            <LoadingSpinner
+              size="lg"
               color="primary"
               text="Loading your content..."
             />
@@ -393,27 +502,32 @@ export const BundleLibrary = () => {
         ) : items.length === 0 && bundleJobs.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 border border-dashed rounded-2xl">
             <p className="text-sm text-muted-foreground mb-3">No content yet</p>
-            <Button onClick={() => setCreateDialogOpen(true)}>Create Content</Button>
+            <Button onClick={() => setCreateDialogOpen(true)}>
+              Create Content
+            </Button>
           </div>
         ) : (
           <div className="space-y-6">
             {/* Show generation skeletons for active jobs */}
-            {bundleJobs.filter(job => job.status === 'generating').length > 0 && (
-              <ContentGenerationSkeleton 
-                type="bundle" 
-                count={bundleJobs.filter(job => job.status === 'generating').length}
+            {bundleJobs.filter((job) => job.status === "generating").length >
+              0 && (
+              <ContentGenerationSkeleton
+                type="bundle"
+                count={
+                  bundleJobs.filter((job) => job.status === "generating").length
+                }
                 className="mb-6"
               />
             )}
-            
+
             {/* Show actual content */}
             {items.length > 0 && (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {items.map((it: any) => (
-                  <BundleCard 
-                    key={it.bundleId} 
-                    it={it} 
-                    openBundle={openBundle} 
+                  <BundleCard
+                    key={it.bundleId}
+                    it={it}
+                    openBundle={openBundle}
                     handleDelete={confirmDelete}
                     isHighlighted={highlightedBundles.has(it.bundleId)}
                   />
@@ -425,7 +539,10 @@ export const BundleLibrary = () => {
       </main>
 
       <GeneratedContentModal open={modalOpen} onOpenChange={setModalOpen} />
-      <CreateFlowDialog open={createDialogOpen} onOpenChange={setCreateDialogOpen} />
+      <CreateFlowDialog
+        open={createDialogOpen}
+        onOpenChange={setCreateDialogOpen}
+      />
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
@@ -433,17 +550,20 @@ export const BundleLibrary = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Content Bundle?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will move the content bundle to trash. You can undo this action immediately after deletion.
+              This will move the content bundle to trash. You can undo this
+              action immediately after deletion.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => {
-              setDeleteDialogOpen(false);
-              setBundleToDelete(null);
-            }}>
+            <AlertDialogCancel
+              onClick={() => {
+                setDeleteDialogOpen(false);
+                setBundleToDelete(null);
+              }}
+            >
               Cancel
             </AlertDialogCancel>
-            <AlertDialogAction 
+            <AlertDialogAction
               onClick={handleDelete}
               className="bg-red-500 hover:bg-red-600"
             >
@@ -456,9 +576,23 @@ export const BundleLibrary = () => {
       {/* Simple pagination */}
       {total > 24 && (
         <div className="flex items-center justify-center gap-2 pt-4">
-          <Button variant="outline" size="sm" disabled={page === 1} onClick={() => setPage(p => Math.max(1, p - 1))}>Previous</Button>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={page === 1}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+          >
+            Previous
+          </Button>
           <div className="text-xs text-muted-foreground">Page {page}</div>
-          <Button variant="outline" size="sm" disabled={items.length < 24} onClick={() => setPage(p => p + 1)}>Next</Button>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={items.length < 24}
+            onClick={() => setPage((p) => p + 1)}
+          >
+            Next
+          </Button>
         </div>
       )}
     </div>

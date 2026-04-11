@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
-import { useLoading } from '@/contexts/LoadingContext';
-import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import React, { useEffect, useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useLoading } from "@/contexts/LoadingContext";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
 export const StartupLoadingManager = () => {
   const { user, loading: authLoading } = useAuth();
@@ -13,9 +13,8 @@ export const StartupLoadingManager = () => {
     // Set a maximum startup time of 15 seconds
     const timeout = setTimeout(() => {
       setStartupTimeout(true);
-      clearLoading('auth');
-      clearLoading('startup');
-      console.warn('⚠️ Startup timeout reached - forcing app to continue');
+      clearLoading("auth");
+      clearLoading("startup");
     }, 15000);
 
     // Clear timeout when auth completes
@@ -32,7 +31,6 @@ export const StartupLoadingManager = () => {
     if (startupTimeout) {
       setForceShow(true);
       // Show a warning but let the app continue
-      console.log('⚠️ App startup took longer than expected, continuing anyway');
     }
   }, [startupTimeout]);
 

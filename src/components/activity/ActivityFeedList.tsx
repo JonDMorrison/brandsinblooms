@@ -225,10 +225,6 @@ export function ActivityFeedList({
 
       if (cancelled) return;
       if (error) {
-        console.warn(
-          "[ActivityFeedList] Failed to fetch customer names",
-          error,
-        );
         return;
       }
 

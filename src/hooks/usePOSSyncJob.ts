@@ -1,13 +1,13 @@
-import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { useState, useEffect, useCallback } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 export interface POSSyncJob {
   id: string;
   tenant_id: string;
   connection_id: string;
-  connection_type: 'square' | 'clover' | 'lightspeed';
-  sync_type: 'customers' | 'sales' | 'products' | 'full';
-  status: 'pending' | 'in_progress' | 'completed' | 'failed';
+  connection_type: "square" | "clover" | "lightspeed";
+  sync_type: "customers" | "sales" | "products" | "full";
+  status: "pending" | "in_progress" | "completed" | "failed";
   cursor?: string;
   page_offset: number;
   page_size: number;
@@ -28,15 +28,15 @@ export interface POSSyncJob {
 
 interface UsePOSSyncJobOptions {
   connectionId?: string;
-  connectionType: 'square' | 'clover' | 'lightspeed';
-  syncType?: 'customers' | 'sales' | 'products' | 'full';
+  connectionType: "square" | "clover" | "lightspeed";
+  syncType?: "customers" | "sales" | "products" | "full";
   pollInterval?: number;
 }
 
 export const usePOSSyncJob = ({
   connectionId,
   connectionType,
-  syncType = 'customers',
+  syncType = "customers",
   pollInterval = 2000,
 }: UsePOSSyncJobOptions) => {
   const [activeJob, setActiveJob] = useState<POSSyncJob | null>(null);
@@ -44,7 +44,7 @@ export const usePOSSyncJob = ({
 
   // Check if job is stuck (in_progress for > 5 minutes without updates)
   const isJobStuck = useCallback((job: POSSyncJob | null): boolean => {
-    if (!job || job.status !== 'in_progress') return false;
+    if (!job || job.status !== "in_progress") return false;
     const updatedAt = new Date(job.updated_at).getTime();
     const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
     return updatedAt < fiveMinutesAgo;
@@ -55,17 +55,17 @@ export const usePOSSyncJob = ({
     if (!connectionId) return null;
 
     const { data, error } = await supabase
-      .from('pos_sync_jobs')
-      .select('*')
-      .eq('connection_id', connectionId)
-      .eq('sync_type', syncType)
-      .in('status', ['pending', 'in_progress'])
-      .order('created_at', { ascending: false })
+      .from("pos_sync_jobs")
+      .select("*")
+      .eq("connection_id", connectionId)
+      .eq("sync_type", syncType)
+      .in("status", ["pending", "in_progress"])
+      .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
 
     if (error) {
-      console.error('[usePOSSyncJob] Error fetching job:', error);
+      console.error("[usePOSSyncJob] Error fetching job:", error);
       return null;
     }
 
@@ -77,16 +77,17 @@ export const usePOSSyncJob = ({
     if (!activeJob) return false;
 
     const { error } = await supabase
-      .from('pos_sync_jobs')
+      .from("pos_sync_jobs")
       .update({
-        status: 'failed',
-        error_message: 'Job reset by user - chain interrupted. Please retry sync.',
+        status: "failed",
+        error_message:
+          "Job reset by user - chain interrupted. Please retry sync.",
         completed_at: new Date().toISOString(),
       })
-      .eq('id', activeJob.id);
+      .eq("id", activeJob.id);
 
     if (error) {
-      console.error('[usePOSSyncJob] Error resetting job:', error);
+      console.error("[usePOSSyncJob] Error resetting job:", error);
       return false;
     }
 
@@ -105,14 +106,18 @@ export const usePOSSyncJob = ({
       const job = await fetchActiveJob();
       setActiveJob(job);
 
-      if (job && (job.status === 'pending' || job.status === 'in_progress')) {
+      if (job && (job.status === "pending" || job.status === "in_progress")) {
         setIsPolling(true);
         intervalId = setInterval(async () => {
           const updatedJob = await fetchActiveJob();
           setActiveJob(updatedJob);
 
           // Stop polling if job is complete or failed
-          if (!updatedJob || updatedJob.status === 'completed' || updatedJob.status === 'failed') {
+          if (
+            !updatedJob ||
+            updatedJob.status === "completed" ||
+            updatedJob.status === "failed"
+          ) {
             setIsPolling(false);
             if (intervalId) {
               clearInterval(intervalId);
@@ -138,18 +143,20 @@ export const usePOSSyncJob = ({
 
     // Check if sync is already in progress
     const existingJob = await fetchActiveJob();
-    if (existingJob && (existingJob.status === 'pending' || existingJob.status === 'in_progress')) {
+    if (
+      existingJob &&
+      (existingJob.status === "pending" || existingJob.status === "in_progress")
+    ) {
       // Check if job is stuck - if so, reset it first
       if (isJobStuck(existingJob)) {
-        console.log('[usePOSSyncJob] Detected stuck job, resetting...');
         await supabase
-          .from('pos_sync_jobs')
+          .from("pos_sync_jobs")
           .update({
-            status: 'failed',
-            error_message: 'Job auto-reset - chain interrupted',
+            status: "failed",
+            error_message: "Job auto-reset - chain interrupted",
             completed_at: new Date().toISOString(),
           })
-          .eq('id', existingJob.id);
+          .eq("id", existingJob.id);
       } else {
         setActiveJob(existingJob);
         setIsPolling(true);
@@ -162,7 +169,7 @@ export const usePOSSyncJob = ({
     const { data, error } = await supabase.functions.invoke(functionName);
 
     if (error) {
-      console.error('[usePOSSyncJob] Error starting sync:', error);
+      console.error("[usePOSSyncJob] Error starting sync:", error);
       throw error;
     }
 
@@ -187,9 +194,9 @@ export const usePOSSyncJob = ({
   // Get progress percentage
   const getProgress = useCallback(() => {
     if (!activeJob) return 0;
-    if (activeJob.status === 'completed') return 100;
+    if (activeJob.status === "completed") return 100;
     if (activeJob.total_fetched === 0) return 0;
-    
+
     // Estimate based on pages processed
     // Since we don't know total, show indeterminate progress
     return Math.min(95, activeJob.current_page * 10);
@@ -198,9 +205,10 @@ export const usePOSSyncJob = ({
   return {
     activeJob,
     isPolling,
-    isSyncing: activeJob?.status === 'in_progress' || activeJob?.status === 'pending',
-    isCompleted: activeJob?.status === 'completed',
-    isFailed: activeJob?.status === 'failed',
+    isSyncing:
+      activeJob?.status === "in_progress" || activeJob?.status === "pending",
+    isCompleted: activeJob?.status === "completed",
+    isFailed: activeJob?.status === "failed",
     isStuck: isJobStuck(activeJob),
     progress: getProgress(),
     startSync,

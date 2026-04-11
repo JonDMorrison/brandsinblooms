@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 // Removed sonner import - using global toast replacement
 import { generatePersonalizedContent } from "../ContentGenerationServices";
@@ -13,81 +12,91 @@ interface ContentType {
   bgColor: string;
 }
 
-export const useUpcomingContentModal = (week: any, onTaskUpdate?: () => void) => {
+export const useUpcomingContentModal = (
+  week: any,
+  onTaskUpdate?: () => void,
+) => {
   const { user } = useAuth();
-  const [generatedContent, setGeneratedContent] = useState<Record<string, string>>({});
-  const [generatingContent, setGeneratingContent] = useState<Record<string, boolean>>({});
-  const [approvedContent, setApprovedContent] = useState<Record<string, boolean>>({});
-  const [editingContent, setEditingContent] = useState<Record<string, boolean>>({});
-  const [editedContent, setEditedContent] = useState<Record<string, string>>({});
-  const [socialMediaModal, setSocialMediaModal] = useState<{ 
-    isOpen: boolean; 
-    platform: 'facebook' | 'instagram' | null; 
-    content: string 
+  const [generatedContent, setGeneratedContent] = useState<
+    Record<string, string>
+  >({});
+  const [generatingContent, setGeneratingContent] = useState<
+    Record<string, boolean>
+  >({});
+  const [approvedContent, setApprovedContent] = useState<
+    Record<string, boolean>
+  >({});
+  const [editingContent, setEditingContent] = useState<Record<string, boolean>>(
+    {},
+  );
+  const [editedContent, setEditedContent] = useState<Record<string, string>>(
+    {},
+  );
+  const [socialMediaModal, setSocialMediaModal] = useState<{
+    isOpen: boolean;
+    platform: "facebook" | "instagram" | null;
+    content: string;
   }>({
     isOpen: false,
     platform: null,
-    content: ''
+    content: "",
   });
 
   const handleGenerateContent = async (contentType: ContentType) => {
     if (!week || !user) return;
-    
-    setGeneratingContent(prev => ({ ...prev, [contentType.id]: true }));
-    
+
+    setGeneratingContent((prev) => ({ ...prev, [contentType.id]: true }));
+
     try {
-      console.log(`Generating ${contentType.name} for theme: ${week.theme}, description: ${week.description}`);
-      
       const result = await generatePersonalizedContent(
         contentType.id,
         week.theme,
         user.id,
-        week.description
+        week.description,
       );
-      
-      const content = typeof result === 'string' ? result : result.content;
-      
-      console.log(`Generated content for ${contentType.name}:`, content);
-      
-      setGeneratedContent(prev => ({ 
-        ...prev, 
-        [contentType.id]: content 
+
+      const content = typeof result === "string" ? result : result.content;
+      setGeneratedContent((prev) => ({
+        ...prev,
+        [contentType.id]: content,
       }));
-      
+
       toast.success(`${contentType.name} content generated successfully!`);
     } catch (error) {
-      console.error('Error generating content:', error);
-      toast.error(`Failed to generate ${contentType.name} content. Please try again.`);
+      console.error("Error generating content:", error);
+      toast.error(
+        `Failed to generate ${contentType.name} content. Please try again.`,
+      );
     } finally {
-      setGeneratingContent(prev => ({ ...prev, [contentType.id]: false }));
+      setGeneratingContent((prev) => ({ ...prev, [contentType.id]: false }));
     }
   };
 
   const handleEditContent = (contentType: ContentType) => {
-    setEditingContent(prev => ({ ...prev, [contentType.id]: true }));
-    setEditedContent(prev => ({
+    setEditingContent((prev) => ({ ...prev, [contentType.id]: true }));
+    setEditedContent((prev) => ({
       ...prev,
-      [contentType.id]: generatedContent[contentType.id] || ''
+      [contentType.id]: generatedContent[contentType.id] || "",
     }));
   };
 
   const handleSaveEdit = (contentType: ContentType) => {
     const newContent = editedContent[contentType.id];
     if (newContent) {
-      setGeneratedContent(prev => ({
+      setGeneratedContent((prev) => ({
         ...prev,
-        [contentType.id]: newContent
+        [contentType.id]: newContent,
       }));
-      setEditingContent(prev => ({ ...prev, [contentType.id]: false }));
+      setEditingContent((prev) => ({ ...prev, [contentType.id]: false }));
       toast.success(`${contentType.name} content updated!`);
     }
   };
 
   const handleCancelEdit = (contentType: ContentType) => {
-    setEditingContent(prev => ({ ...prev, [contentType.id]: false }));
-    setEditedContent(prev => ({
+    setEditingContent((prev) => ({ ...prev, [contentType.id]: false }));
+    setEditedContent((prev) => ({
       ...prev,
-      [contentType.id]: generatedContent[contentType.id] || ''
+      [contentType.id]: generatedContent[contentType.id] || "",
     }));
   };
 
@@ -100,7 +109,7 @@ export const useUpcomingContentModal = (week: any, onTaskUpdate?: () => void) =>
   };
 
   const handleApproveContent = (contentType: ContentType) => {
-    setApprovedContent(prev => ({ ...prev, [contentType.id]: true }));
+    setApprovedContent((prev) => ({ ...prev, [contentType.id]: true }));
     toast.success(`${contentType.name} approved!`);
   };
 
@@ -110,20 +119,20 @@ export const useUpcomingContentModal = (week: any, onTaskUpdate?: () => void) =>
 
     setSocialMediaModal({
       isOpen: true,
-      platform: contentType.id as 'facebook' | 'instagram',
-      content: content
+      platform: contentType.id as "facebook" | "instagram",
+      content: content,
     });
   };
 
   const handleEditedContentChange = (contentTypeId: string, value: string) => {
-    setEditedContent(prev => ({
+    setEditedContent((prev) => ({
       ...prev,
-      [contentTypeId]: value
+      [contentTypeId]: value,
     }));
   };
 
   const closeSocialMediaModal = () => {
-    setSocialMediaModal({ isOpen: false, platform: null, content: '' });
+    setSocialMediaModal({ isOpen: false, platform: null, content: "" });
   };
 
   return {
@@ -141,6 +150,6 @@ export const useUpcomingContentModal = (week: any, onTaskUpdate?: () => void) =>
     handleApproveContent,
     handleSocialMediaPost,
     handleEditedContentChange,
-    closeSocialMediaModal
+    closeSocialMediaModal,
   };
 };

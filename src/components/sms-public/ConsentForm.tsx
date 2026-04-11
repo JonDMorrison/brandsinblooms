@@ -58,12 +58,6 @@ export const ConsentForm = () => {
     setIsSubmitting(true);
     
     // Normalize phone to E.164
-    const normalizedPhone = formatPhoneForTwilio(data.mobileNumber);
-    console.log('Consent form submitted:', {
-      firstName: data.firstName,
-      phone: normalizedPhone,
-      consentTimestamp: new Date().toISOString(),
-    });
 
     // Simulate brief processing delay
     await new Promise((resolve) => setTimeout(resolve, 500));

@@ -22,13 +22,6 @@ export const OptimizedNewsletterDisplay = ({
   contentTaskId,
   campaignTitle,
   taskStatus
-}: OptimizedNewsletterDisplayProps) => {
-  console.log('[NEWSLETTER DISPLAY] Rendering with:', {
-    contentLength: content?.length || 0,
-    isPlaceholder: !content || content.length < 100,
-    campaignTitle,
-    taskStatus
-  });
 
   // Use the newsletter renderer hook
   const {
@@ -71,7 +64,7 @@ export const OptimizedNewsletterDisplay = ({
           />
         ) : (
           <ImageSelectButton
-            onImageSelect={(imageUrl) => console.log('Featured image selected:', imageUrl)}
+            onImageSelect={(imageUrl) => {}}
             contentContext={featuredImagePrompt}
             className="w-full h-full"
             buttonText="Add Featured Image"
@@ -124,7 +117,7 @@ export const OptimizedNewsletterDisplay = ({
               />
             ) : (
               <ImageSelectButton
-                onImageSelect={(imageUrl) => console.log(`Block ${index} image selected:`, imageUrl)}
+                onImageSelect={(imageUrl) => {}}
                 contentContext={block.image_prompt}
                 className="w-full h-full"
                 buttonText="Add Section Image"
@@ -183,7 +176,7 @@ export const OptimizedNewsletterDisplay = ({
                 />
               ) : (
                 <ImageSelectButton
-                  onImageSelect={(imageUrl) => console.log(`Section ${section.id} image selected:`, imageUrl)}
+                  onImageSelect={(imageUrl) => {}}
                   contentContext={section.image_prompt}
                   className="w-full h-full"
                   buttonText="Add Section Image"

@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { RefreshCw, AlertCircle } from "lucide-react";
@@ -17,7 +16,11 @@ interface ManualContentGeneratorProps {
   showAsModal?: boolean;
 }
 
-export const ManualContentGenerator = ({ campaign, onContentGenerated, showAsModal = false }: ManualContentGeneratorProps) => {
+export const ManualContentGenerator = ({
+  campaign,
+  onContentGenerated,
+  showAsModal = false,
+}: ManualContentGeneratorProps) => {
   const { user } = useAuth();
   const { tenant } = useTenant();
   const navigate = useNavigate();
@@ -33,75 +36,74 @@ export const ManualContentGenerator = ({ campaign, onContentGenerated, showAsMod
       toast({
         title: "Missing information",
         description: "Missing user or campaign information",
-        variant: "destructive"
+        variant: "destructive",
       });
       return;
     }
 
     // Start job tracking
     const jobId = startGeneration({
-      type: 'campaign',
-      title: campaign.title || campaign.theme || 'Campaign Content',
-      redirectPath: '/dashboard',
+      type: "campaign",
+      title: campaign.title || campaign.theme || "Campaign Content",
+      redirectPath: "/dashboard",
     });
 
     setIsGenerating(true);
     setError(null);
-    
+
     if (showAsModal) {
       setShowLoadingModal(true);
     } else {
       // Navigate to dashboard immediately to show progress
-      navigate('/dashboard');
+      navigate("/dashboard");
     }
 
     try {
-      console.log('🚀 Manual content generation triggered for campaign:', campaign.id);
-      
       const result = await generateCampaignContent(
         campaign.id,
         campaign.theme || campaign.title,
-        campaign.description || '',
+        campaign.description || "",
         user.id,
         campaign.week_number,
-        tenant?.id
+        tenant?.id,
       );
 
       if (result.success) {
         setGeneratedTasks(result.tasks || []);
         completeJob(jobId);
         setShowLoadingModal(false);
-        
+
         if (showAsModal) {
           setShowContentModal(true);
         } else {
           toast({
             title: "Content Generated Successfully!",
-            description: `Generated ${result.tasks?.length || 0} content pieces for your campaign`
+            description: `Generated ${result.tasks?.length || 0} content pieces for your campaign`,
           });
           onContentGenerated();
         }
       } else {
         setShowLoadingModal(false);
-        const errorMsg = result.message || 'Content generation failed';
+        const errorMsg = result.message || "Content generation failed";
         setError(errorMsg);
         failJob(jobId, errorMsg);
         toast({
           title: "Generation failed",
           description: errorMsg,
-          variant: "destructive"
+          variant: "destructive",
         });
       }
     } catch (error) {
-      console.error('❌ Manual content generation failed:', error);
+      console.error("❌ Manual content generation failed:", error);
       setShowLoadingModal(false);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error occurred";
       setError(errorMessage);
       failJob(jobId, errorMessage);
       toast({
         title: "Generation failed",
         description: `Content generation failed: ${errorMessage}`,
-        variant: "destructive"
+        variant: "destructive",
       });
     } finally {
       setIsGenerating(false);
@@ -123,21 +125,25 @@ export const ManualContentGenerator = ({ campaign, onContentGenerated, showAsMod
             <span className="text-sm">{error}</span>
           </div>
         )}
-        
+
         <Button
           onClick={handleGenerateContent}
           disabled={isGenerating}
           className="w-full"
           variant="outline"
         >
-          <RefreshCw className={`w-4 h-4 mr-2 ${isGenerating ? 'animate-spin' : ''}`} />
-          {isGenerating ? 'Generating Content...' : 'Generate Content Manually'}
+          <RefreshCw
+            className={`w-4 h-4 mr-2 ${isGenerating ? "animate-spin" : ""}`}
+          />
+          {isGenerating ? "Generating Content..." : "Generate Content Manually"}
         </Button>
-        
+
         {isGenerating && !showLoadingModal && (
           <div className="text-sm text-gray-600 text-center">
             <p>This may take 30-60 seconds. Please wait...</p>
-            <p className="text-xs mt-1">Generating 5 content pieces for review</p>
+            <p className="text-xs mt-1">
+              Generating 5 content pieces for review
+            </p>
           </div>
         )}
       </div>
@@ -145,7 +151,7 @@ export const ManualContentGenerator = ({ campaign, onContentGenerated, showAsMod
       {/* Loading Modal */}
       <ContentGenerationLoadingModal
         isOpen={showLoadingModal}
-        campaignTitle={campaign?.title || campaign?.theme || 'Your Campaign'}
+        campaignTitle={campaign?.title || campaign?.theme || "Your Campaign"}
       />
 
       {/* Content Viewer Modal */}
@@ -153,7 +159,7 @@ export const ManualContentGenerator = ({ campaign, onContentGenerated, showAsMod
         <ContentViewerDialog
           isOpen={showContentModal}
           onClose={handleCloseContentModal}
-          campaignTitle={campaign?.title || campaign?.theme || 'Your Campaign'}
+          campaignTitle={campaign?.title || campaign?.theme || "Your Campaign"}
           loading={false}
           tasks={generatedTasks}
           onTaskUpdate={handleCloseContentModal}

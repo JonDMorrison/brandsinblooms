@@ -1,374 +1,1257 @@
-import React, { useState, useMemo } from 'react';
-import { FormField, FormSettings, FormCompliance, FormTheme } from '@/types/formBuilder';
-import { Check, Shield } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import {
+  AlertCircle,
+  ArrowLeft,
+  ArrowRight,
+  Check,
+  CheckCircle2,
+  ChevronDown,
+  EyeOff,
+  FileUp,
+  Loader2,
+  ShieldCheck,
+  Upload,
+  X,
+} from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { cn } from "@/lib/utils";
+import {
+  getFontFamilyCss,
+  getFormWidthValue,
+  getSpacingValue,
+  normalizeFormSettings,
+} from "@/lib/forms/designSettings";
+import {
+  filterVisibleSubmissionData,
+  getNormalizedFormSteps,
+  getVisibleRenderableFields,
+  groupFieldsByStep,
+  isMultiStepEnabled,
+  normalizeFieldStepIndex,
+} from "@/lib/forms/formFlow";
+import {
+  getFieldCharacterCount,
+  getFieldMaxLength,
+  getResolvedFieldValue,
+  validateFieldValue,
+} from "@/lib/forms/fieldValidation";
+import {
+  formatFileSize,
+  getFileFieldAllowedMimeTypes,
+  getFileFieldMaxFileSizeMb,
+  getFileFieldMaxFiles,
+  getFileUploadAcceptAttribute,
+  getFormFileUploadReferences,
+  matchesAcceptedFileType,
+  simulateFormFileUpload,
+  uploadFileToFormStorage,
+} from "@/lib/forms/fileUploads";
+import {
+  DEFAULT_FORM_COMPLIANCE,
+  FormCompliance,
+  FormField,
+  FormFileUploadReference,
+  FormSettings,
+  FormStep,
+} from "@/types/formBuilder";
 
 interface FormPreviewRendererProps {
   fields: FormField[];
   settings: FormSettings;
   compliance: FormCompliance;
-  mode?: 'preview' | 'embed';
-  onSubmit?: (data: Record<string, any>) => void;
+  mode?: "preview" | "embed";
+  onSubmit?: (data: Record<string, unknown>) => Promise<void> | void;
   isSubmitting?: boolean;
+  uploadEmbedKey?: string;
   changedIds?: Set<string>;
+  resetSignal?: number;
 }
 
-// Extended settings interface matching FormDesignTab
-interface ExtendedSettings extends FormSettings {
-  form_title?: string;
-  form_description?: string;
-  form_headline?: string;
-  form_subheadline?: string;
-  form_width?: 'narrow' | 'medium' | 'wide' | 'full';
-  label_position?: 'above' | 'inline' | 'floating';
-  columns?: number;
-  theme: ExtendedTheme;
+interface FileUploadItem {
+  uploadId: string;
+  fileName: string;
+  fileSize: number;
+  mimeType: string;
+  progress: number;
+  status: "uploading" | "uploaded" | "error";
+  error?: string;
+  reference?: FormFileUploadReference;
 }
 
-interface ExtendedTheme extends FormTheme {
-  secondary_color?: string;
-  text_color?: string;
-  background_color?: string;
-  input_style?: 'default' | 'underline' | 'filled';
+interface ThemeTokens {
+  primary: string;
+  secondary: string;
+  text: string;
+  mutedText: string;
+  quietText: string;
+  background: string;
+  fieldSurface: string;
+  filledFieldSurface: string;
+  subtleBorder: string;
+  strongBorder: string;
+  focusRing: string;
+  error: string;
+  errorSurface: string;
+  successSurface: string;
+  successBorder: string;
+  successText: string;
+  consentSurface: string;
+  consentBorder: string;
+  shadow: string;
+  fontFamily: string;
+  spacing: string;
+  radius: string;
+  buttonTextOnPrimary: string;
+  formMaxWidth: string;
 }
 
-const SPACING_MAP: Record<string, string> = {
-  compact: '12px',
-  normal: '16px',
-  relaxed: '24px',
-};
+type FieldControlElement = HTMLInputElement | HTMLSelectElement;
 
-const WIDTH_MAP: Record<string, string> = {
-  narrow: '400px',
-  medium: '500px',
-  wide: '600px',
-  full: '100%',
-};
+const RESPONSIVE_TWO_COLUMN_MIN_WIDTH = 640;
+const CONTROL_RADIUS = 8;
+const CARD_RADIUS = 12;
 
 export function FormPreviewRenderer({
   fields,
   settings,
   compliance,
-  mode = 'preview',
+  mode = "preview",
   onSubmit,
   isSubmitting = false,
+  uploadEmbedKey,
   changedIds = new Set(),
+  resetSignal = 0,
 }: FormPreviewRendererProps) {
-  const [formData, setFormData] = useState<Record<string, any>>({});
+  const normalizedSettings = useMemo(
+    () => normalizeFormSettings(settings),
+    [settings],
+  );
+  const resolvedCompliance = compliance ?? DEFAULT_FORM_COMPLIANCE;
+  const [formData, setFormData] = useState<Record<string, unknown>>({});
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isTransitioningToSuccess, setIsTransitioningToSuccess] =
+    useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [touchedFields, setTouchedFields] = useState<Record<string, boolean>>(
+    {},
+  );
+  const [currentStepIndex, setCurrentStepIndex] = useState(0);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [containerWidth, setContainerWidth] = useState<number | null>(null);
+  const [fileUploads, setFileUploads] = useState<
+    Record<string, FileUploadItem[]>
+  >({});
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const fieldRefs = useRef<Record<string, FieldControlElement | null>>({});
+  const redirectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const successTransitionTimerRef = useRef<ReturnType<
+    typeof setTimeout
+  > | null>(null);
+  const sessionIdRef = useRef(crypto.randomUUID());
+  const uploadCancelersRef = useRef<Record<string, () => void>>({});
 
-  const extSettings = settings as ExtendedSettings;
-  const theme = extSettings.theme || {};
+  const theme = normalizedSettings.theme;
+  const steps = useMemo(
+    () => getNormalizedFormSteps(fields, normalizedSettings),
+    [fields, normalizedSettings],
+  );
+  const multiStepEnabled = isMultiStepEnabled(normalizedSettings);
+  const hiddenFieldCount = useMemo(
+    () => fields.filter((field) => field.type === "hidden").length,
+    [fields],
+  );
+  const renderableFields = useMemo(
+    () => getVisibleRenderableFields(fields, formData),
+    [fields, formData],
+  );
+  const resolvedVisibleFields = useMemo(
+    () =>
+      renderableFields.map((field) => {
+        if (field.type === "email_consent") {
+          return {
+            ...field,
+            required:
+              field.required || resolvedCompliance.email_consent_required,
+          } satisfies FormField;
+        }
 
-  // Compute CSS variables from theme
-  const cssVars = useMemo(() => ({
-    '--bs-form-primary': theme.primary_color || '#22C55E',
-    '--bs-form-primary-hover': adjustColor(theme.primary_color || '#22C55E', -15),
-    '--bs-form-radius': theme.border_radius || '8px',
-    '--bs-form-spacing': SPACING_MAP[theme.spacing || 'normal'] || '16px',
-    '--bs-form-text': theme.text_color || '#1f2937',
-    '--bs-form-bg': theme.background_color || '#ffffff',
-    '--bs-form-font': theme.font_family || 'inherit',
-  } as React.CSSProperties), [theme]);
+        if (field.type === "sms_consent") {
+          return {
+            ...field,
+            required: field.required || resolvedCompliance.sms_consent_required,
+          } satisfies FormField;
+        }
 
-  const containerWidth = WIDTH_MAP[extSettings.form_width || 'medium'] || '500px';
+        return field;
+      }),
+    [renderableFields, resolvedCompliance],
+  );
+  const stepGroups = useMemo(
+    () => groupFieldsByStep(resolvedVisibleFields, steps),
+    [resolvedVisibleFields, steps],
+  );
+  const activeStepPosition = Math.max(
+    0,
+    stepGroups.findIndex((group) => group.step.index === currentStepIndex),
+  );
+  const activeStepGroup = stepGroups[activeStepPosition] ?? null;
+  const currentStepFields = multiStepEnabled
+    ? (activeStepGroup?.fields ?? [])
+    : resolvedVisibleFields;
+  const hasRequiredFields = resolvedVisibleFields.some(
+    (field) => field.required,
+  );
+  const hasActiveUploads = useMemo(
+    () =>
+      Object.values(fileUploads).some((items) =>
+        items.some((item) => item.status === "uploading"),
+      ),
+    [fileUploads],
+  );
+  const isFirstStep = activeStepPosition === 0;
+  const isLastStep = activeStepPosition >= stepGroups.length - 1;
 
-  const handleInputChange = (fieldId: string, value: any) => {
-    setFormData((prev) => ({ ...prev, [fieldId]: value }));
-    // Clear error when user types
-    if (errors[fieldId]) {
-      setErrors((prev) => {
-        const next = { ...prev };
+  const tokens = useMemo<ThemeTokens>(() => {
+    const background = theme.background_color ?? "#FFFFFF";
+    const text = theme.text_color ?? "#1F2937";
+    const primary = theme.primary_color ?? "#22C55E";
+    const secondary = theme.secondary_color ?? "#1E40AF";
+    const isDarkBackground = isDarkColor(background);
+
+    return {
+      primary,
+      secondary,
+      text,
+      mutedText: toRgba(text, 0.72),
+      quietText: toRgba(text, 0.58),
+      background,
+      fieldSurface: isDarkBackground
+        ? mixHex(background, "#FFFFFF", 0.18)
+        : "#FFFFFF",
+      filledFieldSurface: isDarkBackground
+        ? mixHex(background, "#FFFFFF", 0.24)
+        : mixHex(background, text, 0.04),
+      subtleBorder: toRgba(text, 0.12),
+      strongBorder: toRgba(text, 0.18),
+      focusRing: toRgba(primary, 0.18),
+      error: "#dc2626",
+      errorSurface: "rgba(220, 38, 38, 0.08)",
+      successSurface: isDarkBackground
+        ? mixHex(background, primary, 0.24)
+        : mixHex(background, primary, 0.08),
+      successBorder: toRgba(primary, 0.24),
+      successText: isDarkBackground ? "#FFFFFF" : text,
+      consentSurface: isDarkBackground
+        ? mixHex(background, secondary, 0.24)
+        : mixHex(background, secondary, 0.07),
+      consentBorder: toRgba(secondary, 0.18),
+      shadow: `0 18px 48px -32px ${toRgba(text, 0.38)}`,
+      fontFamily: getFontFamilyCss(theme.font_family),
+      spacing: getSpacingValue(theme.spacing),
+      radius: theme.border_radius ?? "8px",
+      buttonTextOnPrimary: getReadableTextColor(primary, "#FFFFFF", text),
+      formMaxWidth: getFormWidthValue(normalizedSettings.form_width),
+    };
+  }, [normalizedSettings.form_width, theme]);
+
+  const shouldUseSingleColumn =
+    normalizedSettings.columns !== 2 ||
+    (containerWidth !== null &&
+      containerWidth < RESPONSIVE_TWO_COLUMN_MIN_WIDTH);
+
+  useEffect(() => {
+    const element = containerRef.current;
+    if (!element) {
+      return;
+    }
+
+    const updateWidth = () => {
+      setContainerWidth(element.clientWidth);
+    };
+
+    updateWidth();
+
+    if (typeof ResizeObserver === "undefined") {
+      return;
+    }
+
+    const observer = new ResizeObserver((entries) => {
+      const nextWidth = entries[0]?.contentRect.width;
+      if (typeof nextWidth === "number") {
+        setContainerWidth(nextWidth);
+      }
+    });
+
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const activeKeys = new Set(resolvedVisibleFields.map((field) => field.id));
+
+    setFormData((current) => {
+      const nextEntries = Object.entries(current).filter(([key]) =>
+        activeKeys.has(key),
+      );
+
+      return nextEntries.length === Object.keys(current).length
+        ? current
+        : Object.fromEntries(nextEntries);
+    });
+
+    setErrors((current) => {
+      const nextEntries = Object.entries(current).filter(([key]) =>
+        activeKeys.has(key),
+      );
+
+      return nextEntries.length === Object.keys(current).length
+        ? current
+        : Object.fromEntries(nextEntries);
+    });
+
+    setTouchedFields((current) => {
+      const nextEntries = Object.entries(current).filter(([key]) =>
+        activeKeys.has(key),
+      );
+
+      return nextEntries.length === Object.keys(current).length
+        ? current
+        : Object.fromEntries(nextEntries);
+    });
+
+    Object.keys(fieldRefs.current).forEach((key) => {
+      if (!activeKeys.has(key)) {
+        delete fieldRefs.current[key];
+      }
+    });
+
+    setFileUploads((current) => {
+      const nextEntries = Object.entries(current).filter(([fieldId]) =>
+        activeKeys.has(fieldId),
+      );
+
+      Object.entries(current).forEach(([fieldId, items]) => {
+        if (activeKeys.has(fieldId)) {
+          return;
+        }
+
+        items.forEach((item) => {
+          if (item.status === "uploading") {
+            uploadCancelersRef.current[item.uploadId]?.();
+            delete uploadCancelersRef.current[item.uploadId];
+          }
+        });
+      });
+
+      return nextEntries.length === Object.keys(current).length
+        ? current
+        : Object.fromEntries(nextEntries);
+    });
+  }, [resolvedVisibleFields]);
+
+  useEffect(() => {
+    const firstStepIndex = stepGroups[0]?.step.index ?? 0;
+
+    if (!stepGroups.some((group) => group.step.index === currentStepIndex)) {
+      setCurrentStepIndex(firstStepIndex);
+    }
+  }, [currentStepIndex, stepGroups]);
+
+  useEffect(() => {
+    setIsSubmitted(false);
+    setIsTransitioningToSuccess(false);
+    Object.values(uploadCancelersRef.current).forEach((cancelUpload) => {
+      cancelUpload();
+    });
+    uploadCancelersRef.current = {};
+    sessionIdRef.current = crypto.randomUUID();
+    setFormData({});
+    setErrors({});
+    setFileUploads({});
+    setTouchedFields({});
+    setCurrentStepIndex(steps[0]?.index ?? 0);
+    setSubmitError(null);
+    clearRedirectTimer(redirectTimerRef);
+    clearRedirectTimer(successTransitionTimerRef);
+  }, [resetSignal, steps]);
+
+  useEffect(() => {
+    if (
+      !isSubmitted ||
+      mode !== "embed" ||
+      !normalizedSettings.success_redirect_url
+    ) {
+      return;
+    }
+
+    clearRedirectTimer(redirectTimerRef);
+    redirectTimerRef.current = setTimeout(() => {
+      window.location.assign(normalizedSettings.success_redirect_url!);
+    }, 2000);
+
+    return () => clearRedirectTimer(redirectTimerRef);
+  }, [isSubmitted, mode, normalizedSettings.success_redirect_url]);
+
+  useEffect(() => () => clearRedirectTimer(redirectTimerRef), []);
+  useEffect(() => () => clearRedirectTimer(successTransitionTimerRef), []);
+
+  useEffect(
+    () => () => {
+      Object.values(uploadCancelersRef.current).forEach((cancelUpload) => {
+        cancelUpload();
+      });
+    },
+    [],
+  );
+
+  const setFieldError = (fieldId: string, message: string | null) => {
+    setErrors((current) => {
+      const next = { ...current };
+      if (message) {
+        next[fieldId] = message;
+      } else {
+        delete next[fieldId];
+      }
+      return next;
+    });
+  };
+
+  const registerFieldRef = (
+    fieldId: string,
+    element: FieldControlElement | null,
+  ) => {
+    fieldRefs.current[fieldId] = element;
+  };
+
+  const focusField = (fieldId: string) => {
+    const element = fieldRefs.current[fieldId];
+    if (!element) {
+      return;
+    }
+
+    element.focus();
+    element.scrollIntoView({ behavior: "smooth", block: "center" });
+  };
+
+  const handleFieldChange = (field: FormField, value: unknown) => {
+    setFormData((current) => ({ ...current, [field.id]: value }));
+    setSubmitError(null);
+
+    if (touchedFields[field.id]) {
+      setFieldError(field.id, validateFieldValue(field, value));
+      return;
+    }
+
+    if (errors[field.id]) {
+      setFieldError(field.id, null);
+    }
+  };
+
+  const handleFieldBlur = (field: FormField) => {
+    setTouchedFields((current) => ({ ...current, [field.id]: true }));
+    setFieldError(field.id, validateFieldValue(field, formData[field.id]));
+  };
+
+  const setFileUploadItems = (
+    fieldId: string,
+    updater: (current: FileUploadItem[]) => FileUploadItem[],
+  ) => {
+    setFileUploads((current) => {
+      const nextItems = updater(current[fieldId] || []);
+
+      if (nextItems.length === 0) {
+        const next = { ...current };
         delete next[fieldId];
         return next;
+      }
+
+      return {
+        ...current,
+        [fieldId]: nextItems,
+      };
+    });
+  };
+
+  const syncFileFieldValue = (
+    field: FormField,
+    updater: (
+      currentReferences: FormFileUploadReference[],
+    ) => FormFileUploadReference[],
+  ) => {
+    setFormData((current) => {
+      const nextReferences = updater(
+        getFormFileUploadReferences(current[field.id]),
+      );
+      return {
+        ...current,
+        [field.id]: nextReferences,
+      };
+    });
+
+    if (touchedFields[field.id] || errors[field.id]) {
+      window.requestAnimationFrame(() => {
+        setFieldError(
+          field.id,
+          validateFieldValue(
+            field,
+            updater(getFormFileUploadReferences(formData[field.id])),
+          ),
+        );
       });
     }
   };
 
-  const validateForm = (): boolean => {
-    const newErrors: Record<string, string> = {};
+  const handleFileSelection = (field: FormField, fileList: FileList | null) => {
+    const selectedFiles = Array.from(fileList || []);
+    if (selectedFiles.length === 0) {
+      return;
+    }
 
-    fields.forEach((field) => {
-      const value = formData[field.id];
+    const allowedMimeTypes = getFileFieldAllowedMimeTypes(field);
+    const maxFiles = getFileFieldMaxFiles(field);
+    const maxFileSizeMb = getFileFieldMaxFileSizeMb(field);
+    const maxFileSizeBytes = maxFileSizeMb * 1024 * 1024;
+    const currentUploadCount = (fileUploads[field.id] || []).filter(
+      (item) => item.status === "uploading" || item.status === "uploaded",
+    ).length;
 
-      if (field.required && (!value || (typeof value === 'string' && !value.trim()))) {
-        newErrors[field.id] = 'This field is required';
+    if (currentUploadCount + selectedFiles.length > maxFiles) {
+      setFieldError(
+        field.id,
+        `You can upload up to ${maxFiles} file${maxFiles === 1 ? "" : "s"}`,
+      );
+      return;
+    }
+
+    for (const file of selectedFiles) {
+      if (file.size > maxFileSizeBytes) {
+        setFieldError(
+          field.id,
+          `${file.name} exceeds the ${maxFileSizeMb} MB limit`,
+        );
+        return;
       }
 
-      if (field.type === 'email' && value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
-        newErrors[field.id] = 'Please enter a valid email';
+      if (!matchesAcceptedFileType(file, allowedMimeTypes)) {
+        setFieldError(field.id, `${file.name} is not an allowed file type`);
+        return;
       }
+    }
 
-      if (field.type === 'phone' && value && !/^[\d\s\-+()]+$/.test(value)) {
-        newErrors[field.id] = 'Please enter a valid phone number';
+    setFieldError(field.id, null);
+    setSubmitError(null);
+
+    selectedFiles.forEach((file) => {
+      const uploadRequest =
+        mode === "embed" && uploadEmbedKey
+          ? uploadFileToFormStorage({
+              embedKey: uploadEmbedKey,
+              fieldId: field.id,
+              file,
+              sessionId: sessionIdRef.current,
+              onProgress: (progress) => {
+                setFileUploadItems(field.id, (current) =>
+                  current.map((item) =>
+                    item.uploadId === uploadRequest.uploadId
+                      ? { ...item, progress }
+                      : item,
+                  ),
+                );
+              },
+            })
+          : simulateFormFileUpload({
+              fieldId: field.id,
+              file,
+              sessionId: sessionIdRef.current,
+              onProgress: (progress) => {
+                setFileUploadItems(field.id, (current) =>
+                  current.map((item) =>
+                    item.uploadId === uploadRequest.uploadId
+                      ? { ...item, progress }
+                      : item,
+                  ),
+                );
+              },
+            });
+
+      uploadCancelersRef.current[uploadRequest.uploadId] = uploadRequest.cancel;
+
+      setFileUploadItems(field.id, (current) => [
+        ...current,
+        {
+          uploadId: uploadRequest.uploadId,
+          fileName: file.name,
+          fileSize: file.size,
+          mimeType: file.type || "application/octet-stream",
+          progress: 0,
+          status: "uploading",
+        },
+      ]);
+
+      uploadRequest.promise
+        .then((reference) => {
+          delete uploadCancelersRef.current[uploadRequest.uploadId];
+
+          setFileUploadItems(field.id, (current) =>
+            current.map((item) =>
+              item.uploadId === uploadRequest.uploadId
+                ? {
+                    ...item,
+                    progress: 100,
+                    status: "uploaded",
+                    reference,
+                  }
+                : item,
+            ),
+          );
+
+          syncFileFieldValue(field, (currentReferences) => [
+            ...currentReferences.filter(
+              (item) => item.upload_id !== reference.upload_id,
+            ),
+            reference,
+          ]);
+        })
+        .catch((error) => {
+          delete uploadCancelersRef.current[uploadRequest.uploadId];
+
+          if (error instanceof Error && error.message === "Upload canceled") {
+            setFileUploadItems(field.id, (current) =>
+              current.filter(
+                (item) => item.uploadId !== uploadRequest.uploadId,
+              ),
+            );
+            return;
+          }
+
+          setFileUploadItems(field.id, (current) =>
+            current.map((item) =>
+              item.uploadId === uploadRequest.uploadId
+                ? {
+                    ...item,
+                    status: "error",
+                    error:
+                      error instanceof Error ? error.message : "Upload failed",
+                  }
+                : item,
+            ),
+          );
+
+          setFieldError(
+            field.id,
+            error instanceof Error ? error.message : "Upload failed",
+          );
+        });
+    });
+  };
+
+  const handleRemoveFile = (field: FormField, uploadId: string) => {
+    uploadCancelersRef.current[uploadId]?.();
+    delete uploadCancelersRef.current[uploadId];
+
+    setFileUploadItems(field.id, (current) =>
+      current.filter((item) => item.uploadId !== uploadId),
+    );
+
+    syncFileFieldValue(field, (currentReferences) =>
+      currentReferences.filter((item) => item.upload_id !== uploadId),
+    );
+  };
+
+  const getSubmissionData = () => {
+    const visibleSubmissionData = filterVisibleSubmissionData(fields, formData);
+    const nextData: Record<string, unknown> = {};
+
+    resolvedVisibleFields.forEach((field) => {
+      nextData[field.id] = getResolvedFieldValue(
+        field,
+        visibleSubmissionData[field.id],
+      );
+    });
+
+    return nextData;
+  };
+
+  const validateFields = (targetFields: FormField[]) => {
+    const nextErrors: Record<string, string> = {};
+
+    targetFields.forEach((field) => {
+      const nextError = validateFieldValue(field, formData[field.id]);
+      if (nextError) {
+        nextErrors[field.id] = nextError;
       }
     });
 
-    // Check consent fields
-    if (compliance.email_consent_required && !formData['__email_consent']) {
-      newErrors['__email_consent'] = 'Email consent is required';
-    }
-    if (compliance.sms_consent_required && !formData['__sms_consent']) {
-      newErrors['__sms_consent'] = 'SMS consent is required';
-    }
+    setTouchedFields((current) => {
+      const nextTouchedFields = { ...current };
+      targetFields.forEach((field) => {
+        nextTouchedFields[field.id] = true;
+      });
+      return nextTouchedFields;
+    });
 
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    setErrors((current) => {
+      const next = { ...current };
+      targetFields.forEach((field) => {
+        if (nextErrors[field.id]) {
+          next[field.id] = nextErrors[field.id];
+        } else {
+          delete next[field.id];
+        }
+      });
+      return next;
+    });
+
+    const firstInvalidField = targetFields.find(
+      (field) => nextErrors[field.id],
+    );
+
+    return {
+      valid: Object.keys(nextErrors).length === 0,
+      firstInvalidField,
+    };
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const focusInvalidField = (field: FormField) => {
+    const stepIndex = normalizeFieldStepIndex(field);
 
-    if (!validateForm()) return;
+    if (multiStepEnabled && stepIndex !== currentStepIndex) {
+      setCurrentStepIndex(stepIndex);
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => focusField(field.id));
+      });
+      return;
+    }
 
-    if (mode === 'preview') {
-      // In preview mode, just show success state
-      setIsSubmitted(true);
-    } else if (onSubmit) {
-      onSubmit(formData);
+    window.requestAnimationFrame(() => focusField(field.id));
+  };
+
+  const handleAdvanceStep = () => {
+    if (hasActiveUploads) {
+      setSubmitError("Wait for all uploads to finish before continuing.");
+      return;
+    }
+
+    const validation = validateFields(currentStepFields);
+
+    if (!validation.valid && validation.firstInvalidField) {
+      focusInvalidField(validation.firstInvalidField);
+      return;
+    }
+
+    const nextStep = stepGroups[activeStepPosition + 1];
+
+    if (nextStep) {
+      setCurrentStepIndex(nextStep.step.index);
+      setSubmitError(null);
     }
   };
 
-  const resetPreview = () => {
-    setIsSubmitted(false);
-    setFormData({});
-    setErrors({});
+  const handleSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
+
+    if (isSubmitting || hasActiveUploads) {
+      if (hasActiveUploads) {
+        setSubmitError("Wait for all uploads to finish before submitting.");
+      }
+      return;
+    }
+
+    if (multiStepEnabled && !isLastStep) {
+      handleAdvanceStep();
+      return;
+    }
+
+    void (async () => {
+      setSubmitError(null);
+
+      const validation = validateFields(resolvedVisibleFields);
+
+      if (!validation.valid) {
+        if (validation.firstInvalidField) {
+          focusInvalidField(validation.firstInvalidField);
+        }
+        return;
+      }
+
+      try {
+        if (mode === "embed" && onSubmit) {
+          await onSubmit(getSubmissionData());
+        }
+
+        clearRedirectTimer(successTransitionTimerRef);
+        setIsTransitioningToSuccess(true);
+        successTransitionTimerRef.current = setTimeout(() => {
+          setIsSubmitted(true);
+          setIsTransitioningToSuccess(false);
+        }, 220);
+      } catch (error) {
+        setSubmitError(
+          error instanceof Error
+            ? error.message
+            : "Submission failed. Please try again.",
+        );
+      }
+    })();
   };
 
-  // Check if any email/sms consent is needed
-  const hasEmailField = fields.some((f) => f.type === 'email');
-  const hasPhoneField = fields.some((f) => f.type === 'phone');
-  const showEmailConsent = hasEmailField && compliance.email_consent_text;
-  const showSmsConsent = hasPhoneField && compliance.sms_consent_text;
-  const hasAnyConsent = showEmailConsent || showSmsConsent;
-
-  // Check if any fields are required
-  const hasRequiredFields = fields.some((f) => f.required) || 
-    compliance.email_consent_required || 
-    compliance.sms_consent_required;
+  const containerStyle: React.CSSProperties = {
+    width: "100%",
+    maxWidth: `min(${tokens.formMaxWidth}, 42rem)`,
+    margin: "0 auto",
+    backgroundColor: tokens.background,
+    color: tokens.text,
+    fontFamily: tokens.fontFamily,
+    border: `1px solid ${tokens.subtleBorder}`,
+    borderRadius: `${CARD_RADIUS}px`,
+  };
 
   if (isSubmitted) {
     return (
       <div
-        className="bs-form-container"
-        style={{ ...cssVars, maxWidth: containerWidth, margin: '0 auto' }}
+        ref={containerRef}
+        className="w-full rounded-xl border px-5 py-5 shadow-sm transition-opacity duration-300 sm:px-8 sm:py-8"
+        style={containerStyle}
       >
-        <div className="bs-form-success">
-          <div className="bs-form-success-icon">
-            <Check className="w-7 h-7 text-white" />
-          </div>
-          <p className="bs-form-success-text">{settings.success_message}</p>
-        </div>
-        {mode === 'preview' && (
-          <button
-            type="button"
-            onClick={resetPreview}
-            className="mt-4 text-sm text-muted-foreground underline hover:no-underline block mx-auto"
-          >
-            Reset preview
-          </button>
-        )}
+        <SuccessState
+          mode={mode}
+          settings={normalizedSettings}
+          tokens={tokens}
+          onReset={() => {
+            setIsSubmitted(false);
+            setIsTransitioningToSuccess(false);
+            setFormData({});
+            setErrors({});
+            setTouchedFields({});
+            setCurrentStepIndex(steps[0]?.index ?? 0);
+            setSubmitError(null);
+            clearRedirectTimer(redirectTimerRef);
+            clearRedirectTimer(successTransitionTimerRef);
+          }}
+        />
       </div>
     );
   }
 
   return (
     <div
-      className="bs-form-container"
-      style={{ ...cssVars, maxWidth: containerWidth, margin: '0 auto' }}
+      ref={containerRef}
+      className={cn(
+        "w-full rounded-xl border px-5 py-5 shadow-sm transition-opacity duration-300 sm:px-8 sm:py-8",
+        isTransitioningToSuccess && "pointer-events-none opacity-0",
+      )}
+      style={containerStyle}
     >
-      <form onSubmit={handleSubmit} className="bs-form-wrapper" noValidate>
-        {/* Headline (H2) & Subheadline (H4) - Main message above the form */}
-        {(extSettings.form_headline || extSettings.form_subheadline) && (
-          <div 
+      <form
+        onSubmit={handleSubmit}
+        className="space-y-6"
+        noValidate
+        aria-busy={isSubmitting || hasActiveUploads}
+      >
+        {(normalizedSettings.form_headline ||
+          normalizedSettings.form_subheadline) && (
+          <div
             className={cn(
-              "bs-form-headline-section text-center transition-all duration-300",
-              changedIds.has('__headline') && "ring-2 ring-primary/50 ring-offset-2 rounded-md"
-            )} 
-            style={{ marginBottom: 'var(--bs-form-spacing)' }}
+              "space-y-2 text-center transition-all duration-300",
+              changedIds.has("__headline") &&
+                "rounded-xl ring-2 ring-primary/40 ring-offset-2",
+            )}
           >
-            {extSettings.form_headline && (
+            {normalizedSettings.form_headline && (
               <h2
-                className="bs-form-headline"
                 style={{
-                  fontSize: '1.5rem',
+                  color: tokens.text,
+                  fontFamily: tokens.fontFamily,
+                  fontSize: "clamp(1.75rem, 2vw, 2.15rem)",
                   fontWeight: 700,
-                  marginBottom: extSettings.form_subheadline ? '0.5rem' : '0',
-                  color: 'var(--bs-form-text)',
-                  lineHeight: 1.3,
+                  lineHeight: 1.15,
+                  margin: 0,
                 }}
               >
-                {extSettings.form_headline}
+                {normalizedSettings.form_headline}
               </h2>
             )}
-            {extSettings.form_subheadline && (
-              <h4
-                className="bs-form-subheadline"
-                style={{ 
-                  fontSize: '1rem',
-                  fontWeight: 400,
-                  color: '#6b7280',
-                  lineHeight: 1.4,
-                }}
-              >
-                {extSettings.form_subheadline}
-              </h4>
-            )}
-          </div>
-        )}
 
-        {/* Form Title & Description */}
-        {(extSettings.form_title || extSettings.form_description) && (
-          <div 
-            className={cn(
-              "bs-form-header transition-all duration-300",
-              changedIds.has('__settings') && "ring-2 ring-primary/50 ring-offset-2 rounded-md"
-            )} 
-            style={{ marginBottom: 'var(--bs-form-spacing)' }}
-          >
-            {extSettings.form_title && (
-              <h3
-                className="bs-form-title"
+            {normalizedSettings.form_subheadline && (
+              <p
                 style={{
-                  fontSize: '1.125rem',
-                  fontWeight: 600,
-                  marginBottom: '0.5rem',
-                  color: 'var(--bs-form-text)',
+                  color: tokens.mutedText,
+                  fontSize: "1rem",
+                  lineHeight: 1.6,
+                  margin: 0,
                 }}
               >
-                {extSettings.form_title}
-              </h3>
-            )}
-            {extSettings.form_description && (
-              <p
-                className="bs-form-description"
-                style={{ fontSize: '0.875rem', color: '#6b7280' }}
-              >
-                {extSettings.form_description}
+                {normalizedSettings.form_subheadline}
               </p>
             )}
           </div>
         )}
 
-        {/* Preview Helper Text - Required Fields Indicator */}
-        {mode === 'preview' && hasRequiredFields && (
-          <p className="text-xs text-muted-foreground mb-4" style={{ fontStyle: 'italic' }}>
-            Fields marked with <span className="text-destructive">*</span> are required
+        {(normalizedSettings.form_title ||
+          normalizedSettings.form_description) && (
+          <div
+            className={cn(
+              "space-y-1 transition-all duration-300",
+              changedIds.has("__settings") &&
+                "rounded-xl ring-2 ring-primary/40 ring-offset-2",
+            )}
+          >
+            {normalizedSettings.form_title && (
+              <h3
+                style={{
+                  color: tokens.text,
+                  fontFamily: tokens.fontFamily,
+                  fontSize: "1.25rem",
+                  fontWeight: 600,
+                  lineHeight: 1.3,
+                  margin: 0,
+                }}
+              >
+                {normalizedSettings.form_title}
+              </h3>
+            )}
+
+            {normalizedSettings.form_description && (
+              <p
+                style={{
+                  color: tokens.mutedText,
+                  fontSize: "0.875rem",
+                  lineHeight: 1.6,
+                  margin: 0,
+                }}
+              >
+                {normalizedSettings.form_description}
+              </p>
+            )}
+          </div>
+        )}
+
+        {hasRequiredFields && (
+          <p
+            className="text-xs"
+            style={{
+              color: tokens.quietText,
+              margin: 0,
+            }}
+          >
+            Fields marked with <span style={{ color: tokens.error }}>*</span>{" "}
+            are required.
           </p>
         )}
 
-        {/* Form Fields */}
-        <div
-          className="bs-form-fields"
-          style={{
-            display: 'grid',
-            gridTemplateColumns: extSettings.columns === 2 ? 'repeat(2, 1fr)' : '1fr',
-            gap: 'var(--bs-form-spacing)',
-          }}
-        >
-          {fields
-            .filter((f) => f.type !== 'hidden' && f.type !== 'email_consent' && f.type !== 'sms_consent')
-            .map((field) => (
-              <FieldRenderer
-                key={field.id}
-                field={field}
-                value={formData[field.id] || ''}
-                onChange={(val) => handleInputChange(field.id, val)}
-                error={errors[field.id]}
-                theme={theme}
-                labelPosition={extSettings.label_position}
-                isHighlighted={changedIds.has(field.id)}
-              />
-            ))}
-        </div>
+        {multiStepEnabled && activeStepGroup && (
+          <div className="space-y-5">
+            <StepProgress
+              steps={stepGroups.map((group) => group.step)}
+              activeIndex={activeStepPosition}
+              tokens={tokens}
+              onStepSelect={(stepIndex) => {
+                const nextStep = stepGroups.find(
+                  (group) => group.step.index === stepIndex,
+                );
 
-        {/* Marketing Permissions Section */}
-        {hasAnyConsent && (
-          <div 
-            className={cn(
-              "bs-form-consents-section mt-5 p-4 rounded-lg transition-all duration-300",
-              changedIds.has('__compliance') && "ring-2 ring-primary/50 ring-offset-2"
-            )}
-            style={{ 
-              backgroundColor: '#f8fafc',
-              border: '1px solid #e2e8f0',
-            }}
-          >
-            <div className="flex items-center gap-2 mb-3">
-              <Shield className="h-4 w-4 text-muted-foreground" />
-              <h3 className="text-sm font-medium text-foreground">Marketing Permissions</h3>
-            </div>
-            <div className="space-y-2">
-              {showEmailConsent && (
-                <ConsentCheckbox
-                  id="__email_consent"
-                  text={compliance.email_consent_text}
-                  required={compliance.email_consent_required}
-                  checked={!!formData['__email_consent']}
-                  onChange={(checked) => handleInputChange('__email_consent', checked)}
-                  error={errors['__email_consent']}
-                  theme={theme}
-                />
-              )}
-              {showSmsConsent && (
-                <ConsentCheckbox
-                  id="__sms_consent"
-                  text={compliance.sms_consent_text}
-                  required={compliance.sms_consent_required}
-                  checked={!!formData['__sms_consent']}
-                  onChange={(checked) => handleInputChange('__sms_consent', checked)}
-                  error={errors['__sms_consent']}
-                  theme={theme}
-                />
+                if (!nextStep || nextStep.step.index === currentStepIndex) {
+                  return;
+                }
+
+                setCurrentStepIndex(nextStep.step.index);
+                setSubmitError(null);
+              }}
+            />
+
+            <div
+              className="space-y-2 rounded-lg px-6 py-4"
+              style={{
+                backgroundColor: mixHex(tokens.background, tokens.text, 0.05),
+                border: `1px solid ${tokens.subtleBorder}`,
+              }}
+            >
+              <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em]">
+                <span style={{ color: tokens.quietText }}>
+                  STEP {activeStepPosition + 1} OF {stepGroups.length}
+                </span>
+              </div>
+
+              <h3
+                style={{
+                  color: tokens.text,
+                  fontSize: "1.125rem",
+                  fontWeight: 600,
+                  lineHeight: 1.35,
+                  margin: 0,
+                }}
+              >
+                {activeStepGroup.step.title || `Step ${activeStepPosition + 1}`}
+              </h3>
+
+              {activeStepGroup.step.description && (
+                <p
+                  style={{
+                    color: tokens.mutedText,
+                    fontSize: "0.95rem",
+                    lineHeight: 1.6,
+                    margin: 0,
+                  }}
+                >
+                  {activeStepGroup.step.description}
+                </p>
               )}
             </div>
           </div>
         )}
 
-        {/* Submit Button */}
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className={cn(
-            getButtonClasses(theme.button_style),
-            changedIds.has('__settings') && "ring-2 ring-primary/50 ring-offset-2"
-          )}
-          style={{
-            marginTop: 'var(--bs-form-spacing)',
-            backgroundColor:
-              theme.button_style === 'outline' ? 'transparent' : 'var(--bs-form-primary)',
-            borderColor: 'var(--bs-form-primary)',
-            color: theme.button_style === 'outline' ? 'var(--bs-form-primary)' : '#ffffff',
-            borderRadius:
-              theme.button_style === 'rounded' ? '9999px' : 'var(--bs-form-radius)',
-            opacity: isSubmitting ? 0.7 : 1,
-            cursor: isSubmitting ? 'not-allowed' : 'pointer',
-          }}
-        >
-          {isSubmitting ? 'Submitting...' : (settings.submit_button_text || 'Submit')}
-        </button>
+        {currentStepFields.length > 0 ? (
+          <div
+            style={{
+              display: "grid",
+              rowGap: "1.5rem",
+              columnGap: shouldUseSingleColumn ? "0px" : tokens.spacing,
+              gridTemplateColumns: shouldUseSingleColumn
+                ? "1fr"
+                : "repeat(2, minmax(0, 1fr))",
+            }}
+          >
+            {currentStepFields.map((field) => {
+              const isConsentField =
+                field.type === "email_consent" || field.type === "sms_consent";
 
-        {/* Preview Helper Text - Privacy Notice */}
-        {mode === 'preview' && (
-          <p className="text-xs text-muted-foreground text-center mt-4" style={{ fontStyle: 'italic' }}>
-            We respect your privacy. Unsubscribe anytime.
+              if (isConsentField) {
+                return (
+                  <ConsentFieldRenderer
+                    key={field.id}
+                    field={field}
+                    text={
+                      field.type === "email_consent"
+                        ? resolvedCompliance.email_consent_text ||
+                          field.label ||
+                          DEFAULT_FORM_COMPLIANCE.email_consent_text
+                        : resolvedCompliance.sms_consent_text ||
+                          field.label ||
+                          DEFAULT_FORM_COMPLIANCE.sms_consent_text
+                    }
+                    checked={
+                      getResolvedFieldValue(field, formData[field.id]) === true
+                    }
+                    onChange={(checked) => handleFieldChange(field, checked)}
+                    onBlur={() => handleFieldBlur(field)}
+                    error={errors[field.id]}
+                    tokens={tokens}
+                    isHighlighted={
+                      changedIds.has(field.id) || changedIds.has("__compliance")
+                    }
+                    isDisabled={isSubmitting}
+                    registerFieldRef={registerFieldRef}
+                  />
+                );
+              }
+
+              return (
+                <FieldRenderer
+                  key={field.id}
+                  field={field}
+                  value={getResolvedFieldValue(field, formData[field.id])}
+                  onChange={(value) => handleFieldChange(field, value)}
+                  onFilesSelected={(files) => handleFileSelection(field, files)}
+                  onRemoveUpload={(uploadId) =>
+                    handleRemoveFile(field, uploadId)
+                  }
+                  onBlur={() => handleFieldBlur(field)}
+                  error={errors[field.id]}
+                  tokens={tokens}
+                  inputStyle={theme.input_style ?? "outlined"}
+                  isHighlighted={changedIds.has(field.id)}
+                  isDisabled={isSubmitting}
+                  uploadItems={fileUploads[field.id] || []}
+                  registerFieldRef={registerFieldRef}
+                />
+              );
+            })}
+          </div>
+        ) : (
+          <div
+            className="rounded-xl border border-dashed px-5 py-8 text-center"
+            style={{
+              borderColor: tokens.subtleBorder,
+              backgroundColor: mixHex(tokens.background, tokens.text, 0.03),
+            }}
+          >
+            <p
+              style={{
+                color: tokens.text,
+                fontSize: "0.95rem",
+                fontWeight: 600,
+                margin: 0,
+              }}
+            >
+              Nothing to complete on this step.
+            </p>
+            <p
+              style={{
+                color: tokens.mutedText,
+                fontSize: "0.92rem",
+                lineHeight: 1.6,
+                margin: "8px 0 0",
+              }}
+            >
+              The current visibility rules hide every field here right now. You
+              can continue to the next step or go back.
+            </p>
+          </div>
+        )}
+
+        {submitError && (
+          <div
+            className="rounded-xl px-4 py-3"
+            role="alert"
+            aria-live="assertive"
+            style={{
+              backgroundColor: tokens.errorSurface,
+              border: `1px solid ${toRgba(tokens.error, 0.18)}`,
+              color: tokens.error,
+            }}
+          >
+            <p className="text-sm font-medium">{submitError}</p>
+          </div>
+        )}
+
+        {multiStepEnabled ? (
+          <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            {!isFirstStep ? (
+              <button
+                type="button"
+                onClick={() => {
+                  const previousStep = stepGroups[activeStepPosition - 1];
+                  if (previousStep) {
+                    setCurrentStepIndex(previousStep.step.index);
+                    setSubmitError(null);
+                  }
+                }}
+                disabled={isSubmitting}
+                className="inline-flex items-center justify-center gap-2 rounded-lg border px-6 py-3 text-sm font-medium transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-50"
+                style={{
+                  borderColor: tokens.strongBorder,
+                  color: tokens.quietText,
+                  backgroundColor: "transparent",
+                }}
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Back
+              </button>
+            ) : null}
+
+            <button
+              type={isLastStep ? "submit" : "button"}
+              onClick={isLastStep ? undefined : handleAdvanceStep}
+              disabled={isSubmitting || hasActiveUploads}
+              className={cn(
+                "inline-flex w-full items-center justify-center gap-2 rounded-lg border px-6 py-3 text-sm font-medium transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto sm:min-w-[180px]",
+                isFirstStep && "sm:ml-auto",
+                changedIds.has("__settings") &&
+                  "ring-2 ring-primary/40 ring-offset-2",
+              )}
+              style={getSubmitButtonStyle(
+                tokens,
+                theme.button_style ?? "filled",
+              )}
+            >
+              {isSubmitting && isLastStep ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : hasActiveUploads && isLastStep ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : null}
+              <span>
+                {isLastStep
+                  ? isSubmitting
+                    ? "Submitting..."
+                    : hasActiveUploads
+                      ? "Uploading files..."
+                      : normalizedSettings.submit_button_text || "Submit"
+                  : hasActiveUploads
+                    ? "Uploading files..."
+                    : "Next Step"}
+              </span>
+              {!isSubmitting && !hasActiveUploads ? (
+                <ArrowRight className="h-4 w-4" />
+              ) : null}
+            </button>
+          </div>
+        ) : (
+          <button
+            type="submit"
+            disabled={isSubmitting || hasActiveUploads}
+            className={cn(
+              "mt-8 inline-flex w-full items-center justify-center gap-2 rounded-lg border px-6 py-3 text-sm font-medium transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-70",
+              changedIds.has("__settings") &&
+                "ring-2 ring-primary/40 ring-offset-2",
+            )}
+            style={getSubmitButtonStyle(tokens, theme.button_style ?? "filled")}
+          >
+            {isSubmitting || hasActiveUploads ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : null}
+            <span>
+              {isSubmitting
+                ? "Submitting..."
+                : hasActiveUploads
+                  ? "Uploading files..."
+                  : normalizedSettings.submit_button_text || "Submit"}
+            </span>
+            {!isSubmitting && !hasActiveUploads ? (
+              <ArrowRight className="h-4 w-4" />
+            ) : null}
+          </button>
+        )}
+
+        {hasActiveUploads && (
+          <p
+            className="text-center text-xs"
+            style={{ color: tokens.quietText, margin: 0 }}
+          >
+            File uploads must finish before you can continue or submit.
           </p>
         )}
 
-        {/* Branding */}
-        {settings.show_branding && (
-          <div className="bs-form-branding" style={{ marginTop: '16px', textAlign: 'center' }}>
-            <span style={{ fontSize: '12px', color: '#9ca3af' }}>
-              Powered by{' '}
+        {normalizedSettings.show_branding && (
+          <div
+            className="mt-8 border-t pt-4 text-center"
+            style={{ borderColor: tokens.subtleBorder }}
+          >
+            <span
+              style={{
+                color: tokens.quietText,
+                fontSize: "0.75rem",
+              }}
+            >
+              Powered by{" "}
               <a
                 href="https://bloomsuite.com"
                 target="_blank"
                 rel="noopener noreferrer"
-                style={{ color: '#6b7280', textDecoration: 'none' }}
+                style={{
+                  color: tokens.mutedText,
+                  textDecoration: "none",
+                  fontWeight: 500,
+                }}
               >
                 BloomSuite
               </a>
+            </span>
+          </div>
+        )}
+
+        {mode === "preview" && hiddenFieldCount > 0 && (
+          <div className="flex justify-center">
+            <span
+              className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs"
+              style={{
+                backgroundColor: mixHex(tokens.background, tokens.text, 0.06),
+                color: tokens.quietText,
+                border: `1px solid ${tokens.subtleBorder}`,
+              }}
+            >
+              <EyeOff className="h-3.5 w-3.5" />
+              {hiddenFieldCount} hidden{" "}
+              {hiddenFieldCount === 1 ? "field" : "fields"}
             </span>
           </div>
         )}
@@ -377,238 +1260,1017 @@ export function FormPreviewRenderer({
   );
 }
 
-// Field Renderer Component
-interface FieldRendererProps {
-  field: FormField;
-  value: any;
-  onChange: (value: any) => void;
-  error?: string;
-  theme: ExtendedTheme;
-  labelPosition?: 'above' | 'inline' | 'floating';
-  isHighlighted?: boolean;
+interface StepProgressProps {
+  steps: FormStep[];
+  activeIndex: number;
+  tokens: ThemeTokens;
+  onStepSelect: (stepIndex: number) => void;
 }
 
-function FieldRenderer({ field, value, onChange, error, theme, labelPosition = 'above', isHighlighted }: FieldRendererProps) {
-  const inputClasses = getInputClasses(theme.input_style, !!error);
-
-  const label = (
-    <label
-      htmlFor={field.id}
-      className="bs-form-label"
-      style={{
-        display: 'block',
-        fontWeight: 500,
-        fontSize: '14px',
-        color: 'var(--bs-form-text)',
-        marginBottom: labelPosition === 'above' ? '6px' : '0',
-      }}
-    >
-      {field.label}
-      {field.required && <span style={{ color: '#dc2626', marginLeft: '2px' }}>*</span>}
-    </label>
-  );
-
-  const renderInput = () => {
-    switch (field.type) {
-      case 'select':
-        return (
-          <select
-            id={field.id}
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            className={inputClasses}
-            style={getInputStyles(theme)}
+function StepProgress({
+  steps,
+  activeIndex,
+  tokens,
+  onStepSelect,
+}: StepProgressProps) {
+  return (
+    <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+      {steps.map((step, index) => {
+        const isActive = index === activeIndex;
+        const isComplete = index < activeIndex;
+        const stepNode = isComplete ? (
+          <button
+            type="button"
+            onClick={() => onStepSelect(step.index)}
+            className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors duration-150"
+            style={{
+              backgroundColor: toRgba(tokens.primary, 0.25),
+              color: tokens.primary,
+              border: `2px solid ${tokens.primary}`,
+            }}
           >
-            <option value="">{field.placeholder || 'Select an option'}</option>
-            {(field.options || []).map((opt) => (
-              <option key={opt} value={opt}>
-                {opt}
-              </option>
-            ))}
-          </select>
-        );
-
-      case 'checkbox':
-        return (
-          <div className="bs-form-checkbox-wrap" style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
-            <input
-              type="checkbox"
-              id={field.id}
-              checked={!!value}
-              onChange={(e) => onChange(e.target.checked)}
-              className="bs-form-checkbox"
+            <span
+              className="inline-flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-semibold"
               style={{
-                flexShrink: 0,
-                width: '18px',
-                height: '18px',
-                marginTop: '2px',
-                accentColor: 'var(--bs-form-primary)',
+                backgroundColor: toRgba(tokens.primary, 0.25),
+                color: tokens.primary,
               }}
-            />
-            <label htmlFor={field.id} className="bs-form-checkbox-text" style={{ fontSize: '14px', color: '#4b5563' }}>
-              {field.label}
-              {field.required && <span style={{ color: '#dc2626', marginLeft: '2px' }}>*</span>}
-            </label>
+            >
+              <Check className="h-3.5 w-3.5" />
+            </span>
+            <span>{step.title || `Step ${index + 1}`}</span>
+          </button>
+        ) : (
+          <div
+            className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium"
+            style={{
+              backgroundColor: isActive
+                ? toRgba(tokens.primary, 0.25)
+                : toRgba(tokens.text, 0.08),
+              color: isActive ? tokens.primary : tokens.quietText,
+              border: isActive
+                ? `2px solid ${tokens.primary}`
+                : `2px solid ${toRgba(tokens.text, 0.16)}`,
+            }}
+          >
+            <span
+              className="inline-flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-semibold"
+              style={{
+                backgroundColor: isActive
+                  ? toRgba(tokens.primary, 0.25)
+                  : toRgba(tokens.text, 0.12),
+                color: isActive ? tokens.primary : tokens.quietText,
+              }}
+            >
+              {index + 1}
+            </span>
+            <span>{step.title || `Step ${index + 1}`}</span>
           </div>
         );
 
-      case 'phone':
         return (
-          <input
-            type="tel"
-            id={field.id}
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            placeholder={field.placeholder}
-            className={inputClasses}
-            style={getInputStyles(theme)}
-          />
+          <React.Fragment key={`step-progress-${step.index}`}>
+            {index > 0 ? (
+              <div
+                className="h-px w-8"
+                style={{
+                  backgroundColor:
+                    index <= activeIndex ? tokens.primary : tokens.subtleBorder,
+                }}
+              />
+            ) : null}
+            {stepNode}
+          </React.Fragment>
         );
+      })}
+    </div>
+  );
+}
 
-      case 'email':
-        return (
-          <input
-            type="email"
-            id={field.id}
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            placeholder={field.placeholder}
-            className={inputClasses}
-            style={getInputStyles(theme)}
-          />
-        );
+interface FieldRendererProps {
+  field: FormField;
+  value: string | boolean | FormFileUploadReference[];
+  onChange: (value: unknown) => void;
+  onFilesSelected: (files: FileList | null) => void;
+  onRemoveUpload: (uploadId: string) => void;
+  onBlur: () => void;
+  error?: string;
+  tokens: ThemeTokens;
+  inputStyle: "outlined" | "filled" | "underlined";
+  isHighlighted?: boolean;
+  isDisabled?: boolean;
+  uploadItems: FileUploadItem[];
+  registerFieldRef: (
+    fieldId: string,
+    element: FieldControlElement | null,
+  ) => void;
+}
 
-      default:
-        return (
-          <input
-            type="text"
-            id={field.id}
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            placeholder={field.placeholder}
-            className={inputClasses}
-            style={getInputStyles(theme)}
-          />
-        );
-    }
+function FieldRenderer({
+  field,
+  value,
+  onChange,
+  onFilesSelected,
+  onRemoveUpload,
+  onBlur,
+  error,
+  tokens,
+  inputStyle,
+  isHighlighted,
+  isDisabled = false,
+  uploadItems,
+  registerFieldRef,
+}: FieldRendererProps) {
+  const [isFocused, setIsFocused] = useState(false);
+  const maxLength = getFieldMaxLength(field);
+  const characterCount = getFieldCharacterCount(value);
+  const errorId = error ? `${field.id}-error` : undefined;
+  const resolvedPlaceholder = getDefaultFieldPlaceholder(field);
+
+  const sharedStyle = getFieldControlStyle({
+    tokens,
+    inputStyle,
+    hasError: Boolean(error),
+    isFocused,
+    isDisabled,
+  });
+
+  const handleBlur = () => {
+    setIsFocused(false);
+    onBlur();
   };
 
-  if (field.type === 'checkbox') {
+  if (field.type === "file") {
     return (
-      <div 
+      <FileFieldRenderer
+        field={field}
+        value={Array.isArray(value) ? getFormFileUploadReferences(value) : []}
+        error={error}
+        tokens={tokens}
+        isHighlighted={isHighlighted}
+        isDisabled={isDisabled}
+        uploadItems={uploadItems}
+        onFilesSelected={onFilesSelected}
+        onRemoveUpload={onRemoveUpload}
+        registerFieldRef={registerFieldRef}
+      />
+    );
+  }
+
+  if (field.type === "checkbox") {
+    return (
+      <div
         className={cn(
-          "bs-form-field transition-all duration-300",
-          isHighlighted && "ring-2 ring-primary/50 ring-offset-2 rounded-md p-2 -m-2"
+          "space-y-2 transition-colors duration-150",
+          isHighlighted && "rounded-xl ring-2 ring-primary/40 ring-offset-2",
         )}
       >
-        {renderInput()}
-        {error && <p className="bs-form-error-msg" style={{ color: '#dc2626', fontSize: '13px', marginTop: '6px' }}>{error}</p>}
+        <label
+          htmlFor={field.id}
+          className="flex items-start gap-3"
+          style={{ opacity: isDisabled ? 0.76 : 1 }}
+        >
+          <input
+            id={field.id}
+            type="checkbox"
+            checked={value === true}
+            onChange={(event) => onChange(event.target.checked)}
+            onFocus={() => setIsFocused(true)}
+            onBlur={handleBlur}
+            ref={(element) => registerFieldRef(field.id, element)}
+            disabled={isDisabled}
+            aria-invalid={error ? true : undefined}
+            aria-describedby={errorId}
+            className="mt-0.5 h-5 w-5 rounded border-2 border-input"
+            style={{
+              accentColor: tokens.primary,
+              boxShadow: isFocused
+                ? `0 0 0 4px ${tokens.focusRing}`
+                : undefined,
+            }}
+          />
+          <span
+            style={{
+              color: error ? tokens.error : tokens.text,
+              fontSize: "0.875rem",
+              fontWeight: 500,
+              lineHeight: 1.6,
+            }}
+          >
+            {field.label}
+            {field.required && (
+              <span style={{ color: tokens.error, marginLeft: 4 }}>*</span>
+            )}
+          </span>
+        </label>
+
+        {error && (
+          <div
+            id={errorId}
+            className="mt-1.5 flex items-start gap-1.5 text-xs"
+            style={{ color: tokens.error }}
+          >
+            <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
       </div>
     );
   }
 
   return (
-    <div 
+    <div
       className={cn(
-        "bs-form-field transition-all duration-300",
-        isHighlighted && "ring-2 ring-primary/50 ring-offset-2 rounded-md p-2 -m-2"
+        "space-y-2 transition-colors duration-150",
+        isHighlighted && "rounded-xl ring-2 ring-primary/40 ring-offset-2",
       )}
     >
-      {label}
-      {renderInput()}
-      {error && <p className="bs-form-error-msg" style={{ color: '#dc2626', fontSize: '13px', marginTop: '6px' }}>{error}</p>}
-    </div>
-  );
-}
+      <label
+        htmlFor={field.id}
+        style={{
+          color: error ? tokens.error : tokens.text,
+          fontSize: "0.875rem",
+          fontWeight: 500,
+          lineHeight: 1.4,
+        }}
+      >
+        {field.label}
+        {field.required && (
+          <span style={{ color: tokens.error, marginLeft: 4 }}>*</span>
+        )}
+      </label>
 
-// Consent Checkbox Component
-interface ConsentCheckboxProps {
-  id: string;
-  text: string;
-  required: boolean;
-  checked: boolean;
-  onChange: (checked: boolean) => void;
-  error?: string;
-  theme: ExtendedTheme;
-}
-
-function ConsentCheckbox({ id, text, required, checked, onChange, error, theme }: ConsentCheckboxProps) {
-  return (
-    <div
-      className="bs-form-consent"
-      style={{
-        padding: '8px 0',
-        borderBottom: '1px solid #e5e7eb',
-      }}
-    >
-      <div className="bs-form-checkbox-wrap" style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+      {field.type === "select" ? (
+        <div className="relative">
+          <select
+            id={field.id}
+            value={String(value)}
+            onChange={(event) => onChange(event.target.value)}
+            onFocus={() => setIsFocused(true)}
+            onBlur={handleBlur}
+            ref={(element) => registerFieldRef(field.id, element)}
+            disabled={isDisabled}
+            aria-invalid={error ? true : undefined}
+            aria-describedby={errorId}
+            className="w-full appearance-none rounded-lg border bg-background px-4 py-3 pr-10 text-sm transition-colors duration-150"
+            style={{
+              ...sharedStyle,
+              cursor: isDisabled ? "not-allowed" : "pointer",
+            }}
+          >
+            <option value="" disabled>
+              {field.placeholder || "Select an option"}
+            </option>
+            {(field.options || []).map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+          <ChevronDown
+            className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2"
+            style={{ color: tokens.quietText }}
+          />
+        </div>
+      ) : (
         <input
-          type="checkbox"
-          id={id}
-          checked={checked}
-          onChange={(e) => onChange(e.target.checked)}
-          className="bs-form-checkbox"
-          style={{
-            flexShrink: 0,
-            width: '16px',
-            height: '16px',
-            marginTop: '2px',
-            accentColor: 'var(--bs-form-primary)',
-          }}
+          id={field.id}
+          type={
+            field.type === "email"
+              ? "email"
+              : field.type === "phone"
+                ? "tel"
+                : "text"
+          }
+          value={String(value)}
+          onChange={(event) => onChange(event.target.value)}
+          onFocus={() => setIsFocused(true)}
+          onBlur={handleBlur}
+          ref={(element) => registerFieldRef(field.id, element)}
+          disabled={isDisabled}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={errorId}
+          maxLength={maxLength}
+          placeholder={resolvedPlaceholder}
+          className="w-full rounded-lg border bg-background px-4 py-3 text-sm placeholder:text-muted-foreground transition-colors duration-150"
+          style={sharedStyle}
         />
-        <label 
-          htmlFor={id} 
-          className="bs-form-checkbox-text" 
-          style={{ 
-            fontSize: '12px', 
-            color: '#6b7280',
-            lineHeight: 1.4,
+      )}
+
+      {typeof maxLength === "number" && (
+        <div
+          className="text-right text-xs"
+          style={{
+            color:
+              characterCount >= maxLength ? tokens.error : tokens.quietText,
           }}
         >
-          {text}
-          {required && <span style={{ color: '#dc2626', marginLeft: '2px' }}>*</span>}
-        </label>
-      </div>
-      {error && <p className="bs-form-error-msg" style={{ color: '#dc2626', fontSize: '11px', marginTop: '4px', marginLeft: '26px' }}>{error}</p>}
+          {characterCount}/{maxLength}
+        </div>
+      )}
+
+      {error && (
+        <div
+          id={errorId}
+          className="mt-1.5 flex items-start gap-1.5 text-xs"
+          style={{ color: tokens.error }}
+        >
+          <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
     </div>
   );
 }
 
-// Helper Functions
-function adjustColor(hex: string, percent: number): string {
-  const num = parseInt(hex.replace('#', ''), 16);
-  const amt = Math.round(2.55 * percent);
-  const R = Math.max(0, Math.min(255, (num >> 16) + amt));
-  const G = Math.max(0, Math.min(255, ((num >> 8) & 0x00ff) + amt));
-  const B = Math.max(0, Math.min(255, (num & 0x0000ff) + amt));
-  return `#${(0x1000000 + R * 0x10000 + G * 0x100 + B).toString(16).slice(1)}`;
+interface FileFieldRendererProps {
+  field: FormField;
+  value: FormFileUploadReference[];
+  error?: string;
+  tokens: ThemeTokens;
+  isHighlighted?: boolean;
+  isDisabled?: boolean;
+  uploadItems: FileUploadItem[];
+  onFilesSelected: (files: FileList | null) => void;
+  onRemoveUpload: (uploadId: string) => void;
+  registerFieldRef: (
+    fieldId: string,
+    element: FieldControlElement | null,
+  ) => void;
 }
 
-function getInputClasses(style?: string, hasError?: boolean): string {
-  const base = 'bs-form-input';
-  return `${base}${hasError ? ' bs-form-input-error' : ''}`;
+function FileFieldRenderer({
+  field,
+  value,
+  error,
+  tokens,
+  isHighlighted,
+  isDisabled = false,
+  uploadItems,
+  onFilesSelected,
+  onRemoveUpload,
+  registerFieldRef,
+}: FileFieldRendererProps) {
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const allowedMimeTypes = getFileFieldAllowedMimeTypes(field);
+  const maxFiles = getFileFieldMaxFiles(field);
+  const maxFileSizeMb = getFileFieldMaxFileSizeMb(field);
+  const accept = getFileUploadAcceptAttribute(allowedMimeTypes);
+  const errorId = error ? `${field.id}-error` : undefined;
+  const activeItemCount = uploadItems.filter(
+    (item) => item.status === "uploading" || item.status === "uploaded",
+  ).length;
+  const uploadedCount = uploadItems.filter(
+    (item) => item.status === "uploaded",
+  ).length;
+  const remainingSlots = Math.max(0, maxFiles - activeItemCount);
+
+  return (
+    <div
+      className={cn(
+        "space-y-2 transition-colors duration-150",
+        isHighlighted && "rounded-xl ring-2 ring-primary/40 ring-offset-2",
+      )}
+    >
+      <label
+        htmlFor={field.id}
+        style={{
+          color: error ? tokens.error : tokens.text,
+          fontSize: "0.875rem",
+          fontWeight: 500,
+          lineHeight: 1.4,
+        }}
+      >
+        {field.label}
+        {field.required && (
+          <span style={{ color: tokens.error, marginLeft: 4 }}>*</span>
+        )}
+      </label>
+
+      <div
+        className="space-y-4 rounded-lg border border-dashed p-4"
+        style={{
+          backgroundColor: tokens.fieldSurface,
+          borderColor: error ? tokens.error : tokens.strongBorder,
+          opacity: isDisabled ? 0.76 : 1,
+        }}
+      >
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="space-y-1">
+            <p
+              style={{
+                color: tokens.text,
+                fontSize: "0.92rem",
+                fontWeight: 600,
+                margin: 0,
+              }}
+            >
+              Upload up to {maxFiles} file{maxFiles === 1 ? "" : "s"}
+            </p>
+            <p
+              style={{
+                color: tokens.quietText,
+                fontSize: "0.82rem",
+                lineHeight: 1.5,
+                margin: 0,
+              }}
+            >
+              Max {maxFileSizeMb} MB each
+              {allowedMimeTypes.length > 0
+                ? ` • ${allowedMimeTypes.join(", ")}`
+                : " • Any file type"}
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => inputRef.current?.click()}
+            disabled={isDisabled || remainingSlots === 0}
+            className="inline-flex items-center justify-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-60"
+            style={{
+              borderColor: tokens.strongBorder,
+              backgroundColor: tokens.background,
+              color: tokens.text,
+            }}
+          >
+            <Upload className="h-4 w-4" />
+            {activeItemCount === 0 ? "Choose files" : "Add files"}
+          </button>
+        </div>
+
+        <input
+          id={field.id}
+          ref={(element) => {
+            inputRef.current = element;
+            registerFieldRef(field.id, element);
+          }}
+          type="file"
+          className="sr-only"
+          multiple={maxFiles > 1}
+          accept={accept}
+          disabled={isDisabled || remainingSlots === 0}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={errorId}
+          onChange={(event) => {
+            onFilesSelected(event.target.files);
+            event.currentTarget.value = "";
+          }}
+        />
+
+        {uploadItems.length > 0 ? (
+          <div className="space-y-3">
+            {uploadItems.map((item) => {
+              const isUploading = item.status === "uploading";
+              const isErrored = item.status === "error";
+
+              return (
+                <div
+                  key={item.uploadId}
+                  className="rounded-xl border px-3 py-3"
+                  style={{
+                    borderColor: isErrored ? tokens.error : tokens.subtleBorder,
+                    backgroundColor: isErrored
+                      ? tokens.errorSurface
+                      : tokens.background,
+                  }}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <div className="flex items-center gap-2">
+                        {isUploading ? (
+                          <Loader2
+                            className="h-4 w-4 animate-spin"
+                            style={{ color: tokens.quietText }}
+                          />
+                        ) : isErrored ? (
+                          <AlertCircle
+                            className="h-4 w-4"
+                            style={{ color: tokens.error }}
+                          />
+                        ) : (
+                          <CheckCircle2
+                            className="h-4 w-4"
+                            style={{ color: tokens.primary }}
+                          />
+                        )}
+                        <p
+                          className="truncate"
+                          style={{
+                            color: tokens.text,
+                            fontSize: "0.9rem",
+                            fontWeight: 500,
+                            margin: 0,
+                          }}
+                        >
+                          {item.fileName}
+                        </p>
+                      </div>
+                      <p
+                        style={{
+                          color: tokens.quietText,
+                          fontSize: "0.78rem",
+                          margin: 0,
+                        }}
+                      >
+                        {formatFileSize(item.fileSize)}
+                        {item.status === "uploaded" ? " • Uploaded" : null}
+                        {item.status === "error" && item.error
+                          ? ` • ${item.error}`
+                          : null}
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => onRemoveUpload(item.uploadId)}
+                      disabled={isDisabled}
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-full border transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-60"
+                      style={{
+                        borderColor: tokens.subtleBorder,
+                        backgroundColor: tokens.fieldSurface,
+                        color: tokens.text,
+                      }}
+                      aria-label={
+                        item.status === "uploading"
+                          ? "Cancel upload"
+                          : "Remove file"
+                      }
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+
+                  {isUploading && (
+                    <div className="mt-3 space-y-2">
+                      <Progress value={item.progress} className="h-2" />
+                      <p
+                        className="text-xs"
+                        style={{ color: tokens.quietText, margin: 0 }}
+                      >
+                        {item.progress}% complete
+                      </p>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div
+            className="rounded-xl px-3 py-4 text-center"
+            style={{
+              backgroundColor: mixHex(tokens.background, tokens.text, 0.03),
+              color: tokens.quietText,
+            }}
+          >
+            <FileUp className="mx-auto mb-2 h-5 w-5" />
+            <p className="text-sm" style={{ margin: 0 }}>
+              No files selected yet.
+            </p>
+          </div>
+        )}
+
+        {value.length > 0 && (
+          <p className="text-xs" style={{ color: tokens.quietText, margin: 0 }}>
+            {value.length} of {maxFiles} file{maxFiles === 1 ? "" : "s"} ready
+          </p>
+        )}
+      </div>
+
+      {error && (
+        <div
+          id={errorId}
+          className="mt-1.5 flex items-start gap-1.5 text-xs"
+          style={{ color: tokens.error }}
+        >
+          <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
+    </div>
+  );
 }
 
-function getInputStyles(theme: ExtendedTheme): React.CSSProperties {
-  const base: React.CSSProperties = {
-    display: 'block',
-    width: '100%',
-    padding: '10px 12px',
-    fontSize: '14px',
+interface ConsentFieldRendererProps {
+  field: FormField;
+  text: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  onBlur: () => void;
+  error?: string;
+  tokens: ThemeTokens;
+  isHighlighted?: boolean;
+  isDisabled?: boolean;
+  registerFieldRef: (
+    fieldId: string,
+    element: FieldControlElement | null,
+  ) => void;
+}
+
+function ConsentFieldRenderer({
+  field,
+  text,
+  checked,
+  onChange,
+  onBlur,
+  error,
+  tokens,
+  isHighlighted,
+  isDisabled = false,
+  registerFieldRef,
+}: ConsentFieldRendererProps) {
+  const [isFocused, setIsFocused] = useState(false);
+  const errorId = error ? `${field.id}-error` : undefined;
+
+  return (
+    <div
+      className={cn(
+        "space-y-2 transition-colors duration-150",
+        isHighlighted && "rounded-xl ring-2 ring-primary/40 ring-offset-2",
+      )}
+    >
+      <div
+        className="space-y-3 rounded-lg border p-4"
+        style={{
+          backgroundColor: tokens.consentSurface,
+          borderColor: error ? tokens.error : tokens.consentBorder,
+          boxShadow: isFocused ? `0 0 0 4px ${tokens.focusRing}` : undefined,
+        }}
+      >
+        <div className="flex items-center gap-2">
+          <ShieldCheck
+            className="h-4 w-4"
+            style={{ color: tokens.quietText }}
+          />
+          <h3
+            style={{
+              color: tokens.text,
+              fontSize: "0.875rem",
+              fontWeight: 500,
+              margin: 0,
+            }}
+          >
+            Marketing Permission
+          </h3>
+        </div>
+
+        <label
+          htmlFor={field.id}
+          className="flex min-h-11 items-start gap-3"
+          style={{ opacity: isDisabled ? 0.76 : 1 }}
+        >
+          <input
+            id={field.id}
+            type="checkbox"
+            checked={checked}
+            onChange={(event) => onChange(event.target.checked)}
+            onFocus={() => setIsFocused(true)}
+            onBlur={() => {
+              setIsFocused(false);
+              onBlur();
+            }}
+            ref={(element) => registerFieldRef(field.id, element)}
+            disabled={isDisabled}
+            aria-invalid={error ? true : undefined}
+            aria-describedby={errorId}
+            className="mt-0.5 h-5 w-5 rounded border-2 border-input"
+            style={{
+              accentColor: tokens.primary,
+              boxShadow: isFocused
+                ? `0 0 0 4px ${tokens.focusRing}`
+                : undefined,
+            }}
+          />
+          <span
+            style={{
+              color: tokens.text,
+              fontSize: "0.875rem",
+              lineHeight: 1.7,
+            }}
+          >
+            {text}
+            {field.required && (
+              <span style={{ color: tokens.error, marginLeft: 4 }}>*</span>
+            )}
+          </span>
+        </label>
+      </div>
+
+      {error && (
+        <div
+          id={errorId}
+          className="mt-1.5 flex items-start gap-1.5 text-xs"
+          style={{ color: tokens.error }}
+        >
+          <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+interface SuccessStateProps {
+  mode: "preview" | "embed";
+  settings: FormSettings;
+  tokens: ThemeTokens;
+  onReset: () => void;
+}
+
+function SuccessState({ mode, settings, tokens, onReset }: SuccessStateProps) {
+  const isRedirecting = Boolean(settings.success_redirect_url);
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    const frameId = window.requestAnimationFrame(() => {
+      setIsVisible(true);
+    });
+
+    return () => window.cancelAnimationFrame(frameId);
+  }, []);
+
+  return (
+    <div
+      className={cn(
+        "space-y-5 text-center transition-opacity duration-300",
+        isVisible ? "opacity-100" : "opacity-0",
+      )}
+    >
+      <div
+        className="rounded-xl px-6 py-8"
+        style={{
+          backgroundColor: tokens.successSurface,
+          border: `1px solid ${tokens.successBorder}`,
+        }}
+      >
+        <div
+          className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full"
+          style={{
+            backgroundColor: toRgba(tokens.primary, 0.1),
+            color: tokens.primary,
+          }}
+        >
+          <Check className="h-8 w-8" />
+        </div>
+
+        <div className="space-y-2">
+          <h3
+            style={{
+              color: tokens.successText,
+              fontSize: "1.125rem",
+              fontWeight: 600,
+              margin: 0,
+            }}
+          >
+            {isRedirecting
+              ? "Redirecting..."
+              : settings.success_message || "Form submitted successfully"}
+          </h3>
+
+          {isRedirecting ? (
+            <p
+              style={{
+                color: tokens.mutedText,
+                fontSize: "0.875rem",
+                lineHeight: 1.6,
+                margin: 0,
+              }}
+            >
+              {mode === "preview"
+                ? "Preview mode shows the redirect state without navigating away."
+                : "You will be redirected in 2 seconds."}
+            </p>
+          ) : settings.success_redirect_url ? (
+            <p
+              style={{
+                color: tokens.mutedText,
+                fontSize: "0.875rem",
+                lineHeight: 1.6,
+                margin: 0,
+              }}
+            >
+              Your response was recorded and the follow-up redirect is ready.
+            </p>
+          ) : null}
+        </div>
+      </div>
+
+      {mode === "preview" && (
+        <button
+          type="button"
+          onClick={onReset}
+          className="text-sm font-medium underline underline-offset-4"
+          style={{ color: tokens.mutedText }}
+        >
+          Reset preview
+        </button>
+      )}
+    </div>
+  );
+}
+
+function getDefaultFieldPlaceholder(field: FormField): string {
+  if (field.placeholder?.trim()) {
+    return field.placeholder;
+  }
+
+  if (field.type === "email") {
+    return "e.g., name@example.com";
+  }
+
+  if (field.type === "phone") {
+    return "e.g., (555) 123-4567";
+  }
+
+  const normalizedLabel = field.label.trim().toLowerCase();
+
+  if (normalizedLabel.includes("name")) {
+    return "e.g., John Smith";
+  }
+
+  if (normalizedLabel.includes("company")) {
+    return "e.g., BloomSuite";
+  }
+
+  if (normalizedLabel.includes("website")) {
+    return "e.g., https://example.com";
+  }
+
+  return "Enter your answer";
+}
+
+function getFieldControlStyle({
+  tokens,
+  inputStyle,
+  hasError,
+  isFocused,
+  isDisabled,
+}: {
+  tokens: ThemeTokens;
+  inputStyle: "outlined" | "filled" | "underlined";
+  hasError: boolean;
+  isFocused: boolean;
+  isDisabled: boolean;
+}): React.CSSProperties {
+  const backgroundColor =
+    inputStyle === "filled"
+      ? tokens.filledFieldSurface
+      : inputStyle === "underlined"
+        ? mixHex(tokens.fieldSurface, tokens.text, 0.015)
+        : tokens.fieldSurface;
+  const borderColor = hasError
+    ? tokens.error
+    : isFocused
+      ? tokens.primary
+      : tokens.strongBorder;
+
+  return {
+    width: "100%",
+    minHeight: 50,
+    padding: "12px 16px",
+    border: `1px solid ${borderColor}`,
+    borderRadius: CONTROL_RADIUS,
+    backgroundColor,
+    color: tokens.text,
+    fontSize: "0.875rem",
     lineHeight: 1.5,
-    color: 'var(--bs-form-text)',
-    backgroundColor: theme.input_style === 'filled' ? '#f3f4f6' : '#ffffff',
-    border: theme.input_style === 'underline' ? 'none' : '1px solid #d1d5db',
-    borderBottom: theme.input_style === 'underline' ? '2px solid #d1d5db' : undefined,
-    borderRadius: theme.input_style === 'underline' ? '0' : 'var(--bs-form-radius)',
-    fontFamily: 'var(--bs-form-font)',
+    fontFamily: tokens.fontFamily,
+    cursor: isDisabled ? "not-allowed" : "text",
+    opacity: isDisabled ? 0.78 : 1,
+    boxShadow: hasError
+      ? `0 0 0 2px ${toRgba(tokens.error, 0.2)}`
+      : isFocused
+        ? `0 0 0 2px ${tokens.focusRing}`
+        : "none",
+    outline: "none",
+    transition:
+      "border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease",
   };
-  return base;
 }
 
-function getButtonClasses(style?: string): string {
-  const base = 'bs-form-submit';
-  return `${base} w-full py-3 px-4 font-medium text-sm border-2 transition-all duration-200 hover:opacity-90`;
+function getSubmitButtonStyle(
+  tokens: ThemeTokens,
+  buttonStyle: "filled" | "outlined" | "ghost",
+): React.CSSProperties {
+  if (buttonStyle === "outlined") {
+    return {
+      minHeight: 48,
+      padding: "12px 24px",
+      borderRadius: CONTROL_RADIUS,
+      backgroundColor: "transparent",
+      borderColor: tokens.primary,
+      color: tokens.primary,
+      boxShadow: `0 1px 2px ${toRgba(tokens.text, 0.08)}`,
+    };
+  }
+
+  if (buttonStyle === "ghost") {
+    return {
+      minHeight: 48,
+      padding: "12px 24px",
+      borderRadius: CONTROL_RADIUS,
+      backgroundColor: toRgba(tokens.primary, 0.08),
+      borderColor: "transparent",
+      color: tokens.primary,
+      boxShadow: "none",
+    };
+  }
+
+  return {
+    minHeight: 48,
+    padding: "12px 24px",
+    borderRadius: CONTROL_RADIUS,
+    backgroundColor: tokens.primary,
+    borderColor: tokens.primary,
+    color: tokens.buttonTextOnPrimary,
+    boxShadow: `0 8px 18px -12px ${toRgba(tokens.primary, 0.6)}`,
+  };
+}
+
+function clearRedirectTimer(
+  timerRef: React.MutableRefObject<ReturnType<typeof setTimeout> | null>,
+) {
+  if (timerRef.current) {
+    clearTimeout(timerRef.current);
+    timerRef.current = null;
+  }
+}
+
+function mixHex(base: string, overlay: string, overlayWeight: number): string {
+  const baseRgb = hexToRgb(base);
+  const overlayRgb = hexToRgb(overlay);
+
+  if (!baseRgb || !overlayRgb) {
+    return base;
+  }
+
+  const clampedWeight = Math.max(0, Math.min(1, overlayWeight));
+  const inverseWeight = 1 - clampedWeight;
+
+  return rgbToHex(
+    Math.round(baseRgb.r * inverseWeight + overlayRgb.r * clampedWeight),
+    Math.round(baseRgb.g * inverseWeight + overlayRgb.g * clampedWeight),
+    Math.round(baseRgb.b * inverseWeight + overlayRgb.b * clampedWeight),
+  );
+}
+
+function toRgba(hex: string, alpha: number): string {
+  const rgb = hexToRgb(hex);
+
+  if (!rgb) {
+    return `rgba(31, 41, 55, ${alpha})`;
+  }
+
+  return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${alpha})`;
+}
+
+function getReadableTextColor(
+  backgroundHex: string,
+  lightColor: string,
+  darkColor: string,
+): string {
+  return isDarkColor(backgroundHex) ? lightColor : darkColor;
+}
+
+function isDarkColor(hex: string): boolean {
+  const rgb = hexToRgb(hex);
+
+  if (!rgb) {
+    return false;
+  }
+
+  const luminance = (0.2126 * rgb.r + 0.7152 * rgb.g + 0.0722 * rgb.b) / 255;
+
+  return luminance < 0.55;
+}
+
+function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
+  const normalized = hex.trim().replace("#", "");
+  const value =
+    normalized.length === 3
+      ? normalized
+          .split("")
+          .map((segment) => `${segment}${segment}`)
+          .join("")
+      : normalized;
+
+  if (!/^[0-9a-fA-F]{6}$/.test(value)) {
+    return null;
+  }
+
+  const numeric = Number.parseInt(value, 16);
+
+  return {
+    r: (numeric >> 16) & 255,
+    g: (numeric >> 8) & 255,
+    b: numeric & 255,
+  };
+}
+
+function rgbToHex(red: number, green: number, blue: number): string {
+  return `#${[red, green, blue]
+    .map((channel) => channel.toString(16).padStart(2, "0"))
+    .join("")}`.toUpperCase();
 }
 
 export default FormPreviewRenderer;

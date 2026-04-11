@@ -1,10 +1,9 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { showToast } from "@/utils/toastUtils";
-import { 
-  generatePersonalizedContent, 
-  generateNewsletterContent, 
-  generateVideoScript 
+import {
+  generatePersonalizedContent,
+  generateNewsletterContent,
+  generateVideoScript,
 } from "../homepage/ContentGenerationServices";
 
 interface BulkGenerationOptions {
@@ -23,44 +22,57 @@ interface GenerationResult {
   tokenCost: number;
 }
 
-export const generateContentPack = async (options: BulkGenerationOptions): Promise<GenerationResult> => {
-  const { campaignId, campaignTitle, theme, description, userId, weekNumber = 1 } = options;
-  
-  console.log('🚀 Starting bulk content generation for theme:', theme);
-  
+export const generateContentPack = async (
+  options: BulkGenerationOptions,
+): Promise<GenerationResult> => {
+  const {
+    campaignId,
+    campaignTitle,
+    theme,
+    description,
+    userId,
+    weekNumber = 1,
+  } = options;
   // Check token balance first
-  const { data: tokenBalance, error: balanceError } = await supabase.rpc('get_token_balance', {
-    p_user_id: userId
-  });
+  const { data: tokenBalance, error: balanceError } = await supabase.rpc(
+    "get_token_balance",
+    {
+      p_user_id: userId,
+    },
+  );
 
   if (balanceError) {
-    console.error('❌ Error checking token balance:', balanceError);
-    showToast.error('Failed to check token balance');
+    console.error("❌ Error checking token balance:", balanceError);
+    showToast.error("Failed to check token balance");
     return { success: false, generatedCount: 0, failedTypes: [], tokenCost: 0 };
   }
 
-  const balance = tokenBalance && tokenBalance.length > 0 ? tokenBalance[0] : null;
+  const balance =
+    tokenBalance && tokenBalance.length > 0 ? tokenBalance[0] : null;
   if (!balance) {
-    showToast.error('Unable to verify token balance');
+    showToast.error("Unable to verify token balance");
     return { success: false, generatedCount: 0, failedTypes: [], tokenCost: 0 };
   }
 
   const totalTokensNeeded = 6; // 2+1+1+2 for newsletter, facebook, instagram, video
   const willGoIntoOverage = balance.tokens_balance < totalTokensNeeded;
-  
+
   // Auto-proceed with generation - no confirmation needed
   if (willGoIntoOverage) {
-    const overageAmount = totalTokensNeeded - Math.max(0, balance.tokens_balance);
+    const overageAmount =
+      totalTokensNeeded - Math.max(0, balance.tokens_balance);
     const overageCost = overageAmount * 0.25;
-    
-    showToast.info(`Generating content pack with ${overageAmount} token overage (+$${overageCost.toFixed(2)})`);
+
+    showToast.info(
+      `Generating content pack with ${overageAmount} token overage (+$${overageCost.toFixed(2)})`,
+    );
   }
 
   const contentTypes = [
-    { type: 'newsletter', tokens: 2 },
-    { type: 'facebook', tokens: 1 },
-    { type: 'instagram', tokens: 1 },
-    { type: 'video', tokens: 2 }
+    { type: "newsletter", tokens: 2 },
+    { type: "facebook", tokens: 1 },
+    { type: "instagram", tokens: 1 },
+    { type: "video", tokens: 2 },
   ];
 
   const results = [];
@@ -71,14 +83,14 @@ export const generateContentPack = async (options: BulkGenerationOptions): Promi
   // Build enhanced context prompt with strategic guidance
   const buildEnhancedContextPrompt = (theme: string, description?: string) => {
     let contextPrompt = `Theme: ${theme}`;
-    
+
     if (description && description.trim()) {
       contextPrompt += `\nContent Focus & Strategy: ${description}`;
     } else {
       // Provide smart default guidance when no description is available
       contextPrompt += `\nContent Focus & Strategy: Create content that positions our garden center as the trusted local expert for "${theme}". Focus on practical solutions that help customers succeed with their gardening goals. Demonstrate our expertise while highlighting seasonal opportunities and quality products that solve common challenges.`;
     }
-    
+
     // Add strategic content direction
     contextPrompt += `\n\nContent Goals:
 - Position our team as knowledgeable local experts
@@ -87,7 +99,7 @@ export const generateContentPack = async (options: BulkGenerationOptions): Promi
 - Create urgency around seasonal timing when appropriate
 - Include practical tips customers can use immediately
 - Drive customers to visit or contact us for expert guidance`;
-    
+
     return contextPrompt;
   };
 
@@ -96,56 +108,69 @@ export const generateContentPack = async (options: BulkGenerationOptions): Promi
   // Generate content in parallel for better performance
   const generationPromises = contentTypes.map(async ({ type, tokens }) => {
     try {
-      console.log(`🤖 Generating ${type} content for theme: ${theme}`);
-      
-      let generatedContent = '';
-      
-      if (type === 'newsletter') {
-        const result = await generateNewsletterContent(campaignId, campaignTitle, weekNumber, userId, enhancedContextPrompt);
-        generatedContent = typeof result === 'string' ? result : result.content;
-      } else if (type === 'video') {
-        const result = await generateVideoScript(campaignTitle, userId, enhancedContextPrompt);
-        generatedContent = typeof result === 'string' ? result : result.content;
+      let generatedContent = "";
+
+      if (type === "newsletter") {
+        const result = await generateNewsletterContent(
+          campaignId,
+          campaignTitle,
+          weekNumber,
+          userId,
+          enhancedContextPrompt,
+        );
+        generatedContent = typeof result === "string" ? result : result.content;
+      } else if (type === "video") {
+        const result = await generateVideoScript(
+          campaignTitle,
+          userId,
+          enhancedContextPrompt,
+        );
+        generatedContent = typeof result === "string" ? result : result.content;
       } else {
-        const result = await generatePersonalizedContent(type, campaignTitle, userId, enhancedContextPrompt);
-        generatedContent = typeof result === 'string' ? result : result.content;
+        const result = await generatePersonalizedContent(
+          type,
+          campaignTitle,
+          userId,
+          enhancedContextPrompt,
+        );
+        generatedContent = typeof result === "string" ? result : result.content;
       }
-      
-      if (!generatedContent || generatedContent.trim() === '') {
+
+      if (!generatedContent || generatedContent.trim() === "") {
         throw new Error(`Generated content is empty for ${type}`);
       }
 
       // Create scheduled date (spread over next 5 days)
       const today = new Date();
       const scheduledDate = new Date(today);
-      scheduledDate.setDate(today.getDate() + contentTypes.findIndex(ct => ct.type === type) + 1);
+      scheduledDate.setDate(
+        today.getDate() + contentTypes.findIndex((ct) => ct.type === type) + 1,
+      );
 
       // Create content task with enhanced notes
-      const taskNotes = description 
+      const taskNotes = description
         ? `Generated from theme: ${theme}\nContent Focus: ${description}`
         : `Generated from theme: ${theme}`;
 
       const { error: insertError } = await supabase
-        .from('content_tasks')
+        .from("content_tasks")
         .insert({
           campaign_id: campaignId,
           post_type: type,
-          status: 'review',
-          scheduled_date: scheduledDate.toISOString().split('T')[0],
+          status: "review",
+          scheduled_date: scheduledDate.toISOString().split("T")[0],
           ai_output: generatedContent,
           hashtags: getHashtagsForType(type),
           image_idea: getImageIdeaForType(type),
-          notes: taskNotes
+          notes: taskNotes,
         });
 
       if (insertError) {
         throw insertError;
       }
-
-      console.log(`✅ Successfully generated ${type} content`);
       totalTokenCost += tokens;
       generatedCount++;
-      
+
       return { type, success: true };
     } catch (error) {
       console.error(`❌ Failed to generate ${type} content:`, error);
@@ -158,40 +183,45 @@ export const generateContentPack = async (options: BulkGenerationOptions): Promi
   await Promise.all(generationPromises);
 
   if (generatedCount > 0) {
-    const message = generatedCount === contentTypes.length 
-      ? `🎉 Generated ${generatedCount} pieces of strategic content! Check the review queue.`
-      : `⚠️ Generated ${generatedCount}/${contentTypes.length} pieces of content. ${failedTypes.length} failed.`;
-    
+    const message =
+      generatedCount === contentTypes.length
+        ? `🎉 Generated ${generatedCount} pieces of strategic content! Check the review queue.`
+        : `⚠️ Generated ${generatedCount}/${contentTypes.length} pieces of content. ${failedTypes.length} failed.`;
+
     showToast.success(message);
   } else {
-    showToast.error('Failed to generate any content. Please try again.');
+    showToast.error("Failed to generate any content. Please try again.");
   }
 
   return {
     success: generatedCount > 0,
     generatedCount,
     failedTypes,
-    tokenCost: totalTokenCost
+    tokenCost: totalTokenCost,
   };
 };
 
 // Helper functions for content metadata
 const getHashtagsForType = (type: string): string => {
   const hashtags = {
-    facebook: '#GardenCenter #LocalGardening #PlantLife #GreenThumb',
-    instagram: '#GardenCenter #Plants #Gardening #LocalBusiness #GreenLife #PlantParent',
-    newsletter: '',
-    video: '#GardenTips #Gardening #LocalExperts #PlantCare'
+    facebook: "#GardenCenter #LocalGardening #PlantLife #GreenThumb",
+    instagram:
+      "#GardenCenter #Plants #Gardening #LocalBusiness #GreenLife #PlantParent",
+    newsletter: "",
+    video: "#GardenTips #Gardening #LocalExperts #PlantCare",
   };
-  return hashtags[type as keyof typeof hashtags] || '';
+  return hashtags[type as keyof typeof hashtags] || "";
 };
 
 const getImageIdeaForType = (type: string): string => {
   const imageIdeas = {
-    facebook: 'Vibrant garden display with seasonal plants and flowers',
-    instagram: 'Aesthetic plant arrangement with natural lighting',
-    newsletter: 'Seasonal garden showcase or expert demonstration',
-    video: 'Behind-the-scenes footage of garden center operations'
+    facebook: "Vibrant garden display with seasonal plants and flowers",
+    instagram: "Aesthetic plant arrangement with natural lighting",
+    newsletter: "Seasonal garden showcase or expert demonstration",
+    video: "Behind-the-scenes footage of garden center operations",
   };
-  return imageIdeas[type as keyof typeof imageIdeas] || 'Garden center related imagery';
+  return (
+    imageIdeas[type as keyof typeof imageIdeas] ||
+    "Garden center related imagery"
+  );
 };

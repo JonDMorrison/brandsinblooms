@@ -13,6 +13,7 @@
   "dependencies": {
     "@axe-core/playwright": "^4.10.2",
     "@headlessui/react": "^2.2.4",
+    "@hello-pangea/dnd": "^18.0.1",
     "@heroicons/react": "^2.2.0",
     "@hookform/resolvers": "^3.9.0",
     "@huggingface/transformers": "^3.6.0",
@@ -61,7 +62,6 @@
     "@tiptap/pm": "^3.0.7",
     "@tiptap/react": "^3.0.7",
     "@tiptap/starter-kit": "^3.0.7",
-    "@types/react-beautiful-dnd": "^13.1.8",
     "@uptrace/web": "^2.0.2",
     "@vitest/ui": "^3.2.4",
     "@xyflow/react": "^12.8.2",
@@ -80,7 +80,6 @@
     "lucide-react": "^0.462.0",
     "next-themes": "^0.3.0",
     "react": "^18.3.1",
-    "react-beautiful-dnd": "^13.1.1",
     "react-day-picker": "^9.7.0",
     "react-dom": "^18.3.1",
     "react-dropzone": "^14.3.8",

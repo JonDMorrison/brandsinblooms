@@ -66,18 +66,6 @@ export function isCampaignSeasonallyAligned(campaign: any): boolean {
  */
 export function filterSeasonallyAlignedCampaigns(campaigns: any[]): any[] {
   return campaigns.filter(campaign => {
-    const isAligned = isCampaignSeasonallyAligned(campaign);
-    
-    // Log misaligned campaigns for debugging
-    if (!isAligned) {
-      console.warn(`Filtering out seasonally misaligned campaign:`, {
-        title: campaign.title,
-        theme: campaign.theme,
-        start_date: campaign.start_date,
-        detected_season: detectCampaignSeason(campaign),
-        date_season: campaign.start_date ? getSeasonForDate(new Date(campaign.start_date)) : 'unknown'
-      });
-    }
     
     return isAligned;
   });

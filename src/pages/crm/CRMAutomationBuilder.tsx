@@ -173,17 +173,7 @@ export const CRMAutomationBuilder = () => {
               nodes: workflowSteps.nodes,
               edges: normalizedEdges,
             });
-          } else {
-            console.log("No valid flow_state or workflow_steps found:", {
-              rawFlow,
-              workflow_steps: data.workflow_steps,
-            });
           }
-        } else {
-          console.log("No valid flow_state or workflow_steps found:", {
-            rawFlow,
-            workflow_steps: data.workflow_steps,
-          });
         }
       }
     } catch (error) {

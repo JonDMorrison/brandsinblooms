@@ -170,7 +170,6 @@ export const CloverSetupWizard = ({
 
     try {
       // Step 1: Sync customers
-      console.log("[CloverSetupWizard] Starting customer sync...");
       setSyncProgress((prev) => ({
         ...prev,
         customers: { ...prev.customers, status: "syncing" },
@@ -178,11 +177,7 @@ export const CloverSetupWizard = ({
 
       try {
         await supabase.functions.invoke("clover-sync-customers");
-      } catch (e) {
-        console.log(
-          "[CloverSetupWizard] Customer sync call completed or timed out",
-        );
-      }
+      } catch {}
 
       setSyncProgress((prev) => ({
         ...prev,
@@ -191,14 +186,9 @@ export const CloverSetupWizard = ({
       }));
 
       // Step 2: Sync sales
-      console.log("[CloverSetupWizard] Starting sales sync...");
       try {
         await supabase.functions.invoke("clover-sync-sales");
-      } catch (e) {
-        console.log(
-          "[CloverSetupWizard] Sales sync call completed or timed out",
-        );
-      }
+      } catch {}
 
       setSyncProgress((prev) => ({
         ...prev,
@@ -207,14 +197,9 @@ export const CloverSetupWizard = ({
       }));
 
       // Step 3: Sync products
-      console.log("[CloverSetupWizard] Starting products sync...");
       try {
         await supabase.functions.invoke("clover-sync-products");
-      } catch (e) {
-        console.log(
-          "[CloverSetupWizard] Products sync call completed or timed out",
-        );
-      }
+      } catch {}
 
       setSyncProgress((prev) => ({
         ...prev,
@@ -224,8 +209,6 @@ export const CloverSetupWizard = ({
       await new Promise((resolve) => setTimeout(resolve, 2000));
 
       const actualCounts = await fetchActualCounts();
-      console.log("[CloverSetupWizard] Actual database counts:", actualCounts);
-
       setSyncResults({
         customersCount: actualCounts.customers,
         salesCount: actualCounts.sales,

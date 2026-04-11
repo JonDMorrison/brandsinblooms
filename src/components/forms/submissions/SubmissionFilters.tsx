@@ -1,19 +1,18 @@
-import React, { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Label } from '@/components/ui/label';
-import { 
-  Search, 
-  Filter, 
+import React, { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
+import {
+  Search,
+  Filter,
   X,
   CheckCircle,
   XCircle,
   Clock,
   Bot,
   Calendar,
-  ChevronDown
-} from 'lucide-react';
+} from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,17 +20,17 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+} from "@/components/ui/dropdown-menu";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from '@/components/ui/popover';
-import { Calendar as CalendarComponent } from '@/components/ui/calendar';
-import { format, subDays, startOfDay, endOfDay } from 'date-fns';
-import { cn } from '@/lib/utils';
+} from "@/components/ui/popover";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { format, subDays, startOfDay, endOfDay } from "date-fns";
+import { SubmissionResult } from "@/types/formBuilder";
 
-export type SubmissionResultFilter = 'all' | 'accepted' | 'rejected';
+export type SubmissionResultFilter = "all" | SubmissionResult;
 
 export interface DateRange {
   from: Date | undefined;
@@ -50,16 +49,58 @@ interface SubmissionFiltersProps {
 }
 
 const resultOptions = [
-  { value: 'all' as const, label: 'All Submissions', icon: null },
-  { value: 'accepted' as const, label: 'Accepted', icon: <CheckCircle className="h-4 w-4 text-green-600" /> },
-  { value: 'rejected' as const, label: 'Rejected (All)', icon: <XCircle className="h-4 w-4 text-destructive" /> },
+  { value: "all" as const, label: "All Submissions", icon: null },
+  {
+    value: "accepted" as const,
+    label: "Accepted",
+    icon: <CheckCircle className="h-4 w-4 text-green-600" />,
+  },
+  {
+    value: "rejected_invalid" as const,
+    label: "Invalid",
+    icon: <XCircle className="h-4 w-4 text-destructive" />,
+  },
+  {
+    value: "rejected_rate_limited" as const,
+    label: "Rate Limited",
+    icon: <Clock className="h-4 w-4 text-yellow-600" />,
+  },
+  {
+    value: "rejected_spam" as const,
+    label: "Spam",
+    icon: <Bot className="h-4 w-4 text-orange-600" />,
+  },
 ];
 
 const datePresets = [
-  { label: 'Today', getValue: () => ({ from: startOfDay(new Date()), to: endOfDay(new Date()) }) },
-  { label: 'Last 7 days', getValue: () => ({ from: startOfDay(subDays(new Date(), 7)), to: endOfDay(new Date()) }) },
-  { label: 'Last 30 days', getValue: () => ({ from: startOfDay(subDays(new Date(), 30)), to: endOfDay(new Date()) }) },
-  { label: 'Last 90 days', getValue: () => ({ from: startOfDay(subDays(new Date(), 90)), to: endOfDay(new Date()) }) },
+  {
+    label: "Today",
+    getValue: () => ({
+      from: startOfDay(new Date()),
+      to: endOfDay(new Date()),
+    }),
+  },
+  {
+    label: "Last 7 days",
+    getValue: () => ({
+      from: startOfDay(subDays(new Date(), 7)),
+      to: endOfDay(new Date()),
+    }),
+  },
+  {
+    label: "Last 30 days",
+    getValue: () => ({
+      from: startOfDay(subDays(new Date(), 30)),
+      to: endOfDay(new Date()),
+    }),
+  },
+  {
+    label: "Last 90 days",
+    getValue: () => ({
+      from: startOfDay(subDays(new Date(), 90)),
+      to: endOfDay(new Date()),
+    }),
+  },
 ];
 
 export function SubmissionFilters({
@@ -75,10 +116,12 @@ export function SubmissionFilters({
   const [calendarOpen, setCalendarOpen] = useState(false);
 
   const formatDateRange = () => {
-    if (!dateRange.from && !dateRange.to) return 'All time';
-    if (dateRange.from && !dateRange.to) return `From ${format(dateRange.from, 'MMM d')}`;
-    if (!dateRange.from && dateRange.to) return `Until ${format(dateRange.to, 'MMM d')}`;
-    return `${format(dateRange.from!, 'MMM d')} – ${format(dateRange.to!, 'MMM d')}`;
+    if (!dateRange.from && !dateRange.to) return "All time";
+    if (dateRange.from && !dateRange.to)
+      return `From ${format(dateRange.from, "MMM d")}`;
+    if (!dateRange.from && dateRange.to)
+      return `Until ${format(dateRange.to, "MMM d")}`;
+    return `${format(dateRange.from!, "MMM d")} – ${format(dateRange.to!, "MMM d")}`;
   };
 
   return (
@@ -91,7 +134,7 @@ export function SubmissionFilters({
           <Input
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="Search by email..."
+            placeholder="Search any submitted value..."
             className="pl-9"
           />
           {searchQuery && (
@@ -99,7 +142,7 @@ export function SubmissionFilters({
               variant="ghost"
               size="sm"
               className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6 p-0"
-              onClick={() => onSearchChange('')}
+              onClick={() => onSearchChange("")}
             >
               <X className="h-3 w-3" />
             </Button>
@@ -109,7 +152,10 @@ export function SubmissionFilters({
         {/* Date Range Filter */}
         <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
           <PopoverTrigger asChild>
-            <Button variant="outline" className="gap-2 min-w-[180px] justify-start">
+            <Button
+              variant="outline"
+              className="gap-2 min-w-[180px] justify-start"
+            >
               <Calendar className="h-4 w-4" />
               <span className="truncate">{formatDateRange()}</span>
               {(dateRange.from || dateRange.to) && (
@@ -123,7 +169,9 @@ export function SubmissionFilters({
             <div className="flex">
               {/* Presets */}
               <div className="border-r p-3 space-y-1">
-                <Label className="text-xs text-muted-foreground px-2">Quick Select</Label>
+                <Label className="text-xs text-muted-foreground px-2">
+                  Quick Select
+                </Label>
                 {datePresets.map((preset) => (
                   <Button
                     key={preset.label}
@@ -171,8 +219,10 @@ export function SubmissionFilters({
           <DropdownMenuTrigger asChild>
             <Button variant="outline" className="gap-2">
               <Filter className="h-4 w-4" />
-              {resultFilter === 'all' ? 'Status' : resultOptions.find(o => o.value === resultFilter)?.label}
-              {resultFilter !== 'all' && (
+              {resultFilter === "all"
+                ? "Status"
+                : resultOptions.find((o) => o.value === resultFilter)?.label}
+              {resultFilter !== "all" && (
                 <Badge variant="secondary" className="ml-1 text-xs">
                   1
                 </Badge>
@@ -186,7 +236,7 @@ export function SubmissionFilters({
               <DropdownMenuItem
                 key={option.value}
                 onClick={() => onResultFilterChange(option.value)}
-                className={resultFilter === option.value ? 'bg-muted' : ''}
+                className={resultFilter === option.value ? "bg-muted" : ""}
               >
                 <div className="flex items-center gap-2">
                   {option.icon}

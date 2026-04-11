@@ -176,7 +176,6 @@ export const SquareSetupWizard = ({
 
     try {
       // Step 1: Sync customers
-      console.log("[SquareSetupWizard] Starting customer sync...");
       setSyncProgress((prev) => ({
         ...prev,
         customers: { ...prev.customers, status: "syncing" },
@@ -184,11 +183,7 @@ export const SquareSetupWizard = ({
 
       try {
         await supabase.functions.invoke("square-sync-customers");
-      } catch (e) {
-        console.log(
-          "[SquareSetupWizard] Customer sync call completed or timed out",
-        );
-      }
+      } catch {}
 
       setSyncProgress((prev) => ({
         ...prev,
@@ -197,14 +192,9 @@ export const SquareSetupWizard = ({
       }));
 
       // Step 2: Sync sales
-      console.log("[SquareSetupWizard] Starting sales sync...");
       try {
         await supabase.functions.invoke("square-sync-sales");
-      } catch (e) {
-        console.log(
-          "[SquareSetupWizard] Sales sync call completed or timed out",
-        );
-      }
+      } catch {}
 
       setSyncProgress((prev) => ({
         ...prev,
@@ -213,14 +203,9 @@ export const SquareSetupWizard = ({
       }));
 
       // Step 3: Sync products
-      console.log("[SquareSetupWizard] Starting products sync...");
       try {
         await supabase.functions.invoke("square-sync-products");
-      } catch (e) {
-        console.log(
-          "[SquareSetupWizard] Products sync call completed or timed out",
-        );
-      }
+      } catch {}
 
       setSyncProgress((prev) => ({
         ...prev,
@@ -231,8 +216,6 @@ export const SquareSetupWizard = ({
       await new Promise((resolve) => setTimeout(resolve, 2000));
 
       const actualCounts = await fetchActualCounts();
-      console.log("[SquareSetupWizard] Actual database counts:", actualCounts);
-
       setSyncResults({
         customersCount: actualCounts.customers,
         salesCount: actualCounts.sales,

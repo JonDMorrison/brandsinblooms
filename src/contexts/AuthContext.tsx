@@ -1,4 +1,3 @@
-
 import * as React from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase, forceLogout } from "@/integrations/supabase/client";
@@ -25,14 +24,11 @@ export const useAuth = () => {
 };
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  console.log('🔧 AuthProvider: React is:', React);
-  console.log('🔧 AuthProvider: useState is:', React.useState);
-  
   if (!React || !React.useState) {
-    console.error('❌ React or useState is not available!');
+    console.error("❌ React or useState is not available!");
     return <div>React Error: Please refresh the page</div>;
   }
-  
+
   const [user, setUser] = React.useState<User | null>(null);
   const [session, setSession] = React.useState<Session | null>(null);
   const [loading, setLoading] = React.useState(true);
@@ -42,119 +38,96 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   // Detect limbo state (authenticated but stuck in redirect loops)
   React.useEffect(() => {
     const currentPath = window.location.pathname;
-    const isOnPricingPage = currentPath === '/pricing';
+    const isOnPricingPage = currentPath === "/pricing";
     const hasUser = !!user;
     const hasSession = !!session;
-    
+
     // Limbo state: user exists but on pricing page and not loading
     const limboDetected = hasUser && hasSession && isOnPricingPage && !loading;
-    
+
     if (limboDetected !== isInLimboState) {
-      console.log('🚨 Limbo state detection:', { 
-        limboDetected, 
-        hasUser, 
-        hasSession, 
-        isOnPricingPage, 
-        loading 
-      });
       setIsInLimboState(limboDetected);
     }
   }, [user, session, loading, isInLimboState]);
 
   React.useEffect(() => {
     let mounted = true;
-    
-    console.log('🔄 AuthProvider: Setting up auth state listeners');
-    
     // Set up auth state listener FIRST
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (!mounted) return;
-        
-        console.log('🔐 Auth state change:', { event, hasSession: !!session, hasUser: !!session?.user });
-        
-        // Clear any previous errors on state change
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (!mounted) return;
+      // Clear any previous errors on state change
+      setAuthError(null);
+      setIsInLimboState(false);
+
+      // Update state immediately
+      setSession(session);
+      setUser(session?.user ?? null);
+
+      // Handle specific events
+      if (
+        event === "INITIAL_SESSION" ||
+        event === "SIGNED_OUT" ||
+        event === "SIGNED_IN"
+      ) {
+        setLoading(false);
+      }
+
+      if (event === "SIGNED_OUT") {
+        setUser(null);
+        setSession(null);
         setAuthError(null);
         setIsInLimboState(false);
-        
-        // Update state immediately
-        setSession(session);
-        setUser(session?.user ?? null);
-        
-        // Handle specific events
-        if (event === 'INITIAL_SESSION' || event === 'SIGNED_OUT' || event === 'SIGNED_IN') {
-          setLoading(false);
-        }
-        
-        if (event === 'SIGNED_OUT') {
-          console.log('👋 User signed out, clearing state');
-          setUser(null);
-          setSession(null);
-          setAuthError(null);
-          setIsInLimboState(false);
-          console.log('📊 Analytics disabled - no tracking on sign out');
-        }
-        
-        if (event === 'TOKEN_REFRESHED') {
-          console.log('🔄 Token refreshed');
-        }
-        
-        if (event === 'SIGNED_IN' && session?.user) {
-          console.log('✅ User signed in successfully:', session.user.email);
-          console.log('📊 Analytics disabled - no user identification');
-        }
       }
-    );
+
+      if (event === "TOKEN_REFRESHED") {
+        setLoading(false);
+      }
+    });
 
     // THEN check for existing session
     supabase.auth.getSession().then(({ data: { session }, error }) => {
       if (!mounted) return;
-      
+
       if (error) {
-        console.error('❌ Error getting initial session:', error);
+        console.error("❌ Error getting initial session:", error);
         setAuthError(error.message);
-      } else {
-        console.log('📋 Initial session check:', { hasSession: !!session, hasUser: !!session?.user });
       }
-      
+
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
-      
-      console.log('📊 Analytics completely disabled - no tracking initialization');
     });
 
     return () => {
       mounted = false;
-      console.log('🧹 AuthProvider: Cleaning up auth subscription');
       subscription.unsubscribe();
     };
   }, []);
 
   const signOut = async () => {
     try {
-      console.log('🚪 AuthContext: Signing out user');
       setLoading(true);
       setAuthError(null);
-      
+
       const { error } = await supabase.auth.signOut();
       if (error) {
-        console.error('❌ Sign out error:', error);
+        console.error("❌ Sign out error:", error);
         setAuthError(error.message);
         // Even if signout fails, force logout
         await forceLogout();
       } else {
-        console.log('✅ Sign out successful');
         // Clear state immediately
         setUser(null);
         setSession(null);
         setIsInLimboState(false);
         // Redirect to auth page
-        window.location.href = '/auth';
+        window.location.href = "/auth";
       }
     } catch (error) {
-      console.error('❌ Error signing out:', error);
-      setAuthError('Failed to sign out. Forcing logout...');
+      console.error("❌ Error signing out:", error);
+      setAuthError("Failed to sign out. Forcing logout...");
       await forceLogout();
     } finally {
       setLoading(false);
@@ -163,47 +136,36 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const forceReset = async () => {
     try {
-      console.log('🚨 AuthContext: Force reset triggered');
       setLoading(true);
       setAuthError(null);
       setIsInLimboState(false);
-      
+
       // Clear all state immediately
       setUser(null);
       setSession(null);
-      
+
       // Force logout and redirect
       await forceLogout();
     } catch (error) {
-      console.error('❌ Force reset error:', error);
+      console.error("❌ Force reset error:", error);
       // Even if force reset fails, try to redirect
-      window.location.href = '/auth';
+      window.location.href = "/auth";
     }
   };
 
-  const value = React.useMemo(() => ({
-    user,
-    session,
-    loading,
-    isAuthenticated: !!user && !!session,
-    authError,
-    isInLimboState,
-    signOut,
-    forceReset,
-  }), [user, session, loading, authError, isInLimboState]);
-
-  console.log('🔍 AuthProvider render:', { 
-    hasUser: !!user, 
-    hasSession: !!session, 
-    loading, 
-    authError,
-    isInLimboState,
-    currentPath: window.location.pathname 
-  });
-
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
+  const value = React.useMemo(
+    () => ({
+      user,
+      session,
+      loading,
+      isAuthenticated: !!user && !!session,
+      authError,
+      isInLimboState,
+      signOut,
+      forceReset,
+    }),
+    [user, session, loading, authError, isInLimboState],
   );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

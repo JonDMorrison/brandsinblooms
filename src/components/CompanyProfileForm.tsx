@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Building } from "lucide-react";
@@ -17,23 +16,28 @@ interface CompanyProfileFormProps {
   onProfileUpdate: (profile: any) => void;
 }
 
-export const CompanyProfileForm = ({ profile, isEditing, onToggleEdit, onProfileUpdate }: CompanyProfileFormProps) => {
+export const CompanyProfileForm = ({
+  profile,
+  isEditing,
+  onToggleEdit,
+  onProfileUpdate,
+}: CompanyProfileFormProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [formData, setFormData] = useState({
-    company_name: '',
-    company_phone: '',
-    company_overview: '',
-    mission_statement: '',
-    brand_voice: '',
-    tone_of_writing: '',
-    target_audience: '',
-    ideal_customer: '',
-    unique_selling_points: '',
-    company_values: '',
-    seasonal_focus: '',
-    specializations: '',
-    location_info: ''
+    company_name: "",
+    company_phone: "",
+    company_overview: "",
+    mission_statement: "",
+    brand_voice: "",
+    tone_of_writing: "",
+    target_audience: "",
+    ideal_customer: "",
+    unique_selling_points: "",
+    company_values: "",
+    seasonal_focus: "",
+    specializations: "",
+    location_info: "",
   });
   const [isSaving, setIsSaving] = useState(false);
   const [isAutoPopulating, setIsAutoPopulating] = useState(false);
@@ -41,19 +45,19 @@ export const CompanyProfileForm = ({ profile, isEditing, onToggleEdit, onProfile
   useEffect(() => {
     if (profile) {
       setFormData({
-        company_name: profile.company_name || '',
-        company_phone: profile.company_phone || '',
-        company_overview: profile.company_overview || '',
-        mission_statement: profile.mission_statement || '',
-        brand_voice: profile.brand_voice || '',
-        tone_of_writing: profile.tone_of_writing || '',
-        target_audience: profile.target_audience || '',
-        ideal_customer: profile.ideal_customer || '',
-        unique_selling_points: profile.unique_selling_points || '',
-        company_values: profile.company_values || '',
-        seasonal_focus: profile.seasonal_focus || '',
-        specializations: profile.specializations || '',
-        location_info: profile.location_info || ''
+        company_name: profile.company_name || "",
+        company_phone: profile.company_phone || "",
+        company_overview: profile.company_overview || "",
+        mission_statement: profile.mission_statement || "",
+        brand_voice: profile.brand_voice || "",
+        tone_of_writing: profile.tone_of_writing || "",
+        target_audience: profile.target_audience || "",
+        ideal_customer: profile.ideal_customer || "",
+        unique_selling_points: profile.unique_selling_points || "",
+        company_values: profile.company_values || "",
+        seasonal_focus: profile.seasonal_focus || "",
+        specializations: profile.specializations || "",
+        location_info: profile.location_info || "",
       });
     }
   }, [profile]);
@@ -62,11 +66,11 @@ export const CompanyProfileForm = ({ profile, isEditing, onToggleEdit, onProfile
   useEffect(() => {
     const shouldAutoPopulate = async () => {
       if (!user || profile !== null) return; // Don't run if profile exists or user not loaded
-      
+
       // Check if we've already attempted auto-populate for this user
       const autoPopulateKey = `garden-center-autopopulated-${user.id}`;
       const hasAlreadyTriedAutoPopulate = localStorage.getItem(autoPopulateKey);
-      
+
       if (hasAlreadyTriedAutoPopulate) {
         // Auto-populate already attempted for this user
         return;
@@ -74,7 +78,7 @@ export const CompanyProfileForm = ({ profile, isEditing, onToggleEdit, onProfile
 
       await handleAutoPopulate();
       // Mark that we've attempted auto-populate for this user
-      localStorage.setItem(autoPopulateKey, 'true');
+      localStorage.setItem(autoPopulateKey, "true");
     };
 
     shouldAutoPopulate();
@@ -84,38 +88,45 @@ export const CompanyProfileForm = ({ profile, isEditing, onToggleEdit, onProfile
     if (!user) return;
 
     setIsAutoPopulating(true);
-    
+
     try {
       // Get onboarding data from localStorage - only use real user data
-      let onboardingData = localStorage.getItem(`garden-center-onboarding-${user.id}`);
+      let onboardingData = localStorage.getItem(
+        `garden-center-onboarding-${user.id}`,
+      );
       let parsedOnboardingData;
-      
+
       if (!onboardingData) {
         // No onboarding data exists - leave fields blank for new users
         // No onboarding data found - leaving fields blank for new user
         setIsAutoPopulating(false);
         return;
       }
-      
+
       parsedOnboardingData = JSON.parse(onboardingData);
-      
+
       // Only proceed if we have meaningful onboarding data (not just sample data)
-      if (parsedOnboardingData.aboutBusiness && parsedOnboardingData.aboutBusiness.trim()) {
+      if (
+        parsedOnboardingData.aboutBusiness &&
+        parsedOnboardingData.aboutBusiness.trim()
+      ) {
         // Auto-populating company profile from onboarding data
-        
-        const { data, error } = await supabase.functions.invoke('generate-company-profile', {
-          body: {
-            aboutBusiness: parsedOnboardingData.aboutBusiness,
-            toneSamples: parsedOnboardingData.toneSamples,
-            annualEvents: parsedOnboardingData.annualEvents
-          }
-        });
+
+        const { data, error } = await supabase.functions.invoke(
+          "generate-company-profile",
+          {
+            body: {
+              aboutBusiness: parsedOnboardingData.aboutBusiness,
+              toneSamples: parsedOnboardingData.toneSamples,
+              annualEvents: parsedOnboardingData.annualEvents,
+            },
+          },
+        );
 
         if (error) {
           // Error generating profile
         } else if (data.profileData) {
           setFormData(data.profileData);
-          
         }
       } else {
         // No meaningful onboarding data found - skipping auto-populate
@@ -128,9 +139,9 @@ export const CompanyProfileForm = ({ profile, isEditing, onToggleEdit, onProfile
   };
 
   const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [field]: value
+      [field]: value,
     }));
   };
 
@@ -160,26 +171,26 @@ export const CompanyProfileForm = ({ profile, isEditing, onToggleEdit, onProfile
       if (profile?.id) {
         // Update existing profile
         result = await supabase
-          .from('company_profiles')
+          .from("company_profiles")
           .update(payload)
-          .eq('id', profile.id)
+          .eq("id", profile.id)
           .select()
           .maybeSingle();
       } else {
         // Create new profile
         result = await supabase
-          .from('company_profiles')
+          .from("company_profiles")
           .insert(payload)
           .select()
           .maybeSingle();
       }
 
       if (result.error) {
-        console.error('Error saving profile:', result.error);
+        console.error("Error saving profile:", result.error);
         toast({
           title: "Error saving profile",
           description: "Failed to update company profile. Please try again.",
-          variant: "destructive"
+          variant: "destructive",
         });
         return;
       }
@@ -193,20 +204,19 @@ export const CompanyProfileForm = ({ profile, isEditing, onToggleEdit, onProfile
             const parsedData = JSON.parse(existingData);
             parsedData.aboutBusiness = `${formData.company_name} has been serving the community with quality gardening products and expert advice.`;
             localStorage.setItem(onboardingKey, JSON.stringify(parsedData));
-          } catch (error) {
-            console.warn('Failed to sync onboarding storage:', error);
-          }
+          } catch (error) {}
         }
       }
 
       toast({
         title: "Profile updated successfully",
-        description: "Your changes will be reflected in all future content generation.",
+        description:
+          "Your changes will be reflected in all future content generation.",
       });
 
       onProfileUpdate(result.data);
     } catch (error) {
-      console.error('Unexpected error in handleSave:', error);
+      console.error("Unexpected error in handleSave:", error);
     } finally {
       setIsSaving(false);
     }
@@ -215,19 +225,19 @@ export const CompanyProfileForm = ({ profile, isEditing, onToggleEdit, onProfile
   const handleCancel = () => {
     if (profile) {
       setFormData({
-        company_name: profile.company_name || '',
-        company_phone: profile.company_phone || '',
-        company_overview: profile.company_overview || '',
-        mission_statement: profile.mission_statement || '',
-        brand_voice: profile.brand_voice || '',
-        tone_of_writing: profile.tone_of_writing || '',
-        target_audience: profile.target_audience || '',
-        ideal_customer: profile.ideal_customer || '',
-        unique_selling_points: profile.unique_selling_points || '',
-        company_values: profile.company_values || '',
-        seasonal_focus: profile.seasonal_focus || '',
-        specializations: profile.specializations || '',
-        location_info: profile.location_info || ''
+        company_name: profile.company_name || "",
+        company_phone: profile.company_phone || "",
+        company_overview: profile.company_overview || "",
+        mission_statement: profile.mission_statement || "",
+        brand_voice: profile.brand_voice || "",
+        tone_of_writing: profile.tone_of_writing || "",
+        target_audience: profile.target_audience || "",
+        ideal_customer: profile.ideal_customer || "",
+        unique_selling_points: profile.unique_selling_points || "",
+        company_values: profile.company_values || "",
+        seasonal_focus: profile.seasonal_focus || "",
+        specializations: profile.specializations || "",
+        location_info: profile.location_info || "",
       });
     }
     onToggleEdit();

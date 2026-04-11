@@ -1,16 +1,31 @@
-import React, { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Upload, Search, Image as ImageIcon, Loader2, Download, Edit3, Camera, ArrowLeft } from 'lucide-react';
-import { useUnsplash } from '@/hooks/useUnsplash';
-import { useContentAssets } from '@/hooks/useContentAssets';
-import { downloadUnsplashImage, copyAttributionToClipboard } from '@/services/unsplashDownloadService';
-import { cn } from '@/lib/utils';
-import { toast } from 'sonner';
-import { extractImageSummary } from '@/utils/imageContentSummary';
-import { validateImageQuery } from '@/utils/dynamicImageSearch';
-import { getRelevantFallbacks, formatFallbackImages } from '@/services/gardenCenterFallbacks';
+import React, { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import {
+  Upload,
+  Search,
+  Image as ImageIcon,
+  Loader2,
+  Download,
+  Edit3,
+  Camera,
+  ArrowLeft,
+} from "lucide-react";
+import { useUnsplash } from "@/hooks/useUnsplash";
+import { useContentAssets } from "@/hooks/useContentAssets";
+import {
+  downloadUnsplashImage,
+  copyAttributionToClipboard,
+} from "@/services/unsplashDownloadService";
+import { cn } from "@/lib/utils";
+import { toast } from "sonner";
+import { extractImageSummary } from "@/utils/imageContentSummary";
+import { validateImageQuery } from "@/utils/dynamicImageSearch";
+import {
+  getRelevantFallbacks,
+  formatFallbackImages,
+} from "@/services/gardenCenterFallbacks";
 
 interface MediaSelectorProps {
   onImageSelect: (imageUrl: string, metadata?: any) => void;
@@ -29,57 +44,48 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
   className,
   compact = false,
   onBackClick,
-  autoSelectFirst = false
+  autoSelectFirst = false,
 }) => {
-  console.log('[MediaSelector] Component rendering with props:', {
-    hasOnImageSelect: !!onImageSelect,
-    hasSelectedImage: !!selectedImageUrl,
-    selectedImageUrl,
-    contentContext,
-    compact
-  });
-
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [showingSuggestions, setShowingSuggestions] = useState(false);
   const [selectedImageMetadata, setSelectedImageMetadata] = useState<any>(null);
   // Removed preview state - thumbnails now directly select images
-  
+
   const { searchImages, loading: unsplashLoading } = useUnsplash();
   const { uploadAsset } = useContentAssets();
 
   // Helper to normalize fallback images to expected shape
-  const normalizeFallbacks = (formatted: any[]) => formatted.map(img => ({
-    id: img.id,
-    url: img.download_url,
-    thumb_url: img.thumb_url,
-    alt: img.alt,
-    photographer: img.photographer,
-    photographer_url: undefined,
-    download_location: undefined,
-    source: 'fallback',
-  }));
+  const normalizeFallbacks = (formatted: any[]) =>
+    formatted.map((img) => ({
+      id: img.id,
+      url: img.download_url,
+      thumb_url: img.thumb_url,
+      alt: img.alt,
+      photographer: img.photographer,
+      photographer_url: undefined,
+      download_location: undefined,
+      source: "fallback",
+    }));
 
   // Ensure at least 4 results for proper grid display
   const supplementWithFallbacks = (results: any[], query: string) => {
     if (results.length >= 4) return results.slice(0, 6);
-    
+
     const deficit = 4 - results.length;
-    console.log(`[MediaSelector] Need ${deficit} more images, supplementing with fallbacks`);
-    
+
     const fallbacks = getRelevantFallbacks(query, deficit);
     const formatted = formatFallbackImages(fallbacks, query);
     const normalized = normalizeFallbacks(formatted);
-    
+
     // Combine and deduplicate by id
     const combined = [...results];
-    normalized.forEach(fallback => {
-      if (!combined.find(img => img.id === fallback.id)) {
+    normalized.forEach((fallback) => {
+      if (!combined.find((img) => img.id === fallback.id)) {
         combined.push(fallback);
       }
     });
-    
-    console.log(`[MediaSelector] Supplemented results: ${results.length} original + ${normalized.length} fallbacks = ${combined.length} total`);
+
     return combined.slice(0, 6);
   };
 
@@ -87,116 +93,111 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
   useEffect(() => {
     const loadDefaultSuggestions = async () => {
       if (searchResults.length === 0 && !showingSuggestions) {
-        console.log('[MediaSelector] Loading default suggestions...');
         setShowingSuggestions(true);
-        const rawQuery = contentContext ? extractImageSummary(contentContext) : 'garden center';
+        const rawQuery = contentContext
+          ? extractImageSummary(contentContext)
+          : "garden center";
         const defaultQuery = validateImageQuery(rawQuery);
-        console.log('[MediaSelector] Using validated query:', defaultQuery, 'from context:', rawQuery);
-        
+
         try {
           const results = await searchImages(defaultQuery);
-          console.log('[MediaSelector] Search results received:', results?.length || 0, 'results');
-          console.log('[MediaSelector] First result structure:', results?.[0]);
-          
           const finalResults = supplementWithFallbacks(results, defaultQuery);
           setSearchResults(finalResults);
-          
+
           // Auto-select first image if requested and no image already selected
           if (autoSelectFirst && !selectedImageUrl && finalResults.length > 0) {
             const firstImage = finalResults[0];
-            console.log('[MediaSelector] Auto-selecting first image:', firstImage);
             const imageMetadata = {
-              source: firstImage.source || 'unsplash',
+              source: firstImage.source || "unsplash",
               alt_text: firstImage.alt,
               photographer: firstImage.photographer,
               photographer_url: firstImage.photographer_url,
               unsplash_id: firstImage.id,
               thumb: firstImage.thumb_url || firstImage.thumb,
-              download_location: firstImage.download_location
+              download_location: firstImage.download_location,
             };
-            handleImageSelect(firstImage.url || firstImage.download_url, imageMetadata);
+            handleImageSelect(
+              firstImage.url || firstImage.download_url,
+              imageMetadata,
+            );
           } else if (!selectedImageUrl && finalResults.length > 0) {
             // If no image is selected, auto-select the first one anyway to avoid showing placeholder
             const firstImage = finalResults[0];
-            console.log('[MediaSelector] No image selected, auto-selecting first available:', firstImage);
             const imageMetadata = {
-              source: firstImage.source || 'unsplash',
+              source: firstImage.source || "unsplash",
               alt_text: firstImage.alt,
               photographer: firstImage.photographer,
               photographer_url: firstImage.photographer_url,
               unsplash_id: firstImage.id,
               thumb: firstImage.thumb_url || firstImage.thumb,
-              download_location: firstImage.download_location
+              download_location: firstImage.download_location,
             };
-            handleImageSelect(firstImage.url || firstImage.download_url, imageMetadata);
-          } else {
-            console.log('[MediaSelector] Images loaded, waiting for user selection:', finalResults.length, 'images available');
+            handleImageSelect(
+              firstImage.url || firstImage.download_url,
+              imageMetadata,
+            );
           }
         } catch (error) {
-          console.error('[MediaSelector] Error loading suggestions:', error);
+          console.error("[MediaSelector] Error loading suggestions:", error);
         }
       }
     };
-    
+
     loadDefaultSuggestions();
-  }, [contentContext, searchImages, searchResults.length, showingSuggestions, selectedImageUrl, onImageSelect]);
+  }, [
+    contentContext,
+    searchImages,
+    searchResults.length,
+    showingSuggestions,
+    selectedImageUrl,
+    onImageSelect,
+  ]);
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
-    
-    console.log('[MediaSelector] Searching for:', searchQuery);
+
     const cleanQuery = validateImageQuery(searchQuery);
-    console.log('[MediaSelector] Using validated query:', cleanQuery);
-    
+
     setShowingSuggestions(false);
     try {
       const results = await searchImages(cleanQuery);
-      console.log('[MediaSelector] Search completed, found:', results?.length || 0, 'results');
       const finalResults = supplementWithFallbacks(results, cleanQuery);
       setSearchResults(finalResults);
     } catch (error) {
-      console.error('[MediaSelector] Search error:', error);
+      console.error("[MediaSelector] Search error:", error);
     }
   };
 
   const handleImageSelect = (imageUrl: string, metadata?: any) => {
-    console.log('[MediaSelector] handleImageSelect called with:', imageUrl, metadata);
-    console.log('[MediaSelector] onImageSelect prop exists:', !!onImageSelect);
     setSelectedImageMetadata(metadata);
-    
+
     if (onImageSelect) {
       onImageSelect(imageUrl, metadata);
-      console.log('[MediaSelector] onImageSelect callback completed successfully');
     } else {
-      console.error('[MediaSelector] onImageSelect prop is missing!');
+      console.error("[MediaSelector] onImageSelect prop is missing!");
     }
   };
 
   const handleThumbnailClick = (image: any, index: number) => {
-    console.log('[MediaSelector] Thumbnail clicked - index:', index, 'image:', image);
-    console.log('[MediaSelector] Image URL to select:', image.url);
-    
     const imageMetadata = {
-      source: 'unsplash',
+      source: "unsplash",
       alt_text: image.alt,
       photographer: image.photographer,
       photographer_url: image.photographer_url,
       unsplash_id: image.id,
       thumb: image.thumb,
-      download_location: image.download_location
+      download_location: image.download_location,
     };
-    
-    console.log('[MediaSelector] Calling handleImageSelect with:', image.url, imageMetadata);
+
     // Directly call handleImageSelect instead of going to preview mode
     handleImageSelect(image.url, imageMetadata);
   };
 
   const handleDownload = async (image: any, event?: React.MouseEvent) => {
     event?.stopPropagation();
-    console.log('[MediaSelector] Download requested for:', image);
-    
+
     if (!image.photographer || !image.id) {
-      toast.error('Unable to download: Missing image information');
+      toast.error("Unable to download: Missing image information");
       return;
     }
 
@@ -206,59 +207,52 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
         photographer: image.photographer,
         photographerUrl: image.photographer_url,
         unsplashId: image.id,
-        downloadLocation: image.download_location
+        downloadLocation: image.download_location,
       });
 
       if (result.success) {
         toast.success(`Downloaded: ${result.filename}`);
-        
+
         const copied = await copyAttributionToClipboard(
           image.photographer,
           image.photographer_url,
-          'copy'
+          "copy",
         );
-        
+
         if (copied) {
-          toast.success('Attribution copied to clipboard');
+          toast.success("Attribution copied to clipboard");
         }
       } else {
         toast.error(`Download failed: ${result.error}`);
       }
     } catch (error) {
-      console.error('[MediaSelector] Download error:', error);
-      toast.error('Download failed');
+      console.error("[MediaSelector] Download error:", error);
+      toast.error("Download failed");
     }
   };
 
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    console.log('[MediaSelector] File upload started:', file.name);
     try {
       const asset = await uploadAsset(file, []);
       if (asset?.url) {
-        console.log('[MediaSelector] File uploaded successfully:', asset.url);
         handleImageSelect(asset.url, {
-          source: 'upload',
+          source: "upload",
           alt_text: `Uploaded image: ${file.name}`,
-          file_name: file.name
+          file_name: file.name,
         });
       }
     } catch (error) {
-      console.error('[MediaSelector] Upload failed:', error);
-      toast.error('Upload failed');
+      console.error("[MediaSelector] Upload failed:", error);
+      toast.error("Upload failed");
     }
   };
 
   // Removed handleConfirmSelection and handleBackToBrowse - no longer needed
-
-  // Debugging render flow
-  console.log('[MediaSelector] Component re-rendered with state:', {
-    searchResultsCount: searchResults.length,
-    showingSuggestions,
-    unsplashLoading
-  });
 
   if (compact) {
     return (
@@ -268,37 +262,40 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
           <h4 className="text-sm font-medium text-gray-700">Featured Image</h4>
           {selectedImageUrl ? (
             <div className="relative group aspect-video rounded-lg border-2 border-green-200 overflow-hidden bg-green-50">
-              <img 
-                src={selectedImageUrl} 
+              <img
+                src={selectedImageUrl}
                 alt={selectedImageMetadata?.alt_text || "Featured image"}
                 className="w-full h-full object-cover"
                 onError={(e) => {
-                  console.error('[MediaSelector] Compact image failed to load:', selectedImageUrl);
+                  console.error(
+                    "[MediaSelector] Compact image failed to load:",
+                    selectedImageUrl,
+                  );
                   const currentSrc = e.currentTarget.src;
-                  const fallbackPath = '/images/newsletter-fallback.jpg';
-                  
-                  if (!currentSrc.includes('newsletter-fallback.jpg')) {
+                  const fallbackPath = "/images/newsletter-fallback.jpg";
+
+                  if (!currentSrc.includes("newsletter-fallback.jpg")) {
                     e.currentTarget.src = fallbackPath;
                   } else {
-                    e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2Y1Zjd1YSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzY2NzM4NSI+SW1hZ2UgVW5hdmFpbGFibGU8L3RleHQ+PC9zdmc+';
+                    e.currentTarget.src =
+                      "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2Y1Zjd1YSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzY2NzM4NSI+SW1hZ2UgVW5hdmFpbGFibGU8L3RleHQ+PC9zdmc+";
                   }
                 }}
               />
               <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center gap-2">
-                <Button 
-                  size="sm"
-                >
+                <Button size="sm">
                   <Edit3 className="h-3 w-3 mr-1" />
                   Change Image
                 </Button>
-                {selectedImageMetadata?.source === 'unsplash' && selectedImageMetadata?.photographer && (
-                  <Button 
-                    size="sm"
-                    onClick={(e) => handleDownload(selectedImageMetadata, e)}
-                  >
-                    <Download className="h-3 w-3" />
-                  </Button>
-                )}
+                {selectedImageMetadata?.source === "unsplash" &&
+                  selectedImageMetadata?.photographer && (
+                    <Button
+                      size="sm"
+                      onClick={(e) => handleDownload(selectedImageMetadata, e)}
+                    >
+                      <Download className="h-3 w-3" />
+                    </Button>
+                  )}
               </div>
             </div>
           ) : (
@@ -319,16 +316,20 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
               placeholder="Search images..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+              onKeyPress={(e) => e.key === "Enter" && handleSearch()}
               className="text-sm"
             />
-            <Button 
-              onClick={handleSearch} 
+            <Button
+              onClick={handleSearch}
               disabled={unsplashLoading}
               size="sm"
               variant="outline"
             >
-              {unsplashLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Search className="h-3 w-3" />}
+              {unsplashLoading ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <Search className="h-3 w-3" />
+              )}
             </Button>
           </div>
 
@@ -339,7 +340,12 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
               onChange={handleFileUpload}
               className="hidden"
             />
-            <Button variant="outline" size="sm" className="w-full text-xs" asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full text-xs"
+              asChild
+            >
               <span>
                 <Upload className="h-3 w-3 mr-1" />
                 Upload New Image
@@ -353,7 +359,7 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
           <div className="space-y-3 relative z-20">
             <div className="flex items-center justify-between">
               <h4 className="text-sm font-medium text-gray-700">
-                {showingSuggestions ? 'Suggested Images' : 'Search Results'}
+                {showingSuggestions ? "Suggested Images" : "Search Results"}
               </h4>
               <span className="text-xs text-gray-500">
                 {searchResults.length} images found
@@ -361,13 +367,6 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
             </div>
             <div className="grid grid-cols-3 gap-3 min-h-[200px]">
               {searchResults.slice(0, 3).map((image, index) => {
-                console.log('[MediaSelector] Compact - Rendering thumbnail:', index, {
-                  id: image.id,
-                  thumb: image.thumb,
-                  thumb_url: image.thumb_url,
-                  url: image.url,
-                  download_url: image.download_url
-                });
                 return (
                   <button
                     key={image.id || index}
@@ -375,29 +374,36 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      console.log('[MediaSelector] Compact thumbnail clicked:', image.id);
                       handleThumbnailClick(image, index);
                     }}
                     type="button"
                     tabIndex={0}
                   >
-                    <img 
-                      src={image.thumb_url || image.thumb || image.download_url || image.url} 
-                      alt={image.alt || 'Image thumbnail'}
+                    <img
+                      src={
+                        image.thumb_url ||
+                        image.thumb ||
+                        image.download_url ||
+                        image.url
+                      }
+                      alt={image.alt || "Image thumbnail"}
                       className="w-full h-full object-cover pointer-events-none"
-                      onLoad={() => console.log('[MediaSelector] Compact image loaded successfully:', image.id)}
                       onError={(e) => {
-                        console.error('[MediaSelector] Compact thumbnail failed to load:', {
-                          src: e.currentTarget.src,
-                          image: image
-                        });
+                        console.error(
+                          "[MediaSelector] Compact thumbnail failed to load:",
+                          {
+                            src: e.currentTarget.src,
+                            image: image,
+                          },
+                        );
                         // Fallback chain
                         const currentSrc = e.currentTarget.src;
                         if (currentSrc !== (image.download_url || image.url)) {
                           e.currentTarget.src = image.download_url || image.url;
                         } else {
                           // Show placeholder
-                          e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2Y1ZjdmYSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIxMiIgZmlsbD0iIzY2NzM4NSI+SW1hZ2U8L3RleHQ+PC9zdmc+';
+                          e.currentTarget.src =
+                            "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2Y1ZjdmYSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIxMiIgZmlsbD0iIzY2NzM4NSI+SW1hZ2U8L3RleHQ+PC9zdmc+";
                         }
                       }}
                     />
@@ -408,23 +414,27 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
                     </div>
                     {image.photographer && (
                       <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
-                        <p className="text-white text-xs truncate">Photo by {image.photographer}</p>
+                        <p className="text-white text-xs truncate">
+                          Photo by {image.photographer}
+                        </p>
                       </div>
                     )}
                   </button>
                 );
               })}
             </div>
-              <p className="text-xs text-gray-500 text-center">
-                Showing 3 of {searchResults.length} options.
-              </p>
+            <p className="text-xs text-gray-500 text-center">
+              Showing 3 of {searchResults.length} options.
+            </p>
           </div>
         )}
 
         {/* Loading State */}
         {unsplashLoading && (
           <div className="space-y-3">
-            <h4 className="text-sm font-medium text-gray-700">Loading Images...</h4>
+            <h4 className="text-sm font-medium text-gray-700">
+              Loading Images...
+            </h4>
             <div className="grid grid-cols-3 gap-3">
               {Array.from({ length: 3 }).map((_, index) => (
                 <div
@@ -439,12 +449,16 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
         )}
 
         {/* No Results */}
-        {!unsplashLoading && searchResults.length === 0 && !showingSuggestions && (
-          <div className="text-center py-8">
-            <ImageIcon className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-            <p className="text-sm text-gray-600">No images found. Try a different search term.</p>
-          </div>
-        )}
+        {!unsplashLoading &&
+          searchResults.length === 0 &&
+          !showingSuggestions && (
+            <div className="text-center py-8">
+              <ImageIcon className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+              <p className="text-sm text-gray-600">
+                No images found. Try a different search term.
+              </p>
+            </div>
+          )}
       </div>
     );
   }
@@ -453,8 +467,8 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
   return (
     <div className={cn("w-full", className)}>
       {onBackClick && (
-        <Button 
-          variant="ghost" 
+        <Button
+          variant="ghost"
           onClick={onBackClick}
           className="mb-4 p-0 h-auto font-normal text-gray-600 hover:text-gray-900"
         >
@@ -462,45 +476,54 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
           Back to selection
         </Button>
       )}
-      
+
       <div className="grid grid-cols-2 gap-6">
         {/* Left Column: Featured Image (50%) */}
         <div className="space-y-4">
-          <h4 className="text-lg font-semibold text-gray-800">Featured Image</h4>
+          <h4 className="text-lg font-semibold text-gray-800">
+            Featured Image
+          </h4>
           {selectedImageUrl ? (
             <div className="relative group aspect-video rounded-lg border-2 border-primary/20 overflow-hidden bg-primary/5">
-              <img 
-                src={selectedImageUrl} 
+              <img
+                src={selectedImageUrl}
                 alt={selectedImageMetadata?.alt_text || "Featured image"}
                 className="w-full h-full object-cover"
                 onError={(e) => {
-                  console.error('[MediaSelector] Featured image failed to load:', selectedImageUrl);
+                  console.error(
+                    "[MediaSelector] Featured image failed to load:",
+                    selectedImageUrl,
+                  );
                   const currentSrc = e.currentTarget.src;
-                  const fallbackPath = '/images/newsletter-fallback.jpg';
-                  
-                  if (!currentSrc.includes('newsletter-fallback.jpg')) {
+                  const fallbackPath = "/images/newsletter-fallback.jpg";
+
+                  if (!currentSrc.includes("newsletter-fallback.jpg")) {
                     e.currentTarget.src = fallbackPath;
                   } else {
-                    e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2Y1Zjd1YSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzY2NzM4NSI+SW1hZ2UgVW5hdmFpbGFibGU8L3RleHQ+PC9zdmc+';
+                    e.currentTarget.src =
+                      "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2Y1Zjd1YSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzY2NzM4NSI+SW1hZ2UgVW5hdmFpbGFibGU8L3RleHQ+PC9zdmc+";
                   }
                 }}
               />
               <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center gap-2">
-                {selectedImageMetadata?.source === 'unsplash' && selectedImageMetadata?.photographer && (
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={(e) => handleDownload(selectedImageMetadata, e)}
-                    className="bg-white/90 hover:bg-white"
-                  >
-                    <Download className="h-4 w-4 mr-1" />
-                    Download
-                  </Button>
-                )}
+                {selectedImageMetadata?.source === "unsplash" &&
+                  selectedImageMetadata?.photographer && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={(e) => handleDownload(selectedImageMetadata, e)}
+                      className="bg-white/90 hover:bg-white"
+                    >
+                      <Download className="h-4 w-4 mr-1" />
+                      Download
+                    </Button>
+                  )}
               </div>
               {selectedImageMetadata?.photographer && (
                 <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-3">
-                  <p className="text-white text-sm">Photo by {selectedImageMetadata.photographer}</p>
+                  <p className="text-white text-sm">
+                    Photo by {selectedImageMetadata.photographer}
+                  </p>
                 </div>
               )}
             </div>
@@ -509,7 +532,9 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
               <div className="text-center">
                 <ImageIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                 <p className="text-gray-600">Featured image will appear here</p>
-                <p className="text-sm text-gray-500 mt-1">Select from thumbnails on the right</p>
+                <p className="text-sm text-gray-500 mt-1">
+                  Select from thumbnails on the right
+                </p>
               </div>
             </div>
           )}
@@ -518,7 +543,9 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
         {/* Thumbnails (50%) */}
         <div className="space-y-4 w-full">
           <div className="flex items-center justify-between">
-            <h4 className="text-lg font-semibold text-gray-800">Select Image</h4>
+            <h4 className="text-lg font-semibold text-gray-800">
+              Select Image
+            </h4>
             {searchResults.length > 0 && (
               <span className="text-sm text-gray-500">
                 {searchResults.length} available
@@ -534,16 +561,20 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
                 placeholder="Search images..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                onKeyPress={(e) => e.key === "Enter" && handleSearch()}
                 className="flex-1"
               />
-              <Button 
-                onClick={handleSearch} 
+              <Button
+                onClick={handleSearch}
                 disabled={unsplashLoading}
                 variant="outline"
                 size="sm"
               >
-                {unsplashLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                {unsplashLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Search className="h-4 w-4" />
+                )}
               </Button>
             </div>
 
@@ -570,55 +601,59 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
           {searchResults.length > 0 && (
             <div className="space-y-3">
               <p className="text-sm font-medium text-gray-700">
-                {showingSuggestions ? 'Suggested Images' : 'Search Results'}
+                {showingSuggestions ? "Suggested Images" : "Search Results"}
               </p>
               <div className="grid grid-cols-3 gap-3">
                 {searchResults.slice(0, 3).map((image, index) => {
-                  console.log('[MediaSelector] Rendering thumbnail:', index, {
-                    id: image.id,
-                    thumb: image.thumb,
-                    thumb_url: image.thumb_url,
-                    url: image.url,
-                    download_url: image.download_url
-                  });
-                  const isSelected = selectedImageUrl === (image.url || image.download_url);
+                  const isSelected =
+                    selectedImageUrl === (image.url || image.download_url);
                   return (
                     <button
                       key={image.id || index}
                       className={cn(
                         "relative group cursor-pointer aspect-video rounded-lg overflow-hidden border-2 transition-all duration-200 bg-white shadow-sm hover:shadow-md focus:outline-none focus:ring-2 focus:ring-primary",
-                        isSelected 
-                          ? "border-primary shadow-lg" 
-                          : "border-gray-200 hover:border-primary/50"
+                        isSelected
+                          ? "border-primary shadow-lg"
+                          : "border-gray-200 hover:border-primary/50",
                       )}
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
-                        console.log('[MediaSelector] Thumbnail clicked:', image.id);
                         handleThumbnailClick(image, index);
                       }}
                       type="button"
                       tabIndex={0}
                     >
-                      <img 
-                        src={image.thumb_url || image.thumb || image.download_url || image.url} 
-                        alt={image.alt || 'Image thumbnail'}
+                      <img
+                        src={
+                          image.thumb_url ||
+                          image.thumb ||
+                          image.download_url ||
+                          image.url
+                        }
+                        alt={image.alt || "Image thumbnail"}
                         className="w-full h-full object-cover pointer-events-none"
-                        onLoad={() => console.log('[MediaSelector] Thumbnail loaded successfully:', image.id)}
                         onError={(e) => {
-                          console.error('[MediaSelector] Thumbnail failed to load:', {
-                            src: e.currentTarget.src,
-                            image: image
-                          });
+                          console.error(
+                            "[MediaSelector] Thumbnail failed to load:",
+                            {
+                              src: e.currentTarget.src,
+                              image: image,
+                            },
+                          );
                           const currentSrc = e.currentTarget.src;
-                          if (currentSrc !== (image.download_url || image.url)) {
-                            e.currentTarget.src = image.download_url || image.url;
+                          if (
+                            currentSrc !== (image.download_url || image.url)
+                          ) {
+                            e.currentTarget.src =
+                              image.download_url || image.url;
                           } else {
-                            e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2Y1ZjdmYSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzY2NzM4NSI+SW1hZ2U8L3RleHQ+PC9zdmc+';
+                            e.currentTarget.src =
+                              "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2Y1ZjdmYSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzY2NzM4NSI+SW1hZ2U8L3RleHQ+PC9zdmc+";
                           }
                         }}
                       />
-                      
+
                       {isSelected && (
                         <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
                           <div className="bg-primary text-primary-foreground rounded-full p-2">
@@ -626,16 +661,18 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
                           </div>
                         </div>
                       )}
-                      
+
                       <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center pointer-events-none">
                         <div className="bg-white rounded-full p-3">
                           <Camera className="h-5 w-5 text-gray-700" />
                         </div>
                       </div>
-                      
+
                       {image.photographer && (
                         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
-                          <p className="text-white text-sm truncate">Photo by {image.photographer}</p>
+                          <p className="text-white text-sm truncate">
+                            Photo by {image.photographer}
+                          </p>
                         </div>
                       )}
                     </button>
@@ -650,20 +687,27 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
             <div className="space-y-3">
               <div className="grid grid-cols-1 gap-3">
                 {Array.from({ length: 3 }).map((_, index) => (
-                  <div key={index} className="aspect-video rounded-lg bg-gray-200 animate-pulse" />
+                  <div
+                    key={index}
+                    className="aspect-video rounded-lg bg-gray-200 animate-pulse"
+                  />
                 ))}
               </div>
             </div>
           )}
 
           {/* No Results */}
-          {!unsplashLoading && searchResults.length === 0 && !showingSuggestions && (
-            <div className="text-center py-8">
-              <ImageIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-600">No images found</p>
-              <p className="text-sm text-gray-500 mt-1">Try a different search term</p>
-            </div>
-          )}
+          {!unsplashLoading &&
+            searchResults.length === 0 &&
+            !showingSuggestions && (
+              <div className="text-center py-8">
+                <ImageIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-600">No images found</p>
+                <p className="text-sm text-gray-500 mt-1">
+                  Try a different search term
+                </p>
+              </div>
+            )}
         </div>
       </div>
     </div>

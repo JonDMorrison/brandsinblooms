@@ -105,9 +105,7 @@ export const SquareReauthorizationGuide = ({
     try {
       channel = new BroadcastChannel("square_oauth");
       channel.onmessage = (event) => handleOAuthResult(event.data);
-    } catch (e) {
-      console.log("[REAUTH] BroadcastChannel not supported");
-    }
+    } catch (e) {}
 
     const handleMessage = (event: MessageEvent) => {
       if (

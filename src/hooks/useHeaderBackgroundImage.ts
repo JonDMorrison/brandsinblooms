@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
+import { useState, useEffect, useCallback } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
-type Stage = 'waiting' | 'aggregating' | 'fetching' | 'complete' | 'error';
+type Stage = "waiting" | "aggregating" | "fetching" | "complete" | "error";
 
 interface Block {
   type: string;
@@ -30,35 +30,34 @@ export const useHeaderBackgroundImage = ({
   blocks,
   campaignTitle,
   onImageReady,
-  enabled = true
+  enabled = true,
 }: UseHeaderBackgroundImageProps) => {
-  const [stage, setStage] = useState<Stage>('waiting');
+  const [stage, setStage] = useState<Stage>("waiting");
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
   const generateHeaderImage = useCallback(async () => {
     if (!enabled || !campaignTitle) {
-      console.log('[HEADER-BG] Skipping - not enabled or no title');
       return;
     }
 
     setIsGenerating(true);
-    setStage('aggregating');
+    setStage("aggregating");
     setError(null);
 
     try {
-      console.log('[HEADER-BG] Starting AI header image generation for:', campaignTitle);
-
       // Get current user
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) {
-        throw new Error('No authenticated user');
+        throw new Error("No authenticated user");
       }
 
       // PHASE 3: Aggregate content from all possible locations
       const aggregatedContent = blocks
-        .map(b => {
+        .map((b) => {
           const content = b.content;
           // Read from all possible locations
           const parts = [
@@ -67,80 +66,67 @@ export const useHeaderBackgroundImage = ({
             content?.content,
             content?.text,
             // Also check direct properties in case content is a string
-            typeof content === 'string' ? content : ''
+            typeof content === "string" ? content : "",
           ];
-          return parts.filter(Boolean).join(' ').trim();
+          return parts.filter(Boolean).join(" ").trim();
         })
         .filter(Boolean)
-        .join(' ');
-
-      console.log('[HEADER-BG] Aggregated content length:', aggregatedContent.length);
-
-      setStage('fetching');
+        .join(" ");
+      setStage("fetching");
 
       // Generate subtitle text based on aggregated content (5-9 words, one line)
-      let generatedSubtitle = '';
+      let generatedSubtitle = "";
       try {
-        const { data: subtitleData, error: subtitleError } = await supabase.functions.invoke(
-          'generate-subtitle',
-          {
+        const { data: subtitleData, error: subtitleError } =
+          await supabase.functions.invoke("generate-subtitle", {
             body: {
               contentContext: aggregatedContent,
-              campaignTitle: campaignTitle
-            }
-          }
-        );
+              campaignTitle: campaignTitle,
+            },
+          });
 
         if (!subtitleError && subtitleData?.subtitle) {
           generatedSubtitle = subtitleData.subtitle.trim();
-          console.log('[HEADER-BG] Generated subtitle:', generatedSubtitle);
         }
       } catch (err) {
-        console.warn('[HEADER-BG] Failed to generate subtitle:', err);
         // Continue without subtitle if generation fails
       }
 
       // Generate AI image directly from content
-      const { data: imageData, error: imageError } = await supabase.functions.invoke(
-        'generate-ai-image',
-        {
+      const { data: imageData, error: imageError } =
+        await supabase.functions.invoke("generate-ai-image", {
           body: {
             contentContext: aggregatedContent,
             contentTitle: campaignTitle,
-            channel: 'newsletter',
+            channel: "newsletter",
             uploadToStorage: true,
-            userId: user.id
-          }
-        }
-      );
+            userId: user.id,
+          },
+        });
 
       if (imageError) {
         throw new Error(`Image generation failed: ${imageError.message}`);
       }
-
-      console.log('[HEADER-BG] AI image generated successfully:', imageData.imageUrl);
-
       const metadata: ImageMetadata = {
-        photographer: 'AI Generated',
+        photographer: "AI Generated",
         unsplashId: imageData.imageId,
         globalImageId: imageData.globalImageId,
         alt: imageData.metadata?.prompt || campaignTitle,
-        generatedSubtitle
+        generatedSubtitle,
       };
 
-      setStage('complete');
+      setStage("complete");
       onImageReady(imageData.imageUrl, metadata);
 
       toast({
         title: "Header image generated",
         description: "AI-powered background applied successfully",
       });
-
     } catch (err: any) {
-      console.error('[HEADER-BG] Error:', err);
-      setStage('error');
-      setError(err.message || 'Failed to generate header image');
-      
+      console.error("[HEADER-BG] Error:", err);
+      setStage("error");
+      setError(err.message || "Failed to generate header image");
+
       toast({
         title: "Could not generate header image",
         description: "Using default background instead",
@@ -153,33 +139,33 @@ export const useHeaderBackgroundImage = ({
 
   // Monitor when all blocks are ready (have content and not generating)
   useEffect(() => {
-    if (!enabled || isGenerating || stage === 'complete') {
+    if (!enabled || isGenerating || stage === "complete") {
       return;
     }
 
     // CRITICAL: Check if header block already has an image - prevent regeneration
-    const headerBlock = blocks.find(b => b.type === 'header' || b.type === 'newsletter-header');
+    const headerBlock = blocks.find(
+      (b) => b.type === "header" || b.type === "newsletter-header",
+    );
     if (headerBlock?.backgroundImageUrl) {
-      console.log('[HEADER-BG] Header already has image, skipping generation:', headerBlock.backgroundImageUrl);
-      setStage('complete'); // Mark as complete to prevent future triggers
+      setStage("complete"); // Mark as complete to prevent future triggers
       return;
     }
 
-    const allBlocksReady = blocks.length > 0 && blocks.every(b => {
-      const hasContent = b.content && 
-        (b.content.title || b.content.subtitle || b.content.content || b.content.text);
-      const notGenerating = !b.isGenerating;
-      return hasContent && notGenerating;
-    });
+    const allBlocksReady =
+      blocks.length > 0 &&
+      blocks.every((b) => {
+        const hasContent =
+          b.content &&
+          (b.content.title ||
+            b.content.subtitle ||
+            b.content.content ||
+            b.content.text);
+        const notGenerating = !b.isGenerating;
+        return hasContent && notGenerating;
+      });
 
-    console.log('[HEADER-BG] Blocks ready check:', {
-      blocksCount: blocks.length,
-      allBlocksReady,
-      currentStage: stage
-    });
-
-    if (allBlocksReady && stage === 'waiting') {
-      console.log('[HEADER-BG] All blocks ready, triggering image generation');
+    if (allBlocksReady && stage === "waiting") {
       // Small delay to ensure all content is fully rendered
       setTimeout(() => {
         generateHeaderImage();
@@ -188,7 +174,7 @@ export const useHeaderBackgroundImage = ({
   }, [blocks, enabled, isGenerating, stage, generateHeaderImage]);
 
   const retry = useCallback(() => {
-    setStage('waiting');
+    setStage("waiting");
     setError(null);
     generateHeaderImage();
   }, [generateHeaderImage]);
@@ -197,6 +183,6 @@ export const useHeaderBackgroundImage = ({
     stage,
     isGenerating,
     error,
-    retry
+    retry,
   };
 };

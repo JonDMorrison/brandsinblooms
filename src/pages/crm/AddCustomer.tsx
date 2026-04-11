@@ -393,9 +393,6 @@ const AddCustomer = () => {
         variant="ghost"
         size="sm"
         onClick={() => {
-          console.log(
-            "Back to Customers button clicked, attempting navigation...",
-          );
           navigate("/crm/customers");
         }}
         className="flex items-center gap-2 mb-4"
@@ -711,7 +708,6 @@ const AddCustomer = () => {
             type="button"
             variant="outline"
             onClick={() => {
-              console.log("Cancel button clicked, attempting navigation...");
               navigate("/crm/customers");
             }}
           >

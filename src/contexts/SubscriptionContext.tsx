@@ -95,9 +95,6 @@ export const SubscriptionProvider = ({
   // Initialize loading state based on whether we have a user
   useEffect(() => {
     if (!user) {
-      console.log(
-        "🔓 SubscriptionProvider: No user on init, setting loading to false",
-      );
       setLoading(false);
     }
   }, []); // Run only once on mount
@@ -110,8 +107,6 @@ export const SubscriptionProvider = ({
     if (!user) return null;
 
     try {
-      console.log("📝 Creating default subscription for user:", user.id);
-
       // For test accounts, create PRO subscription instead of trial
       if (isTestUser) {
         const startDate = new Date();
@@ -138,8 +133,6 @@ export const SubscriptionProvider = ({
           );
           return null;
         }
-
-        console.log("✅ Created PRO subscription for test account");
         return data;
       }
 
@@ -168,8 +161,6 @@ export const SubscriptionProvider = ({
         );
         return null;
       }
-
-      console.log("✅ Created new 7-day trial subscription");
       return data;
     } catch (error) {
       console.error("❌ Error in createDefaultSubscription:", error);
@@ -221,7 +212,6 @@ export const SubscriptionProvider = ({
 
       setSubscription(data);
       setSubscriptionError(null);
-      console.log("✅ Subscription updated successfully");
     } catch (error) {
       console.error("❌ Error in updateSubscriptionPlan:", error);
       setSubscriptionError(
@@ -303,7 +293,6 @@ export const SubscriptionProvider = ({
                 .from("subscriptions")
                 .delete()
                 .in("id", duplicateIds);
-              console.log("🧹 Cleaned up duplicate subscriptions");
             } catch (error) {
               console.error(
                 "Failed to cleanup duplicate subscriptions:",
@@ -332,7 +321,6 @@ export const SubscriptionProvider = ({
           (async () => {
             try {
               await updateSubscriptionPlan("expired", data.billing_interval);
-              console.log("✅ Updated expired subscription");
             } catch (error) {
               console.error("Failed to update expired subscription:", error);
             }
@@ -350,7 +338,6 @@ export const SubscriptionProvider = ({
       setLastCheckTime(new Date());
     } catch (error) {
       if (error instanceof Error && error.message.includes("timed out")) {
-        console.warn("⚠️ Subscription fetch timed out, using default state");
         // Set default state instead of error state to prevent app crash
         setSubscription(null);
         setSubscriptionError(null);
@@ -407,7 +394,6 @@ export const SubscriptionProvider = ({
       }
     } catch (error) {
       if (error instanceof Error && error.message.includes("timed out")) {
-        console.warn("⚠️ Stripe check timed out, continuing without check");
         // Don't set error state for timeouts, just continue
       } else {
         setSubscriptionError(
@@ -427,21 +413,36 @@ export const SubscriptionProvider = ({
   );
 
   const refreshSubscription = useCallback(async () => {
-    console.log("🔄 Refreshing subscription data");
     setLoading(true);
     setSubscriptionError(null);
     await fetchSubscription();
     await checkStripeSubscription();
-    console.log("✅ Subscription refresh completed");
   }, [fetchSubscription, checkStripeSubscription]);
 
-  const checkAccess = useCallback((requiredPlan: SubscriptionPlan): boolean => {
-    // Under the new plan, all users have access to all features
-    console.log(
-      "🔓 Universal access granted - all features available to all users",
-    );
-    return true;
-  }, []);
+  const checkAccess = useCallback(
+    (requiredPlan: SubscriptionPlan) => {
+      if (hasPrivilegedAccess) {
+        return true;
+      }
+
+      const effectivePlan = getEffectivePlan(subscription);
+
+      if (!effectivePlan || effectivePlan === "expired") {
+        return false;
+      }
+
+      if (requiredPlan === "free_trial") {
+        return true;
+      }
+
+      if (effectivePlan === "free_trial") {
+        return false;
+      }
+
+      return true;
+    },
+    [hasPrivilegedAccess, subscription],
+  );
 
   // Modified to account for privileged access
   const isTrialExpired =
@@ -477,7 +478,6 @@ export const SubscriptionProvider = ({
       return () => clearTimeout(stripeTimer);
     } else {
       // Important: Clear loading state when there's no user (e.g., on landing pages)
-      console.log("🔓 No user found, clearing subscription loading state");
       setLoading(false);
       setSubscription(null);
       setSubscriptionError(null);
@@ -498,7 +498,6 @@ export const SubscriptionProvider = ({
         currentPath !== "/auth" &&
         !currentPath.startsWith("/subscription")
       ) {
-        console.log("⚠️ Trial expired, redirecting to pricing");
         navigate("/pricing");
       }
     }
@@ -507,9 +506,6 @@ export const SubscriptionProvider = ({
   // Handle limbo state detection
   useEffect(() => {
     if (isInLimboState && subscriptionError) {
-      console.log(
-        "🚨 Limbo state detected with subscription error, forcing reset",
-      );
       // Give user option to force reset
       setTimeout(() => {
         if (
@@ -568,15 +564,6 @@ export const SubscriptionProvider = ({
       clearSubscriptionError,
     ],
   );
-
-  console.log("🔍 SubscriptionProvider render:", {
-    hasSubscription: !!subscription,
-    loading,
-    subscriptionError,
-    isInLimboState,
-    hasPrivilegedAccess,
-    lastCheckTime,
-  });
 
   return (
     <SubscriptionContext.Provider value={value}>

@@ -55,7 +55,7 @@ export const useAdminTenants = () => {
     search?: string,
     status?: string,
     page?: number,
-    limit?: number
+    limit?: number,
   ) => {
     try {
       setLoading(true);
@@ -64,36 +64,31 @@ export const useAdminTenants = () => {
       const actualPage = page !== undefined ? page : currentPage;
       const actualLimit = limit !== undefined ? limit : pageSize;
       const offset = (actualPage - 1) * actualLimit;
-      
-      console.log('fetchTenants called with:', { search, status, page, limit, actualPage, actualLimit, offset });
-      
       // Get total count from the admin function instead of direct table access
-      const { data: statsData, error: statsError } = await supabase.rpc('admin_get_stats');
-      
+      const { data: statsData, error: statsError } =
+        await supabase.rpc("admin_get_stats");
+
       if (statsError) {
-        console.error('Error fetching stats for count:', statsError);
+        console.error("Error fetching stats for count:", statsError);
       } else if (statsData && statsData.length > 0) {
         const totalFromStats = Number(statsData[0].total_tenants);
-        console.log('Total count from admin_get_stats:', totalFromStats);
         setTotalCount(totalFromStats);
       }
 
       const { data: tenantsData, error: tenantsError } = await supabase.rpc(
-        'admin_list_tenants',
+        "admin_list_tenants",
         {
           p_search: search || null,
           p_status: status || null,
           p_limit: actualLimit,
           p_offset: offset,
-        }
+        },
       );
 
       if (tenantsError) throw tenantsError;
-
-      console.log('Fetched tenants data:', tenantsData?.length, 'records');
       setTenants(tenantsData || []);
     } catch (err: any) {
-      console.error('Error fetching tenants:', err);
+      console.error("Error fetching tenants:", err);
       setError(err.message);
       toast({
         title: "Error",
@@ -107,7 +102,8 @@ export const useAdminTenants = () => {
 
   const fetchStats = async () => {
     try {
-      const { data: statsData, error: statsError } = await supabase.rpc('admin_get_stats');
+      const { data: statsData, error: statsError } =
+        await supabase.rpc("admin_get_stats");
 
       if (statsError) throw statsError;
 
@@ -120,13 +116,13 @@ export const useAdminTenants = () => {
         });
       }
     } catch (err: any) {
-      console.error('Error fetching stats:', err);
+      console.error("Error fetching stats:", err);
     }
   };
 
   const toggleTenantActive = async (tenantId: string, active: boolean) => {
     try {
-      const { error } = await supabase.rpc('admin_toggle_tenant_active', {
+      const { error } = await supabase.rpc("admin_toggle_tenant_active", {
         p_tenant_id: tenantId,
         p_active: active,
       });
@@ -134,21 +130,23 @@ export const useAdminTenants = () => {
       if (error) throw error;
 
       // Update local state optimistically
-      setTenants(prev => prev.map(tenant => 
-        tenant.tenant_id === tenantId 
-          ? { ...tenant, is_active: active }
-          : tenant
-      ));
+      setTenants((prev) =>
+        prev.map((tenant) =>
+          tenant.tenant_id === tenantId
+            ? { ...tenant, is_active: active }
+            : tenant,
+        ),
+      );
 
       toast({
         title: "Success",
-        description: `Tenant ${active ? 'activated' : 'deactivated'} successfully`,
+        description: `Tenant ${active ? "activated" : "deactivated"} successfully`,
       });
 
       // Refresh stats
       fetchStats();
     } catch (err: any) {
-      console.error('Error toggling tenant:', err);
+      console.error("Error toggling tenant:", err);
       toast({
         title: "Error",
         description: "Failed to update tenant status",
@@ -159,7 +157,7 @@ export const useAdminTenants = () => {
 
   const extendTrial = async (tenantId: string, days: number) => {
     try {
-      const { error } = await supabase.rpc('admin_extend_trial', {
+      const { error } = await supabase.rpc("admin_extend_trial", {
         p_tenant_id: tenantId,
         p_days: days,
       });
@@ -175,7 +173,7 @@ export const useAdminTenants = () => {
       fetchTenants();
       fetchStats();
     } catch (err: any) {
-      console.error('Error extending trial:', err);
+      console.error("Error extending trial:", err);
       toast({
         title: "Error",
         description: "Failed to extend trial",
@@ -187,7 +185,7 @@ export const useAdminTenants = () => {
   const goToPage = (page: number) => {
     setCurrentPage(page);
   };
-  
+
   const changePageSize = (newSize: number) => {
     setPageSize(newSize);
     setCurrentPage(1); // Reset to first page when changing page size

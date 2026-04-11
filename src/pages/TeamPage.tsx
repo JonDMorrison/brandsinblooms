@@ -1,4 +1,3 @@
-
 import { TeamPage as TeamPageComponent } from "@/components/TeamPage";
 import { ProtectedPageWrapper } from "@/components/ProtectedPageWrapper";
 import { Button } from "@/components/ui/button";
@@ -14,7 +13,7 @@ const TeamPage = () => {
     totalMembers: 8,
     activeMembers: 6,
     pendingInvites: 2,
-    adminUsers: 2
+    adminUsers: 2,
   });
 
   useEffect(() => {
@@ -24,17 +23,14 @@ const TeamPage = () => {
   }, []);
 
   const handleInviteUser = () => {
-    console.log('Invite user clicked');
     // Implementation for user invitation
   };
 
   const handleManageRoles = () => {
-    console.log('Manage roles clicked');
     // Implementation for role management
   };
 
   const handleTeamSettings = () => {
-    console.log('Team settings clicked');
     // Implementation for team settings
   };
 
@@ -50,12 +46,13 @@ const TeamPage = () => {
           <p className="text-lg text-gray-600 font-medium">
             Manage your team members and collaboration settings
           </p>
-          
+
           {/* Quick stats */}
           <div className="flex items-center gap-6 mt-4">
             <div className="flex items-center gap-2 text-sm text-gray-600">
               <Users className="w-4 h-4 text-green-600" />
-              <span className="font-medium">{stats.totalMembers}</span> team members
+              <span className="font-medium">{stats.totalMembers}</span> team
+              members
             </div>
             <div className="flex items-center gap-2 text-sm text-gray-600">
               <Clock className="w-4 h-4 text-blue-600" />
@@ -63,7 +60,8 @@ const TeamPage = () => {
             </div>
             <div className="flex items-center gap-2 text-sm text-gray-600">
               <Mail className="w-4 h-4 text-purple-600" />
-              <span className="font-medium">{stats.pendingInvites}</span> pending invites
+              <span className="font-medium">{stats.pendingInvites}</span>{" "}
+              pending invites
             </div>
             <div className="flex items-center gap-2 text-sm text-gray-600">
               <Shield className="w-4 h-4 text-orange-600" />
@@ -71,7 +69,7 @@ const TeamPage = () => {
             </div>
           </div>
         </div>
-        
+
         <div className="flex items-center gap-3">
           <Button
             onClick={handleTeamSettings}
@@ -82,7 +80,7 @@ const TeamPage = () => {
             <Settings className="w-5 h-5" />
             Team Settings
           </Button>
-          
+
           <Button
             onClick={handleManageRoles}
             variant="outline"
@@ -92,7 +90,7 @@ const TeamPage = () => {
             <Shield className="w-5 h-5" />
             Manage Roles
           </Button>
-          
+
           <Button
             onClick={handleInviteUser}
             className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-md"
@@ -103,7 +101,7 @@ const TeamPage = () => {
           </Button>
         </div>
       </div>
-      
+
       {/* Team Content */}
       <TeamPageComponent />
     </div>

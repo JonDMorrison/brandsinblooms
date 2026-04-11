@@ -100,14 +100,6 @@ export const ConnectStep = ({
       const { type, provider, message, error } = e.data || {};
 
       // Check if this message is for the current provider
-      if (provider !== currentProviderRef.current) return;
-
-      console.log(`📨 OAuth message received:`, {
-        type,
-        provider,
-        message,
-        error,
-      });
 
       // Clear popup monitoring and grace period timeout
       if (popupCheckIntervalRef.current) {
@@ -128,7 +120,6 @@ export const ConnectStep = ({
             : setConstantContactStatus;
 
       if (type === "oauth-success") {
-        console.log("✅ OAuth success received:", message);
         // Close popup
         try {
           popupRef.current?.close();
@@ -274,9 +265,6 @@ export const ConnectStep = ({
       if (!authUrl) {
         throw new Error("Failed to get authorization URL");
       }
-
-      console.log(`🔗 Opening ${provider} OAuth popup:`, authUrl);
-
       // Open OAuth popup
       const width = 520;
       const height = 720;
@@ -294,9 +282,6 @@ export const ConnectStep = ({
           "Failed to open OAuth popup. Please check your popup blocker settings.",
         );
       }
-
-      console.log(`✅ Popup opened successfully for ${provider}`);
-
       // Start monitoring the popup
       if (popupCheckIntervalRef.current) {
         clearInterval(popupCheckIntervalRef.current);

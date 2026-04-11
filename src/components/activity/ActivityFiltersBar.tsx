@@ -18,11 +18,7 @@ import {
 } from "@/components/ui/custom-dropdown";
 import { useCRMCustomers } from "@/hooks/useCRMCustomers";
 import { parseCsvParam, parseDateParam, toCsvParam } from "@/lib/activityUtils";
-import {
-  Calendar as CalendarIcon,
-  Filter,
-  X,
-} from "lucide-react";
+import { Calendar as CalendarIcon, Filter, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -140,20 +136,22 @@ export function ActivityFiltersBar({ className }: ActivityFiltersBarProps) {
       let error: any = null;
       try {
         const rpcResult = await withTimeout(
-          Promise.resolve(supabase.rpc("get_activity_feed", {
-            p_customer_id: null,
-            p_limit: 300,
-            p_offset: 0,
-            p_search: null,
-            p_status: null,
-            p_actor_types: null,
-            p_sources: null,
-            p_activity_types: null,
-            p_start: null,
-            p_end: null,
-            p_segment_ids: null,
-            p_persona_ids: null,
-          })),
+          Promise.resolve(
+            supabase.rpc("get_activity_feed", {
+              p_customer_id: null,
+              p_limit: 300,
+              p_offset: 0,
+              p_search: null,
+              p_status: null,
+              p_actor_types: null,
+              p_sources: null,
+              p_activity_types: null,
+              p_start: null,
+              p_end: null,
+              p_segment_ids: null,
+              p_persona_ids: null,
+            }),
+          ),
           8000,
         );
 
@@ -162,11 +160,13 @@ export function ActivityFiltersBar({ className }: ActivityFiltersBarProps) {
 
         if (error) {
           const fallback = await withTimeout(
-            Promise.resolve(supabase
-              .from("crm_activity_events")
-              .select("activity_type")
-              .order("timestamp", { ascending: false })
-              .limit(500)),
+            Promise.resolve(
+              supabase
+                .from("crm_activity_events")
+                .select("activity_type")
+                .order("timestamp", { ascending: false })
+                .limit(500),
+            ),
             8000,
           );
           data = (fallback as any)?.data;
@@ -177,10 +177,6 @@ export function ActivityFiltersBar({ className }: ActivityFiltersBarProps) {
         if (activityTypesReqIdRef.current !== reqId) return;
 
         if (error) {
-          console.warn(
-            "[ActivityFiltersBar] Failed to load activity types",
-            error,
-          );
           setActivityTypesError(
             String((error as any)?.message ?? "Failed to load"),
           );

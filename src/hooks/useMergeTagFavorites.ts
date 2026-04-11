@@ -3,9 +3,9 @@
  * Persists to localStorage for cross-session persistence
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from "react";
 
-const STORAGE_KEY = 'merge-tag-favorites';
+const STORAGE_KEY = "merge-tag-favorites";
 const MAX_RECENT_TAGS = 5;
 
 interface MergeTagFavoritesData {
@@ -25,21 +25,19 @@ function loadFromStorage(): MergeTagFavoritesData {
       const parsed = JSON.parse(stored);
       return {
         recentTags: Array.isArray(parsed.recentTags) ? parsed.recentTags : [],
-        favoriteTags: Array.isArray(parsed.favoriteTags) ? parsed.favoriteTags : [],
+        favoriteTags: Array.isArray(parsed.favoriteTags)
+          ? parsed.favoriteTags
+          : [],
       };
     }
-  } catch (e) {
-    console.warn('Failed to load merge tag favorites from storage:', e);
-  }
+  } catch (e) {}
   return defaultData;
 }
 
 function saveToStorage(data: MergeTagFavoritesData): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  } catch (e) {
-    console.warn('Failed to save merge tag favorites to storage:', e);
-  }
+  } catch (e) {}
 }
 
 export function useMergeTagFavorites() {
@@ -78,7 +76,7 @@ export function useMergeTagFavorites() {
   // Check if a tag is favorited
   const isFavorite = useCallback(
     (tagKey: string) => data.favoriteTags.includes(tagKey),
-    [data.favoriteTags]
+    [data.favoriteTags],
   );
 
   // Get combined quick-access tags (favorites first, then recent)

@@ -1,17 +1,26 @@
-import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
-import { useTenant } from '@/hooks/useTenant';
-import { toast } from 'sonner';
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { useTenant } from "@/hooks/useTenant";
+import { toast } from "sonner";
 
 export interface EmailDomain {
   id: string;
   tenant_id: string;
   domain: string;
   resend_domain_id?: string;
-  provider?: 'domain_connect' | 'cloudflare' | 'manual';
-  status: 'pending' | 'pending_dns' | 'verifying' | 'warming_up' | 'active' | 'paused' | 'blocked' | 'failed' | 'error';
-  env?: 'prod' | 'dev';
+  provider?: "domain_connect" | "cloudflare" | "manual";
+  status:
+    | "pending"
+    | "pending_dns"
+    | "verifying"
+    | "warming_up"
+    | "active"
+    | "paused"
+    | "blocked"
+    | "failed"
+    | "error";
+  env?: "prod" | "dev";
   is_sandbox?: boolean;
   is_entri_managed?: boolean;
   entri_provider?: string;
@@ -49,7 +58,13 @@ export interface EmailDomain {
     }>;
     // New readiness object (single source of truth for UI)
     readiness?: {
-      status: 'CONNECTED_READY' | 'ACTION_REQUIRED_DNS_MISSING' | 'ACTION_REQUIRED_DNS_CONFLICT' | 'DOMAIN_NOT_CONNECTED' | 'READY_TO_SEND' | 'READY_AWAITING_PROVIDER';
+      status:
+        | "CONNECTED_READY"
+        | "ACTION_REQUIRED_DNS_MISSING"
+        | "ACTION_REQUIRED_DNS_CONFLICT"
+        | "DOMAIN_NOT_CONNECTED"
+        | "READY_TO_SEND"
+        | "READY_AWAITING_PROVIDER";
       message: string;
       subMessage?: string | null;
       cta?: string | null;
@@ -90,10 +105,10 @@ export interface EmailDnsRecord {
   id: string;
   email_domain_id: string;
   name: string;
-  type: 'TXT' | 'CNAME';
+  type: "TXT" | "CNAME";
   value: string;
   required: boolean;
-  purpose: 'dkim' | 'spf' | 'return_path' | 'verification' | 'dmarc';
+  purpose: "dkim" | "spf" | "return_path" | "verification" | "dmarc";
   applied_automatically?: boolean;
   applied_provider?: string;
   provider_record_id?: string;
@@ -125,90 +140,101 @@ export const useEmailDomains = () => {
   const fetchEmailDomains = async () => {
     try {
       const { data, error } = await supabase
-        .from('email_domains')
-        .select('*')
-        .eq('tenant_id', tenant?.id)
-        .order('created_at', { ascending: false });
+        .from("email_domains")
+        .select("*")
+        .eq("tenant_id", tenant?.id)
+        .order("created_at", { ascending: false });
 
       if (error) throw error;
       setEmailDomains((data || []) as EmailDomain[]);
     } catch (error) {
-      console.error('Error fetching email domains:', error);
+      console.error("Error fetching email domains:", error);
     } finally {
       setLoading(false);
     }
   };
 
-  const getDomainRecords = async (domainId: string): Promise<EmailDnsRecord[]> => {
+  const getDomainRecords = async (
+    domainId: string,
+  ): Promise<EmailDnsRecord[]> => {
     try {
       const { data, error } = await supabase
-        .from('email_dns_records')
-        .select('*')
-        .eq('email_domain_id', domainId)
-        .order('purpose', { ascending: true });
+        .from("email_dns_records")
+        .select("*")
+        .eq("email_domain_id", domainId)
+        .order("purpose", { ascending: true });
 
       if (error) throw error;
       return (data || []) as EmailDnsRecord[];
     } catch (error) {
-      console.error('Error fetching DNS records:', error);
+      console.error("Error fetching DNS records:", error);
       return [];
     }
   };
 
-  const getDomainChecks = async (domainId: string): Promise<EmailDnsCheck[]> => {
+  const getDomainChecks = async (
+    domainId: string,
+  ): Promise<EmailDnsCheck[]> => {
     try {
       const { data, error } = await supabase
-        .from('email_dns_checks')
-        .select('*')
-        .eq('email_domain_id', domainId)
-        .order('checked_at', { ascending: false });
+        .from("email_dns_checks")
+        .select("*")
+        .eq("email_domain_id", domainId)
+        .order("checked_at", { ascending: false });
 
       if (error) throw error;
       return (data || []) as EmailDnsCheck[];
     } catch (error) {
-      console.error('Error fetching DNS checks:', error);
+      console.error("Error fetching DNS checks:", error);
       return [];
     }
   };
 
   const createEmailDomain = async (
-    domain?: string, 
-    reportEmail?: string, 
+    domain?: string,
+    reportEmail?: string,
     useSandbox?: boolean,
-    provider?: 'cloudflare' | 'domain_connect' | 'manual',
-    providerAuth?: { cloudflareToken?: string }
+    provider?: "cloudflare" | "domain_connect" | "manual",
+    providerAuth?: { cloudflareToken?: string },
   ) => {
     if (!tenant?.id) return null;
 
     try {
-      const { data, error } = await supabase.functions.invoke('email-domain-create', {
-        body: {
-          tenantId: tenant.id,
-          domain,
-          reportEmail,
-          useSandbox,
-          provider,
-          providerAuth
-        }
-      });
+      const { data, error } = await supabase.functions.invoke(
+        "email-domain-create",
+        {
+          body: {
+            tenantId: tenant.id,
+            domain,
+            reportEmail,
+            useSandbox,
+            provider,
+            providerAuth,
+          },
+        },
+      );
 
       if (error) throw error;
-      
-      const message = data?.message || (useSandbox 
-        ? "Sandbox domain created successfully! DNS records have been applied automatically."
-        : "Your email domain has been set up successfully.");
-      
+
+      const message =
+        data?.message ||
+        (useSandbox
+          ? "Sandbox domain created successfully! DNS records have been applied automatically."
+          : "Your email domain has been set up successfully.");
+
       toast.success(message);
-      
+
       await fetchEmailDomains();
       return data;
     } catch (error: any) {
-      console.error('Error creating email domain:', error);
-      
-      if (error.message?.includes('Domain managed by another workspace')) {
-        toast.error('This domain is already configured for another workspace. Please use a different domain.');
+      console.error("Error creating email domain:", error);
+
+      if (error.message?.includes("Domain managed by another workspace")) {
+        toast.error(
+          "This domain is already configured for another workspace. Please use a different domain.",
+        );
       } else {
-        toast.error(error.message || 'Failed to create email domain');
+        toast.error(error.message || "Failed to create email domain");
       }
       throw error;
     }
@@ -216,20 +242,24 @@ export const useEmailDomains = () => {
 
   const verifyEmailDomain = async (domainId: string, resetAttempts = false) => {
     try {
-      const { data, error } = await supabase.functions.invoke('email-domain-verify', {
-        body: {
-          email_domain_id: domainId,
-          reset_attempts: resetAttempts
-        }
-      });
+      const { data, error } = await supabase.functions.invoke(
+        "email-domain-verify",
+        {
+          body: {
+            email_domain_id: domainId,
+            reset_attempts: resetAttempts,
+          },
+        },
+      );
 
       if (error) {
         // Supabase FunctionsHttpError carries status/body on a non-enumerable `context` object
-        const status = (error as any)?.context?.status ?? (error as any)?.status;
+        const status =
+          (error as any)?.context?.status ?? (error as any)?.status;
         const body = (error as any)?.context?.body;
 
         let parsed: any = null;
-        if (typeof body === 'string') {
+        if (typeof body === "string") {
           try {
             parsed = JSON.parse(body);
           } catch {
@@ -237,32 +267,48 @@ export const useEmailDomains = () => {
           }
         }
 
-        const isRateLimited = status === 429 || parsed?.error === 'rate_limited';
+        const isRateLimited =
+          status === 429 || parsed?.error === "rate_limited";
         if (isRateLimited) {
           const retryAfterSeconds = Number(parsed?.retry_after_seconds ?? 90);
           toast.info(`Please wait ${retryAfterSeconds}s before checking again`);
-          return { rate_limited: true, retry_after_seconds: retryAfterSeconds } as any;
+          return {
+            rate_limited: true,
+            retry_after_seconds: retryAfterSeconds,
+          } as any;
         }
 
-        toast.error(parsed?.message || error.message || 'Failed to verify email domain');
-        return { success: false, error: parsed?.message || error.message } as any;
+        toast.error(
+          parsed?.message || error.message || "Failed to verify email domain",
+        );
+        return {
+          success: false,
+          error: parsed?.message || error.message,
+        } as any;
       }
 
-      const isSuccess = data?.ok || data?.status === 'active';
+      const isSuccess = data?.ok || data?.status === "active";
 
       if (isSuccess) {
-        toast.success(data?.message || "Domain is now active and ready to send emails");
-      } else if (data?.status === 'failed') {
-        toast.error(data?.message || "Domain verification failed after maximum attempts. Click 'Retry' to try again.");
+        toast.success(
+          data?.message || "Domain is now active and ready to send emails",
+        );
+      } else if (data?.status === "failed") {
+        toast.error(
+          data?.message ||
+            "Domain verification failed after maximum attempts. Click 'Retry' to try again.",
+        );
       } else {
-        toast.warning(data?.message || "Some DNS records are still pending verification");
+        toast.warning(
+          data?.message || "Some DNS records are still pending verification",
+        );
       }
 
       await fetchEmailDomains();
       return data;
     } catch (error: any) {
-      console.error('Error verifying email domain:', error);
-      toast.error(error.message || 'Failed to verify email domain');
+      console.error("Error verifying email domain:", error);
+      toast.error(error.message || "Failed to verify email domain");
       return { success: false, error: error.message } as any;
     }
   };
@@ -276,38 +322,40 @@ export const useEmailDomains = () => {
   const pollVerification = async (domainId: string, maxAttempts = 10) => {
     let attempts = 0;
     const pollInterval = 90000; // 90 seconds
-    
+
     const poll = async (): Promise<any> => {
       if (attempts >= maxAttempts) {
-        console.log('Max verification attempts reached');
         return null;
       }
-      
+
       attempts++;
       try {
         const result = await verifyEmailDomain(domainId);
-        
-        if (result?.ok || result?.status === 'active') {
+
+        if (result?.ok || result?.status === "active") {
           return result;
         }
-        
+
         // Continue polling if not successful
         setTimeout(poll, pollInterval);
       } catch (error) {
-        console.error('Polling verification failed:', error);
+        console.error("Polling verification failed:", error);
         return null;
       }
     };
-    
+
     return poll();
   };
 
-  const updateEmailDomain = async (domainId: string, updates: Partial<EmailDomain>) => {
+  const updateEmailDomain = async (
+    domainId: string,
+    updates: Partial<EmailDomain>,
+  ) => {
     try {
       const { data, error } = await supabase
-        .from('email_domains')
+        .from("email_domains")
         .update(updates)
-        .eq('id', domainId)
+        .eq("id", domainId)
         .select()
         .single();
 
@@ -315,7 +363,7 @@ export const useEmailDomains = () => {
       await fetchEmailDomains();
       return data;
     } catch (error) {
-      console.error('Error updating email domain:', error);
+      console.error("Error updating email domain:", error);
       throw error;
     }
   };
@@ -323,14 +371,14 @@ export const useEmailDomains = () => {
   const deleteEmailDomain = async (domainId: string) => {
     try {
       const { error } = await supabase
-        .from('email_domains')
+        .from("email_domains")
         .delete()
-        .eq('id', domainId);
+        .eq("id", domainId);
 
       if (error) throw error;
       await fetchEmailDomains();
     } catch (error) {
-      console.error('Error deleting email domain:', error);
+      console.error("Error deleting email domain:", error);
       throw error;
     }
   };
@@ -338,11 +386,13 @@ export const useEmailDomains = () => {
   // Get sandbox configuration
   const getSandboxConfig = async () => {
     try {
-      const { data, error } = await supabase.functions.invoke('domain-sandbox-config');
+      const { data, error } = await supabase.functions.invoke(
+        "domain-sandbox-config",
+      );
       if (error) throw error;
       return data;
     } catch (error) {
-      console.error('Error getting sandbox config:', error);
+      console.error("Error getting sandbox config:", error);
       return { enabled: false };
     }
   };
@@ -359,6 +409,6 @@ export const useEmailDomains = () => {
     getDomainRecords,
     getDomainChecks,
     getSandboxConfig,
-    refetch: fetchEmailDomains
+    refetch: fetchEmailDomains,
   };
 };

@@ -84,7 +84,6 @@ export const CRMSegmentsBetaPage: React.FC = () => {
 
   const handleViewDetails = (segmentId: string) => {
     // For now, just log - will implement in future
-    console.log("View details for:", segmentId);
   };
 
   const handleSegmentUpdate = async () => {

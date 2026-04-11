@@ -1,18 +1,31 @@
-
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTenant } from "@/hooks/useTenant";
 import { getCurrentWeekNumber } from "@/utils/dateUtils";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertTriangle, Loader2, Calendar as CalendarIcon, CheckCircle } from "lucide-react";
+import {
+  AlertTriangle,
+  Loader2,
+  Calendar as CalendarIcon,
+  CheckCircle,
+} from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -24,7 +37,11 @@ interface AddEventDialogProps {
   onEventCreated: () => void;
 }
 
-export const AddEventDialog = ({ open, onOpenChange, onEventCreated }: AddEventDialogProps) => {
+export const AddEventDialog = ({
+  open,
+  onOpenChange,
+  onEventCreated,
+}: AddEventDialogProps) => {
   const { user } = useAuth();
   const { tenant } = useTenant();
   const { toast } = useToast();
@@ -51,7 +68,7 @@ export const AddEventDialog = ({ open, onOpenChange, onEventCreated }: AddEventD
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!user) {
       setError("You must be logged in to create an event");
       return;
@@ -71,9 +88,7 @@ export const AddEventDialog = ({ open, onOpenChange, onEventCreated }: AddEventD
     setError(null);
 
     try {
-      console.log('🔒 SECURITY: Creating event campaign for user:', user.id, 'tenant:', tenant?.id || 'none');
-
-      const eventPrompt = `Promote the event "${eventName}" ${eventDescription ? `- ${eventDescription}` : ''} ${eventDate ? `scheduled for ${eventDate}` : ''}${eventInstructions ? `. Important instructions: ${eventInstructions}` : ''}. Create engaging promotional content that encourages attendance and builds excitement.`;
+      const eventPrompt = `Promote the event "${eventName}" ${eventDescription ? `- ${eventDescription}` : ""} ${eventDate ? `scheduled for ${eventDate}` : ""}${eventInstructions ? `. Important instructions: ${eventInstructions}` : ""}. Create engaging promotional content that encourages attendance and builds excitement.`;
 
       // 🔒 SECURITY: Always set user_id and tenant_id for proper isolation
       const campaignData = {
@@ -81,61 +96,51 @@ export const AddEventDialog = ({ open, onOpenChange, onEventCreated }: AddEventD
         description: eventDescription.trim() || null,
         theme: `${eventName} Promotion`,
         prompt: eventPrompt,
-        start_date: new Date().toISOString().split('T')[0],
+        start_date: new Date().toISOString().split("T")[0],
         week_number: getCurrentWeekNumber(),
-        source: 'quick_action',
+        source: "quick_action",
         user_id: user.id, // 🔒 CRITICAL: Always set user_id for RLS
         created_by_user_id: user.id, // 🔒 Track who created it
-        ...(tenant?.id && { tenant_id: tenant.id }) // 🔒 Set tenant_id if available
+        ...(tenant?.id && { tenant_id: tenant.id }), // 🔒 Set tenant_id if available
       };
 
-      console.log('🔒 SECURITY: Creating event with proper user isolation:', {
-        user_id: campaignData.user_id,
-        tenant_id: campaignData.tenant_id || 'none',
-        title: campaignData.title
-      });
-
       const { data: insertedCampaign, error: insertError } = await supabase
-        .from('campaigns')
+        .from("campaigns")
         .insert(campaignData)
         .select()
         .single();
 
       if (insertError) {
-        console.error('❌ AddEventDialog: Error creating campaign:', insertError);
+        console.error(
+          "❌ AddEventDialog: Error creating campaign:",
+          insertError,
+        );
         throw new Error(insertError.message);
       }
-
-      console.log('✅ AddEventDialog: Campaign created with proper isolation:', insertedCampaign);
-
       // Now automatically generate content for the event using the working service
       setGeneratingContent(true);
-       toast({
-         title: "Generating content for your event...",
-         description: "Please wait while we create your promotional content",
-       });
+      toast({
+        title: "Generating content for your event...",
+        description: "Please wait while we create your promotional content",
+      });
 
       try {
-        console.log('🔒 SECURITY: Starting content generation with proper user isolation');
-        
         const result = await generateCampaignContent(
           insertedCampaign.id,
           insertedCampaign.theme || insertedCampaign.title,
-          insertedCampaign.description || '',
+          insertedCampaign.description || "",
           user.id, // 🔒 CRITICAL: Pass user_id for RLS
           insertedCampaign.week_number,
-          tenant?.id // 🔒 Pass tenant_id if available
+          tenant?.id, // 🔒 Pass tenant_id if available
         );
 
         if (result.success) {
-          console.log('✅ AddEventDialog: Content generated successfully with user isolation');
           setContentGenerated(true);
           toast({
             title: "Success!",
             description: `Event created with ${result.tasks?.length || 5} content pieces!`,
           });
         } else {
-          console.warn('⚠️ AddEventDialog: Content generation had issues:', result.message);
           toast({
             title: "Warning",
             description: `Event created, but content generation had issues: ${result.message}`,
@@ -143,10 +148,14 @@ export const AddEventDialog = ({ open, onOpenChange, onEventCreated }: AddEventD
           });
         }
       } catch (contentError) {
-        console.error('❌ AddEventDialog: Content generation failed:', contentError);
+        console.error(
+          "❌ AddEventDialog: Content generation failed:",
+          contentError,
+        );
         toast({
           title: "Error",
-          description: "Event created, but content generation failed. You can generate content manually.",
+          description:
+            "Event created, but content generation failed. You can generate content manually.",
           variant: "destructive",
         });
       }
@@ -168,13 +177,12 @@ export const AddEventDialog = ({ open, onOpenChange, onEventCreated }: AddEventD
         setContentGenerated(false);
         setGeneratingContent(false);
       }, 2000);
-      
     } catch (error: any) {
-      console.error('❌ AddEventDialog: Error creating event:', error);
-      setError(error.message || 'Failed to create event');
+      console.error("❌ AddEventDialog: Error creating event:", error);
+      setError(error.message || "Failed to create event");
       toast({
         title: "Error",
-        description: error.message || 'Failed to create event',
+        description: error.message || "Failed to create event",
         variant: "destructive",
       });
     } finally {
@@ -199,9 +207,11 @@ export const AddEventDialog = ({ open, onOpenChange, onEventCreated }: AddEventD
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-[425px] bg-white z-[100] border border-gray-200 shadow-2xl">
         <DialogHeader>
-          <DialogTitle className="text-garden-green-dark">Add Event to Promote</DialogTitle>
+          <DialogTitle className="text-garden-green-dark">
+            Add Event to Promote
+          </DialogTitle>
         </DialogHeader>
-        
+
         {error && (
           <Alert variant="destructive">
             <AlertTriangle className="h-4 w-4" />
@@ -213,11 +223,12 @@ export const AddEventDialog = ({ open, onOpenChange, onEventCreated }: AddEventD
           <Alert className="border-green-200 bg-green-50">
             <CheckCircle className="h-4 w-4 text-green-600" />
             <AlertDescription className="text-green-800">
-              Event created successfully with 5 content pieces! Check your dashboard to review and approve the content.
+              Event created successfully with 5 content pieces! Check your
+              dashboard to review and approve the content.
             </AlertDescription>
           </Alert>
         )}
-        
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <Label htmlFor="eventName" className="text-garden-green-dark">
@@ -236,9 +247,12 @@ export const AddEventDialog = ({ open, onOpenChange, onEventCreated }: AddEventD
               disabled={loading || generatingContent}
             />
           </div>
-          
+
           <div>
-            <Label htmlFor="eventDescription" className="text-garden-green-dark">
+            <Label
+              htmlFor="eventDescription"
+              className="text-garden-green-dark"
+            >
               Event Description
             </Label>
             <Textarea
@@ -250,7 +264,7 @@ export const AddEventDialog = ({ open, onOpenChange, onEventCreated }: AddEventD
               disabled={loading || generatingContent}
             />
           </div>
-          
+
           <div>
             <Label htmlFor="eventDate" className="text-garden-green-dark">
               Event Date
@@ -277,7 +291,10 @@ export const AddEventDialog = ({ open, onOpenChange, onEventCreated }: AddEventD
                     <CalendarIcon className="h-4 w-4 text-muted-foreground" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 bg-white border border-gray-200 shadow-lg z-[110]" align="start">
+                <PopoverContent
+                  className="w-auto p-0 bg-white border border-gray-200 shadow-lg z-[110]"
+                  align="start"
+                >
                   <Calendar
                     mode="single"
                     selected={selectedDate}
@@ -289,9 +306,12 @@ export const AddEventDialog = ({ open, onOpenChange, onEventCreated }: AddEventD
               </Popover>
             </div>
           </div>
-          
+
           <div>
-            <Label htmlFor="eventInstructions" className="text-garden-green-dark">
+            <Label
+              htmlFor="eventInstructions"
+              className="text-garden-green-dark"
+            >
               Instructions & Deadlines
             </Label>
             <Textarea
@@ -303,7 +323,7 @@ export const AddEventDialog = ({ open, onOpenChange, onEventCreated }: AddEventD
               disabled={loading || generatingContent}
             />
           </div>
-          
+
           <div className="flex justify-end gap-2 pt-4">
             <Button
               type="button"
@@ -335,7 +355,7 @@ export const AddEventDialog = ({ open, onOpenChange, onEventCreated }: AddEventD
                   Complete!
                 </>
               ) : (
-                'Create & Generate Content'
+                "Create & Generate Content"
               )}
             </Button>
           </div>

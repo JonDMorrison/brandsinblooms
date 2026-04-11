@@ -1,5 +1,10 @@
-import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import React, { useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Globe, Sparkles, ArrowRight, Loader2 } from "lucide-react";
@@ -16,92 +21,99 @@ interface DashboardSetupWizardProps {
   onClose: () => void;
 }
 
-export const DashboardSetupWizard = ({ isOpen, onClose }: DashboardSetupWizardProps) => {
-  const [currentStep, setCurrentStep] = useState<'website' | 'review' | 'complete'>('website');
-  const [websiteUrl, setWebsiteUrl] = useState('');
+export const DashboardSetupWizard = ({
+  isOpen,
+  onClose,
+}: DashboardSetupWizardProps) => {
+  const [currentStep, setCurrentStep] = useState<
+    "website" | "review" | "complete"
+  >("website");
+  const [websiteUrl, setWebsiteUrl] = useState("");
   const [isCompleting, setIsCompleting] = useState(false);
   const [isLocationConfirmed, setIsLocationConfirmed] = useState(true); // Default true for non-location cases
-  
+
   const { user } = useAuth();
-  const { 
-    isAnalyzing, 
-    analysisError, 
-    extractedData, 
-    analyzeWebsite, 
-    updateExtractedData, 
-    resetAnalysis 
+  const {
+    isAnalyzing,
+    analysisError,
+    extractedData,
+    analyzeWebsite,
+    updateExtractedData,
+    resetAnalysis,
   } = useWebsiteAnalysis();
-  
+
   const { completeOnboarding } = useOnboardingCompletion();
   const { markAsCompleted } = useOnboardingStatus();
 
   const handleAnalyze = async () => {
     if (!websiteUrl) return;
-    
+
     try {
       await analyzeWebsite(websiteUrl, user?.id);
-      
+
       if (!analysisError) {
-        setCurrentStep('review');
+        setCurrentStep("review");
       }
     } catch (error) {
-      console.error('Analysis failed:', error);
+      console.error("Analysis failed:", error);
     }
   };
 
   const handleComplete = async () => {
     if (!user?.id) {
-      toast.error('User not found');
+      toast.error("User not found");
       return;
     }
-    
+
     if (!isLocationConfirmed) {
-      toast.error('Please confirm your location before continuing');
+      toast.error("Please confirm your location before continuing");
       return;
     }
 
     setIsCompleting(true);
     try {
       // SERVER-SIDE SAFETY CHECK: Re-verify location confirmation invariant
-      const { enforceLocationConfirmation } = await import('@/lib/locationValidation');
+      const { enforceLocationConfirmation } =
+        await import("@/lib/locationValidation");
       const validation = await enforceLocationConfirmation(user.id);
-      
+
       if (!validation.success) {
-        console.error('❌ Server-side location validation failed:', validation.error);
-        toast.error(validation.error || 'Location confirmation required');
+        console.error(
+          "❌ Server-side location validation failed:",
+          validation.error,
+        );
+        toast.error(validation.error || "Location confirmation required");
         setIsCompleting(false);
         return;
       }
-      
+
       await completeOnboarding(
         extractedData,
         websiteUrl,
         user.id,
-        (data: any) => {
-          console.log('Onboarding complete:', data);
-        },
+        (data: any) => {},
         markAsCompleted,
-        () => {} // clearProgress - not needed here
+        () => {}, // clearProgress - not needed here
       );
-      
-      toast.success('Setup complete! Welcome to BloomSuite');
+
+      toast.success("Setup complete! Welcome to BloomSuite");
       onClose();
     } catch (error) {
-      console.error('Failed to complete setup:', error);
-      toast.error('Setup failed. Please try again.');
+      console.error("Failed to complete setup:", error);
+      toast.error("Setup failed. Please try again.");
     } finally {
       setIsCompleting(false);
     }
   };
 
   const handleSkip = () => {
-    toast.success('You can set up your website analysis later in Settings');
+    toast.success("You can set up your website analysis later in Settings");
     onClose();
   };
 
   const handleBack = () => {
     resetAnalysis();
-    setCurrentStep('website');
+    setCurrentStep("website");
     setIsLocationConfirmed(true); // Reset when going back
   };
 
@@ -118,12 +130,13 @@ export const DashboardSetupWizard = ({ isOpen, onClose }: DashboardSetupWizardPr
             Complete Your Setup
           </DialogTitle>
           <p className="text-muted-foreground">
-            Let's analyze your website to personalize BloomSuite for your business
+            Let's analyze your website to personalize BloomSuite for your
+            business
           </p>
         </DialogHeader>
-        
+
         <div className="mt-6">
-          {currentStep === 'website' && (
+          {currentStep === "website" && (
             <div className="space-y-6">
               <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200">
                 <CardContent className="p-6">
@@ -136,9 +149,10 @@ export const DashboardSetupWizard = ({ isOpen, onClose }: DashboardSetupWizardPr
                         Website Analysis
                       </h3>
                       <p className="text-gray-600 text-sm mb-4">
-                        We'll automatically extract your business info, brand voice, and create a personalized profile.
+                        We'll automatically extract your business info, brand
+                        voice, and create a personalized profile.
                       </p>
-                      
+
                       {!isAnalyzing && (
                         <UrlInputStep
                           websiteUrl={websiteUrl}
@@ -150,13 +164,17 @@ export const DashboardSetupWizard = ({ isOpen, onClose }: DashboardSetupWizardPr
                           onResetAnalysis={handleRetry}
                         />
                       )}
-                      
+
                       {isAnalyzing && (
                         <div className="flex items-center gap-3 py-4">
                           <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
                           <div>
-                            <p className="font-medium text-gray-900">Analyzing your website...</p>
-                            <p className="text-sm text-gray-600">This may take a moment</p>
+                            <p className="font-medium text-gray-900">
+                              Analyzing your website...
+                            </p>
+                            <p className="text-sm text-gray-600">
+                              This may take a moment
+                            </p>
                           </div>
                         </div>
                       )}
@@ -169,8 +187,10 @@ export const DashboardSetupWizard = ({ isOpen, onClose }: DashboardSetupWizardPr
                 <Button variant="ghost" onClick={handleSkip}>
                   Skip for now
                 </Button>
-                <Button 
-                  onClick={() => {/* Navigate to manual onboarding */}}
+                <Button
+                  onClick={() => {
+                    /* Navigate to manual onboarding */
+                  }}
                   variant="outline"
                 >
                   Enter details manually
@@ -179,7 +199,7 @@ export const DashboardSetupWizard = ({ isOpen, onClose }: DashboardSetupWizardPr
             </div>
           )}
 
-          {currentStep === 'review' && extractedData && (
+          {currentStep === "review" && extractedData && (
             <div className="space-y-6">
               <DataReviewStep
                 extractedData={extractedData}

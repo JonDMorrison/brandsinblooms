@@ -1,8 +1,7 @@
-
-import React from 'react';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
+import React from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 interface LayoutOptionProps {
   id: string;
@@ -26,18 +25,17 @@ export const LayoutOption: React.FC<LayoutOptionProps> = ({
   isPopular,
   isNew,
   isRecommended,
-  onClick
+  onClick,
 }) => {
   const handleClick = () => {
-    console.log('🎯 LayoutOption clicked:', title);
     onClick();
   };
 
   return (
-    <Card 
+    <Card
       className={cn(
         "group cursor-pointer transition-all duration-200 hover:shadow-lg hover:scale-[1.02] border-2 hover:border-primary/30 bg-white",
-        isRecommended && "border-emerald-500/50 bg-emerald-50/30"
+        isRecommended && "border-emerald-500/50 bg-emerald-50/30",
       )}
       onClick={handleClick}
     >
@@ -48,8 +46,12 @@ export const LayoutOption: React.FC<LayoutOptionProps> = ({
             <div className="flex items-center gap-3 flex-1 min-w-0">
               <div className="flex-shrink-0">{icon}</div>
               <div className="min-w-0">
-                <h4 className="font-semibold text-sm text-foreground truncate">{title}</h4>
-                <p className="text-xs text-muted-foreground line-clamp-2 mt-1">{description}</p>
+                <h4 className="font-semibold text-sm text-foreground truncate">
+                  {title}
+                </h4>
+                <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
+                  {description}
+                </p>
               </div>
             </div>
             <div className="flex flex-col gap-1 ml-2">
@@ -59,25 +61,29 @@ export const LayoutOption: React.FC<LayoutOptionProps> = ({
                 </Badge>
               )}
               {isPopular && !isRecommended && (
-                <Badge variant="outline" className="text-muted-foreground text-xs px-2 py-0.5">
+                <Badge
+                  variant="outline"
+                  className="text-muted-foreground text-xs px-2 py-0.5"
+                >
                   Popular
                 </Badge>
               )}
               {isNew && (
-                <Badge variant="outline" className="text-muted-foreground text-xs px-2 py-0.5">
+                <Badge
+                  variant="outline"
+                  className="text-muted-foreground text-xs px-2 py-0.5"
+                >
                   New
                 </Badge>
               )}
             </div>
           </div>
-          
+
           {/* Enhanced Preview */}
           <div className="aspect-video bg-gray-50 rounded-lg border-2 border-gray-100 group-hover:border-primary/20 transition-colors overflow-hidden">
-            <div className="w-full h-full p-2">
-              {preview}
-            </div>
+            <div className="w-full h-full p-2">{preview}</div>
           </div>
-          
+
           {/* Category tag */}
           <div className="flex justify-between items-center">
             <Badge variant="outline" className="text-xs">

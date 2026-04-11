@@ -1,47 +1,66 @@
-import React, { useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ProtectedPageWrapper } from '@/components/ProtectedPageWrapper';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { CarouselImageSelector } from '@/components/social/CarouselImageSelector';
-import { SocialPostPreviewModal } from '@/components/publish/preview/SocialPostPreviewModal';
-import { AIPersonalizationDialog } from '@/components/crm/AIPersonalizationDialog';
-import { ArrowLeft, Eye, Send, AlertCircle, Sparkles, Wand2, ImagePlus } from 'lucide-react';
-import { validateCarouselPost } from '@/utils/validateCarouselPost';
-import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
-import { useImageGeneration } from '@/hooks/useImageGeneration';
+import React, { useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { ProtectedPageWrapper } from "@/components/ProtectedPageWrapper";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { CarouselImageSelector } from "@/components/social/CarouselImageSelector";
+import { SocialPostPreviewModal } from "@/components/publish/preview/SocialPostPreviewModal";
+import { AIPersonalizationDialog } from "@/components/crm/AIPersonalizationDialog";
+import {
+  ArrowLeft,
+  Eye,
+  Send,
+  AlertCircle,
+  Sparkles,
+  Wand2,
+  ImagePlus,
+} from "lucide-react";
+import { validateCarouselPost } from "@/utils/validateCarouselPost";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { useImageGeneration } from "@/hooks/useImageGeneration";
 
 const CarouselComposerPage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const platform = (searchParams.get('platform') || 'instagram') as 'instagram' | 'facebook';
-  
-  const [caption, setCaption] = useState('');
+  const platform = (searchParams.get("platform") || "instagram") as
+    | "instagram"
+    | "facebook";
+
+  const [caption, setCaption] = useState("");
   const [carouselImages, setCarouselImages] = useState<string[]>([]);
   const [showPreview, setShowPreview] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
   const [isGeneratingCaption, setIsGeneratingCaption] = useState(false);
   const [isBulkGenerating, setIsBulkGenerating] = useState(false);
   const [showAIDialog, setShowAIDialog] = useState(false);
-  const [editingImageIndex, setEditingImageIndex] = useState<number | null>(null);
-  
-  const { generateImageForChannel, isGenerating: isSingleImageGenerating } = useImageGeneration();
+  const [editingImageIndex, setEditingImageIndex] = useState<number | null>(
+    null,
+  );
+
+  const { generateImageForChannel, isGenerating: isSingleImageGenerating } =
+    useImageGeneration();
 
   const validation = validateCarouselPost(platform, {
     platform,
-    accountId: 'preview',
+    accountId: "preview",
     caption,
     mediaUrls: carouselImages,
-    isCarousel: true
+    isCarousel: true,
   });
 
   const platformLimits = {
-    instagram: { caption: 2200, name: 'Instagram' },
-    facebook: { caption: 63206, name: 'Facebook' }
+    instagram: { caption: 2200, name: "Instagram" },
+    facebook: { caption: 63206, name: "Facebook" },
   };
 
   const limits = platformLimits[platform];
@@ -49,56 +68,59 @@ const CarouselComposerPage = () => {
 
   const handleGenerateCaption = async () => {
     if (!caption.trim()) {
-      toast.error('Please add some initial text to enhance');
+      toast.error("Please add some initial text to enhance");
       return;
     }
 
     setIsGeneratingCaption(true);
     try {
-      const { data, error } = await supabase.functions.invoke('generate-thinking-text', {
-        body: {
-          prompt: `Create an engaging ${platform} carousel caption based on this text: ${caption}. Make it concise, compelling, and optimized for ${platform} engagement. Include relevant emojis and hashtags if appropriate.`
-        }
-      });
+      const { data, error } = await supabase.functions.invoke(
+        "generate-thinking-text",
+        {
+          body: {
+            prompt: `Create an engaging ${platform} carousel caption based on this text: ${caption}. Make it concise, compelling, and optimized for ${platform} engagement. Include relevant emojis and hashtags if appropriate.`,
+          },
+        },
+      );
 
       if (error) throw error;
-      
+
       if (data?.thinking_text) {
         setCaption(data.thinking_text);
-        toast.success('Caption enhanced with AI!');
+        toast.success("Caption enhanced with AI!");
       }
     } catch (error) {
-      console.error('Failed to generate caption:', error);
-      toast.error('Failed to generate caption');
+      console.error("Failed to generate caption:", error);
+      toast.error("Failed to generate caption");
     } finally {
       setIsGeneratingCaption(false);
     }
   };
 
   const handleBulkGenerateImages = async () => {
-    const imagesToGenerate = platform === 'instagram' ? 5 : 6;
+    const imagesToGenerate = platform === "instagram" ? 5 : 6;
     setIsBulkGenerating(true);
-    
+
     try {
       const generatedUrls: string[] = [];
-      const contextText = caption || 'Beautiful garden and nature scenes';
-      
+      const contextText = caption || "Beautiful garden and nature scenes";
+
       for (let i = 0; i < imagesToGenerate; i++) {
         const result = await generateImageForChannel(
           platform,
           `${contextText} (Image ${i + 1} of ${imagesToGenerate})`,
-          `Carousel image ${i + 1}`
+          `Carousel image ${i + 1}`,
         );
-        
+
         if (result?.imageUrl) {
           generatedUrls.push(result.imageUrl);
         }
       }
-      
+
       setCarouselImages(generatedUrls);
     } catch (error) {
-      console.error('Bulk generation failed:', error);
-      toast.error('Failed to generate all images');
+      console.error("Bulk generation failed:", error);
+      toast.error("Failed to generate all images");
     } finally {
       setIsBulkGenerating(false);
     }
@@ -133,16 +155,14 @@ const CarouselComposerPage = () => {
     try {
       // TODO: Implement actual publishing logic
       // This would call the publish-task edge function with carousel data
-      console.log('Publishing carousel:', { platform, caption, carouselImages });
-      
       // Simulate publishing
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
       toast.success(`Carousel published to ${limits.name}!`);
       navigate(-1);
     } catch (error) {
-      console.error('Failed to publish carousel:', error);
-      toast.error('Failed to publish carousel. Please try again.');
+      console.error("Failed to publish carousel:", error);
+      toast.error("Failed to publish carousel. Please try again.");
     } finally {
       setIsPublishing(false);
     }
@@ -188,7 +208,7 @@ const CarouselComposerPage = () => {
               className="gap-2"
             >
               <Send className="w-4 h-4" />
-              {isPublishing ? 'Publishing...' : 'Publish'}
+              {isPublishing ? "Publishing..." : "Publish"}
             </Button>
           </div>
         </div>
@@ -204,7 +224,8 @@ const CarouselComposerPage = () => {
                     <CardTitle>Carousel Images</CardTitle>
                     <CardDescription>
                       Add 2-10 images. Drag to reorder.
-                      {platform === 'instagram' && ' All images must have the same aspect ratio.'}
+                      {platform === "instagram" &&
+                        " All images must have the same aspect ratio."}
                     </CardDescription>
                   </div>
                   <div className="flex gap-2">
@@ -262,9 +283,7 @@ const CarouselComposerPage = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <CardTitle>Caption</CardTitle>
-                    <CardDescription>
-                      Write your post caption
-                    </CardDescription>
+                    <CardDescription>Write your post caption</CardDescription>
                   </div>
                   <Button
                     variant="outline"
@@ -297,9 +316,15 @@ const CarouselComposerPage = () => {
                     maxLength={limits.caption}
                   />
                   <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>{captionLength.toLocaleString()}/{limits.caption.toLocaleString()} characters</span>
+                    <span>
+                      {captionLength.toLocaleString()}/
+                      {limits.caption.toLocaleString()} characters
+                    </span>
                     {captionLength > limits.caption * 0.9 && (
-                      <Badge variant="outline" className="text-amber-600 border-amber-200">
+                      <Badge
+                        variant="outline"
+                        className="text-amber-600 border-amber-200"
+                      >
                         <AlertCircle className="w-3 h-3 mr-1" />
                         Approaching limit
                       </Badge>
@@ -310,20 +335,27 @@ const CarouselComposerPage = () => {
             </Card>
 
             {/* Validation Feedback */}
-            {(validation.errors.length > 0 || validation.warnings.length > 0) && (
+            {(validation.errors.length > 0 ||
+              validation.warnings.length > 0) && (
               <Card>
                 <CardHeader>
                   <CardTitle className="text-sm">Validation</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2">
                   {validation.errors.map((error, idx) => (
-                    <div key={`error-${idx}`} className="flex items-start gap-2 text-sm text-destructive">
+                    <div
+                      key={`error-${idx}`}
+                      className="flex items-start gap-2 text-sm text-destructive"
+                    >
                       <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
                       <span>{error}</span>
                     </div>
                   ))}
                   {validation.warnings.map((warning, idx) => (
-                    <div key={`warning-${idx}`} className="flex items-start gap-2 text-sm text-amber-600">
+                    <div
+                      key={`warning-${idx}`}
+                      className="flex items-start gap-2 text-sm text-amber-600"
+                    >
                       <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
                       <span>{warning}</span>
                     </div>
@@ -341,12 +373,17 @@ const CarouselComposerPage = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="text-sm text-muted-foreground space-y-2">
-                {platform === 'instagram' ? (
+                {platform === "instagram" ? (
                   <>
-                    <p>• All images must have the same aspect ratio (e.g., all 1:1 or all 4:5)</p>
+                    <p>
+                      • All images must have the same aspect ratio (e.g., all
+                      1:1 or all 4:5)
+                    </p>
                     <p>• Maximum 10 images per carousel</p>
                     <p>• Each image can be up to 8MB</p>
-                    <p>• Tell a story across your images for better engagement</p>
+                    <p>
+                      • Tell a story across your images for better engagement
+                    </p>
                   </>
                 ) : (
                   <>
@@ -370,7 +407,6 @@ const CarouselComposerPage = () => {
           platform={platform}
           onPlatformChange={(newPlatform) => {
             // Platform change not supported in carousel mode
-            console.log('Platform change requested:', newPlatform);
           }}
           accountName="Your Account"
           caption={caption}
@@ -386,7 +422,9 @@ const CarouselComposerPage = () => {
         onOpenChange={setShowAIDialog}
         onImageSelect={handleAIImageSelect}
         channel={platform}
-        contentContext={caption || 'Create beautiful carousel images for social media'}
+        contentContext={
+          caption || "Create beautiful carousel images for social media"
+        }
         contextType="carousel_builder"
       />
     </ProtectedPageWrapper>

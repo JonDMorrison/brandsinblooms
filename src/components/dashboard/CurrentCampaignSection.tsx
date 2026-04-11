@@ -29,35 +29,35 @@ export const CurrentCampaignSection = ({
   onTaskUpdate,
   onCreateCampaign,
   onCampaignCreated,
-  onTaskClick
+  onTaskClick,
 }: CurrentCampaignSectionProps) => {
   const { user } = useAuth();
   const { tenant } = useTenant();
   const [refreshing, setRefreshing] = useState(false);
-  
-  const { 
+
+  const {
     tasks: hookTasks,
-    tasksCount, 
-    loading, 
-    selectedTask, 
-    showContentViewer, 
-    isDevelopment, 
+    tasksCount,
+    loading,
+    selectedTask,
+    showContentViewer,
+    isDevelopment,
     usesTenantModel,
     handleTaskClick,
-    handleContentViewerClose
+    handleContentViewerClose,
   } = useCurrentCampaignSection(activeCampaign, tasks);
 
   // AI image generation disabled - images are now manual-only via sidebar
   // useAutoImageGeneration(tasks);
 
-  const showWeeklyBanner = activeCampaign && (
-    sessionStorage.getItem('oauth_just_completed') === 'true' || 
-    tasks.some(task => task.status === 'review')
-  );
+  const showWeeklyBanner =
+    activeCampaign &&
+    (sessionStorage.getItem("oauth_just_completed") === "true" ||
+      tasks.some((task) => task.status === "review"));
 
   const handleReviewApprove = () => {
     // Scroll to review section or open review modal
-    const firstReviewTask = tasks.find(task => task.status === 'review');
+    const firstReviewTask = tasks.find((task) => task.status === "review");
     if (firstReviewTask && onTaskClick) {
       onTaskClick(firstReviewTask);
     }
@@ -65,46 +65,48 @@ export const CurrentCampaignSection = ({
 
   const handleRefreshContent = async () => {
     if (!activeCampaign || !user) {
-      toast.error('Unable to refresh content at this time');
+      toast.error("Unable to refresh content at this time");
       return;
     }
 
     setRefreshing(true);
-    
+
     try {
       // Delete existing tasks for this campaign
       const { error: deleteError } = await supabase
-        .from('content_tasks')
+        .from("content_tasks")
         .delete()
-        .eq('campaign_id', activeCampaign.id);
+        .eq("campaign_id", activeCampaign.id);
 
       if (deleteError) {
-        console.error('Error deleting existing tasks:', deleteError);
-        toast.error('Failed to clear existing content');
+        console.error("Error deleting existing tasks:", deleteError);
+        toast.error("Failed to clear existing content");
         return;
       }
 
-      toast.loading('Generating fresh content...');
+      toast.loading("Generating fresh content...");
 
       // Generate new content
       const result = await generateCampaignContent(
         activeCampaign.id,
         activeCampaign.theme || activeCampaign.title,
-        activeCampaign.description || '',
+        activeCampaign.description || "",
         user.id,
         activeCampaign.week_number,
-        tenant?.id
+        tenant?.id,
       );
 
       if (result.success) {
-        toast.success(`Generated ${result.tasks?.length || 0} fresh content pieces!`);
+        toast.success(
+          `Generated ${result.tasks?.length || 0} fresh content pieces!`,
+        );
         onTaskUpdate(); // Refresh the task list
       } else {
         toast.error(`Failed to refresh content: ${result.message}`);
       }
     } catch (error) {
-      console.error('Error refreshing content:', error);
-      toast.error('Failed to refresh content');
+      console.error("Error refreshing content:", error);
+      toast.error("Failed to refresh content");
     } finally {
       setRefreshing(false);
     }
@@ -123,16 +125,6 @@ export const CurrentCampaignSection = ({
     if (onTaskUpdate) {
       onTaskUpdate();
     }
-  };
-
-  console.log('🔍 CurrentCampaignSection: Rendering with:', {
-    hasUser: !!activeCampaign,
-    hasActiveCampaign: !!activeCampaign,
-    activeCampaignTitle: activeCampaign?.title,
-    activeCampaignId: activeCampaign?.id,
-    tasksCount,
-    loading
-  });
 
   if (loading) {
     return (
@@ -151,7 +143,6 @@ export const CurrentCampaignSection = ({
   }
 
   if (!activeCampaign) {
-    console.log('🔍 CurrentCampaignSection: No active campaign available');
     return (
       <Card>
         <CardHeader>
@@ -159,7 +150,9 @@ export const CurrentCampaignSection = ({
         </CardHeader>
         <CardContent>
           <div className="text-center py-8">
-            <p className="text-gray-600 mb-4">No active campaign found for this week.</p>
+            <p className="text-gray-600 mb-4">
+              No active campaign found for this week.
+            </p>
             <p className="text-sm text-gray-500">
               Create a new campaign to start generating content.
             </p>
@@ -168,23 +161,24 @@ export const CurrentCampaignSection = ({
       </Card>
     );
   }
-
-  console.log('🔍 CurrentCampaignSection: Showing CampaignContent with campaign:', activeCampaign.title);
-
   return (
     <div data-section="weekly-content-section">
       <WeeklyContentUpdater />
-      
+
       {/* Weekly Content Banner */}
       {showWeeklyBanner && activeCampaign && (
         <WeeklyContentBanner
-          currentTheme={activeCampaign.theme || activeCampaign.title || 'Seasonal Content'}
+          currentTheme={
+            activeCampaign.theme || activeCampaign.title || "Seasonal Content"
+          }
           weekNumber={activeCampaign.week_number || getCurrentWeekNumber()}
           onReviewApprove={handleReviewApprove}
-          showCallout={sessionStorage.getItem('oauth_just_completed') === 'true'}
+          showCallout={
+            sessionStorage.getItem("oauth_just_completed") === "true"
+          }
         />
       )}
-      
+
       <CampaignContent
         activeCampaign={activeCampaign}
         tasks={hookTasks}
@@ -197,7 +191,7 @@ export const CurrentCampaignSection = ({
       {selectedTask && (
         <ContentViewer
           campaignId={selectedTask.campaign_id}
-          campaignTitle={activeCampaign?.title || 'Campaign'}
+          campaignTitle={activeCampaign?.title || "Campaign"}
           isOpen={showContentViewer}
           onClose={handleContentViewerCloseInternal}
           onTaskUpdate={onTaskUpdate}

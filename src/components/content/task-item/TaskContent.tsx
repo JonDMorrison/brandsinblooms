@@ -26,17 +26,6 @@ export const TaskContent = ({ task, onRetryGeneration, retryingGeneration }: Tas
   const isStuckGenerating = normalizedTask.status === 'generating' && !normalizedTask.ai_output;
 
   // Enhanced content validation for video tasks
-  const hasValidContent = normalizedTask.ai_output && normalizedTask.ai_output.trim() !== '';
-  
-  // Special validation for video content
-  if (normalizedTask.post_type === 'video' && normalizedTask.ai_output) {
-    console.log(`🎬 TASK_CONTENT DEBUG: Video task validation:`, {
-      id: normalizedTask.id,
-      has_content: hasValidContent,
-      content_length: normalizedTask.ai_output?.length || 0,
-      content_preview: normalizedTask.ai_output?.substring(0, 200)
-    });
-  }
 
   const handleRegenerateContent = async () => {
     if (!normalizedTask.campaigns?.title && !normalizedTask.holiday_id) {

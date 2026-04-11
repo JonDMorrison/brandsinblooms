@@ -1,26 +1,46 @@
-import React from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Badge } from '@/components/ui/badge';
-import { Calendar as CalendarIcon, Leaf, Gift, Sprout, Flower, Bug, Plus, X, ChevronDown } from 'lucide-react';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
-import { format } from 'date-fns';
-import { cn } from '@/lib/utils';
-import { PlanTheme } from '../constants';
-import { usePlanWizard } from '../PlanWizardContext';
-import { getSeasonalThemesForMonth } from '@/services/seasonalPlanGenerator';
+import React from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
+import {
+  Calendar as CalendarIcon,
+  Leaf,
+  Gift,
+  Sprout,
+  Flower,
+  Bug,
+  Plus,
+  X,
+  ChevronDown,
+} from "lucide-react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
+import { PlanTheme } from "../constants";
+import { usePlanWizard } from "../PlanWizardContext";
+import { getSeasonalThemesForMonth } from "@/services/seasonalPlanGenerator";
 
 const themeIcons = {
-  'fall-planting': Leaf,
-  'houseplant-month': Sprout,
-  'pollinator-week': Bug,
-  'holiday-gifting': Gift,
-  'vegetable-starts': Sprout,
-  'perennial-spotlight': Flower
+  "fall-planting": Leaf,
+  "houseplant-month": Sprout,
+  "pollinator-week": Bug,
+  "holiday-gifting": Gift,
+  "vegetable-starts": Sprout,
+  "perennial-spotlight": Flower,
 };
 
 interface PlanStepThemeProps {
@@ -31,7 +51,7 @@ export const PlanStepTheme: React.FC<PlanStepThemeProps> = ({ onNext }) => {
   const { state, setMonth, addTheme, removeTheme } = usePlanWizard();
   const [availableThemes, setAvailableThemes] = React.useState<PlanTheme[]>([]);
   const [loadingThemes, setLoadingThemes] = React.useState(false);
-  const [customThemeName, setCustomThemeName] = React.useState('');
+  const [customThemeName, setCustomThemeName] = React.useState("");
   const [showCustomTheme, setShowCustomTheme] = React.useState(false);
   const [hasMoreThemes, setHasMoreThemes] = React.useState(false);
   const [loadingMore, setLoadingMore] = React.useState(false);
@@ -53,12 +73,12 @@ export const PlanStepTheme: React.FC<PlanStepThemeProps> = ({ onNext }) => {
     if (state.month) {
       setLoadingThemes(true);
       getSeasonalThemesForMonth(state.month, 0, 6)
-        .then(result => {
+        .then((result) => {
           setAvailableThemes(result.themes);
           setHasMoreThemes(result.hasMore);
         })
-        .catch(error => {
-          console.error('Error loading seasonal themes:', error);
+        .catch((error) => {
+          console.error("Error loading seasonal themes:", error);
           // Keep existing themes as fallback
         })
         .finally(() => {
@@ -70,14 +90,18 @@ export const PlanStepTheme: React.FC<PlanStepThemeProps> = ({ onNext }) => {
   // Load more themes
   const handleLoadMore = async () => {
     if (!state.month || loadingMore || !hasMoreThemes) return;
-    
+
     setLoadingMore(true);
     try {
-      const result = await getSeasonalThemesForMonth(state.month, availableThemes.length, 6);
-      setAvailableThemes(prev => [...prev, ...result.themes]);
+      const result = await getSeasonalThemesForMonth(
+        state.month,
+        availableThemes.length,
+        6,
+      );
+      setAvailableThemes((prev) => [...prev, ...result.themes]);
       setHasMoreThemes(result.hasMore);
     } catch (error) {
-      console.error('Error loading more themes:', error);
+      console.error("Error loading more themes:", error);
     } finally {
       setLoadingMore(false);
     }
@@ -96,16 +120,17 @@ export const PlanStepTheme: React.FC<PlanStepThemeProps> = ({ onNext }) => {
       const customTheme: PlanTheme = {
         id: `custom-${Date.now()}`,
         label: customThemeName.trim(),
-        description: 'Custom theme - content will be generated based on your specifications'
+        description:
+          "Custom theme - content will be generated based on your specifications",
       };
       addTheme(customTheme);
-      setCustomThemeName('');
+      setCustomThemeName("");
       setShowCustomTheme(false);
     }
   };
 
   const isThemeSelected = (themeId: string) => {
-    return state.themes.some(t => t.id === themeId);
+    return state.themes.some((t) => t.id === themeId);
   };
 
   const canProceed = state.month && state.themes.length > 0;
@@ -118,7 +143,8 @@ export const PlanStepTheme: React.FC<PlanStepThemeProps> = ({ onNext }) => {
           <h2 className="text-3xl font-bold">Plan Your Marketing Focus</h2>
         </div>
         <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-          Choose your marketing themes and target month. Select multiple themes to combine seasonal content with holidays and special events.
+          Choose your marketing themes and target month. Select multiple themes
+          to combine seasonal content with holidays and special events.
         </p>
       </div>
 
@@ -145,18 +171,19 @@ export const PlanStepTheme: React.FC<PlanStepThemeProps> = ({ onNext }) => {
               <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-primary z-10 pointer-events-none" />
               <input
                 type="month"
-                value={state.month || ''}
+                value={state.month || ""}
                 onChange={(e) => setMonth(e.target.value)}
-                min={format(new Date(), 'yyyy-MM')}
+                min={format(new Date(), "yyyy-MM")}
                 className={cn(
                   "w-full h-12 pl-11 pr-4 text-lg font-medium bg-background border border-gray-300 transition-all duration-200 shadow-sm cursor-pointer rounded-md hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:cursor-pointer",
-                  state.month ? "text-gray-900" : "text-muted-foreground"
+                  state.month ? "text-gray-900" : "text-muted-foreground",
                 )}
               />
             </div>
             <p className="text-xs text-muted-foreground/80 flex items-center gap-2">
               <span className="w-1 h-1 bg-primary rounded-full inline-block" />
-              Click to choose any upcoming month to start planning your campaigns
+              Click to choose any upcoming month to start planning your
+              campaigns
             </p>
           </div>
         </CardContent>
@@ -166,16 +193,25 @@ export const PlanStepTheme: React.FC<PlanStepThemeProps> = ({ onNext }) => {
       {state.themes.length > 0 && (
         <Card className="bg-gradient-to-br from-primary/5 to-accent/5 border-primary/20">
           <CardHeader>
-            <CardTitle className="text-lg">Selected Themes ({state.themes.length})</CardTitle>
+            <CardTitle className="text-lg">
+              Selected Themes ({state.themes.length})
+            </CardTitle>
             <CardDescription>
-              Your content will combine these themes. Primary theme (first) fills all 4 weeks, others overlay specific weeks.
+              Your content will combine these themes. Primary theme (first)
+              fills all 4 weeks, others overlay specific weeks.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-2">
               {state.themes.map((theme, index) => (
-                <Badge key={theme.id} variant={index === 0 ? "default" : "secondary"} className="gap-2 py-1 px-3">
-                  {index === 0 && <span className="text-xs font-medium">PRIMARY</span>}
+                <Badge
+                  key={theme.id}
+                  variant={index === 0 ? "default" : "secondary"}
+                  className="gap-2 py-1 px-3"
+                >
+                  {index === 0 && (
+                    <span className="text-xs font-medium">PRIMARY</span>
+                  )}
                   {theme.label}
                   <Button
                     variant="ghost"
@@ -184,7 +220,6 @@ export const PlanStepTheme: React.FC<PlanStepThemeProps> = ({ onNext }) => {
                     onClick={(e) => {
                       e.stopPropagation();
                       e.preventDefault();
-                      console.log('Removing theme:', theme.id);
                       removeTheme(theme.id);
                     }}
                   >
@@ -200,67 +235,73 @@ export const PlanStepTheme: React.FC<PlanStepThemeProps> = ({ onNext }) => {
       {/* Theme Selection */}
       <div className="space-y-4">
         <div className="text-center">
-          <h3 className="text-xl font-semibold mb-2">Choose Your Marketing Themes</h3>
+          <h3 className="text-xl font-semibold mb-2">
+            Choose Your Marketing Themes
+          </h3>
           <p className="text-muted-foreground">
-            Select multiple themes to create rich, layered content that combines seasonal focus with special events
+            Select multiple themes to create rich, layered content that combines
+            seasonal focus with special events
           </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {loadingThemes ? (
-            // Loading skeleton
-            Array.from({ length: 6 }).map((_, index) => (
-              <Card key={index} className="animate-pulse">
-                <CardHeader className="text-center">
-                  <div className="mx-auto mb-3">
-                    <div className="w-12 h-12 rounded-full bg-muted"></div>
-                  </div>
-                  <div className="h-4 bg-muted rounded w-3/4 mx-auto"></div>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-12 bg-muted rounded"></div>
-                </CardContent>
-              </Card>
-            ))
-          ) : (
-            availableThemes.map((theme) => {
-              const IconComponent = themeIcons[theme.id as keyof typeof themeIcons] || Leaf;
-              const isSelected = isThemeSelected(theme.id);
-
-              return (
-                <Card 
-                  key={theme.id}
-                  className={`cursor-pointer transition-all duration-200 hover:shadow-md ${
-                    isSelected 
-                      ? 'ring-2 ring-primary bg-primary/5' 
-                      : 'hover:border-primary/50'
-                  }`}
-                  onClick={() => handleThemeToggle(theme, !isSelected)}
-                >
+          {loadingThemes
+            ? // Loading skeleton
+              Array.from({ length: 6 }).map((_, index) => (
+                <Card key={index} className="animate-pulse">
                   <CardHeader className="text-center">
-                    <div className="mx-auto mb-3 flex items-center justify-between">
-                      <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                        isSelected ? 'bg-primary text-primary-foreground' : 'bg-muted'
-                      }`}>
-                        <IconComponent className="h-6 w-6" />
-                      </div>
-                      <Checkbox 
-                        checked={isSelected}
-                        onChange={() => {}} // Handled by card click
-                        className="ml-2"
-                      />
+                    <div className="mx-auto mb-3">
+                      <div className="w-12 h-12 rounded-full bg-muted"></div>
                     </div>
-                    <CardTitle className="text-lg">{theme.label}</CardTitle>
+                    <div className="h-4 bg-muted rounded w-3/4 mx-auto"></div>
                   </CardHeader>
                   <CardContent>
-                    <CardDescription className="text-center text-sm">
-                      {theme.description}
-                    </CardDescription>
+                    <div className="h-12 bg-muted rounded"></div>
                   </CardContent>
                 </Card>
-              );
-            })
-          )}
+              ))
+            : availableThemes.map((theme) => {
+                const IconComponent =
+                  themeIcons[theme.id as keyof typeof themeIcons] || Leaf;
+                const isSelected = isThemeSelected(theme.id);
+
+                return (
+                  <Card
+                    key={theme.id}
+                    className={`cursor-pointer transition-all duration-200 hover:shadow-md ${
+                      isSelected
+                        ? "ring-2 ring-primary bg-primary/5"
+                        : "hover:border-primary/50"
+                    }`}
+                    onClick={() => handleThemeToggle(theme, !isSelected)}
+                  >
+                    <CardHeader className="text-center">
+                      <div className="mx-auto mb-3 flex items-center justify-between">
+                        <div
+                          className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                            isSelected
+                              ? "bg-primary text-primary-foreground"
+                              : "bg-muted"
+                          }`}
+                        >
+                          <IconComponent className="h-6 w-6" />
+                        </div>
+                        <Checkbox
+                          checked={isSelected}
+                          onChange={() => {}} // Handled by card click
+                          className="ml-2"
+                        />
+                      </div>
+                      <CardTitle className="text-lg">{theme.label}</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <CardDescription className="text-center text-sm">
+                        {theme.description}
+                      </CardDescription>
+                    </CardContent>
+                  </Card>
+                );
+              })}
 
           {/* Custom Theme Card */}
           <Card className="border-dashed border-2 border-muted-foreground/30 hover:border-primary/50 cursor-pointer transition-colors">
@@ -279,13 +320,23 @@ export const PlanStepTheme: React.FC<PlanStepThemeProps> = ({ onNext }) => {
                     placeholder="Theme name (e.g., 'Black Friday')"
                     value={customThemeName}
                     onChange={(e) => setCustomThemeName(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && handleCustomThemeAdd()}
+                    onKeyPress={(e) =>
+                      e.key === "Enter" && handleCustomThemeAdd()
+                    }
                   />
                   <div className="flex gap-2">
-                    <Button size="sm" onClick={handleCustomThemeAdd} disabled={!customThemeName.trim()}>
+                    <Button
+                      size="sm"
+                      onClick={handleCustomThemeAdd}
+                      disabled={!customThemeName.trim()}
+                    >
                       Add
                     </Button>
-                    <Button size="sm" variant="outline" onClick={() => setShowCustomTheme(false)}>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setShowCustomTheme(false)}
+                    >
                       Cancel
                     </Button>
                   </div>
@@ -310,7 +361,7 @@ export const PlanStepTheme: React.FC<PlanStepThemeProps> = ({ onNext }) => {
               disabled={loadingMore}
               className="px-8"
             >
-              {loadingMore ? 'Loading...' : 'Load More Themes'}
+              {loadingMore ? "Loading..." : "Load More Themes"}
             </Button>
           </div>
         )}
@@ -318,7 +369,7 @@ export const PlanStepTheme: React.FC<PlanStepThemeProps> = ({ onNext }) => {
 
       {/* Next Button */}
       <div className="flex justify-center pt-8">
-        <Button 
+        <Button
           onClick={onNext}
           disabled={!canProceed}
           size="lg"

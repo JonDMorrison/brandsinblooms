@@ -143,12 +143,8 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({
     const cleanDomain = cleanDomainInput(domain);
     setError(null);
     setLoading(true);
-
-    console.log(`🚀 Starting Entri setup for domain: ${cleanDomain}`);
-
     try {
       // Step 1: Provision domain in Resend FIRST to get real DNS records
-      console.log(`📧 Provisioning domain in Resend to get DNS records...`);
       const result = await provisionDomain(cleanDomain);
 
       if (!result.success) {
@@ -175,10 +171,6 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({
         return;
       }
 
-      console.log(
-        `📋 Received ${backendRecords.length} DNS records from backend`,
-      );
-
       // Step 3: Sanitize and convert to Entri format using new sanitizer
       const { records: entriRecords, validation } = sanitizeAndConvertRecords(
         cleanDomain,
@@ -198,18 +190,7 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({
 
       // Log warnings but continue
       if (validation.warnings.length > 0) {
-        console.warn(`⚠️ DNS validation warnings:`, validation.warnings);
       }
-
-      // Step 5: Final logging before Entri
-      console.log(
-        `✅ All required DNS records present. Opening Entri with ${entriRecords.length} records:`,
-      );
-      console.log(
-        `📋 Records for Entri:`,
-        JSON.stringify(entriRecords, null, 2),
-      );
-      console.log(`📋 Validation details:`, validation.details);
 
       setLoading(false);
 
@@ -223,6 +204,7 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({
         // onSuccess
         () => {
           console.log(`✅ Entri setup completed for ${cleanDomain}`);
+          setIsEntriModalOpen(false);
           refetch();
           setStep("entri_success");
         },
@@ -231,6 +213,7 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({
           console.log(
             `⚠️ Entri setup cancelled for ${cleanDomain}, falling back to manual`,
           );
+          setIsEntriModalOpen(false);
           setStep("dns_pending"); // Show manual DNS setup since domain is provisioned
         },
         // onClose - always fires when Entri overlay closes (after success or cancel)
@@ -490,9 +473,13 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({
             {/* Progress checklist */}
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />
-              <span className="text-green-700 font-medium">Domain registered</span>
+              <span className="text-green-700 font-medium">
+                Domain registered
+              </span>
               <span className="mx-1">→</span>
-              <span className="font-medium text-foreground">Add DNS records</span>
+              <span className="font-medium text-foreground">
+                Add DNS records
+              </span>
               <span className="mx-1">→</span>
               <span>Verified</span>
             </div>
@@ -500,7 +487,12 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({
             <Alert className="bg-blue-50 border-blue-200 dark:bg-blue-950/20 dark:border-blue-900">
               <Info className="h-4 w-4 text-blue-600" />
               <AlertDescription className="text-blue-800 dark:text-blue-200 text-xs">
-                <span className="font-medium">What to do:</span> Log in to your domain registrar (e.g., GoDaddy, Cloudflare, Namecheap), go to the DNS settings for <span className="font-semibold">{domain}</span>, and add each record below exactly as shown. Then come back and click "Check DNS".
+                <span className="font-medium">What to do:</span> Log in to your
+                domain registrar (e.g., GoDaddy, Cloudflare, Namecheap), go to
+                the DNS settings for{" "}
+                <span className="font-semibold">{domain}</span>, and add each
+                record below exactly as shown. Then come back and click "Check
+                DNS".
               </AlertDescription>
             </Alert>
 
@@ -612,8 +604,16 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({
               <ol className="text-sm text-muted-foreground space-y-1.5 list-decimal list-inside">
                 <li>Add all the DNS records above to your domain provider</li>
                 <li>Close this dialog — your domain is saved</li>
-                <li>Click <span className="font-medium text-foreground">"Check DNS"</span> next to your domain to verify</li>
-                <li>DNS typically propagates in 5–30 minutes (up to 48 hours max)</li>
+                <li>
+                  Click{" "}
+                  <span className="font-medium text-foreground">
+                    "Check DNS"
+                  </span>{" "}
+                  next to your domain to verify
+                </li>
+                <li>
+                  DNS typically propagates in 5–30 minutes (up to 48 hours max)
+                </li>
               </ol>
             </div>
 
@@ -622,9 +622,20 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({
               <AlertDescription className="text-amber-800 dark:text-amber-200 text-xs space-y-1">
                 <p className="font-medium">Common mistakes to avoid:</p>
                 <ul className="space-y-0.5 mt-1">
-                  <li>• Copy values <span className="font-medium">exactly</span> — even small typos will fail verification</li>
-                  <li>• Cloudflare users: turn the proxy <span className="font-medium">OFF</span> (grey cloud, not orange)</li>
-                  <li>• Some providers use <span className="font-mono font-medium">@</span> instead of your domain name for the root record</li>
+                  <li>
+                    • Copy values <span className="font-medium">exactly</span> —
+                    even small typos will fail verification
+                  </li>
+                  <li>
+                    • Cloudflare users: turn the proxy{" "}
+                    <span className="font-medium">OFF</span> (grey cloud, not
+                    orange)
+                  </li>
+                  <li>
+                    • Some providers use{" "}
+                    <span className="font-mono font-medium">@</span> instead of
+                    your domain name for the root record
+                  </li>
                 </ul>
               </AlertDescription>
             </Alert>

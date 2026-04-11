@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
-import { toast } from 'sonner';
+import { useState, useEffect, useCallback } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
 
 export interface DeliveryMetrics {
   campaignId: string;
@@ -56,7 +56,9 @@ interface UseCampaignDeliveryMetricsResult {
   refresh: () => Promise<void>;
 }
 
-export const useCampaignDeliveryMetrics = (dateRange: number = 30): UseCampaignDeliveryMetricsResult => {
+export const useCampaignDeliveryMetrics = (
+  dateRange: number = 30,
+): UseCampaignDeliveryMetricsResult => {
   const { user } = useAuth();
   const [campaigns, setCampaigns] = useState<DeliveryMetrics[]>([]);
   const [loading, setLoading] = useState(true);
@@ -75,9 +77,9 @@ export const useCampaignDeliveryMetrics = (dateRange: number = 30): UseCampaignD
 
       // Get tenant
       const { data: userData } = await supabase
-        .from('users')
-        .select('tenant_id')
-        .eq('id', user.id)
+        .from("users")
+        .select("tenant_id")
+        .eq("id", user.id)
         .single();
 
       if (!userData?.tenant_id) {
@@ -92,12 +94,14 @@ export const useCampaignDeliveryMetrics = (dateRange: number = 30): UseCampaignD
 
       // Fetch sent campaigns
       const { data: campaignsData, error: campaignsError } = await supabase
-        .from('crm_campaigns')
-        .select('id, name, sent_at, total_sent, total_opens, total_clicks, open_rate, click_rate')
-        .eq('tenant_id', userData.tenant_id)
-        .in('status', ['sent', 'sent_with_errors'])
-        .gte('sent_at', startDate.toISOString())
-        .order('sent_at', { ascending: false })
+        .from("crm_campaigns")
+        .select(
+          "id, name, sent_at, total_sent, total_opens, total_clicks, open_rate, click_rate",
+        )
+        .eq("tenant_id", userData.tenant_id)
+        .in("status", ["sent", "sent_with_errors"])
+        .gte("sent_at", startDate.toISOString())
+        .order("sent_at", { ascending: false })
         .limit(10);
 
       if (campaignsError) throw campaignsError;
@@ -108,26 +112,33 @@ export const useCampaignDeliveryMetrics = (dateRange: number = 30): UseCampaignD
         return;
       }
 
-      const campaignIds = campaignsData.map(c => c.id);
+      const campaignIds = campaignsData.map((c) => c.id);
 
       // Authoritative message counts (source-of-truth ledger)
       // Note: This RPC may not exist in all environments - silently skip if unavailable
       let messageCountsData: any[] | null = null;
       try {
         const { data, error: messageCountsError } = await supabase.rpc(
-          'get_campaign_email_message_counts' as any,
-          { p_campaign_ids: campaignIds }
+          "get_campaign_email_message_counts" as any,
+          { p_campaign_ids: campaignIds },
         );
         if (messageCountsError) {
-          console.warn('Failed to load email message counts (falling back to job aggregates):', messageCountsError.message);
         } else {
           messageCountsData = data as any[];
         }
-      } catch (err) {
-        console.warn('get_campaign_email_message_counts RPC not available, using fallback');
-      }
+      } catch (err) {}
 
-      const messageCounts: Record<string, { total: number; queued: number; sending: number; sent: number; failed: number; skipped: number }> = {};
+      const messageCounts: Record<
+        string,
+        {
+          total: number;
+          queued: number;
+          sending: number;
+          sent: number;
+          failed: number;
+          skipped: number;
+        }
+      > = {};
       if (messageCountsData && Array.isArray(messageCountsData)) {
         messageCountsData.forEach((row: any) => {
           messageCounts[row.campaign_id] = {
@@ -143,54 +154,93 @@ export const useCampaignDeliveryMetrics = (dateRange: number = 30): UseCampaignD
 
       // Fetch send job aggregates for all campaigns
       const { data: jobsData } = await supabase
-        .from('email_send_jobs')
-        .select('campaign_id, id')
-        .in('campaign_id', campaignIds)
-        .eq('status', 'completed');
+        .from("email_send_jobs")
+        .select("campaign_id, id")
+        .in("campaign_id", campaignIds)
+        .eq("status", "completed");
 
       // Fetch skip aggregates for all campaigns
       const { data: skipsData } = await supabase
-        .from('email_send_skips')
-        .select('campaign_id, reason')
-        .in('campaign_id', campaignIds);
+        .from("email_send_skips")
+        .select("campaign_id, reason")
+        .in("campaign_id", campaignIds);
 
       // Aggregate jobs by campaign
-      const jobsAgg: Record<string, { enqueued: number; sent: number; failed: number; batches: number }> = {};
-      (jobsData || []).forEach(job => {
+      const jobsAgg: Record<
+        string,
+        { enqueued: number; sent: number; failed: number; batches: number }
+      > = {};
+      (jobsData || []).forEach((job) => {
         if (!jobsAgg[job.campaign_id]) {
-          jobsAgg[job.campaign_id] = { enqueued: 0, sent: 0, failed: 0, batches: 0 };
+          jobsAgg[job.campaign_id] = {
+            enqueued: 0,
+            sent: 0,
+            failed: 0,
+            batches: 0,
+          };
         }
         jobsAgg[job.campaign_id].batches += 1;
       });
 
       // Aggregate skips by campaign and reason
-      const skipsAgg: Record<string, { opt_out: number; suppressed: number; invalid_email: number; other: number; total: number }> = {};
-      (skipsData || []).forEach(skip => {
-        if (!skipsAgg[skip.campaign_id]) {
-          skipsAgg[skip.campaign_id] = { opt_out: 0, suppressed: 0, invalid_email: 0, other: 0, total: 0 };
+      const skipsAgg: Record<
+        string,
+        {
+          opt_out: number;
+          suppressed: number;
+          invalid_email: number;
+          other: number;
+          total: number;
         }
-        const reason = skip.reason || 'other';
-        if (reason === 'opt_out') skipsAgg[skip.campaign_id].opt_out += 1;
-        else if (reason === 'suppressed') skipsAgg[skip.campaign_id].suppressed += 1;
-        else if (reason === 'invalid_email') skipsAgg[skip.campaign_id].invalid_email += 1;
+      > = {};
+      (skipsData || []).forEach((skip) => {
+        if (!skipsAgg[skip.campaign_id]) {
+          skipsAgg[skip.campaign_id] = {
+            opt_out: 0,
+            suppressed: 0,
+            invalid_email: 0,
+            other: 0,
+            total: 0,
+          };
+        }
+        const reason = skip.reason || "other";
+        if (reason === "opt_out") skipsAgg[skip.campaign_id].opt_out += 1;
+        else if (reason === "suppressed")
+          skipsAgg[skip.campaign_id].suppressed += 1;
+        else if (reason === "invalid_email")
+          skipsAgg[skip.campaign_id].invalid_email += 1;
         else skipsAgg[skip.campaign_id].other += 1;
         skipsAgg[skip.campaign_id].total += 1;
       });
 
       // Build metrics for each campaign
-      const metrics: DeliveryMetrics[] = campaignsData.map(c => {
-        const jobs = jobsAgg[c.id] || { enqueued: 0, sent: 0, failed: 0, batches: 0 };
+      const metrics: DeliveryMetrics[] = campaignsData.map((c) => {
+        const jobs = jobsAgg[c.id] || {
+          enqueued: 0,
+          sent: 0,
+          failed: 0,
+          batches: 0,
+        };
         const counts = messageCounts[c.id];
 
         const computedEnqueued = counts ? counts.total : jobs.enqueued;
         const computedSent = counts ? counts.sent : jobs.sent;
         const computedFailed = counts ? counts.failed : jobs.failed;
-        const skips = skipsAgg[c.id] || { opt_out: 0, suppressed: 0, invalid_email: 0, other: 0, total: 0 };
+        const skips = skipsAgg[c.id] || {
+          opt_out: 0,
+          suppressed: 0,
+          invalid_email: 0,
+          other: 0,
+          total: 0,
+        };
 
         const cachedSent = c.total_sent || 0;
-        const discrepancy = cachedSent > 0
-          ? Math.abs(((computedSent - cachedSent) / cachedSent) * 100)
-          : computedSent > 0 ? 100 : 0;
+        const discrepancy =
+          cachedSent > 0
+            ? Math.abs(((computedSent - cachedSent) / cachedSent) * 100)
+            : computedSent > 0
+              ? 100
+              : 0;
 
         return {
           campaignId: c.id,
@@ -221,46 +271,55 @@ export const useCampaignDeliveryMetrics = (dateRange: number = 30): UseCampaignD
 
       setCampaigns(metrics);
     } catch (err: any) {
-      console.error('Error fetching campaign delivery metrics:', err);
+      console.error("Error fetching campaign delivery metrics:", err);
       setError(err.message);
     } finally {
       setLoading(false);
     }
   }, [user?.id, dateRange]);
 
-  const recomputeCampaign = useCallback(async (campaignId: string) => {
-    try {
-      const { data, error: rpcError } = await supabase.rpc('recompute_campaign_metrics', {
-        p_campaign_id: campaignId
-      });
+  const recomputeCampaign = useCallback(
+    async (campaignId: string) => {
+      try {
+        const { data, error: rpcError } = await supabase.rpc(
+          "recompute_campaign_metrics",
+          {
+            p_campaign_id: campaignId,
+          },
+        );
 
-      if (rpcError) throw rpcError;
+        if (rpcError) throw rpcError;
 
-      toast.success('Campaign metrics recalculated');
-      await fetchMetrics();
-    } catch (err: any) {
-      console.error('Error recomputing campaign metrics:', err);
-      toast.error('Failed to recalculate metrics');
-    }
-  }, [fetchMetrics]);
+        toast.success("Campaign metrics recalculated");
+        await fetchMetrics();
+      } catch (err: any) {
+        console.error("Error recomputing campaign metrics:", err);
+        toast.error("Failed to recalculate metrics");
+      }
+    },
+    [fetchMetrics],
+  );
 
   const recomputeAll = useCallback(async () => {
     if (!tenantId) return;
 
     try {
-      toast.info('Recalculating all campaign metrics...');
+      toast.info("Recalculating all campaign metrics...");
 
-      const { error } = await supabase.functions.invoke('recompute-campaign-metrics', {
-        body: { tenant_id: tenantId }
-      });
+      const { error } = await supabase.functions.invoke(
+        "recompute-campaign-metrics",
+        {
+          body: { tenant_id: tenantId },
+        },
+      );
 
       if (error) throw error;
 
-      toast.success('All campaign metrics recalculated');
+      toast.success("All campaign metrics recalculated");
       await fetchMetrics();
     } catch (err: any) {
-      console.error('Error recomputing all metrics:', err);
-      toast.error('Failed to recalculate metrics');
+      console.error("Error recomputing all metrics:", err);
+      toast.error("Failed to recalculate metrics");
     }
   }, [tenantId, fetchMetrics]);
 
@@ -277,13 +336,24 @@ export const useCampaignDeliveryMetrics = (dateRange: number = 30): UseCampaignD
       acc.totalFailed += c.computedFailed;
       return acc;
     },
-    { totalCampaigns: 0, totalDelivered: 0, totalSkipped: 0, totalFailed: 0, avgOpenRate: 0, avgClickRate: 0 }
+    {
+      totalCampaigns: 0,
+      totalDelivered: 0,
+      totalSkipped: 0,
+      totalFailed: 0,
+      avgOpenRate: 0,
+      avgClickRate: 0,
+    },
   );
 
   // Calculate weighted average rates
   if (summary.totalDelivered > 0) {
-    summary.avgOpenRate = campaigns.reduce((sum, c) => sum + c.openRate * c.computedDelivered, 0) / summary.totalDelivered;
-    summary.avgClickRate = campaigns.reduce((sum, c) => sum + c.clickRate * c.computedDelivered, 0) / summary.totalDelivered;
+    summary.avgOpenRate =
+      campaigns.reduce((sum, c) => sum + c.openRate * c.computedDelivered, 0) /
+      summary.totalDelivered;
+    summary.avgClickRate =
+      campaigns.reduce((sum, c) => sum + c.clickRate * c.computedDelivered, 0) /
+      summary.totalDelivered;
   }
 
   return {

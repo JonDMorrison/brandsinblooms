@@ -1,20 +1,23 @@
-import React, { useRef } from 'react';
-import { ContentBlock } from '@/types/emailBuilder';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { NativeSelect } from '@/components/ui/NativeSelect';
-import { Slider } from '@/components/ui/slider';
-import { MediaSelectorImage, MediaSelectorImageHandle } from '@/components/crm/MediaSelectorImage';
-import { Edit, Copy, Trash2, RefreshCw, Sparkles } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { ContextualToolbar } from '../contextual/ContextualToolbar';
-import { EditMode } from '@/hooks/useBlockEditMode';
-import { sanitizeWeekNumbers } from '@/utils/weekNumberSanitizer';
-import { useAutoBackgroundImage } from '@/hooks/useAutoBackgroundImage';
-import { SafeHtml } from '@/components/ui/safe-html';
-import { ColorPickerWithSwatches } from '../shared/ColorPickerWithSwatches';
-import { AIImageLoadingOverlay } from '../AIImageLoadingOverlay';
+import React, { useRef } from "react";
+import { ContentBlock } from "@/types/emailBuilder";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { NativeSelect } from "@/components/ui/NativeSelect";
+import { Slider } from "@/components/ui/slider";
+import {
+  MediaSelectorImage,
+  MediaSelectorImageHandle,
+} from "@/components/crm/MediaSelectorImage";
+import { Edit, Copy, Trash2, RefreshCw, Sparkles } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { ContextualToolbar } from "../contextual/ContextualToolbar";
+import { EditMode } from "@/hooks/useBlockEditMode";
+import { sanitizeWeekNumbers } from "@/utils/weekNumberSanitizer";
+import { useAutoBackgroundImage } from "@/hooks/useAutoBackgroundImage";
+import { SafeHtml } from "@/components/ui/safe-html";
+import { ColorPickerWithSwatches } from "../shared/ColorPickerWithSwatches";
+import { AIImageLoadingOverlay } from "../AIImageLoadingOverlay";
 
 interface HeaderBlockProps {
   block: ContentBlock;
@@ -27,15 +30,15 @@ interface HeaderBlockProps {
   isGeneratingImage?: boolean;
 }
 
-export const HeaderBlock: React.FC<HeaderBlockProps> = ({ 
-  block, 
-  onUpdate, 
-  onDuplicate, 
-  onDelete, 
+export const HeaderBlock: React.FC<HeaderBlockProps> = ({
+  block,
+  onUpdate,
+  onDuplicate,
+  onDelete,
   isPreview,
   editMode,
   onModeChange,
-  isGeneratingImage = false
+  isGeneratingImage = false,
 }) => {
   const mediaSelectorRef = useRef<MediaSelectorImageHandle>(null);
 
@@ -44,61 +47,50 @@ export const HeaderBlock: React.FC<HeaderBlockProps> = ({
     headline: block.headline || block.title,
     currentBackgroundUrl: block.backgroundImageUrl,
     onImageSelected: (imageUrl, metadata) => {
-      console.log('[HeaderBlock] Auto-selected background:', imageUrl, metadata);
-      onUpdate({ 
+      onUpdate({
         backgroundImageUrl: imageUrl,
         // Set a subtle dark overlay for better text readability (using dark gray instead of black)
-        backgroundColor: '#1f2937',
+        backgroundColor: "#1f2937",
         colorOverlayOpacity: 40,
-        backgroundOpacity: 60
+        backgroundOpacity: 60,
       });
     },
     enabled: !isPreview,
-    shouldAutoFetch: false // Disable automatic fetching for existing blocks
+    shouldAutoFetch: false, // Disable automatic fetching for existing blocks
   });
   // Live preview component that can be reused
   const PreviewContent = () => (
     <div className="relative overflow-hidden rounded-lg group min-h-[300px]">
       {/* Background Image - bottom layer */}
       {block.backgroundImageUrl && (
-        <div 
+        <div
           className="absolute inset-0 bg-cover bg-center"
-          style={{ 
+          style={{
             backgroundImage: `url(${block.backgroundImageUrl})`,
-            opacity: (block.backgroundOpacity || 100) / 100
+            opacity: (block.backgroundOpacity || 100) / 100,
           }}
         />
       )}
-      
+
       {/* Color Overlay - middle layer */}
-      {(() => {
-        // Debug logging for black color issue
-        console.log('[HeaderBlock Debug]', {
-          backgroundColor: block.backgroundColor,
-          hasBackgroundColor: !!block.backgroundColor,
-          colorOverlayOpacity: block.colorOverlayOpacity,
-          shouldShowOverlay: !!block.backgroundColor
-        });
-        
-        // Only render overlay if backgroundColor exists
-        return block.backgroundColor ? (
-          <div 
-            className="absolute inset-0"
-            style={{ 
-              backgroundColor: block.backgroundColor,
-              opacity: (block.colorOverlayOpacity || 50) / 100
-            }}
-          />
-        ) : null;
-      })()}
+
+      {block.backgroundColor ? (
+        <div
+          className="absolute inset-0"
+          style={{
+            backgroundColor: block.backgroundColor,
+            opacity: (block.colorOverlayOpacity || 50) / 100,
+          }}
+        />
+      ) : null}
 
       {/* Custom Image Overlay from overlay dialog - supports overlayColor/overlayOpacity */}
       {block.overlayOpacity && block.overlayOpacity > 0 && (
         <div
           className="absolute inset-0 pointer-events-none"
           style={{
-            backgroundColor: block.overlayColor || '#000000',
-            opacity: block.overlayOpacity / 100
+            backgroundColor: block.overlayColor || "#000000",
+            opacity: block.overlayOpacity / 100,
           }}
         />
       )}
@@ -109,7 +101,6 @@ export const HeaderBlock: React.FC<HeaderBlockProps> = ({
           editMode={editMode}
           onModeChange={onModeChange}
           onImageEdit={() => {
-            console.log('[HeaderBlock] Image edit triggered via ContextualToolbar');
             mediaSelectorRef.current?.openDialog();
           }}
           showTextEdit={true}
@@ -117,27 +108,34 @@ export const HeaderBlock: React.FC<HeaderBlockProps> = ({
           showFormatEdit={false}
         />
       )}
-      
+
       {/* Content - top layer */}
-      <div className={cn(
-        "relative z-10 p-12 text-white flex items-center justify-center min-h-[300px]",
-        // Use a beautiful gradient fallback instead of grey when no background
-        !block.backgroundImageUrl && !block.backgroundColor && [
-          "bg-gradient-to-br from-blue-600 via-purple-600 to-blue-800",
-          "bg-[length:400%_400%] animate-gradient-x"
-        ],
-        block.textAlign === 'center' && "text-center",
-        block.textAlign === 'right' && "text-right"
-      )}>
+      <div
+        className={cn(
+          "relative z-10 p-12 text-white flex items-center justify-center min-h-[300px]",
+          // Use a beautiful gradient fallback instead of grey when no background
+          !block.backgroundImageUrl &&
+            !block.backgroundColor && [
+              "bg-gradient-to-br from-blue-600 via-purple-600 to-blue-800",
+              "bg-[length:400%_400%] animate-gradient-x",
+            ],
+          block.textAlign === "center" && "text-center",
+          block.textAlign === "right" && "text-right",
+        )}
+      >
         <div className="max-w-2xl">
-          <SafeHtml 
-            content={sanitizeWeekNumbers(block.headline || block.title || "Your Headline Here")}
+          <SafeHtml
+            content={sanitizeWeekNumbers(
+              block.headline || block.title || "Your Headline Here",
+            )}
             className="text-4xl md:text-5xl font-bold mb-4 leading-tight drop-shadow-lg [&>*]:m-0"
             type="general"
           />
           {(block.body || block.subtitle || block.content) && (
-            <SafeHtml 
-              content={sanitizeWeekNumbers(block.body || block.subtitle || block.content || "")}
+            <SafeHtml
+              content={sanitizeWeekNumbers(
+                block.body || block.subtitle || block.content || "",
+              )}
               className="text-lg md:text-xl opacity-90 leading-relaxed drop-shadow-md [&>*]:m-0"
               type="general"
             />
@@ -193,7 +191,7 @@ export const HeaderBlock: React.FC<HeaderBlockProps> = ({
           <Label htmlFor="headline">Headline</Label>
           <Input
             id="headline"
-            value={block.headline || ''}
+            value={block.headline || ""}
             onChange={(e) => onUpdate({ headline: e.target.value })}
             placeholder="Enter headline"
           />
@@ -201,12 +199,12 @@ export const HeaderBlock: React.FC<HeaderBlockProps> = ({
         <div className="space-y-2">
           <Label htmlFor="alignment">Text Alignment</Label>
           <NativeSelect
-            value={block.textAlign || 'left'}
+            value={block.textAlign || "left"}
             onChange={(e) => onUpdate({ textAlign: e.target.value as any })}
             options={[
-              { value: 'left', label: 'Left' },
-              { value: 'center', label: 'Center' },
-              { value: 'right', label: 'Right' }
+              { value: "left", label: "Left" },
+              { value: "center", label: "Center" },
+              { value: "right", label: "Right" },
             ]}
           />
         </div>
@@ -216,7 +214,7 @@ export const HeaderBlock: React.FC<HeaderBlockProps> = ({
         <Label htmlFor="body">Body Text</Label>
         <Textarea
           id="body"
-          value={block.body || ''}
+          value={block.body || ""}
           onChange={(e) => onUpdate({ body: e.target.value })}
           placeholder="Enter subtitle or description"
           rows={3}
@@ -252,7 +250,7 @@ export const HeaderBlock: React.FC<HeaderBlockProps> = ({
             )}
           </div>
         </div>
-        
+
         {/* Auto-background info */}
         {!block.backgroundImageUrl && block.headline && (
           <div className="text-sm text-muted-foreground bg-blue-50 p-3 rounded-md border border-blue-200">
@@ -260,31 +258,37 @@ export const HeaderBlock: React.FC<HeaderBlockProps> = ({
               <Sparkles className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
               <div>
                 <p className="font-medium text-blue-800">Smart Background</p>
-                <p>We'll automatically find a beautiful background image based on your headline: "<em>{block.headline}</em>"</p>
+                <p>
+                  We'll automatically find a beautiful background image based on
+                  your headline: "<em>{block.headline}</em>"
+                </p>
               </div>
             </div>
           </div>
         )}
-        
+
         <MediaSelectorImage
           ref={mediaSelectorRef}
           src={block.backgroundImageUrl}
           onChange={(imageUrl, metadata) => {
-            console.log('[HeaderBlock] Image manually selected:', imageUrl, metadata);
             onUpdate({ backgroundImageUrl: imageUrl });
           }}
-          contentContext={block.headline || block.body || 'header background'}
+          contentContext={block.headline || block.body || "header background"}
           className="h-32"
         />
         {block.backgroundImageUrl && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <Label htmlFor="imageOpacity">Image Opacity</Label>
-              <span className="text-sm text-muted-foreground">{block.backgroundOpacity || 100}%</span>
+              <span className="text-sm text-muted-foreground">
+                {block.backgroundOpacity || 100}%
+              </span>
             </div>
             <Slider
               value={[block.backgroundOpacity || 100]}
-              onValueChange={(value) => onUpdate({ backgroundOpacity: value[0] })}
+              onValueChange={(value) =>
+                onUpdate({ backgroundOpacity: value[0] })
+              }
               max={100}
               min={1}
               step={1}
@@ -300,13 +304,8 @@ export const HeaderBlock: React.FC<HeaderBlockProps> = ({
           <ColorPickerWithSwatches
             label="Overlay Color"
             id="bgColor"
-            value={block.backgroundColor || '#000000'}
+            value={block.backgroundColor || "#000000"}
             onChange={(color) => {
-              console.log('[HeaderBlock Color Input]', {
-                newValue: color,
-                oldValue: block.backgroundColor,
-                isBlack: color === '#000000'
-              });
               onUpdate({ backgroundColor: color });
             }}
             defaultValue="#000000"
@@ -314,11 +313,15 @@ export const HeaderBlock: React.FC<HeaderBlockProps> = ({
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <Label htmlFor="colorOpacity">Overlay Opacity</Label>
-              <span className="text-sm text-muted-foreground">{block.colorOverlayOpacity || 50}%</span>
+              <span className="text-sm text-muted-foreground">
+                {block.colorOverlayOpacity || 50}%
+              </span>
             </div>
             <Slider
               value={[block.colorOverlayOpacity || 50]}
-              onValueChange={(value) => onUpdate({ colorOverlayOpacity: value[0] })}
+              onValueChange={(value) =>
+                onUpdate({ colorOverlayOpacity: value[0] })
+              }
               max={100}
               min={1}
               step={1}
@@ -331,13 +334,13 @@ export const HeaderBlock: React.FC<HeaderBlockProps> = ({
       <div className="space-y-2">
         <Label>Padding</Label>
         <NativeSelect
-          value={block.padding || 'medium'}
+          value={block.padding || "medium"}
           onChange={(e) => onUpdate({ padding: e.target.value as any })}
           options={[
-            { value: 'none', label: 'None' },
-            { value: 'small', label: 'Small' },
-            { value: 'medium', label: 'Medium' },
-            { value: 'large', label: 'Large' }
+            { value: "none", label: "None" },
+            { value: "small", label: "Small" },
+            { value: "medium", label: "Medium" },
+            { value: "large", label: "Large" },
           ]}
         />
       </div>

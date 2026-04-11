@@ -1,7 +1,11 @@
 import * as React from "react";
 import { EnhancedAppleCard } from "@/components/ui/enhanced-apple-card";
 import { AppleCardContent, AppleCardHeader } from "@/components/ui/apple-card";
-import { HeadlineLarge, BodyMedium, CaptionMedium } from "@/components/ui/typography";
+import {
+  HeadlineLarge,
+  BodyMedium,
+  CaptionMedium,
+} from "@/components/ui/typography";
 import { ResponsiveGrid } from "@/components/ui/responsive-grid";
 import { HolidayItem } from "./HolidayItem";
 import { HolidayContentViewer } from "./HolidayContentViewer";
@@ -10,11 +14,22 @@ import { useSeasonalHolidays } from "@/hooks/useSeasonalHolidays";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { Calendar, Clock, Sparkles, Leaf, ChevronDown, ChevronUp } from "lucide-react";
+import {
+  Calendar,
+  Clock,
+  Sparkles,
+  Leaf,
+  ChevronDown,
+  ChevronUp,
+} from "lucide-react";
 // Removed sonner import - using global toast replacement
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 
 interface SeasonalHolidaysCardProps {
   onContentGenerated?: () => void;
@@ -23,14 +38,25 @@ interface SeasonalHolidaysCardProps {
 
 export const SeasonalHolidaysCard = ({
   onContentGenerated,
-  className
+  className,
 }: SeasonalHolidaysCardProps) => {
   const { user } = useAuth();
   const isMobile = useIsMobile();
-  const { allHolidays, holidayContentState, loading, error, generateHolidayContent, refreshHolidayContent } = useSeasonalHolidays();
-  const [generatingHolidays, setGeneratingHolidays] = React.useState<Set<string>>(new Set());
+  const {
+    allHolidays,
+    holidayContentState,
+    loading,
+    error,
+    generateHolidayContent,
+    refreshHolidayContent,
+  } = useSeasonalHolidays();
+  const [generatingHolidays, setGeneratingHolidays] = React.useState<
+    Set<string>
+  >(new Set());
   const [showProfileSetup, setShowProfileSetup] = React.useState(false);
-  const [hasCompanyProfile, setHasCompanyProfile] = React.useState<boolean | null>(null);
+  const [hasCompanyProfile, setHasCompanyProfile] = React.useState<
+    boolean | null
+  >(null);
   const [displayLimit, setDisplayLimit] = React.useState(6);
   const [contentViewerState, setContentViewerState] = React.useState<{
     isOpen: boolean;
@@ -39,7 +65,7 @@ export const SeasonalHolidaysCard = ({
   }>({
     isOpen: false,
     holidayId: null,
-    holidayName: ''
+    holidayName: "",
   });
   const [isCollapsed, setIsCollapsed] = React.useState(false);
 
@@ -54,7 +80,7 @@ export const SeasonalHolidaysCard = ({
 
   // Handle load more
   const handleLoadMore = () => {
-    setDisplayLimit(prev => Math.min(prev + 6, allHolidays.length));
+    setDisplayLimit((prev) => Math.min(prev + 6, allHolidays.length));
   };
 
   React.useEffect(() => {
@@ -63,20 +89,19 @@ export const SeasonalHolidaysCard = ({
 
       try {
         const { data: profile, error } = await supabase
-          .from('company_profiles')
-          .select('id, company_name')
-          .eq('user_id', user.id)
+          .from("company_profiles")
+          .select("id, company_name")
+          .eq("user_id", user.id)
           .maybeSingle();
 
         if (error) {
-          console.error('Error checking company profile:', error);
+          console.error("Error checking company profile:", error);
           setHasCompanyProfile(false);
         } else {
           setHasCompanyProfile(!!profile);
-          console.log('Company profile status:', !!profile, profile?.company_name || 'No name');
         }
       } catch (error) {
-        console.error('Exception checking company profile:', error);
+        console.error("Exception checking company profile:", error);
         setHasCompanyProfile(false);
       }
     };
@@ -84,51 +109,39 @@ export const SeasonalHolidaysCard = ({
     checkCompanyProfile();
   }, [user]);
 
-  const handleGenerateContent = async (holidayId: string) => {
-    console.log(`CARD: Generate content requested for holiday ID: ${holidayId}`);
-    console.log(`CARD: Current generating holidays:`, Array.from(generatingHolidays));
-    
     // Check if already generating
     if (generatingHolidays.has(holidayId)) {
-      console.log(`CARD: Already generating content for holiday: ${holidayId}`);
       return;
     }
 
     // Check if user has company profile before generating
     if (hasCompanyProfile === false) {
-      console.log(`CARD: No company profile, showing setup`);
       setShowProfileSetup(true);
       return;
     }
 
-    const holiday = allHolidays.find(h => h.id === holidayId);
+    const holiday = allHolidays.find((h) => h.id === holidayId);
     if (!holiday) {
       console.error(`CARD: Holiday not found for ID: ${holidayId}`);
       return;
     }
-
-    console.log(`CARD: Starting generation for: ${holiday.holiday_name}`);
-    setGeneratingHolidays(prev => new Set(prev).add(holidayId));
+    setGeneratingHolidays((prev) => new Set(prev).add(holidayId));
 
     try {
       await generateHolidayContent(holidayId);
-      
-      console.log(`CARD: Generation completed successfully for: ${holiday.holiday_name}`);
-      
       if (onContentGenerated) {
         onContentGenerated();
       }
     } catch (error) {
-      console.error('CARD: Failed to generate holiday content:', error);
-      
+      console.error("CARD: Failed to generate holiday content:", error);
+
       // Make sure error is shown to user - the hook should have already shown toast
       // but we'll add a fallback just in case
-      if (!error?.message?.includes('toast already shown')) {
+      if (!error?.message?.includes("toast already shown")) {
         toast.error(`Failed to generate content for ${holiday.holiday_name}`);
       }
     } finally {
-      console.log(`CARD: Clearing generating state for: ${holidayId}`);
-      setGeneratingHolidays(prev => {
+      setGeneratingHolidays((prev) => {
         const newSet = new Set(prev);
         newSet.delete(holidayId);
         return newSet;
@@ -139,14 +152,14 @@ export const SeasonalHolidaysCard = ({
   const handleViewContent = (holidayId: string, holidayName: string) => {
     const contentState = holidayContentState[holidayId];
     if (!contentState || contentState.contentCount === 0) {
-      toast.error('No content available for this holiday');
+      toast.error("No content available for this holiday");
       return;
     }
-    
+
     setContentViewerState({
       isOpen: true,
       holidayId,
-      holidayName
+      holidayName,
     });
   };
 
@@ -154,9 +167,9 @@ export const SeasonalHolidaysCard = ({
     setContentViewerState({
       isOpen: false,
       holidayId: null,
-      holidayName: ''
+      holidayName: "",
     });
-    
+
     // Refresh content state when viewer closes
     refreshHolidayContent();
   };
@@ -169,7 +182,7 @@ export const SeasonalHolidaysCard = ({
   // Show profile setup modal if needed
   if (showProfileSetup) {
     return (
-      <div className={cn('space-y-6', className)}>
+      <div className={cn("space-y-6", className)}>
         <CompanyProfileSetup onComplete={handleProfileSetupComplete} />
       </div>
     );
@@ -177,7 +190,7 @@ export const SeasonalHolidaysCard = ({
 
   if (loading) {
     return (
-      <div className={cn('space-y-6', className)}>
+      <div className={cn("space-y-6", className)}>
         {/* Header Skeleton */}
         <div className="flex items-start justify-between text-left">
           <div className="space-y-2 text-left">
@@ -186,11 +199,14 @@ export const SeasonalHolidaysCard = ({
           </div>
           <div className="h-6 w-24 bg-gray-200 rounded animate-pulse" />
         </div>
-        
+
         {/* Cards Skeleton */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {[1, 2, 3, 4].map(i => (
-            <div key={i} className="h-64 bg-gray-100 rounded-xl animate-pulse border border-gray-200" />
+          {[1, 2, 3, 4].map((i) => (
+            <div
+              key={i}
+              className="h-64 bg-gray-100 rounded-xl animate-pulse border border-gray-200"
+            />
           ))}
         </div>
       </div>
@@ -199,7 +215,7 @@ export const SeasonalHolidaysCard = ({
 
   if (error) {
     return (
-      <div className={cn('space-y-6', className)}>
+      <div className={cn("space-y-6", className)}>
         <div className="text-left py-12 px-6 bg-red-50 rounded-xl border border-red-200">
           <div className="w-16 h-16 mb-4 bg-red-100 rounded-full flex items-center justify-center">
             <Calendar className="w-8 h-8 text-red-500" />
@@ -217,7 +233,7 @@ export const SeasonalHolidaysCard = ({
 
   if (allHolidays.length === 0) {
     return (
-      <div className={cn('space-y-6', className)}>
+      <div className={cn("space-y-6", className)}>
         <div className="text-left py-16 px-6 bg-gradient-to-br from-green-50 to-blue-50 rounded-xl border border-green-200">
           <div className="w-20 h-20 mb-6 bg-gradient-to-br from-green-100 to-blue-100 rounded-full flex items-center justify-center">
             <Leaf className="w-10 h-10 text-green-600" />
@@ -226,7 +242,8 @@ export const SeasonalHolidaysCard = ({
             No Upcoming Holiday Opportunities
           </HeadlineLarge>
           <BodyMedium className="text-gray-600 max-w-sm mb-4 text-left">
-            No seasonal holidays or observances in the next 90 days. Check back soon for new marketing opportunities!
+            No seasonal holidays or observances in the next 90 days. Check back
+            soon for new marketing opportunities!
           </BodyMedium>
           <div className="flex justify-start">
             <Sparkles className="w-6 h-6 text-green-500 animate-pulse" />
@@ -238,7 +255,11 @@ export const SeasonalHolidaysCard = ({
 
   return (
     <>
-      <Collapsible open={!isCollapsed} onOpenChange={(open) => setIsCollapsed(!open)} className={cn('space-y-8', className)}>
+      <Collapsible
+        open={!isCollapsed}
+        onOpenChange={(open) => setIsCollapsed(!open)}
+        className={cn("space-y-8", className)}
+      >
         {/* Modern Gradient Header Section */}
         <CollapsibleTrigger asChild>
           <div className="relative bg-gradient-to-br from-slate-50 via-white to-gray-50/30 backdrop-blur-sm rounded-3xl border border-white/20 shadow-2xl overflow-hidden p-8 cursor-pointer hover:shadow-3xl transition-shadow duration-200">
@@ -250,7 +271,7 @@ export const SeasonalHolidaysCard = ({
                 <Calendar className="w-64 h-64 text-emerald-400" />
               </div>
             </div>
-            
+
             {/* Header Content */}
             <div className="relative z-10 flex items-start justify-between text-left">
               <div className="flex flex-col gap-3 text-left">
@@ -258,13 +279,16 @@ export const SeasonalHolidaysCard = ({
                   <div className="p-3 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl shadow-lg">
                     <Calendar className="w-8 h-8 text-white" />
                   </div>
-                  <HeadlineLarge className="text-4xl font-bold bg-gradient-to-r from-slate-800 via-slate-700 to-slate-600 bg-clip-text text-transparent text-left">Seasonal Marketing Opportunities</HeadlineLarge>
+                  <HeadlineLarge className="text-4xl font-bold bg-gradient-to-r from-slate-800 via-slate-700 to-slate-600 bg-clip-text text-transparent text-left">
+                    Seasonal Marketing Opportunities
+                  </HeadlineLarge>
                 </div>
                 <BodyMedium className="text-lg text-slate-600 max-w-2xl leading-relaxed text-left">
-                  Upcoming holidays and seasonal events for your marketing calendar
+                  Upcoming holidays and seasonal events for your marketing
+                  calendar
                 </BodyMedium>
               </div>
-              
+
               {/* Collapsible Chevron Icon */}
               <div className="relative z-10 ml-4 p-2 rounded-full hover:bg-white/20 transition-colors duration-200">
                 {isCollapsed ? (
@@ -281,12 +305,12 @@ export const SeasonalHolidaysCard = ({
           {/* Holiday Cards Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {displayedHolidays.map((holiday, index) => (
-              <div 
+              <div
                 key={holiday.id}
                 className="transform transition-all duration-300 hover:scale-[1.02]"
-                style={{ 
+                style={{
                   animationDelay: `${index * 100}ms`,
-                  animation: 'fadeInUp 0.6s ease-out forwards'
+                  animation: "fadeInUp 0.6s ease-out forwards",
                 }}
               >
                 <HolidayItem

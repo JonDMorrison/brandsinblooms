@@ -1,12 +1,12 @@
-import React from 'react';
+import React from "react";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
 interface ConfirmationDialogProps {
   open: boolean;
@@ -17,6 +17,7 @@ interface ConfirmationDialogProps {
   cancelText?: string;
   onConfirm: () => void;
   loading?: boolean;
+  loadingText?: string;
 }
 
 export const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
@@ -27,7 +28,8 @@ export const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
   confirmText = "Confirm",
   cancelText = "Cancel",
   onConfirm,
-  loading = false
+  loading = false,
+  loadingText,
 }) => {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -44,12 +46,8 @@ export const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
           >
             {cancelText}
           </Button>
-          <Button
-            variant="destructive"
-            onClick={onConfirm}
-            disabled={loading}
-          >
-            {loading ? "Disconnecting..." : confirmText}
+          <Button variant="destructive" onClick={onConfirm} disabled={loading}>
+            {loading ? loadingText || `${confirmText}...` : confirmText}
           </Button>
         </div>
       </DialogContent>

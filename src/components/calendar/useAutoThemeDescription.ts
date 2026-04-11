@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from "react";
 import { generateThemeDescription } from "./ThemeDescriptionGenerator";
 import { useAuth } from "@/contexts/AuthContext";
@@ -14,7 +13,7 @@ export const useAutoThemeDescription = ({
   theme,
   currentDescription,
   onDescriptionGenerated,
-  enabled = true
+  enabled = true,
 }: UseAutoThemeDescriptionProps) => {
   const { user } = useAuth();
   const [isGenerating, setIsGenerating] = useState(false);
@@ -33,32 +32,33 @@ export const useAutoThemeDescription = ({
     // - Theme hasn't changed significantly
     // - Description already exists
     // - Already generating
-    if (!enabled ||
-        !theme.trim() || 
-        theme === lastGeneratedTheme || 
-        (currentDescription && currentDescription.trim()) ||
-        isGenerating) {
+    if (
+      !enabled ||
+      !theme.trim() ||
+      theme === lastGeneratedTheme ||
+      (currentDescription && currentDescription.trim()) ||
+      isGenerating
+    ) {
       return;
     }
 
     // Debounce auto-generation
     debounceRef.current = setTimeout(async () => {
-      console.log('Auto-generating description for theme:', theme);
       setIsGenerating(true);
       setLastGeneratedTheme(theme);
-      
+
       try {
         await generateThemeDescription(
-          theme, 
+          theme,
           (description) => {
             onDescriptionGenerated(description);
             setIsGenerating(false);
-          }, 
-          setIsGenerating, 
-          user?.id
+          },
+          setIsGenerating,
+          user?.id,
         );
       } catch (error) {
-        console.error('Auto-generation failed:', error);
+        console.error("Auto-generation failed:", error);
         setIsGenerating(false);
       }
     }, 1500); // Wait 1.5 seconds after user stops typing
@@ -68,11 +68,19 @@ export const useAutoThemeDescription = ({
         clearTimeout(debounceRef.current);
       }
     };
-  }, [theme, user?.id, lastGeneratedTheme, currentDescription, isGenerating, enabled, onDescriptionGenerated]);
+  }, [
+    theme,
+    user?.id,
+    lastGeneratedTheme,
+    currentDescription,
+    isGenerating,
+    enabled,
+    onDescriptionGenerated,
+  ]);
 
   return {
     isGenerating,
     lastGeneratedTheme,
-    setLastGeneratedTheme
+    setLastGeneratedTheme,
   };
 };

@@ -1,20 +1,20 @@
-import { triggerCatalog, getTriggerById } from './triggerCatalog';
+import { triggerCatalog, getTriggerById } from "./triggerCatalog";
 
 /**
  * Legacy trigger ID mappings to canonical IDs
  */
 const LEGACY_TRIGGER_MAPPINGS: Record<string, string> = {
   // Legacy -> Canonical
-  'customer_birthday': 'birthday',
-  'event_rsvp': 'event_registration',
-  'newsletter_signup': 'garden_tips_subscription',
-  'newsletter_opt_in': 'garden_tips_subscription',
-  'new_customer': 'loyalty_join',
-  'repeat_purchase_30d': 'repeat_purchase_90d',
-  'repeat_purchase_180d': 'repeat_purchase_90d',
-  'plant_care': 'plant_care_reminder',
-  'holiday_promo': 'holiday_promo', // Already canonical
-  'manual': 'loyalty_join', // Default fallback
+  customer_birthday: "birthday",
+  event_rsvp: "event_registration",
+  newsletter_signup: "garden_tips_subscription",
+  newsletter_opt_in: "garden_tips_subscription",
+  new_customer: "loyalty_join",
+  repeat_purchase_30d: "repeat_purchase_90d",
+  repeat_purchase_180d: "repeat_purchase_90d",
+  plant_care: "plant_care_reminder",
+  holiday_promo: "holiday_promo", // Already canonical
+  manual: "loyalty_join", // Default fallback
 };
 
 /**
@@ -35,15 +35,14 @@ export function normalizeTriggerId(id: string): string {
   }
 
   // If no mapping found, try to find a close match or return default
-  console.warn(`Unknown trigger ID: ${id}, falling back to loyalty_join`);
-  return 'loyalty_join';
+  return "loyalty_join";
 }
 
 /**
  * Gets all available canonical trigger IDs
  */
 export function getCanonicalTriggerIds(): string[] {
-  return triggerCatalog.map(trigger => trigger.id);
+  return triggerCatalog.map((trigger) => trigger.id);
 }
 
 /**
@@ -63,10 +62,10 @@ export function mapLegacyToCanonical(legacyId: string): {
 } {
   const canonical = normalizeTriggerId(legacyId);
   const wasLegacy = canonical !== legacyId && !isCanonicalTriggerId(legacyId);
-  
+
   return {
     canonical,
     wasLegacy,
-    originalId: legacyId
+    originalId: legacyId,
   };
 }

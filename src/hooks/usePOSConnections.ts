@@ -1,8 +1,8 @@
-import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/hooks/useAuth';
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 
 export interface POSConnection {
   id: string;
@@ -34,13 +34,14 @@ export const usePOSConnections = () => {
 
   // Fetch POS connections with latest sync status
   const { data: connections, isLoading } = useQuery({
-    queryKey: ['pos-connections', user?.id],
+    queryKey: ["pos-connections", user?.id],
     queryFn: async () => {
       if (!user) return [];
-      
+
       const { data, error } = await supabase
-        .from('pos_connections')
-        .select(`
+        .from("pos_connections")
+        .select(
+          `
           *,
           pos_sync_logs!inner(
             status,
@@ -50,9 +51,10 @@ export const usePOSConnections = () => {
             orders_synced,
             error_message
           )
-        `)
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
+        `,
+        )
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
 
       if (error) throw error;
       return data as POSConnection[];
@@ -63,23 +65,22 @@ export const usePOSConnections = () => {
 
   // Track analytics events - simplified without database logging for now
   const trackSyncEvent = async (
-    eventType: string, 
-    properties: Record<string, any>
+    eventType: string,
+    properties: Record<string, any>,
   ) => {
     // Log to console for debugging - in production this could be sent to analytics service
-    console.log(`POS Analytics: ${eventType}`, properties);
   };
 
   // Run manual sync
   const runSyncMutation = useMutation({
     mutationFn: async (connectionId: string): Promise<SyncResult> => {
-      const connection = connections?.find(c => c.id === connectionId);
-      if (!connection) throw new Error('Connection not found');
+      const connection = connections?.find((c) => c.id === connectionId);
+      if (!connection) throw new Error("Connection not found");
 
       const startTime = Date.now();
-      
+
       // Track sync start
-      await trackSyncEvent('pos_sync_started', {
+      await trackSyncEvent("pos_sync_started", {
         pos_type: connection.platform,
         connection_id: connectionId,
       });
@@ -93,7 +94,7 @@ export const usePOSConnections = () => {
       const duration = Date.now() - startTime;
 
       if (error) {
-        await trackSyncEvent('pos_sync_failed', {
+        await trackSyncEvent("pos_sync_failed", {
           pos_type: connection.platform,
           connection_id: connectionId,
           error: error.message,
@@ -103,7 +104,7 @@ export const usePOSConnections = () => {
       }
 
       // Track successful sync
-      await trackSyncEvent('pos_sync_completed', {
+      await trackSyncEvent("pos_sync_completed", {
         pos_type: connection.platform,
         connection_id: connectionId,
         new_customers: data.new_customers || 0,
@@ -131,10 +132,10 @@ export const usePOSConnections = () => {
         title: "Sync Completed ✓",
         description: `Imported ${result.new_customers || 0} customers and ${result.new_orders || 0} orders`,
       });
-      
+
       // Refresh connections data
-      queryClient.invalidateQueries({ queryKey: ['pos-connections'] });
-      queryClient.invalidateQueries({ queryKey: ['crm-customers'] });
+      queryClient.invalidateQueries({ queryKey: ["pos-connections"] });
+      queryClient.invalidateQueries({ queryKey: ["crm-customers"] });
     },
     onError: (error: any) => {
       setIsSyncing(false);
@@ -150,10 +151,10 @@ export const usePOSConnections = () => {
   const disconnectMutation = useMutation({
     mutationFn: async (connectionId: string) => {
       const { error } = await supabase
-        .from('pos_connections')
+        .from("pos_connections")
         .delete()
-        .eq('id', connectionId)
-        .eq('user_id', user?.id);
+        .eq("id", connectionId)
+        .eq("user_id", user?.id);
 
       if (error) throw error;
     },
@@ -162,7 +163,7 @@ export const usePOSConnections = () => {
         title: "Disconnected",
         description: "POS system has been disconnected successfully",
       });
-      queryClient.invalidateQueries({ queryKey: ['pos-connections'] });
+      queryClient.invalidateQueries({ queryKey: ["pos-connections"] });
     },
     onError: (error: any) => {
       toast({
@@ -178,6 +179,7 @@ export const usePOSConnections = () => {
     isLoading,
     isSyncing,
     runSync: (connectionId: string) => runSyncMutation.mutate(connectionId),
-    disconnectPOS: (connectionId: string) => disconnectMutation.mutate(connectionId),
+    disconnectPOS: (connectionId: string) =>
+      disconnectMutation.mutate(connectionId),
   };
 };

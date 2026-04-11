@@ -163,8 +163,6 @@ export const CRMSegmentsPage: React.FC = () => {
   };
 
   const handleViewSegmentDetails = (segmentId: string) => {
-    console.log("View details for segment:", segmentId);
-
     // Find segment name
     const segment = predefinedSegments.find((s) => s.id === segmentId);
     if (segment) {

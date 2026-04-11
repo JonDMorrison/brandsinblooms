@@ -37,8 +37,6 @@ export const useAdminData = () => {
 
   const fetchAdminData = async () => {
     try {
-      console.log("Fetching admin metrics using new function...");
-
       // Use the new admin function to get accurate user data
       const { data: adminData, error: adminError } = await supabase.rpc(
         "get_admin_user_data",
@@ -48,9 +46,6 @@ export const useAdminData = () => {
         console.error("Error fetching admin data:", adminError);
         throw adminError;
       }
-
-      console.log("Admin data from function:", adminData);
-
       // Calculate metrics based on ALL accounts (not just unique users)
       const totalAccounts = adminData?.length || 0;
 
@@ -107,18 +102,6 @@ export const useAdminData = () => {
         conversionRate,
         uniqueUsers,
         duplicateAccounts,
-      });
-
-      console.log("Calculated metrics:", {
-        totalAccounts,
-        uniqueUsers,
-        duplicateAccounts,
-        activeTrialAccounts,
-        activePaidAccounts,
-        currentMRR,
-        potentialMRR,
-        conversionRate,
-      });
     } catch (error) {
       console.error("Error fetching admin data:", error);
       toast.error("Failed to load admin data");

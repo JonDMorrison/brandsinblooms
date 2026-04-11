@@ -1,11 +1,14 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef } from "react";
 
 interface UseBodyScrollLockOptions {
   enabled?: boolean;
   id?: string;
 }
 
-export const useBodyScrollLock = ({ enabled = true, id = 'default' }: UseBodyScrollLockOptions = {}) => {
+export const useBodyScrollLock = ({
+  enabled = true,
+  id = "default",
+}: UseBodyScrollLockOptions = {}) => {
   const lockCountRef = useRef(0);
   const originalStylesRef = useRef<{
     overflow?: string;
@@ -24,53 +27,51 @@ export const useBodyScrollLock = ({ enabled = true, id = 'default' }: UseBodyScr
         };
 
         // Calculate scrollbar width
-        const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
-        
+        const scrollbarWidth =
+          window.innerWidth - document.documentElement.clientWidth;
+
         // Apply lock styles
-        document.body.style.overflow = 'hidden';
+        document.body.style.overflow = "hidden";
         document.body.style.paddingRight = `${scrollbarWidth}px`;
-        
+
         // DISABLED - inert causes global unclickability
         // const rootElement = document.getElementById('root');
         // if (rootElement) {
         //   rootElement.setAttribute('inert', 'true');
         // }
-
-        console.log(`[BodyScrollLock] Locked body scroll (${id})`);
       }
       lockCountRef.current++;
     };
 
     const unlock = () => {
       lockCountRef.current = Math.max(0, lockCountRef.current - 1);
-      
+
       if (lockCountRef.current === 0) {
         // Restore original styles
-        document.body.style.overflow = originalStylesRef.current.overflow || '';
-        document.body.style.paddingRight = originalStylesRef.current.paddingRight || '';
-        
-        // Force cleanup of any inert attributes anywhere
-        document.querySelectorAll('[inert]').forEach(el => {
-          el.removeAttribute('inert');
-        });
+        document.body.style.overflow = originalStylesRef.current.overflow || "";
+        document.body.style.paddingRight =
+          originalStylesRef.current.paddingRight || "";
 
-        console.log(`[BodyScrollLock] Unlocked body scroll (${id})`);
+        // Force cleanup of any inert attributes anywhere
+        document.querySelectorAll("[inert]").forEach((el) => {
+          el.removeAttribute("inert");
+        });
       }
     };
 
     // Handle escape key
     const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
+      if (event.key === "Escape") {
         unlock();
       }
     };
 
     lock();
-    document.addEventListener('keydown', handleEscape);
+    document.addEventListener("keydown", handleEscape);
 
     return () => {
       unlock();
-      document.removeEventListener('keydown', handleEscape);
+      document.removeEventListener("keydown", handleEscape);
     };
   }, [enabled, id]);
 

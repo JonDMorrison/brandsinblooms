@@ -1,4 +1,3 @@
-
 import { AppleCard, AppleCardContent } from "@/components/ui/apple-card";
 import { HeadlineLarge, BodyMedium } from "@/components/ui/typography";
 import { CampaignCard } from "./CampaignCard";
@@ -17,7 +16,10 @@ interface HomepageMainContentProps {
   onTaskUpdate: () => void;
 }
 
-export const HomepageMainContent = ({ currentCampaign, onTaskUpdate }: HomepageMainContentProps) => {
+export const HomepageMainContent = ({
+  currentCampaign,
+  onTaskUpdate,
+}: HomepageMainContentProps) => {
   const { user } = useAuth();
   const { tenant } = useTenant();
   const [campaignTasks, setCampaignTasks] = useState([]);
@@ -25,41 +27,49 @@ export const HomepageMainContent = ({ currentCampaign, onTaskUpdate }: HomepageM
   const seasonalContent = getSeasonalContent();
 
   // Check if user is developer
-  const isDeveloper = user?.email === 'jon@getclear.ca';
+  const isDeveloper = user?.email === "jon@getclear.ca";
 
   const fetchCampaignTasks = async () => {
     if (!currentCampaign || !tenant) return;
 
     try {
       // Build status filter - include 'preview' for developer
-      const statusFilter = ['planned', 'review', 'approved', 'scheduled', 'published', 'generated'];
+      const statusFilter = [
+        "planned",
+        "review",
+        "approved",
+        "scheduled",
+        "published",
+        "generated",
+      ];
       if (isDeveloper) {
-        statusFilter.push('preview');
+        statusFilter.push("preview");
       }
 
       const { data, error } = await supabase
-        .from('content_tasks')
-        .select(`
+        .from("content_tasks")
+        .select(
+          `
           *,
           campaigns!inner (
             title,
             tenant_id
           )
-        `)
-        .eq('campaign_id', currentCampaign.id)
-        .in('status', statusFilter)
-        .order('created_at', { ascending: false });
+        `,
+        )
+        .eq("campaign_id", currentCampaign.id)
+        .in("status", statusFilter)
+        .order("created_at", { ascending: false });
 
       if (error) {
-        console.error('Error fetching campaign tasks:', error);
+        console.error("Error fetching campaign tasks:", error);
       } else {
-        const userTasks = data?.filter(task => 
-          task.campaigns?.tenant_id === tenant.id
-        ) || [];
+        const userTasks =
+          data?.filter((task) => task.campaigns?.tenant_id === tenant.id) || [];
         setCampaignTasks(userTasks);
       }
     } catch (error) {
-      console.error('Error fetching campaign tasks:', error);
+      console.error("Error fetching campaign tasks:", error);
     }
   };
 
@@ -71,7 +81,6 @@ export const HomepageMainContent = ({ currentCampaign, onTaskUpdate }: HomepageM
 
   const handleTaskClick = (task: any) => {
     // Handle task click - could open a modal or navigate
-    console.log('Task clicked:', task);
   };
 
   return (
@@ -94,16 +103,20 @@ export const HomepageMainContent = ({ currentCampaign, onTaskUpdate }: HomepageM
         </div>
 
         {currentCampaign ? (
-          <CampaignCard 
-            campaign={currentCampaign} 
+          <CampaignCard
+            campaign={currentCampaign}
             campaignTasks={campaignTasks}
             isGeneratingTasks={isGeneratingTasks}
             onTaskClick={handleTaskClick}
             onTaskUpdate={onTaskUpdate}
-            seasonalContent={seasonalContent} 
+            seasonalContent={seasonalContent}
           />
         ) : (
-          <AppleCard variant="default" surface="secondary" className="border-dashed border-2">
+          <AppleCard
+            variant="default"
+            surface="secondary"
+            className="border-dashed border-2"
+          >
             <AppleCardContent className="text-center py-12">
               <div className="flex items-center justify-center w-16 h-16 bg-primary/10 rounded-full mx-auto mb-4">
                 <Plus className="w-8 h-8 text-primary" />
@@ -112,7 +125,8 @@ export const HomepageMainContent = ({ currentCampaign, onTaskUpdate }: HomepageM
                 No Campaign This Week
               </HeadlineLarge>
               <BodyMedium className="text-text-secondary max-w-md mx-auto">
-                Create a new campaign to generate professional marketing content for your garden center
+                Create a new campaign to generate professional marketing content
+                for your garden center
               </BodyMedium>
             </AppleCardContent>
           </AppleCard>

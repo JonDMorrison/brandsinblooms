@@ -3,15 +3,14 @@
  * For MVP - basic keyboard trap avoidance only
  */
 
-export const lock = (el: HTMLElement) => el.setAttribute('inert', '');
-export const unlock = (el: HTMLElement) => el.removeAttribute('inert');
+export const lock = (el: HTMLElement) => el.setAttribute("inert", "");
+export const unlock = (el: HTMLElement) => el.removeAttribute("inert");
 
 /**
  * Lock all body children except overlay containers - DISABLED
  */
 export const lockBodySiblings = () => {
   // DISABLED - causing global unclickability
-  console.log('lockBodySiblings called but disabled to prevent inert issues');
 };
 
 /**

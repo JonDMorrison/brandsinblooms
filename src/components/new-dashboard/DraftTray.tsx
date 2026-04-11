@@ -1,15 +1,26 @@
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ImageEditOverlay } from '@/components/image';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Calendar, FileText, Image, Video, Mail, CheckCircle, ArrowRight, Clock, Send, Settings } from 'lucide-react';
-import { format } from 'date-fns';
-import { Draggable, Droppable } from 'react-beautiful-dnd';
-import { cn } from '@/lib/utils';
-import { extractNewsletterThumbnail } from '@/utils/renderMarkdown';
-import { TASK_STATUS, type TaskStatus } from '@/constants/taskStatus';
-import { useDashboardContext } from '@/contexts/DashboardContext';
+import React, { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ImageEditOverlay } from "@/components/image";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Calendar,
+  FileText,
+  Image,
+  Video,
+  Mail,
+  CheckCircle,
+  ArrowRight,
+  Clock,
+  Send,
+  Settings,
+} from "lucide-react";
+import { format } from "date-fns";
+import { Draggable, Droppable } from "@hello-pangea/dnd";
+import { cn } from "@/lib/utils";
+import { extractNewsletterThumbnail } from "@/utils/renderMarkdown";
+import { TASK_STATUS, type TaskStatus } from "@/constants/taskStatus";
+import { useDashboardContext } from "@/contexts/DashboardContext";
 
 interface DraftTrayProps {
   tasks?: any[];
@@ -18,10 +29,21 @@ interface DraftTrayProps {
   justApprovedId?: string | null;
 }
 
-export const DraftTray = ({ tasks = [], selectedDraft, onSelectDraft, justApprovedId }: DraftTrayProps) => {
-  const { openDock, startDragging, stopDragging, handleClickToPost, openTimePopover } = useDashboardContext();
+export const DraftTray = ({
+  tasks = [],
+  selectedDraft,
+  onSelectDraft,
+  justApprovedId,
+}: DraftTrayProps) => {
+  const {
+    openDock,
+    startDragging,
+    stopDragging,
+    handleClickToPost,
+    openTimePopover,
+  } = useDashboardContext();
   const [showDragHint, setShowDragHint] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'drafts' | 'scheduled'>('drafts');
+  const [activeTab, setActiveTab] = useState<"drafts" | "scheduled">("drafts");
 
   useEffect(() => {
     if (justApprovedId) {
@@ -35,12 +57,12 @@ export const DraftTray = ({ tasks = [], selectedDraft, onSelectDraft, justApprov
 
   const getPostTypeIcon = (postType: string) => {
     switch (postType?.toLowerCase()) {
-      case 'video':
-      case 'reel':
+      case "video":
+      case "reel":
         return <Video className="w-4 h-4" />;
-      case 'image':
+      case "image":
         return <Image className="w-4 h-4" />;
-      case 'newsletter':
+      case "newsletter":
         return <Mail className="w-4 h-4" />;
       default:
         return <FileText className="w-4 h-4" />;
@@ -49,25 +71,25 @@ export const DraftTray = ({ tasks = [], selectedDraft, onSelectDraft, justApprov
 
   const getPostTypeColor = (postType: string) => {
     switch (postType?.toLowerCase()) {
-      case 'facebook':
-        return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'instagram':
-        return 'bg-purple-100 text-purple-800 border-purple-200';
-      case 'newsletter':
-        return 'bg-green-100 text-green-800 border-green-200';
-      case 'video':
-      case 'reel':
-        return 'bg-pink-100 text-pink-800 border-pink-200';
+      case "facebook":
+        return "bg-blue-100 text-blue-800 border-blue-200";
+      case "instagram":
+        return "bg-purple-100 text-purple-800 border-purple-200";
+      case "newsletter":
+        return "bg-green-100 text-green-800 border-green-200";
+      case "video":
+      case "reel":
+        return "bg-pink-100 text-pink-800 border-pink-200";
       default:
-        return 'bg-gray-100 text-gray-800 border-gray-200';
+        return "bg-gray-100 text-gray-800 border-gray-200";
     }
   };
 
   const getContentPreview = (draft: any) => {
-    if (draft.post_type === 'newsletter') {
-      return extractNewsletterThumbnail(draft.ai_output || '', 120);
+    if (draft.post_type === "newsletter") {
+      return extractNewsletterThumbnail(draft.ai_output || "", 120);
     }
-    return draft.ai_output?.substring(0, 120) + '...';
+    return draft.ai_output?.substring(0, 120) + "...";
   };
 
   const isDraggable = (draft: any) => {
@@ -77,41 +99,54 @@ export const DraftTray = ({ tasks = [], selectedDraft, onSelectDraft, justApprov
   const getStatusDisplay = (status: string) => {
     switch (status) {
       case TASK_STATUS.APPROVED:
-        return { label: 'Approved', variant: 'default' as const, className: 'bg-[#68BEB9] text-white' };
+        return {
+          label: "Approved",
+          variant: "default" as const,
+          className: "bg-[#68BEB9] text-white",
+        };
       case TASK_STATUS.SCHEDULED:
-        return { label: 'Scheduled', variant: 'secondary' as const, className: 'bg-blue-500 text-white' };
+        return {
+          label: "Scheduled",
+          variant: "secondary" as const,
+          className: "bg-blue-500 text-white",
+        };
       case TASK_STATUS.GENERATED:
-      case 'draft':
-        return { label: 'Draft', variant: 'secondary' as const, className: '' };
+      case "draft":
+        return { label: "Draft", variant: "secondary" as const, className: "" };
       default:
-        return { label: status, variant: 'outline' as const, className: '' };
+        return { label: status, variant: "outline" as const, className: "" };
     }
   };
 
   const handleDragStart = () => {
-    console.log('🎯 Draft drag started, opening dock and setting drag state');
     startDragging();
     openDock();
   };
 
-
   // Filter tasks based on active tab
-  const draftTasks = tasks.filter(task => task.status !== TASK_STATUS.SCHEDULED);
-  const scheduledTasks = tasks.filter(task => task.status === TASK_STATUS.SCHEDULED);
-  
-  const currentTasks = activeTab === 'drafts' ? draftTasks : scheduledTasks;
+  const draftTasks = tasks.filter(
+    (task) => task.status !== TASK_STATUS.SCHEDULED,
+  );
+  const scheduledTasks = tasks.filter(
+    (task) => task.status === TASK_STATUS.SCHEDULED,
+  );
+
+  const currentTasks = activeTab === "drafts" ? draftTasks : scheduledTasks;
   const draftCount = draftTasks.length;
   const scheduledCount = scheduledTasks.length;
 
   // Group scheduled tasks by date
-  const groupedScheduled = scheduledTasks.reduce((acc, task) => {
-    if (task.scheduled_date) {
-      const dateKey = format(new Date(task.scheduled_date), 'MMM d, yyyy');
-      if (!acc[dateKey]) acc[dateKey] = [];
-      acc[dateKey].push(task);
-    }
-    return acc;
-  }, {} as Record<string, any[]>);
+  const groupedScheduled = scheduledTasks.reduce(
+    (acc, task) => {
+      if (task.scheduled_date) {
+        const dateKey = format(new Date(task.scheduled_date), "MMM d, yyyy");
+        if (!acc[dateKey]) acc[dateKey] = [];
+        acc[dateKey].push(task);
+      }
+      return acc;
+    },
+    {} as Record<string, any[]>,
+  );
 
   return (
     <Card className="h-full flex flex-col">
@@ -122,27 +157,27 @@ export const DraftTray = ({ tasks = [], selectedDraft, onSelectDraft, justApprov
             {draftCount} ready
           </Badge>
         </CardTitle>
-        
+
         {/* Tabs */}
         <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
           <button
-            onClick={() => setActiveTab('drafts')}
+            onClick={() => setActiveTab("drafts")}
             className={cn(
               "flex-1 px-3 py-2 text-sm font-medium rounded-md transition-colors",
-              activeTab === 'drafts'
+              activeTab === "drafts"
                 ? "bg-white text-[#3E5A6B] shadow-sm"
-                : "text-gray-600 hover:text-[#3E5A6B]"
+                : "text-gray-600 hover:text-[#3E5A6B]",
             )}
           >
             Drafts ({draftCount})
           </button>
           <button
-            onClick={() => setActiveTab('scheduled')}
+            onClick={() => setActiveTab("scheduled")}
             className={cn(
               "flex-1 px-3 py-2 text-sm font-medium rounded-md transition-colors",
-              activeTab === 'scheduled'
+              activeTab === "scheduled"
                 ? "bg-white text-[#3E5A6B] shadow-sm"
-                : "text-gray-600 hover:text-[#3E5A6B]"
+                : "text-gray-600 hover:text-[#3E5A6B]",
             )}
           >
             Scheduled ({scheduledCount})
@@ -150,15 +185,14 @@ export const DraftTray = ({ tasks = [], selectedDraft, onSelectDraft, justApprov
         </div>
 
         <p className="text-sm text-gray-600">
-          {activeTab === 'drafts'
-            ? `${draftCount} draft${draftCount !== 1 ? 's' : ''} ready for publishing`
-            : `${scheduledCount} post${scheduledCount !== 1 ? 's' : ''} scheduled`
-          }
+          {activeTab === "drafts"
+            ? `${draftCount} draft${draftCount !== 1 ? "s" : ""} ready for publishing`
+            : `${scheduledCount} post${scheduledCount !== 1 ? "s" : ""} scheduled`}
         </p>
       </CardHeader>
 
       <CardContent className="flex-1 min-h-0 overflow-hidden">
-        {activeTab === 'drafts' ? (
+        {activeTab === "drafts" ? (
           <Droppable droppableId="draft-tray">
             {(provided, snapshot) => (
               <div
@@ -166,7 +200,7 @@ export const DraftTray = ({ tasks = [], selectedDraft, onSelectDraft, justApprov
                 {...provided.droppableProps}
                 className={cn(
                   "h-full overflow-y-auto space-y-3",
-                  snapshot.isDraggingOver && "bg-[#68BEB9]/5 rounded-lg"
+                  snapshot.isDraggingOver && "bg-[#68BEB9]/5 rounded-lg",
                 )}
               >
                 {currentTasks.length === 0 ? (
@@ -185,7 +219,7 @@ export const DraftTray = ({ tasks = [], selectedDraft, onSelectDraft, justApprov
                     const canDrag = isDraggable(draft);
                     const showHint = showDragHint === draft.id;
                     const imageThumb = draft.attachments?.image?.thumb;
-                    
+
                     return (
                       <Draggable
                         key={draft.id}
@@ -201,73 +235,96 @@ export const DraftTray = ({ tasks = [], selectedDraft, onSelectDraft, justApprov
                             data-draft-card="true"
                             className={cn(
                               "relative p-4 border-2 rounded-lg transition-all duration-200",
-                              selectedDraft?.id === draft.id 
-                                ? "border-[#68BEB9] bg-[#68BEB9]/5 shadow-md" 
+                              selectedDraft?.id === draft.id
+                                ? "border-[#68BEB9] bg-[#68BEB9]/5 shadow-md"
                                 : "border-gray-200 hover:border-[#68BEB9]/50 hover:shadow-sm",
-                              snapshot.isDragging && "shadow-lg scale-105 rotate-2 bg-white border-[#68BEB9]",
-                              canDrag ? "cursor-grab active:cursor-grabbing" : "cursor-not-allowed opacity-75",
-                              draft.status === 'approved' && "border-l-4 border-l-[#68BEB9]"
+                              snapshot.isDragging &&
+                                "shadow-lg scale-105 rotate-2 bg-white border-[#68BEB9]",
+                              canDrag
+                                ? "cursor-grab active:cursor-grabbing"
+                                : "cursor-not-allowed opacity-75",
+                              draft.status === "approved" &&
+                                "border-l-4 border-l-[#68BEB9]",
                             )}
                             onClick={() => onSelectDraft?.(draft)}
                             onDragStart={handleDragStart}
                           >
                             <div className="flex items-start justify-between mb-2">
                               <div className="flex items-center gap-2">
-                                {draft.attachments?.[0]?.url && draft.status === 'approved' ? (
+                                {draft.attachments?.[0]?.url &&
+                                draft.status === "approved" ? (
                                   <ImageEditOverlay
                                     imageUrl={draft.attachments[0].url}
-                                    onImageSelect={async (imageUrl, metadata) => {
+                                    onImageSelect={async (
+                                      imageUrl,
+                                      metadata,
+                                    ) => {
                                       // Update image and set status to review for approved content
                                       const updateData: any = {
                                         attachments: [
                                           {
-                                            type: 'image',
+                                            type: "image",
                                             url: imageUrl,
-                                            alt: metadata?.alt || 'Selected image',
-                                            photographer: metadata?.photographer,
-                                            source: metadata?.source || 'unknown',
-                                            unsplash_id: metadata?.unsplash_id
-                                          }
+                                            alt:
+                                              metadata?.alt || "Selected image",
+                                            photographer:
+                                              metadata?.photographer,
+                                            source:
+                                              metadata?.source || "unknown",
+                                            unsplash_id: metadata?.unsplash_id,
+                                          },
                                         ],
-                                        status: 'review' // Move back to review when changing approved content
+                                        status: "review", // Move back to review when changing approved content
                                       };
 
                                       try {
-                                        const { supabase } = await import('@/integrations/supabase/client');
-                                        
+                                        const { supabase } =
+                                          await import("@/integrations/supabase/client");
+
                                         const { error } = await supabase
-                                          .from('content_tasks')
+                                          .from("content_tasks")
                                           .update(updateData)
-                                          .eq('id', draft.id);
+                                          .eq("id", draft.id);
 
                                         if (error) throw error;
 
                                         // Trigger refresh
-                                        window.dispatchEvent(new CustomEvent('draft-updated'));
+                                        window.dispatchEvent(
+                                          new CustomEvent("draft-updated"),
+                                        );
                                       } catch (error) {
-                                        console.error('Error updating image:', error);
+                                        console.error(
+                                          "Error updating image:",
+                                          error,
+                                        );
                                       }
                                     }}
                                     contentContext={draft.ai_output}
                                     className="w-8 h-8 rounded object-cover flex-shrink-0"
                                   />
                                 ) : imageThumb ? (
-                                  <img 
-                                    src={imageThumb} 
-                                    alt="Draft image" 
+                                  <img
+                                    src={imageThumb}
+                                    alt="Draft image"
                                     className="w-8 h-8 rounded object-cover flex-shrink-0"
                                   />
                                 ) : null}
                                 {getPostTypeIcon(draft.post_type)}
-                                <Badge 
-                                  variant="outline" 
-                                  className={cn("text-xs", getPostTypeColor(draft.post_type))}
+                                <Badge
+                                  variant="outline"
+                                  className={cn(
+                                    "text-xs",
+                                    getPostTypeColor(draft.post_type),
+                                  )}
                                 >
-                                  {draft.post_type || 'Post'}
+                                  {draft.post_type || "Post"}
                                 </Badge>
                               </div>
-                              {draft.status !== 'approved' && (
-                                <Badge variant={statusInfo.variant} className={statusInfo.className}>
+                              {draft.status !== "approved" && (
+                                <Badge
+                                  variant={statusInfo.variant}
+                                  className={statusInfo.className}
+                                >
                                   {statusInfo.label}
                                 </Badge>
                               )}
@@ -280,7 +337,7 @@ export const DraftTray = ({ tasks = [], selectedDraft, onSelectDraft, justApprov
                             <div className="flex items-center justify-between text-xs text-gray-500">
                               <div className="flex items-center gap-1">
                                 <Calendar className="w-3 h-3" />
-                                {format(new Date(draft.created_at), 'MMM d')}
+                                {format(new Date(draft.created_at), "MMM d")}
                               </div>
                               {draft.campaigns?.title && (
                                 <span className="truncate max-w-[100px]">
@@ -356,31 +413,40 @@ export const DraftTray = ({ tasks = [], selectedDraft, onSelectDraft, justApprov
                 </div>
               </div>
             ) : (
-              Object.entries(groupedScheduled).map(([date, tasksForDate]: [string, any[]]) => (
-                <div key={date}>
-                  <h4 className="text-sm font-medium text-[#3E5A6B] mb-2">{date}</h4>
-                  <div className="space-y-2">
-                    {tasksForDate.map((task) => (
-                      <div
-                        key={task.id}
-                        onClick={() => onSelectDraft?.(task)}
-                        className="p-3 border rounded-lg cursor-pointer hover:border-[#68BEB9]/50 hover:shadow-sm transition-all"
-                      >
-                        <div className="flex items-center gap-2 mb-1">
-                          {getPostTypeIcon(task.post_type)}
-                          <Badge variant="outline" className={getPostTypeColor(task.post_type)}>
-                            {task.post_type}
-                          </Badge>
-                          <Badge className="bg-blue-500 text-white">Scheduled</Badge>
+              Object.entries(groupedScheduled).map(
+                ([date, tasksForDate]: [string, any[]]) => (
+                  <div key={date}>
+                    <h4 className="text-sm font-medium text-[#3E5A6B] mb-2">
+                      {date}
+                    </h4>
+                    <div className="space-y-2">
+                      {tasksForDate.map((task) => (
+                        <div
+                          key={task.id}
+                          onClick={() => onSelectDraft?.(task)}
+                          className="p-3 border rounded-lg cursor-pointer hover:border-[#68BEB9]/50 hover:shadow-sm transition-all"
+                        >
+                          <div className="flex items-center gap-2 mb-1">
+                            {getPostTypeIcon(task.post_type)}
+                            <Badge
+                              variant="outline"
+                              className={getPostTypeColor(task.post_type)}
+                            >
+                              {task.post_type}
+                            </Badge>
+                            <Badge className="bg-blue-500 text-white">
+                              Scheduled
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-gray-700 line-clamp-2">
+                            {getContentPreview(task)}
+                          </p>
                         </div>
-                        <p className="text-sm text-gray-700 line-clamp-2">
-                          {getContentPreview(task)}
-                        </p>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
-                </div>
-              ))
+                ),
+              )
             )}
           </div>
         )}

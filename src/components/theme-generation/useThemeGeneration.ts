@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -14,7 +13,9 @@ interface WeeklyTheme {
   content_ideas: string[];
 }
 
-export const useThemeGeneration = (onThemesGenerated?: (themes: WeeklyTheme[]) => void) => {
+export const useThemeGeneration = (
+  onThemesGenerated?: (themes: WeeklyTheme[]) => void,
+) => {
   const { user } = useAuth();
   const { isOnline } = useNetworkStatus();
   const [loading, setLoading] = useState(false);
@@ -29,36 +30,36 @@ export const useThemeGeneration = (onThemesGenerated?: (themes: WeeklyTheme[]) =
 
   const generateWeeklyThemes = async (generateAll52Weeks: boolean = true) => {
     if (!user) {
-      toast.error('Please log in to continue');
+      toast.error("Please log in to continue");
       return;
     }
 
     setLoading(true);
     setNetworkError(false);
-    
+
     try {
-      console.log(`Generating ${generateAll52Weeks ? '52-week' : 'weekly'} themes for user:`, user.id);
-      
       // If offline or previous network error, use fallback immediately
       if (!isOnline) {
-        console.log('Offline detected, using fallback themes');
         generateFallbackThemes();
         return;
       }
 
-      const { data, error } = await supabase.functions.invoke('generate-weekly-themes', {
-        body: { 
-          userId: user.id,
-          generateAll52Weeks: generateAll52Weeks,
-          startYear: new Date().getFullYear()
-        }
-      });
+      const { data, error } = await supabase.functions.invoke(
+        "generate-weekly-themes",
+        {
+          body: {
+            userId: user.id,
+            generateAll52Weeks: generateAll52Weeks,
+            startYear: new Date().getFullYear(),
+          },
+        },
+      );
 
       if (error) {
-        console.error('Error generating themes:', error);
-        
-        const appError = handleError(error, 'theme generation');
-        
+        console.error("Error generating themes:", error);
+
+        const appError = handleError(error, "theme generation");
+
         if (appError.isNetworkError) {
           setNetworkError(true);
           if (generateAll52Weeks) {
@@ -66,34 +67,34 @@ export const useThemeGeneration = (onThemesGenerated?: (themes: WeeklyTheme[]) =
           }
           return;
         }
-        
-        throw new Error(error.message || 'Failed to generate themes');
+
+        throw new Error(error.message || "Failed to generate themes");
       }
 
       if (data?.themes && Array.isArray(data.themes)) {
         setGeneratedThemes(data.themes);
         onThemesGenerated?.(data.themes);
-        
+
         const themeCount = data.themes.length;
         if (generateAll52Weeks) {
           // Only show success toast for major generations - this is approved
           toast.success(`Generated ${themeCount} unique weekly themes!`);
         }
       } else {
-        throw new Error('Invalid response format from theme generator');
+        throw new Error("Invalid response format from theme generator");
       }
     } catch (error: any) {
-      console.error('Error generating weekly themes:', error);
-      
-      const appError = handleError(error, 'theme generation');
-      
+      console.error("Error generating weekly themes:", error);
+
+      const appError = handleError(error, "theme generation");
+
       if (appError.isNetworkError) {
         setNetworkError(true);
         if (generateAll52Weeks) {
           generateFallbackThemes();
         }
       } else {
-        toast.error('An unexpected error occurred');
+        toast.error("An unexpected error occurred");
       }
     } finally {
       setLoading(false);
@@ -107,23 +108,21 @@ export const useThemeGeneration = (onThemesGenerated?: (themes: WeeklyTheme[]) =
     try {
       const campaigns = generatedThemes.map((theme, index) => {
         const startDate = new Date();
-        startDate.setDate(startDate.getDate() + (index * 7));
-        
+        startDate.setDate(startDate.getDate() + index * 7);
+
         return {
           week_number: theme.week,
           title: theme.title,
           theme: theme.title,
           description: theme.description,
-          start_date: startDate.toISOString().split('T')[0],
-          prompt: theme.content_ideas.join(' • '),
+          start_date: startDate.toISOString().split("T")[0],
+          prompt: theme.content_ideas.join(" • "),
           user_id: user.id,
-          source: 'theme_generator'
+          source: "theme_generator",
         };
       });
 
-      const { error } = await supabase
-        .from('campaigns')
-        .insert(campaigns);
+      const { error } = await supabase.from("campaigns").insert(campaigns);
 
       if (error) {
         throw new Error(error.message);
@@ -131,8 +130,8 @@ export const useThemeGeneration = (onThemesGenerated?: (themes: WeeklyTheme[]) =
 
       setGeneratedThemes([]);
     } catch (error: any) {
-      console.error('Error saving campaigns:', error);
-      toast.error('An unexpected error occurred');
+      console.error("Error saving campaigns:", error);
+      toast.error("An unexpected error occurred");
     } finally {
       setLoading(false);
     }
@@ -143,6 +142,6 @@ export const useThemeGeneration = (onThemesGenerated?: (themes: WeeklyTheme[]) =
     generatedThemes,
     networkError,
     generateWeeklyThemes,
-    saveToCampaigns
+    saveToCampaigns,
   };
 };

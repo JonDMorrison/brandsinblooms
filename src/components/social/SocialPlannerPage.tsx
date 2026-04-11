@@ -1,16 +1,15 @@
+import React, { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Plus } from "lucide-react";
 
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Plus } from 'lucide-react';
-
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
-import { SocialConnectionsSection } from './SocialConnectionsSection';
-import { NewPostModal } from './NewPostModal';
-import { PostList } from './PostList';
-import { TokenMeter } from './TokenMeter';
-import { SocialErrorBoundary } from './SocialErrorBoundary';
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { SocialConnectionsSection } from "./SocialConnectionsSection";
+import { NewPostModal } from "./NewPostModal";
+import { PostList } from "./PostList";
+import { TokenMeter } from "./TokenMeter";
+import { SocialErrorBoundary } from "./SocialErrorBoundary";
 
 export const SocialPlannerPage = () => {
   const { user } = useAuth();
@@ -32,97 +31,97 @@ export const SocialPlannerPage = () => {
   useEffect(() => {
     // Check for OAuth debug info (for development only)
     if (import.meta.env.DEV) {
-      const debugInfo = localStorage.getItem('oauth_debug');
+      const debugInfo = localStorage.getItem("oauth_debug");
       if (debugInfo) {
         try {
           const debug = JSON.parse(debugInfo);
-          console.log('🐛 OAuth Debug Info:', debug);
           // Only show debug toast in development
-          
         } catch (error) {
-          console.error('Error parsing debug info:', error);
+          console.error("Error parsing debug info:", error);
         }
       }
     }
 
-    const successData = sessionStorage.getItem('social_connection_success');
+    const successData = sessionStorage.getItem("social_connection_success");
     if (successData) {
       try {
         const { message, timestamp } = JSON.parse(successData);
         // Only show if less than 30 seconds old
         if (Date.now() - timestamp < 30000) {
-          
         }
-        sessionStorage.removeItem('social_connection_success');
+        sessionStorage.removeItem("social_connection_success");
       } catch (error) {
-        console.error('Error parsing success data:', error);
-        sessionStorage.removeItem('social_connection_success');
+        console.error("Error parsing success data:", error);
+        sessionStorage.removeItem("social_connection_success");
       }
     }
   }, []);
 
   const checkFeatureFlag = async () => {
     if (!user) return;
-    
+
     try {
-      const { data, error } = await supabase.rpc('feature_enabled', {
-        feature_name: 'social_posting_v1'
+      const { data, error } = await supabase.rpc("feature_enabled", {
+        feature_name: "social_posting_v1",
       });
-      
+
       if (error) {
-        console.error('Error checking feature flag:', error);
+        console.error("Error checking feature flag:", error);
         // Default to true if we can't check the flag
         setFeatureEnabled(true);
       } else {
         setFeatureEnabled(data);
       }
     } catch (error) {
-      console.error('Error checking feature flag:', error);
+      console.error("Error checking feature flag:", error);
       setFeatureEnabled(true); // Default to enabled
     }
   };
 
   const loadData = async () => {
     if (!user) return;
-    
+
     try {
       setLoading(true);
       setError(null);
-      
+
       // Load connections
       const { data: connectionsData, error: connectionsError } = await supabase
-        .from('social_connections')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('is_active', true);
-      
+        .from("social_connections")
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("is_active", true);
+
       if (connectionsError) {
-        console.error('Error loading connections:', connectionsError);
+        console.error("Error loading connections:", connectionsError);
         throw connectionsError;
       }
-      
+
       setConnections(connectionsData || []);
 
       // Load posts
       const { data: postsData, error: postsError } = await supabase
-        .from('social_posts')
-        .select(`
+        .from("social_posts")
+        .select(
+          `
           *,
           social_connections!inner(platform, platform_account_name)
-        `)
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-      
+        `,
+        )
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
+
       if (postsError) {
-        console.error('Error loading posts:', postsError);
+        console.error("Error loading posts:", postsError);
         throw postsError;
       }
-      
+
       setPosts(postsData || []);
     } catch (error) {
-      console.error('Error loading data:', error);
-      setError('Failed to load social media data. Please try refreshing the page.');
-      
+      console.error("Error loading data:", error);
+      setError(
+        "Failed to load social media data. Please try refreshing the page.",
+      );
     } finally {
       setLoading(false);
     }
@@ -130,13 +129,11 @@ export const SocialPlannerPage = () => {
 
   const handleConnectionSuccess = () => {
     loadData();
-    
   };
 
   const handlePostCreated = () => {
     loadData();
     setIsNewPostModalOpen(false);
-    
   };
 
   if (!user) {
@@ -145,7 +142,9 @@ export const SocialPlannerPage = () => {
         <Card>
           <CardContent className="flex items-center justify-center py-12">
             <div className="text-center">
-              <h2 className="text-2xl font-bold mb-2">Authentication Required</h2>
+              <h2 className="text-2xl font-bold mb-2">
+                Authentication Required
+              </h2>
               <p className="text-muted-foreground">
                 Please log in to access your social media settings.
               </p>
@@ -162,7 +161,9 @@ export const SocialPlannerPage = () => {
         <Card>
           <CardContent className="flex items-center justify-center py-12">
             <div className="text-center">
-              <h2 className="text-2xl font-bold mb-2">Social Media Feature Not Available</h2>
+              <h2 className="text-2xl font-bold mb-2">
+                Social Media Feature Not Available
+              </h2>
               <p className="text-muted-foreground">
                 This feature is not enabled in your current plan.
               </p>
@@ -190,7 +191,9 @@ export const SocialPlannerPage = () => {
       <div className="container mx-auto px-4 py-8">
         <Card className="border-red-200 bg-red-50">
           <CardContent className="p-6 text-center">
-            <h2 className="text-xl font-semibold text-red-700 mb-2">Error Loading Social Media</h2>
+            <h2 className="text-xl font-semibold text-red-700 mb-2">
+              Error Loading Social Media
+            </h2>
             <p className="text-red-600 mb-4">{error}</p>
             <Button onClick={loadData} variant="outline">
               Try Again
@@ -206,7 +209,7 @@ export const SocialPlannerPage = () => {
       <div className="container mx-auto px-4 py-8">
         <div className="space-y-12">
           {/* Connections Section */}
-          <SocialConnectionsSection 
+          <SocialConnectionsSection
             connections={connections}
             onConnectionSuccess={handleConnectionSuccess}
           />
@@ -223,7 +226,7 @@ export const SocialPlannerPage = () => {
                   <div className="absolute bottom-10 left-1/3 text-7xl">📊</div>
                   <div className="absolute bottom-20 right-10 text-5xl">🎯</div>
                 </div>
-                
+
                 <div className="relative px-8 py-12">
                   <div className="flex items-center justify-between">
                     <div className="space-y-3">
@@ -231,7 +234,8 @@ export const SocialPlannerPage = () => {
                         Your Content
                       </h2>
                       <p className="text-lg text-text-secondary max-w-2xl leading-relaxed">
-                        Create engaging content, schedule posts across platforms, and track your social media performance
+                        Create engaging content, schedule posts across
+                        platforms, and track your social media performance
                       </p>
                       <div className="flex items-center gap-4 pt-2">
                         <div className="flex items-center gap-2 text-sm text-text-tertiary">
@@ -244,10 +248,10 @@ export const SocialPlannerPage = () => {
                         </div>
                       </div>
                     </div>
-                    
+
                     {/* Floating Create Post Button */}
-                    <Button 
-                      onClick={() => setIsNewPostModalOpen(true)} 
+                    <Button
+                      onClick={() => setIsNewPostModalOpen(true)}
                       size="lg"
                       className="relative group bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border-0 px-8 py-6 text-base font-semibold"
                     >

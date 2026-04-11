@@ -9,7 +9,15 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Eye, Clock, MoreHorizontal, Mail, CreditCard, MessageSquare, LogIn } from "lucide-react";
+import {
+  Eye,
+  Clock,
+  MoreHorizontal,
+  Mail,
+  CreditCard,
+  MessageSquare,
+  LogIn,
+} from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -253,9 +261,11 @@ export const TenantTable = ({
               </TableCell>
 
               <TableCell>
-                {tenant.onboarding_steps_done != null && tenant.onboarding_steps_total ? (
+                {tenant.onboarding_steps_done != null &&
+                tenant.onboarding_steps_total ? (
                   <span className="text-sm">
-                    {tenant.onboarding_steps_done >= tenant.onboarding_steps_total
+                    {tenant.onboarding_steps_done >=
+                    tenant.onboarding_steps_total
                       ? "Complete"
                       : `${tenant.onboarding_steps_done}/${tenant.onboarding_steps_total}`}
                   </span>
@@ -269,8 +279,9 @@ export const TenantTable = ({
                   {getActivityDot(tenant.last_activity_at)}
                   <span className="text-sm">
                     {!hasNoActivity(tenant.last_activity_at)
-                      ? formatDistanceToNow(new Date(tenant.last_activity_at!)) +
-                        " ago"
+                      ? formatDistanceToNow(
+                          new Date(tenant.last_activity_at!),
+                        ) + " ago"
                       : "Never"}
                   </span>
                 </div>
@@ -302,9 +313,7 @@ export const TenantTable = ({
                     className="w-48"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <DropdownMenuItem
-                      onSelect={() => onViewTenant(tenant)}
-                    >
+                    <DropdownMenuItem onSelect={() => onViewTenant(tenant)}>
                       <Eye className="mr-2 h-4 w-4" />
                       View Details
                     </DropdownMenuItem>
@@ -315,15 +324,11 @@ export const TenantTable = ({
                       <LogIn className="mr-2 h-4 w-4" />
                       Login as User
                     </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onSelect={() => onOutreach(tenant)}
-                    >
+                    <DropdownMenuItem onSelect={() => onOutreach(tenant)}>
                       <MessageSquare className="mr-2 h-4 w-4" />
                       Outreach
                     </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onSelect={() => onChangePlan(tenant)}
-                    >
+                    <DropdownMenuItem onSelect={() => onChangePlan(tenant)}>
                       <CreditCard className="mr-2 h-4 w-4" />
                       Change Plan
                     </DropdownMenuItem>

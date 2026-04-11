@@ -6,7 +6,7 @@
 import { supabase } from "@/integrations/supabase/client";
 
 export interface ChannelImageRequest {
-  channel: 'facebook' | 'instagram' | 'blog' | 'newsletter' | 'video';
+  channel: "facebook" | "instagram" | "blog" | "newsletter" | "video";
   contentContext: string;
   contentTitle?: string;
   useAIKeywords?: boolean;
@@ -28,7 +28,7 @@ export interface FacetedKeywords {
 export interface ImageGenerationResult {
   imageUrl: string;
   imageId?: string;
-  globalImageId?: string;  // Reference to global_image_gallery
+  globalImageId?: string; // Reference to global_image_gallery
   tags?: Array<{
     name: string;
     category: string;
@@ -46,31 +46,30 @@ export interface ImageGenerationResult {
 }
 
 export class ImageGenerationService {
-  
   /**
    * Fetch optimized image for specific channel using AI generation
    */
-  async fetchImageForChannel(request: ChannelImageRequest): Promise<ImageGenerationResult> {
-    console.log(`🎨 Generating AI image for ${request.channel}:`, request.contentTitle || request.contentContext.substring(0, 50));
-    
+  async fetchImageForChannel(
+    request: ChannelImageRequest,
+  ): Promise<ImageGenerationResult> {
     try {
-      const { data, error } = await supabase.functions.invoke('generate-ai-image', {
-        body: {
-          contentContext: request.contentContext,
-          contentTitle: request.contentTitle,
-          channel: request.channel,
-          uploadToStorage: true,
-          userId: await this.getCurrentUserId()
-        }
-      });
-      
+      const { data, error } = await supabase.functions.invoke(
+        "generate-ai-image",
+        {
+          body: {
+            contentContext: request.contentContext,
+            contentTitle: request.contentTitle,
+            channel: request.channel,
+            uploadToStorage: true,
+            userId: await this.getCurrentUserId(),
+          },
+        },
+      );
+
       if (error) {
-        console.error('❌ AI image generation error:', error);
+        console.error("❌ AI image generation error:", error);
         throw error;
       }
-      
-      console.log('✅ AI image generated successfully:', data.imageUrl);
-      
       return {
         imageUrl: data.imageUrl,
         imageId: data.imageId,
@@ -78,28 +77,29 @@ export class ImageGenerationService {
         tags: data.metadata?.tags || [],
         metadata: {
           usedQuery: data.metadata?.prompt,
-          photographer: 'AI Generated',
+          photographer: "AI Generated",
           photographerUrl: undefined,
-          tags: data.metadata?.tags || []
-        }
+          tags: data.metadata?.tags || [],
+        },
       };
     } catch (error) {
-      console.error('❌ Error in fetchImageForChannel:', error);
+      console.error("❌ Error in fetchImageForChannel:", error);
       throw error;
     }
   }
-  
+
   /**
    * Get current user ID from Supabase auth
    */
   private async getCurrentUserId(): Promise<string> {
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) {
-      throw new Error('No authenticated user found');
+      throw new Error("No authenticated user found");
     }
     return user.id;
   }
-  
 }
 
 // Export singleton instance

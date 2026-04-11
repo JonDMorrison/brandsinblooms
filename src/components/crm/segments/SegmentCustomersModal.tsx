@@ -1,25 +1,35 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   Dialog,
-  DialogContent,  
+  DialogContent,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Search, Mail, Phone, Calendar, Users, X, UserPlus, Loader2, SlidersHorizontal } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
-import type { Json } from '@/integrations/supabase/types';
-import { useAuth } from '@/contexts/AuthContext';
-import { useTenant } from '@/hooks/useTenant';
-import { useCustomers } from '@/hooks/useCustomers';
-import { useCustomerSegments } from '@/hooks/useCustomerSegments';
-import { format } from 'date-fns';
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Search,
+  Mail,
+  Phone,
+  Calendar,
+  Users,
+  X,
+  UserPlus,
+  Loader2,
+  SlidersHorizontal,
+} from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import type { Json } from "@/integrations/supabase/types";
+import { useAuth } from "@/contexts/AuthContext";
+import { useTenant } from "@/hooks/useTenant";
+import { useCustomers } from "@/hooks/useCustomers";
+import { useCustomerSegments } from "@/hooks/useCustomerSegments";
+import { format } from "date-fns";
 
 interface SegmentCustomer {
   id: string;
@@ -49,14 +59,18 @@ export const SegmentCustomersModal: React.FC<SegmentCustomersModalProps> = ({
   onClose,
   segmentId,
   segmentName,
-  onAssignmentChange
+  onAssignmentChange,
 }) => {
   const [customers, setCustomers] = useState<SegmentCustomer[]>([]);
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [assigningCustomer, setAssigningCustomer] = useState<string | null>(null);
-  const [unassigningCustomer, setUnassigningCustomer] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [assigningCustomer, setAssigningCustomer] = useState<string | null>(
+    null,
+  );
+  const [unassigningCustomer, setUnassigningCustomer] = useState<string | null>(
+    null,
+  );
   const { user } = useAuth();
   const { tenant } = useTenant();
   const { data: allCustomers, isLoading: customersLoading } = useCustomers();
@@ -69,89 +83,110 @@ export const SegmentCustomersModal: React.FC<SegmentCustomersModalProps> = ({
       let customersData: SegmentCustomer[] = [];
 
       // For predefined segments, we need to calculate based on criteria AND check customer_segments table
-      if (['loyalty-members', 'high-value', 'new-customers', 'lapsed-customers', 'seasonal-shoppers', 'frequent-buyers'].includes(segmentId)) {
-        console.log('🔍 Fetching customers for predefined segment:', segmentId);
-        
+      if (
+        [
+          "loyalty-members",
+          "high-value",
+          "new-customers",
+          "lapsed-customers",
+          "seasonal-shoppers",
+          "frequent-buyers",
+        ].includes(segmentId)
+      ) {
         // Get all customers and filter based on segment criteria
         const { data: allCustomers, error } = await supabase
-          .from('crm_customers')
-          .select('id, email, first_name, last_name, phone, persona, persona_id, created_at, total_spent, last_purchase_date, tags, order_history')
-          .eq('tenant_id', tenant.id);
+          .from("crm_customers")
+          .select(
+            "id, email, first_name, last_name, phone, persona, persona_id, created_at, total_spent, last_purchase_date, tags, order_history",
+          )
+          .eq("tenant_id", tenant.id);
 
         if (error) throw error;
 
         // Apply segment-specific filtering
         let criteriaBasedCustomers: SegmentCustomer[] = [];
         switch (segmentId) {
-          case 'loyalty-members':
-            criteriaBasedCustomers = allCustomers?.filter(customer => 
-              customer.tags && customer.tags.includes('loyalty')
-            ) || [];
+          case "loyalty-members":
+            criteriaBasedCustomers =
+              allCustomers?.filter(
+                (customer) =>
+                  customer.tags && customer.tags.includes("loyalty"),
+              ) || [];
             break;
-          case 'high-value':
-            criteriaBasedCustomers = allCustomers?.filter(customer => 
-              (customer.total_spent || 0) >= 500
-            ) || [];
+          case "high-value":
+            criteriaBasedCustomers =
+              allCustomers?.filter(
+                (customer) => (customer.total_spent || 0) >= 500,
+              ) || [];
             break;
-          case 'new-customers':
+          case "new-customers":
             const thirtyDaysAgo = new Date();
             thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-            criteriaBasedCustomers = allCustomers?.filter(customer => 
-              new Date(customer.created_at) >= thirtyDaysAgo
-            ) || [];
+            criteriaBasedCustomers =
+              allCustomers?.filter(
+                (customer) => new Date(customer.created_at) >= thirtyDaysAgo,
+              ) || [];
             break;
-          case 'lapsed-customers':
+          case "lapsed-customers":
             const ninetyDaysAgo = new Date();
             ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
-            criteriaBasedCustomers = allCustomers?.filter(customer => 
-              customer.last_purchase_date && 
-              new Date(customer.last_purchase_date) <= ninetyDaysAgo
-            ) || [];
+            criteriaBasedCustomers =
+              allCustomers?.filter(
+                (customer) =>
+                  customer.last_purchase_date &&
+                  new Date(customer.last_purchase_date) <= ninetyDaysAgo,
+              ) || [];
             break;
-          case 'frequent-buyers':
-            criteriaBasedCustomers = allCustomers?.filter(customer => 
-              customer.order_history && Array.isArray(customer.order_history) && 
-              (customer.order_history as any[]).length >= 3
-            ) || [];
+          case "frequent-buyers":
+            criteriaBasedCustomers =
+              allCustomers?.filter(
+                (customer) =>
+                  customer.order_history &&
+                  Array.isArray(customer.order_history) &&
+                  (customer.order_history as any[]).length >= 3,
+              ) || [];
             break;
-          case 'seasonal-shoppers':
-            criteriaBasedCustomers = allCustomers?.filter(customer => 
-              customer.tags && (
-                customer.tags.includes('seasonal') || 
-                customer.tags.includes('holiday')
-              )
-            ) || [];
+          case "seasonal-shoppers":
+            criteriaBasedCustomers =
+              allCustomers?.filter(
+                (customer) =>
+                  customer.tags &&
+                  (customer.tags.includes("seasonal") ||
+                    customer.tags.includes("holiday")),
+              ) || [];
             break;
         }
-
-        console.log('📊 Found customers by criteria:', criteriaBasedCustomers.length);
-
         // ALSO get manually assigned customers from customer_segments table
         // First, find the segment ID in the database
         const predefinedSegmentNames = {
-          'loyalty-members': 'Loyalty Members',
-          'high-value': 'High-Value Customers', 
-          'new-customers': 'New Customers',
-          'lapsed-customers': 'Lapsed Customers',
-          'seasonal-shoppers': 'Seasonal Shoppers',
-          'frequent-buyers': 'Frequent Buyers'
+          "loyalty-members": "Loyalty Members",
+          "high-value": "High-Value Customers",
+          "new-customers": "New Customers",
+          "lapsed-customers": "Lapsed Customers",
+          "seasonal-shoppers": "Seasonal Shoppers",
+          "frequent-buyers": "Frequent Buyers",
         };
 
-        const segmentName = predefinedSegmentNames[segmentId as keyof typeof predefinedSegmentNames];
+        const segmentName =
+          predefinedSegmentNames[
+            segmentId as keyof typeof predefinedSegmentNames
+          ];
         let manuallyAssignedCustomers: SegmentCustomer[] = [];
 
         if (segmentName) {
           const { data: existingSegment } = await supabase
-            .from('crm_segments')
-            .select('id')
-            .eq('name', segmentName)
-            .eq('tenant_id', tenant.id)
+            .from("crm_segments")
+            .select("id")
+            .eq("name", segmentName)
+            .eq("tenant_id", tenant.id)
             .single();
 
           if (existingSegment) {
-            const { data: segmentCustomers, error: segmentError } = await supabase
-              .from('customer_segments')
-              .select(`
+            const { data: segmentCustomers, error: segmentError } =
+              await supabase
+                .from("customer_segments")
+                .select(
+                  `
                 customer_id,
                 crm_customers (
                   id,
@@ -167,12 +202,15 @@ export const SegmentCustomersModal: React.FC<SegmentCustomersModalProps> = ({
                   tags,
                   order_history
                 )
-              `)
-              .eq('segment_id', existingSegment.id);
+              `,
+                )
+                .eq("segment_id", existingSegment.id);
 
             if (!segmentError && segmentCustomers) {
-              manuallyAssignedCustomers = segmentCustomers?.map(sc => sc.crm_customers).filter(Boolean) || [];
-              console.log('📊 Found manually assigned customers:', manuallyAssignedCustomers.length);
+              manuallyAssignedCustomers =
+                segmentCustomers
+                  ?.map((sc) => sc.crm_customers)
+                  .filter(Boolean) || [];
             }
           }
         }
@@ -182,7 +220,7 @@ export const SegmentCustomersModal: React.FC<SegmentCustomersModalProps> = ({
         customersData = [];
 
         // Add criteria-based customers
-        criteriaBasedCustomers.forEach(customer => {
+        criteriaBasedCustomers.forEach((customer) => {
           if (!allCustomerIds.has(customer.id)) {
             allCustomerIds.add(customer.id);
             customersData.push(customer);
@@ -190,20 +228,18 @@ export const SegmentCustomersModal: React.FC<SegmentCustomersModalProps> = ({
         });
 
         // Add manually assigned customers
-        manuallyAssignedCustomers.forEach(customer => {
+        manuallyAssignedCustomers.forEach((customer) => {
           if (!allCustomerIds.has(customer.id)) {
             allCustomerIds.add(customer.id);
             customersData.push(customer);
           }
         });
-
-        console.log('📊 Total unique customers for predefined segment:', customersData.length);
       } else {
         // For custom segments, get customers from customer_segments table
-        console.log('🔍 Fetching customers for custom segment:', segmentId);
         const { data: segmentCustomers, error } = await supabase
-          .from('customer_segments')
-          .select(`
+          .from("customer_segments")
+          .select(
+            `
             customer_id,
             crm_customers (
               id,
@@ -219,18 +255,19 @@ export const SegmentCustomersModal: React.FC<SegmentCustomersModalProps> = ({
               tags,
               order_history
             )
-          `)
-          .eq('segment_id', segmentId);
+          `,
+          )
+          .eq("segment_id", segmentId);
 
         if (error) throw error;
 
-        customersData = segmentCustomers?.map(sc => sc.crm_customers).filter(Boolean) || [];
-        console.log('📊 Found customers in custom segment:', customersData.length);
+        customersData =
+          segmentCustomers?.map((sc) => sc.crm_customers).filter(Boolean) || [];
       }
 
       return customersData;
     } catch (error) {
-      console.error('Error fetching segment customers:', error);
+      console.error("Error fetching segment customers:", error);
       return [];
     }
   };
@@ -239,12 +276,16 @@ export const SegmentCustomersModal: React.FC<SegmentCustomersModalProps> = ({
   const getFilteredSegmentCustomers = () => {
     if (!customers) return [];
 
-    const filtered = customers.filter(customer => {
+    const filtered = customers.filter((customer) => {
       if (!searchTerm) return true;
-      
-      return customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        `${customer.first_name || ''} ${customer.last_name || ''}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (customer.phone && customer.phone.includes(searchTerm));
+
+      return (
+        customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        `${customer.first_name || ""} ${customer.last_name || ""}`
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase()) ||
+        (customer.phone && customer.phone.includes(searchTerm))
+      );
     });
 
     return filtered;
@@ -254,43 +295,77 @@ export const SegmentCustomersModal: React.FC<SegmentCustomersModalProps> = ({
   const getFilteredUnassignedCustomers = () => {
     if (!allCustomers) return [];
 
-    const assignedCustomerIds = new Set(customers.map(c => c.id));
-    const unassigned = allCustomers.filter(customer => !assignedCustomerIds.has(customer.id));
+    const assignedCustomerIds = new Set(customers.map((c) => c.id));
+    const unassigned = allCustomers.filter(
+      (customer) => !assignedCustomerIds.has(customer.id),
+    );
 
     if (!searchTerm) return unassigned;
 
-    return unassigned.filter(customer => 
-      customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      `${customer.first_name || ''} ${customer.last_name || ''}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (customer.phone && customer.phone.includes(searchTerm))
+    return unassigned.filter(
+      (customer) =>
+        customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        `${customer.first_name || ""} ${customer.last_name || ""}`
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase()) ||
+        (customer.phone && customer.phone.includes(searchTerm)),
     );
   };
 
   // Handle assigning customer to segment
   const handleAssignCustomer = async (customerId: string) => {
     if (assigningCustomer) return;
-    
-    console.log('🔄 Assigning customer to segment:', { customerId, segmentId });
     setAssigningCustomer(customerId);
-    
+
     try {
       // Check if this is a predefined segment (non-UUID)
-      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(segmentId);
-      
+      const isUUID =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+          segmentId,
+        );
+
       if (!isUUID) {
         // For predefined segments, we need to create the segment first
-        console.log('🔄 Creating predefined segment in database first');
-        
         const predefinedSegments = [
-          { id: 'loyalty-members', name: 'Loyalty Members', description: 'Customers enrolled in your loyalty program with active engagement' },
-          { id: 'high-value', name: 'High-Value Customers', description: 'Top spending customers who drive significant revenue' },
-          { id: 'new-customers', name: 'New Customers', description: 'Recent customers who made their first purchase within 30 days' },
-          { id: 'lapsed-customers', name: 'Lapsed Customers', description: 'Previously active customers who haven\'t purchased in 90+ days' },
-          { id: 'seasonal-shoppers', name: 'Seasonal Shoppers', description: 'Customers who typically purchase during specific seasons or holidays' },
-          { id: 'frequent-buyers', name: 'Frequent Buyers', description: 'Customers with 3+ purchases in the last 6 months' },
+          {
+            id: "loyalty-members",
+            name: "Loyalty Members",
+            description:
+              "Customers enrolled in your loyalty program with active engagement",
+          },
+          {
+            id: "high-value",
+            name: "High-Value Customers",
+            description: "Top spending customers who drive significant revenue",
+          },
+          {
+            id: "new-customers",
+            name: "New Customers",
+            description:
+              "Recent customers who made their first purchase within 30 days",
+          },
+          {
+            id: "lapsed-customers",
+            name: "Lapsed Customers",
+            description:
+              "Previously active customers who haven't purchased in 90+ days",
+          },
+          {
+            id: "seasonal-shoppers",
+            name: "Seasonal Shoppers",
+            description:
+              "Customers who typically purchase during specific seasons or holidays",
+          },
+          {
+            id: "frequent-buyers",
+            name: "Frequent Buyers",
+            description: "Customers with 3+ purchases in the last 6 months",
+          },
         ];
-        
-        const predefinedSegment = predefinedSegments.find(s => s.id === segmentId);
+
+        const predefinedSegment = predefinedSegments.find(
+          (s) => s.id === segmentId,
+        );
         if (!predefinedSegment) {
           throw new Error(`Unknown predefined segment: ${segmentId}`);
         }
@@ -298,103 +373,95 @@ export const SegmentCustomersModal: React.FC<SegmentCustomersModalProps> = ({
         // Check if segment already exists
         let actualSegmentId = segmentId;
         const { data: existingSegment } = await supabase
-          .from('crm_segments')
-          .select('id')
-          .eq('name', predefinedSegment.name)
-          .eq('tenant_id', tenant.id)
+          .from("crm_segments")
+          .select("id")
+          .eq("name", predefinedSegment.name)
+          .eq("tenant_id", tenant.id)
           .single();
 
         if (!existingSegment) {
           // Create the segment
           const { data: newSegment, error: createError } = await supabase
-            .from('crm_segments')
+            .from("crm_segments")
             .insert({
               name: predefinedSegment.name,
               description: predefinedSegment.description,
               tenant_id: tenant.id,
               user_id: user.id,
               conditions: {},
-              customer_count: 0
+              customer_count: 0,
             })
-            .select('id')
+            .select("id")
             .single();
 
           if (createError) {
-            console.error('❌ Error creating segment:', createError);
+            console.error("❌ Error creating segment:", createError);
             throw createError;
           }
-          
+
           actualSegmentId = newSegment.id;
-          console.log('✅ Created new segment with ID:', actualSegmentId);
         } else {
           actualSegmentId = existingSegment.id;
-          console.log('✅ Using existing segment with ID:', actualSegmentId);
         }
 
         // Check if customer is already assigned to avoid duplicate key error
         const { data: existingAssignment } = await supabase
-          .from('customer_segments')
-          .select('id')
-          .eq('customer_id', customerId)
-          .eq('segment_id', actualSegmentId)
+          .from("customer_segments")
+          .select("id")
+          .eq("customer_id", customerId)
+          .eq("segment_id", actualSegmentId)
           .single();
 
         if (existingAssignment) {
-          console.log('✅ Customer is already assigned to this segment');
         } else {
           // Now assign customer to the segment
           const { error: assignError } = await supabase
-            .from('customer_segments')
+            .from("customer_segments")
             .insert({
               customer_id: customerId,
-              segment_id: actualSegmentId
+              segment_id: actualSegmentId,
             });
 
           if (assignError) {
-            console.error('❌ Error assigning customer to segment:', assignError);
+            console.error(
+              "❌ Error assigning customer to segment:",
+              assignError,
+            );
             throw assignError;
           }
         }
       } else {
         // For UUID segments (custom segments), check for existing assignment first
         const { data: existingAssignment } = await supabase
-          .from('customer_segments')
-          .select('id')
-          .eq('customer_id', customerId)
-          .eq('segment_id', segmentId)
+          .from("customer_segments")
+          .select("id")
+          .eq("customer_id", customerId)
+          .eq("segment_id", segmentId)
           .single();
 
         if (existingAssignment) {
-          console.log('✅ Customer is already assigned to this segment');
         } else {
-          const { error } = await supabase
-            .from('customer_segments')
-            .insert({
-              customer_id: customerId,
-              segment_id: segmentId
-            });
+          const { error } = await supabase.from("customer_segments").insert({
+            customer_id: customerId,
+            segment_id: segmentId,
+          });
 
           if (error) {
-            console.error('❌ Error assigning customer to segment:', error);
+            console.error("❌ Error assigning customer to segment:", error);
             throw error;
           }
         }
       }
-
-      console.log('✅ Customer assigned successfully');
       // Refresh the customer lists
-      console.log('🔄 Refreshing customer lists...');
       const segmentCustomersData = await fetchSegmentCustomers();
-      console.log('📊 Updated segment customers:', segmentCustomersData.length);
       setCustomers(segmentCustomersData);
-      
+
       // Notify parent component about the change
       if (onAssignmentChange) {
         onAssignmentChange();
       }
-      
     } catch (error) {
-      console.error('❌ Error assigning customer to segment:', error);
+      console.error("❌ Error assigning customer to segment:", error);
     } finally {
       setAssigningCustomer(null);
     }
@@ -403,35 +470,38 @@ export const SegmentCustomersModal: React.FC<SegmentCustomersModalProps> = ({
   // Handle removing customer from segment
   const handleUnassignCustomer = async (customerId: string) => {
     if (unassigningCustomer) return;
-    
-    console.log('🔄 Removing customer from segment:', { customerId, segmentId });
     setUnassigningCustomer(customerId);
-    
+
     try {
       // For removing, we need to find the actual segment ID if it's predefined
       let actualSegmentId = segmentId;
-      
-      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(segmentId);
+
+      const isUUID =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+          segmentId,
+        );
       if (!isUUID) {
         // Find the actual segment ID from the database
         const predefinedSegments = [
-          { id: 'loyalty-members', name: 'Loyalty Members' },
-          { id: 'high-value', name: 'High-Value Customers' },
-          { id: 'new-customers', name: 'New Customers' },
-          { id: 'lapsed-customers', name: 'Lapsed Customers' },
-          { id: 'seasonal-shoppers', name: 'Seasonal Shoppers' },
-          { id: 'frequent-buyers', name: 'Frequent Buyers' },
+          { id: "loyalty-members", name: "Loyalty Members" },
+          { id: "high-value", name: "High-Value Customers" },
+          { id: "new-customers", name: "New Customers" },
+          { id: "lapsed-customers", name: "Lapsed Customers" },
+          { id: "seasonal-shoppers", name: "Seasonal Shoppers" },
+          { id: "frequent-buyers", name: "Frequent Buyers" },
         ];
-        
-        const predefinedSegment = predefinedSegments.find(s => s.id === segmentId);
+
+        const predefinedSegment = predefinedSegments.find(
+          (s) => s.id === segmentId,
+        );
         if (predefinedSegment) {
           const { data: existingSegment } = await supabase
-            .from('crm_segments')
-            .select('id')
-            .eq('name', predefinedSegment.name)
-            .eq('tenant_id', tenant.id)
+            .from("crm_segments")
+            .select("id")
+            .eq("name", predefinedSegment.name)
+            .eq("tenant_id", tenant.id)
             .single();
-            
+
           if (existingSegment) {
             actualSegmentId = existingSegment.id;
           }
@@ -439,29 +509,25 @@ export const SegmentCustomersModal: React.FC<SegmentCustomersModalProps> = ({
       }
 
       const { error } = await supabase
-        .from('customer_segments')
+        .from("customer_segments")
         .delete()
-        .eq('customer_id', customerId)
-        .eq('segment_id', actualSegmentId);
+        .eq("customer_id", customerId)
+        .eq("segment_id", actualSegmentId);
 
       if (error) {
-        console.error('❌ Error removing customer from segment:', error);
+        console.error("❌ Error removing customer from segment:", error);
         throw error;
       }
-
-      console.log('✅ Customer removed successfully');
       // Refresh the customer lists
-      console.log('🔄 Refreshing customer lists after removal...');
       const segmentCustomersData = await fetchSegmentCustomers();
-      console.log('📊 Updated segment customers after removal:', segmentCustomersData.length);
       setCustomers(segmentCustomersData);
-      
+
       // Notify parent component about the change
       if (onAssignmentChange) {
         onAssignmentChange();
       }
     } catch (error) {
-      console.error('❌ Error removing customer from segment:', error);
+      console.error("❌ Error removing customer from segment:", error);
     } finally {
       setUnassigningCustomer(null);
     }
@@ -478,13 +544,14 @@ export const SegmentCustomersModal: React.FC<SegmentCustomersModalProps> = ({
   }, [open, segmentId, user, tenant]);
 
   const getCustomerInitials = (customer: SegmentCustomer | any) => {
-    const first = customer.first_name?.[0] || '';
-    const last = customer.last_name?.[0] || '';
+    const first = customer.first_name?.[0] || "";
+    const last = customer.last_name?.[0] || "";
     return first + last || customer.email[0].toUpperCase();
   };
 
   const getCustomerName = (customer: SegmentCustomer | any) => {
-    const name = `${customer.first_name || ''} ${customer.last_name || ''}`.trim();
+    const name =
+      `${customer.first_name || ""} ${customer.last_name || ""}`.trim();
     return name || customer.email;
   };
 
@@ -513,7 +580,7 @@ export const SegmentCustomersModal: React.FC<SegmentCustomersModalProps> = ({
                 size="sm"
                 onClick={() => {
                   onClose();
-                  navigate('/crm/segments/beta');
+                  navigate("/crm/segments/beta");
                 }}
                 className="gap-1.5"
               >
@@ -600,7 +667,9 @@ export const SegmentCustomersModal: React.FC<SegmentCustomersModalProps> = ({
                       <div className="text-center py-8">
                         <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                         <p className="text-sm text-muted-foreground">
-                          {searchTerm ? 'No customers found' : 'No customers in this segment'}
+                          {searchTerm
+                            ? "No customers found"
+                            : "No customers in this segment"}
                         </p>
                       </div>
                     )}
@@ -662,7 +731,9 @@ export const SegmentCustomersModal: React.FC<SegmentCustomersModalProps> = ({
                       <div className="text-center py-8">
                         <UserPlus className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                         <p className="text-sm text-muted-foreground">
-                          {searchTerm ? 'No available customers found' : 'All customers are assigned'}
+                          {searchTerm
+                            ? "No available customers found"
+                            : "All customers are assigned"}
                         </p>
                       </div>
                     )}

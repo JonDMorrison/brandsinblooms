@@ -223,10 +223,6 @@ export function CampaignDeliveryStatusCard(props: {
             if (isMissingFunction) {
               setIsStatusRpcMissing(true);
             } else if (import.meta.env.DEV) {
-              console.warn("Failed to load campaign delivery status via RPC", {
-                campaignId,
-                error: rpcError,
-              });
             }
           }
         } catch (e: any) {
@@ -238,10 +234,6 @@ export function CampaignDeliveryStatusCard(props: {
           ) {
             setIsStatusRpcMissing(true);
           } else if (import.meta.env.DEV) {
-            console.warn("Failed to load campaign delivery status via RPC", {
-              campaignId,
-              error: e,
-            });
           }
         }
       }
@@ -265,11 +257,8 @@ export function CampaignDeliveryStatusCard(props: {
 
       if (fallbackError) {
         if (import.meta.env.DEV) {
-          console.warn("Failed to load campaign delivery status via fallback", {
-            campaignId,
-            error: fallbackError,
-          });
         }
+
         return;
       }
 
@@ -310,10 +299,6 @@ export function CampaignDeliveryStatusCard(props: {
         if (cancelled) return;
         if (error) {
           if (import.meta.env.DEV) {
-            console.warn("Failed to load campaign delivery progress", {
-              campaignId,
-              error,
-            });
           }
           setProgressUnavailable(true);
           return;
@@ -330,13 +315,6 @@ export function CampaignDeliveryStatusCard(props: {
         setProgressUnavailable(false);
         setProgress((prev) => (isSameProgress(prev, row) ? prev : row));
       } catch (e: any) {
-        if (cancelled) return;
-        if (import.meta.env.DEV) {
-          console.warn("Failed to load campaign delivery progress", {
-            campaignId,
-            error: e,
-          });
-        }
         setProgressUnavailable(true);
       }
     };

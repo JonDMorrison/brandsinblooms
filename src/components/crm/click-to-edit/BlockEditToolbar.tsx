@@ -1,8 +1,8 @@
-import React from 'react';
-import { Button } from '@/components/ui/button';
-import { Edit, Image, Copy, Trash2, Sparkles } from 'lucide-react';
-import { EditMode } from '@/hooks/useBlockEditMode';
-import { cn } from '@/lib/utils';
+import React from "react";
+import { Button } from "@/components/ui/button";
+import { Edit, Image, Copy, Trash2, Sparkles } from "lucide-react";
+import { EditMode } from "@/hooks/useBlockEditMode";
+import { cn } from "@/lib/utils";
 
 interface BlockEditToolbarProps {
   editMode: EditMode;
@@ -30,12 +30,14 @@ export const BlockEditToolbar: React.FC<BlockEditToolbarProps> = ({
   };
 
   return (
-    <div className={cn(
-      "absolute top-2 right-2 flex items-center",
-      "bg-background/95 backdrop-blur-sm border rounded-md shadow-sm p-1",
-      "opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-50",
-      className
-    )}>
+    <div
+      className={cn(
+        "absolute top-2 right-2 flex items-center",
+        "bg-background/95 backdrop-blur-sm border rounded-md shadow-sm p-1",
+        "opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-50",
+        className,
+      )}
+    >
       {/* AI Image Picker */}
       {onOpenAIImageDialog && (
         <Button
@@ -51,17 +53,14 @@ export const BlockEditToolbar: React.FC<BlockEditToolbarProps> = ({
           <Sparkles className="w-3 h-3" />
         </Button>
       )}
-      
+
       {/* Delete */}
       <Button
         variant="ghost"
         size="sm"
         onClick={(e) => {
-          console.log('🗑️ Delete button clicked!', e);
           e.stopPropagation();
-          console.log('🗑️ Calling onDelete function...');
           onDelete();
-          console.log('🗑️ onDelete function called');
         }}
         className="h-7 w-7 p-0 hover:bg-destructive hover:text-destructive-foreground"
         title="Delete block"

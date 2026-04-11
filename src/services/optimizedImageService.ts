@@ -40,7 +40,7 @@ export class OptimizedImageService {
   preloadImages(keywords: string[], context = ''): void {
     // Don't await - run in background
     this.batchFetchImages(keywords.map(keyword => ({ keyword, context })))
-      .catch(error => console.warn('Background image preload failed:', error));
+      .catch(error => {});
   }
 
   // Queue-based fetching for better performance

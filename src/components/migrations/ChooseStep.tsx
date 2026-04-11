@@ -79,9 +79,6 @@ export const ChooseStep = ({
         const { data, error } = await supabase.functions.invoke(
           "mailchimp-fetch-lists",
         );
-
-        console.log("Mailchimp response:", { data, error });
-
         if (error) {
           console.error("Mailchimp invoke error:", error);
           throw error;

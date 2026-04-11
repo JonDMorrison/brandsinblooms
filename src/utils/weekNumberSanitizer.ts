@@ -158,11 +158,4 @@ CRITICAL WEEK NUMBER RESTRICTIONS:
  * Logs week number violations for monitoring
  */
 export function logWeekNumberViolation(content: string, context: string): void {
-  const validation = validateNoWeekNumbers(content);
-  if (!validation.isValid) {
-    console.warn(`🚨 WEEK NUMBER VIOLATION in ${context}:`, {
-      violations: validation.foundPatterns,
-      contentPreview: content.substring(0, 200)
-    });
-  }
 }

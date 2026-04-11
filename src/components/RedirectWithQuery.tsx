@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import React, { useEffect } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 
 interface RedirectWithQueryProps {
   to: string;
@@ -11,7 +11,6 @@ export const RedirectWithQuery: React.FC<RedirectWithQueryProps> = ({ to }) => {
 
   useEffect(() => {
     const fullPath = `${to}${location.search}`;
-    console.log('🔄 Redirecting with preserved query params:', fullPath);
     navigate(fullPath, { replace: true });
   }, [to, location.search, navigate]);
 

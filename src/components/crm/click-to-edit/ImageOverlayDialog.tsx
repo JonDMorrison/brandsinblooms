@@ -1,10 +1,15 @@
-import React, { useState } from 'react';
-import { ContentBlock } from '@/types/emailBuilder';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { Slider } from '@/components/ui/slider';
-import { Button } from '@/components/ui/button';
+import React, { useState } from "react";
+import { ContentBlock } from "@/types/emailBuilder";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Slider } from "@/components/ui/slider";
+import { Button } from "@/components/ui/button";
 
 interface ImageOverlayDialogProps {
   isOpen: boolean;
@@ -17,23 +22,19 @@ export const ImageOverlayDialog: React.FC<ImageOverlayDialogProps> = ({
   isOpen,
   onClose,
   block,
-  onUpdate
+  onUpdate,
 }) => {
-  const [overlayOpacity, setOverlayOpacity] = useState(block.overlayOpacity || 0);
-  const [overlayColor, setOverlayColor] = useState(block.overlayColor || '#000000');
+  const [overlayOpacity, setOverlayOpacity] = useState(
+    block.overlayOpacity || 0,
+  );
+  const [overlayColor, setOverlayColor] = useState(
+    block.overlayColor || "#000000",
+  );
 
   const handleSave = () => {
-    console.log('[ImageOverlayDialog] Applying overlay:', {
-      blockId: block.id,
-      blockType: block.type,
-      overlayOpacity,
-      overlayColor,
-      imageUrl: block.imageUrl,
-      backgroundImageUrl: block.backgroundImageUrl
-    });
     onUpdate({
       overlayOpacity,
-      overlayColor
+      overlayColor,
     });
     onClose();
   };
@@ -62,7 +63,7 @@ export const ImageOverlayDialog: React.FC<ImageOverlayDialogProps> = ({
                   className="absolute inset-0"
                   style={{
                     backgroundColor: overlayColor,
-                    opacity: overlayOpacity / 100
+                    opacity: overlayOpacity / 100,
                   }}
                 />
               )}
@@ -94,7 +95,9 @@ export const ImageOverlayDialog: React.FC<ImageOverlayDialogProps> = ({
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <Label htmlFor="overlayOpacity">Overlay Opacity</Label>
-              <span className="text-sm text-muted-foreground">{overlayOpacity}%</span>
+              <span className="text-sm text-muted-foreground">
+                {overlayOpacity}%
+              </span>
             </div>
             <Slider
               id="overlayOpacity"
@@ -106,7 +109,8 @@ export const ImageOverlayDialog: React.FC<ImageOverlayDialogProps> = ({
               className="w-full"
             />
             <p className="text-xs text-muted-foreground">
-              Adjust the opacity to control how much the overlay affects the image
+              Adjust the opacity to control how much the overlay affects the
+              image
             </p>
           </div>
 
@@ -115,9 +119,7 @@ export const ImageOverlayDialog: React.FC<ImageOverlayDialogProps> = ({
             <Button variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button onClick={handleSave}>
-              Apply Overlay
-            </Button>
+            <Button onClick={handleSave}>Apply Overlay</Button>
           </div>
         </div>
       </DialogContent>

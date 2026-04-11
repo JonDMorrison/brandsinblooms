@@ -15750,15 +15750,53 @@ export type Database = {
       get_email_consent_stats: {
         Args: { p_tenant_id: string }
         Returns: {
-          opted_in_count: number
-          opted_out_count: number
-          total_customers: number
-          unknown_count: number
-        }[]
-      }
-      get_email_governance_config: { Args: never; Returns: Json }
-      get_global_in_progress_count: { Args: never; Returns: number }
-      get_jwt_tenant_id: { Args: never; Returns: string }
+          opted_in_count: number;
+          opted_out_count: number;
+          total_customers: number;
+          unknown_count: number;
+        }[];
+      };
+      get_email_governance_config: { Args: never; Returns: Json };
+      delete_form_submissions: {
+        Args: {
+          p_form_id: string;
+          p_submission_ids: string[];
+          p_tenant_id: string;
+        };
+        Returns: Json;
+      };
+      get_form_analytics: {
+        Args: { p_days?: number; p_form_id: string; p_tenant_id: string };
+        Returns: Json;
+      };
+      get_form_submissions_page: {
+        Args: {
+          p_date_from?: string;
+          p_date_to?: string;
+          p_form_id: string;
+          p_hide_test?: boolean;
+          p_page?: number;
+          p_page_size?: number;
+          p_result_filter?: string;
+          p_search?: string;
+          p_sort_column?: string;
+          p_sort_direction?: string;
+          p_tenant_id: string;
+        };
+        Returns: Json;
+      };
+      get_forms_with_stats: {
+        Args: { p_stats_days?: number; p_tenant_id: string };
+        Returns: (Database["public"]["Tables"]["forms"]["Row"] & {
+          last_submission_at: string | null;
+          recent_accepted: number;
+          recent_rejected: number;
+          recent_submissions: number;
+          total_submissions: number;
+        })[];
+      };
+      get_global_in_progress_count: { Args: never; Returns: number };
+      get_jwt_tenant_id: { Args: never; Returns: string };
       get_my_overdue_campaigns: {
         Args: never
         Returns: {

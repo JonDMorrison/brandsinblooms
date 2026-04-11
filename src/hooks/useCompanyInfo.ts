@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 // Brand footer colors from profile settings
 export interface BrandFooterColors {
@@ -78,9 +78,9 @@ interface CompanyInfo {
 export const useCompanyInfo = () => {
   const { user, loading } = useAuth();
   const [companyInfo, setCompanyInfo] = useState<CompanyInfo>({
-    name: 'Your Company',
-    address: '123 Business St, Suite 100, City, State 12345',
-    phone: '(555) 123-4567',
+    name: "Your Company",
+    address: "123 Business St, Suite 100, City, State 12345",
+    phone: "(555) 123-4567",
   });
   const [isLoading, setIsLoading] = useState(true);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
@@ -94,10 +94,11 @@ export const useCompanyInfo = () => {
 
     try {
       setIsLoading(true);
-      
+
       const { data: profile, error } = await supabase
-        .from('company_profiles')
-        .select(`
+        .from("company_profiles")
+        .select(
+          `
           *,
           selected_font:available_fonts!selected_font_id(
             id,
@@ -134,12 +135,13 @@ export const useCompanyInfo = () => {
             google_fonts_url,
             font_family_css
           )
-        `)
-        .eq('user_id', user.id)
+        `,
+        )
+        .eq("user_id", user.id)
         .maybeSingle();
 
       if (error) {
-        console.error('Error loading company profile:', error);
+        console.error("Error loading company profile:", error);
         return;
       }
 
@@ -149,50 +151,41 @@ export const useCompanyInfo = () => {
         const headlineFont = profile.headline_font as any;
         const subheadingFont = profile.subheading_font as any;
         const bodyFont = profile.body_font as any;
-        const buttonFont = profile.button_font as any;
-        
-        // Log social URLs for debugging footer issues
-        console.log('📧 Company profile social URLs loaded:', {
-          facebook: profile.facebook_url,
-          instagram: profile.instagram_url,
-          tiktok: profile.tiktok_url,
-          pinterest: profile.pinterest_url,
-          youtube: profile.youtube_url,
-          linkedin: profile.linkedin_url,
-        });
-        
+
         // Build full address from structured fields
         const addressParts = [
           profile.street_address,
           profile.city,
           profile.state_province,
           profile.postal_code,
-          profile.country
+          profile.country,
         ].filter(Boolean);
-        const fullAddress = addressParts.length > 0 
-          ? addressParts.join(', ') 
-          : (profile.location_info || '');
-        
+        const fullAddress =
+          addressParts.length > 0
+            ? addressParts.join(", ")
+            : profile.location_info || "";
+
         setCompanyInfo({
-          name: profile.company_name || 'Your Company',
+          name: profile.company_name || "Your Company",
           // Use structured address, fallback to location_info for legacy data
-          address: fullAddress || '123 Business St, Suite 100, City, State 12345',
+          address:
+            fullAddress || "123 Business St, Suite 100, City, State 12345",
           // Read phone from proper column, fallback to feature_flags for legacy
-          phone: profile.company_phone || featureFlags?.company_phone || '',
-          email: profile.company_email || '',
-          websiteUrl: profile.website_url || '',
+          phone: profile.company_phone || featureFlags?.company_phone || "",
+          email: profile.company_email || "",
+          websiteUrl: profile.website_url || "",
           // Structured address fields
-          streetAddress: profile.street_address || '',
-          city: profile.city || '',
-          stateProvince: profile.state_province || '',
-          postalCode: profile.postal_code || '',
-          country: profile.country || '',
+          streetAddress: profile.street_address || "",
+          city: profile.city || "",
+          stateProvince: profile.state_province || "",
+          postalCode: profile.postal_code || "",
+          country: profile.country || "",
           logoUrl: featureFlags?.company_logo_url,
           emailDomain: profile.email_domain,
-          brandPrimaryColor: profile.brand_primary_color || '#22c55e',
-          brandSecondaryColor: profile.brand_secondary_color || '#1e40af',
-          brandAccentColor: profile.brand_accent_color || '#f59e0b',
-          brandTextColor: profile.brand_text_color || '#1f2937',
+          brandPrimaryColor: profile.brand_primary_color || "#22c55e",
+          brandSecondaryColor: profile.brand_secondary_color || "#1e40af",
+          brandAccentColor: profile.brand_accent_color || "#f59e0b",
+          brandTextColor: profile.brand_text_color || "#1f2937",
           // Social URLs - log them for debugging and use undefined fallback
           facebookUrl: profile.facebook_url || undefined,
           instagramUrl: profile.instagram_url || undefined,
@@ -202,53 +195,66 @@ export const useCompanyInfo = () => {
           linkedinUrl: profile.linkedin_url || undefined,
           footerLegalText: profile.footer_legal_text || undefined,
           // Brand footer colors from feature_flags
-          brandFooterColors: featureFlags?.footer_colors ? {
-            backgroundColor: featureFlags.footer_colors.backgroundColor,
-            textColor: featureFlags.footer_colors.textColor,
-            linkColor: featureFlags.footer_colors.linkColor,
-            dividerColor: featureFlags.footer_colors.dividerColor,
-            logoBackgroundColor: featureFlags.footer_colors.logoBackgroundColor,
-            logoTextColor: featureFlags.footer_colors.logoTextColor,
-          } : undefined,
-          selectedFont: font ? {
-            id: font.id,
-            name: font.name,
-            displayName: font.display_name,
-            googleFontsUrl: font.google_fonts_url,
-            fontFamilyCss: font.font_family_css
-          } : undefined,
-          headlineFont: headlineFont ? {
-            id: headlineFont.id,
-            name: headlineFont.name,
-            displayName: headlineFont.display_name,
-            googleFontsUrl: headlineFont.google_fonts_url,
-            fontFamilyCss: headlineFont.font_family_css
-          } : undefined,
-          subheadingFont: subheadingFont ? {
-            id: subheadingFont.id,
-            name: subheadingFont.name,
-            displayName: subheadingFont.display_name,
-            googleFontsUrl: subheadingFont.google_fonts_url,
-            fontFamilyCss: subheadingFont.font_family_css
-          } : undefined,
-          bodyFont: bodyFont ? {
-            id: bodyFont.id,
-            name: bodyFont.name,
-            displayName: bodyFont.display_name,
-            googleFontsUrl: bodyFont.google_fonts_url,
-            fontFamilyCss: bodyFont.font_family_css
-          } : undefined,
-          buttonFont: buttonFont ? {
-            id: buttonFont.id,
-            name: buttonFont.name,
-            displayName: buttonFont.display_name,
-            googleFontsUrl: buttonFont.google_fonts_url,
-            fontFamilyCss: buttonFont.font_family_css
-          } : undefined
+          brandFooterColors: featureFlags?.footer_colors
+            ? {
+                backgroundColor: featureFlags.footer_colors.backgroundColor,
+                textColor: featureFlags.footer_colors.textColor,
+                linkColor: featureFlags.footer_colors.linkColor,
+                dividerColor: featureFlags.footer_colors.dividerColor,
+                logoBackgroundColor:
+                  featureFlags.footer_colors.logoBackgroundColor,
+                logoTextColor: featureFlags.footer_colors.logoTextColor,
+              }
+            : undefined,
+          selectedFont: font
+            ? {
+                id: font.id,
+                name: font.name,
+                displayName: font.display_name,
+                googleFontsUrl: font.google_fonts_url,
+                fontFamilyCss: font.font_family_css,
+              }
+            : undefined,
+          headlineFont: headlineFont
+            ? {
+                id: headlineFont.id,
+                name: headlineFont.name,
+                displayName: headlineFont.display_name,
+                googleFontsUrl: headlineFont.google_fonts_url,
+                fontFamilyCss: headlineFont.font_family_css,
+              }
+            : undefined,
+          subheadingFont: subheadingFont
+            ? {
+                id: subheadingFont.id,
+                name: subheadingFont.name,
+                displayName: subheadingFont.display_name,
+                googleFontsUrl: subheadingFont.google_fonts_url,
+                fontFamilyCss: subheadingFont.font_family_css,
+              }
+            : undefined,
+          bodyFont: bodyFont
+            ? {
+                id: bodyFont.id,
+                name: bodyFont.name,
+                displayName: bodyFont.display_name,
+                googleFontsUrl: bodyFont.google_fonts_url,
+                fontFamilyCss: bodyFont.font_family_css,
+              }
+            : undefined,
+          buttonFont: buttonFont
+            ? {
+                id: buttonFont.id,
+                name: buttonFont.name,
+                displayName: buttonFont.display_name,
+                googleFontsUrl: buttonFont.google_fonts_url,
+                fontFamilyCss: buttonFont.font_family_css,
+              }
+            : undefined,
         });
       }
     } catch (error) {
-      console.error('Error loading company info:', error);
+      console.error("Error loading company info:", error);
     } finally {
       setIsLoading(false);
     }
@@ -266,7 +272,6 @@ export const useCompanyInfo = () => {
     // Cleanup any existing subscription first
     const cleanupChannel = async () => {
       if (channelRef.current && isSubscribedRef.current) {
-        console.log('🧹 Cleaning up existing subscription for user:', user.id);
         await supabase.removeChannel(channelRef.current);
         channelRef.current = null;
         isSubscribedRef.current = false;
@@ -275,24 +280,22 @@ export const useCompanyInfo = () => {
 
     // Setup new subscription
     const setupChannel = async () => {
-      console.log('🔔 Setting up subscription for user:', user.id);
       await cleanupChannel();
 
       const channel = supabase
         .channel(`company-profile-changes-${user.id}-${Date.now()}`)
         .on(
-          'postgres_changes',
+          "postgres_changes",
           {
-            event: '*',
-            schema: 'public',
-            table: 'company_profiles',
-            filter: `user_id=eq.${user.id}`
+            event: "*",
+            schema: "public",
+            table: "company_profiles",
+            filter: `user_id=eq.${user.id}`,
           },
           (payload) => {
-            console.log('📄 Company profile updated:', payload);
             // Reload company info to get updated font data
             loadCompanyInfo();
-          }
+          },
         )
         .subscribe();
 
@@ -307,8 +310,11 @@ export const useCompanyInfo = () => {
     };
   }, [user?.id, loading]);
 
-  return useMemo(() => ({
-    companyInfo,
-    isLoading
-  }), [companyInfo, isLoading]);
+  return useMemo(
+    () => ({
+      companyInfo,
+      isLoading,
+    }),
+    [companyInfo, isLoading],
+  );
 };

@@ -1,138 +1,135 @@
-import { supabase } from '@/integrations/supabase/client'
+import { supabase } from "@/integrations/supabase/client";
 
 interface UploadOptions {
-  bucket?: string
-  folder?: string
-  generatePublicUrl?: boolean
-  metadata?: Record<string, any>
+  bucket?: string;
+  folder?: string;
+  generatePublicUrl?: boolean;
+  metadata?: Record<string, any>;
 }
 
 interface UploadResult {
-  url: string
-  path: string
-  publicUrl?: string
-  metadata?: Record<string, any>
+  url: string;
+  path: string;
+  publicUrl?: string;
+  metadata?: Record<string, any>;
 }
 
 export class ImageUploader {
-  private bucket: string
+  private bucket: string;
 
-  constructor(bucket: string = 'media-mms') {
-    this.bucket = bucket
+  constructor(bucket: string = "media-mms") {
+    this.bucket = bucket;
   }
 
   async uploadProcessedImage(
-    blob: Blob, 
+    blob: Blob,
     originalFileName: string,
-    suffix: string = '',
-    options: UploadOptions = {}
+    suffix: string = "",
+    options: UploadOptions = {},
   ): Promise<UploadResult> {
-    const opts = { 
-      generatePublicUrl: true, 
-      folder: 'processed',
-      ...options 
-    }
+    const opts = {
+      generatePublicUrl: true,
+      folder: "processed",
+      ...options,
+    };
 
     // Generate unique filename
-    const timestamp = Date.now()
-    const randomId = Math.random().toString(36).substr(2, 9)
-    const extension = this.getExtensionFromBlob(blob)
-    const cleanName = originalFileName.replace(/\.[^/.]+$/, "").replace(/[^a-zA-Z0-9-_]/g, '-')
-    
-    const fileName = `${cleanName}${suffix}-${timestamp}-${randomId}.${extension}`
-    const filePath = opts.folder ? `${opts.folder}/${fileName}` : fileName
+    const timestamp = Date.now();
+    const randomId = Math.random().toString(36).substr(2, 9);
+    const extension = this.getExtensionFromBlob(blob);
+    const cleanName = originalFileName
+      .replace(/\.[^/.]+$/, "")
+      .replace(/[^a-zA-Z0-9-_]/g, "-");
 
-    console.log(`Uploading processed image: ${filePath}`)
-
+    const fileName = `${cleanName}${suffix}-${timestamp}-${randomId}.${extension}`;
+    const filePath = opts.folder ? `${opts.folder}/${fileName}` : fileName;
     // Upload to Supabase Storage
     const { data, error } = await supabase.storage
       .from(this.bucket)
       .upload(filePath, blob, {
         contentType: blob.type,
-        metadata: opts.metadata
-      })
+        metadata: opts.metadata,
+      });
 
     if (error) {
-      console.error('Upload error:', error)
-      throw new Error(`Failed to upload image: ${error.message}`)
+      console.error("Upload error:", error);
+      throw new Error(`Failed to upload image: ${error.message}`);
     }
 
-    let publicUrl: string | undefined
+    let publicUrl: string | undefined;
     if (opts.generatePublicUrl) {
       const { data: urlData } = supabase.storage
         .from(this.bucket)
-        .getPublicUrl(data.path)
-      publicUrl = urlData.publicUrl
+        .getPublicUrl(data.path);
+      publicUrl = urlData.publicUrl;
     }
 
     return {
       url: data.path,
       path: data.path,
       publicUrl,
-      metadata: opts.metadata
-    }
+      metadata: opts.metadata,
+    };
   }
 
   async uploadBatch(
     blobs: { blob: Blob; name: string; suffix?: string }[],
-    options: UploadOptions = {}
+    options: UploadOptions = {},
   ): Promise<UploadResult[]> {
-    const uploadPromises = blobs.map(({ blob, name, suffix = '' }) =>
-      this.uploadProcessedImage(blob, name, suffix, options)
-    )
+    const uploadPromises = blobs.map(({ blob, name, suffix = "" }) =>
+      this.uploadProcessedImage(blob, name, suffix, options),
+    );
 
-    const results = await Promise.allSettled(uploadPromises)
-    
-    const successful: UploadResult[] = []
-    const failed: string[] = []
+    const results = await Promise.allSettled(uploadPromises);
+
+    const successful: UploadResult[] = [];
+    const failed: string[] = [];
 
     results.forEach((result, index) => {
-      if (result.status === 'fulfilled') {
-        successful.push(result.value)
+      if (result.status === "fulfilled") {
+        successful.push(result.value);
       } else {
-        failed.push(`${blobs[index].name}: ${result.reason.message}`)
-        console.error(`Failed to upload ${blobs[index].name}:`, result.reason)
+        failed.push(`${blobs[index].name}: ${result.reason.message}`);
+        console.error(`Failed to upload ${blobs[index].name}:`, result.reason);
       }
-    })
+    });
 
     if (failed.length > 0) {
-      console.warn(`${failed.length} uploads failed:`, failed)
     }
-
-    console.log(`Batch upload completed: ${successful.length} successful, ${failed.length} failed`)
-    return successful
+    return successful;
   }
 
   private getExtensionFromBlob(blob: Blob): string {
-    const mimeType = blob.type
+    const mimeType = blob.type;
     switch (mimeType) {
-      case 'image/webp': return 'webp'
-      case 'image/jpeg': return 'jpg'
-      case 'image/png': return 'png'
-      case 'image/gif': return 'gif'
-      default: return 'jpg'
+      case "image/webp":
+        return "webp";
+      case "image/jpeg":
+        return "jpg";
+      case "image/png":
+        return "png";
+      case "image/gif":
+        return "gif";
+      default:
+        return "jpg";
     }
   }
 
   async deleteImage(path: string): Promise<void> {
-    const { error } = await supabase.storage
-      .from(this.bucket)
-      .remove([path])
+    const { error } = await supabase.storage.from(this.bucket).remove([path]);
 
     if (error) {
-      console.error('Delete error:', error)
-      throw new Error(`Failed to delete image: ${error.message}`)
+      console.error("Delete error:", error);
+      throw new Error(`Failed to delete image: ${error.message}`);
     }
   }
 
   async deleteBatch(paths: string[]): Promise<void> {
-    const { error } = await supabase.storage
-      .from(this.bucket)
-      .remove(paths)
+    const { error } = await supabase.storage.from(this.bucket).remove(paths);
 
     if (error) {
-      console.error('Batch delete error:', error)
-      throw new Error(`Failed to delete images: ${error.message}`)
+      console.error("Batch delete error:", error);
+      throw new Error(`Failed to delete images: ${error.message}`);
     }
   }
 }

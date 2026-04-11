@@ -1,6 +1,5 @@
-
-import { supabase } from '@/integrations/supabase/client';
-import { getCurrentWeekNumber } from '@/utils/dateUtils';
+import { supabase } from "@/integrations/supabase/client";
+import { getCurrentWeekNumber } from "@/utils/dateUtils";
 
 export interface SeasonalTemplate {
   id: string;
@@ -11,89 +10,86 @@ export interface SeasonalTemplate {
   content_ideas: string;
 }
 
-export const getSeasonalTemplates = async (weekNumber?: number): Promise<SeasonalTemplate[]> => {
+export const getSeasonalTemplates = async (
+  weekNumber?: number,
+): Promise<SeasonalTemplate[]> => {
   try {
     let query = supabase
-      .from('master_campaign_templates')
-      .select('*')
-      .order('week_number');
+      .from("master_campaign_templates")
+      .select("*")
+      .order("week_number");
 
     if (weekNumber) {
-      query = query.eq('week_number', weekNumber);
+      query = query.eq("week_number", weekNumber);
     }
 
     const { data, error } = await query;
 
     if (error) throw error;
-    
-    console.info('[seasonalTemplateService] Raw data from DB:', (data || []).length, 'records');
-    
+
     // More robust deduplication with detailed logging
     const seenTitles = new Map<string, SeasonalTemplate>();
     const deduplicated: SeasonalTemplate[] = [];
-    
-    (data || []).forEach(template => {
+
+    (data || []).forEach((template) => {
       const normalizedTitle = template.title.trim().toLowerCase();
       if (!seenTitles.has(normalizedTitle)) {
         seenTitles.set(normalizedTitle, template);
         deduplicated.push(template);
       } else {
-        console.warn('[seasonalTemplateService] Filtered duplicate:', template.title, `Week ${template.week_number}`, 'vs existing Week', seenTitles.get(normalizedTitle)?.week_number);
       }
     });
-    
-    console.info('[seasonalTemplateService] Deduplication complete:', {
-      original: (data || []).length,
-      deduplicated: deduplicated.length,
-      removed: (data || []).length - deduplicated.length
-    });
-    
+
     return deduplicated;
   } catch (error) {
-    console.error('Error fetching seasonal templates:', error);
+    console.error("Error fetching seasonal templates:", error);
     return [];
   }
 };
 
-export const recommendTemplatesForContent = async (content: string): Promise<SeasonalTemplate[]> => {
+export const recommendTemplatesForContent = async (
+  content: string,
+): Promise<SeasonalTemplate[]> => {
   try {
     // Simple keyword matching for now - could be enhanced with AI later
-    const keywords = content.toLowerCase().split(' ');
-    
+    const keywords = content.toLowerCase().split(" ");
+
     const { data, error } = await supabase
-      .from('master_campaign_templates')
-      .select('*')
-      .order('week_number');
+      .from("master_campaign_templates")
+      .select("*")
+      .order("week_number");
 
     if (error) throw error;
 
     // Filter templates based on content keywords
-    const recommendations = (data || []).filter(template => {
-      const templateText = `${template.title} ${template.theme} ${template.seasonal_focus} ${template.content_ideas}`.toLowerCase();
-      return keywords.some(keyword => templateText.includes(keyword));
+    const recommendations = (data || []).filter((template) => {
+      const templateText =
+        `${template.title} ${template.theme} ${template.seasonal_focus} ${template.content_ideas}`.toLowerCase();
+      return keywords.some((keyword) => templateText.includes(keyword));
     });
 
     return recommendations.slice(0, 3); // Return top 3 recommendations
   } catch (error) {
-    console.error('Error getting template recommendations:', error);
+    console.error("Error getting template recommendations:", error);
     return [];
   }
 };
 
-export const getCurrentSeasonalTemplate = async (): Promise<SeasonalTemplate | null> => {
-  try {
-    const currentWeek = getCurrentWeekNumber();
-    
-    const { data, error } = await supabase
-      .from('master_campaign_templates')
-      .select('*')
-      .eq('week_number', currentWeek)
-      .single();
+export const getCurrentSeasonalTemplate =
+  async (): Promise<SeasonalTemplate | null> => {
+    try {
+      const currentWeek = getCurrentWeekNumber();
 
-    if (error) throw error;
-    return data;
-  } catch (error) {
-    console.error('Error fetching current seasonal template:', error);
-    return null;
-  }
-};
+      const { data, error } = await supabase
+        .from("master_campaign_templates")
+        .select("*")
+        .eq("week_number", currentWeek)
+        .single();
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error("Error fetching current seasonal template:", error);
+      return null;
+    }
+  };

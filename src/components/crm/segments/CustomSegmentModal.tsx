@@ -1,14 +1,28 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { Search, Plus, X, Users, Target, Settings, Loader2, SlidersHorizontal } from 'lucide-react';
-import { CustomSegmentBuilder } from '@/components/crm/CustomSegmentBuilder';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
-import { useTenant } from '@/hooks/useTenant';
+import React, { useState, useEffect, useCallback, useRef } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import {
+  Search,
+  Plus,
+  X,
+  Users,
+  Target,
+  Settings,
+  Loader2,
+  SlidersHorizontal,
+} from "lucide-react";
+import { CustomSegmentBuilder } from "@/components/crm/CustomSegmentBuilder";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { useTenant } from "@/hooks/useTenant";
 
 interface Customer {
   id: string;
@@ -32,7 +46,7 @@ interface CustomSegmentModalProps {
     auto_update: boolean;
     created_at: string;
   } | null;
-  mode?: 'create' | 'view';
+  mode?: "create" | "view";
   onSegmentUpdate?: () => void;
   onAdvancedCreate?: () => void;
 }
@@ -42,28 +56,31 @@ export const CustomSegmentModal: React.FC<CustomSegmentModalProps> = ({
   onSave,
   onCancel,
   segment,
-  mode = 'create',
+  mode = "create",
   onSegmentUpdate,
-  onAdvancedCreate
+  onAdvancedCreate,
 }) => {
-  const [segmentData, setSegmentData] = useState<{ name: string; filters: any[] } | null>(null);
+  const [segmentData, setSegmentData] = useState<{
+    name: string;
+    filters: any[];
+  } | null>(null);
   const [estimatedCount, setEstimatedCount] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [isCalculating, setIsCalculating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [segmentCustomers, setSegmentCustomers] = useState<Customer[]>([]);
   const [availableCustomers, setAvailableCustomers] = useState<Customer[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
   const [addingCustomers, setAddingCustomers] = useState(false);
   const { toast } = useToast();
   const { tenant } = useTenant();
-  
+
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const saveAttemptedRef = useRef(false);
 
   useEffect(() => {
-    if (open && segment && mode === 'view') {
+    if (open && segment && mode === "view") {
       loadSegmentData();
     }
   }, [open, segment, mode]);
@@ -73,11 +90,11 @@ export const CustomSegmentModal: React.FC<CustomSegmentModalProps> = ({
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
-    
+
     // Create new abort controller for this request
     const abortController = new AbortController();
     abortControllerRef.current = abortController;
-    
+
     setIsCalculating(true);
     try {
       // Get total customer count for estimation with explicit tenant filtering
@@ -85,21 +102,22 @@ export const CustomSegmentModal: React.FC<CustomSegmentModalProps> = ({
         setEstimatedCount(0);
         return;
       }
-      
+
       const { count, error } = await supabase
-        .from('crm_customers')
-        .select('*', { count: 'exact', head: true })
-        .eq('tenant_id', tenant.id);
+        .from("crm_customers")
+        .select("*", { count: "exact", head: true })
+        .eq("tenant_id", tenant.id);
 
       // Check if this request was aborted
       if (abortController.signal.aborted) return;
 
       if (error) {
-        console.error('Error calculating count:', error);
+        console.error("Error calculating count:", error);
         // Don't block - show warning but keep previous estimate
         toast({
           title: "Estimation unavailable",
-          description: "Could not estimate count, but you can still create the segment",
+          description:
+            "Could not estimate count, but you can still create the segment",
           variant: "default",
         });
         return;
@@ -118,11 +136,12 @@ export const CustomSegmentModal: React.FC<CustomSegmentModalProps> = ({
       setEstimatedCount(Math.max(estimated, 1));
     } catch (error) {
       if (!abortController.signal.aborted) {
-        console.error('Error calculating estimate:', error);
+        console.error("Error calculating estimate:", error);
         // Don't block - show warning
         toast({
           title: "Estimation unavailable",
-          description: "Could not estimate count, but you can still create the segment",
+          description:
+            "Could not estimate count, but you can still create the segment",
           variant: "default",
         });
       }
@@ -133,19 +152,22 @@ export const CustomSegmentModal: React.FC<CustomSegmentModalProps> = ({
     }
   }, []);
 
-  const handleSegmentChange = useCallback((data: { name: string; filters: any[] }) => {
-    setSegmentData(data);
-    
-    // Clear existing debounce timer
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-    }
-    
-    // Debounce the calculation by 500ms
-    debounceTimerRef.current = setTimeout(() => {
-      calculateEstimatedCount(data.filters);
-    }, 500);
-  }, [calculateEstimatedCount]);
+  const handleSegmentChange = useCallback(
+    (data: { name: string; filters: any[] }) => {
+      setSegmentData(data);
+
+      // Clear existing debounce timer
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+
+      // Debounce the calculation by 500ms
+      debounceTimerRef.current = setTimeout(() => {
+        calculateEstimatedCount(data.filters);
+      }, 500);
+    },
+    [calculateEstimatedCount],
+  );
 
   // Cleanup on unmount
   useEffect(() => {
@@ -161,38 +183,44 @@ export const CustomSegmentModal: React.FC<CustomSegmentModalProps> = ({
 
   const loadSegmentData = async () => {
     if (!segment) return;
-    
+
     setLoading(true);
     try {
       // Get customers assigned to custom segment
       const { data: segmentCustomerData, error: segmentError } = await supabase
-        .from('customer_segments')
-        .select(`
+        .from("customer_segments")
+        .select(
+          `
           customer_id,
           crm_customers(id, email, first_name, last_name, phone, total_spent)
-        `)
-        .eq('segment_id', segment.id);
+        `,
+        )
+        .eq("segment_id", segment.id);
 
       if (segmentError) throw segmentError;
-      const customers = segmentCustomerData?.map(item => item.crm_customers).filter(Boolean) || [];
-      
+      const customers =
+        segmentCustomerData
+          ?.map((item) => item.crm_customers)
+          .filter(Boolean) || [];
+
       setSegmentCustomers(customers as Customer[]);
 
       // Get all available customers for adding
       const { data: allCustomers, error: customersError } = await supabase
-        .from('crm_customers')
-        .select('id, email, first_name, last_name, phone, total_spent')
-        .order('email');
+        .from("crm_customers")
+        .select("id, email, first_name, last_name, phone, total_spent")
+        .order("email");
 
       if (customersError) throw customersError;
 
       // Filter out customers already in segment
-      const customerIds = new Set(customers.map(c => c.id));
-      const available = (allCustomers || []).filter(c => !customerIds.has(c.id));
+      const customerIds = new Set(customers.map((c) => c.id));
+      const available = (allCustomers || []).filter(
+        (c) => !customerIds.has(c.id),
+      );
       setAvailableCustomers(available);
-
     } catch (error) {
-      console.error('Error loading segment data:', error);
+      console.error("Error loading segment data:", error);
       toast({
         title: "Error",
         description: "Failed to load segment data",
@@ -207,12 +235,10 @@ export const CustomSegmentModal: React.FC<CustomSegmentModalProps> = ({
     if (!segment) return;
 
     try {
-      const { error } = await supabase
-        .from('customer_segments')
-        .insert({
-          customer_id: customerId,
-          segment_id: segment.id
-        });
+      const { error } = await supabase.from("customer_segments").insert({
+        customer_id: customerId,
+        segment_id: segment.id,
+      });
 
       if (error) throw error;
 
@@ -224,7 +250,7 @@ export const CustomSegmentModal: React.FC<CustomSegmentModalProps> = ({
       loadSegmentData();
       onSegmentUpdate?.();
     } catch (error) {
-      console.error('Error adding customer:', error);
+      console.error("Error adding customer:", error);
       toast({
         title: "Error",
         description: "Failed to add customer to segment",
@@ -238,10 +264,10 @@ export const CustomSegmentModal: React.FC<CustomSegmentModalProps> = ({
 
     try {
       const { error } = await supabase
-        .from('customer_segments')
+        .from("customer_segments")
         .delete()
-        .eq('customer_id', customerId)
-        .eq('segment_id', segment.id);
+        .eq("customer_id", customerId)
+        .eq("segment_id", segment.id);
 
       if (error) throw error;
 
@@ -253,7 +279,7 @@ export const CustomSegmentModal: React.FC<CustomSegmentModalProps> = ({
       loadSegmentData();
       onSegmentUpdate?.();
     } catch (error) {
-      console.error('Error removing customer:', error);
+      console.error("Error removing customer:", error);
       toast({
         title: "Error",
         description: "Failed to remove customer from segment",
@@ -262,9 +288,12 @@ export const CustomSegmentModal: React.FC<CustomSegmentModalProps> = ({
     }
   };
 
-  const filteredAvailableCustomers = availableCustomers.filter(customer =>
-    customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    `${customer.first_name} ${customer.last_name}`.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredAvailableCustomers = availableCustomers.filter(
+    (customer) =>
+      customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      `${customer.first_name} ${customer.last_name}`
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase()),
   );
 
   const handleSave = async () => {
@@ -292,18 +321,17 @@ export const CustomSegmentModal: React.FC<CustomSegmentModalProps> = ({
     setIsSaving(true);
 
     try {
-      console.log('Saving segment:', segmentData);
       await onSave(segmentData);
-      
+
       toast({
         title: "Success",
         description: "Segment created successfully",
       });
-      
+
       // Reset on success
       saveAttemptedRef.current = false;
     } catch (error) {
-      console.error('Failed to save segment:', error);
+      console.error("Failed to save segment:", error);
       toast({
         title: "Error",
         description: "Failed to create segment. Please try again.",
@@ -315,7 +343,7 @@ export const CustomSegmentModal: React.FC<CustomSegmentModalProps> = ({
     }
   };
 
-  if (mode === 'view' && !segment) return null;
+  if (mode === "view" && !segment) return null;
 
   return (
     <Dialog open={open} onOpenChange={onCancel}>
@@ -325,26 +353,27 @@ export const CustomSegmentModal: React.FC<CustomSegmentModalProps> = ({
             <Target className="h-6 w-6 text-primary" />
             <div>
               <DialogTitle className="text-xl">
-                {mode === 'view' ? segment?.name : 'Create Custom Segment'}
+                {mode === "view" ? segment?.name : "Create Custom Segment"}
               </DialogTitle>
               <p className="text-sm text-muted-foreground mt-1">
-                {mode === 'view' 
-                  ? segment?.description || 'Custom segment details'
-                  : 'Define custom criteria to segment your customers'
-                }
+                {mode === "view"
+                  ? segment?.description || "Custom segment details"
+                  : "Define custom criteria to segment your customers"}
               </p>
             </div>
           </div>
         </DialogHeader>
 
         <div className="flex-1 overflow-hidden flex flex-col">
-          {mode === 'view' && segment ? (
+          {mode === "view" && segment ? (
             <>
               {/* Summary Section */}
               <div className="flex items-center gap-4 p-4 bg-muted/50 rounded-lg mb-4">
                 <div className="flex items-center gap-2">
                   <Users className="h-5 w-5 text-primary" />
-                  <span className="font-semibold">{segmentCustomers.length} Customers</span>
+                  <span className="font-semibold">
+                    {segmentCustomers.length} Customers
+                  </span>
                 </div>
                 {segment.auto_update && (
                   <Badge variant="outline">Auto-update</Badge>
@@ -362,7 +391,7 @@ export const CustomSegmentModal: React.FC<CustomSegmentModalProps> = ({
               <div className="flex-1 overflow-hidden">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="font-semibold">Manage Customers</h3>
-                  <Button 
+                  <Button
                     onClick={() => setAddingCustomers(!addingCustomers)}
                     variant="outline"
                     size="sm"
@@ -383,17 +412,24 @@ export const CustomSegmentModal: React.FC<CustomSegmentModalProps> = ({
                         className="flex-1"
                       />
                     </div>
-                    
+
                     <div className="max-h-32 overflow-y-auto space-y-1">
                       {filteredAvailableCustomers.length === 0 ? (
                         <p className="text-sm text-muted-foreground text-center py-4">
-                          {searchTerm ? 'No customers found matching your search' : 'No customers available to add'}
+                          {searchTerm
+                            ? "No customers found matching your search"
+                            : "No customers available to add"}
                         </p>
                       ) : (
-                        filteredAvailableCustomers.map(customer => (
-                          <div key={customer.id} className="flex items-center justify-between p-2 hover:bg-muted/50 rounded">
+                        filteredAvailableCustomers.map((customer) => (
+                          <div
+                            key={customer.id}
+                            className="flex items-center justify-between p-2 hover:bg-muted/50 rounded"
+                          >
                             <div>
-                              <span className="font-medium">{customer.email}</span>
+                              <span className="font-medium">
+                                {customer.email}
+                              </span>
                               {(customer.first_name || customer.last_name) && (
                                 <span className="text-sm text-muted-foreground ml-2">
                                   ({customer.first_name} {customer.last_name})
@@ -418,40 +454,53 @@ export const CustomSegmentModal: React.FC<CustomSegmentModalProps> = ({
 
                 {/* Current Segment Customers */}
                 <div className="flex-1 overflow-y-auto">
-                  <h4 className="font-medium mb-3">Current Customers ({segmentCustomers.length})</h4>
-                  
+                  <h4 className="font-medium mb-3">
+                    Current Customers ({segmentCustomers.length})
+                  </h4>
+
                   {loading ? (
                     <div className="space-y-2">
                       {[...Array(3)].map((_, i) => (
-                        <div key={i} className="h-12 bg-muted animate-pulse rounded" />
+                        <div
+                          key={i}
+                          className="h-12 bg-muted animate-pulse rounded"
+                        />
                       ))}
                     </div>
                   ) : segmentCustomers.length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground">
                       <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
                       <p>No customers in this segment yet</p>
-                      <p className="text-sm">Click "Add Customers" to get started</p>
+                      <p className="text-sm">
+                        Click "Add Customers" to get started
+                      </p>
                     </div>
                   ) : (
                     <div className="space-y-1">
-                      {segmentCustomers.map(customer => (
-                        <div key={customer.id} className="flex items-center justify-between p-3 hover:bg-muted/50 rounded-lg">
+                      {segmentCustomers.map((customer) => (
+                        <div
+                          key={customer.id}
+                          className="flex items-center justify-between p-3 hover:bg-muted/50 rounded-lg"
+                        >
                           <div className="flex-1">
                             <div className="font-medium">{customer.email}</div>
                             <div className="text-sm text-muted-foreground">
-                              {customer.first_name || customer.last_name 
-                                ? `${customer.first_name || ''} ${customer.last_name || ''}`.trim()
-                                : 'No name provided'
-                              }
+                              {customer.first_name || customer.last_name
+                                ? `${customer.first_name || ""} ${customer.last_name || ""}`.trim()
+                                : "No name provided"}
                               {customer.total_spent !== undefined && (
-                                <span className="ml-2">• ${customer.total_spent.toFixed(2)} spent</span>
+                                <span className="ml-2">
+                                  • ${customer.total_spent.toFixed(2)} spent
+                                </span>
                               )}
                             </div>
                           </div>
                           <Button
                             size="sm"
                             variant="ghost"
-                            onClick={() => removeCustomerFromSegment(customer.id)}
+                            onClick={() =>
+                              removeCustomerFromSegment(customer.id)
+                            }
                             className="text-destructive hover:text-destructive"
                           >
                             <X className="h-4 w-4" />
@@ -483,7 +532,7 @@ export const CustomSegmentModal: React.FC<CustomSegmentModalProps> = ({
                           `~${estimatedCount} customers`
                         )
                       ) : (
-                        'Calculating...'
+                        "Calculating..."
                       )}
                     </span>
                   </div>
@@ -493,10 +542,14 @@ export const CustomSegmentModal: React.FC<CustomSegmentModalProps> = ({
                   </Badge>
                   {segmentData.filters.length > 0 ? (
                     <Badge variant="secondary">
-                      {segmentData.filters.length} {segmentData.filters.length === 1 ? 'filter' : 'filters'}
+                      {segmentData.filters.length}{" "}
+                      {segmentData.filters.length === 1 ? "filter" : "filters"}
                     </Badge>
                   ) : (
-                    <Badge variant="secondary" className="text-muted-foreground">
+                    <Badge
+                      variant="secondary"
+                      className="text-muted-foreground"
+                    >
                       No filters (All customers)
                     </Badge>
                   )}
@@ -507,8 +560,8 @@ export const CustomSegmentModal: React.FC<CustomSegmentModalProps> = ({
 
               {/* Segment Builder */}
               <div className="flex-1 overflow-y-auto">
-                <CustomSegmentBuilder 
-                  onSave={handleSegmentChange} 
+                <CustomSegmentBuilder
+                  onSave={handleSegmentChange}
                   onCancel={onCancel}
                   onChange={handleSegmentChange}
                 />
@@ -517,8 +570,8 @@ export const CustomSegmentModal: React.FC<CustomSegmentModalProps> = ({
               {/* Action Buttons */}
               <div className="flex items-center justify-between mt-6 pt-4 border-t">
                 {onAdvancedCreate ? (
-                  <Button 
-                    variant="ghost" 
+                  <Button
+                    variant="ghost"
                     onClick={onAdvancedCreate}
                     className="gap-2 text-muted-foreground hover:text-foreground"
                   >
@@ -532,7 +585,7 @@ export const CustomSegmentModal: React.FC<CustomSegmentModalProps> = ({
                   <Button variant="outline" onClick={onCancel}>
                     Cancel
                   </Button>
-                  <Button 
+                  <Button
                     onClick={handleSave}
                     disabled={!segmentData?.name?.trim() || isSaving}
                     className="min-w-[140px]"
@@ -543,9 +596,9 @@ export const CustomSegmentModal: React.FC<CustomSegmentModalProps> = ({
                         Creating...
                       </>
                     ) : !segmentData?.name?.trim() ? (
-                      'Enter Name'
+                      "Enter Name"
                     ) : (
-                      'Create Segment'
+                      "Create Segment"
                     )}
                   </Button>
                 </div>

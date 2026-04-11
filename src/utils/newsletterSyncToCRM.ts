@@ -1,6 +1,6 @@
-import { supabase } from '@/integrations/supabase/client';
-import { processNewsletterContent } from './newsletterContentProcessor';
-import { ContentBlock } from '@/types/emailBuilder';
+import { supabase } from "@/integrations/supabase/client";
+import { processNewsletterContent } from "./newsletterContentProcessor";
+import { ContentBlock } from "@/types/emailBuilder";
 
 interface NewsletterSyncResult {
   success: boolean;
@@ -24,18 +24,20 @@ interface SyncableBlock {
   cta_text?: string;
 }
 
-export const validateNewsletterForSync = (content: string): { isValid: boolean; errors: string[] } => {
+export const validateNewsletterForSync = (
+  content: string,
+): { isValid: boolean; errors: string[] } => {
   const errors: string[] = [];
-  
+
   if (!content || content.trim().length === 0) {
-    errors.push('Newsletter content is empty');
+    errors.push("Newsletter content is empty");
     return { isValid: false, errors };
   }
 
   const processed = processNewsletterContent(content);
-  
+
   if (!processed.isStructured) {
-    errors.push('Newsletter must be in structured format with proper blocks');
+    errors.push("Newsletter must be in structured format with proper blocks");
     return { isValid: false, errors };
   }
 
@@ -47,17 +49,17 @@ export const validateNewsletterForSync = (content: string): { isValid: boolean; 
 
   // Check for minimum content requirements
   if (processed.blocks.length === 0) {
-    errors.push('Newsletter must have at least one content block');
+    errors.push("Newsletter must have at least one content block");
   }
 
   // Validate newsletter metadata
-  if (!processed.meta.theme || processed.meta.theme.trim() === '') {
-    errors.push('Newsletter must have a theme');
+  if (!processed.meta.theme || processed.meta.theme.trim() === "") {
+    errors.push("Newsletter must have a theme");
   }
 
   return {
     isValid: errors.length === 0,
-    errors
+    errors,
   };
 };
 
@@ -71,38 +73,44 @@ const validateBlock = (block: any, index: number): string[] => {
   }
 
   switch (block.type) {
-    case 'header':
-      if (!block.title || block.title.trim() === '') {
+    case "header":
+      if (!block.title || block.title.trim() === "") {
         errors.push(`Block ${blockNum} (Header): Missing headline`);
       }
       break;
-      
-    case 'text':
-      if (!block.body || block.body.trim() === '') {
+
+    case "text":
+      if (!block.body || block.body.trim() === "") {
         errors.push(`Block ${blockNum} (Text): Missing content`);
       }
       break;
-      
-    case 'image':
+
+    case "image":
       if (!block.image_url && !block.image_prompt) {
-        errors.push(`Block ${blockNum} (Image): Missing image URL or image prompt`);
+        errors.push(
+          `Block ${blockNum} (Image): Missing image URL or image prompt`,
+        );
       }
       if (!block.alt_text) {
-        errors.push(`Block ${blockNum} (Image): Missing alt text for accessibility`);
+        errors.push(
+          `Block ${blockNum} (Image): Missing alt text for accessibility`,
+        );
       }
       break;
-      
-    case 'button':
-      if (!block.cta || block.cta.trim() === '') {
+
+    case "button":
+      if (!block.cta || block.cta.trim() === "") {
         errors.push(`Block ${blockNum} (Button): Missing button text`);
       }
       if (!block.link || !isValidUrl(block.link)) {
-        errors.push(`Block ${blockNum} (Button): Missing or invalid button URL`);
+        errors.push(
+          `Block ${blockNum} (Button): Missing or invalid button URL`,
+        );
       }
       break;
-      
-    case 'product':
-      if (!block.title || block.title.trim() === '') {
+
+    case "product":
+      if (!block.title || block.title.trim() === "") {
         errors.push(`Block ${blockNum} (Product): Missing product title`);
       }
       if (!block.image_url && !block.image_prompt) {
@@ -117,25 +125,14 @@ const validateBlock = (block: any, index: number): string[] => {
 const isValidUrl = (url: string): boolean => {
   try {
     const urlObj = new URL(url);
-    return urlObj.protocol === 'http:' || urlObj.protocol === 'https:';
+    return urlObj.protocol === "http:" || urlObj.protocol === "https:";
   } catch {
     return false;
   }
 };
 
-export const convertNewsletterBlocksToCRM = (processedNewsletter: any): ContentBlock[] => {
-  console.log('🔄 Converting newsletter blocks to CRM format:', {
-    totalBlocks: processedNewsletter.blocks?.length || 0,
-    blocks: processedNewsletter.blocks?.map((b: any, i: number) => ({
-      index: i,
-      type: b.type,
-      title: b.title,
-      hasImageUrl: !!b.image_url,
-      hasImagePrompt: !!b.image_prompt,
-      hasCta: !!b.cta,
-      hasLink: !!b.link
-    }))
-  });
+export const convertNewsletterBlocksToCRM = (
+  processedNewsletter: any,
 
   const crmBlocks: ContentBlock[] = [];
 
@@ -143,40 +140,29 @@ export const convertNewsletterBlocksToCRM = (processedNewsletter: any): ContentB
     // Check if block has image content (URL or prompt)
     const hasImage = !!(block.image_url || block.image_prompt);
     const hasText = !!(block.title || block.body);
-    
+
     // Force blocks with images to be image-text type regardless of original type
     let blockType: string;
     if (hasImage && hasText) {
-      blockType = 'image-text';
+      blockType = "image-text";
     } else if (hasImage && !hasText) {
-      blockType = 'image';
+      blockType = "image";
     } else {
       blockType = mapBlockTypeToCRM(block.type);
-    }
-    
-    console.log(`📝 Block ${index + 1}:`, {
-      originalType: block.type,
-      convertedType: blockType,
-      hasImage,
-      hasText,
-      title: block.title?.substring(0, 50),
-      imageUrl: block.image_url,
-      imagePrompt: block.image_prompt
-    });
-    
+
     const crmBlock: ContentBlock = {
       id: `block-${index}`,
       type: blockType as any,
-      source: 'newsletter' as const,
+      source: "newsletter" as const,
       visible: true,
-      textAlign: 'left' as const,
-      padding: 'medium' as const,
-      layout: blockType === 'image-text' ? 'image-right' : undefined,
+      textAlign: "left" as const,
+      padding: "medium" as const,
+      layout: blockType === "image-text" ? "image-right" : undefined,
     };
 
     // Map block-specific content based on type
     // Handle image-text blocks (converted from text blocks with images)
-    if (blockType === 'image-text') {
+    if (blockType === "image-text") {
       crmBlock.headline = block.title;
       crmBlock.body = block.body;
       crmBlock.imageUrl = block.image_url;
@@ -184,82 +170,82 @@ export const convertNewsletterBlocksToCRM = (processedNewsletter: any): ContentB
       crmBlock.buttonText = block.cta;
       crmBlock.buttonUrl = block.link;
       crmBlock.content = JSON.stringify({
-        headline: block.title || '',
-        body: block.body || '',
-        imageUrl: block.image_url || '',
-        altText: block.alt_text || '',
-        buttonText: block.cta || '',
-        buttonUrl: block.link || ''
+        headline: block.title || "",
+        body: block.body || "",
+        imageUrl: block.image_url || "",
+        altText: block.alt_text || "",
+        buttonText: block.cta || "",
+        buttonUrl: block.link || "",
       });
     } else {
       switch (block.type) {
-        case 'header':
+        case "header":
           crmBlock.headline = block.title;
           crmBlock.body = block.body;
           crmBlock.content = JSON.stringify({
             headline: block.title,
-            body: block.body || '',
-            backgroundColor: block.background_color || ''
+            body: block.body || "",
+            backgroundColor: block.background_color || "",
           });
           break;
 
-        case 'text':
+        case "text":
           crmBlock.title = block.title;
           crmBlock.content = JSON.stringify({
-            title: block.title || '',
-            body: block.body || '',
-            textAlign: 'left'
+            title: block.title || "",
+            body: block.body || "",
+            textAlign: "left",
           });
           break;
 
-      case 'image':
-        crmBlock.imageUrl = block.image_url;
-        crmBlock.altText = block.alt_text;
-        crmBlock.caption = block.caption;
-        crmBlock.content = JSON.stringify({
-          imageUrl: block.image_url || '',
-          altText: block.alt_text || '',
-          caption: block.caption || '',
-          alignment: 'center'
-        });
-        break;
+        case "image":
+          crmBlock.imageUrl = block.image_url;
+          crmBlock.altText = block.alt_text;
+          crmBlock.caption = block.caption;
+          crmBlock.content = JSON.stringify({
+            imageUrl: block.image_url || "",
+            altText: block.alt_text || "",
+            caption: block.caption || "",
+            alignment: "center",
+          });
+          break;
 
-      case 'button':
-        crmBlock.buttonText = block.cta;
-        crmBlock.buttonUrl = block.link;
-        crmBlock.heading = block.title;
-        crmBlock.content = JSON.stringify({
-          heading: block.title || '',
-          body: block.body || '',
-          buttonText: block.cta || '',
-          buttonUrl: block.link || '',
-          buttonStyle: 'primary'
-        });
-        break;
+        case "button":
+          crmBlock.buttonText = block.cta;
+          crmBlock.buttonUrl = block.link;
+          crmBlock.heading = block.title;
+          crmBlock.content = JSON.stringify({
+            heading: block.title || "",
+            body: block.body || "",
+            buttonText: block.cta || "",
+            buttonUrl: block.link || "",
+            buttonStyle: "primary",
+          });
+          break;
 
-      case 'product':
-        crmBlock.title = block.title;
-        crmBlock.imageUrl = block.image_url;
-        crmBlock.buttonText = block.cta || 'Learn More';
-        crmBlock.buttonUrl = block.link;
-        crmBlock.content = JSON.stringify({
-          title: block.title || '',
-          description: block.body || '',
-          imageUrl: block.image_url || '',
-          price: block.price || '',
-          buttonText: block.cta || 'Learn More',
-          buttonUrl: block.link || ''
-        });
-        break;
+        case "product":
+          crmBlock.title = block.title;
+          crmBlock.imageUrl = block.image_url;
+          crmBlock.buttonText = block.cta || "Learn More";
+          crmBlock.buttonUrl = block.link;
+          crmBlock.content = JSON.stringify({
+            title: block.title || "",
+            description: block.body || "",
+            imageUrl: block.image_url || "",
+            price: block.price || "",
+            buttonText: block.cta || "Learn More",
+            buttonUrl: block.link || "",
+          });
+          break;
 
-      default:
-        // Handle unknown block types - convert to image-text
-        crmBlock.type = 'image-text';
-        crmBlock.content = JSON.stringify({
-          title: block.title || '',
-          body: block.body || JSON.stringify(block),
-          textAlign: 'left'
-        });
+        default:
+          // Handle unknown block types - convert to image-text
+          crmBlock.type = "image-text";
+          crmBlock.content = JSON.stringify({
+            title: block.title || "",
+            body: block.body || JSON.stringify(block),
+            textAlign: "left",
+          });
       }
     }
 
@@ -271,28 +257,27 @@ export const convertNewsletterBlocksToCRM = (processedNewsletter: any): ContentB
 
 const mapBlockTypeToCRM = (newsletterType: string): string => {
   const typeMap: Record<string, string> = {
-    'header': 'header',
-    'text': 'text',
-    'image': 'image',
-    'button': 'button',
-    'product': 'product'
+    header: "header",
+    text: "text",
+    image: "image",
+    button: "button",
+    product: "product",
   };
-  
-  return typeMap[newsletterType] || 'text';
+
+  return typeMap[newsletterType] || "text";
 };
 
 export const syncNewsletterToCRM = async (
   contentTaskId: string,
   themeCampaignId: string,
-  userId: string
+  userId: string,
 ): Promise<NewsletterSyncResult> => {
   try {
-    console.log('🔄 Starting newsletter to CRM sync', { contentTaskId, themeCampaignId, userId });
-
     // Fetch newsletter content
     const { data: contentTask, error: taskError } = await supabase
-      .from('content_tasks')
-      .select(`
+      .from("content_tasks")
+      .select(
+        `
         *,
         campaigns(
           id,
@@ -301,17 +286,20 @@ export const syncNewsletterToCRM = async (
           week_number,
           description
         )
-      `)
-      .eq('id', contentTaskId)
+      `,
+      )
+      .eq("id", contentTaskId)
       .single();
 
     if (taskError || !contentTask) {
-      throw new Error(`Failed to fetch newsletter content: ${taskError?.message}`);
+      throw new Error(
+        `Failed to fetch newsletter content: ${taskError?.message}`,
+      );
     }
 
     const content = contentTask.ai_output;
     if (!content) {
-      throw new Error('Newsletter content is empty');
+      throw new Error("Newsletter content is empty");
     }
 
     // Validate newsletter content
@@ -319,37 +307,40 @@ export const syncNewsletterToCRM = async (
     if (!validation.isValid) {
       return {
         success: false,
-        errors: validation.errors
+        errors: validation.errors,
       };
     }
 
     // Check if already synced
     const { data: existingCampaign } = await supabase
-      .from('crm_campaigns')
-      .select('id')
-      .eq('synced_from', themeCampaignId)
-      .eq('user_id', userId)
+      .from("crm_campaigns")
+      .select("id")
+      .eq("synced_from", themeCampaignId)
+      .eq("user_id", userId)
       .single();
 
     if (existingCampaign) {
       return {
         success: false,
-        errors: ['This newsletter has already been synced to CRM']
+        errors: ["This newsletter has already been synced to CRM"],
       };
     }
 
     // Process newsletter content
-    const processed = processNewsletterContent(content, contentTask.campaigns?.title);
+    const processed = processNewsletterContent(
+      content,
+      contentTask.campaigns?.title,
+    );
     const crmBlocks = convertNewsletterBlocksToCRM(processed);
 
     // Create CRM campaign
     const { data: campaign, error: campaignError } = await supabase
-      .from('crm_campaigns')
+      .from("crm_campaigns")
       .insert({
         user_id: userId,
-        name: `📧 ${contentTask.campaigns?.title || 'Newsletter Campaign'}`,
+        name: `📧 ${contentTask.campaigns?.title || "Newsletter Campaign"}`,
         subject_line: `🌱 ${processed.meta.theme} - Your Garden Update`,
-        status: 'draft',
+        status: "draft",
         synced_from: themeCampaignId,
         metadata: {
           themeTitle: contentTask.campaigns?.title,
@@ -357,14 +348,16 @@ export const syncNewsletterToCRM = async (
           weekNumber: contentTask.campaigns?.week_number,
           personaTags: extractPersonaTags(content),
           originalContentTaskId: contentTaskId,
-          syncedAt: new Date().toISOString()
-        }
+          syncedAt: new Date().toISOString(),
+        },
       })
       .select()
       .single();
 
     if (campaignError || !campaign) {
-      throw new Error(`Failed to create CRM campaign: ${campaignError?.message}`);
+      throw new Error(
+        `Failed to create CRM campaign: ${campaignError?.message}`,
+      );
     }
 
     // Create campaign blocks
@@ -372,39 +365,39 @@ export const syncNewsletterToCRM = async (
       const insertData: any = {
         campaign_id: campaign.id,
         block_type: block.type,
-        content: JSON.parse(block.content || '{}'),
+        content: JSON.parse(block.content || "{}"),
         image_url: block.imageUrl || null,
         cta_url: block.buttonUrl || null,
         cta_text: block.buttonText || null,
         order_index: index,
-        source: 'newsletter',
-        persona_tag: null
+        source: "newsletter",
+        persona_tag: null,
       };
       return insertData;
     });
 
     const { error: blocksError } = await supabase
-      .from('campaign_blocks')
+      .from("campaign_blocks")
       .insert(blockInserts);
 
     if (blocksError) {
       // Cleanup: delete the campaign if block creation fails
-      await supabase.from('crm_campaigns').delete().eq('id', campaign.id);
-      throw new Error(`Failed to create campaign blocks: ${blocksError.message}`);
+      await supabase.from("crm_campaigns").delete().eq("id", campaign.id);
+      throw new Error(
+        `Failed to create campaign blocks: ${blocksError.message}`,
+      );
     }
-
-    console.log('✅ Newsletter synced to CRM successfully', { campaignId: campaign.id });
-
     return {
       success: true,
-      campaignId: campaign.id
+      campaignId: campaign.id,
     };
-
   } catch (error) {
-    console.error('❌ Newsletter to CRM sync failed:', error);
+    console.error("❌ Newsletter to CRM sync failed:", error);
     return {
       success: false,
-      errors: [error instanceof Error ? error.message : 'Unknown error occurred']
+      errors: [
+        error instanceof Error ? error.message : "Unknown error occurred",
+      ],
     };
   }
 };
@@ -413,38 +406,44 @@ const extractPersonaTags = (content: string): string[] => {
   const tags: string[] = [];
   const lowerContent = content.toLowerCase();
 
-  if (lowerContent.includes('beginner') || lowerContent.includes('new gardener')) {
-    tags.push('Beginner Gardeners');
+  if (
+    lowerContent.includes("beginner") ||
+    lowerContent.includes("new gardener")
+  ) {
+    tags.push("Beginner Gardeners");
   }
-  if (lowerContent.includes('expert') || lowerContent.includes('advanced')) {
-    tags.push('Expert Gardeners');
+  if (lowerContent.includes("expert") || lowerContent.includes("advanced")) {
+    tags.push("Expert Gardeners");
   }
-  if (lowerContent.includes('vegetable') || lowerContent.includes('herb')) {
-    tags.push('Vegetable Gardeners');
+  if (lowerContent.includes("vegetable") || lowerContent.includes("herb")) {
+    tags.push("Vegetable Gardeners");
   }
-  if (lowerContent.includes('flower') || lowerContent.includes('bloom')) {
-    tags.push('Flower Enthusiasts');
+  if (lowerContent.includes("flower") || lowerContent.includes("bloom")) {
+    tags.push("Flower Enthusiasts");
   }
-  if (lowerContent.includes('indoor') || lowerContent.includes('houseplant')) {
-    tags.push('Indoor Plant Lovers');
+  if (lowerContent.includes("indoor") || lowerContent.includes("houseplant")) {
+    tags.push("Indoor Plant Lovers");
   }
 
   return tags;
 };
 
-export const checkSyncStatus = async (themeCampaignId: string, userId: string): Promise<{
+export const checkSyncStatus = async (
+  themeCampaignId: string,
+  userId: string,
+): Promise<{
   isSynced: boolean;
   campaignId?: string;
 }> => {
   const { data: campaign } = await supabase
-    .from('crm_campaigns')
-    .select('id')
-    .eq('synced_from', themeCampaignId)
-    .eq('user_id', userId)
+    .from("crm_campaigns")
+    .select("id")
+    .eq("synced_from", themeCampaignId)
+    .eq("user_id", userId)
     .single();
 
   return {
     isSynced: !!campaign,
-    campaignId: campaign?.id
+    campaignId: campaign?.id,
   };
 };

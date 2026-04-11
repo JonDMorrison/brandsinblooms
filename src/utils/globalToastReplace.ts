@@ -1,57 +1,55 @@
-// Global toast replacement for all files
-// This replaces all sonner toast calls with console logs
+type ToastOptions = {
+  id?: string;
+  [key: string]: any;
+};
+
+type ToastPromiseOptions = {
+  loading: string;
+  success: string | (() => string);
+  error: string;
+};
+
+type ToastShim = {
+  success: (message: string, options?: ToastOptions) => void;
+  error: (message: string, options?: ToastOptions) => void;
+  info: (message: string, options?: ToastOptions) => void;
+  warning: (message: string, options?: ToastOptions) => void;
+  loading: (message: string, options?: ToastOptions) => void;
+  dismiss: (id?: string) => void;
+  promise: <T>(promise: Promise<T>, options: ToastPromiseOptions) => Promise<T>;
+  custom: (component: any, options?: ToastOptions) => void;
+};
 
 declare global {
-  var toast: {
-    success: (message: string, options?: any) => void;
-    error: (message: string, options?: any) => void;
-    info: (message: string, options?: any) => void;
-    warning: (message: string, options?: any) => void;
-    loading: (message: string, options?: any) => void;
-    dismiss: (id?: string) => void;
-    promise: (promise: Promise<any>, options: { loading: string; success: string | (() => string); error: string; }) => void;
-    custom: (component: any, options?: any) => void;
-  };
+  var toast: ToastShim;
+
+  interface Window {
+    toast: ToastShim;
+  }
 }
 
-// Replace toast functionality with console logging
-if (typeof window !== 'undefined') {
-  window.toast = {
-    success: (message: string, options?: any) => {
-      console.log(`✅ SUCCESS: ${message}`);
-      if (options?.description) console.log(`   Description: ${options.description}`);
-    },
-    error: (message: string, options?: any) => {
-      console.error(`❌ ERROR: ${message}`);
-      if (options?.description) console.error(`   Description: ${options.description}`);
-    },
-    info: (message: string, options?: any) => {
-      console.info(`ℹ️ INFO: ${message}`);
-      if (options?.description) console.info(`   Description: ${options.description}`);
-    },
-    warning: (message: string, options?: any) => {
-      console.warn(`⚠️ WARNING: ${message}`);
-      if (options?.description) console.warn(`   Description: ${options.description}`);
-    },
-    loading: (message: string, options?: any) => console.log(`🔄 LOADING: ${message}`),
-    dismiss: (id?: string) => console.log(`🗑️ DISMISS: ${id || 'all'}`),
-    promise: async (promise: Promise<any>, options: { loading: string; success: string | (() => string); error: string; }) => {
-      console.log(`🔄 PROMISE LOADING: ${options.loading}`);
-      try {
-        const result = await promise;
-        const successMsg = typeof options.success === 'function' ? options.success() : options.success;
-        console.log(`✅ PROMISE SUCCESS: ${successMsg}`);
-        return result;
-      } catch (error) {
-        console.error(`❌ PROMISE ERROR: ${options.error}`);
-        throw error;
-      }
-    },
-    custom: (component: any, options?: any) => {
-      console.log(`🎨 CUSTOM TOAST: Component rendered`);
-      if (options?.duration) console.log(`   Duration: ${options.duration}ms`);
-    },
-  };
-}
+const noop = () => {};
+
+const toastShim: ToastShim = {
+  success: noop,
+  error: (message) => {
+    console.error(message);
+  },
+  info: noop,
+  warning: noop,
+  loading: noop,
+  dismiss: noop,
+  promise: async <T>(promise: Promise<T>, options: ToastPromiseOptions) => {
+    try {
+      return await promise;
+    } catch (error) {
+      console.error(options.error);
+      throw error;
+    }
+  },
+  custom: noop,
+};
+
+globalThis.toast = globalThis.toast || toastShim;
 
 export {};

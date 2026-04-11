@@ -8,19 +8,25 @@ import { LaunchpadModal } from "@/components/dashboard/LaunchpadModal";
 import { NewsletterTemplateDrawer } from "@/components/dashboard/NewsletterTemplateDrawer";
 import { QuickStartTour } from "@/components/dashboard/QuickStartTour";
 import { PostComposerModal } from "@/components/dashboard/PostComposerModal";
-import { useConnectedAccounts, getConnectionStatus } from "@/components/dashboard/ConnectedAccountChecker";
-import { useTwilioSetup, getTwilioStatus } from "@/components/dashboard/TwilioSetupChecker";
+import {
+  useConnectedAccounts,
+  getConnectionStatus,
+} from "@/components/dashboard/ConnectedAccountChecker";
+import {
+  useTwilioSetup,
+  getTwilioStatus,
+} from "@/components/dashboard/TwilioSetupChecker";
 import { getDynamicIcon } from "@/components/dashboard/DynamicIcons";
 import { Button } from "@/components/ui/button";
-import { 
-  Mail, 
-  Megaphone, 
-  Calendar, 
-  BarChart3, 
+import {
+  Mail,
+  Megaphone,
+  Calendar,
+  BarChart3,
   Share2,
   Globe,
   HelpCircle,
-  Sparkles
+  Sparkles,
 } from "lucide-react";
 import { CreateFlowDialog } from "@/components/create-flow/CreateFlowDialog";
 import { DashboardSetupWizard } from "@/components/dashboard/DashboardSetupWizard";
@@ -28,15 +34,20 @@ import { DashboardSetupWizard } from "@/components/dashboard/DashboardSetupWizar
 export const BloomSuiteDashboard = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { isCompleted, hasEverCompleted, isLoading: onboardingLoading } = useOnboardingStatus();
+  const {
+    isCompleted,
+    hasEverCompleted,
+    isLoading: onboardingLoading,
+  } = useOnboardingStatus();
   const [showLaunchpad, setShowLaunchpad] = useState(false);
   const [showNewsletterDrawer, setShowNewsletterDrawer] = useState(false);
   const [showPostComposer, setShowPostComposer] = useState(false);
   const [showQuickTour, setShowQuickTour] = useState(false);
   const [showCreateFlow, setShowCreateFlow] = useState(false);
   const [showSetupWizard, setShowSetupWizard] = useState(false);
-  
-  const { data: socialConnections = [], isLoading: loadingConnections } = useConnectedAccounts();
+
+  const { data: socialConnections = [], isLoading: loadingConnections } =
+    useConnectedAccounts();
   const { data: twilioData, isLoading: loadingTwilio } = useTwilioSetup();
 
   // OnboardingGuard redirects incomplete users to /onboarding,
@@ -45,7 +56,7 @@ export const BloomSuiteDashboard = () => {
 
   // Check if user should see the quick start tour
   useEffect(() => {
-    const tourDone = localStorage.getItem('dashboardTourDone');
+    const tourDone = localStorage.getItem("dashboardTourDone");
     if (!tourDone && !showQuickTour) {
       // Show tour after a brief delay to let the page load
       setTimeout(() => {
@@ -65,32 +76,32 @@ export const BloomSuiteDashboard = () => {
       </div>
     );
   }
-  
+
   const socialStatus = getConnectionStatus(socialConnections);
   const twilioStatus = getTwilioStatus(twilioData?.isSetup || false);
 
   const handleSelectAction = (action: string) => {
     switch (action) {
-      case 'website-setup':
+      case "website-setup":
         setShowSetupWizard(true);
         break;
-      case 'newsletter':
-        navigate('/crm/campaigns/new?type=newsletter');
+      case "newsletter":
+        navigate("/crm/campaigns/new?type=newsletter");
         break;
-      case 'social-post':
+      case "social-post":
         setShowPostComposer(true);
         break;
-      case 'campaign':
-        navigate('/crm/automations/new?mode=quick');
+      case "campaign":
+        navigate("/crm/automations/new?mode=quick");
         break;
-      case 'content-calendar':
-        navigate('/calendar');
+      case "content-calendar":
+        navigate("/calendar");
         // Set flag for first-time calendar onboarding
-        if (!localStorage.getItem('calendarOnboard')) {
-          localStorage.setItem('calendarOnboard', 'true');
+        if (!localStorage.getItem("calendarOnboard")) {
+          localStorage.setItem("calendarOnboard", "true");
         }
         break;
-      case 'dashboard':
+      case "dashboard":
       default:
         // Stay on current page
         break;
@@ -99,146 +110,163 @@ export const BloomSuiteDashboard = () => {
 
   const dashboardActions = [
     {
-      id: 'plan-marketing',
-      title: 'Plan My Marketing',
-      description: 'Create a complete monthly marketing plan with email campaigns, SMS, and social posts. AI-powered seasonal themes.',
+      id: "plan-marketing",
+      title: "Plan My Marketing",
+      description:
+        "Create a complete monthly marketing plan with email campaigns, SMS, and social posts. AI-powered seasonal themes.",
       icon: <Calendar className="w-6 h-6 text-emerald-600" />,
-      
+
       primaryAction: {
-        label: 'Get Started',
-        onClick: () => navigate('/plan')
+        label: "Get Started",
+        onClick: () => navigate("/plan"),
       },
       secondaryAction: {
-        label: 'View Calendar',
-        onClick: () => navigate('/calendar')
+        label: "View Calendar",
+        onClick: () => navigate("/calendar"),
       },
-      status: 'ready' as const,
-      statusMessage: 'Monthly planning ready'
+      status: "ready" as const,
+      statusMessage: "Monthly planning ready",
     },
     {
-      id: 'create-flow',
-      title: 'Create Any Content',
-      description: 'We will give you ideas and write all the content for you. For social, your blog, video script, or newsletter.',
+      id: "create-flow",
+      title: "Create Any Content",
+      description:
+        "We will give you ideas and write all the content for you. For social, your blog, video script, or newsletter.",
       icon: <Sparkles className="w-6 h-6 text-indigo-600" />,
-      
+
       primaryAction: {
-        label: 'Get Started',
-        onClick: () => setShowCreateFlow(true)
+        label: "Get Started",
+        onClick: () => setShowCreateFlow(true),
       },
       secondaryAction: {
-        label: 'Browse Past Content',
-        onClick: () => navigate('/content/library')
+        label: "Browse Past Content",
+        onClick: () => navigate("/content/library"),
       },
-      status: 'ready' as const,
-      statusMessage: 'AI assistant ready'
+      status: "ready" as const,
+      statusMessage: "AI assistant ready",
     },
     {
-      id: 'newsletter',
-      title: 'Send A Newsletter',
-      description: 'Create and send email campaigns to your customers with personalized content and automated scheduling.',
+      id: "newsletter",
+      title: "Send A Newsletter",
+      description:
+        "Create and send email campaigns to your customers with personalized content and automated scheduling.",
       icon: <Mail className="w-6 h-6 text-blue-600" />,
-      
+
       primaryAction: {
-        label: 'Create Newsletter',
+        label: "Create Newsletter",
         onClick: () => {
-          console.log('Newsletter button clicked - navigating to:', '/newsletters/new');
-          navigate('/newsletters/new');
-        }
+          navigate("/newsletters/new");
+        },
       },
       secondaryAction: {
-        label: 'Previous Newsletters',
-        onClick: () => navigate('/crm/campaigns')
+        label: "Previous Newsletters",
+        onClick: () => navigate("/crm/campaigns"),
       },
-      status: 'ready' as const,
-      statusMessage: 'Email system ready'
+      status: "ready" as const,
+      statusMessage: "Email system ready",
     },
     {
-      id: 'campaign',
-      title: 'Build A Campaign',
-      description: 'Design automated customer journeys with SMS, email sequences, and personalized messaging flows.',
+      id: "campaign",
+      title: "Build A Campaign",
+      description:
+        "Design automated customer journeys with SMS, email sequences, and personalized messaging flows.",
       icon: <Megaphone className="w-6 h-6 text-green-600" />,
-      
+
       primaryAction: {
-        label: 'Build Campaign',
-        onClick: () => navigate('/crm/automations/new?mode=quick')
+        label: "Build Campaign",
+        onClick: () => navigate("/crm/automations/new?mode=quick"),
       },
       secondaryAction: {
-        label: 'View Automations',
-        onClick: () => navigate('/crm/automations')
+        label: "View Automations",
+        onClick: () => navigate("/crm/automations"),
       },
       status: twilioStatus.status,
-      statusMessage: twilioStatus.statusMessage
+      statusMessage: twilioStatus.statusMessage,
     },
     {
-      id: 'analytics',
-      title: 'Track Progress',
-      description: 'Monitor campaign performance, customer engagement, and ROI across all your marketing efforts.',
-      icon: <BarChart3 className="w-6 h-6" style={{ color: 'hsl(var(--brand-navy))' }} />,
-      
+      id: "analytics",
+      title: "Track Progress",
+      description:
+        "Monitor campaign performance, customer engagement, and ROI across all your marketing efforts.",
+      icon: (
+        <BarChart3
+          className="w-6 h-6"
+          style={{ color: "hsl(var(--brand-navy))" }}
+        />
+      ),
+
       primaryAction: {
-        label: 'View Analytics',
-        onClick: () => navigate('/analytics')
+        label: "View Analytics",
+        onClick: () => navigate("/analytics"),
       },
       secondaryAction: {
-        label: 'Customer Insights',
-        onClick: () => navigate('/crm/personas/analytics')
+        label: "Customer Insights",
+        onClick: () => navigate("/crm/personas/analytics"),
       },
-      status: 'ready' as const,
-      statusMessage: 'Analytics available'
+      status: "ready" as const,
+      statusMessage: "Analytics available",
     },
     {
-      id: 'social',
-      title: 'Post On Social Media',
-      description: 'Create, schedule, and publish content across all your social media platforms with AI assistance.',
-      icon: <Share2 className="w-6 h-6" style={{ color: 'hsl(var(--brand-teal))' }} />,
-      
+      id: "social",
+      title: "Post On Social Media",
+      description:
+        "Create, schedule, and publish content across all your social media platforms with AI assistance.",
+      icon: (
+        <Share2
+          className="w-6 h-6"
+          style={{ color: "hsl(var(--brand-teal))" }}
+        />
+      ),
+
       primaryAction: {
-        label: 'Create Post',
-        onClick: () => setShowPostComposer(true)
+        label: "Create Post",
+        onClick: () => setShowPostComposer(true),
       },
       secondaryAction: {
-        label: 'Manage Accounts',
-        onClick: () => navigate('/social-accounts')
+        label: "Manage Accounts",
+        onClick: () => navigate("/social-accounts"),
       },
       status: socialStatus.status,
       statusMessage: socialStatus.statusMessage,
-      connectionCount: socialConnections.length
+      connectionCount: socialConnections.length,
     },
     {
-      id: 'website',
-      title: 'Build & Manage Website',
-      description: 'Use AI to build your site in just minutes. Create stunning, professional websites without any coding knowledge.',
+      id: "website",
+      title: "Build & Manage Website",
+      description:
+        "Use AI to build your site in just minutes. Create stunning, professional websites without any coding knowledge.",
       icon: <Globe className="w-6 h-6 text-teal-600" />,
-      
+
       primaryAction: {
-        label: 'Join the Waitlist',
-        onClick: () => navigate('/website')
+        label: "Join the Waitlist",
+        onClick: () => navigate("/website"),
       },
       secondaryAction: {
-        label: 'Learn More',
-        onClick: () => navigate('/website')
+        label: "Learn More",
+        onClick: () => navigate("/website"),
       },
-      status: 'setup-needed' as const,
-      statusMessage: 'Feature coming soon'
-    }
+      status: "setup-needed" as const,
+      statusMessage: "Feature coming soon",
+    },
   ];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-gray-50/30 p-6">
       <div className="max-w-6xl mx-auto">
-        
         {/* Header */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-3 mb-4">
-            <h1 className="text-4xl font-bold text-gray-900">BloomSuite Dashboard</h1>
+            <h1 className="text-4xl font-bold text-gray-900">
+              BloomSuite Dashboard
+            </h1>
           </div>
           <p className="text-xl text-gray-600 mb-6">
             Your complete marketing command center
           </p>
-          
+
           {!isCompleted && !hasEverCompleted && (
             <div className="mb-6 flex items-center justify-center gap-4">
-              <Button 
+              <Button
                 onClick={() => setShowSetupWizard(true)}
                 className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
               >
@@ -247,16 +275,20 @@ export const BloomSuiteDashboard = () => {
               </Button>
             </div>
           )}
-
         </div>
 
         {/* Dashboard Cards Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
           {dashboardActions.map((action, index) => {
             // Define botanical accents for variety
-            const botanicalAccents = ['sage', 'mint', 'forest', 'earth'] as const;
+            const botanicalAccents = [
+              "sage",
+              "mint",
+              "forest",
+              "earth",
+            ] as const;
             const accent = botanicalAccents[index % botanicalAccents.length];
-            
+
             return (
               <DashboardCard
                 key={action.id}
@@ -270,7 +302,11 @@ export const BloomSuiteDashboard = () => {
                 variant="botanical"
                 accent={accent}
                 cardId={action.id}
-                dynamicIcon={getDynamicIcon(action.id, action.status, (action as any).connectionCount)}
+                dynamicIcon={getDynamicIcon(
+                  action.id,
+                  action.status,
+                  (action as any).connectionCount,
+                )}
                 hasPendingAction={false}
               />
             );
@@ -280,8 +316,8 @@ export const BloomSuiteDashboard = () => {
         {/* Quick Stats or Recent Activity could go here */}
         <div className="mt-12 text-center">
           <p className="text-gray-500 text-sm">
-            Need help? Check out our{' '}
-            <button 
+            Need help? Check out our{" "}
+            <button
               onClick={() => setShowLaunchpad(true)}
               className="text-blue-600 hover:text-blue-700 underline"
             >
@@ -289,11 +325,10 @@ export const BloomSuiteDashboard = () => {
             </button>
           </p>
         </div>
-
       </div>
 
       {/* Modals and Drawers */}
-      <LaunchpadModal 
+      <LaunchpadModal
         isOpen={showLaunchpad}
         onClose={() => setShowLaunchpad(false)}
         onSelectAction={handleSelectAction}
@@ -314,9 +349,12 @@ export const BloomSuiteDashboard = () => {
         onClose={() => setShowQuickTour(false)}
       />
 
-      <CreateFlowDialog open={showCreateFlow} onOpenChange={setShowCreateFlow} />
-      
-      <DashboardSetupWizard 
+      <CreateFlowDialog
+        open={showCreateFlow}
+        onOpenChange={setShowCreateFlow}
+      />
+
+      <DashboardSetupWizard
         isOpen={showSetupWizard}
         onClose={() => setShowSetupWizard(false)}
       />

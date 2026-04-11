@@ -1,13 +1,13 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import { useState } from 'react';
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useState } from "react";
 
 export interface AIAction {
   title: string;
   description: string;
   confidence: number;
-  actionType: 'sms' | 'email' | 'schedule' | 'monitor' | 'suppress';
-  priority: 'high' | 'medium' | 'low';
+  actionType: "sms" | "email" | "schedule" | "monitor" | "suppress";
+  priority: "high" | "medium" | "low";
 }
 
 export interface AIInsightsData {
@@ -27,34 +27,32 @@ interface UseCustomerAIInsightsOptions {
 
 export const useCustomerAIInsights = (
   customerId: string | undefined,
-  options: UseCustomerAIInsightsOptions = {}
+  options: UseCustomerAIInsightsOptions = {},
 ) => {
   const { enabled = true } = options;
   const queryClient = useQueryClient();
   const [isRegenerating, setIsRegenerating] = useState(false);
 
   const query = useQuery({
-    queryKey: ['customer-ai-insights', customerId],
+    queryKey: ["customer-ai-insights", customerId],
     queryFn: async (): Promise<AIInsightsData | null> => {
       if (!customerId) return null;
-
-      console.log('🔄 Fetching AI insights for customer:', customerId);
-
-      const { data, error } = await supabase.functions.invoke('generate-customer-insights', {
-        body: { customer_id: customerId, force_regenerate: false },
-      });
+      const { data, error } = await supabase.functions.invoke(
+        "generate-customer-insights",
+        {
+          body: { customer_id: customerId, force_regenerate: false },
+        },
+      );
 
       if (error) {
-        console.error('Error fetching AI insights:', error);
+        console.error("Error fetching AI insights:", error);
         throw error;
       }
 
       if (data?.error) {
-        console.error('AI insights error:', data.error);
+        console.error("AI insights error:", data.error);
         throw new Error(data.error);
       }
-
-      console.log('✅ AI insights received:', data);
       return data as AIInsightsData;
     },
     enabled: !!customerId && enabled,
@@ -70,25 +68,25 @@ export const useCustomerAIInsights = (
 
     setIsRegenerating(true);
     try {
-      console.log('🔄 Regenerating AI insights for customer:', customerId);
-
-      const { data, error } = await supabase.functions.invoke('generate-customer-insights', {
-        body: { customer_id: customerId, force_regenerate: true },
-      });
+      const { data, error } = await supabase.functions.invoke(
+        "generate-customer-insights",
+        {
+          body: { customer_id: customerId, force_regenerate: true },
+        },
+      );
 
       if (error) {
-        console.error('Error regenerating AI insights:', error);
+        console.error("Error regenerating AI insights:", error);
         throw error;
       }
 
       if (data?.error) {
-        console.error('AI regeneration error:', data.error);
+        console.error("AI regeneration error:", data.error);
         throw new Error(data.error);
       }
 
       // Update the cache with the new data
-      queryClient.setQueryData(['customer-ai-insights', customerId], data);
-      console.log('✅ AI insights regenerated:', data);
+      queryClient.setQueryData(["customer-ai-insights", customerId], data);
     } finally {
       setIsRegenerating(false);
     }
@@ -100,7 +98,9 @@ export const useCustomerAIInsights = (
     isRegenerating,
     error: query.error,
     regenerate,
-    lastGeneratedAt: query.data?.generatedAt ? new Date(query.data.generatedAt) : null,
+    lastGeneratedAt: query.data?.generatedAt
+      ? new Date(query.data.generatedAt)
+      : null,
     hasSufficientData: query.data?.hasSufficientData ?? true,
   };
 };

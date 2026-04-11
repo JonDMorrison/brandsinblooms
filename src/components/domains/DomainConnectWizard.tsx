@@ -1,11 +1,17 @@
-import React, { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { CheckCircle, ExternalLink, AlertCircle, Loader2 } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
+import React, { useState } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { CheckCircle, ExternalLink, AlertCircle, Loader2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface DomainConnectWizardProps {
   domain: string;
@@ -17,13 +23,13 @@ interface Step {
   id: string;
   title: string;
   description: string;
-  status: 'pending' | 'in-progress' | 'completed' | 'error';
+  status: "pending" | "in-progress" | "completed" | "error";
 }
 
-export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({ 
-  domain, 
-  templateId = 'landing_page',
-  onComplete 
+export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({
+  domain,
+  templateId = "landing_page",
+  onComplete,
 }) => {
   const { toast } = useToast();
   const [currentStep, setCurrentStep] = useState(0);
@@ -32,144 +38,139 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({
 
   const [steps, setSteps] = useState<Step[]>([
     {
-      id: 'detect',
-      title: 'Detect Registrar',
-      description: 'Checking if your registrar supports Domain Connect',
-      status: 'pending'
+      id: "detect",
+      title: "Detect Registrar",
+      description: "Checking if your registrar supports Domain Connect",
+      status: "pending",
     },
     {
-      id: 'setup',
-      title: 'Setup DNS Records',
-      description: 'Configuring DNS records automatically',
-      status: 'pending'
+      id: "setup",
+      title: "Setup DNS Records",
+      description: "Configuring DNS records automatically",
+      status: "pending",
     },
     {
-      id: 'verify',
-      title: 'Verify Configuration',
-      description: 'Confirming DNS propagation and TLS certificate',
-      status: 'pending'
-    }
-  ]);
-
-  // Debug logging
-  console.log('DomainConnectWizard state:', { 
-    isProcessing, 
-    firstStepStatus: steps[0].status,
-    domain 
-  });
+      id: "verify",
+      title: "Verify Configuration",
+      description: "Confirming DNS propagation and TLS certificate",
+      status: "pending",
+    },
 
   const resetWizard = () => {
-    console.log('Resetting wizard state');
     setIsProcessing(false);
     setCurrentStep(0);
     setSessionToken(null);
-    setSteps(prev => prev.map(step => ({ ...step, status: 'pending' as const })));
+    setSteps((prev) =>
+      prev.map((step) => ({ ...step, status: "pending" as const })),
+    );
   };
 
-  const updateStepStatus = (stepId: string, status: Step['status']) => {
-    setSteps(prev => prev.map(step => 
-      step.id === stepId ? { ...step, status } : step
-    ));
+  const updateStepStatus = (stepId: string, status: Step["status"]) => {
+    setSteps((prev) =>
+      prev.map((step) => (step.id === stepId ? { ...step, status } : step)),
+    );
   };
 
   const startDomainConnect = async () => {
-    console.log('Starting domain connect, current isProcessing:', isProcessing);
-    
     if (isProcessing) {
-      console.log('Already processing, ignoring click');
       return;
     }
 
     setIsProcessing(true);
-    
+
     // Reset all steps to pending when starting/retrying
-    setSteps(prev => prev.map(step => ({ ...step, status: 'pending' as const })));
+    setSteps((prev) =>
+      prev.map((step) => ({ ...step, status: "pending" as const })),
+    );
     setCurrentStep(0);
     setSessionToken(null);
-    
+
     try {
       // Step 1: Detect registrar and check Domain Connect support
-      updateStepStatus('detect', 'in-progress');
+      updateStepStatus("detect", "in-progress");
       setCurrentStep(0);
 
-      const { data, error } = await supabase.functions.invoke('domain-connect', {
-        body: {
-          domain,
-          templateId,
-          params: templateId === 'email_auth' ? {
-            // Email auth specific params
-            spf_record: 'v=spf1 include:resend.email ~all',
-            dkim_host: `selector1._domainkey.${domain}`,
-            dkim_value: 'selector1.domainkey.resend.email'
-          } : {
-            // Landing page params
-            host: '@',
-            target: 'pages.bloomsuite.app'
-          }
-        }
-      });
+      const { data, error } = await supabase.functions.invoke(
+        "domain-connect",
+        {
+          body: {
+            domain,
+            templateId,
+            params:
+              templateId === "email_auth"
+                ? {
+                    // Email auth specific params
+                    spf_record: "v=spf1 include:resend.email ~all",
+                    dkim_host: `selector1._domainkey.${domain}`,
+                    dkim_value: "selector1.domainkey.resend.email",
+                  }
+                : {
+                    // Landing page params
+                    host: "@",
+                    target: "pages.bloomsuite.app",
+                  },
+          },
+        },
+      );
 
       if (error) throw error;
 
       if (!data.success) {
-        updateStepStatus('detect', 'error');
-        
+        updateStepStatus("detect", "error");
+
         // Fallback to manual setup
         toast({
-          title: 'Domain Connect Not Supported',
-          description: data.error || 'Manual DNS setup required.',
-          variant: 'destructive',
+          title: "Domain Connect Not Supported",
+          description: data.error || "Manual DNS setup required.",
+          variant: "destructive",
         });
         return;
       }
 
-      updateStepStatus('detect', 'completed');
+      updateStepStatus("detect", "completed");
       setSessionToken(data.sessionToken);
 
       // Step 2: Redirect to Domain Connect
       if (data.redirectUrl) {
-        updateStepStatus('setup', 'in-progress');
+        updateStepStatus("setup", "in-progress");
         setCurrentStep(1);
 
         // Open Domain Connect URL
         const connectWindow = window.open(
-          data.redirectUrl, 
-          'domain-connect',
-          'width=800,height=600,scrollbars=yes,resizable=yes'
+          data.redirectUrl,
+          "domain-connect",
+          "width=800,height=600,scrollbars=yes,resizable=yes",
         );
 
         // Poll for completion
         const pollInterval = setInterval(async () => {
           try {
-            const { data: statusData, error: statusError } = await supabase.functions.invoke(
-              'domain-connect',
-              {
-                body: { 
-                  method: 'GET',
-                  sessionToken: data.sessionToken 
+            const { data: statusData, error: statusError } =
+              await supabase.functions.invoke("domain-connect", {
+                body: {
+                  method: "GET",
+                  sessionToken: data.sessionToken,
                 },
-                headers: { 'X-Session-Token': data.sessionToken }
-              }
-            );
+                headers: { "X-Session-Token": data.sessionToken },
+              });
 
             if (statusError) throw statusError;
 
-            if (statusData.status === 'completed') {
+            if (statusData.status === "completed") {
               clearInterval(pollInterval);
               connectWindow?.close();
-              
-              updateStepStatus('setup', 'completed');
-              
+
+              updateStepStatus("setup", "completed");
+
               // Step 3: Verify configuration
               await verifyConfiguration();
-            } else if (statusData.status === 'failed') {
+            } else if (statusData.status === "failed") {
               clearInterval(pollInterval);
               connectWindow?.close();
-              updateStepStatus('setup', 'error');
+              updateStepStatus("setup", "error");
             }
-
           } catch (error) {
-            console.error('Polling error:', error);
+            console.error("Polling error:", error);
           }
         }, 3000);
 
@@ -179,15 +180,14 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({
           connectWindow?.close();
         }, 600000);
       }
-
     } catch (error: any) {
-      console.error('Domain Connect error:', error);
-      updateStepStatus(steps[currentStep]?.id || 'detect', 'error');
-      
+      console.error("Domain Connect error:", error);
+      updateStepStatus(steps[currentStep]?.id || "detect", "error");
+
       toast({
-        title: 'Setup Failed',
-        description: error.message || 'Failed to setup domain connection.',
-        variant: 'destructive',
+        title: "Setup Failed",
+        description: error.message || "Failed to setup domain connection.",
+        variant: "destructive",
       });
     } finally {
       setIsProcessing(false);
@@ -195,64 +195,70 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({
   };
 
   const verifyConfiguration = async () => {
-    updateStepStatus('verify', 'in-progress');
+    updateStepStatus("verify", "in-progress");
     setCurrentStep(2);
 
     try {
       // Trigger health check
-      const { data, error } = await supabase.functions.invoke('domain-health-check', {
-        body: {
-          domain,
-          checkTypes: ['dns', 'tls', 'http']
-        }
-      });
+      const { data, error } = await supabase.functions.invoke(
+        "domain-health-check",
+        {
+          body: {
+            domain,
+            checkTypes: ["dns", "tls", "http"],
+          },
+        },
+      );
 
       if (error) throw error;
 
       const allHealthy = Object.values(data.results.checks).every(
-        (check: any) => check.status === 'healthy'
+        (check: any) => check.status === "healthy",
       );
 
       if (allHealthy) {
-        updateStepStatus('verify', 'completed');
+        updateStepStatus("verify", "completed");
         toast({
-          title: 'Domain Setup Complete!',
-          description: 'Your domain is ready to use.',
+          title: "Domain Setup Complete!",
+          description: "Your domain is ready to use.",
         });
         onComplete?.();
       } else {
-        updateStepStatus('verify', 'error');
+        updateStepStatus("verify", "error");
         toast({
-          title: 'Verification Issues',
-          description: 'Some checks failed. DNS may need more time to propagate.',
-          variant: 'destructive',
+          title: "Verification Issues",
+          description:
+            "Some checks failed. DNS may need more time to propagate.",
+          variant: "destructive",
         });
       }
-
     } catch (error: any) {
-      updateStepStatus('verify', 'error');
+      updateStepStatus("verify", "error");
       toast({
-        title: 'Verification Failed',
+        title: "Verification Failed",
         description: error.message,
-        variant: 'destructive',
+        variant: "destructive",
       });
     }
   };
 
-  const getStepIcon = (status: Step['status']) => {
+  const getStepIcon = (status: Step["status"]) => {
     switch (status) {
-      case 'completed':
+      case "completed":
         return <CheckCircle className="h-5 w-5 text-green-500" />;
-      case 'in-progress':
+      case "in-progress":
         return <Loader2 className="h-5 w-5 animate-spin text-blue-500" />;
-      case 'error':
+      case "error":
         return <AlertCircle className="h-5 w-5 text-red-500" />;
       default:
-        return <div className="h-5 w-5 rounded-full border-2 border-gray-300" />;
+        return (
+          <div className="h-5 w-5 rounded-full border-2 border-gray-300" />
+        );
     }
   };
 
-  const progressPercentage = (steps.filter(s => s.status === 'completed').length / steps.length) * 100;
+  const progressPercentage =
+    (steps.filter((s) => s.status === "completed").length / steps.length) * 100;
 
   return (
     <Card>
@@ -278,19 +284,24 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({
         {/* Steps */}
         <div className="space-y-4">
           {steps.map((step, index) => (
-            <div 
-              key={step.id} 
+            <div
+              key={step.id}
               className={`flex items-start gap-3 p-3 rounded-lg border ${
-                step.status === 'in-progress' ? 'bg-blue-50 border-blue-200' :
-                step.status === 'completed' ? 'bg-green-50 border-green-200' :
-                step.status === 'error' ? 'bg-red-50 border-red-200' :
-                'bg-gray-50 border-gray-200'
+                step.status === "in-progress"
+                  ? "bg-blue-50 border-blue-200"
+                  : step.status === "completed"
+                    ? "bg-green-50 border-green-200"
+                    : step.status === "error"
+                      ? "bg-red-50 border-red-200"
+                      : "bg-gray-50 border-gray-200"
               }`}
             >
               {getStepIcon(step.status)}
               <div className="flex-1">
                 <h4 className="font-medium">{step.title}</h4>
-                <p className="text-sm text-muted-foreground">{step.description}</p>
+                <p className="text-sm text-muted-foreground">
+                  {step.description}
+                </p>
               </div>
             </div>
           ))}
@@ -298,11 +309,9 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({
 
         {/* Action Button */}
         <div className="flex gap-2">
-          <Button 
+          <Button
             onClick={() => {
-              console.log('Button clicked, isProcessing:', isProcessing, 'stepStatus:', steps[0].status);
               if (isProcessing) {
-                console.log('Button disabled, not executing');
                 return;
               }
               startDomainConnect();
@@ -315,19 +324,19 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                 Setting up...
               </>
-            ) : steps[0].status === 'error' ? (
-              'Try Again'
-            ) : steps[0].status === 'completed' ? (
-              'Setup Complete'
+            ) : steps[0].status === "error" ? (
+              "Try Again"
+            ) : steps[0].status === "completed" ? (
+              "Setup Complete"
             ) : (
-              'Detect Registrar'
+              "Detect Registrar"
             )}
           </Button>
-          
+
           <Button variant="outline" asChild>
-            <a 
-              href="https://domainconnect.org/supported-providers/" 
-              target="_blank" 
+            <a
+              href="https://domainconnect.org/supported-providers/"
+              target="_blank"
               rel="noopener noreferrer"
             >
               <ExternalLink className="h-4 w-4 mr-2" />
@@ -339,11 +348,13 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({
         {/* Help Text */}
         <div className="text-sm text-muted-foreground">
           <p className="mb-2">
-            <strong>What is Domain Connect?</strong> It's a standard that allows automatic DNS configuration 
-            with supported registrars like GoDaddy, Namecheap, and Google Domains.
+            <strong>What is Domain Connect?</strong> It's a standard that allows
+            automatic DNS configuration with supported registrars like GoDaddy,
+            Namecheap, and Google Domains.
           </p>
           <p>
-            If your registrar doesn't support Domain Connect, you'll need to manually add the DNS records.
+            If your registrar doesn't support Domain Connect, you'll need to
+            manually add the DNS records.
           </p>
         </div>
       </CardContent>

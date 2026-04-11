@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { TourTooltip } from './TourTooltip';
-import { useQuickTour } from '@/contexts/QuickTourContext';
-import { POSConnectionModal } from './POSConnectionModal';
+import React, { useState } from "react";
+import { TourTooltip } from "./TourTooltip";
+import { useQuickTour } from "@/contexts/QuickTourContext";
+import { POSConnectionModal } from "./POSConnectionModal";
 
 // Dynamic imports for animations (will be loaded at runtime)
 const loadAnimation = async (path: string) => {
@@ -9,7 +9,6 @@ const loadAnimation = async (path: string) => {
     const response = await fetch(path);
     return await response.json();
   } catch (error) {
-    console.warn(`Failed to load animation: ${path}`, error);
     return null;
   }
 };
@@ -23,9 +22,9 @@ export function TourSteps() {
   React.useEffect(() => {
     const loadAnimations = async () => {
       const [tourSwirl, posPlug, confetti] = await Promise.all([
-        loadAnimation('/lottie/tour-swirl.json'),
-        loadAnimation('/lottie/pos-plug.json'),
-        loadAnimation('/lottie/confetti.json'),
+        loadAnimation("/lottie/tour-swirl.json"),
+        loadAnimation("/lottie/pos-plug.json"),
+        loadAnimation("/lottie/confetti.json"),
       ]);
 
       setAnimations({

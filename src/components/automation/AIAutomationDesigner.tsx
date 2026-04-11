@@ -1,36 +1,43 @@
-import React, { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
-import { NativeSelect } from '@/components/ui/NativeSelect';
-import { Badge } from '@/components/ui/badge';
-import { supabase } from '@/integrations/supabase/client';
-import { Sparkles, Loader2 } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import React, { useState } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { NativeSelect } from "@/components/ui/NativeSelect";
+import { Badge } from "@/components/ui/badge";
+import { supabase } from "@/integrations/supabase/client";
+import { Sparkles, Loader2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 interface AIAutomationDesignerProps {
   onAutomationGenerated?: (automation: any) => void;
 }
 
 export const AIAutomationDesigner: React.FC<AIAutomationDesignerProps> = ({
-  onAutomationGenerated
+  onAutomationGenerated,
 }) => {
   const [open, setOpen] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [goal, setGoal] = useState('');
-  const [audience, setAudience] = useState('');
-  const [channels, setChannels] = useState<string[]>(['email', 'sms']);
-  const [season, setSeason] = useState('');
-  const [brandTone, setBrandTone] = useState('');
+  const [goal, setGoal] = useState("");
+  const [audience, setAudience] = useState("");
+  const [channels, setChannels] = useState<string[]>(["email", "sms"]);
+  const [season, setSeason] = useState("");
+  const [brandTone, setBrandTone] = useState("");
   const { toast } = useToast();
 
   const handleGenerate = async () => {
     if (!goal.trim()) {
       toast({
         title: "Goal Required",
-        description: "Please describe what you want to achieve with this automation.",
-        variant: "destructive"
+        description:
+          "Please describe what you want to achieve with this automation.",
+        variant: "destructive",
       });
       return;
     }
@@ -38,46 +45,46 @@ export const AIAutomationDesigner: React.FC<AIAutomationDesignerProps> = ({
     setIsGenerating(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke('generate-automation-flow', {
-        body: {
-          goal: goal.trim(),
-          audience: audience.trim() || null,
-          channels: channels.length > 0 ? channels : null,
-          season: season || null,
-          brandTone: brandTone.trim() || null,
-          maxSteps: 5
-        }
-      });
+      const { data, error } = await supabase.functions.invoke(
+        "generate-automation-flow",
+        {
+          body: {
+            goal: goal.trim(),
+            audience: audience.trim() || null,
+            channels: channels.length > 0 ? channels : null,
+            season: season || null,
+            brandTone: brandTone.trim() || null,
+            maxSteps: 5,
+          },
+        },
+      );
 
       if (error) {
-        console.error('Error generating automation:', error);
-        throw new Error(error.message || 'Failed to generate automation');
+        console.error("Error generating automation:", error);
+        throw new Error(error.message || "Failed to generate automation");
       }
 
       if (!data) {
-        throw new Error('No data received from AI');
+        throw new Error("No data received from AI");
       }
-
-      console.log('Generated automation data:', data);
-
       // Save the generated automation to the database
       const { data: savedAutomation, error: saveError } = await supabase
-        .from('crm_automations')
+        .from("crm_automations")
         .insert({
-          name: `AI: ${goal.slice(0, 50)}${goal.length > 50 ? '...' : ''}`,
+          name: `AI: ${goal.slice(0, 50)}${goal.length > 50 ? "..." : ""}`,
           trigger_type: data.trigger,
           flow_state: data.flow_state,
           workflow_steps: data.workflow_steps,
-          template_source: 'ai_designer',
+          template_source: "ai_designer",
           is_active: false,
-          compiled_at: new Date().toISOString()
+          compiled_at: new Date().toISOString(),
         })
         .select()
         .single();
 
       if (saveError) {
-        console.error('Error saving automation:', saveError);
-        throw new Error('Failed to save generated automation');
+        console.error("Error saving automation:", saveError);
+        throw new Error("Failed to save generated automation");
       }
 
       toast({
@@ -89,18 +96,20 @@ export const AIAutomationDesigner: React.FC<AIAutomationDesignerProps> = ({
       onAutomationGenerated?.(savedAutomation);
 
       // Reset form
-      setGoal('');
-      setAudience('');
-      setChannels(['email', 'sms']);
-      setSeason('');
-      setBrandTone('');
-
+      setGoal("");
+      setAudience("");
+      setChannels(["email", "sms"]);
+      setSeason("");
+      setBrandTone("");
     } catch (error) {
-      console.error('Generation error:', error);
+      console.error("Generation error:", error);
       toast({
         title: "Generation Failed",
-        description: error instanceof Error ? error.message : "Could not generate automation. Please try again.",
-        variant: "destructive"
+        description:
+          error instanceof Error
+            ? error.message
+            : "Could not generate automation. Please try again.",
+        variant: "destructive",
       });
     } finally {
       setIsGenerating(false);
@@ -108,10 +117,10 @@ export const AIAutomationDesigner: React.FC<AIAutomationDesignerProps> = ({
   };
 
   const toggleChannel = (channel: string) => {
-    setChannels(prev => 
+    setChannels((prev) =>
       prev.includes(channel)
-        ? prev.filter(c => c !== channel)
-        : [...prev, channel]
+        ? prev.filter((c) => c !== channel)
+        : [...prev, channel],
     );
   };
 
@@ -130,7 +139,7 @@ export const AIAutomationDesigner: React.FC<AIAutomationDesignerProps> = ({
             AI Automation Designer
           </DialogTitle>
         </DialogHeader>
-        
+
         <div className="space-y-6">
           <div className="space-y-2">
             <Label htmlFor="goal">What's your goal? *</Label>
@@ -171,7 +180,7 @@ export const AIAutomationDesigner: React.FC<AIAutomationDesignerProps> = ({
             <div className="space-y-2">
               <Label>Channels</Label>
               <div className="flex gap-2">
-                {['email', 'sms'].map(channel => (
+                {["email", "sms"].map((channel) => (
                   <Badge
                     key={channel}
                     variant={channels.includes(channel) ? "default" : "outline"}
@@ -186,15 +195,15 @@ export const AIAutomationDesigner: React.FC<AIAutomationDesignerProps> = ({
 
             <div className="space-y-2">
               <Label htmlFor="season">Season (Optional)</Label>
-              <NativeSelect 
-                value={season} 
+              <NativeSelect
+                value={season}
                 onChange={(e) => setSeason(e.target.value)}
                 options={[
-                  { value: '', label: 'Any Season' },
-                  { value: 'spring', label: 'Spring' },
-                  { value: 'summer', label: 'Summer' },
-                  { value: 'fall', label: 'Fall' },
-                  { value: 'winter', label: 'Winter' }
+                  { value: "", label: "Any Season" },
+                  { value: "spring", label: "Spring" },
+                  { value: "summer", label: "Summer" },
+                  { value: "fall", label: "Fall" },
+                  { value: "winter", label: "Winter" },
                 ]}
                 placeholder="Select season"
               />
@@ -205,8 +214,8 @@ export const AIAutomationDesigner: React.FC<AIAutomationDesignerProps> = ({
             <Button variant="outline" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button 
-              onClick={handleGenerate} 
+            <Button
+              onClick={handleGenerate}
               disabled={isGenerating || !goal.trim()}
               className="gap-2"
             >

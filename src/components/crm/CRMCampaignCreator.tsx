@@ -124,15 +124,10 @@ async function generateImagesForBlocks(
   setBlocks: React.Dispatch<React.SetStateAction<ContentBlock[]>>,
 ): Promise<void> {
   try {
-    console.log("🖼️ Starting image generation with uniqueness tracking...");
-    console.log(`🚫 Currently tracking ${usedImageIds.size} used images`);
 
     // Find all blocks that need images
     const blocksNeedingImages = blocks
       .map((block, index) => {
-        console.log(
-          `📋 Block ${index}: type="${block.type}", imageUrl="${block.imageUrl || "undefined"}", hasBody=${!!block.body}, hasContent=${!!block.content}`,
-        );
         return { block, index };
       })
       .filter(({ block, index }) => {
@@ -141,25 +136,12 @@ async function generateImagesForBlocks(
         const needsImage =
           shouldFetch && (!block.imageUrl || block.imageUrl === "loading");
         if (shouldFetch) {
-          console.log(
-            `  ✓ Block ${index} is ${block.type}, needsImage=${needsImage} (imageUrl: "${block.imageUrl || "undefined"}")`,
-          );
         }
         return needsImage;
       });
 
-    console.log(
-      `📸 Found ${blocksNeedingImages.length} blocks needing images out of ${blocks.length} total blocks`,
-    );
 
     if (blocksNeedingImages.length === 0) {
-      console.log("📸 No blocks need images, skipping image generation");
-      console.log(
-        "📸 Block types:",
-        blocks
-          .map((b, i) => `${i}: ${b.type} (img: "${b.imageUrl || "none"}")`)
-          .join(", "),
-      );
 
       // CRITICAL FIX: Clear isGeneratingImage for all blocks that already have images
       // This prevents the infinite "Generating..." UI state when templates come with pre-loaded images
@@ -171,9 +153,6 @@ async function generateImagesForBlocks(
               : !!(b.imageUrl && b.imageUrl !== "loading");
 
           if (hasImage && b.isGeneratingImage) {
-            console.log(
-              `🔄 Clearing stale isGeneratingImage flag for block ${b.id} (already has image)`,
-            );
             return { ...b, isGeneratingImage: false, isLoadingImage: false };
           }
           return b;
@@ -182,7 +161,6 @@ async function generateImagesForBlocks(
       return;
     }
 
-    console.log(`📸 Generating ${blocksNeedingImages.length} unique images...`);
 
     // Process each block sequentially to track uniqueness
     for (
@@ -192,9 +170,6 @@ async function generateImagesForBlocks(
     ) {
       const { block, index: blockIndex } = blocksNeedingImages[iteration];
       try {
-        console.log(
-          `\n🎨 Processing block ${iteration + 1}/${blocksNeedingImages.length} (block index: ${blockIndex})`,
-        );
 
         // Build content context with strong fallbacks to ensure we never pass empty string
         const contentContext = (
@@ -216,11 +191,7 @@ async function generateImagesForBlocks(
 
         // Final safety check - ensure we have valid content
         if (!contentContext || contentContext.length < 5) {
-          console.warn(
-            `⚠️ Block ${blockIndex} has insufficient content, using generic fallback`,
-          );
           const genericContext = `${context.seasonalFocus || "seasonal"} garden plants and flowers`;
-          console.log(`   Using fallback: "${genericContext}"`);
         }
 
         const finalContentContext =
@@ -228,11 +199,6 @@ async function generateImagesForBlocks(
             ? contentContext
             : `${context.seasonalFocus || "seasonal"} garden plants and flowers for display`;
 
-        console.log(`   Content: "${finalContentContext.substring(0, 60)}..."`);
-        console.log(`   Title: "${contentTitle}"`);
-        console.log(
-          `   Excluded IDs: [${Array.from(usedImageIds).join(", ")}]`,
-        );
 
         // Use the same image generation service as social posts with exclusion list
         const result = await imageGenerationService.fetchImageForChannel({
@@ -249,9 +215,6 @@ async function generateImagesForBlocks(
         });
 
         if (result && result.imageUrl) {
-          console.log(
-            `✅ Block ${blockIndex}: Got unique image ${result.imageId}`,
-          );
 
           // PHASE 4: Update this specific block with the image while preserving content
           setBlocks((prev) =>
@@ -278,12 +241,8 @@ async function generateImagesForBlocks(
           // Add to used images tracker
           if (result.imageId) {
             setUsedImageIds((prev) => new Set([...prev, result.imageId!]));
-            console.log(
-              `🔒 Locked image ${result.imageId} (now ${usedImageIds.size + 1} used)`,
-            );
           }
         } else {
-          console.warn(`⚠️ No image returned for block ${blockIndex}`);
           setBlocks((prev) =>
             prev.map((b, i) =>
               i === blockIndex
@@ -325,9 +284,6 @@ async function generateImagesForBlocks(
       }
     }
 
-    console.log(
-      `\n✅ Image generation complete! Used ${usedImageIds.size} unique images`,
-    );
   } catch (error) {
     console.error("❌ Image generation failed:", error);
     // Clear all loading states on error
@@ -357,7 +313,6 @@ const getOrFetchImage = async (
 
   // CRITICAL: Never fetch images for plain text blocks
   if (blockType === "text") {
-    console.log(`📝 Skipping image fetch for plain text block ${block.id}`);
     return null;
   }
 
@@ -367,17 +322,11 @@ const getOrFetchImage = async (
     const existingImage = isHeader
       ? contentObj.backgroundImageUrl || block.image_url
       : contentObj.imageUrl || block.image_url;
-    console.log(
-      `🚫 autoImageMode=false for block ${block.id}, returning existing: ${existingImage ? "has image" : "null"}`,
-    );
     return existingImage || null;
   }
 
   // RULE 2: If shouldFetchImage is explicitly false, never fetch
   if (contentObj?.shouldFetchImage === false) {
-    console.log(
-      `🚫 shouldFetchImage=false for block ${block.id}, skipping fetch`,
-    );
     const existingImage = isHeader
       ? contentObj.backgroundImageUrl || block.image_url
       : contentObj.imageUrl || block.image_url;
@@ -391,17 +340,11 @@ const getOrFetchImage = async (
 
   // RULE 3: If autoImageMode is true and an image already exists, return it
   if (existingImageUrl && existingImageUrl.trim() !== "") {
-    console.log(
-      `✅ Found existing image for block ${block.id}: ${existingImageUrl.substring(0, 50)}...`,
-    );
     return existingImageUrl;
   }
 
   // RULE 4: Only fetch if shouldFetchImage is true AND no image exists
   if (contentObj?.shouldFetchImage !== true) {
-    console.log(
-      `🚫 No image and shouldFetchImage !== true for block ${block.id}, returning null`,
-    );
     return null;
   }
 
@@ -411,9 +354,6 @@ const getOrFetchImage = async (
     contentObj?.title ||
     contentObj?.body ||
     "garden plants";
-  console.log(
-    `🖼️ Fetching image for block ${block.id} with query: "${searchQuery}"`,
-  );
 
   try {
     const imageData = await fetchSmartImage(searchQuery, "", true);
@@ -441,15 +381,12 @@ const getOrFetchImage = async (
         .eq("id", block.id);
 
       if (error) {
-        console.warn("Failed to save image URL to database:", error);
       } else {
-        console.log(`✅ Saved image URL for block ${block.id}`);
       }
 
       return imageData.url;
     }
   } catch (error) {
-    console.warn("Failed to fetch image:", error);
   }
 
   return null;
@@ -613,9 +550,6 @@ const createWeeklyThemeImageQuery = (
   // Use the FULL week theme title as the primary topic (not just extracted keywords)
   const topicKeywords = weekContext.title.toLowerCase();
 
-  console.log(
-    `🎨 Creating image query for: "${weekContext.title}" (block ${blockIndex + 1}/${totalBlocks})`,
-  );
 
   // Check for special topics that need specific handling
   // Holiday/seasonal themes
@@ -633,7 +567,6 @@ const createWeeklyThemeImageQuery = (
     };
     const query =
       holidaySectionKeywords[blockIndex] || `${weekContext.title} garden`;
-    console.log(`🎄 Holiday theme query: "${query}"`);
     return query;
   }
 
@@ -652,7 +585,6 @@ const createWeeklyThemeImageQuery = (
     };
     const query =
       winterSectionKeywords[blockIndex] || `${weekContext.title} garden`;
-    console.log(`❄️ Winter theme query: "${query}"`);
     return query;
   }
 
@@ -666,7 +598,6 @@ const createWeeklyThemeImageQuery = (
     };
     const query =
       hydrangeaSectionKeywords[blockIndex] || "hydrangea summer garden";
-    console.log(`💐 Hydrangea theme query: "${query}"`);
     return query;
   }
 
@@ -681,7 +612,6 @@ const createWeeklyThemeImageQuery = (
   ) {
     // Block content mentions a different specific plant/topic
     const specificTopic = specificKeywords[0];
-    console.log(`🌿 Found specific topic in block content: "${specificTopic}"`);
     const sectionKeywords: { [key: number]: string } = {
       0: `${specificTopic} ${weekContext.seasonalFocus} featured beautiful`,
       1: `${specificTopic} care growing tips garden`,
@@ -691,7 +621,6 @@ const createWeeklyThemeImageQuery = (
     const query =
       sectionKeywords[blockIndex] ||
       `${specificTopic} ${weekContext.seasonalFocus} garden`;
-    console.log(`🔍 Specific topic query: "${query}"`);
     return query;
   }
 
@@ -706,7 +635,6 @@ const createWeeklyThemeImageQuery = (
   const query =
     sectionKeywords[blockIndex] ||
     `${weekContext.title} ${weekContext.seasonalFocus} garden`;
-  console.log(`🌱 Default query: "${query}"`);
   return query;
 };
 
@@ -746,9 +674,6 @@ const normalizeBlocks = (blocks: ContentBlock[]): ContentBlock[] => {
           ? "Add your content here"
           : body;
 
-      console.log(
-        `🔄 Normalizing text block ${block.id}, hasGeneratedContent: ${!!block.hasGeneratedContent}, userEdited: ${!!block.userEdited}`,
-      );
 
       // CRITICAL FIX: Clear isGeneratingImage if block already has a valid image
       const hasValidImage = !!(
@@ -923,7 +848,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
 
   useEffect(() => {
     if (hasAppliedPrefillRef.current) {
-      console.log("🚫 Prefill already applied, skipping");
       return;
     }
 
@@ -931,7 +855,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
     if (typeParam === "newsletter" && prefillDataParam) {
       try {
         const prefillData = JSON.parse(decodeURIComponent(prefillDataParam));
-        console.log("🚨 UNIFIED PREFILL: Applying newsletter prefill data");
 
         const headerBlock: ContentBlock = {
           id: `prefill-header-${Date.now()}`,
@@ -992,37 +915,25 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   useEffect(() => {
     const loadSegmentFromUrl = async () => {
       if (!segmentIdParam) {
-        console.log("🔍 No segmentId in URL params");
         return;
       }
 
       try {
-        console.log("🔄 Loading segment from URL:", segmentIdParam);
-        console.log(
-          "🔄 Current selectedSegments length:",
-          selectedSegments.length,
-        );
 
         // Check if it's a predefined segment (string ID) or custom segment (UUID format)
         const isCustomSegment =
           /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
             segmentIdParam,
           );
-        console.log("🔍 Is custom segment:", isCustomSegment);
 
         if (isCustomSegment) {
           // Fetch custom segment
-          console.log("🔍 Fetching custom segment from database...");
           const { data: segmentData, error } = await supabase
             .from("crm_segments") // Changed from custom_segments to crm_segments
             .select("*")
             .eq("id", segmentIdParam)
             .maybeSingle();
 
-          console.log("🔍 Custom segment query result:", {
-            segmentData,
-            error,
-          });
 
           if (error) {
             console.error("❌ Error fetching custom segment:", error);
@@ -1043,10 +954,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
               );
             }
 
-            console.log("🎯 Setting selected segment from URL with count:", {
-              segmentData,
-              customerCount,
-            });
             setSelectedSegments([
               {
                 id: segmentData.id,
@@ -1056,7 +963,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
               },
             ]);
           } else {
-            console.log("⚠️ Custom segment not found in database");
           }
         } else {
           // Handle predefined segment - match exact names from CustomerSegmentsSection
@@ -1081,7 +987,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
             },
           };
 
-          console.log("🔍 Looking for predefined segment:", segmentIdParam);
           const predefinedSegment =
             predefinedSegments[
               segmentIdParam as keyof typeof predefinedSegments
@@ -1091,10 +996,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
             const actualCount =
               segmentCounts[segmentIdParam as keyof typeof segmentCounts] || 0;
 
-            console.log("🎯 Setting predefined segment from URL with count:", {
-              predefinedSegment,
-              actualCount,
-            });
             setSelectedSegments([
               {
                 id: predefinedSegment.id,
@@ -1104,7 +1005,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
               },
             ]);
           } else {
-            console.log("⚠️ Predefined segment not found:", segmentIdParam);
           }
         }
       } catch (error) {
@@ -1120,17 +1020,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
 
   // Initialize selectedPersonas from URL only once - don't override user selections
   useEffect(() => {
-    console.log(
-      "🔄 useEffect for personas initialization. InitialPersonas:",
-      initialPersonas,
-      "Current selectedPersonas:",
-      selectedPersonas,
-    );
     if (initialPersonas.length > 0 && selectedPersonas.length === 0) {
-      console.log(
-        "🔄 Initializing selectedPersonas from URL:",
-        initialPersonas,
-      );
       setSelectedPersonas(initialPersonas);
     }
     // Removed the logic that keeps overriding user selections with URL personas
@@ -1171,7 +1061,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
 
       if (error) {
         if (import.meta.env.DEV) {
-          console.warn("Failed to refresh campaign status:", error);
         }
         return;
       }
@@ -1578,11 +1467,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
 
   // Log company info changes for debugging footer issues
   useEffect(() => {
-    console.log("🏢 Company info loaded/updated:", {
-      name: companyInfo?.name,
-      address: companyInfo?.address,
-      phone: companyInfo?.phone,
-    });
   }, [companyInfo]);
 
   // Auto-save functionality with queue-based protection
@@ -1611,7 +1495,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
     isCreatingDraftRef.current = true;
 
     try {
-      console.log("📝 Creating new draft campaign for auto-save...");
 
       // Ensure tenant_id is set; RLS policies typically rely on it.
       let tenantId = tenant?.id;
@@ -1623,10 +1506,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           .limit(1);
 
         if (userRowError) {
-          console.warn(
-            "⚠️ Failed to resolve tenant_id for draft campaign",
-            userRowError,
-          );
         }
 
         const userRow = Array.isArray(userRows) ? userRows[0] : null;
@@ -1634,9 +1513,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
       }
 
       if (!tenantId) {
-        console.warn("❌ Cannot create draft campaign: tenant_id is missing", {
-          userId: user.id,
-        });
         return null;
       }
 
@@ -1668,7 +1544,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         return null;
       }
 
-      console.log("✅ Draft campaign created:", inserted.id);
       setExistingCampaignId(inserted.id);
 
       // Update URL to include the new campaign ID
@@ -1865,7 +1740,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
       // Try to save immediately before unload
       if (existingCampaignId && hasUnsavedChanges) {
         // Use sendBeacon or sync request for reliability
-        console.log("💾 Attempting emergency save before unload...");
         // Note: async operations may not complete before unload
         // The sessionStorage persistence will help recover
         persistState(
@@ -1892,7 +1766,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
       preheader: string;
     }) => {
       if (!existingCampaignId) {
-        console.log("🚫 Auto-save skipped: no campaign ID");
         return;
       }
 
@@ -1904,12 +1777,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         const attemptSave = async (): Promise<void> => {
           try {
             setIsAutoSaving(true);
-            console.log(
-              "🔄 Auto-save attempt",
-              retryCount + 1,
-              "for campaign:",
-              existingCampaignId,
-            );
 
             // Validate required fields
             if (!campaignData.campaign_name?.trim()) {
@@ -1917,7 +1784,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
             }
 
             // Step 1: Update campaign metadata
-            console.log("📝 Updating campaign metadata...");
             const { error: campaignError } = await supabase
               .from("crm_campaigns")
               .update({
@@ -1934,10 +1800,8 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                 `Campaign update failed: ${campaignError.message}`,
               );
             }
-            console.log("✅ Campaign metadata updated successfully");
 
             // Step 2: Save blocks separately - update existing, insert new
-            console.log("📦 Saving", campaignData.blocks.length, "blocks...");
 
             if (campaignData.blocks.length > 0) {
               // Fetch existing blocks to preserve their IDs
@@ -1987,7 +1851,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                 .gte("order_index", campaignData.blocks.length);
 
               if (deleteError) {
-                console.warn("⚠️ Failed to delete extra blocks:", deleteError);
               }
 
               // Update existing blocks
@@ -2005,11 +1868,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                     );
                   }
                 }
-                console.log(
-                  "✅ Updated",
-                  blocksToUpdate.length,
-                  "existing blocks",
-                );
               }
 
               // Insert new blocks
@@ -2024,7 +1882,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                     `Block insert failed: ${insertError.message}`,
                   );
                 }
-                console.log("✅ Inserted", blocksToInsert.length, "new blocks");
               }
             } else {
               // Delete all blocks if none provided
@@ -2036,7 +1893,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
 
             setLastSaved(new Date());
             setSaveError(false);
-            console.log("✅ Auto-save completed successfully");
           } catch (error: any) {
             console.error(
               "❌ Auto-save error (attempt",
@@ -2052,7 +1908,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
 
             if (retryCount < maxRetries && isRetryable) {
               retryCount++;
-              console.log("🔄 Retrying auto-save in 2 seconds...");
               await new Promise((resolve) => setTimeout(resolve, 2000));
               return attemptSave();
             }
@@ -2209,7 +2064,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           await persistCampaignAudienceToDb(campaignId);
         } catch (error) {
           if (import.meta.env.DEV) {
-            console.warn("Failed to persist campaign targeting:", error);
           }
         }
       })();
@@ -2257,7 +2111,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
 
       // If there's already a batch timeout, let it handle the save
       if (imageSaveBatchRef.current.timeout) {
-        console.log("💾 [ImmediateSave] Batching image save...");
         return;
       }
 
@@ -2268,9 +2121,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         imageSaveBatchRef.current.pendingBlocks = null;
 
         if (blocksToSave) {
-          console.log(
-            "💾 [ImmediateSave] Executing batched save for images...",
-          );
           autoSaveCampaign({
             blocks: blocksToSave,
             campaign_name: campaignData.campaign_name,
@@ -2290,7 +2140,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
     preheaderText: string;
     blocks: ContentBlock[];
   }) => {
-    console.log("🤖 AI content generated, images will follow...", aiData);
 
     // Update campaign fields
     setCampaignName(aiData.campaignName);
@@ -2311,15 +2160,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
 
   // Handle progressive image updates as they complete
   const handleBlockImageGenerated = (blockId: string, imageUrl: string) => {
-    console.log(
-      `✅ [CampaignCreator] Block image generated for ${blockId}, updating blocks...`,
-    );
     setBlocks((prevBlocks) => {
-      console.log(`📊 [CampaignCreator] Current blocks before update:`, {
-        totalBlocks: prevBlocks.length,
-        blockWithMatchingId: prevBlocks.find((b) => b.id === blockId)?.type,
-        allBlockIds: prevBlocks.map((b) => b.id),
-      });
 
       const updatedBlocks = prevBlocks.map((block) => {
         if (block.id === blockId) {
@@ -2327,13 +2168,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           const isHeaderBlock =
             block.type === "header" || block.type === "newsletter-header";
 
-          console.log(`🔧 [CampaignCreator] Updating block ${blockId}:`, {
-            isHeaderBlock,
-            currentImageUrl: block.imageUrl,
-            currentBackgroundImageUrl: block.backgroundImageUrl,
-            newImageUrl: imageUrl,
-            wasGenerating: block.isGeneratingImage,
-          });
 
           return {
             ...block,
@@ -2353,10 +2187,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
       // CRITICAL FIX: Use IMMEDIATE save (not debounced) for image generation
       // Images must be persisted immediately to survive page refreshes
       if (existingCampaignId && imageUrl) {
-        console.log(
-          "💾 [ImmediateSave] Saving image immediately for block:",
-          blockId,
-        );
         immediateAutoSave({
           blocks: updatedBlocks,
           campaign_name: campaignName,
@@ -2371,7 +2201,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
 
   // Handle image generation failures
   const handleBlockImageFailed = (blockId: string, error: string) => {
-    console.log(`❌ Block image failed for ${blockId}:`, error);
     setBlocks((prevBlocks) =>
       prevBlocks.map((block) =>
         block.id === blockId
@@ -2386,7 +2215,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
     const block = blocks.find((b) => b.id === blockId);
     if (!block) return;
 
-    console.log(`🔄 Retrying image generation for block ${blockId}`);
 
     // Mark as generating
     setBlocks((prevBlocks) =>
@@ -2491,7 +2319,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
     let cancelled = false;
 
     async function enhanceAll() {
-      console.log("[AI] Auto-enhance: starting for new newsletter");
       setEnhancing(true);
 
       const topic =
@@ -2522,10 +2349,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
               totalBlocks: blocks.length,
             };
 
-            console.log("[AI] auto-enhance invoke for block:", {
-              blockId: block.id,
-              payload,
-            });
             const { data, error } = await supabase.functions.invoke(
               "generate-email-content",
               {
@@ -2533,11 +2356,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
               },
             );
 
-            console.log("[AI] auto-enhance response:", {
-              blockId: block.id,
-              error,
-              data,
-            });
 
             if (error) return block;
 
@@ -2590,11 +2408,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                     };
                   }
                 } catch (error) {
-                  console.warn(
-                    "Failed to fetch fallback image for block:",
-                    block.id,
-                    error,
-                  );
                 }
               }
               return block;
@@ -2606,7 +2419,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
             (b) => (b.body || b.content)?.length,
           ).length;
 
-          console.log("[AI] Auto-enhance: completed");
           toast({
             title: "AI Enhancement Complete",
             description: `Generated ${contentCount} blocks with AI content and images`,
@@ -2653,16 +2465,11 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
     // Nothing to do; avoid noisy logging on every render.
     if (!type && !prefillDataParam) return;
 
-    console.debug("[CRM Prefill v2] searchParams =", searchParams.toString());
-    console.debug("[CRM Prefill v2] type =", type);
-    console.debug("[CRM Prefill v2] prefillData exists =", !!prefillDataParam);
 
     if (type === "newsletter" && prefillDataParam) {
-      console.debug("[CRM Prefill v2] Conditions met - processing data");
 
       try {
         const prefillData = JSON.parse(decodeURIComponent(prefillDataParam));
-        console.debug("[CRM Prefill v2] Parsed data =", prefillData);
 
         // Create new blocks with the newsletter data
         const newBlocks: ContentBlock[] = [
@@ -2683,7 +2490,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           },
         ];
 
-        console.debug("[CRM Prefill v2] Created blocks =", newBlocks);
 
         // Set the blocks and campaign info
         setBlocks(newBlocks);
@@ -2692,12 +2498,9 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           setSubjectLine(prefillData.title);
         }
 
-        console.debug("[CRM Prefill v2] Blocks set successfully");
       } catch (error) {
-        console.warn("[CRM Prefill v2] Failed to apply prefill", error);
       }
     } else {
-      console.debug("[CRM Prefill v2] Conditions not met - skipping");
     }
   }, [searchParams]);
 
@@ -2707,11 +2510,8 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
     if (!prefillDataParam) return;
 
     try {
-      console.log("🔄 [DEBUG] Processing direct prefill data from URL");
-      console.log("📜 [DEBUG] Raw prefillDataParam:", prefillDataParam);
 
       const prefillData = JSON.parse(decodeURIComponent(prefillDataParam));
-      console.log("📦 [DEBUG] Parsed prefillData:", prefillData);
 
       // Simplified deduplication - only 10 seconds to avoid blocking legitimate transfers
       const prefillKey = `crm-direct-prefill-simple`;
@@ -2723,24 +2523,18 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         lastPrefillTime &&
         currentTime - parseInt(lastPrefillTime) < tenSeconds
       ) {
-        console.log(
-          "🚫 [DEBUG] Direct prefill blocked - too recent (within 10 seconds)",
-        );
         return;
       }
 
-      console.log("✅ [DEBUG] Starting direct prefill with data:", prefillData);
 
       // Clean URL immediately to avoid re-processing
       const url = new URL(window.location.href);
       url.searchParams.delete("prefillData");
       const qs = url.searchParams.toString();
       window.history.replaceState({}, "", url.pathname + (qs ? `?${qs}` : ""));
-      console.log("🧹 [DEBUG] Cleaned URL");
 
       // Set campaign name and subject
       if (prefillData.title) {
-        console.log("📝 [DEBUG] Setting campaign name:", prefillData.title);
         setCampaignName(prefillData.title);
         setSubjectLine(prefillData.title);
       }
@@ -2761,7 +2555,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         source: "manual" as const,
       };
       newBlocks.push(headerBlock);
-      console.log("📋 [DEBUG] Added header block:", headerBlock);
 
       // Add main content block
       if (prefillData.content) {
@@ -2776,7 +2569,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           source: "manual" as const,
         };
         newBlocks.push(contentBlock);
-        console.log("📋 [DEBUG] Added content block:", contentBlock);
       }
 
       // Set preheader
@@ -2785,13 +2577,11 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         prefillData.title || "Newsletter",
       );
       setPreheaderText(preheader);
-      console.log("📋 [DEBUG] Set preheader:", preheader);
 
       // Apply blocks
       const normalizedBlocks = normalizeBlocks(
         autoFillHeaderTitle(newBlocks, prefillData.title || ""),
       );
-      console.log("📋 [DEBUG] Setting blocks:", normalizedBlocks);
       setBlocks(normalizedBlocks);
 
       // Store timestamp to prevent re-processing
@@ -2802,7 +2592,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         description: `Successfully prefilled content from newsletter: "${prefillData.title}"`,
       });
 
-      console.log("✅ [DEBUG] Prefill completed successfully");
     } catch (error) {
       console.error("❌ [DEBUG] Failed to process direct prefill data:", error);
       toast({
@@ -2841,15 +2630,10 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
       lastPrefillTime &&
       currentTime - parseInt(lastPrefillTime) < fiveMinutes
     ) {
-      console.log(
-        "🚫 Prefill blocked - too recent. Last prefill:",
-        new Date(parseInt(lastPrefillTime)),
-      );
       cleanUrl();
       return;
     }
 
-    console.log("✅ Starting newsletter prefill from bundle:", bundleIdParam);
 
     try {
       const items = (bundleQuery.data.content?.items || []) as any[];
@@ -2858,17 +2642,12 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         items.find((i: any) => i.channel === "blog") ||
         items[0];
       if (!newsletterItem) {
-        console.log("⚠️ No newsletter item found in bundle data");
         return;
       }
 
       const title = newsletterItem.title || "Newsletter";
       const body = newsletterItem.body || "";
 
-      console.log("📝 Setting campaign data:", {
-        title,
-        bodyLength: body.length,
-      });
 
       setCampaignName(title);
       setSubjectLine(title);
@@ -2878,7 +2657,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
       const result = convertNewsletterToCRM(body, title);
       const normalizedBlocks = normalizeBlocks(result.blocks);
 
-      console.log("🔧 Generated blocks:", normalizedBlocks.length, "blocks");
       setBlocks(normalizedBlocks);
 
       // Store current timestamp instead of 'done'
@@ -2918,10 +2696,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
     if (!finalContentTaskId) return;
 
     const prefillFromContentTask = async () => {
-      console.log(
-        "🔄 Attempting prefill from contentTaskId:",
-        finalContentTaskId,
-      );
 
       try {
         // Fetch the content task data
@@ -2937,22 +2711,14 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         }
 
         if (!taskData) {
-          console.log("⚠️ No content task found with ID:", finalContentTaskId);
           return;
         }
 
-        console.log("📄 Found content task:", {
-          id: taskData.id,
-          postType: taskData.post_type,
-          hasContent: !!taskData.ai_output,
-          contentLength: taskData.ai_output?.length || 0,
-        });
 
         const title = `${taskData.post_type || "Newsletter"} Campaign - ${new Date().toLocaleDateString()}`;
         const content = taskData.ai_output || "";
 
         if (!content) {
-          console.log("⚠️ Content task has no generated content");
           return;
         }
 
@@ -2965,11 +2731,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         const result = convertNewsletterToCRM(content, title);
         const normalizedBlocks = normalizeBlocks(result.blocks);
 
-        console.log(
-          "🔧 Generated blocks from content task:",
-          normalizedBlocks.length,
-          "blocks",
-        );
         setBlocks(normalizedBlocks);
 
         toast({
@@ -3000,10 +2761,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   // Check for existing campaign and load session data
   useEffect(() => {
     const checkExistingCampaign = async () => {
-      console.log("🔍 CRMCampaignCreator: Starting campaign check", {
-        campaignSlug,
-        finalContentTaskId,
-      });
 
       // Check if this is a truly fresh campaign start (no content loading params)
       const hasTemplateId = searchParams.get("templateId");
@@ -3020,9 +2777,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         !hasTemplatePickerFlow;
 
       if (isFreshStart) {
-        console.log(
-          "🆕 Fresh campaign start detected - clearing persisted state and starting blank",
-        );
         // CRITICAL FIX: Clear any persisted state to prevent cross-contamination
         clearPersistedState();
         // Reset all state to defaults
@@ -3039,9 +2793,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
       const restoredData = restoreState();
       if (restoredData && !existingCampaignId) {
         const persistedState = restoredData.state;
-        console.log(
-          "📋 Restoring persisted state - but preserving URL personas",
-        );
         setCampaignName(persistedState.campaignName);
         setSubjectLine(persistedState.subjectLine);
         setPreheaderText(persistedState.preheaderText);
@@ -3050,7 +2801,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
 
         // Restore flow parameter if persisted
         if (persistedState.flow && !searchParams.get("flow")) {
-          console.log("📋 Restoring flow parameter:", persistedState.flow);
           const url = new URL(window.location.href);
           url.searchParams.set("flow", persistedState.flow);
           window.history.replaceState({}, "", url.toString());
@@ -3058,29 +2808,14 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
 
         // Only restore personas if no URL persona parameter exists
         if (persistedState.selectedPersonas && initialPersonas.length === 0) {
-          console.log(
-            "📋 Restoring persisted personas (no URL override):",
-            persistedState.selectedPersonas,
-          );
           setSelectedPersonas(persistedState.selectedPersonas);
         } else if (initialPersonas.length > 0) {
-          console.log(
-            "🎯 Keeping URL personas, ignoring persisted personas. URL:",
-            initialPersonas,
-            "Persisted:",
-            persistedState.selectedPersonas,
-          );
         } else {
-          console.log("📋 No personas in URL or persistence");
         }
 
         if (persistedState.selectedSegments) {
           setSelectedSegments(persistedState.selectedSegments);
         }
-        console.log("📋 Restored audience selection:", {
-          personas: persistedState.selectedPersonas?.length || 0,
-          segments: persistedState.selectedSegments?.length || 0,
-        });
       }
 
       // Handle newsletter template processing (from picker)
@@ -3092,14 +2827,9 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         // Guard: Only process template once
         const templateKey = `${templateId}-${layout}-${source}`;
         if (processedTemplateRef.current === templateKey) {
-          console.log("🚫 Template already processed, skipping:", templateKey);
           return;
         }
 
-        console.log("🎨 Processing newsletter template:", {
-          templateId,
-          layout,
-        });
         processedTemplateRef.current = templateKey;
 
         try {
@@ -3108,12 +2838,10 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           // Extract week number from templateId (e.g., "weekly-theme-45" → 45)
           const weekMatch = templateId.match(/weekly-theme-(\d+)/);
           const weekNumber = weekMatch ? parseInt(weekMatch[1]) : null;
-          console.log("📅 Extracted week number:", weekNumber);
 
           // Load weekly theme data from master_campaign_templates if week number found
           let weeklyThemeData: any = null;
           if (weekNumber) {
-            console.log("🔍 Loading weekly theme data for week", weekNumber);
             const { data: themeData, error: themeError } = await supabase
               .from("master_campaign_templates")
               .select("*")
@@ -3122,13 +2850,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
 
             if (!themeError && themeData) {
               weeklyThemeData = themeData;
-              console.log("✅ Loaded weekly theme:", themeData.title);
             } else {
-              console.warn(
-                "⚠️ No theme data found for week",
-                weekNumber,
-                themeError,
-              );
             }
           }
 
@@ -3142,7 +2864,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
 
           // If template not found in ideas but we have weekly theme data, use that
           if (!selectedIdea && weeklyThemeData) {
-            console.log("📦 Using weekly theme data as template source");
             selectedIdea = {
               id: templateId,
               title: weeklyThemeData.title,
@@ -3179,7 +2900,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           }
 
           if (selectedIdea) {
-            console.log("✅ Found template idea:", selectedIdea.title);
 
             // Set campaign details from template
             setCampaignName(selectedIdea.title || "Newsletter Campaign");
@@ -3196,9 +2916,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
             const layoutType =
               (layout as "block-builder" | "simple-email") || "block-builder";
 
-            console.log(
-              `🎨 Generating blocks for ${layoutType} layout with ${templateBlocks.length} template blocks`,
-            );
 
             let crmBlocks: ContentBlock[];
             try {
@@ -3210,9 +2927,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
               });
 
               if (crmBlocks.length === 0) {
-                console.warn(
-                  "⚠️ Block generator returned empty array, using fallback",
-                );
                 crmBlocks = getFallbackBlocks(
                   selectedIdea.title || "Newsletter Campaign",
                 );
@@ -3220,9 +2934,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
 
               // STEP 1: Set loading states for both text and images
               // PHASE 6: Guard against accidental loading flag resets
-              console.log(
-                "🎨 Setting loading states for content and images...",
-              );
               const blocksWithLoadingStates = normalizeBlocks(crmBlocks).map(
                 (b) => {
                   // Determine if this block should fetch images
@@ -3287,7 +2998,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
               setBlocks(blocksWithLoadingStates);
 
               // STEP 2: Generate AI content for ALL blocks (await completion)
-              console.log("🤖 Enhancing template blocks with AI content...");
 
               try {
                 const enhancedBlocks = await Promise.all(
@@ -3298,9 +3008,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                     }
 
                     try {
-                      console.log(
-                        `🔄 Generating AI content for block ${index + 1}: ${block.type}`,
-                      );
 
                       const postType =
                         POST_TYPE_ROTATION[index % POST_TYPE_ROTATION.length];
@@ -3328,18 +3035,11 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                       );
 
                       if (response.error) {
-                        console.warn(
-                          `⚠️ AI generation failed for block ${index + 1}:`,
-                          response.error,
-                        );
                         return block; // Return original block if AI fails
                       }
 
                       const aiResult = response.data;
                       if (aiResult && aiResult.title && aiResult.content) {
-                        console.log(
-                          `✅ AI content generated for block ${index + 1}`,
-                        );
 
                         // PHASE 2: Apply AI content to block and mark as permanently generated
                         const needsImage =
@@ -3361,24 +3061,14 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                           contentVersion: (block.contentVersion || 0) + 1,
                         };
                       } else {
-                        console.warn(
-                          `⚠️ AI returned incomplete content for block ${index + 1}`,
-                        );
                         return { ...block, isLoadingContent: false };
                       }
                     } catch (blockError) {
-                      console.warn(
-                        `⚠️ Failed to enhance block ${index + 1}:`,
-                        blockError,
-                      );
                       return { ...block, isLoadingContent: false }; // Return original block if enhancement fails
                     }
                   }),
                 );
 
-                console.log(
-                  `✅ Enhanced ${enhancedBlocks.length} blocks with AI content`,
-                );
 
                 // STEP 3: Update blocks with AI-generated content (images still loading)
                 // PHASE 2: Use functional update to preserve content flags
@@ -3457,18 +3147,10 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
             const cleanUrl = url.toString();
             window.history.replaceState({}, "", cleanUrl);
 
-            console.log(
-              `✅ [NewsletterInit] Generated ${crmBlocks.length} blocks for "${selectedIdea.title}" (layout: ${layoutType})`,
-            );
           } else {
-            console.warn(
-              "⚠️ Template not found in ideas, checking weekly theme data:",
-              templateId,
-            );
 
             // If we have weekly theme data, use that as a backup
             if (weeklyThemeData) {
-              console.log("📦 Using weekly theme data from database");
               const topic = weeklyThemeData.title;
               const description =
                 weeklyThemeData.content_ideas || weeklyThemeData.theme;
@@ -3479,9 +3161,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
 
               const layoutType =
                 (layout as "block-builder" | "simple-email") || "block-builder";
-              console.log(
-                `🎨 Generating ${layoutType} layout blocks for weekly theme: "${topic}"`,
-              );
 
               let crmBlocks = generateNewsletterBlocks({
                 topic: topic,
@@ -3490,9 +3169,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
               });
 
               if (crmBlocks.length === 0) {
-                console.warn(
-                  "⚠️ Block generator returned empty array, using fallback",
-                );
                 crmBlocks = getFallbackBlocks(topic);
               }
 
@@ -3554,9 +3230,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                       !response.data?.title ||
                       !response.data?.content
                     ) {
-                      console.warn(
-                        `⚠️ AI generation failed for block ${index + 1}`,
-                      );
                       return block;
                     }
 
@@ -3575,10 +3248,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                       isLoadingContent: false,
                     };
                   } catch (blockError) {
-                    console.warn(
-                      `⚠️ Failed to enhance block ${index + 1}:`,
-                      blockError,
-                    );
                     return { ...block, isLoadingContent: false };
                   }
                 }),
@@ -3634,16 +3303,11 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
             }
 
             // Final fallback: use URL parameters
-            console.warn(
-              "⚠️ No weekly theme data found, using URL parameters as fallback:",
-              templateId,
-            );
 
             const safeDecodeURIComponent = (value: string) => {
               try {
                 return decodeURIComponent(value);
               } catch (error) {
-                console.warn("Failed to decode URI component:", value, error);
                 return value;
               }
             };
@@ -3670,9 +3334,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
               generatePreheaderText(description, sanitizedTopic),
             );
 
-            console.log(
-              `🎨 Generating ${layoutType} layout blocks for topic: "${topic}"`,
-            );
 
             let crmBlocks = generateNewsletterBlocks({
               topic: topic,
@@ -3681,9 +3342,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
             });
 
             if (crmBlocks.length === 0) {
-              console.warn(
-                "⚠️ Block generator returned empty array, using fallback",
-              );
               crmBlocks = getFallbackBlocks(topic);
             }
 
@@ -3709,19 +3367,10 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
             );
 
             setBlocks(blocksWithLoadingStates);
-            console.log(
-              `✅ [FallbackInit] Generated ${crmBlocks.length} blocks for "${topic}" (layout: ${layoutType})`,
-            );
 
             // TEMPLATE REUSE: Only reuse content when explicitly provided via template_id or source_campaign_id
             // REMOVED: Fuzzy ilike name matching that caused cross-contamination between campaigns
             // Template reuse is now explicit and ID-based, not name-pattern based
-            console.log(
-              `🚫 [NoFuzzyLookup] Skipping fuzzy name-based campaign lookup for: "${topic}"`,
-            );
-            console.log(
-              `📌 Template reuse requires explicit template_id or source_campaign_id params`,
-            );
 
             // If a specific templateId was provided via URL params, use it for explicit template lookup
             if (templateIdParam) {
@@ -3756,9 +3405,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                       ?.length > 0 ||
                       templateCampaign.campaign_blocks?.length > 0)
                   ) {
-                    console.log(
-                      `📋 Found existing campaign from template_id=${templateIdParam}: ${templateCampaign.id}`,
-                    );
 
                     // Use campaign_blocks if available, otherwise metadata
                     const blocksData =
@@ -3814,34 +3460,25 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                         generatePreheaderText(topic, description),
                     );
 
-                    console.log(
-                      `✅ Loaded template content with ${existingBlocks.length} blocks`,
-                    );
                     return; // Skip AI generation since we have template content
                   }
                 }
               } catch (error) {
-                console.warn("Failed to load template campaign:", error);
               }
             }
 
             // Add AI content generation for fallback blocks
             // Guard against duplicate campaign creation from rapid clicks
             if (existingCampaignId) {
-              console.log(`⚠️ [FallbackAI] Campaign already exists (${existingCampaignId}), skipping duplicate creation`);
               setLoading(false);
               return;
             }
             setTimeout(async () => {
               // Double-check inside setTimeout to catch race conditions
               if (existingCampaignId) {
-                console.log(`⚠️ [FallbackAI] Campaign already created (${existingCampaignId}), aborting`);
                 return;
               }
               try {
-                console.log(
-                  `🤖 [FallbackAI] Starting AI enhancement for ${crmBlocks.length} blocks`,
-                );
                 const enhancedBlocks = [...crmBlocks];
 
                 // Mark all content blocks as generating
@@ -3873,9 +3510,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                       postType: "newsletter",
                     };
 
-                    console.log(
-                      `🤖 [FallbackAI] Enhancing block ${i + 1}/${enhancedBlocks.length} (${block.type})`,
-                    );
                     const { data, error } = await supabase.functions.invoke(
                       "generate-email-content",
                       {
@@ -3884,10 +3518,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                     );
 
                     if (error) {
-                      console.warn(
-                        `Failed to generate content for fallback block ${i}:`,
-                        error,
-                      );
                       continue;
                     }
 
@@ -3941,9 +3571,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                   }
                 }
 
-                console.log(
-                  `✅ [FallbackAI] AI enhancement complete for "${topic}"`,
-                );
 
                 // Generate images for blocks with AI content
                 const weekContext = {
@@ -3953,10 +3580,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                   weekNumber: weekNumber || undefined,
                 };
 
-                console.log(
-                  "🖼️ [FallbackAI] Starting image generation with context:",
-                  weekContext,
-                );
                 generateImagesForBlocks(
                   enhancedBlocks,
                   weekContext,
@@ -3969,9 +3592,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
 
                 // Auto-save the generated content as a draft
                 try {
-                  console.log(
-                    "💾 [FallbackAI] Auto-saving generated content as draft",
-                  );
                   const {
                     data: { user },
                   } = await supabase.auth.getUser();
@@ -3995,12 +3615,8 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                     const savedCampaign =
                       await saveCampaignAsDraft(campaignData);
                     setExistingCampaignId(savedCampaign.id);
-                    console.log(
-                      `✅ [FallbackAI] Content cached in campaign: ${savedCampaign.id}`,
-                    );
                   }
                 } catch (error) {
-                  console.warn("Failed to auto-save generated content:", error);
                 }
               } catch (error) {
                 console.error(
@@ -4034,28 +3650,18 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
         const isValidUUID = uuidRegex.test(campaignSlug);
 
-        console.log("🔍 CRMCampaignCreator: Checking campaign slug", {
-          campaignSlug,
-          isValidUUID,
-        });
 
         if (isValidUUID) {
           // Guard: Only process existing campaign once
           if (processedExistingCampaignRef.current === campaignSlug) {
-            console.log(
-              "🚫 Existing campaign already processed, skipping:",
-              campaignSlug,
-            );
             return;
           }
 
-          console.log("🔄 Loading existing campaign by UUID:", campaignSlug);
           setLoadingExistingCampaign(true);
           try {
             await loadExistingCampaign(campaignSlug);
             setExistingCampaignId(campaignSlug);
             processedExistingCampaignRef.current = campaignSlug;
-            console.log("✅ Successfully loaded existing campaign");
           } catch (error) {
             console.error("❌ Error loading campaign by UUID:", error);
             // Allow retry on next effect run (e.g. once auth is ready)
@@ -4070,10 +3676,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           }
           return;
         } else {
-          console.log(
-            "📝 Campaign slug is not a UUID, treating as new campaign:",
-            campaignSlug,
-          );
           // Continue to the content task conversion logic below
         }
       }
@@ -4083,10 +3685,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
 
       // Guard: Only process content task once
       if (processedContentTaskRef.current === contentTaskId) {
-        console.log(
-          "🚫 Content task already processed, skipping:",
-          contentTaskId,
-        );
         return;
       }
       processedContentTaskRef.current = contentTaskId;
@@ -4113,7 +3711,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           const type = searchParams.get("type");
 
           if (type === "newsletter" && !converting && blocks.length === 0) {
-            console.log("🔄 Starting newsletter conversion");
             handleNewsletterConversion(
               contentTaskId,
               title || "",
@@ -4129,7 +3726,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         const type = searchParams.get("type");
 
         if (type === "newsletter" && !converting && blocks.length === 0) {
-          console.log("🔄 Starting newsletter conversion (fallback)");
           handleNewsletterConversion(contentTaskId, title || "", content || "");
         }
       } finally {
@@ -4149,11 +3745,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
 
   // Additional useEffect to monitor blocks changes
   useEffect(() => {
-    console.log("📊 Blocks state changed:", {
-      blockCount: blocks.length,
-      blockIds: blocks.map((b) => b.id),
-      blockTypes: blocks.map((b) => b.type),
-    });
   }, [blocks]);
 
   // Initialize blank newsletter with default blocks
@@ -4169,7 +3760,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
       !blankNewsletterInitialized.current;
 
     if (isBlankNewsletter) {
-      console.log("🆕 Initializing blank newsletter with default blocks");
       blankNewsletterInitialized.current = true;
 
       setCampaignName("Newsletter Campaign");
@@ -4180,11 +3770,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
       const defaultBlocks = getFallbackBlocks("Newsletter Campaign");
       setBlocks(defaultBlocks);
 
-      console.log(
-        "✅ Blank newsletter initialized with",
-        defaultBlocks.length,
-        "blocks",
-      );
     }
   }, [
     searchParams.get("type"),
@@ -4197,7 +3782,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
 
   const loadExistingCampaign = async (campaignId: string) => {
     try {
-      console.log("🔄 Loading existing CRM campaign:", campaignId);
 
       // Load campaign details
       const { data: campaign, error: campaignError } = await supabase
@@ -4206,7 +3790,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         .eq("id", campaignId)
         .single();
 
-      console.log("📊 Campaign query result:", { campaign, campaignError });
 
       if (campaignError) throw campaignError;
 
@@ -4217,11 +3800,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         .eq("campaign_id", campaignId)
         .order("order_index");
 
-      console.log("📊 Blocks query result:", {
-        campaignBlocks: campaignBlocks?.length || 0,
-        blocksError,
-        firstBlock: campaignBlocks?.[0],
-      });
 
       if (blocksError) throw blocksError;
 
@@ -4388,13 +3966,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         setSchedule({ type: "now" });
       }
 
-      console.log("📋 Campaign metadata restored:", {
-        name: campaign.name,
-        subject: campaign.subject_line,
-        preheader: campaign.preheader,
-        status: campaign.status,
-        scheduledAt: campaign.scheduled_at,
-      });
 
       // CANONICAL: Use normalizeBlockFromDatabase for consistent field mapping
       const contentBlocks: ContentBlock[] = (
@@ -4408,7 +3979,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         description: `Continuing where you left off with ${contentBlocks.length} blocks.`,
       });
 
-      console.log("✅ Existing campaign loaded successfully");
     } catch (error) {
       console.error("Error loading existing campaign:", error);
       toast({
@@ -4429,11 +3999,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
     setConverting(true);
 
     try {
-      console.log("📧 Converting newsletter to CRM campaign", {
-        contentTaskId,
-        title,
-        hasUrlContent: !!urlContent,
-      });
 
       let fullContent = urlContent;
 
@@ -4443,10 +4008,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         contentTaskId.length === 36 &&
         contentTaskId.includes("-")
       ) {
-        console.log(
-          "🔍 Fetching full content from database for contentTaskId:",
-          contentTaskId,
-        );
         try {
           const { data: contentTask, error } = await supabase
             .from("content_tasks")
@@ -4469,13 +4030,8 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
               contentPreview: fullContent.substring(0, 150) + "...",
             });
 
-            console.log("✅ Retrieved full content from database:", {
-              campaignTitle: contentTask.campaigns?.title,
-              contentLength: fullContent.length,
-            });
           }
         } catch (dbError) {
-          console.log("⚠️ Database fetch failed, using URL content:", dbError);
         }
       }
 
@@ -4483,7 +4039,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         throw new Error("No content available for conversion");
       }
 
-      console.log("🔄 Converting content (length:", fullContent.length, ")");
 
       // First, try to get preserved newsletter images from the content task
       let preservedImages = {};
@@ -4506,14 +4061,9 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
               any
             >;
             preservedImages = attachments.newsletter_images;
-            console.log(
-              "📸 Found preserved newsletter images:",
-              Object.keys(preservedImages),
-            );
           }
         }
       } catch (imageError) {
-        console.warn("⚠️ Could not fetch preserved images:", imageError);
       }
 
       // Use the enhanced newsletter conversion system with preserved images
@@ -4535,7 +4085,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
 
       // Set blocks with layout and images
       const crmBlocks = result.blocks;
-      console.log("✅ Newsletter converted to", crmBlocks.length, "blocks");
 
       setBlocks(normalizeBlocks(crmBlocks));
 
@@ -4848,20 +4397,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
 
         // DEBUG: Log block data for newsletter-header blocks
         if (block.type === "newsletter-header" || block.type === "header") {
-          console.log("[EMAIL-HTML] Rendering header block:", {
-            id: block.id,
-            type: block.type,
-            title: block.title,
-            headline: block.headline,
-            subtitle: block.subtitle,
-            body: block.body,
-            publishDate: block.publishDate,
-            backgroundImageUrl: block.backgroundImageUrl,
-            safeBackgroundImageUrl,
-            hasBackgroundImage: !!safeBackgroundImageUrl,
-            imageUrl: block.imageUrl,
-            safeImageUrl,
-          });
         }
 
         // Insert spacer between blocks (not before the first one)
@@ -5204,12 +4739,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
 
             // Only render single-column image block if it has an imageUrl
             if (safeImageUrl) {
-              console.log("🔍 IMAGE BLOCK DEBUG:", {
-                id: block.id,
-                title: block.title,
-                headline: block.headline,
-                safeImageUrl,
-              });
 
               const imgAlign = block.textAlign || "center";
               const imgTextColor = companyInfo?.brandTextColor || "#475569";
@@ -5304,12 +4833,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
             const ctaText = block.ctaText || block.buttonText;
             const ctaUrl = block.ctaUrl || block.buttonUrl;
 
-            console.log("📝 IMAGE-TEXT BLOCK DATA:", {
-              layout: block.layout,
-              isImageLeft,
-              headline: block.headline,
-              safeImageUrl,
-            });
 
             // If no safe image, render as text-only block
             if (!safeImageUrl) {
@@ -5347,12 +4870,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                   block.overlayColor,
                   normalizedOverlayOpacity,
                 );
-                console.log("🎨 IMAGE-TEXT BLOCK OVERLAY:", {
-                  overlayColor: block.overlayColor,
-                  overlayOpacity: block.overlayOpacity,
-                  normalizedOverlayOpacity,
-                  overlayRgba,
-                });
                 // Use table with background and semi-transparent inner content for overlay - USE SAFE URL
                 imageCellHtml = `
                 <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse: collapse; border-radius: 8px; overflow: hidden; height: 100%;">
@@ -5511,26 +5028,10 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
             // SKIP: Social follow blocks should not render in email HTML
             // The server-side footer now handles all social links
             // This prevents duplicate social icons in sent emails
-            console.log(
-              "[EMAIL-HTML] Skipping social-follow block - social links handled by server footer",
-            );
             break;
 
           case "newsletter-header":
             // DEBUG: Log overlay values for newsletter-header blocks
-            console.log("[EMAIL-HTML] Newsletter header OVERLAY DEBUG:", {
-              id: block.id,
-              backgroundColor: block.backgroundColor,
-              colorOverlayOpacity: block.colorOverlayOpacity,
-              darkOverlayOpacity: block.darkOverlayOpacity,
-              textColor: block.textColor,
-              backgroundImageUrl: block.backgroundImageUrl?.substring(0, 50),
-              rawBlock: {
-                hasBackgroundColor: "backgroundColor" in block,
-                hasColorOverlayOpacity: "colorOverlayOpacity" in block,
-                hasDarkOverlayOpacity: "darkOverlayOpacity" in block,
-              },
-            });
 
             const nhTextColor = block.textColor || "#ffffff";
             const nhBackgroundColor = block.backgroundColor || "#1f2937";
@@ -5545,13 +5046,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
             );
             const nhTextAlign = block.textAlign || "center";
 
-            console.log("[EMAIL-HTML] Newsletter header NORMALIZED values:", {
-              id: block.id,
-              nhBackgroundColor,
-              nhColorOverlayOpacity,
-              nhDarkOverlayOpacity,
-              nhTextColor,
-            });
 
             // Use campaign name then company name as fallback headline for newsletter-header blocks
             const nhHeadline =
@@ -5925,9 +5419,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
       // IMPORTANT: Do NOT generate footer here - the server-side edge function
       // (send-test-email, send-email-campaign) will generate the footer with
       // correct PNG social icons. This prevents duplicate footers.
-      console.log(
-        "📧 [generateEmailHTML] Footer will be added server-side to prevent duplicates",
-      );
 
       html += `
         </div>
@@ -5940,13 +5431,8 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   );
 
   const handleSave = async () => {
-    console.log("🚀 Save button clicked");
-    console.log("📝 Campaign Name:", `"${campaignName}"`);
-    console.log("📝 Subject Line:", `"${subjectLine}"`);
-    console.log("📝 Existing Campaign ID:", existingCampaignId);
 
     if (!campaignName.trim() || !subjectLine.trim()) {
-      console.log("❌ Validation failed - missing required fields");
       toast({
         title: "Missing Information",
         description: "Please provide both a campaign name and subject line.",
@@ -5955,7 +5441,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
       return;
     }
 
-    console.log("✅ Validation passed - proceeding with save");
 
     setLoading(true);
     setSaveError(false);
@@ -5963,7 +5448,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
     try {
       if (existingCampaignId) {
         // Update existing campaign
-        console.log("🔄 Updating existing campaign:", existingCampaignId);
 
         await autoSaveCampaign({
           blocks,
@@ -5975,7 +5459,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         // Ensure audience selection is persisted as part of an explicit Save.
         await persistCampaignAudienceToDb(existingCampaignId);
 
-        console.log("✅ Campaign updated successfully");
 
         toast({
           title: "Campaign Updated!",
@@ -5983,7 +5466,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         });
       } else {
         // Create new campaign
-        console.log("➕ Creating new campaign");
 
         // Generate HTML content for the campaign
         const htmlContent = generateEmailHTML();
@@ -6044,13 +5526,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
             : undefined,
         };
 
-        console.log("💾 Saving new campaign to database:", {
-          name: campaignName,
-          subject: subjectLine,
-          preheader: preheaderText,
-          blocks: blocks.length,
-          hasSourceContent: !!finalContentTaskId,
-        });
 
         // Save campaign using the service
         const result = await saveCampaignAsDraft(campaignData);
@@ -6058,7 +5533,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         // Persist personas + join tables (service currently handles segments only).
         await persistCampaignAudienceToDb(result.id);
 
-        console.log("✅ Campaign created successfully:", result);
 
         toast({
           title: "Campaign Created!",
@@ -6239,14 +5713,12 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
       };
 
       // Step 1: Save as draft
-      console.log("📝 Saving campaign as draft...");
       let campaign;
       try {
         campaign = await saveCampaignAsDraft(campaignData);
         if (!campaign?.id) {
           throw new Error("Campaign save returned no ID");
         }
-        console.log("✅ Campaign saved:", campaign.id);
 
         // If this was a brand-new campaign, persist the ID in state + URL so refresh can reload
         // the scheduled status (and other campaign data) from the database.
@@ -6269,11 +5741,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
       // If the user chose a scheduled send, persist the schedule and exit.
       // (Do NOT invoke the send edge function for scheduled campaigns.)
       if (schedule.type === "scheduled" && schedule.date) {
-        console.log("🗓️ Scheduling campaign (no immediate send):", {
-          campaignId: campaign.id,
-          scheduledAt: schedule.date.toISOString(),
-          timezone: schedule.timezone,
-        });
 
         const success = await updateCampaignSchedule(
           campaign.id,
@@ -6317,7 +5784,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
       }
 
       // Step 2: Send via edge function
-      console.log("🚀 Invoking send-email-campaign for campaign:", campaign.id);
       const { data: sendResult, error: sendError } =
         await supabase.functions.invoke("send-email-campaign", {
           body: { campaignId: campaign.id },
@@ -6361,7 +5827,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
       }
 
       const sentCount = sendResult?.metrics?.sent || 0;
-      console.log("✅ Campaign sent successfully:", sendResult);
 
       toast({
         title: "Campaign sent!",
@@ -6867,18 +6332,10 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
               selectedPersonas,
               selectedSegments,
             });
-            console.log("📋 Wizard closed - persisted audience data:", {
-              personas: selectedPersonas.length,
-              segments: selectedSegments.length,
-            });
           }}
           selectedPersonas={selectedPersonas}
           selectedSegments={selectedSegments}
           onPersonasChange={(personas) => {
-            console.log(
-              "🔄 CampaignSetupWizard: Personas changed:",
-              personas.map((p) => ({ id: p.id, name: p.persona_name })),
-            );
             setSelectedPersonas(personas);
           }}
           onSegmentsChange={setSelectedSegments}
@@ -6947,10 +6404,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                   return;
                 }
 
-                console.log(
-                  "[CRM CAMPAIGN CREATOR] Blocks changed:",
-                  newBlocks.length,
-                );
 
                 // DEBUG: Log overlay values for header blocks when blocks change
                 newBlocks.forEach((block, idx) => {
@@ -6958,25 +6411,11 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                     block.type === "newsletter-header" ||
                     block.type === "header"
                   ) {
-                    console.log(
-                      "[CRM CAMPAIGN CREATOR] Header block overlay values:",
-                      {
-                        idx,
-                        id: block.id,
-                        backgroundColor: block.backgroundColor,
-                        colorOverlayOpacity: block.colorOverlayOpacity,
-                        darkOverlayOpacity: block.darkOverlayOpacity,
-                        textColor: block.textColor,
-                      },
-                    );
                   }
                 });
 
                 // Prevent accidental clearing of blocks unless it's intentional
                 if (newBlocks.length === 0 && blocks.length > 0) {
-                  console.log(
-                    "🚫 [CRM CAMPAIGN CREATOR] Preventing accidental block clearing",
-                  );
                   return;
                 }
 
@@ -6986,9 +6425,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                 // Auto-save when blocks change
                 if (newBlocks.length > 0) {
                   if (existingCampaignId) {
-                    console.log(
-                      "[CRM CAMPAIGN CREATOR] Triggering auto-save for blocks",
-                    );
                     debouncedAutoSave({
                       blocks: newBlocks,
                       campaign_name: campaignName,
@@ -6997,9 +6433,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                     });
                   } else if (campaignName && newBlocks.length > 1) {
                     // Auto-create draft for new campaigns with meaningful content
-                    console.log(
-                      "[CRM CAMPAIGN CREATOR] Creating draft for new campaign...",
-                    );
                     createDraftCampaign();
                   }
                 }
@@ -7049,25 +6482,9 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           open={showAIImageDialog}
           onOpenChange={setShowAIImageDialog}
           onImageSelect={(imageUrl) => {
-            console.log(
-              "🖼️ [AIPersonalizationDialog] Image selected:",
-              imageUrl,
-            );
-            console.log(
-              "🖼️ [AIPersonalizationDialog] Editing block ID:",
-              editingBlockId,
-            );
-            console.log(
-              "🖼️ [AIPersonalizationDialog] Current blocks:",
-              blocks.length,
-            );
 
             if (editingBlockId) {
               const blockToUpdate = blocks.find((b) => b.id === editingBlockId);
-              console.log(
-                "🖼️ [AIPersonalizationDialog] Block to update:",
-                blockToUpdate,
-              );
 
               if (blockToUpdate) {
                 // Update the appropriate image field based on block type
@@ -7089,10 +6506,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                         autoImageMode: false, // User manually selected, prevent auto-regeneration
                       };
 
-                console.log(
-                  "🖼️ [AIPersonalizationDialog] Image update:",
-                  imageUpdate,
-                );
 
                 // Create a completely new array with new object references to force React re-render
                 const updatedBlocks = blocks.map((b) =>
@@ -7101,23 +6514,11 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                     : b,
                 );
 
-                console.log(
-                  "🖼️ [AIPersonalizationDialog] Updated blocks:",
-                  updatedBlocks.length,
-                );
-                console.log(
-                  "🖼️ [AIPersonalizationDialog] Updated block:",
-                  updatedBlocks.find((b) => b.id === editingBlockId),
-                );
 
                 setBlocks(updatedBlocks);
 
                 // Trigger auto-save to persist the changes
                 if (existingCampaignId) {
-                  console.log(
-                    "💾 [AIPersonalizationDialog] Triggering auto-save for campaign:",
-                    existingCampaignId,
-                  );
                   debouncedAutoSave({
                     blocks: updatedBlocks,
                     campaign_name: campaignName,

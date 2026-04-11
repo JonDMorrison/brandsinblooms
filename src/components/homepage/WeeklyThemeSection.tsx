@@ -1,11 +1,22 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Play, Calendar, Sparkles, ChevronDown, ChevronUp, Eye } from "lucide-react";
+import {
+  Play,
+  Calendar,
+  Sparkles,
+  ChevronDown,
+  ChevronUp,
+  Eye,
+} from "lucide-react";
 import { useState } from "react";
 import { Campaign } from "@/types/content";
 import { getCurrentWeekNumber } from "@/utils/dateUtils";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { useContentGeneration } from "@/contexts/ContentGenerationContext";
 import { ContentViewer } from "@/components/content/ContentViewer";
 import { useNavigate } from "react-router-dom";
@@ -17,11 +28,11 @@ interface WeeklyThemeSectionProps {
   onCampaignCreated: () => void;
 }
 
-export const WeeklyThemeSection = ({ 
-  currentCampaign, 
-  tasks, 
-  onTaskUpdate, 
-  onCampaignCreated 
+export const WeeklyThemeSection = ({
+  currentCampaign,
+  tasks,
+  onTaskUpdate,
+  onCampaignCreated,
 }: WeeklyThemeSectionProps) => {
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(true);
@@ -29,49 +40,42 @@ export const WeeklyThemeSection = ({
   const { generateContent, isGeneratingForCampaign } = useContentGeneration();
 
   const currentWeek = getCurrentWeekNumber();
-  const campaignTasks = tasks.filter(task => task.campaign_id === currentCampaign?.id);
-  const isGenerating = currentCampaign ? isGeneratingForCampaign(currentCampaign.id) : false;
+  const campaignTasks = tasks.filter(
+    (task) => task.campaign_id === currentCampaign?.id,
+  );
+  const isGenerating = currentCampaign
+    ? isGeneratingForCampaign(currentCampaign.id)
+    : false;
 
   const handleGenerateContent = async () => {
     if (!currentCampaign) return;
-    
-    console.log('🎯 Starting content generation for campaign:', currentCampaign.id);
-    
     const success = await generateContent(
       currentCampaign.id,
       currentCampaign.theme || currentCampaign.title,
-      currentCampaign.description || '',
-      currentCampaign.week_number
+      currentCampaign.description || "",
+      currentCampaign.week_number,
     );
-    
-    console.log('🎯 Content generation result:', success);
-    
     if (success) {
       // Refresh tasks and also trigger campaign/theme refresh
       onTaskUpdate();
       onCampaignCreated(); // This will refresh themes and campaigns
       setTimeout(() => {
-        console.log('🔄 Task and theme refresh after generation');
         onTaskUpdate();
         onCampaignCreated();
       }, 2000);
     }
   };
 
-  const handleViewContent = () => {
-    console.log('Review button clicked - Current campaign:', currentCampaign);
-    console.log('Campaign tasks:', campaignTasks);
-    
     if (!currentCampaign) {
-      console.error('No current campaign available');
+      console.error("No current campaign available");
       return;
     }
-    
+
     if (campaignTasks.length === 0) {
-      console.error('No tasks available for this campaign');
+      console.error("No tasks available for this campaign");
       return;
     }
-    
+
     setShowContentViewer(true);
   };
 
@@ -96,9 +100,9 @@ export const WeeklyThemeSection = ({
                       </Badge>
                     </CardTitle>
                     <p className="text-gray-700 text-sm mt-1 leading-relaxed">
-                      {currentCampaign 
-                        ? `This week: ${currentCampaign.theme || currentCampaign.title}` 
-                        : 'No theme set for this week'}
+                      {currentCampaign
+                        ? `This week: ${currentCampaign.theme || currentCampaign.title}`
+                        : "No theme set for this week"}
                     </p>
                   </div>
                 </div>
@@ -111,9 +115,11 @@ export const WeeklyThemeSection = ({
                         </span>
                       </div>
                       <div className="w-16 bg-gray-200 rounded-full h-1.5">
-                        <div 
-                          className="bg-mint-600 h-1.5 rounded-full transition-all duration-300" 
-                          style={{ width: `${(campaignTasks.length / 5) * 100}%` }}
+                        <div
+                          className="bg-mint-600 h-1.5 rounded-full transition-all duration-300"
+                          style={{
+                            width: `${(campaignTasks.length / 5) * 100}%`,
+                          }}
                         />
                       </div>
                     </div>
@@ -127,7 +133,7 @@ export const WeeklyThemeSection = ({
               </div>
             </CardHeader>
           </CollapsibleTrigger>
-          
+
           <CollapsibleContent>
             <CardContent className="pt-0">
               {currentCampaign ? (
@@ -145,7 +151,8 @@ export const WeeklyThemeSection = ({
                           </p>
                         )}
                         <p className="text-xs text-gray-600">
-                          We'll create 5 pieces of marketing content around this theme
+                          We'll create 5 pieces of marketing content around this
+                          theme
                         </p>
                       </div>
                     </div>
@@ -154,15 +161,18 @@ export const WeeklyThemeSection = ({
                       <div className="bg-brand-blue/10 border border-brand-blue/20 rounded-lg p-3">
                         <div className="flex items-center gap-2 text-brand-blue mb-2">
                           <div className="animate-spin h-4 w-4 border-2 border-brand-blue border-t-transparent rounded-full"></div>
-                          <span className="text-sm font-medium">Generating your marketing content...</span>
+                          <span className="text-sm font-medium">
+                            Generating your marketing content...
+                          </span>
                         </div>
                         <p className="text-brand-blue/80 text-xs leading-relaxed">
-                          This usually takes 30-60 seconds. Creating 5 pieces for your review.
+                          This usually takes 30-60 seconds. Creating 5 pieces
+                          for your review.
                         </p>
                       </div>
                     ) : campaignTasks.length === 0 ? (
                       <div className="py-4">
-                        <Button 
+                        <Button
                           onClick={handleGenerateContent}
                           disabled={isGenerating}
                         >
@@ -176,24 +186,29 @@ export const WeeklyThemeSection = ({
                           <div>
                             <div className="flex items-center gap-2 text-mint-600 mb-1">
                               <Sparkles className="w-4 h-4" />
-                              <span className="text-sm font-semibold">Content Ready!</span>
+                              <span className="text-sm font-semibold">
+                                Content Ready!
+                              </span>
                             </div>
                             <p className="text-mint-600/80 text-xs leading-relaxed">
-                              {campaignTasks.length} pieces of content are ready for review
+                              {campaignTasks.length} pieces of content are ready
+                              for review
                             </p>
                           </div>
                           <div className="flex gap-2">
-                            <Button 
+                            <Button
                               onClick={handleViewContent}
                               size="sm"
                               variant="outline"
-                              disabled={!currentCampaign || campaignTasks.length === 0}
+                              disabled={
+                                !currentCampaign || campaignTasks.length === 0
+                              }
                             >
                               <Eye className="w-4 h-4 mr-2" />
                               Review
                             </Button>
-                            <Button 
-                              onClick={() => navigate('/publish')}
+                            <Button
+                              onClick={() => navigate("/publish")}
                               size="sm"
                             >
                               <Sparkles className="w-4 h-4 mr-2" />
@@ -209,14 +224,13 @@ export const WeeklyThemeSection = ({
                 <div className="py-8 bg-gray-50 rounded-lg border border-gray-200">
                   <div className="flex flex-col items-start">
                     <Calendar className="w-12 h-12 mb-3 text-brand-teal" />
-                    <p className="text-brand-navy font-semibold mb-2 tracking-tight">No Weekly Theme Set</p>
+                    <p className="text-brand-navy font-semibold mb-2 tracking-tight">
+                      No Weekly Theme Set
+                    </p>
                     <p className="text-gray-600 text-sm mb-4 leading-relaxed">
                       Create a campaign to set this week's content theme
                     </p>
-                    <Button 
-                      variant="outline" 
-                      onClick={onCampaignCreated}
-                    >
+                    <Button variant="outline" onClick={onCampaignCreated}>
                       Create Campaign
                     </Button>
                   </div>

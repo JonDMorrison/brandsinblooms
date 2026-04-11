@@ -32,14 +32,16 @@ interface DashboardContentProps {
 export const DashboardContent = ({
   onboardingData,
   onBusinessNameChange,
-  onCampaignCreated
+  onCampaignCreated,
 }: DashboardContentProps) => {
   const { user } = useAuth();
   const { tenant, loading: tenantLoading } = useTenant();
   const navigate = useNavigate();
   const [activeCampaign, setActiveCampaign] = useState<Campaign | undefined>();
   const [tasks, setTasks] = useState([]);
-  const [userCreatedCampaigns, setUserCreatedCampaigns] = useState<Campaign[]>([]);
+  const [userCreatedCampaigns, setUserCreatedCampaigns] = useState<Campaign[]>(
+    [],
+  );
   const [loading, setLoading] = useState(true);
   const [showQuickstartChecklist, setShowQuickstartChecklist] = useState(false);
   const [showPublishModal, setShowPublishModal] = useState(false);
@@ -47,65 +49,56 @@ export const DashboardContent = ({
   const [isContentGenerating, setIsContentGenerating] = useState(false);
   const [showMicroTour, setShowMicroTour] = useState(false);
   const [showTourBanner, setShowTourBanner] = useState(false);
-  
+
   // Get approved tasks for the Ready to Publish section
-  const approvedTasks = tasks?.filter(task => task.status === TASK_STATUS.APPROVED) || [];
+  const approvedTasks =
+    tasks?.filter((task) => task.status === TASK_STATUS.APPROVED) || [];
 
   // Post-connection flow
-  const { flowState, navigateToTargetSection, completeOnboarding } = usePostConnectionFlow();
+  const { flowState, navigateToTargetSection, completeOnboarding } =
+    usePostConnectionFlow();
 
   const currentWeekNumber = getCurrentWeekNumber();
-  const isDevelopment = import.meta.env.DEV;
-
-  console.log('🔍 DashboardContent: Rendering with user:', user?.id, 'tenant:', tenant?.id || 'none', 'isDevelopment:', isDevelopment);
-  console.log('🔍 DashboardContent: Loading states - user:', !!user, 'tenantLoading:', tenantLoading, 'loading:', loading);
 
   const fetchCampaignData = async () => {
     if (!user) {
-      console.log('❌ DashboardContent: No authenticated user, skipping fetch');
       setLoading(false);
       return;
     }
 
     if (tenantLoading) {
-      console.log('🔍 DashboardContent: Tenant still loading, waiting...');
       return;
     }
 
     try {
-      console.log('🔍 DashboardContent: Fetching campaign data for user:', user.id, 'tenant:', tenant?.id || 'none');
-
       // Fetch campaigns
-      let campaignQuery = supabase
-        .from('campaigns')
-        .select('*');
+      let campaignQuery = supabase.from("campaigns").select("*");
 
       if (tenant?.id) {
-        campaignQuery = campaignQuery.eq('tenant_id', tenant.id);
+        campaignQuery = campaignQuery.eq("tenant_id", tenant.id);
       } else {
-        campaignQuery = campaignQuery.eq('user_id', user.id);
+        campaignQuery = campaignQuery.eq("user_id", user.id);
       }
 
       if (!isDevelopment) {
-        campaignQuery = campaignQuery.not('title', 'ilike', 'PREVIEW%');
+        campaignQuery = campaignQuery.not("title", "ilike", "PREVIEW%");
       }
 
-      const { data: allCampaigns, error: campaignError } = await campaignQuery
-        .order('week_number', { ascending: true });
+      const { data: allCampaigns, error: campaignError } =
+        await campaignQuery.order("week_number", { ascending: true });
 
       if (campaignError) {
-        console.error('❌ DashboardContent: Error fetching campaigns:', campaignError);
+        console.error(
+          "❌ DashboardContent: Error fetching campaigns:",
+          campaignError,
+        );
         setActiveCampaign(undefined);
         setTasks([]);
         setUserCreatedCampaigns([]);
         setLoading(false);
         return;
       }
-
-      console.log('✅ DashboardContent: Found campaigns:', allCampaigns?.length || 0, 'Current user:', user.id, 'Current tenant:', tenant?.id);
-      
       if (!allCampaigns || allCampaigns.length === 0) {
-        console.log('❌ DashboardContent: No campaigns found - WeeklyContentUpdater should create one');
         setActiveCampaign(undefined);
         setTasks([]);
         setUserCreatedCampaigns([]);
@@ -114,54 +107,47 @@ export const DashboardContent = ({
       }
 
       // Separate system campaigns from user-created campaigns
-      const systemCampaigns = allCampaigns.filter(c => c.source !== 'quick_action');
-      
-      let customCampaigns = allCampaigns.filter(c => {
-        if (c.source !== 'quick_action') return false;
-        
+      const systemCampaigns = allCampaigns.filter(
+        (c) => c.source !== "quick_action",
+      );
+
+      let customCampaigns = allCampaigns.filter((c) => {
+        if (c.source !== "quick_action") return false;
+
         if (tenant?.id) {
           return c.tenant_id === tenant.id;
         } else {
           return c.user_id === user.id;
         }
-      });
-      
-      console.log('🎯 Custom campaigns found:', customCampaigns.length, customCampaigns.map(c => ({
-        id: c.id,
-        title: c.title,
-        source: c.source,
-        user_id: c.user_id,
-        tenant_id: c.tenant_id,
-        created_at: c.created_at
-      })));
-      
+
       setUserCreatedCampaigns(customCampaigns);
-
-      console.log('🔧 After setUserCreatedCampaigns, length should be:', customCampaigns.length);
-
       // Select active campaign with improved logic
       let selectedCampaign: Campaign | undefined;
-      
+
       if (isDevelopment) {
-        selectedCampaign = systemCampaigns.find(c => 
-          c.title?.includes('PREVIEW') || c.title?.includes('DEV PREVIEW')
+        selectedCampaign = systemCampaigns.find(
+          (c) =>
+            c.title?.includes("PREVIEW") || c.title?.includes("DEV PREVIEW"),
         );
       }
-      
+
       if (!selectedCampaign) {
-        selectedCampaign = systemCampaigns.find(c => 
-          c.week_number === currentWeekNumber &&
-          c.theme && 
-          !c.theme.includes('Seasonal Gardening Focus') &&
-          !c.theme.includes('Week ') &&
-          !c.theme.includes('PREVIEW')
+        selectedCampaign = systemCampaigns.find(
+          (c) =>
+            c.week_number === currentWeekNumber &&
+            c.theme &&
+            !c.theme.includes("Seasonal Gardening Focus") &&
+            !c.theme.includes("Week ") &&
+            !c.theme.includes("PREVIEW"),
         );
       }
-      
+
       if (!selectedCampaign) {
-        selectedCampaign = systemCampaigns.find(c => c.week_number === currentWeekNumber);
+        selectedCampaign = systemCampaigns.find(
+          (c) => c.week_number === currentWeekNumber,
+        );
       }
-      
+
       if (!selectedCampaign) {
         selectedCampaign = systemCampaigns[systemCampaigns.length - 1];
       }
@@ -169,14 +155,22 @@ export const DashboardContent = ({
       setActiveCampaign(selectedCampaign);
 
       // Fetch tasks
-      const statusFilter = ['generating', 'review', 'ready', 'approved', 'scheduled', 'published'];
+      const statusFilter = [
+        "generating",
+        "review",
+        "ready",
+        "approved",
+        "scheduled",
+        "published",
+      ];
       if (isDevelopment) {
-        statusFilter.push('preview');
+        statusFilter.push("preview");
       }
 
       let taskQuery = supabase
-        .from('content_tasks')
-        .select(`
+        .from("content_tasks")
+        .select(
+          `
           *,
           campaigns!inner (
             title,
@@ -191,50 +185,60 @@ export const DashboardContent = ({
             source,
             tenant_id
           )
-        `)
-        .in('status', statusFilter)
-        .order('created_at', { ascending: false });
+        `,
+        )
+        .in("status", statusFilter)
+        .order("created_at", { ascending: false });
 
       if (tenant?.id) {
-        taskQuery = taskQuery.eq('tenant_id', tenant.id);
+        taskQuery = taskQuery.eq("tenant_id", tenant.id);
       } else {
-        taskQuery = taskQuery.eq('user_id', user.id);
+        taskQuery = taskQuery.eq("user_id", user.id);
       }
 
       const { data: allTasks, error: allTasksError } = await taskQuery;
 
       if (allTasksError) {
-        console.error('❌ DashboardContent: Error fetching tasks:', allTasksError);
+        console.error(
+          "❌ DashboardContent: Error fetching tasks:",
+          allTasksError,
+        );
         setTasks([]);
       } else {
-        const securityCheckedTasks = allTasks?.filter(task => {
-          if (tenant?.id) {
-            const belongsToTenant = task.campaigns && task.campaigns.tenant_id === tenant.id;
-            const isPreviewCampaign = task.campaigns?.title?.startsWith('PREVIEW');
-            const isCustomCampaign = task.campaigns?.source === 'quick_action';
-            
-            if (!belongsToTenant) return false;
-            if (!isDevelopment && isPreviewCampaign) return false;
-            
-            return true;
-          } else {
-            const belongsToUser = task.campaigns && (task.campaigns.user_id === user.id || task.user_id === user.id);
-            const isPreviewCampaign = task.campaigns?.title?.startsWith('PREVIEW');
-            const isCustomCampaign = task.campaigns?.source === 'quick_action';
-            
-            if (!belongsToUser) return false;
-            if (!isDevelopment && isPreviewCampaign) return false;
-            
-            return true;
-          }
-        }) || [];
-        
-        console.log('🔒 SECURITY: After security filtering:', securityCheckedTasks.length, 'tasks');
+        const securityCheckedTasks =
+          allTasks?.filter((task) => {
+            if (tenant?.id) {
+              const belongsToTenant =
+                task.campaigns && task.campaigns.tenant_id === tenant.id;
+              const isPreviewCampaign =
+                task.campaigns?.title?.startsWith("PREVIEW");
+              const isCustomCampaign =
+                task.campaigns?.source === "quick_action";
+
+              if (!belongsToTenant) return false;
+              if (!isDevelopment && isPreviewCampaign) return false;
+
+              return true;
+            } else {
+              const belongsToUser =
+                task.campaigns &&
+                (task.campaigns.user_id === user.id ||
+                  task.user_id === user.id);
+              const isPreviewCampaign =
+                task.campaigns?.title?.startsWith("PREVIEW");
+              const isCustomCampaign =
+                task.campaigns?.source === "quick_action";
+
+              if (!belongsToUser) return false;
+              if (!isDevelopment && isPreviewCampaign) return false;
+
+              return true;
+            }
+          }) || [];
         setTasks(securityCheckedTasks);
       }
-
     } catch (error) {
-      console.error('❌ DashboardContent: Error in fetchCampaignData:', error);
+      console.error("❌ DashboardContent: Error in fetchCampaignData:", error);
       setActiveCampaign(undefined);
       setTasks([]);
       setUserCreatedCampaigns([]);
@@ -244,7 +248,6 @@ export const DashboardContent = ({
   };
 
   useEffect(() => {
-    console.log('🔍 DashboardContent: useEffect triggered');
     if (user && !tenantLoading) {
       fetchCampaignData();
     } else {
@@ -255,14 +258,13 @@ export const DashboardContent = ({
   // Listen for campaign creation events to refresh data
   useEffect(() => {
     const handleCampaignCreated = () => {
-      console.log('🔄 DashboardContent: Campaign created event received, refreshing data');
       fetchCampaignData();
     };
 
-    window.addEventListener('campaignCreated', handleCampaignCreated);
-    
+    window.addEventListener("campaignCreated", handleCampaignCreated);
+
     return () => {
-      window.removeEventListener('campaignCreated', handleCampaignCreated);
+      window.removeEventListener("campaignCreated", handleCampaignCreated);
     };
   }, []);
 
@@ -280,21 +282,22 @@ export const DashboardContent = ({
 
     // Set up real-time subscription for campaigns
     const channelId = `${user.id}-${Date.now()}`;
-    
+
     const campaignChannel = supabase
       .channel(`dashboard-campaign-updates-${channelId}`)
       .on(
-        'postgres_changes',
+        "postgres_changes",
         {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'campaigns',
-          filter: tenant?.id ? `tenant_id=eq.${tenant.id}` : `user_id=eq.${user.id}`
+          event: "INSERT",
+          schema: "public",
+          table: "campaigns",
+          filter: tenant?.id
+            ? `tenant_id=eq.${tenant.id}`
+            : `user_id=eq.${user.id}`,
         },
         () => {
-          console.log('📡 Real-time: New campaign created');
           fetchCampaignData();
-        }
+        },
       )
       .subscribe();
 
@@ -302,17 +305,18 @@ export const DashboardContent = ({
     const taskChannel = supabase
       .channel(`dashboard-task-updates-${channelId}`)
       .on(
-        'postgres_changes',
+        "postgres_changes",
         {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'content_tasks',
-          filter: tenant?.id ? `tenant_id=eq.${tenant.id}` : `user_id=eq.${user.id}`
+          event: "INSERT",
+          schema: "public",
+          table: "content_tasks",
+          filter: tenant?.id
+            ? `tenant_id=eq.${tenant.id}`
+            : `user_id=eq.${user.id}`,
         },
         () => {
-          console.log('📡 Real-time: New content task created');
           fetchCampaignData();
-        }
+        },
       )
       .subscribe();
 
@@ -323,41 +327,35 @@ export const DashboardContent = ({
   }, [user, tenant, tasks.length, activeCampaign]);
 
   const handleTaskUpdate = () => {
-    console.log('DashboardContent: Task update triggered, refetching campaign data');
     fetchCampaignData();
   };
-  
+
   const handlePublishNow = (task: any) => {
     setSelectedTask(task);
     setShowPublishModal(true);
   };
-  
+
   const handleSchedulePost = (task: any) => {
     setSelectedTask(task);
     setShowPublishModal(true);
   };
-  
+
   const handleViewAllPublishable = () => {
-    navigate('/publish');
+    navigate("/publish");
   };
-  
-  const handlePublish = async (task: any, platform: string, scheduledTime?: Date) => {
+
+  const handlePublish = async (
+    task: any,
+    platform: string,
+    scheduledTime?: Date,
+  ) => {
     // This is a placeholder - in real implementation, this would:
     // 1. Call the publish API
     // 2. Update task status to 'scheduled' or 'published'
     // 3. Show success toast
-    
-    console.log('Publishing task:', task.id, 'to platform:', platform, 'at:', scheduledTime);
-    
-    const status = scheduledTime ? TASK_STATUS.SCHEDULED : TASK_STATUS.PUBLISHED;
-    
-    // Success notification would be shown here
-    console.log(
-      scheduledTime 
-        ? `Post scheduled for ${scheduledTime.toLocaleString()}`
-        : 'Post published successfully!'
-    );
-    
+    const status = scheduledTime
+      ? TASK_STATUS.SCHEDULED
+
     // Refresh data to reflect changes
     handleTaskUpdate();
   };
@@ -365,22 +363,29 @@ export const DashboardContent = ({
   const handleGetStarted = () => {
     // Add a small delay to ensure DOM is fully rendered
     setTimeout(() => {
-      const campaignSection = document.querySelector('[data-campaign-section]');
+      const campaignSection = document.querySelector("[data-campaign-section]");
       if (campaignSection) {
-        campaignSection.scrollIntoView({ 
-          behavior: 'smooth',
-          block: 'start'
+        campaignSection.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
         });
-        
+
         // Add visual feedback by briefly highlighting the section
-        campaignSection.classList.add('ring-2', 'ring-blue-500', 'ring-opacity-50');
+        campaignSection.classList.add(
+          "ring-2",
+          "ring-blue-500",
+          "ring-opacity-50",
+        );
         setTimeout(() => {
-          campaignSection.classList.remove('ring-2', 'ring-blue-500', 'ring-opacity-50');
+          campaignSection.classList.remove(
+            "ring-2",
+            "ring-blue-500",
+            "ring-opacity-50",
+          );
         }, 2000);
       } else {
-        console.warn('Campaign section not found for scrolling');
         // Fallback: scroll to top of page
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        window.scrollTo({ top: 0, behavior: "smooth" });
       }
     }, 100);
   };
@@ -388,7 +393,9 @@ export const DashboardContent = ({
   // Check if should show quickstart checklist
   useEffect(() => {
     if (user && !tenantLoading) {
-      const hasSeenChecklist = localStorage.getItem(`quickstart_dismissed_${user.id}`);
+      const hasSeenChecklist = localStorage.getItem(
+        `quickstart_dismissed_${user.id}`,
+      );
       setShowQuickstartChecklist(!hasSeenChecklist);
     }
   }, [user, tenantLoading]);
@@ -402,9 +409,9 @@ export const DashboardContent = ({
 
   // Check for manual tour start from sessionStorage
   useEffect(() => {
-    const shouldStartTour = sessionStorage.getItem('startProductTour');
+    const shouldStartTour = sessionStorage.getItem("startProductTour");
     if (shouldStartTour) {
-      sessionStorage.removeItem('startProductTour');
+      sessionStorage.removeItem("startProductTour");
       setShowMicroTour(true);
     }
   }, []);
@@ -412,9 +419,13 @@ export const DashboardContent = ({
   // Show tour banner for eligible users who haven't seen it
   useEffect(() => {
     if (user && !loading) {
-      const hasSeenTourBanner = localStorage.getItem(`tour_banner_dismissed_${user.id}`);
-      const hasCompletedTour = localStorage.getItem(`micro_tour_completed_${user.id}`);
-      
+      const hasSeenTourBanner = localStorage.getItem(
+        `tour_banner_dismissed_${user.id}`,
+      );
+      const hasCompletedTour = localStorage.getItem(
+        `micro_tour_completed_${user.id}`,
+      );
+
       if (!hasSeenTourBanner && !hasCompletedTour) {
         // Small delay to ensure page is loaded
         setTimeout(() => setShowTourBanner(true), 2000);
@@ -425,26 +436,30 @@ export const DashboardContent = ({
   const handleDismissQuickstart = () => {
     setShowQuickstartChecklist(false);
     if (user) {
-      localStorage.setItem(`quickstart_dismissed_${user.id}`, 'true');
+      localStorage.setItem(`quickstart_dismissed_${user.id}`, "true");
     }
   };
 
   const handleNavigateToSection = (section: string) => {
     switch (section) {
-      case 'social':
+      case "social":
         // Navigate to social page or scroll to social section
-        window.location.href = '/social';
+        window.location.href = "/social";
         break;
-      case 'weekly-content':
-        const weeklyElement = document.querySelector('[data-section="weekly-content-section"]');
+      case "weekly-content":
+        const weeklyElement = document.querySelector(
+          '[data-section="weekly-content-section"]',
+        );
         if (weeklyElement) {
-          weeklyElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          weeklyElement.scrollIntoView({ behavior: "smooth", block: "start" });
         }
         break;
-      case 'ready-to-post':
-        const readyElement = document.querySelector('[data-section="ready-to-post-section"]');
+      case "ready-to-post":
+        const readyElement = document.querySelector(
+          '[data-section="ready-to-post-section"]',
+        );
         if (readyElement) {
-          readyElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          readyElement.scrollIntoView({ behavior: "smooth", block: "start" });
         }
         break;
     }
@@ -458,35 +473,37 @@ export const DashboardContent = ({
   const handleDismissTourBanner = () => {
     setShowTourBanner(false);
     if (user) {
-      localStorage.setItem(`tour_banner_dismissed_${user.id}`, 'true');
+      localStorage.setItem(`tour_banner_dismissed_${user.id}`, "true");
     }
   };
 
   const handleTourComplete = () => {
     setShowMicroTour(false);
     if (user) {
-      localStorage.setItem(`micro_tour_completed_${user.id}`, 'true');
+      localStorage.setItem(`micro_tour_completed_${user.id}`, "true");
     }
   };
 
   const handleTourSkip = () => {
     setShowMicroTour(false);
     if (user) {
-      localStorage.setItem(`micro_tour_completed_${user.id}`, 'true');
+      localStorage.setItem(`micro_tour_completed_${user.id}`, "true");
     }
   };
 
   if (!user || tenantLoading) {
     return (
-      <EnhancedAppleCard 
-        variant="default" 
-        surface="primary" 
+      <EnhancedAppleCard
+        variant="default"
+        surface="primary"
         className="mx-auto max-w-md bg-white"
         animated={true}
       >
         <AppleCardContent className="flex flex-col items-center justify-center py-12">
           <p className="text-gray-600">
-            {!user ? 'Please log in to access your dashboard' : 'Loading your workspace...'}
+            {!user
+              ? "Please log in to access your dashboard"
+              : "Loading your workspace..."}
           </p>
         </AppleCardContent>
       </EnhancedAppleCard>
@@ -495,9 +512,9 @@ export const DashboardContent = ({
 
   if (loading) {
     return (
-      <EnhancedAppleCard 
-        variant="default" 
-        surface="primary" 
+      <EnhancedAppleCard
+        variant="default"
+        surface="primary"
         className="mx-auto max-w-md bg-white"
         animated={true}
       >
@@ -514,145 +531,157 @@ export const DashboardContent = ({
       <ProgressiveDashboardShell>
         <div className="w-full overflow-x-hidden bg-gray-50">
           <div className="space-y-4 p-4 md:p-6 w-full">
-          {/* Tour Banner for new users */}
-          {showTourBanner && (
-            <div className="bg-gradient-to-r from-primary/10 to-accent/10 border border-primary/20 rounded-lg p-4 mb-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
-                    <span className="text-primary-foreground text-sm font-semibold">✨</span>
+            {/* Tour Banner for new users */}
+            {showTourBanner && (
+              <div className="bg-gradient-to-r from-primary/10 to-accent/10 border border-primary/20 rounded-lg p-4 mb-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
+                      <span className="text-primary-foreground text-sm font-semibold">
+                        ✨
+                      </span>
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-foreground">
+                        New here? Take a 2‑min tour
+                      </h4>
+                      <p className="text-sm text-muted-foreground">
+                        Learn how to create and publish content in minutes
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <h4 className="font-medium text-foreground">New here? Take a 2‑min tour</h4>
-                    <p className="text-sm text-muted-foreground">Learn how to create and publish content in minutes</p>
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={handleStartTour}
+                      className="bg-primary text-primary-foreground px-4 py-2 rounded-md text-sm font-medium hover:bg-primary/90 transition-colors"
+                    >
+                      Start Tour
+                    </button>
+                    <button
+                      onClick={handleDismissTourBanner}
+                      className="text-muted-foreground hover:text-foreground p-2"
+                    >
+                      ✕
+                    </button>
                   </div>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <button
-                    onClick={handleStartTour}
-                    className="bg-primary text-primary-foreground px-4 py-2 rounded-md text-sm font-medium hover:bg-primary/90 transition-colors"
-                  >
-                    Start Tour
-                  </button>
-                  <button
-                    onClick={handleDismissTourBanner}
-                    className="text-muted-foreground hover:text-foreground p-2"
-                  >
-                    ✕
-                  </button>
                 </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Quickstart Checklist - only show after social connection */}
-          {showQuickstartChecklist && (
-            <QuickstartChecklist
-              onDismiss={handleDismissQuickstart}
-              onNavigateToSection={handleNavigateToSection}
+            {/* Quickstart Checklist - only show after social connection */}
+            {showQuickstartChecklist && (
+              <QuickstartChecklist
+                onDismiss={handleDismissQuickstart}
+                onNavigateToSection={handleNavigateToSection}
+              />
+            )}
+
+            {/* Development Preview Badge */}
+            {isDevelopment && activeCampaign?.title?.startsWith("PREVIEW") && (
+              <div className="flex justify-center w-full">
+                <DevPreviewBadge show={true} />
+              </div>
+            )}
+
+            {/* Ready to Publish Section - Only show if there are approved tasks */}
+            {approvedTasks.length > 0 && (
+              <ReadyToPublishSection
+                approvedTasks={approvedTasks}
+                onPublishNow={handlePublishNow}
+                onSchedulePost={handleSchedulePost}
+                onViewAll={handleViewAllPublishable}
+              />
+            )}
+
+            {/* Weekly Content Updater */}
+            <WeeklyContentUpdater />
+
+            {/* First Time User Welcome */}
+            <FirstTimeUserWelcome
+              onGetStarted={handleGetStarted}
+              tasksCount={tasks.length}
             />
-          )}
 
-          {/* Development Preview Badge */}
-          {isDevelopment && activeCampaign?.title?.startsWith('PREVIEW') && (
-            <div className="flex justify-center w-full">
-              <DevPreviewBadge show={true} />
-            </div>
-          )}
+            {/* Unified Dashboard Grid with Progressive Loading */}
+            {!isContentGenerating || activeCampaign || tasks.length > 0 ? (
+              <UnifiedDashboardGrid
+                activeCampaign={activeCampaign}
+                userCreatedCampaigns={userCreatedCampaigns}
+                tasks={tasks.filter(
+                  (t) => t.campaigns?.source !== "quick_action",
+                )}
+                onTaskUpdate={handleTaskUpdate}
+                onCampaignCreated={fetchCampaignData}
+                onCampaignUpdate={fetchCampaignData}
+                onCreateCampaign={onCampaignCreated}
+              />
+            ) : (
+              <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 w-full">
+                <div className="xl:col-span-8 space-y-6">
+                  <ProgressiveLoadingCard
+                    title="Weekly Content Campaign"
+                    description="Your personalized weekly content themes are being created"
+                    expectedContent="Custom weekly gardening themes, seasonal tips, and targeted content for your audience"
+                    isLoading={true}
+                  />
 
-          {/* Ready to Publish Section - Only show if there are approved tasks */}
-          {approvedTasks.length > 0 && (
-            <ReadyToPublishSection
-              approvedTasks={approvedTasks}
-              onPublishNow={handlePublishNow}
-              onSchedulePost={handleSchedulePost}
-              onViewAll={handleViewAllPublishable}
-            />
-          )}
+                  <ProgressiveLoadingCard
+                    title="Ready to Publish Posts"
+                    description="Individual social media posts are being generated"
+                    expectedContent="7 posts per week covering gardening tips, seasonal advice, and business promotions"
+                    isLoading={true}
+                  />
+                </div>
 
-          {/* Weekly Content Updater */}
-          <WeeklyContentUpdater />
-          
-          {/* First Time User Welcome */}
-          <FirstTimeUserWelcome 
-            onGetStarted={handleGetStarted}
-            tasksCount={tasks.length}
+                <div className="xl:col-span-4 space-y-6">
+                  <ProgressiveLoadingCard
+                    title="Quick Actions"
+                    description="Setting up your content creation tools"
+                    expectedContent="Quick campaign creation, event planning, and content generation tools"
+                    isLoading={false}
+                  />
+
+                  <ProgressiveLoadingCard
+                    title="Seasonal Holidays"
+                    description="Loading relevant seasonal content opportunities"
+                    expectedContent="Holiday-specific content suggestions and marketing opportunities"
+                    isLoading={true}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Empty state hint - only show if not generating and no content */}
+            {!isContentGenerating && tasks.length === 0 && !activeCampaign && (
+              <div className="text-center py-8 text-gray-500">
+                <h3 className="text-lg font-medium mb-2">
+                  Ready to create content?
+                </h3>
+                <p className="text-sm">
+                  Use the Quick Actions above to generate your first posts.
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Manual Micro Walkthrough Tour */}
+          <MicroWalkthroughTour
+            isVisible={showMicroTour}
+            onComplete={handleTourComplete}
+            onSkip={handleTourSkip}
           />
 
-          {/* Unified Dashboard Grid with Progressive Loading */}
-          {!isContentGenerating || activeCampaign || tasks.length > 0 ? (
-            <UnifiedDashboardGrid
-              activeCampaign={activeCampaign}
-              userCreatedCampaigns={userCreatedCampaigns}
-              tasks={tasks.filter(t => t.campaigns?.source !== 'quick_action')}
-              onTaskUpdate={handleTaskUpdate}
-              onCampaignCreated={fetchCampaignData}
-              onCampaignUpdate={fetchCampaignData}
-              onCreateCampaign={onCampaignCreated}
-            />
-          ) : (
-            <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 w-full">
-              <div className="xl:col-span-8 space-y-6">
-                <ProgressiveLoadingCard
-                  title="Weekly Content Campaign"
-                  description="Your personalized weekly content themes are being created"
-                  expectedContent="Custom weekly gardening themes, seasonal tips, and targeted content for your audience"
-                  isLoading={true}
-                />
-                
-                <ProgressiveLoadingCard
-                  title="Ready to Publish Posts"
-                  description="Individual social media posts are being generated"
-                  expectedContent="7 posts per week covering gardening tips, seasonal advice, and business promotions"
-                  isLoading={true}
-                />
-              </div>
-              
-              <div className="xl:col-span-4 space-y-6">
-                <ProgressiveLoadingCard
-                  title="Quick Actions"
-                  description="Setting up your content creation tools"
-                  expectedContent="Quick campaign creation, event planning, and content generation tools"
-                  isLoading={false}
-                />
-                
-                <ProgressiveLoadingCard
-                  title="Seasonal Holidays"
-                  description="Loading relevant seasonal content opportunities"
-                  expectedContent="Holiday-specific content suggestions and marketing opportunities"
-                  isLoading={true}
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Empty state hint - only show if not generating and no content */}
-          {!isContentGenerating && tasks.length === 0 && !activeCampaign && (
-            <div className="text-center py-8 text-gray-500">
-              <h3 className="text-lg font-medium mb-2">Ready to create content?</h3>
-              <p className="text-sm">Use the Quick Actions above to generate your first posts.</p>
-            </div>
-          )}
-        </div>
-
-        {/* Manual Micro Walkthrough Tour */}
-        <MicroWalkthroughTour
-          isVisible={showMicroTour}
-          onComplete={handleTourComplete}
-          onSkip={handleTourSkip}
-        />
-        
-        {/* Quick Publish Modal */}
-        <QuickPublishModal
-          isOpen={showPublishModal}
-          onClose={() => {
-            setShowPublishModal(false);
-            setSelectedTask(null);
-          }}
-          task={selectedTask}
-          socialConnections={[]} // TODO: Pass real social connections
-          onPublish={handlePublish}
-        />
+          {/* Quick Publish Modal */}
+          <QuickPublishModal
+            isOpen={showPublishModal}
+            onClose={() => {
+              setShowPublishModal(false);
+              setSelectedTask(null);
+            }}
+            task={selectedTask}
+            socialConnections={[]} // TODO: Pass real social connections
+            onPublish={handlePublish}
+          />
         </div>
       </ProgressiveDashboardShell>
     </ContentGenerationProvider>

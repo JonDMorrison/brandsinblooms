@@ -1,6 +1,6 @@
 /**
  * Link Rewriter Utility for Email Campaigns
- * 
+ *
  * Extracts and rewrites links in HTML content for click tracking.
  * Guards against PII in URLs and appends UTM parameters.
  */
@@ -22,7 +22,7 @@ const PII_PATTERNS = [
   /\{\{.*phone.*\}\}/i,
   /\{\{.*first_name.*\}\}/i,
   /\{\{.*last_name.*\}\}/i,
-  /\{recipient\.[^}]+\}/i,  // {recipient.email}, {recipient.name} etc.
+  /\{recipient\.[^}]+\}/i, // {recipient.email}, {recipient.name} etc.
   /%7B%7B.*%7D%7D/i, // URL-encoded handlebars {{ }}
   /%7Brecipient\.[^%]+%7D/i, // URL-encoded {recipient.*}
 ];
@@ -71,22 +71,22 @@ export interface TrackedLinkMapping {
  */
 export function decodeHtmlEntities(url: string): string {
   const entities: Record<string, string> = {
-    '&amp;': '&',
-    '&lt;': '<',
-    '&gt;': '>',
-    '&quot;': '"',
-    '&#39;': "'",
-    '&apos;': "'",
-    '&#x27;': "'",
-    '&#x2F;': '/',
-    '&#47;': '/',
+    "&amp;": "&",
+    "&lt;": "<",
+    "&gt;": ">",
+    "&quot;": '"',
+    "&#39;": "'",
+    "&apos;": "'",
+    "&#x27;": "'",
+    "&#x2F;": "/",
+    "&#47;": "/",
   };
-  
+
   let decoded = url;
   for (const [entity, char] of Object.entries(entities)) {
-    decoded = decoded.replace(new RegExp(entity, 'gi'), char);
+    decoded = decoded.replace(new RegExp(entity, "gi"), char);
   }
-  
+
   return decoded;
 }
 
@@ -95,7 +95,7 @@ export function decodeHtmlEntities(url: string): string {
  */
 export function hasPII(url: string): boolean {
   const decoded = decodeHtmlEntities(url);
-  return PII_PATTERNS.some(pattern => pattern.test(decoded));
+  return PII_PATTERNS.some((pattern) => pattern.test(decoded));
 }
 
 /**
@@ -104,14 +104,14 @@ export function hasPII(url: string): boolean {
 export function shouldSkipLink(url: string): boolean {
   const decoded = decodeHtmlEntities(url);
   const trimmed = decoded.trim();
-  
+
   // Skip empty or anchor-only links
-  if (!trimmed || trimmed === '#' || trimmed.startsWith('#')) {
+  if (!trimmed || trimmed === "#" || trimmed.startsWith("#")) {
     return true;
   }
-  
+
   // Skip non-HTTP protocols and system links
-  return SKIP_PATTERNS.some(pattern => pattern.test(trimmed));
+  return SKIP_PATTERNS.some((pattern) => pattern.test(trimmed));
 }
 
 /**
@@ -120,17 +120,17 @@ export function shouldSkipLink(url: string): boolean {
 export function isTrackableUrl(url: string): boolean {
   const decoded = decodeHtmlEntities(url);
   const trimmed = decoded.trim();
-  
+
   // Must start with http:// or https://
-  if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://')) {
+  if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://")) {
     return false;
   }
-  
+
   // Must not match skip patterns
   if (shouldSkipLink(trimmed)) {
     return false;
   }
-  
+
   return true;
 }
 
@@ -144,7 +144,7 @@ export function extractLinks(html: string): ExtractedLink[] {
 
   while ((match = hrefRegex.exec(html)) !== null) {
     const href = decodeHtmlEntities(match[1]);
-    
+
     // Skip non-trackable links
     if (!isTrackableUrl(href)) continue;
 
@@ -167,7 +167,7 @@ export function buildTrackingUrl(
   campaignId: string,
   linkId: string,
   recipientId: string,
-  tenantId: string
+  tenantId: string,
 ): string {
   const params = new URLSearchParams({
     cid: campaignId,
@@ -175,7 +175,7 @@ export function buildTrackingUrl(
     rid: recipientId,
     t: tenantId,
   });
-  
+
   return `${baseUrl}?${params.toString()}`;
 }
 
@@ -183,21 +183,25 @@ export function buildTrackingUrl(
  * Append UTM parameters to a URL if not already present
  * Preserves existing UTM params
  */
-export function appendUtmParams(url: string, campaignId: string, campaignName?: string): string {
+export function appendUtmParams(
+  url: string,
+  campaignId: string,
+  campaignName?: string,
+): string {
   try {
     const urlObj = new URL(decodeHtmlEntities(url));
-    
+
     // Only append UTMs if none exist
-    if (!urlObj.searchParams.has('utm_source')) {
-      urlObj.searchParams.set('utm_source', 'email');
+    if (!urlObj.searchParams.has("utm_source")) {
+      urlObj.searchParams.set("utm_source", "email");
     }
-    if (!urlObj.searchParams.has('utm_campaign')) {
-      urlObj.searchParams.set('utm_campaign', campaignName || campaignId);
+    if (!urlObj.searchParams.has("utm_campaign")) {
+      urlObj.searchParams.set("utm_campaign", campaignName || campaignId);
     }
-    if (!urlObj.searchParams.has('utm_medium')) {
-      urlObj.searchParams.set('utm_medium', 'email');
+    if (!urlObj.searchParams.has("utm_medium")) {
+      urlObj.searchParams.set("utm_medium", "email");
     }
-    
+
     return urlObj.toString();
   } catch {
     // If URL parsing fails, return original
@@ -207,14 +211,16 @@ export function appendUtmParams(url: string, campaignId: string, campaignName?: 
 
 /**
  * Rewrite all links in HTML content with tracking URLs
- * 
+ *
  * @param html - The HTML content to process
  * @param mapperFn - Function that takes a URL and returns { linkId, trackedUrl }
  * @returns Result with rewritten HTML and metadata
  */
 export async function rewriteLinks(
   html: string,
-  mapperFn: (url: string) => Promise<{ linkId: string; trackedUrl: string } | null>
+  mapperFn: (
+    url: string,
+  ) => Promise<{ linkId: string; trackedUrl: string } | null>,
 ): Promise<LinkRewriteResult> {
   const links = extractLinks(html);
   const piiWarnings: string[] = [];
@@ -235,17 +241,16 @@ export async function rewriteLinks(
 
     try {
       const result = await mapperFn(link.href);
-      
+
       if (result) {
         const newHref = `href="${result.trackedUrl}"`;
-        rewrittenHtml = 
+        rewrittenHtml =
           rewrittenHtml.substring(0, link.startIndex) +
           newHref +
           rewrittenHtml.substring(link.endIndex);
         linksRewritten++;
       }
     } catch (error) {
-      console.warn(`Failed to rewrite link: ${link.href}`, error);
       skippedLinks.push(link.href);
     }
   }
@@ -262,7 +267,7 @@ export async function rewriteLinks(
  * Get unique URLs from extracted links
  */
 export function getUniqueUrls(links: ExtractedLink[]): string[] {
-  return [...new Set(links.map(l => l.href))];
+  return [...new Set(links.map((l) => l.href))];
 }
 
 /**
@@ -281,6 +286,7 @@ export function isValidUrl(url: string): boolean {
  * Validate UUID format
  */
 export function isValidUUID(str: string): boolean {
-  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  const uuidRegex =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
   return uuidRegex.test(str);
 }

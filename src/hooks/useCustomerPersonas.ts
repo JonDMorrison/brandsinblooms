@@ -42,44 +42,47 @@ export const useCustomerPersonas = (customerId: string) => {
     "Customer";
 
   // Fetch assigned personas for this customer
-  const { data: assignments = [], isLoading, refetch } = useQuery({
-    queryKey: ['customer-personas', customerId, tenant?.id],
+  const {
+    data: assignments = [],
+    isLoading,
+    refetch,
+  } = useQuery({
+    queryKey: ["customer-personas", customerId, tenant?.id],
     enabled: !!customerId && !!tenant?.id,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('customer_personas')
-        .select(`
+        .from("customer_personas")
+        .select(
+          `
           id,
           persona_id,
           predefined_persona_id
-        `)
-        .eq('customer_id', customerId);
+        `,
+        )
+        .eq("customer_id", customerId);
 
       if (error) throw error;
       return data as PersonaAssignment[];
-    }
+    },
   });
 
   // Get list of assigned persona IDs (both predefined and custom)
-  const assignedPersonaIds = assignments.map(a =>
-    a.predefined_persona_id || a.persona_id
-  ).filter(Boolean);
+  const assignedPersonaIds = assignments
+    .map((a) => a.predefined_persona_id || a.persona_id)
+    .filter(Boolean);
 
   const assignPersona = async (personaId: string, isCustom: boolean) => {
     if (!user || !tenant?.id) return false;
 
     try {
-      console.log('🔄 Assigning persona:', { personaId, isCustom, customerId });
-
       // Check if this persona is already assigned
-      const existingAssignment = assignments.find(assignment =>
+      const existingAssignment = assignments.find((assignment) =>
         isCustom
           ? assignment.persona_id === personaId
-          : assignment.predefined_persona_id === personaId
+          : assignment.predefined_persona_id === personaId,
       );
 
       if (existingAssignment) {
-        console.log('⚠️ Persona already assigned, skipping');
         return true; // Return success since the persona is already assigned
       }
 
@@ -87,43 +90,37 @@ export const useCustomerPersonas = (customerId: string) => {
         customer_id: customerId,
         ...(isCustom
           ? { persona_id: personaId, predefined_persona_id: null }
-          : { predefined_persona_id: personaId, persona_id: null }
-        )
+          : { predefined_persona_id: personaId, persona_id: null }),
       };
-
-      console.log('💾 Insert data:', insertData);
-
       const { data, error } = await supabase
-        .from('customer_personas')
+        .from("customer_personas")
         .insert(insertData)
         .select();
 
       if (error) {
         // Check if it's a unique constraint violation
-        if (error.code === '23505') { // Unique violation error code
-          console.log('⚠️ Duplicate persona assignment prevented by database constraint');
+        if (error.code === "23505") {
+          // Unique violation error code
           return true; // Return success since the persona is effectively assigned
         }
-        console.error('❌ Database error:', error);
+        console.error("❌ Database error:", error);
         throw error;
       }
-
-      console.log('✅ Successfully inserted:', data);
       if (tenant?.id) {
         await logActivity({
           tenantId: tenant.id,
           customerId,
-          actorType: 'user',
+          actorType: "user",
           actorId: user?.id ?? null,
-          source: 'ui',
-          activityType: 'persona.assigned',
-          status: 'success',
-          title: 'Persona assigned',
+          source: "ui",
+          activityType: "persona.assigned",
+          status: "success",
+          title: "Persona assigned",
           description: {
             parts: [
               {
-                type: 'text',
-                text: isCustom ? 'Custom persona assigned' : 'Persona assigned',
+                type: "text",
+                text: isCustom ? "Custom persona assigned" : "Persona assigned",
               },
             ],
           },
@@ -143,11 +140,11 @@ export const useCustomerPersonas = (customerId: string) => {
       await refetch();
       return true;
     } catch (error) {
-      console.error('❌ Error assigning persona:', error);
+      console.error("❌ Error assigning persona:", error);
       toast({
         title: "Error",
         description: "Failed to assign persona to customer.",
-        variant: "destructive"
+        variant: "destructive",
       });
       return false;
     }
@@ -158,14 +155,14 @@ export const useCustomerPersonas = (customerId: string) => {
 
     try {
       const query = supabase
-        .from('customer_personas')
+        .from("customer_personas")
         .delete()
-        .eq('customer_id', customerId);
+        .eq("customer_id", customerId);
 
       if (isCustom) {
-        query.eq('persona_id', personaId);
+        query.eq("persona_id", personaId);
       } else {
-        query.eq('predefined_persona_id', personaId);
+        query.eq("predefined_persona_id", personaId);
       }
 
       const { error } = await query;
@@ -175,17 +172,17 @@ export const useCustomerPersonas = (customerId: string) => {
         await logActivity({
           tenantId: tenant.id,
           customerId,
-          actorType: 'user',
+          actorType: "user",
           actorId: user?.id ?? null,
-          source: 'ui',
-          activityType: 'persona.removed',
-          status: 'success',
-          title: 'Persona removed',
+          source: "ui",
+          activityType: "persona.removed",
+          status: "success",
+          title: "Persona removed",
           description: {
             parts: [
               {
-                type: 'text',
-                text: isCustom ? 'Custom persona removed' : 'Persona removed',
+                type: "text",
+                text: isCustom ? "Custom persona removed" : "Persona removed",
               },
             ],
           },
@@ -206,11 +203,11 @@ export const useCustomerPersonas = (customerId: string) => {
       await refetch();
       return true;
     } catch (error) {
-      console.error('Error unassigning persona:', error);
+      console.error("Error unassigning persona:", error);
       toast({
         title: "Error",
         description: "Failed to remove persona from customer.",
-        variant: "destructive"
+        variant: "destructive",
       });
       return false;
     }
@@ -227,6 +224,6 @@ export const useCustomerPersonas = (customerId: string) => {
     refetch,
     assignPersona,
     unassignPersona,
-    isPersonaAssigned
+    isPersonaAssigned,
   };
 };

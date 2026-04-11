@@ -72,11 +72,6 @@ export function AppSidebar() {
   const { data: isSuperAdmin, isLoading: isLoadingSuperAdmin } =
     useIsSuperAdmin();
 
-  console.log("🎨 navigation/AppSidebar - Admin status:", {
-    isSuperAdmin,
-    isLoadingSuperAdmin,
-  });
-
   const sidebarGroups: SidebarGroup[] = [
     {
       label: "Overview",

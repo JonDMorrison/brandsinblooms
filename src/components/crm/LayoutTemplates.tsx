@@ -55,7 +55,6 @@ export const Layout1: React.FC<LayoutProps> = ({ block, className, editable, onU
   return (
     <div className={cn('flex flex-col md:flex-row gap-4 items-center', className)}>
       <div className="md:w-1/2">
-        {(() => { if (block.imageUrl && !isValidImageUrl(block.imageUrl)) { console.warn('[LayoutTemplates] Invalid imageUrl, using placeholder', { id: block.id, title: block.title, imageUrl: block.imageUrl }); } return null; })()}
         {isValidImageUrl(block.imageUrl) ? (
           <img
             src={block.imageUrl as string}
@@ -99,7 +98,6 @@ export const Layout2: React.FC<LayoutProps> = ({ block, className, editable, onU
   return (
     <div className={cn('flex flex-col md:flex-row-reverse gap-4 items-center', className)}>
       <div className="md:w-1/2">
-        {(() => { if (block.imageUrl && !isValidImageUrl(block.imageUrl)) { console.warn('[LayoutTemplates] Invalid imageUrl, using placeholder', { id: block.id, title: block.title, imageUrl: block.imageUrl }); } return null; })()}
         {isValidImageUrl(block.imageUrl) ? (
           <img
             src={block.imageUrl as string}
@@ -143,7 +141,6 @@ export const Layout3: React.FC<LayoutProps> = ({ block, className, editable, onU
   return (
     <div className={cn('flex flex-col md:flex-row gap-4', className)}>
       <div className="md:w-1/3">
-        {(() => { if (block.imageUrl && !isValidImageUrl(block.imageUrl)) { console.warn('[LayoutTemplates] Invalid imageUrl, using placeholder', { id: block.id, title: block.title, imageUrl: block.imageUrl }); } return null; })()}
         {isValidImageUrl(block.imageUrl) ? (
           <img
             src={block.imageUrl as string}
@@ -187,7 +184,6 @@ export const Layout4: React.FC<LayoutProps> = ({ block, className, editable, onU
   return (
     <div className={cn('flex flex-col md:flex-row-reverse gap-4', className)}>
       <div className="md:w-1/3">
-        {(() => { if (block.imageUrl && !isValidImageUrl(block.imageUrl)) { console.warn('[LayoutTemplates] Invalid imageUrl, using placeholder', { id: block.id, title: block.title, imageUrl: block.imageUrl }); } return null; })()}
         {isValidImageUrl(block.imageUrl) ? (
           <img
             src={block.imageUrl as string}
@@ -288,7 +284,6 @@ export const Layout6: React.FC<LayoutProps> = ({ block, className, editable, onU
   if (block.type === 'image') {
     return (
       <div className={cn('space-y-3', paddingClass, `text-${block.alignment || 'center'}`, className)}>
-        {(() => { if (block.imageUrl && !isValidImageUrl(block.imageUrl)) { console.warn('[LayoutTemplates] Invalid imageUrl, using placeholder', { id: block.id, title: block.title, imageUrl: block.imageUrl }); } return null; })()}
         {isValidImageUrl(block.imageUrl) ? (
           <img
             src={block.imageUrl as string}

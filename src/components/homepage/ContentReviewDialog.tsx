@@ -1,10 +1,23 @@
 import { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, CheckCircle, Clock, AlertCircle, Edit, Copy, RefreshCw } from "lucide-react";
+import {
+  Loader2,
+  CheckCircle,
+  Clock,
+  AlertCircle,
+  Edit,
+  Copy,
+  RefreshCw,
+} from "lucide-react";
 // Removed sonner import - using global toast replacement
 import { ContentSidebar } from "@/components/ContentSidebar";
 
@@ -22,7 +35,10 @@ interface Task {
   campaign_id: string;
 }
 
-export const ContentReviewDialog = ({ open, onOpenChange }: ContentReviewDialogProps) => {
+export const ContentReviewDialog = ({
+  open,
+  onOpenChange,
+}: ContentReviewDialogProps) => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
@@ -37,13 +53,13 @@ export const ContentReviewDialog = ({ open, onOpenChange }: ContentReviewDialogP
   const fetchTasks = async () => {
     setLoading(true);
     try {
-      console.log('ContentReviewDialog: Fetching tasks for review for current user...');
-      
       // Get current user
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) {
-        console.error('ContentReviewDialog: No authenticated user found');
-        toast.error('User not authenticated');
+        console.error("ContentReviewDialog: No authenticated user found");
+        toast.error("User not authenticated");
         setLoading(false);
         return;
       }
@@ -51,31 +67,31 @@ export const ContentReviewDialog = ({ open, onOpenChange }: ContentReviewDialogP
       // With RLS enabled, this will automatically filter to user's tasks
       // But we'll also join with campaigns to be explicit about user ownership
       const { data, error } = await supabase
-        .from('content_tasks')
-        .select(`
+        .from("content_tasks")
+        .select(
+          `
           *,
           campaigns (
             title,
             user_id
           )
-        `)
-        .in('status', ['draft', 'review', 'scheduled']) // Include scheduled tasks
-        .order('created_at', { ascending: false });
+        `,
+        )
+        .in("status", ["draft", "review", "scheduled"]) // Include scheduled tasks
+        .order("created_at", { ascending: false });
 
       if (error) {
-        console.error('ContentReviewDialog: Error fetching tasks:', error);
-        toast.error('Failed to load tasks');
+        console.error("ContentReviewDialog: Error fetching tasks:", error);
+        toast.error("Failed to load tasks");
       } else {
-        console.log('ContentReviewDialog: Fetched tasks for current user:', data?.length);
         setTasks(data || []);
-        
+
         if (data && data.length === 0) {
-          console.log('ContentReviewDialog: No tasks found for review for current user.');
         }
       }
     } catch (error) {
-      console.error('ContentReviewDialog: Error fetching tasks:', error);
-      toast.error('An unexpected error occurred');
+      console.error("ContentReviewDialog: Error fetching tasks:", error);
+      toast.error("An unexpected error occurred");
     } finally {
       setLoading(false);
     }
@@ -83,24 +99,24 @@ export const ContentReviewDialog = ({ open, onOpenChange }: ContentReviewDialogP
 
   const updateTaskStatus = async (taskId: string, newStatus: string) => {
     try {
-      console.log('ContentReviewDialog: Updating task status to:', newStatus);
-      
       // RLS will ensure we can only update our own tasks
       const { error } = await supabase
-        .from('content_tasks')
+        .from("content_tasks")
         .update({ status: newStatus })
-        .eq('id', taskId);
+        .eq("id", taskId);
 
       if (error) {
-        console.error('ContentReviewDialog: Error updating task:', error);
+        console.error("ContentReviewDialog: Error updating task:", error);
         toast.error(`Failed to update task: ${error.message}`);
       } else {
-        toast.success(`Task ${newStatus === 'completed' ? 'approved and ready to post' : 'updated'}`);
+        toast.success(
+          `Task ${newStatus === "completed" ? "approved and ready to post" : "updated"}`,
+        );
         fetchTasks(); // Refresh the list
       }
     } catch (error) {
-      console.error('ContentReviewDialog: Error updating task:', error);
-      toast.error('An unexpected error occurred');
+      console.error("ContentReviewDialog: Error updating task:", error);
+      toast.error("An unexpected error occurred");
     }
   };
 
@@ -126,11 +142,13 @@ export const ContentReviewDialog = ({ open, onOpenChange }: ContentReviewDialogP
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'completed':
+      case "completed":
         return <CheckCircle className="w-4 h-4 text-green-600" />;
-      case 'review':
-        return <AlertCircle className="w-4 h-4 text-blue-600 sm:text-orange-600" />;
-      case 'draft':
+      case "review":
+        return (
+          <AlertCircle className="w-4 h-4 text-blue-600 sm:text-orange-600" />
+        );
+      case "draft":
         return <Clock className="w-4 h-4 text-blue-600" />;
       default:
         return <Clock className="w-4 h-4 text-gray-600" />;
@@ -139,128 +157,140 @@ export const ContentReviewDialog = ({ open, onOpenChange }: ContentReviewDialogP
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'completed':
-        return 'bg-green-100 text-green-800';
-      case 'review':
-        return 'bg-white text-blue-800 border-blue-200 sm:bg-orange-100 sm:text-orange-800 sm:border-orange-200';
-      case 'draft':
-        return 'bg-blue-100 text-blue-800';
+      case "completed":
+        return "bg-green-100 text-green-800";
+      case "review":
+        return "bg-white text-blue-800 border-blue-200 sm:bg-orange-100 sm:text-orange-800 sm:border-orange-200";
+      case "draft":
+        return "bg-blue-100 text-blue-800";
       default:
-        return 'bg-gray-100 text-gray-800';
+        return "bg-gray-100 text-gray-800";
     }
   };
 
   const stripHtmlAndFormat = (content: string) => {
     if (!content) return content;
-    
+
     // Check if content is HTML (contains HTML tags)
-    if (content.includes('<html>') || content.includes('<!DOCTYPE')) {
+    if (content.includes("<html>") || content.includes("<!DOCTYPE")) {
       // Extract content from HTML body
       const bodyMatch = content.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
       if (bodyMatch) {
         content = bodyMatch[1];
       }
-      
+
       // Remove all HTML tags but preserve structure
       content = content
-        .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '') // Remove style tags
-        .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '') // Remove script tags
-        .replace(/<h[1-6][^>]*>/gi, '\n\n**') // Convert headers to bold
-        .replace(/<\/h[1-6]>/gi, '**\n') // Close headers
-        .replace(/<p[^>]*>/gi, '\n\n') // Convert paragraphs
-        .replace(/<\/p>/gi, '') // Close paragraphs
-        .replace(/<br[^>]*>/gi, '\n') // Convert line breaks
-        .replace(/<li[^>]*>/gi, '\n• ') // Convert list items
-        .replace(/<\/li>/gi, '') // Close list items
-        .replace(/<ul[^>]*>|<\/ul>/gi, '') // Remove ul tags
-        .replace(/<ol[^>]*>|<\/ol>/gi, '') // Remove ol tags
-        .replace(/<strong[^>]*>|<b[^>]*>/gi, '**') // Convert bold tags
-        .replace(/<\/strong>|<\/b>/gi, '**') // Close bold tags
-        .replace(/<em[^>]*>|<i[^>]*>/gi, '*') // Convert italic tags
-        .replace(/<\/em>|<\/i>/gi, '*') // Close italic tags
-        .replace(/<a[^>]*>([^<]*)<\/a>/gi, '$1') // Extract link text
-        .replace(/<[^>]*>/g, '') // Remove any remaining HTML tags
-        .replace(/\\n/g, '\n') // Convert literal \n to actual newlines
-        .replace(/\n\s*\n\s*\n/g, '\n\n') // Clean up multiple line breaks
+        .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "") // Remove style tags
+        .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "") // Remove script tags
+        .replace(/<h[1-6][^>]*>/gi, "\n\n**") // Convert headers to bold
+        .replace(/<\/h[1-6]>/gi, "**\n") // Close headers
+        .replace(/<p[^>]*>/gi, "\n\n") // Convert paragraphs
+        .replace(/<\/p>/gi, "") // Close paragraphs
+        .replace(/<br[^>]*>/gi, "\n") // Convert line breaks
+        .replace(/<li[^>]*>/gi, "\n• ") // Convert list items
+        .replace(/<\/li>/gi, "") // Close list items
+        .replace(/<ul[^>]*>|<\/ul>/gi, "") // Remove ul tags
+        .replace(/<ol[^>]*>|<\/ol>/gi, "") // Remove ol tags
+        .replace(/<strong[^>]*>|<b[^>]*>/gi, "**") // Convert bold tags
+        .replace(/<\/strong>|<\/b>/gi, "**") // Close bold tags
+        .replace(/<em[^>]*>|<i[^>]*>/gi, "*") // Convert italic tags
+        .replace(/<\/em>|<\/i>/gi, "*") // Close italic tags
+        .replace(/<a[^>]*>([^<]*)<\/a>/gi, "$1") // Extract link text
+        .replace(/<[^>]*>/g, "") // Remove any remaining HTML tags
+        .replace(/\\n/g, "\n") // Convert literal \n to actual newlines
+        .replace(/\n\s*\n\s*\n/g, "\n\n") // Clean up multiple line breaks
         .trim();
     } else {
       // Handle content that might have literal \n characters
-      content = content.replace(/\\n/g, '\n');
+      content = content.replace(/\\n/g, "\n");
     }
-    
+
     return content;
   };
 
   const formatContent = (content: string, postType: string) => {
     // First strip HTML if present
     const cleanContent = stripHtmlAndFormat(content);
-    
+
     if (!cleanContent) return cleanContent;
-    
+
     // Split content into paragraphs and format
-    const paragraphs = cleanContent.split('\n\n');
-    
-    return paragraphs.map((paragraph, index) => {
-      if (!paragraph.trim()) return null;
-      
-      // Handle markdown-style headers (lines with **)
-      if (paragraph.includes('**')) {
-        const parts = paragraph.split(/(\*\*[^*]+\*\*)/g);
-        return (
-          <div key={index} className="mb-4">
-            {parts.map((part, partIndex) => {
-              if (part.startsWith('**') && part.endsWith('**')) {
-                return (
-                  <h4 key={partIndex} className="font-semibold text-garden-green-dark mb-2">
-                    {part.replace(/\*\*/g, '')}
-                  </h4>
-                );
-              }
-              return part.trim() ? (
-                <span key={partIndex}>{part}</span>
-              ) : null;
-            })}
-          </div>
-        );
-      }
-      
-      // Handle bullet points
-      if (paragraph.includes('•') || paragraph.includes('-') || /^\d+\./.test(paragraph)) {
-        const items = paragraph.split('\n').filter(item => item.trim());
-        return (
-          <ul key={index} className="list-disc list-inside space-y-1 mb-3">
-            {items.map((item, itemIndex) => (
-              <li key={itemIndex} className="text-sm">
-                {item.replace(/^[•\-\d+\.]\s*/, '').trim()}
-              </li>
-            ))}
-          </ul>
-        );
-      }
-      
-      // Handle hashtags specially for social media posts
-      if ((postType === 'instagram' || postType === 'facebook') && paragraph.includes('#')) {
-        const parts = paragraph.split(/(#\w+)/g);
+    const paragraphs = cleanContent.split("\n\n");
+
+    return paragraphs
+      .map((paragraph, index) => {
+        if (!paragraph.trim()) return null;
+
+        // Handle markdown-style headers (lines with **)
+        if (paragraph.includes("**")) {
+          const parts = paragraph.split(/(\*\*[^*]+\*\*)/g);
+          return (
+            <div key={index} className="mb-4">
+              {parts.map((part, partIndex) => {
+                if (part.startsWith("**") && part.endsWith("**")) {
+                  return (
+                    <h4
+                      key={partIndex}
+                      className="font-semibold text-garden-green-dark mb-2"
+                    >
+                      {part.replace(/\*\*/g, "")}
+                    </h4>
+                  );
+                }
+                return part.trim() ? <span key={partIndex}>{part}</span> : null;
+              })}
+            </div>
+          );
+        }
+
+        // Handle bullet points
+        if (
+          paragraph.includes("•") ||
+          paragraph.includes("-") ||
+          /^\d+\./.test(paragraph)
+        ) {
+          const items = paragraph.split("\n").filter((item) => item.trim());
+          return (
+            <ul key={index} className="list-disc list-inside space-y-1 mb-3">
+              {items.map((item, itemIndex) => (
+                <li key={itemIndex} className="text-sm">
+                  {item.replace(/^[•\-\d+\.]\s*/, "").trim()}
+                </li>
+              ))}
+            </ul>
+          );
+        }
+
+        // Handle hashtags specially for social media posts
+        if (
+          (postType === "instagram" || postType === "facebook") &&
+          paragraph.includes("#")
+        ) {
+          const parts = paragraph.split(/(#\w+)/g);
+          return (
+            <p key={index} className="text-sm mb-3 leading-relaxed">
+              {parts.map((part, partIndex) =>
+                part.startsWith("#") ? (
+                  <span key={partIndex} className="text-blue-600 font-medium">
+                    {part}
+                  </span>
+                ) : (
+                  part
+                ),
+              )}
+            </p>
+          );
+        }
+
+        // Regular paragraphs
         return (
           <p key={index} className="text-sm mb-3 leading-relaxed">
-            {parts.map((part, partIndex) => 
-              part.startsWith('#') ? (
-                <span key={partIndex} className="text-blue-600 font-medium">{part}</span>
-              ) : (
-                part
-              )
-            )}
+            {paragraph.trim()}
           </p>
         );
-      }
-      
-      // Regular paragraphs
-      return (
-        <p key={index} className="text-sm mb-3 leading-relaxed">
-          {paragraph.trim()}
-        </p>
-      );
-    }).filter(Boolean);
+      })
+      .filter(Boolean);
   };
 
   return (
@@ -277,12 +307,14 @@ export const ContentReviewDialog = ({ open, onOpenChange }: ContentReviewDialogP
                 disabled={loading}
                 className="self-start sm:self-auto"
               >
-                <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                <RefreshCw
+                  className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`}
+                />
                 Refresh
               </Button>
             </DialogTitle>
           </DialogHeader>
-          
+
           <div className="bg-white">
             {loading ? (
               <div className="flex justify-center items-center py-8">
@@ -290,25 +322,32 @@ export const ContentReviewDialog = ({ open, onOpenChange }: ContentReviewDialogP
               </div>
             ) : tasks.length === 0 ? (
               <div className="text-center py-8">
-                <p className="text-gray-500 mb-4">No content available for review</p>
+                <p className="text-gray-500 mb-4">
+                  No content available for review
+                </p>
                 <p className="text-sm text-gray-400">
-                  Generate content from a campaign to see it here for review and approval.
+                  Generate content from a campaign to see it here for review and
+                  approval.
                 </p>
               </div>
             ) : (
               <div className="space-y-4">
                 {tasks.map((task) => (
-                  <Card key={task.id} className="border-garden-green-light bg-white">
+                  <Card
+                    key={task.id}
+                    className="border-garden-green-light bg-white"
+                  >
                     <CardContent className="p-4 bg-white">
                       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 mb-3">
                         <div className="flex items-center gap-2 flex-wrap">
                           {getStatusIcon(task.status)}
-                          <Badge variant="secondary" className={getStatusColor(task.status)}>
+                          <Badge
+                            variant="secondary"
+                            className={getStatusColor(task.status)}
+                          >
                             {task.status}
                           </Badge>
-                          <Badge variant="outline">
-                            {task.post_type}
-                          </Badge>
+                          <Badge variant="outline">{task.post_type}</Badge>
                         </div>
                         <div className="flex gap-2 flex-wrap">
                           <Button
@@ -323,16 +362,20 @@ export const ContentReviewDialog = ({ open, onOpenChange }: ContentReviewDialogP
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => handleCopyContent(task.ai_output, task.post_type)}
+                            onClick={() =>
+                              handleCopyContent(task.ai_output, task.post_type)
+                            }
                             className="border-gray-300 text-gray-600 hover:bg-gray-50"
                           >
                             <Copy className="w-3 h-3 mr-1" />
                             Copy
                           </Button>
-                          {task.status !== 'completed' && (
+                          {task.status !== "completed" && (
                             <Button
                               size="sm"
-                              onClick={() => updateTaskStatus(task.id, 'completed')}
+                              onClick={() =>
+                                updateTaskStatus(task.id, "completed")
+                              }
                               className="bg-green-600 hover:bg-green-700 text-white"
                             >
                               Approve
@@ -340,7 +383,7 @@ export const ContentReviewDialog = ({ open, onOpenChange }: ContentReviewDialogP
                           )}
                         </div>
                       </div>
-                      
+
                       {task.ai_output && (
                         <div className="bg-white p-4 rounded-md border overflow-x-auto">
                           <div className="prose prose-sm max-w-none">
@@ -348,10 +391,11 @@ export const ContentReviewDialog = ({ open, onOpenChange }: ContentReviewDialogP
                           </div>
                         </div>
                       )}
-                      
+
                       {task.scheduled_date && (
                         <p className="text-xs text-gray-500 mt-2">
-                          Scheduled: {new Date(task.scheduled_date).toLocaleDateString()}
+                          Scheduled:{" "}
+                          {new Date(task.scheduled_date).toLocaleDateString()}
                         </p>
                       )}
                     </CardContent>
@@ -360,7 +404,7 @@ export const ContentReviewDialog = ({ open, onOpenChange }: ContentReviewDialogP
               </div>
             )}
           </div>
-          
+
           <div className="flex justify-end pt-4 bg-white">
             <Button
               variant="outline"

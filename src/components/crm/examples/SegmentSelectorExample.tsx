@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { SegmentSelectorModal } from "../SegmentSelectorModal";
 import { SegmentSelectorButton } from "../SegmentSelectorButton";
@@ -13,15 +12,13 @@ export const SegmentSelectorExample = () => {
     openModal,
     closeModal,
     handleSegmentsSelected,
-    clearSegments
+    clearSegments,
   } = useSegmentSelector({
-    onSegmentsSelected: (segments) => {
-      console.log("Selected segments:", segments);
-    }
+    onSegmentsSelected: (segments) => {},
   });
 
   const removeSegment = (segmentId: string) => {
-    const updatedSegments = selectedSegments.filter(s => s.id !== segmentId);
+    const updatedSegments = selectedSegments.filter((s) => s.id !== segmentId);
     handleSegmentsSelected(updatedSegments);
   };
 
@@ -46,7 +43,8 @@ export const SegmentSelectorExample = () => {
         {selectedSegments.length > 0 && (
           <div className="text-sm text-gray-600">
             <p>
-              Targeting {selectedSegments.length} segment{selectedSegments.length !== 1 ? 's' : ''}
+              Targeting {selectedSegments.length} segment
+              {selectedSegments.length !== 1 ? "s" : ""}
             </p>
           </div>
         )}

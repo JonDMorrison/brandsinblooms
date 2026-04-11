@@ -1,16 +1,28 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { useEditor, EditorContent } from '@tiptap/react';
-import StarterKit from '@tiptap/starter-kit';
-import Underline from '@tiptap/extension-underline';
-import TextAlign from '@tiptap/extension-text-align';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { NewsletterContentBlock } from '@/components/content-sidebar/newsletter/NewsletterContentBlock';
-import { useNewsletterImages } from '@/components/content-sidebar/newsletter/useNewsletterImages';
-import { processNewsletterContent } from '@/utils/newsletterContentProcessor';
-import { sanitizeWeekNumbers } from '@/utils/weekNumberSanitizer';
-import { sanitizeHtml } from '@/utils/htmlSanitizer';
-import { Edit, Save, X, Bold, Italic, Underline as UnderlineIcon, List, ListOrdered, AlignLeft, AlignCenter, AlignRight } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from "react";
+import { useEditor, EditorContent } from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
+import Underline from "@tiptap/extension-underline";
+import TextAlign from "@tiptap/extension-text-align";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { NewsletterContentBlock } from "@/components/content-sidebar/newsletter/NewsletterContentBlock";
+import { useNewsletterImages } from "@/components/content-sidebar/newsletter/useNewsletterImages";
+import { processNewsletterContent } from "@/utils/newsletterContentProcessor";
+import { sanitizeWeekNumbers } from "@/utils/weekNumberSanitizer";
+import { sanitizeHtml } from "@/utils/htmlSanitizer";
+import {
+  Edit,
+  Save,
+  X,
+  Bold,
+  Italic,
+  Underline as UnderlineIcon,
+  List,
+  ListOrdered,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+} from "lucide-react";
 
 interface EditableNewsletterPreviewProps {
   content: string;
@@ -20,25 +32,14 @@ interface EditableNewsletterPreviewProps {
   className?: string;
 }
 
-export const EditableNewsletterPreview: React.FC<EditableNewsletterPreviewProps> = ({
-  content,
-  title,
-  onChange,
-  onSave,
-  className = ""
-}) => {
-  // Debug logging for props
-  console.log('🔍 NEWSLETTER PREVIEW: Props received =', { 
-    content: content?.substring(0, 100) + '...', 
-    contentLength: content?.length,
-    title,
-    hasOnChange: !!onChange,
-    hasOnSave: !!onSave 
-  });
-  
+export const EditableNewsletterPreview: React.FC<
+  EditableNewsletterPreviewProps
+> = ({ content, title, onChange, onSave, className = "" }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(content);
-  const [selectedImages, setSelectedImages] = useState<Record<number, string>>({});
+  const [selectedImages, setSelectedImages] = useState<Record<number, string>>(
+    {},
+  );
 
   // Rich text editor configuration
   const editor = useEditor({
@@ -46,7 +47,7 @@ export const EditableNewsletterPreview: React.FC<EditableNewsletterPreviewProps>
       StarterKit,
       Underline,
       TextAlign.configure({
-        types: ['heading', 'paragraph'],
+        types: ["heading", "paragraph"],
       }),
     ],
     content: editContent || "Start writing your newsletter content...",
@@ -55,7 +56,7 @@ export const EditableNewsletterPreview: React.FC<EditableNewsletterPreviewProps>
     },
     editorProps: {
       attributes: {
-        class: 'prose prose-slate max-w-none focus:outline-none',
+        class: "prose prose-slate max-w-none focus:outline-none",
       },
     },
   });
@@ -65,54 +66,33 @@ export const EditableNewsletterPreview: React.FC<EditableNewsletterPreviewProps>
     if (editor && !editor.isDestroyed && isEditing) {
       const currentContent = editor.getHTML();
       if (currentContent !== editContent) {
-        console.log('🔄 SYNC: Updating editor with editContent =', editContent);
-        editor.commands.setContent(editContent || "Start writing your newsletter content...");
+        editor.commands.setContent(
+          editContent || "Start writing your newsletter content...",
+        );
       }
     }
   }, [editContent, editor, isEditing]);
 
   // Update editContent when the main content prop changes (external updates)
   useEffect(() => {
-    console.log('🔄 SYNC: Content prop changed, current content =', content?.substring(0, 100) + '...');
-    console.log('🔄 SYNC: Current editContent =', editContent?.substring(0, 100) + '...');
-    console.log('🔄 SYNC: isEditing =', isEditing);
-    
     if (!isEditing && content !== editContent) {
-      console.log('🔄 SYNC: Updating editContent from props');
       setEditContent(content);
     }
   }, [content, isEditing, editContent]);
 
   // Process newsletter content to get structured blocks
   const processedNewsletter = useMemo(() => {
-    console.log('[NEWSLETTER PREVIEW] Processing content:', { 
-      contentLength: content?.length || 0, 
-      contentPreview: content?.substring(0, 200),
-      title 
-    });
     const result = processNewsletterContent(content);
-    console.log('[NEWSLETTER PREVIEW] Processed result:', {
-      blocksCount: result.blocks?.length || 0,
-      unstructuredCount: result.unstructuredSections?.length || 0,
-      isStructured: result.isStructured,
-      needsRegeneration: result.needsRegeneration,
-      blocks: result.blocks,
-      unstructured: result.unstructuredSections
-    });
     return result;
   }, [content]);
 
   // Load images for the newsletter blocks
-  const { 
-    images, 
-    imageErrors, 
-    loadingImages 
-  } = useNewsletterImages(
+  const { images, imageErrors, loadingImages } = useNewsletterImages(
     processedNewsletter.blocks,
     processedNewsletter.needsRegeneration,
     undefined, // contentTaskId
     processedNewsletter.meta?.theme,
-    processedNewsletter.unstructuredSections
+    processedNewsletter.unstructuredSections,
   );
 
   const handleStartEdit = () => {
@@ -120,25 +100,20 @@ export const EditableNewsletterPreview: React.FC<EditableNewsletterPreviewProps>
     setIsEditing(true);
     // Set editor content when starting to edit
     if (editor && !editor.isDestroyed) {
-      editor.commands.setContent(content || "Start writing your newsletter content...");
+      editor.commands.setContent(
+        content || "Start writing your newsletter content...",
+      );
     }
   };
 
   const handleSave = () => {
     // Get the latest content directly from the editor
     const latestContent = editor ? editor.getHTML() : editContent;
-    console.log('🔥 SAVE: About to save content');
-    console.log('🔥 SAVE: Editor content =', latestContent?.substring(0, 200) + '...');
-    console.log('🔥 SAVE: State content =', editContent?.substring(0, 200) + '...');
-    console.log('🔥 SAVE: Original content =', content?.substring(0, 200) + '...');
-    
+
     // Update the content through onChange prop
-    console.log('🔥 SAVE: Calling onChange with latestContent');
     onChange(latestContent);
     setIsEditing(false);
-    console.log('🔥 SAVE: Calling onSave callback');
     onSave?.();
-    console.log('🔥 SAVE: Save process completed');
     // Note: selectedImages will be preserved even after content changes
   };
 
@@ -151,10 +126,14 @@ export const EditableNewsletterPreview: React.FC<EditableNewsletterPreviewProps>
     }
   };
 
-  const handleImageSelect = (blockIndex: number, imageUrl: string, metadata?: any) => {
-    setSelectedImages(prev => ({
+  const handleImageSelect = (
+    blockIndex: number,
+    imageUrl: string,
+    metadata?: any,
+  ) => {
+    setSelectedImages((prev) => ({
       ...prev,
-      [blockIndex]: imageUrl
+      [blockIndex]: imageUrl,
     }));
   };
 
@@ -175,27 +154,27 @@ export const EditableNewsletterPreview: React.FC<EditableNewsletterPreviewProps>
               </Button>
             </div>
           </div>
-          
+
           {/* Rich Text Editor Toolbar */}
           {editor && (
             <div className="border border-border rounded-md">
               <div className="flex items-center gap-1 p-2 border-b border-border bg-muted/50">
                 <Button
-                  variant={editor.isActive('bold') ? 'default' : 'ghost'}
+                  variant={editor.isActive("bold") ? "default" : "ghost"}
                   size="sm"
                   onClick={() => editor.chain().focus().toggleBold().run()}
                 >
                   <Bold className="h-4 w-4" />
                 </Button>
                 <Button
-                  variant={editor.isActive('italic') ? 'default' : 'ghost'}
+                  variant={editor.isActive("italic") ? "default" : "ghost"}
                   size="sm"
                   onClick={() => editor.chain().focus().toggleItalic().run()}
                 >
                   <Italic className="h-4 w-4" />
                 </Button>
                 <Button
-                  variant={editor.isActive('underline') ? 'default' : 'ghost'}
+                  variant={editor.isActive("underline") ? "default" : "ghost"}
                   size="sm"
                   onClick={() => editor.chain().focus().toggleUnderline().run()}
                 >
@@ -203,43 +182,63 @@ export const EditableNewsletterPreview: React.FC<EditableNewsletterPreviewProps>
                 </Button>
                 <div className="w-px h-6 bg-border mx-1" />
                 <Button
-                  variant={editor.isActive('bulletList') ? 'default' : 'ghost'}
+                  variant={editor.isActive("bulletList") ? "default" : "ghost"}
                   size="sm"
-                  onClick={() => editor.chain().focus().toggleBulletList().run()}
+                  onClick={() =>
+                    editor.chain().focus().toggleBulletList().run()
+                  }
                 >
                   <List className="h-4 w-4" />
                 </Button>
                 <Button
-                  variant={editor.isActive('orderedList') ? 'default' : 'ghost'}
+                  variant={editor.isActive("orderedList") ? "default" : "ghost"}
                   size="sm"
-                  onClick={() => editor.chain().focus().toggleOrderedList().run()}
+                  onClick={() =>
+                    editor.chain().focus().toggleOrderedList().run()
+                  }
                 >
                   <ListOrdered className="h-4 w-4" />
                 </Button>
                 <div className="w-px h-6 bg-border mx-1" />
                 <Button
-                  variant={editor.isActive({ textAlign: 'left' }) ? 'default' : 'ghost'}
+                  variant={
+                    editor.isActive({ textAlign: "left" }) ? "default" : "ghost"
+                  }
                   size="sm"
-                  onClick={() => editor.chain().focus().setTextAlign('left').run()}
+                  onClick={() =>
+                    editor.chain().focus().setTextAlign("left").run()
+                  }
                 >
                   <AlignLeft className="h-4 w-4" />
                 </Button>
                 <Button
-                  variant={editor.isActive({ textAlign: 'center' }) ? 'default' : 'ghost'}
+                  variant={
+                    editor.isActive({ textAlign: "center" })
+                      ? "default"
+                      : "ghost"
+                  }
                   size="sm"
-                  onClick={() => editor.chain().focus().setTextAlign('center').run()}
+                  onClick={() =>
+                    editor.chain().focus().setTextAlign("center").run()
+                  }
                 >
                   <AlignCenter className="h-4 w-4" />
                 </Button>
                 <Button
-                  variant={editor.isActive({ textAlign: 'right' }) ? 'default' : 'ghost'}
+                  variant={
+                    editor.isActive({ textAlign: "right" })
+                      ? "default"
+                      : "ghost"
+                  }
                   size="sm"
-                  onClick={() => editor.chain().focus().setTextAlign('right').run()}
+                  onClick={() =>
+                    editor.chain().focus().setTextAlign("right").run()
+                  }
                 >
                   <AlignRight className="h-4 w-4" />
                 </Button>
               </div>
-              
+
               {/* Rich Text Editor Content */}
               <div className="min-h-[300px] p-4 focus-within:ring-2 focus-within:ring-primary">
                 <EditorContent editor={editor} />
@@ -265,60 +264,61 @@ export const EditableNewsletterPreview: React.FC<EditableNewsletterPreviewProps>
       <div className="p-6">
         {/* Newsletter Header */}
         <div className="mb-8 text-center border-b pb-6">
-          <h1 className="text-3xl font-bold text-slate-900 mb-2">{sanitizeWeekNumbers(title)}</h1>
-          <p className="text-sm text-slate-600">Your Garden Center Newsletter</p>
+          <h1 className="text-3xl font-bold text-slate-900 mb-2">
+            {sanitizeWeekNumbers(title)}
+          </h1>
+          <p className="text-sm text-slate-600">
+            Your Garden Center Newsletter
+          </p>
         </div>
 
         {/* Newsletter Content */}
         <div className="prose prose-slate max-w-none">
-          <div 
+          <div
             className="whitespace-pre-wrap text-slate-700 leading-relaxed"
             // SECURITY: X2 - Sanitize HTML to prevent XSS
             dangerouslySetInnerHTML={{
               __html: sanitizeHtml((() => {
-                console.log('🎭 RENDER: Displaying content =', content?.substring(0, 200) + '...');
-                console.log('🎭 RENDER: Content length =', content?.length);
-                console.log('🎭 RENDER: Content type =', typeof content);
-                
                 if (!content) {
-                  console.log('🎭 RENDER: No content, showing placeholder');
                   return "No content available. Click edit to add newsletter content.";
                 }
-                
+
                 // Check if content is already HTML (contains HTML tags)
                 const isHTML = /<[^>]*>/g.test(content);
-                
+
                 if (isHTML) {
                   // Content is already HTML, render it directly
                   return content;
                 }
-                
+
                 // Parse YAML-like content to extract readable text and convert to HTML
                 let cleanContent = content;
-                
+
                 // Extract newsletter title
                 const titleMatch = cleanContent.match(/# (.+)/);
-                const title = titleMatch ? titleMatch[1].replace(/Newsletter$/, '').trim() : '';
-                
+                const title = titleMatch
+                  ? titleMatch[1].replace(/Newsletter$/, "").trim()
+                  : "";
+
                 // Extract blocks content
                 const blockPattern = /title: "([^"]+)"\s*body: "([^"]+)"/g;
                 const blocks = [];
                 let match;
-                
+
                 while ((match = blockPattern.exec(cleanContent)) !== null) {
                   blocks.push({
                     title: match[1],
-                    body: match[2]
+                    body: match[2],
                   });
                 }
-                
+
                 // If we have structured content, convert to HTML
                 if (blocks.length > 0) {
-                  let html = '';
+                  let html = "";
                   if (title) {
                     html += `<h1 class="text-3xl font-bold mb-6">${title}</h1>`;
                   }
-                  blocks.forEach(block => {
+                  blocks.forEach((block) => {
                     html += `
                       <div class="mb-8">
                         <h2 class="text-xl font-semibold mb-3">${block.title}</h2>
@@ -327,38 +327,43 @@ export const EditableNewsletterPreview: React.FC<EditableNewsletterPreviewProps>
                     `;
                   });
                   return html;
-                }
-                
+
                 // Fallback: clean up YAML syntax and convert to HTML
-                const cleaned = cleanContent
-                  .replace(/```yaml\s*/, '')
-                  .replace(/```\s*$/, '')
-                  .replace(/newsletter_md:\s*\|/, '')
-                  .replace(/^[\s]*blocks$/, '')
-                  .replace(/^[\s]*meta$/, '')
-                  .replace(/title:\s*"([^"]+)"/g, '<h2 class="text-xl font-semibold mb-3">$1</h2>')
-                  .replace(/body:\s*"([^"]+)"/g, '<p class="text-slate-700 leading-relaxed mb-4">$1</p>')
-                  .replace(/cta:\s*"[^"]*"/g, '')
-                  .replace(/link:\s*"[^"]*"/g, '')
-                  .replace(/reading_time:\s*"[^"]*"/g, '')
-                  .replace(/theme:\s*"[^"]*"/g, '')
-                  .replace(/week_focus:\s*"[^"]*"/g, '')
-                  .replace(/\n\s*\n\s*\n/g, '<br><br>')
-                  .replace(/\n/g, '<br>')
+                  })()),
+                  )
+                  .replace(
+                    /body:\s*"([^"]+)"/g,
+                    '<p class="text-slate-700 leading-relaxed mb-4">$1</p>',
+                  )
+                  .replace(/cta:\s*"[^"]*"/g, "")
+                  .replace(/link:\s*"[^"]*"/g, "")
+                  .replace(/reading_time:\s*"[^"]*"/g, "")
+                  .replace(/theme:\s*"[^"]*"/g, "")
+                  .replace(/week_focus:\s*"[^"]*"/g, "")
+                  .replace(/\n\s*\n\s*\n/g, "<br><br>")
+                  .replace(/\n/g, "<br>")
                   .trim();
-                
+
                 return cleaned || "No content available. Click edit to add newsletter content.";
-              })())
+              })()),
             }}
           />
         </div>
 
         {/* Newsletter Footer */}
         <div className="mt-12 pt-6 border-t border-slate-200 text-center text-sm text-slate-500">
-          <p>© {new Date().getFullYear()} Your Garden Center | All rights reserved</p>
+          <p>
+            © {new Date().getFullYear()} Your Garden Center | All rights
+            reserved
+          </p>
           <p className="mt-1">
-            <a href="#" className="hover:text-primary">Unsubscribe</a> | 
-            <a href="#" className="hover:text-primary ml-1">Update preferences</a>
+            <a href="#" className="hover:text-primary">
+              Unsubscribe
+            </a>{" "}
+            |
+            <a href="#" className="hover:text-primary ml-1">
+              Update preferences
+            </a>
           </p>
         </div>
       </div>

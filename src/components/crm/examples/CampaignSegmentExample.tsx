@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,7 +12,7 @@ import { SegmentSelector } from "../campaigns/SegmentSelector";
 export const CampaignSegmentExample = () => {
   const [campaignName, setCampaignName] = useState("");
   const [campaignContent, setCampaignContent] = useState("");
-  
+
   const {
     isOpen,
     selectedSegments,
@@ -22,21 +21,17 @@ export const CampaignSegmentExample = () => {
     closeModal,
     handleSegmentsSelected,
     clearSegments,
-    hasSegments
+    hasSegments,
   } = useSegmentSelector({
-    onSegmentsSelected: (segments) => {
-      console.log("Selected segments for campaign:", segments);
-    }
+    onSegmentsSelected: (segments) => {},
   });
 
   const handleCreateCampaign = () => {
     const campaignData = {
       name: campaignName,
       content: campaignContent,
-      targetSegments: selectedSegmentIds
+      targetSegments: selectedSegmentIds,
     };
-    
-    console.log("Creating campaign with data:", campaignData);
     // Here you would typically save to database
   };
 
@@ -70,25 +65,24 @@ export const CampaignSegmentExample = () => {
         <div>
           <Label className="block mb-3">Target Segments</Label>
           <div className="space-y-3">
-            <SegmentSelectorButton 
+            <SegmentSelectorButton
               selectedSegments={selectedSegments}
               onOpenModal={openModal}
             />
-            
+
             {hasSegments && (
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">Selected Segments:</span>
+                  <span className="text-sm font-medium">
+                    Selected Segments:
+                  </span>
                   <Button variant="ghost" size="sm" onClick={clearSegments}>
                     Clear All
                   </Button>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {selectedSegments.map((segment) => (
-                    <SegmentChip
-                      key={segment.id}
-                      segment={segment}
-                    />
+                    <SegmentChip key={segment.id} segment={segment} />
                   ))}
                 </div>
               </div>
@@ -97,7 +91,7 @@ export const CampaignSegmentExample = () => {
         </div>
 
         <div className="pt-4 border-t">
-          <Button 
+          <Button
             onClick={handleCreateCampaign}
             disabled={!campaignName || !hasSegments}
             className="w-full"

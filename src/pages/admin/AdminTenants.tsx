@@ -60,9 +60,6 @@ const AdminPage = () => {
   useEffect(() => {
     removeAllInertAttributes();
   }, []);
-
-  console.log("AdminPage data:", { tenants, stats, loading, error });
-
   // Only allow access to super admins - redirect to root instead of /app
   if (!user) {
     return <Navigate to="/" replace />;
@@ -247,17 +244,8 @@ const AdminPage = () => {
                   variant="outline"
                   size="sm"
                   onClick={() => {
-                    console.log(
-                      "Previous button clicked, currentPage:",
-                      currentPage,
-                      "totalPages:",
-                      totalPages,
-                      "totalCount:",
-                      totalCount,
-                    );
                     if (currentPage > 1) {
                       const newPage = currentPage - 1;
-                      console.log("Going to previous page:", newPage);
                       goToPage(newPage);
                       fetchTenants(currentSearch, currentStatus, newPage);
                     }
@@ -275,17 +263,8 @@ const AdminPage = () => {
                   variant="outline"
                   size="sm"
                   onClick={() => {
-                    console.log(
-                      "Next button clicked, currentPage:",
-                      currentPage,
-                      "totalPages:",
-                      totalPages,
-                      "totalCount:",
-                      totalCount,
-                    );
                     if (currentPage < totalPages) {
                       const newPage = currentPage + 1;
-                      console.log("Going to next page:", newPage);
                       goToPage(newPage);
                       fetchTenants(currentSearch, currentStatus, newPage);
                     }

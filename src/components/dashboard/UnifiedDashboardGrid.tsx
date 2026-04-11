@@ -1,12 +1,28 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { addMonths, subMonths } from "date-fns";
-import { CalendarDays, ChevronsLeft, ChevronsRight, PieChart } from "lucide-react";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from "@/components/ui/command";
+import {
+  CalendarDays,
+  ChevronsLeft,
+  ChevronsRight,
+  PieChart,
+} from "lucide-react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandSeparator,
+} from "@/components/ui/command";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -16,7 +32,7 @@ import { useTenant } from "@/hooks/useTenant";
 import { supabase } from "@/integrations/supabase/client";
 import { CustomContentSection } from "./custom-content/CustomContentSection";
 import { CurrentCampaignSection } from "./CurrentCampaignSection";
-import { CampaignCleanupButton } from '@/components/admin/CampaignCleanupButton';
+import { CampaignCleanupButton } from "@/components/admin/CampaignCleanupButton";
 import { QuickActionsSection } from "./QuickActionsSection";
 import { NewCampaignDialog } from "@/components/homepage/NewCampaignDialog";
 import { AddEventDialog } from "@/components/homepage/AddEventDialog";
@@ -41,7 +57,7 @@ export const UnifiedDashboardGrid = ({
   onTaskUpdate,
   onCampaignCreated,
   onCampaignUpdate,
-  onCreateCampaign
+  onCreateCampaign,
 }: UnifiedDashboardGridProps) => {
   const { user } = useAuth();
   const { tenant } = useTenant();
@@ -61,7 +77,7 @@ export const UnifiedDashboardGrid = ({
   };
 
   const handleViewCalendar = () => {
-    window.location.href = '/calendar';
+    window.location.href = "/calendar";
   };
 
   const handleTaskClick = (task: any) => {
@@ -79,7 +95,6 @@ export const UnifiedDashboardGrid = ({
         taskElement.classList.remove("ring-2", "ring-blue-500");
       }, 2000); // Remove highlight after 2 seconds
     } else {
-      console.warn(`Task element not found: task-${task.id}`);
     }
   };
 
@@ -91,7 +106,10 @@ export const UnifiedDashboardGrid = ({
       </div>
 
       {/* Current Campaign Section */}
-      <div className="xl:col-span-8 space-y-6" data-section="weekly-content-section">
+      <div
+        className="xl:col-span-8 space-y-6"
+        data-section="weekly-content-section"
+      >
         <CurrentCampaignSection
           activeCampaign={activeCampaign}
           tasks={tasks}
@@ -102,10 +120,7 @@ export const UnifiedDashboardGrid = ({
         />
 
         {/* Ready to Post Section */}
-        <ReadyToPostCard 
-          tasks={tasks}
-          onTaskUpdate={onTaskUpdate}
-        />
+        <ReadyToPostCard tasks={tasks} onTaskUpdate={onTaskUpdate} />
       </div>
 
       {/* Sidebar Section */}
@@ -121,7 +136,7 @@ export const UnifiedDashboardGrid = ({
           userCreatedCampaigns={userCreatedCampaigns}
           onContentGenerated={onTaskUpdate}
         />
-        
+
         {/* Debug info */}
         {import.meta.env.DEV && (
           <div className="text-xs text-gray-500 p-2 bg-gray-100 rounded">
@@ -131,13 +146,13 @@ export const UnifiedDashboardGrid = ({
       </div>
 
       {/* Dialogs */}
-      <NewCampaignDialog 
-        open={showNewCampaignDialog} 
-        onOpenChange={setShowNewCampaignDialog} 
-        onCreate={handleNewCampaignCreate} 
+      <NewCampaignDialog
+        open={showNewCampaignDialog}
+        onOpenChange={setShowNewCampaignDialog}
+        onCreate={handleNewCampaignCreate}
       />
 
-      <AddEventDialog 
+      <AddEventDialog
         open={showAddEventDialog}
         onOpenChange={setShowAddEventDialog}
         onEventCreated={handleEventCreated}

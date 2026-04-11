@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect } from "react";
 
-const CANVA_TOKEN_KEY = 'canvaAccessToken';
-const CANVA_TOKEN_EXPIRY_KEY = 'canvaTokenExpiry';
+const CANVA_TOKEN_KEY = "canvaAccessToken";
+const CANVA_TOKEN_EXPIRY_KEY = "canvaTokenExpiry";
 
 interface CanvaAuthState {
   token: string | null;
@@ -13,7 +13,7 @@ export const useCanvaAuth = () => {
   const [authState, setAuthState] = useState<CanvaAuthState>({
     token: null,
     isAuthenticated: false,
-    isLoading: true
+    isLoading: true,
   });
 
   useEffect(() => {
@@ -33,7 +33,7 @@ export const useCanvaAuth = () => {
           setAuthState({
             token,
             isAuthenticated: true,
-            isLoading: false
+            isLoading: false,
           });
           return;
         } else {
@@ -45,32 +45,32 @@ export const useCanvaAuth = () => {
       setAuthState({
         token: null,
         isAuthenticated: false,
-        isLoading: false
+        isLoading: false,
       });
     } catch (error) {
-      console.error('[CANVA_AUTH] Error checking token:', error);
+      console.error("[CANVA_AUTH] Error checking token:", error);
       setAuthState({
         token: null,
         isAuthenticated: false,
-        isLoading: false
+        isLoading: false,
       });
     }
   };
 
   const storeToken = (token: string, expiresIn: number = 3600) => {
     try {
-      const expiryTime = Date.now() + (expiresIn * 1000);
-      
+      const expiryTime = Date.now() + expiresIn * 1000;
+
       localStorage.setItem(CANVA_TOKEN_KEY, token);
       localStorage.setItem(CANVA_TOKEN_EXPIRY_KEY, expiryTime.toString());
 
       setAuthState({
         token,
         isAuthenticated: true,
-        isLoading: false
+        isLoading: false,
       });
     } catch (error) {
-      console.error('[CANVA_AUTH] Error storing token:', error);
+      console.error("[CANVA_AUTH] Error storing token:", error);
     }
   };
 
@@ -82,28 +82,17 @@ export const useCanvaAuth = () => {
       setAuthState({
         token: null,
         isAuthenticated: false,
-        isLoading: false
+        isLoading: false,
       });
     } catch (error) {
-      console.error('[CANVA_AUTH] Error clearing token:', error);
+      console.error("[CANVA_AUTH] Error clearing token:", error);
     }
   };
 
-  const initiateOAuth = async () => {
-    // DEVELOPMENT MODE: Mock OAuth flow
-    // To implement real Canva integration, you need:
-    // 1. Canva Developer Account & API credentials
-    // 2. Set up OAuth redirect URL in Canva Developer Console
-    // 3. Replace this mock flow with real Canva OAuth
-    
-    console.log('[CANVA_AUTH] Initiating OAuth flow...');
-    console.log('[CANVA_AUTH] Note: Using development mock - real Canva API not configured');
-    
     // Simulate OAuth success with mock token
     setTimeout(() => {
       const mockToken = `mock_canva_token_${Date.now()}`;
       storeToken(mockToken, 3600);
-      console.log('[CANVA_AUTH] Mock authentication successful');
     }, 1000);
   };
 
@@ -112,6 +101,6 @@ export const useCanvaAuth = () => {
     storeToken,
     clearToken,
     initiateOAuth,
-    refreshAuth: checkExistingToken
+    refreshAuth: checkExistingToken,
   };
 };

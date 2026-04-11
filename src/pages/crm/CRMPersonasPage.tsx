@@ -1,96 +1,145 @@
-import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Target, Plus, Search, RefreshCw, Users, UserPlus, X, Loader2 } from 'lucide-react';
-import { useCRMPersonas } from '@/hooks/useCRMPersonas';
-import { useCRMCustomers } from '@/hooks/useCRMCustomers';
-import { PersonaCard } from '@/components/crm/personas/PersonaCard';
-import { CustomPersonaModal } from '@/components/crm/personas/CustomPersonaModal';
-import { PersonaOverviewCard } from '@/components/crm/personas/PersonaOverviewCard';
-import { useIsMobile } from '@/hooks/use-mobile';
-import { usePersonaCustomerCounts } from '@/hooks/usePersonaCustomerCounts';
-import { supabase } from '@/integrations/supabase/client';
+import React, { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Target,
+  Plus,
+  Search,
+  RefreshCw,
+  Users,
+  UserPlus,
+  X,
+  Loader2,
+} from "lucide-react";
+import { useCRMPersonas } from "@/hooks/useCRMPersonas";
+import { useCRMCustomers } from "@/hooks/useCRMCustomers";
+import { PersonaCard } from "@/components/crm/personas/PersonaCard";
+import { CustomPersonaModal } from "@/components/crm/personas/CustomPersonaModal";
+import { PersonaOverviewCard } from "@/components/crm/personas/PersonaOverviewCard";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { usePersonaCustomerCounts } from "@/hooks/usePersonaCustomerCounts";
+import { supabase } from "@/integrations/supabase/client";
 
 // Predefined personas data for garden center customers
 const predefinedPersonas = [
   {
-    id: 'plant-killer-pam',
-    name: 'Plant-Killer Pam',
-    description: 'Customers who struggle with keeping plants alive and need low-maintenance options',
-    icon: 'leaf' as const,
+    id: "plant-killer-pam",
+    name: "Plant-Killer Pam",
+    description:
+      "Customers who struggle with keeping plants alive and need low-maintenance options",
+    icon: "leaf" as const,
   },
   {
-    id: 'pet-friendly-hannah',
-    name: 'Pet-Friendly Hannah',
-    description: 'Pet owners looking for safe, non-toxic plants and garden solutions',
-    icon: 'heart' as const,
+    id: "pet-friendly-hannah",
+    name: "Pet-Friendly Hannah",
+    description:
+      "Pet owners looking for safe, non-toxic plants and garden solutions",
+    icon: "heart" as const,
   },
   {
-    id: 'vegetable-garden-veronica',
-    name: 'Vegetable Garden Veronica',
-    description: 'Customers focused on growing their own food and organic gardening',
-    icon: 'apple' as const,
+    id: "vegetable-garden-veronica",
+    name: "Vegetable Garden Veronica",
+    description:
+      "Customers focused on growing their own food and organic gardening",
+    icon: "apple" as const,
   },
   {
-    id: 'sustainable-susie',
-    name: 'Sustainable Susie',
-    description: 'Environmentally conscious gardeners seeking eco-friendly solutions',
-    icon: 'recycle' as const,
+    id: "sustainable-susie",
+    name: "Sustainable Susie",
+    description:
+      "Environmentally conscious gardeners seeking eco-friendly solutions",
+    icon: "recycle" as const,
   },
   {
-    id: 'patio-gardener-gail',
-    name: 'Patio Gardener Gail',
-    description: 'Urban gardeners with limited space focusing on container gardening',
-    icon: 'home' as const,
+    id: "patio-gardener-gail",
+    name: "Patio Gardener Gail",
+    description:
+      "Urban gardeners with limited space focusing on container gardening",
+    icon: "home" as const,
   },
   {
-    id: 'pollinator-paula',
-    name: 'Pollinator Paula',
-    description: 'Customers interested in attracting bees, butterflies, and beneficial insects',
-    icon: 'flower' as const,
+    id: "pollinator-paula",
+    name: "Pollinator Paula",
+    description:
+      "Customers interested in attracting bees, butterflies, and beneficial insects",
+    icon: "flower" as const,
   },
   {
-    id: 'curb-appeal-ashley',
-    name: 'Curb Appeal Ashley',
-    description: 'Homeowners focused on front yard landscaping and property aesthetics',
-    icon: 'eye' as const,
+    id: "curb-appeal-ashley",
+    name: "Curb Appeal Ashley",
+    description:
+      "Homeowners focused on front yard landscaping and property aesthetics",
+    icon: "eye" as const,
   },
   {
-    id: 'diy-dana',
-    name: 'DIY Dana',
-    description: 'Hands-on gardeners who love projects and building garden features',
-    icon: 'hammer' as const,
+    id: "diy-dana",
+    name: "DIY Dana",
+    description:
+      "Hands-on gardeners who love projects and building garden features",
+    icon: "hammer" as const,
   },
   {
-    id: 'wellness-whitney',
-    name: 'Wellness Whitney',
-    description: 'Customers interested in therapeutic gardening and mental health benefits',
-    icon: 'sun' as const,
+    id: "wellness-whitney",
+    name: "Wellness Whitney",
+    description:
+      "Customers interested in therapeutic gardening and mental health benefits",
+    icon: "sun" as const,
   },
 ];
 
 export const CRMPersonasPage: React.FC = () => {
-  const { personas, loading, searchTerm, setSearchTerm, fetchPersonas, createPersona, deletePersona } = useCRMPersonas();
-  const { customers, loading: customersLoading, assignPersonaToCustomer, removePersonaFromCustomer, getCustomersByPersona, getUnassignedCustomers } = useCRMCustomers();
-  const { counts: personaCounts, loading: countsLoading, refreshCounts } = usePersonaCustomerCounts();
+  const {
+    personas,
+    loading,
+    searchTerm,
+    setSearchTerm,
+    fetchPersonas,
+    createPersona,
+    deletePersona,
+  } = useCRMPersonas();
+  const {
+    customers,
+    loading: customersLoading,
+    assignPersonaToCustomer,
+    removePersonaFromCustomer,
+    getCustomersByPersona,
+    getUnassignedCustomers,
+  } = useCRMCustomers();
+  const {
+    counts: personaCounts,
+    loading: countsLoading,
+    refreshCounts,
+  } = usePersonaCustomerCounts();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showCustomBuilder, setShowCustomBuilder] = useState(false);
   const [selectedPersona, setSelectedPersona] = useState<any>(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
-  const [customerSearchTerm, setCustomerSearchTerm] = useState('');
-  const [assigningCustomer, setAssigningCustomer] = useState<string | null>(null);
-  const [unassigningCustomer, setUnassigningCustomer] = useState<string | null>(null);
+  const [customerSearchTerm, setCustomerSearchTerm] = useState("");
+  const [assigningCustomer, setAssigningCustomer] = useState<string | null>(
+    null,
+  );
+  const [unassigningCustomer, setUnassigningCustomer] = useState<string | null>(
+    null,
+  );
   const isMobile = useIsMobile();
 
   const handleCreatePersona = () => {
     setShowCustomBuilder(true);
   };
 
-  const handleSaveCustomPersona = async (personaData: { name: string; description?: string }): Promise<boolean> => {
+  const handleSaveCustomPersona = async (personaData: {
+    name: string;
+    description?: string;
+  }): Promise<boolean> => {
     const success = await createPersona(personaData);
     if (success) {
       setShowCustomBuilder(false);
@@ -100,37 +149,30 @@ export const CRMPersonasPage: React.FC = () => {
 
   const handleCreateCampaign = (personaId: string) => {
     // Future: Navigate to campaign creation with pre-selected persona
-    console.log('Create campaign for persona:', personaId);
   };
 
   const handleViewPersonaDetails = (personaId: string) => {
-    const persona = predefinedPersonas.find(p => p.id === personaId);
-    console.log('🔍 Opening persona details:', { personaId, foundPersona: persona, predefinedPersonas: predefinedPersonas.length });
+    const persona = predefinedPersonas.find((p) => p.id === personaId);
     if (persona) {
       setSelectedPersona(persona);
       setShowDetailsModal(true);
-      console.log('✅ Selected persona set:', persona);
     } else {
-      console.warn('⚠️ Persona not found:', personaId);
     }
   };
 
   const handleAssignCustomer = async (customerId: string) => {
     if (!selectedPersona || assigningCustomer) return;
-    
+
     setAssigningCustomer(customerId);
-    console.log('🔄 Assigning customer to persona:', { customerId, personaId: selectedPersona.id, personaName: selectedPersona.persona_name || selectedPersona.name });
-    
     try {
       // Use the persona name correctly - could be either persona_name or name depending on source
       const personaName = selectedPersona.persona_name || selectedPersona.name;
       const success = await assignPersonaToCustomer(customerId, personaName);
       if (success) {
-        console.log('✅ Customer assigned successfully');
         // Don't call refreshCounts() as it causes full re-render
         // The counts will be updated when the customer data changes
       } else {
-        console.error('❌ Failed to assign customer to persona');
+        console.error("❌ Failed to assign customer to persona");
       }
     } finally {
       setAssigningCustomer(null);
@@ -139,44 +181,42 @@ export const CRMPersonasPage: React.FC = () => {
 
   const handleUnassignCustomer = async (customerId: string) => {
     if (!selectedPersona || unassigningCustomer) return;
-    
+
     setUnassigningCustomer(customerId);
-    console.log('🔄 Removing customer from persona:', { customerId, personaId: selectedPersona.id });
-    
     try {
       // Determine if this is a custom or system persona
       const personaName = selectedPersona.persona_name || selectedPersona.name;
-      const isCustomPersona = selectedPersona.is_custom || selectedPersona.persona_name;
-      
+      const isCustomPersona =
+        selectedPersona.is_custom || selectedPersona.persona_name;
+
       if (isCustomPersona && selectedPersona.id) {
         // Remove from customer_personas table for custom personas
         const { error } = await supabase
-          .from('customer_personas')
+          .from("customer_personas")
           .delete()
-          .eq('customer_id', customerId)
-          .eq('persona_id', selectedPersona.id);
+          .eq("customer_id", customerId)
+          .eq("persona_id", selectedPersona.id);
 
         if (error) throw error;
       } else {
         // Remove from customer_personas table for system personas
         const { error } = await supabase
-          .from('customer_personas')
+          .from("customer_personas")
           .delete()
-          .eq('customer_id', customerId)
-          .eq('predefined_persona_id', personaName);
+          .eq("customer_id", customerId)
+          .eq("predefined_persona_id", personaName);
 
         if (error) throw error;
       }
-      
+
       // Refresh customer data and counts
       const success = await removePersonaFromCustomer(customerId);
       if (success) {
-        console.log('✅ Customer removed successfully');
         // Don't call refreshCounts() as it causes full re-render
         // The counts will be updated when the customer data changes
       }
     } catch (error) {
-      console.error('❌ Failed to remove customer:', error);
+      console.error("❌ Failed to remove customer:", error);
     } finally {
       setUnassigningCustomer(null);
     }
@@ -185,108 +225,126 @@ export const CRMPersonasPage: React.FC = () => {
   // Get customers for the selected persona and filter by search
   const getFilteredPersonaCustomers = () => {
     if (!selectedPersona) {
-      console.log('🔍 No selected persona');
       return [];
     }
-    
-    // Handle both predefined personas (with 'name') and custom personas (with 'persona_name')  
+
+    // Handle both predefined personas (with 'name') and custom personas (with 'persona_name')
     const personaName = selectedPersona.persona_name || selectedPersona.name;
-    console.log('🔍 Getting customers for persona:', { selectedPersona, personaName });
-    
     // Use the updated getCustomersByPersona function that handles both legacy and new assignments
     const assignedCustomers = getCustomersByPersona(personaName);
-    
-    console.log('🔍 Total assigned customers:', assignedCustomers.length);
-    
     if (!customerSearchTerm) return assignedCustomers;
-    
-    return assignedCustomers.filter(customer => 
-      customer.email.toLowerCase().includes(customerSearchTerm.toLowerCase()) ||
-      (customer.first_name?.toLowerCase().includes(customerSearchTerm.toLowerCase())) ||
-      (customer.last_name?.toLowerCase().includes(customerSearchTerm.toLowerCase()))
+
+    return assignedCustomers.filter(
+      (customer) =>
+        customer.email
+          .toLowerCase()
+          .includes(customerSearchTerm.toLowerCase()) ||
+        customer.first_name
+          ?.toLowerCase()
+          .includes(customerSearchTerm.toLowerCase()) ||
+        customer.last_name
+          ?.toLowerCase()
+          .includes(customerSearchTerm.toLowerCase()),
     );
   };
 
-  // Get unassigned customers filtered by search  
+  // Get unassigned customers filtered by search
   const getFilteredUnassignedCustomers = () => {
     if (!selectedPersona) {
-      console.log('🔍 No selected persona for unassigned');
       return [];
     }
-    
+
     // Handle both predefined personas (with 'name') and custom personas (with 'persona_name')
     const personaName = selectedPersona.persona_name || selectedPersona.name;
-    console.log('🔍 Getting unassigned customers for persona:', personaName);
-    
     // Get customers not assigned to this specific persona, but might be assigned to others
-    const unassigned = customers.filter(customer => {
+    const unassigned = customers.filter((customer) => {
       // Check if customer is NOT assigned to this specific persona
       const hasLegacyPersona = customer.persona === personaName;
-      const hasNewPersona = customer.assigned_personas?.some(assignment => 
-        assignment.predefined_persona_id === personaName ||
-        assignment.personas?.persona_name === personaName
+      const hasNewPersona = customer.assigned_personas?.some(
+        (assignment) =>
+          assignment.predefined_persona_id === personaName ||
+          assignment.personas?.persona_name === personaName,
       );
       const isAssignedToThisPersona = hasLegacyPersona || hasNewPersona;
       return !isAssignedToThisPersona;
     });
-    
-    console.log('🔍 Total unassigned customers:', unassigned.length);
-    
     if (!customerSearchTerm) return unassigned; // Show all unassigned customers
-    
-    return unassigned.filter(customer => 
-      customer.email.toLowerCase().includes(customerSearchTerm.toLowerCase()) ||
-      (customer.first_name?.toLowerCase().includes(customerSearchTerm.toLowerCase())) ||
-      (customer.last_name?.toLowerCase().includes(customerSearchTerm.toLowerCase()))
-    ).slice(0, 10);
+
+    return unassigned
+      .filter(
+        (customer) =>
+          customer.email
+            .toLowerCase()
+            .includes(customerSearchTerm.toLowerCase()) ||
+          customer.first_name
+            ?.toLowerCase()
+            .includes(customerSearchTerm.toLowerCase()) ||
+          customer.last_name
+            ?.toLowerCase()
+            .includes(customerSearchTerm.toLowerCase()),
+      )
+      .slice(0, 10);
   };
 
   // Filter predefined personas based on search term
-  const filteredPredefinedPersonas = predefinedPersonas.filter(persona =>
-    persona.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    persona.description.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredPredefinedPersonas = predefinedPersonas.filter(
+    (persona) =>
+      persona.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      persona.description.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
   return (
-    <div className={`${isMobile ? 'mobile-section' : 'p-6'} mobile-space-normal mobile-container`}>
+    <div
+      className={`${isMobile ? "mobile-section" : "p-6"} mobile-space-normal mobile-container`}
+    >
       {/* Header */}
-      <div className={`${isMobile ? 'mobile-space-tight' : 'flex justify-between items-center'} mb-6`}>
-        <h1 className={`${isMobile ? 'mobile-text-hero' : 'text-3xl'} font-bold mb-4 md:mb-0`}>
+      <div
+        className={`${isMobile ? "mobile-space-tight" : "flex justify-between items-center"} mb-6`}
+      >
+        <h1
+          className={`${isMobile ? "mobile-text-hero" : "text-3xl"} font-bold mb-4 md:mb-0`}
+        >
           Customer Personas
         </h1>
-        <div className={`flex ${isMobile ? 'flex-col gap-2' : 'gap-2'}`}>
-          <Button 
-            variant="outline" 
-            onClick={fetchPersonas} 
+        <div className={`flex ${isMobile ? "flex-col gap-2" : "gap-2"}`}>
+          <Button
+            variant="outline"
+            onClick={fetchPersonas}
             disabled={loading}
-            className={`${isMobile ? 'mobile-btn-secondary mobile-touch-feedback w-full' : ''} mobile-focus-ring`}
+            className={`${isMobile ? "mobile-btn-secondary mobile-touch-feedback w-full" : ""} mobile-focus-ring`}
             size={isMobile ? "default" : "sm"}
           >
-            <RefreshCw className={`${isMobile ? 'mobile-icon-sm' : 'h-4 w-4'} mr-2 ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw
+              className={`${isMobile ? "mobile-icon-sm" : "h-4 w-4"} mr-2 ${loading ? "animate-spin" : ""}`}
+            />
             Refresh Data
           </Button>
-          <Button 
+          <Button
             onClick={handleCreatePersona}
-            className={`${isMobile ? 'mobile-btn-primary mobile-touch-feedback w-full' : ''} mobile-focus-ring`}
+            className={`${isMobile ? "mobile-btn-primary mobile-touch-feedback w-full" : ""} mobile-focus-ring`}
             size={isMobile ? "default" : "sm"}
           >
-            <Plus className={`${isMobile ? 'mobile-icon-sm' : 'h-4 w-4'} mr-2`} />
+            <Plus
+              className={`${isMobile ? "mobile-icon-sm" : "h-4 w-4"} mr-2`}
+            />
             Create Persona
           </Button>
         </div>
       </div>
 
-      <div className={isMobile ? 'mobile-space-normal' : 'space-y-6'}>
+      <div className={isMobile ? "mobile-space-normal" : "space-y-6"}>
         {/* Search */}
         <Card className="mobile-card-elevated">
-          <CardContent className={isMobile ? 'p-4' : 'pt-6'}>
+          <CardContent className={isMobile ? "p-4" : "pt-6"}>
             <div className="relative">
-              <Search className={`absolute left-3 top-3 ${isMobile ? 'mobile-icon-sm' : 'h-4 w-4'} text-muted-foreground`} />
+              <Search
+                className={`absolute left-3 top-3 ${isMobile ? "mobile-icon-sm" : "h-4 w-4"} text-muted-foreground`}
+              />
               <Input
                 placeholder="Search all personas..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className={`pl-10 ${isMobile ? 'mobile-touch-target' : ''} mobile-focus-ring`}
+                className={`pl-10 ${isMobile ? "mobile-touch-target" : ""} mobile-focus-ring`}
               />
             </div>
           </CardContent>
@@ -295,20 +353,30 @@ export const CRMPersonasPage: React.FC = () => {
         {/* Predefined Personas */}
         {filteredPredefinedPersonas.length > 0 && (
           <Card className="mobile-card-elevated">
-            <CardHeader className={isMobile ? 'p-4 pb-2' : ''}>
-              <CardTitle className={`flex items-center gap-2 ${isMobile ? 'mobile-text-heading' : ''}`}>
-                <Target className={`${isMobile ? 'mobile-icon-md' : 'h-5 w-5'}`} />
+            <CardHeader className={isMobile ? "p-4 pb-2" : ""}>
+              <CardTitle
+                className={`flex items-center gap-2 ${isMobile ? "mobile-text-heading" : ""}`}
+              >
+                <Target
+                  className={`${isMobile ? "mobile-icon-md" : "h-5 w-5"}`}
+                />
                 System Personas
               </CardTitle>
             </CardHeader>
-            <CardContent className={isMobile ? 'p-4 pt-2' : ''}>
-              <div className={`${isMobile ? 'grid grid-cols-1 gap-4' : 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'}`}>
+            <CardContent className={isMobile ? "p-4 pt-2" : ""}>
+              <div
+                className={`${isMobile ? "grid grid-cols-1 gap-4" : "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"}`}
+              >
                 {filteredPredefinedPersonas.map((persona) => (
                   <PersonaOverviewCard
                     key={persona.id}
                     name={persona.name}
                     description={persona.description}
-                    customerCount={countsLoading || personaCounts[persona.name] === undefined ? undefined : personaCounts[persona.name] || 0}
+                    customerCount={
+                      countsLoading || personaCounts[persona.name] === undefined
+                        ? undefined
+                        : personaCounts[persona.name] || 0
+                    }
                     isLoadingCount={countsLoading}
                     icon={persona.icon}
                     isSystem={true}
@@ -323,48 +391,68 @@ export const CRMPersonasPage: React.FC = () => {
 
         {/* Custom Personas */}
         <Card className="mobile-card-elevated">
-          <CardHeader className={isMobile ? 'p-4 pb-2' : ''}>
-            <CardTitle className={`flex items-center gap-2 ${isMobile ? 'mobile-text-heading' : ''}`}>
-              <Target className={`${isMobile ? 'mobile-icon-md' : 'h-5 w-5'}`} />
+          <CardHeader className={isMobile ? "p-4 pb-2" : ""}>
+            <CardTitle
+              className={`flex items-center gap-2 ${isMobile ? "mobile-text-heading" : ""}`}
+            >
+              <Target
+                className={`${isMobile ? "mobile-icon-md" : "h-5 w-5"}`}
+              />
               Custom Personas
             </CardTitle>
           </CardHeader>
-          <CardContent className={isMobile ? 'p-4 pt-2' : ''}>
+          <CardContent className={isMobile ? "p-4 pt-2" : ""}>
             {loading ? (
               <div className="text-center py-8">
-                <div className={`animate-spin rounded-full ${isMobile ? 'mobile-icon-lg' : 'h-8 w-8'} border-b-2 border-primary mx-auto`}></div>
-                <p className={`${isMobile ? 'mobile-text-body' : 'text-muted-foreground'} mt-2`}>
+                <div
+                  className={`animate-spin rounded-full ${isMobile ? "mobile-icon-lg" : "h-8 w-8"} border-b-2 border-primary mx-auto`}
+                ></div>
+                <p
+                  className={`${isMobile ? "mobile-text-body" : "text-muted-foreground"} mt-2`}
+                >
                   Loading custom personas...
                 </p>
               </div>
             ) : personas.length === 0 ? (
               <div className="text-center py-8">
-                <Target className={`${isMobile ? 'mobile-icon-xl' : 'h-12 w-12'} text-muted-foreground mx-auto mb-4`} />
-                <h3 className={`${isMobile ? 'mobile-text-subheading' : 'text-lg'} font-semibold mb-2`}>
+                <Target
+                  className={`${isMobile ? "mobile-icon-xl" : "h-12 w-12"} text-muted-foreground mx-auto mb-4`}
+                />
+                <h3
+                  className={`${isMobile ? "mobile-text-subheading" : "text-lg"} font-semibold mb-2`}
+                >
                   No custom personas found
                 </h3>
-                <p className={`${isMobile ? 'mobile-text-body' : 'text-muted-foreground'} mb-4 mobile-text-balance`}>
-                  {searchTerm ? 'No custom personas match your search.' : 'Create your first custom persona to start personalizing customer experiences.'}
+                <p
+                  className={`${isMobile ? "mobile-text-body" : "text-muted-foreground"} mb-4 mobile-text-balance`}
+                >
+                  {searchTerm
+                    ? "No custom personas match your search."
+                    : "Create your first custom persona to start personalizing customer experiences."}
                 </p>
                 {!searchTerm && (
-                  <Button 
+                  <Button
                     onClick={handleCreatePersona}
-                    className={`${isMobile ? 'mobile-btn-cta mobile-touch-feedback' : ''} mobile-focus-ring`}
+                    className={`${isMobile ? "mobile-btn-cta mobile-touch-feedback" : ""} mobile-focus-ring`}
                   >
-                    <Plus className={`${isMobile ? 'mobile-icon-sm' : 'h-4 w-4'} mr-2`} />
+                    <Plus
+                      className={`${isMobile ? "mobile-icon-sm" : "h-4 w-4"} mr-2`}
+                    />
                     Create Your First Custom Persona
                   </Button>
                 )}
               </div>
             ) : (
-              <div className={`${isMobile ? 'grid grid-cols-1 gap-4' : 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'}`}>
+              <div
+                className={`${isMobile ? "grid grid-cols-1 gap-4" : "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"}`}
+              >
                 {personas.map((persona) => (
-                <PersonaCard
-                  key={persona.id}
-                  persona={persona}
-                  customerCount={personaCounts[persona.id] || 0}
-                  onAssignmentChange={refreshCounts}
-                />
+                  <PersonaCard
+                    key={persona.id}
+                    persona={persona}
+                    customerCount={personaCounts[persona.id] || 0}
+                    onAssignmentChange={refreshCounts}
+                  />
                 ))}
               </div>
             )}
@@ -401,12 +489,18 @@ export const CRMPersonasPage: React.FC = () => {
             {/* Basic Info */}
             <div className="space-y-4">
               <div>
-                <h4 className="font-semibold text-sm text-muted-foreground mb-2">Description</h4>
+                <h4 className="font-semibold text-sm text-muted-foreground mb-2">
+                  Description
+                </h4>
                 <p className="text-sm">{selectedPersona?.description}</p>
               </div>
               <div>
-                <h4 className="font-semibold text-sm text-muted-foreground mb-2">Customer Count</h4>
-                <p className="text-sm">{personaCounts[selectedPersona?.name] || 0} matching customers</p>
+                <h4 className="font-semibold text-sm text-muted-foreground mb-2">
+                  Customer Count
+                </h4>
+                <p className="text-sm">
+                  {personaCounts[selectedPersona?.name] || 0} matching customers
+                </p>
               </div>
             </div>
 
@@ -416,7 +510,7 @@ export const CRMPersonasPage: React.FC = () => {
                 <Users className="h-4 w-4" />
                 <h4 className="font-semibold">Customer Management</h4>
               </div>
-              
+
               {/* Search */}
               <div className="relative">
                 <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
@@ -445,19 +539,26 @@ export const CRMPersonasPage: React.FC = () => {
                     <ScrollArea className="h-48 border rounded-md p-2">
                       <div className="space-y-2">
                         {getFilteredPersonaCustomers().map((customer) => {
-                          console.log('🔧 Rendering customer in UI:', customer);
                           return (
-                            <div key={customer.id} className="flex items-center justify-between p-2 bg-muted/50 rounded text-sm">
+                            <div
+                              key={customer.id}
+                              className="flex items-center justify-between p-2 bg-muted/50 rounded text-sm"
+                            >
                               <div>
                                 <p className="font-medium text-foreground">
-                                  {customer.first_name || 'No First Name'} {customer.last_name || 'No Last Name'}
+                                  {customer.first_name || "No First Name"}{" "}
+                                  {customer.last_name || "No Last Name"}
                                 </p>
-                                <p className="text-xs text-foreground/70">{customer.email || 'No Email'}</p>
+                                <p className="text-xs text-foreground/70">
+                                  {customer.email || "No Email"}
+                                </p>
                               </div>
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                onClick={() => handleUnassignCustomer(customer.id)}
+                                onClick={() =>
+                                  handleUnassignCustomer(customer.id)
+                                }
                                 disabled={unassigningCustomer === customer.id}
                                 className="h-7 w-7 p-0 text-destructive hover:text-destructive"
                                 title="Remove from persona"
@@ -491,12 +592,17 @@ export const CRMPersonasPage: React.FC = () => {
                     <ScrollArea className="h-48 border rounded-md p-2">
                       <div className="space-y-2">
                         {getFilteredUnassignedCustomers().map((customer) => (
-                          <div key={customer.id} className="flex items-center justify-between p-2 bg-background border rounded text-sm">
+                          <div
+                            key={customer.id}
+                            className="flex items-center justify-between p-2 bg-background border rounded text-sm"
+                          >
                             <div>
                               <p className="font-medium">
                                 {customer.first_name} {customer.last_name}
                               </p>
-                              <p className="text-xs text-foreground/70">{customer.email}</p>
+                              <p className="text-xs text-foreground/70">
+                                {customer.email}
+                              </p>
                             </div>
                             <Button
                               size="sm"

@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { AlertTriangle, RotateCcw } from "lucide-react";
@@ -10,13 +9,15 @@ interface EmergencyAuthResetProps {
   className?: string;
 }
 
-export const EmergencyAuthReset = ({ className = "" }: EmergencyAuthResetProps) => {
+export const EmergencyAuthReset = ({
+  className = "",
+}: EmergencyAuthResetProps) => {
   const [isResetting, setIsResetting] = useState(false);
   const { isInLimboState, authError, forceReset } = useAuth();
   const { subscriptionError } = useSubscription();
-  
+
   const hasErrors = authError || subscriptionError || isInLimboState;
-  
+
   if (!hasErrors) {
     return null;
   }
@@ -24,18 +25,16 @@ export const EmergencyAuthReset = ({ className = "" }: EmergencyAuthResetProps) 
   const handleEmergencyReset = async () => {
     setIsResetting(true);
     try {
-      console.log('🚨 Emergency auth reset triggered');
-      
       // Show confirmation
       const confirmed = window.confirm(
-        'This will completely reset your authentication state and redirect you to the login page. Continue?'
+        "This will completely reset your authentication state and redirect you to the login page. Continue?",
       );
-      
+
       if (confirmed) {
         await forceReset();
       }
     } catch (error) {
-      console.error('❌ Emergency reset failed:', error);
+      console.error("❌ Emergency reset failed:", error);
       // Fallback to direct force logout
       await forceLogout();
     } finally {
@@ -54,12 +53,14 @@ export const EmergencyAuthReset = ({ className = "" }: EmergencyAuthResetProps) 
             </h3>
             <div className="text-xs text-red-700 space-y-1">
               {authError && <p>Auth Error: {authError}</p>}
-              {subscriptionError && <p>Subscription Error: {subscriptionError}</p>}
+              {subscriptionError && (
+                <p>Subscription Error: {subscriptionError}</p>
+              )}
               {isInLimboState && <p>Stuck in authentication loop</p>}
             </div>
           </div>
         </div>
-        
+
         <Button
           onClick={handleEmergencyReset}
           disabled={isResetting}

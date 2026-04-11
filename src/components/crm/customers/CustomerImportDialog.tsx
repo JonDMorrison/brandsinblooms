@@ -1,17 +1,29 @@
-import React, { useState, useCallback } from 'react';
-import { useDropzone } from 'react-dropzone';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
-import { NativeSelect } from '@/components/ui/NativeSelect';
-import { useToast } from '@/hooks/use-toast';
-import { Upload, Download, FileText, AlertCircle, CheckCircle } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
-import { useAllPersonas } from '@/hooks/useAllPersonas';
-import * as XLSX from 'xlsx';
+import React, { useState, useCallback } from "react";
+import { useDropzone } from "react-dropzone";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { NativeSelect } from "@/components/ui/NativeSelect";
+import { useToast } from "@/hooks/use-toast";
+import {
+  Upload,
+  Download,
+  FileText,
+  AlertCircle,
+  CheckCircle,
+} from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAllPersonas } from "@/hooks/useAllPersonas";
+import * as XLSX from "xlsx";
 
 interface CustomerImportDialogProps {
   onImportComplete?: () => void;
@@ -42,7 +54,9 @@ interface FieldMapping {
   [key: string]: string;
 }
 
-export const CustomerImportDialog: React.FC<CustomerImportDialogProps> = ({ onImportComplete }) => {
+export const CustomerImportDialog: React.FC<CustomerImportDialogProps> = ({
+  onImportComplete,
+}) => {
   const { toast } = useToast();
   const { personas } = useAllPersonas();
   const [isOpen, setIsOpen] = useState(false);
@@ -54,7 +68,7 @@ export const CustomerImportDialog: React.FC<CustomerImportDialogProps> = ({ onIm
   const [fieldMapping, setFieldMapping] = useState<FieldMapping>({});
   const [updateExisting, setUpdateExisting] = useState(false);
   const [appendTags, setAppendTags] = useState(true);
-  const [defaultPersona, setDefaultPersona] = useState<string>('');
+  const [defaultPersona, setDefaultPersona] = useState<string>("");
 
   // Helper function to map persona names to UUIDs
   const mapPersonaNameToId = (personaName: string): string | null => {
@@ -63,13 +77,13 @@ export const CustomerImportDialog: React.FC<CustomerImportDialogProps> = ({ onIm
     const normalizedInput = personaName.toLowerCase().trim();
 
     // Direct name match
-    const directMatch = personas.find(p =>
-      p.persona_name.toLowerCase() === normalizedInput
+    const directMatch = personas.find(
+      (p) => p.persona_name.toLowerCase() === normalizedInput,
     );
     if (directMatch) return directMatch.id;
 
     // Partial matching for common variations
-    const partialMatch = personas.find(p => {
+    const partialMatch = personas.find((p) => {
       const name = p.persona_name.toLowerCase();
       return name.includes(normalizedInput) || normalizedInput.includes(name);
     });
@@ -77,20 +91,20 @@ export const CustomerImportDialog: React.FC<CustomerImportDialogProps> = ({ onIm
 
     // Legacy mapping for old persona system
     const legacyMapping: Record<string, string> = {
-      'newbie': 'Plant-Killer Pam',
-      'beginner': 'Plant-Killer Pam',
-      'struggler': 'Plant-Killer Pam',
-      'regular': 'Sustainable Susie',
-      'loyal': 'Sustainable Susie',
-      'expert': 'DIY Dana',
-      'advanced': 'DIY Dana',
-      'experienced': 'DIY Dana'
+      newbie: "Plant-Killer Pam",
+      beginner: "Plant-Killer Pam",
+      struggler: "Plant-Killer Pam",
+      regular: "Sustainable Susie",
+      loyal: "Sustainable Susie",
+      expert: "DIY Dana",
+      advanced: "DIY Dana",
+      experienced: "DIY Dana",
     };
 
     const legacyPersonaName = legacyMapping[normalizedInput];
     if (legacyPersonaName) {
-      const legacyMatch = personas.find(p =>
-        p.persona_name.toLowerCase() === legacyPersonaName.toLowerCase()
+      const legacyMatch = personas.find(
+        (p) => p.persona_name.toLowerCase() === legacyPersonaName.toLowerCase(),
       );
       return legacyMatch?.id || null;
     }
@@ -100,21 +114,41 @@ export const CustomerImportDialog: React.FC<CustomerImportDialogProps> = ({ onIm
 
   // Smart field detection mappings
   const fieldMappings = {
-    email: ['email', 'email_address', 'e_mail', 'customer_email', 'mail'],
-    first_name: ['first_name', 'firstname', 'given_name', 'fname', 'first', 'first name'],
-    last_name: ['last_name', 'lastname', 'surname', 'family_name', 'familyname', 'lname', 'last name'],
-    phone: ['phone', 'phone_number', 'mobile', 'cell', 'telephone', 'tel'],
-    persona: ['persona', 'customer_type', 'segment', 'category', 'type'],
-    tags: ['tags', 'interests', 'categories', 'labels'],
-    lifetime_value: ['lifetime_value', 'total_spent', 'ltv', 'value', 'spent'],
-    last_purchase_date: ['last_purchase', 'last_order', 'recent_purchase', 'last_purchase_date'],
-    sms_opt_in: ['sms_opt_in', 'sms_marketing', 'text_opt_in', 'sms_consent'],
-    name: ['name', 'full_name', 'customer_name', 'client_name']
+    email: ["email", "email_address", "e_mail", "customer_email", "mail"],
+    first_name: [
+      "first_name",
+      "firstname",
+      "given_name",
+      "fname",
+      "first",
+      "first name",
+    ],
+    last_name: [
+      "last_name",
+      "lastname",
+      "surname",
+      "family_name",
+      "familyname",
+      "lname",
+      "last name",
+    ],
+    phone: ["phone", "phone_number", "mobile", "cell", "telephone", "tel"],
+    persona: ["persona", "customer_type", "segment", "category", "type"],
+    tags: ["tags", "interests", "categories", "labels"],
+    lifetime_value: ["lifetime_value", "total_spent", "ltv", "value", "spent"],
+    last_purchase_date: [
+      "last_purchase",
+      "last_order",
+      "recent_purchase",
+      "last_purchase_date",
+    ],
+    sms_opt_in: ["sms_opt_in", "sms_marketing", "text_opt_in", "sms_consent"],
+    name: ["name", "full_name", "customer_name", "client_name"],
   };
 
   const detectFieldMapping = (headers: string[]): FieldMapping => {
     const mapping: FieldMapping = {};
-    const normalizedHeaders = headers.map(h => h.toLowerCase().trim());
+    const normalizedHeaders = headers.map((h) => h.toLowerCase().trim());
 
     // Helper to test header against variation with word boundaries
     const matches = (header: string, variation: string) => {
@@ -141,8 +175,10 @@ export const CustomerImportDialog: React.FC<CustomerImportDialogProps> = ({ onIm
     });
 
     orderedEntries.forEach(([field, variations]) => {
-      const match = normalizedHeaders.find(header =>
-        (variations as string[]).some(variation => matches(header, variation))
+      const match = normalizedHeaders.find((header) =>
+        (variations as string[]).some((variation) =>
+          matches(header, variation),
+        ),
       );
       if (match) {
         const originalHeader = headers[normalizedHeaders.indexOf(match)];
@@ -154,19 +190,24 @@ export const CustomerImportDialog: React.FC<CustomerImportDialogProps> = ({ onIm
   };
   const parseCSV = (csvText: string): ParsedCustomer[] => {
     const rawLines = csvText.split(/\r?\n/);
-    const lines = rawLines.filter(line => line.trim());
-    if (lines.length < 2) throw new Error('CSV must have at least a header and one data row');
+    const lines = rawLines.filter((line) => line.trim());
+    if (lines.length < 2)
+      throw new Error("CSV must have at least a header and one data row");
 
     // Auto-detect delimiter (comma, semicolon, or tab)
     const detectDelimiter = (line: string) => {
-      const candidates = [',', ';', '\t'];
-      const counts = candidates.map(d => (line.match(new RegExp(`\\${d}`, 'g')) || []).length);
+      const candidates = [",", ";", "\t"];
+      const counts = candidates.map(
+        (d) => (line.match(new RegExp(`\\${d}`, "g")) || []).length,
+      );
       const maxCount = Math.max(...counts);
-      return candidates[counts.indexOf(maxCount)] || ',';
+      return candidates[counts.indexOf(maxCount)] || ",";
     };
     const delimiter = detectDelimiter(lines[0]);
 
-    const headers = lines[0].split(delimiter).map(h => h.replace(/\r/g, '').trim().replace(/"/g, ''));
+    const headers = lines[0]
+      .split(delimiter)
+      .map((h) => h.replace(/\r/g, "").trim().replace(/"/g, ""));
     const detectedMapping = detectFieldMapping(headers);
     setFieldMapping(detectedMapping);
 
@@ -174,8 +215,10 @@ export const CustomerImportDialog: React.FC<CustomerImportDialogProps> = ({ onIm
     const importErrors: ImportError[] = [];
 
     for (let i = 1; i < lines.length; i++) {
-      const values = lines[i].split(delimiter).map(v => v.replace(/\r/g, '').trim().replace(/"/g, ''));
-      const customer: ParsedCustomer = { email: '' };
+      const values = lines[i]
+        .split(delimiter)
+        .map((v) => v.replace(/\r/g, "").trim().replace(/"/g, ""));
+      const customer: ParsedCustomer = { email: "" };
 
       headers.forEach((header, index) => {
         const mappedField = detectedMapping[header];
@@ -184,28 +227,28 @@ export const CustomerImportDialog: React.FC<CustomerImportDialogProps> = ({ onIm
         if (!value) return;
 
         switch (mappedField) {
-          case 'email':
+          case "email":
             if (!/\S+@\S+\.\S+/.test(value)) {
               importErrors.push({
                 row: i + 1,
-                field: 'email',
-                message: 'Invalid email format',
-                data: { email: value }
+                field: "email",
+                message: "Invalid email format",
+                data: { email: value },
               });
             } else {
               customer.email = value.toLowerCase();
             }
             break;
-          case 'first_name':
+          case "first_name":
             customer.first_name = value;
             break;
-          case 'last_name':
+          case "last_name":
             customer.last_name = value;
             break;
-          case 'phone':
-            customer.phone = value.replace(/\D/g, ''); // Remove non-digits
+          case "phone":
+            customer.phone = value.replace(/\D/g, ""); // Remove non-digits
             break;
-          case 'persona':
+          case "persona":
             // Map persona name to UUID using unified system
             if (value) {
               const personaId = mapPersonaNameToId(value);
@@ -217,32 +260,37 @@ export const CustomerImportDialog: React.FC<CustomerImportDialogProps> = ({ onIm
                 // Log unmapped personas for user awareness
                 importErrors.push({
                   row: i + 1,
-                  field: 'persona',
+                  field: "persona",
                   message: `Unknown persona "${value}" - will be skipped`,
-                  data: { persona: value }
+                  data: { persona: value },
                 });
               }
             }
             break;
-          case 'tags':
-            customer.tags = value.split(',').map(tag => tag.trim()).filter(Boolean);
+          case "tags":
+            customer.tags = value
+              .split(",")
+              .map((tag) => tag.trim())
+              .filter(Boolean);
             break;
-          case 'lifetime_value':
+          case "lifetime_value":
             const ltv = parseFloat(value);
             if (!isNaN(ltv)) customer.lifetime_value = ltv;
             break;
-          case 'last_purchase_date':
+          case "last_purchase_date":
             customer.last_purchase_date = value;
             break;
-          case 'sms_opt_in':
-            customer.sms_opt_in = ['true', '1', 'yes', 'y'].includes(value.toLowerCase());
+          case "sms_opt_in":
+            customer.sms_opt_in = ["true", "1", "yes", "y"].includes(
+              value.toLowerCase(),
+            );
             break;
-          case 'name':
+          case "name":
             // Split name into first and last
-            const nameParts = value.split(' ');
+            const nameParts = value.split(" ");
             if (nameParts.length >= 2) {
               customer.first_name = nameParts[0];
-              customer.last_name = nameParts.slice(1).join(' ');
+              customer.last_name = nameParts.slice(1).join(" ");
             } else {
               customer.first_name = value;
             }
@@ -253,9 +301,9 @@ export const CustomerImportDialog: React.FC<CustomerImportDialogProps> = ({ onIm
       if (!customer.email) {
         importErrors.push({
           row: i + 1,
-          field: 'email',
-          message: 'Email is required',
-          data: customer
+          field: "email",
+          message: "Email is required",
+          data: customer,
         });
       } else {
         customers.push(customer);
@@ -272,7 +320,7 @@ export const CustomerImportDialog: React.FC<CustomerImportDialogProps> = ({ onIm
       reader.onload = (e) => {
         try {
           const data = new Uint8Array(e.target?.result as ArrayBuffer);
-          const workbook = XLSX.read(data, { type: 'array' });
+          const workbook = XLSX.read(data, { type: "array" });
           const sheetName = workbook.SheetNames[0];
           const worksheet = workbook.Sheets[sheetName];
           const csvText = XLSX.utils.sheet_to_csv(worksheet);
@@ -285,52 +333,60 @@ export const CustomerImportDialog: React.FC<CustomerImportDialogProps> = ({ onIm
     });
   };
 
-  const onDrop = useCallback(async (acceptedFiles: File[]) => {
-    const file = acceptedFiles[0];
-    if (!file) return;
+  const onDrop = useCallback(
+    async (acceptedFiles: File[]) => {
+      const file = acceptedFiles[0];
+      if (!file) return;
 
-    setFile(file);
-    setIsProcessing(true);
+      setFile(file);
+      setIsProcessing(true);
 
-    try {
-      let customers: ParsedCustomer[];
+      try {
+        let customers: ParsedCustomer[];
 
-      if (file.name.endsWith('.csv')) {
-        const text = await file.text();
-        customers = parseCSV(text);
-      } else if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
-        customers = await parseExcel(file);
-      } else {
-        throw new Error('Unsupported file format. Please use CSV or Excel files.');
+        if (file.name.endsWith(".csv")) {
+          const text = await file.text();
+          customers = parseCSV(text);
+        } else if (file.name.endsWith(".xlsx") || file.name.endsWith(".xls")) {
+          customers = await parseExcel(file);
+        } else {
+          throw new Error(
+            "Unsupported file format. Please use CSV or Excel files.",
+          );
+        }
+
+        setParsedData(customers);
+        setShowPreview(true);
+
+        toast({
+          title: "File parsed successfully",
+          description: `Found ${customers.length} valid customers with ${errors.length} errors`,
+          duration: 3000,
+        });
+      } catch (error) {
+        console.error("Error parsing file:", error);
+        toast({
+          title: "Error parsing file",
+          description:
+            error instanceof Error ? error.message : "Failed to parse file",
+          variant: "destructive",
+          duration: 5000,
+        });
+      } finally {
+        setIsProcessing(false);
       }
-
-      setParsedData(customers);
-      setShowPreview(true);
-
-      toast({
-        title: "File parsed successfully",
-        description: `Found ${customers.length} valid customers with ${errors.length} errors`,
-        duration: 3000,
-      });
-    } catch (error) {
-      console.error('Error parsing file:', error);
-      toast({
-        title: "Error parsing file",
-        description: error instanceof Error ? error.message : "Failed to parse file",
-        variant: "destructive",
-        duration: 5000,
-      });
-    } finally {
-      setIsProcessing(false);
-    }
-  }, [errors.length, toast]);
+    },
+    [errors.length, toast],
+  );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: {
-      'text/csv': ['.csv'],
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
-      'application/vnd.ms-excel': ['.xls']
+      "text/csv": [".csv"],
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [
+        ".xlsx",
+      ],
+      "application/vnd.ms-excel": [".xls"],
     },
     multiple: false,
     maxSize: 10 * 1024 * 1024, // 10MB
@@ -342,27 +398,29 @@ export const CustomerImportDialog: React.FC<CustomerImportDialogProps> = ({ onIm
     setIsProcessing(true);
     try {
       const { data: user } = await supabase.auth.getUser();
-      if (!user.user) throw new Error('User not authenticated');
+      if (!user.user) throw new Error("User not authenticated");
 
       const { data: userRecord } = await supabase
-        .from('users')
-        .select('tenant_id')
-        .eq('id', user.user.id)
+        .from("users")
+        .select("tenant_id")
+        .eq("id", user.user.id)
         .single();
 
-      if (!userRecord?.tenant_id) throw new Error('User tenant not found');
+      if (!userRecord?.tenant_id) throw new Error("User tenant not found");
 
       // Check for existing customers
-      const emails = parsedData.map(c => c.email);
+      const emails = parsedData.map((c) => c.email);
       const { data: existingCustomers } = await supabase
-        .from('crm_customers')
-        .select('email')
-        .eq('tenant_id', userRecord.tenant_id)
-        .in('email', emails);
+        .from("crm_customers")
+        .select("email")
+        .eq("tenant_id", userRecord.tenant_id)
+        .in("email", emails);
 
-      const existingEmails = new Set(existingCustomers?.map(c => c.email) || []);
+      const existingEmails = new Set(
+        existingCustomers?.map((c) => c.email) || [],
+      );
 
-      let customersToInsert = parsedData.map(customer => {
+      let customersToInsert = parsedData.map((customer) => {
         // Determine the persona_id to use (from parsed data or default)
         let finalPersonaId = customer.persona_id;
 
@@ -385,20 +443,22 @@ export const CustomerImportDialog: React.FC<CustomerImportDialogProps> = ({ onIm
           tenant_id: userRecord.tenant_id,
           user_id: user.user.id,
           // Identity & Profile Behavior Metrics
-          signup_source: 'import',
-          preferred_channel: customer.sms_opt_in ? 'sms' : 'none',
+          signup_source: "import",
+          preferred_channel: customer.sms_opt_in ? "sms" : "none",
         };
       });
 
       if (!updateExisting) {
-        customersToInsert = customersToInsert.filter(c => !existingEmails.has(c.email));
+        customersToInsert = customersToInsert.filter(
+          (c) => !existingEmails.has(c.email),
+        );
       }
 
       const { error } = await supabase
-        .from('crm_customers')
+        .from("crm_customers")
         .upsert(customersToInsert, {
-          onConflict: 'email,tenant_id',
-          ignoreDuplicates: !updateExisting
+          onConflict: "email,tenant_id",
+          ignoreDuplicates: !updateExisting,
         });
 
       if (error) throw error;
@@ -408,35 +468,37 @@ export const CustomerImportDialog: React.FC<CustomerImportDialogProps> = ({ onIm
 
       if (importedCount > 0) {
         try {
-          await supabase.rpc('record_contact_import_event' as never, {
-            p_tenant_id: userRecord.tenant_id,
-            p_source: 'csv_import',
-            p_contact_count: importedCount,
-            p_metadata: {
-              import_type: 'customer_import_dialog',
-              update_existing: updateExisting,
-              parsed_count: parsedData.length,
-              skipped_count: skippedCount,
-            },
-          } as never);
-        } catch (importEventError) {
-          console.warn('Failed to record import activity event:', importEventError);
-        }
+          await supabase.rpc(
+            "record_contact_import_event" as never,
+            {
+              p_tenant_id: userRecord.tenant_id,
+              p_source: "csv_import",
+              p_contact_count: importedCount,
+              p_metadata: {
+                import_type: "customer_import_dialog",
+                update_existing: updateExisting,
+                parsed_count: parsedData.length,
+                skipped_count: skippedCount,
+              },
+            } as never,
+          );
+        } catch (importEventError) {}
       }
 
       toast({
         title: "Import completed",
-        description: `Imported ${importedCount} customers${skippedCount ? `, skipped ${skippedCount} duplicates` : ''}`,
+        description: `Imported ${importedCount} customers${skippedCount ? `, skipped ${skippedCount} duplicates` : ""}`,
         duration: 5000,
       });
 
       resetForm();
       onImportComplete?.();
     } catch (error) {
-      console.error('Error importing customers:', error);
+      console.error("Error importing customers:", error);
       toast({
         title: "Import failed",
-        description: error instanceof Error ? error.message : "Failed to import customers",
+        description:
+          error instanceof Error ? error.message : "Failed to import customers",
         variant: "destructive",
         duration: 5000,
       });
@@ -459,11 +521,11 @@ export const CustomerImportDialog: React.FC<CustomerImportDialogProps> = ({ onIm
 john@example.com,John,Doe,5551234567,regular,"gardening,tools",250.50,2024-01-15,true
 jane@example.com,Jane,Smith,5559876543,newbie,"plants,seeds",75.25,2024-01-10,false`;
 
-    const blob = new Blob([template], { type: 'text/csv' });
+    const blob = new Blob([template], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
-    a.download = 'customer_import_template.csv';
+    a.download = "customer_import_template.csv";
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -492,7 +554,8 @@ jane@example.com,Jane,Smith,5559876543,newbie,"plants,seeds",75.25,2024-01-10,fa
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground mb-3">
-                Download our CSV template to ensure your data is formatted correctly for import.
+                Download our CSV template to ensure your data is formatted
+                correctly for import.
               </p>
               <Button onClick={downloadTemplate} variant="outline" size="sm">
                 <Download className="h-4 w-4 mr-2" />
@@ -510,7 +573,9 @@ jane@example.com,Jane,Smith,5559876543,newbie,"plants,seeds",75.25,2024-01-10,fa
               <div
                 {...getRootProps()}
                 className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
-                  isDragActive ? 'border-primary bg-primary/5' : 'border-muted-foreground/25'
+                  isDragActive
+                    ? "border-primary bg-primary/5"
+                    : "border-muted-foreground/25"
                 }`}
               >
                 <input {...getInputProps()} />
@@ -553,30 +618,44 @@ jane@example.com,Jane,Smith,5559876543,newbie,"plants,seeds",75.25,2024-01-10,fa
                   <Checkbox
                     id="update-existing"
                     checked={updateExisting}
-                    onCheckedChange={(checked) => setUpdateExisting(checked === true)}
+                    onCheckedChange={(checked) =>
+                      setUpdateExisting(checked === true)
+                    }
                   />
-                  <Label htmlFor="update-existing">Update existing customers</Label>
+                  <Label htmlFor="update-existing">
+                    Update existing customers
+                  </Label>
                 </div>
 
                 <div className="flex items-center space-x-2">
                   <Checkbox
                     id="append-tags"
                     checked={appendTags}
-                    onCheckedChange={(checked) => setAppendTags(checked === true)}
+                    onCheckedChange={(checked) =>
+                      setAppendTags(checked === true)
+                    }
                   />
-                  <Label htmlFor="append-tags">Append tags to existing customers</Label>
+                  <Label htmlFor="append-tags">
+                    Append tags to existing customers
+                  </Label>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="default-persona">Default persona for all customers</Label>
+                  <Label htmlFor="default-persona">
+                    Default persona for all customers
+                  </Label>
                   <NativeSelect
                     value={defaultPersona}
                     onChange={(e) => setDefaultPersona(e.target.value)}
                     placeholder="Select a persona (optional)"
-                    options={personas ? personas.map(persona => ({
-                      value: persona.persona_name,
-                      label: persona.persona_name
-                    })) : []}
+                    options={
+                      personas
+                        ? personas.map((persona) => ({
+                            value: persona.persona_name,
+                            label: persona.persona_name,
+                          }))
+                        : []
+                    }
                   />
                 </div>
               </CardContent>
@@ -599,16 +678,22 @@ jane@example.com,Jane,Smith,5559876543,newbie,"plants,seeds",75.25,2024-01-10,fa
               <CardContent>
                 <div className="space-y-4">
                   <div className="flex gap-4 text-sm">
-                    <span className="text-green-600">✓ {parsedData.length} valid customers</span>
+                    <span className="text-green-600">
+                      ✓ {parsedData.length} valid customers
+                    </span>
                     {errors.length > 0 && (
-                      <span className="text-destructive">✗ {errors.length} errors</span>
+                      <span className="text-destructive">
+                        ✗ {errors.length} errors
+                      </span>
                     )}
                   </div>
 
                   {/* Error Summary */}
                   {errors.length > 0 && (
                     <div className="bg-destructive/10 border border-destructive/20 rounded-md p-3">
-                      <h4 className="font-medium text-destructive mb-2">Import Errors:</h4>
+                      <h4 className="font-medium text-destructive mb-2">
+                        Import Errors:
+                      </h4>
                       <div className="space-y-1 text-sm">
                         {errors.slice(0, 5).map((error, index) => (
                           <div key={index}>
@@ -644,10 +729,14 @@ jane@example.com,Jane,Smith,5559876543,newbie,"plants,seeds",75.25,2024-01-10,fa
                             <tr key={index} className="border-t">
                               <td className="p-2">{customer.email}</td>
                               <td className="p-2">
-                                {[customer.first_name, customer.last_name].filter(Boolean).join(' ')}
+                                {[customer.first_name, customer.last_name]
+                                  .filter(Boolean)
+                                  .join(" ")}
                               </td>
-                              <td className="p-2">{customer.phone || '-'}</td>
-                              <td className="p-2">{customer.persona || defaultPersona || '-'}</td>
+                              <td className="p-2">{customer.phone || "-"}</td>
+                              <td className="p-2">
+                                {customer.persona || defaultPersona || "-"}
+                              </td>
                             </tr>
                           ))}
                         </tbody>
@@ -668,7 +757,9 @@ jane@example.com,Jane,Smith,5559876543,newbie,"plants,seeds",75.25,2024-01-10,fa
               onClick={handleImport}
               disabled={!parsedData.length || isProcessing}
             >
-              {isProcessing ? 'Importing...' : `Import ${parsedData.length} Customers`}
+              {isProcessing
+                ? "Importing..."
+                : `Import ${parsedData.length} Customers`}
             </Button>
           </div>
         </div>

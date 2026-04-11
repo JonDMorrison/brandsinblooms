@@ -1,4 +1,3 @@
-
 import { useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -36,56 +35,63 @@ export const OnboardingProgressManager = ({
       try {
         const savedProgressKey = `onboarding-progress-${user.id}`;
         const savedProgressStr = localStorage.getItem(savedProgressKey);
-        
+
         if (savedProgressStr) {
           const savedProgress: SavedProgress = JSON.parse(savedProgressStr);
           const now = Date.now();
           const maxAge = 24 * 60 * 60 * 1000; // 24 hours
-          
+
           // Check if progress is stale (older than 24 hours)
-          if (savedProgress.timestamp && (now - savedProgress.timestamp) > maxAge) {
-            console.log('🧹 OnboardingProgressManager: Clearing stale progress data');
+          if (
+            savedProgress.timestamp &&
+            now - savedProgress.timestamp > maxAge
+          ) {
             localStorage.removeItem(savedProgressKey);
             return;
           }
-          
+
           // Check for stuck analysis attempts (more than 3 failed attempts)
-          if (savedProgress.analysisAttempts && savedProgress.analysisAttempts > 3) {
-            console.log('🧹 OnboardingProgressManager: Clearing progress with too many failed attempts');
+          if (
+            savedProgress.analysisAttempts &&
+            savedProgress.analysisAttempts > 3
+          ) {
             localStorage.removeItem(savedProgressKey);
             return;
           }
-          
-          console.log('📱 OnboardingProgressManager: Loading saved progress:', savedProgress);
-          
           // Restore progress
           if (savedProgress.websiteUrl) {
             setWebsiteUrl(savedProgress.websiteUrl);
           }
-          
+
           // Only restore step 2 if we have meaningful extracted data
           if (savedProgress.currentStep === 2 && savedProgress.extractedData) {
-            const hasValidData = Object.values(savedProgress.extractedData).some(
-              value => typeof value === 'string' && value.trim().length > 0
+            const hasValidData = Object.values(
+              savedProgress.extractedData,
+            ).some(
+              (value) => typeof value === "string" && value.trim().length > 0,
             );
-            
+
             if (hasValidData) {
               setCurrentStep(savedProgress.currentStep);
               // Restore extracted data
-              Object.entries(savedProgress.extractedData).forEach(([field, value]) => {
-                if (typeof value === 'string' && value.trim()) {
-                  updateExtractedData(field, value);
-                }
-              });
+              Object.entries(savedProgress.extractedData).forEach(
+                ([field, value]) => {
+                  if (typeof value === "string" && value.trim()) {
+                    updateExtractedData(field, value);
+                  }
+                },
+              );
             } else {
               // If no valid data, reset to step 1
-              console.log('🔄 OnboardingProgressManager: No valid extracted data, resetting to step 1');
               setCurrentStep(1);
             }
           }
         }
       } catch (error) {
-        console.error('❌ OnboardingProgressManager: Error loading progress:', error);
+        console.error(
+          "❌ OnboardingProgressManager: Error loading progress:",
+          error,
+        );
         // Clear corrupted progress data
         const savedProgressKey = `onboarding-progress-${user.id}`;
         localStorage.removeItem(savedProgressKey);
@@ -108,16 +114,18 @@ export const OnboardingProgressManager = ({
           extractedData,
           timestamp: Date.now(),
         };
-        
+
         // Don't save if we're still on step 1 with no URL
         if (currentStep === 1 && !websiteUrl.trim()) {
           return;
         }
-        
+
         localStorage.setItem(savedProgressKey, JSON.stringify(currentProgress));
-        console.log('💾 OnboardingProgressManager: Progress saved');
       } catch (error) {
-        console.error('❌ OnboardingProgressManager: Error saving progress:', error);
+        console.error(
+          "❌ OnboardingProgressManager: Error saving progress:",
+          error,
+        );
       }
     };
 

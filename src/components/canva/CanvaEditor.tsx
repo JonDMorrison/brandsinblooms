@@ -1,10 +1,10 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Loader2, X } from 'lucide-react';
-import { useCanvaAuth } from '@/hooks/useCanvaAuth';
-import { useUserRole } from '@/hooks/useUserRole';
+import React, { useEffect, useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Loader2, X } from "lucide-react";
+import { useCanvaAuth } from "@/hooks/useCanvaAuth";
+import { useUserRole } from "@/hooks/useUserRole";
 // Removed sonner import - using global toast replacement
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from "@/integrations/supabase/client";
 
 interface CanvaEditorProps {
   isOpen: boolean;
@@ -23,11 +23,11 @@ export const CanvaEditor: React.FC<CanvaEditorProps> = ({
   onClose,
   imageUrl,
   contentTaskId,
-  brandColors = ['#22C55E', '#1E40AF', '#8B5CF6', '#64748B'],
+  brandColors = ["#22C55E", "#1E40AF", "#8B5CF6", "#64748B"],
   logoUrl,
-  titleText = 'Custom Design',
+  titleText = "Custom Design",
   designId,
-  onDesignComplete
+  onDesignComplete,
 }) => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -51,12 +51,12 @@ export const CanvaEditor: React.FC<CanvaEditorProps> = ({
   const handleAuthFlow = async () => {
     setIsLoading(true);
     setError(null);
-    
+
     try {
       await initiateOAuth();
     } catch (err) {
-      console.error('[CANVA_EDITOR] Auth error:', err);
-      setError('Failed to authenticate with Canva. Please try again.');
+      console.error("[CANVA_EDITOR] Auth error:", err);
+      setError("Failed to authenticate with Canva. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -73,14 +73,14 @@ export const CanvaEditor: React.FC<CanvaEditorProps> = ({
       templateImageUrl: imageUrl,
       brandColors: JSON.stringify(brandColors),
       titleText: titleText,
-      accessToken: token || '',
+      accessToken: token || "",
       ...(logoUrl && { logoImageUrl: logoUrl }),
-      ...(designId && { designId: designId })
+      ...(designId && { designId: designId }),
     });
 
     // Mock Canva editor URL - in production this would be the actual Canva API endpoint
     const canvaUrl = `https://www.canva.com/api/design/embed?${params.toString()}`;
-    
+
     // For demo purposes, we'll use a placeholder iframe
     // In production, this would load the actual Canva Button SDK
     const mockCanvaHtml = `
@@ -88,10 +88,10 @@ export const CanvaEditor: React.FC<CanvaEditorProps> = ({
         <head>
           <title>Canva Design Editor</title>
           <style>
-            body { 
-              margin: 0; 
-              padding: 20px; 
-              font-family: Arial, sans-serif; 
+            body {
+              margin: 0;
+              padding: 20px;
+              font-family: Arial, sans-serif;
               background: #f5f5f5;
               display: flex;
               align-items: center;
@@ -136,7 +136,7 @@ export const CanvaEditor: React.FC<CanvaEditorProps> = ({
               <button class="btn" onclick="cancelEdit()" style="background: #6b7280;">Cancel</button>
             </div>
           </div>
-          
+
           <script>
             function saveDesign() {
               // Simulate design completion
@@ -145,13 +145,13 @@ export const CanvaEditor: React.FC<CanvaEditorProps> = ({
                 designId: 'design_${Date.now()}',
                 title: '${titleText}'
               };
-              
+
               window.parent.postMessage({
                 type: 'CANVA_DESIGN_COMPLETE',
                 data: designData
               }, '*');
             }
-            
+
             function cancelEdit() {
               window.parent.postMessage({
                 type: 'CANVA_EDITOR_CLOSE'
@@ -162,13 +162,15 @@ export const CanvaEditor: React.FC<CanvaEditorProps> = ({
       </html>
     `;
 
-    const blob = new Blob([mockCanvaHtml], { type: 'text/html' });
+    const blob = new Blob([mockCanvaHtml], { type: "text/html" });
     const blobUrl = URL.createObjectURL(blob);
     iframeRef.current.src = blobUrl;
 
     // Set timeout for loading
     const loadTimeout = setTimeout(() => {
-      setError('Canva editor failed to load. Please check your network or try again.');
+      setError(
+        "Canva editor failed to load. Please check your network or try again.",
+      );
       setIsLoading(false);
     }, 10000);
 
@@ -177,41 +179,39 @@ export const CanvaEditor: React.FC<CanvaEditorProps> = ({
       setIsLoading(false);
     };
 
-    iframeRef.current.addEventListener('load', handleLoad);
+    iframeRef.current.addEventListener("load", handleLoad);
 
     // Listen for messages from iframe
     const handleMessage = (event: MessageEvent) => {
-      if (event.data.type === 'CANVA_DESIGN_COMPLETE') {
+      if (event.data.type === "CANVA_DESIGN_COMPLETE") {
         handleDesignComplete(event.data.data);
-      } else if (event.data.type === 'CANVA_EDITOR_CLOSE') {
+      } else if (event.data.type === "CANVA_EDITOR_CLOSE") {
         onClose();
       }
     };
 
-    window.addEventListener('message', handleMessage);
+    window.addEventListener("message", handleMessage);
 
     return () => {
       clearTimeout(loadTimeout);
-      window.removeEventListener('message', handleMessage);
+      window.removeEventListener("message", handleMessage);
       if (iframeRef.current) {
-        iframeRef.current.removeEventListener('load', handleLoad);
+        iframeRef.current.removeEventListener("load", handleLoad);
       }
     };
   };
 
   const handleDesignComplete = async (designData: any) => {
     setIsLoading(true);
-    
-    try {
-      console.log('[CANVA_EDITOR] Design completed:', designData);
 
+    try {
       // Upload the design to our media endpoint
-      const response = await supabase.functions.invoke('media-upload', {
+      const response = await supabase.functions.invoke("media-upload", {
         body: {
           fileUrl: designData.exportUrl,
           contentTaskId,
-          canvaDesignId: designData.designId
-        }
+          canvaDesignId: designData.designId,
+        },
       });
 
       if (response.error) {
@@ -219,53 +219,57 @@ export const CanvaEditor: React.FC<CanvaEditorProps> = ({
       }
 
       const { imageUrl: newImageUrl } = response.data;
-      
+
       // Update UI immediately
       onDesignComplete(newImageUrl);
-      
-      toast.success('Canva design saved and updated');
-      onClose();
 
+      toast.success("Canva design saved and updated");
+      onClose();
     } catch (error) {
-      console.error('[CANVA_EDITOR] Save error:', error);
-      
+      console.error("[CANVA_EDITOR] Save error:", error);
+
       // Retry logic with exponential backoff
       let retryCount = 0;
       const maxRetries = 2;
-      
+
       const retryUpload = async () => {
         if (retryCount >= maxRetries) {
-          toast.error('Unable to save design. Please try again later.');
+          toast.error("Unable to save design. Please try again later.");
           return;
         }
-        
+
         retryCount++;
         const delay = retryCount === 1 ? 500 : 1000;
-        
+
         setTimeout(async () => {
           try {
-            const retryResponse = await supabase.functions.invoke('media-upload', {
-              body: {
-                fileUrl: designData.exportUrl,
-                contentTaskId,
-                canvaDesignId: designData.designId
-              }
-            });
-            
+            const retryResponse = await supabase.functions.invoke(
+              "media-upload",
+              {
+                body: {
+                  fileUrl: designData.exportUrl,
+                  contentTaskId,
+                  canvaDesignId: designData.designId,
+                },
+              },
+            );
+
             if (retryResponse.error) throw retryResponse.error;
-            
+
             const { imageUrl: newImageUrl } = retryResponse.data;
             onDesignComplete(newImageUrl);
-            toast.success('Canva design saved and updated');
+            toast.success("Canva design saved and updated");
             onClose();
-            
           } catch (retryError) {
-            console.error(`[CANVA_EDITOR] Retry ${retryCount} failed:`, retryError);
+            console.error(
+              `[CANVA_EDITOR] Retry ${retryCount} failed:`,
+              retryError,
+            );
             retryUpload();
           }
         }, delay);
       };
-      
+
       retryUpload();
     } finally {
       setIsLoading(false);
@@ -302,9 +306,16 @@ export const CanvaEditor: React.FC<CanvaEditorProps> = ({
         <div className="flex items-center justify-between p-4 border-b">
           <div>
             <h3 className="text-lg font-semibold">Design in Canva</h3>
-            <p className="text-sm text-gray-500">Development Preview - Mock Integration</p>
+            <p className="text-sm text-gray-500">
+              Development Preview - Mock Integration
+            </p>
           </div>
-          <Button variant="ghost" size="sm" onClick={onClose} disabled={isLoading}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onClose}
+            disabled={isLoading}
+          >
             <X className="w-4 h-4" />
           </Button>
         </div>

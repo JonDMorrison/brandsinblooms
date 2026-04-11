@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 export interface ImportJobStatus {
   id: string;
-  status: 'pending' | 'running' | 'completed' | 'failed';
+  status: "pending" | "running" | "completed" | "failed";
   progress_percentage: number;
   current_stage: string;
   estimated_completion_at: string | null;
@@ -37,17 +37,16 @@ export const useImportProgress = (jobId: string | null) => {
     const channel = supabase
       .channel(`import-job-progress-${channelId}`)
       .on(
-        'postgres_changes',
+        "postgres_changes",
         {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'import_jobs',
-          filter: `id=eq.${jobId}`
+          event: "UPDATE",
+          schema: "public",
+          table: "import_jobs",
+          filter: `id=eq.${jobId}`,
         },
         (payload) => {
-          console.log('[useImportProgress] Real-time update:', payload);
           setJob(payload.new as ImportJobStatus);
-        }
+        },
       )
       .subscribe();
 
@@ -61,16 +60,16 @@ export const useImportProgress = (jobId: string | null) => {
 
     try {
       const { data, error } = await supabase
-        .from('import_jobs')
-        .select('*')
-        .eq('id', jobId)
+        .from("import_jobs")
+        .select("*")
+        .eq("id", jobId)
         .single();
 
       if (error) throw error;
 
       setJob(data as unknown as ImportJobStatus);
     } catch (error) {
-      console.error('[useImportProgress] Error fetching job:', error);
+      console.error("[useImportProgress] Error fetching job:", error);
     } finally {
       setLoading(false);
     }
@@ -79,11 +78,11 @@ export const useImportProgress = (jobId: string | null) => {
   return {
     job,
     loading,
-    isRunning: job?.status === 'running',
-    isCompleted: job?.status === 'completed',
-    isFailed: job?.status === 'failed',
+    isRunning: job?.status === "running",
+    isCompleted: job?.status === "completed",
+    isFailed: job?.status === "failed",
     progress: job?.progress_percentage || 0,
-    stage: job?.current_stage || 'Initializing...',
-    refetch: fetchJob
+    stage: job?.current_stage || "Initializing...",
+    refetch: fetchJob,
   };
 };

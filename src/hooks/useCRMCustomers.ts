@@ -16,196 +16,237 @@ export interface CRMCustomer {
   created_at: string;
   total_spent?: number;
   last_purchase_date?: string;
-  assigned_personas?: any[]; // New field for many-to-many relationships
+  assigned_personas?: Array<{
+    persona_id?: string | null;
+    predefined_persona_id?: string | null;
+    personas?: {
+      persona_name?: string;
+    } | null;
+  }>;
 }
 
 export const useCRMCustomers = () => {
   const [customers, setCustomers] = useState<CRMCustomer[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
   const { user } = useAuth();
   const { tenant } = useTenant();
   const { personas } = useCRMPersonas();
 
   const fetchCustomers = useCallback(async () => {
     if (!user || !tenant?.id) return;
-    
+
     try {
       setLoading(true);
       // Fetch customers with their persona assignments (left join to include customers without personas)
       const { data, error } = await supabase
-        .from('crm_customers')
-        .select(`
+        .from("crm_customers")
+        .select(
+          `
           *,
           customer_personas(
             persona_id,
-            predefined_persona_id,
-            personas:persona_id(persona_name)
+            predefined_persona_id
           )
-        `)
-        .eq('tenant_id', tenant.id)
-        .order('created_at', { ascending: false })
-        .limit(500); // FIX: [issue #37] - Add pagination limit to prevent unbounded fetches
+        `,
+        )
+        .eq("tenant_id", tenant.id)
+            .order("created_at", { ascending: false })
+            .limit(500); // FIX: [issue #37] - Add pagination limit to prevent unbounded fetches
 
       if (error) throw error;
 
       // Transform the data to include persona information
-      const customersWithPersonas = (data || []).map(customer => ({
+      const customersWithPersonas = (data || []).map((customer) => ({
         ...customer,
-        assigned_personas: customer.customer_personas || []
+        assigned_personas: (customer.customer_personas || []).map(
+          (assignment) => {
+            const customPersona = assignment.persona_id
+              ? personas.find((persona) => persona.id === assignment.persona_id)
+              : null;
+
+            return {
+              ...assignment,
+              personas: customPersona
+                ? { persona_name: customPersona.persona_name }
+                : null,
+            };
+          },
+        ),
       }));
-      
+
       setCustomers(customersWithPersonas);
     } catch (error) {
-      console.error('Error fetching customers:', error);
+      console.error("Error fetching customers:", error);
       // Fallback to simple fetch if join fails
       try {
         const { data, error: fallbackError } = await supabase
-          .from('crm_customers')
-          .select('*')
-          .eq('tenant_id', tenant.id)
-          .order('created_at', { ascending: false })
+          .from("crm_customers")
+          .select("*")
+          .eq("tenant_id", tenant.id)
+          .order("created_at", { ascending: false })
           .limit(500); // FIX: [issue #37] - Add pagination limit to prevent unbounded fetches
 
         if (fallbackError) throw fallbackError;
         setCustomers(data || []);
       } catch (fallbackError) {
-        console.error('Fallback fetch also failed:', fallbackError);
+        console.error("Fallback fetch also failed:", fallbackError);
       }
     } finally {
       setLoading(false);
     }
-  }, [user, tenant?.id]);
+  }, [personas, user, tenant?.id]);
 
-  const assignPersonaToCustomer = async (customerId: string, personaName: string): Promise<boolean> => {
+  const assignPersonaToCustomer = async (
+    customerId: string,
+    personaName: string,
+  ): Promise<boolean> => {
     if (!user || !tenant?.id) return false;
 
     try {
       // First, check if this is a predefined persona or custom persona
-      const isCustomPersona = personas.some(p => p.persona_name === personaName && p.is_custom);
-      
+      const isCustomPersona = personas.some(
+        (p) => p.persona_name === personaName && p.is_custom,
+      );
+
       if (isCustomPersona) {
         // For custom personas, use the customer_personas table
-        const customPersona = personas.find(p => p.persona_name === personaName && p.is_custom);
+        const customPersona = personas.find(
+          (p) => p.persona_name === personaName && p.is_custom,
+        );
         if (!customPersona) return false;
 
-        const { error } = await supabase
-          .from('customer_personas')
-          .insert({
-            customer_id: customerId,
-            persona_id: customPersona.id
-          });
+        const { error } = await supabase.from("customer_personas").insert({
+          customer_id: customerId,
+          persona_id: customPersona.id,
+        });
 
-        if (error && error.code !== '23505') { // Ignore duplicate key errors
+        if (error && error.code !== "23505") {
+          // Ignore duplicate key errors
           throw error;
         }
       } else {
         // For system personas, use the customer_personas table with predefined_persona_id
-        const { error } = await supabase
-          .from('customer_personas')
-          .insert({
-            customer_id: customerId,
-            predefined_persona_id: personaName
-          });
+        const { error } = await supabase.from("customer_personas").insert({
+          customer_id: customerId,
+          predefined_persona_id: personaName,
+        });
 
-        if (error && error.code !== '23505') { // Ignore duplicate key errors
+        if (error && error.code !== "23505") {
+          // Ignore duplicate key errors
           throw error;
         }
       }
-      
+
       // Update local state optimistically instead of refetching all data
-      setCustomers(prev => prev.map(customer => {
-        if (customer.id === customerId) {
-          const newAssignment = isCustomPersona 
-            ? { persona_id: personas.find(p => p.persona_name === personaName)?.id, predefined_persona_id: null }
-            : { persona_id: null, predefined_persona_id: personaName };
-          
-          return {
-            ...customer,
-            assigned_personas: [...(customer.assigned_personas || []), newAssignment]
-          };
-        }
-        return customer;
-      }));
-      
+      setCustomers((prev) =>
+        prev.map((customer) => {
+          if (customer.id === customerId) {
+            const newAssignment = isCustomPersona
+              ? {
+                  persona_id: personas.find(
+                    (p) => p.persona_name === personaName,
+                  )?.id,
+                  predefined_persona_id: null,
+                  personas: { persona_name: personaName },
+                }
+              : { persona_id: null, predefined_persona_id: personaName };
+
+            return {
+              ...customer,
+              assigned_personas: [
+                ...(customer.assigned_personas || []),
+                newAssignment,
+              ],
+            };
+          }
+          return customer;
+        }),
+      );
+
       return true;
     } catch (error) {
-      console.error('Error assigning persona to customer:', error);
+      console.error("Error assigning persona to customer:", error);
       return false;
     }
   };
 
-  const removePersonaFromCustomer = async (customerId: string): Promise<boolean> => {
+  const removePersonaFromCustomer = async (
+    customerId: string,
+  ): Promise<boolean> => {
     if (!user || !tenant?.id) return false;
 
     try {
       // Remove from customer_personas table (handles both custom and system personas)
       const { error } = await supabase
-        .from('customer_personas')
+        .from("customer_personas")
         .delete()
-        .eq('customer_id', customerId);
+        .eq("customer_id", customerId);
 
       if (error) throw error;
-      
+
       // Also clear legacy persona field for backwards compatibility
       const { error: legacyError } = await supabase
-        .from('crm_customers')
-        .update({ 
+        .from("crm_customers")
+        .update({
           persona: null,
           persona_id: null,
           persona_assignment_method: null,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
         })
-        .eq('id', customerId)
-        .eq('tenant_id', tenant.id);
+        .eq("id", customerId)
+        .eq("tenant_id", tenant.id);
 
-      if (legacyError) console.warn('Error clearing legacy persona field:', legacyError);
-      
       // Update local state optimistically instead of refetching all data
-      setCustomers(prev => prev.map(customer => {
-        if (customer.id === customerId) {
-          return {
-            ...customer,
-            persona: null,
-            persona_id: null,
-            assigned_personas: []
-          };
-        }
-        return customer;
-      }));
-      
+      setCustomers((prev) =>
+        prev.map((customer) => {
+          if (customer.id === customerId) {
+            return {
+              ...customer,
+              persona: null,
+              persona_id: null,
+              assigned_personas: [],
+            };
+          }
+          return customer;
+        }),
+      );
+
       return true;
     } catch (error) {
-      console.error('Error removing persona from customer:', error);
+      console.error("Error removing persona from customer:", error);
       return false;
     }
   };
 
   const getCustomersByPersona = (personaName: string) => {
-    return customers.filter(customer => {
+    return customers.filter((customer) => {
       // Check both legacy persona field and new many-to-many relationships
       const hasLegacyPersona = customer.persona === personaName;
-      const hasNewPersona = customer.assigned_personas?.some(assignment => 
-        assignment.predefined_persona_id === personaName ||
-        assignment.personas?.persona_name === personaName
+      const hasNewPersona = customer.assigned_personas?.some(
+        (assignment) =>
+          assignment.predefined_persona_id === personaName ||
+          assignment.personas?.persona_name === personaName,
       );
       return hasLegacyPersona || hasNewPersona;
     });
   };
 
   const getUnassignedCustomers = () => {
-    return customers.filter(customer => {
+    return customers.filter((customer) => {
       const hasLegacyPersona = !!customer.persona;
-      const hasNewPersona = customer.assigned_personas && customer.assigned_personas.length > 0;
+      const hasNewPersona =
+        customer.assigned_personas && customer.assigned_personas.length > 0;
       return !hasLegacyPersona && !hasNewPersona;
     });
   };
 
   // Filter customers based on search term
-  const filteredCustomers = customers.filter(customer =>
-    customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (customer.first_name?.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    (customer.last_name?.toLowerCase().includes(searchTerm.toLowerCase()))
+  const filteredCustomers = customers.filter(
+    (customer) =>
+      customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      customer.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      customer.last_name?.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
   useEffect(() => {
@@ -221,6 +262,6 @@ export const useCRMCustomers = () => {
     assignPersonaToCustomer,
     removePersonaFromCustomer,
     getCustomersByPersona,
-    getUnassignedCustomers
+    getUnassignedCustomers,
   };
 };

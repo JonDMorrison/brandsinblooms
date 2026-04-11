@@ -1,14 +1,14 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
+import { useState, useEffect, useCallback, useRef } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 function getErrorMessage(err: unknown) {
   if (err instanceof Error) return err.message;
-  if (typeof err === 'string') return err;
+  if (typeof err === "string") return err;
   try {
     return JSON.stringify(err);
   } catch {
-    return 'Unknown error';
+    return "Unknown error";
   }
 }
 
@@ -73,38 +73,54 @@ interface UseCampaignDerivedMetricsResult {
 const STALE_THRESHOLD_MS = 2 * 60 * 1000; // 2 minutes
 
 const toNumber = (value: unknown, fallback = 0): number => {
-  const parsed = typeof value === 'string' ? Number(value) : (value as number);
+  const parsed = typeof value === "string" ? Number(value) : (value as number);
   return Number.isFinite(parsed) ? parsed : fallback;
 };
 
-export const normalizeDerivedMetrics = (value: unknown): DerivedMetrics | null => {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+export const normalizeDerivedMetrics = (
+  value: unknown,
+): DerivedMetrics | null => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
 
   const candidate = value as Record<string, any>;
-  const totalsSource = candidate.totals && typeof candidate.totals === 'object'
-    ? candidate.totals
-    : candidate;
-  const ratesSource = candidate.rates && typeof candidate.rates === 'object'
-    ? candidate.rates
-    : {};
-  const scoresSource = candidate.scores && typeof candidate.scores === 'object'
-    ? candidate.scores
-    : {};
-  const diagnosticsSource = candidate.diagnostics && typeof candidate.diagnostics === 'object'
-    ? candidate.diagnostics
-    : {};
-  const reconciliationSource = candidate.reconciliation && typeof candidate.reconciliation === 'object'
-    ? candidate.reconciliation
-    : {};
+  const totalsSource =
+    candidate.totals && typeof candidate.totals === "object"
+      ? candidate.totals
+      : candidate;
+  const ratesSource =
+    candidate.rates && typeof candidate.rates === "object"
+      ? candidate.rates
+      : {};
+  const scoresSource =
+    candidate.scores && typeof candidate.scores === "object"
+      ? candidate.scores
+      : {};
+  const diagnosticsSource =
+    candidate.diagnostics && typeof candidate.diagnostics === "object"
+      ? candidate.diagnostics
+      : {};
+  const reconciliationSource =
+    candidate.reconciliation && typeof candidate.reconciliation === "object"
+      ? candidate.reconciliation
+      : {};
 
   const sent = toNumber(totalsSource.sent ?? candidate.total_sent, 0);
   const delivered = toNumber(totalsSource.delivered, 0);
   const hardBounces = toNumber(
-    totalsSource.hard_bounces ?? totalsSource.hardBounced ?? totalsSource.bounces ?? candidate.hard_bounces,
+    totalsSource.hard_bounces ??
+      totalsSource.hardBounced ??
+      totalsSource.bounces ??
+      candidate.hard_bounces,
     0,
   );
-  const opens = toNumber(totalsSource.opens ?? totalsSource.opened ?? candidate.total_opens, 0);
-  const clicks = toNumber(totalsSource.clicks ?? totalsSource.clicked ?? candidate.total_clicks, 0);
+  const opens = toNumber(
+    totalsSource.opens ?? totalsSource.opened ?? candidate.total_opens,
+    0,
+  );
+  const clicks = toNumber(
+    totalsSource.clicks ?? totalsSource.clicked ?? candidate.total_clicks,
+    0,
+  );
   const opensNonMpp = toNumber(totalsSource.opens_non_mpp, 0);
   const successfulReach = toNumber(
     totalsSource.successful_reach,
@@ -126,8 +142,14 @@ export const normalizeDerivedMetrics = (value: unknown): DerivedMetrics | null =
       clicks,
       bounces: toNumber(totalsSource.bounces ?? totalsSource.bounced, 0),
       hard_bounces: hardBounces,
-      complaints: toNumber(totalsSource.complaints ?? totalsSource.complained, 0),
-      unsubscribes: toNumber(totalsSource.unsubscribes ?? totalsSource.unsubscribed, 0),
+      complaints: toNumber(
+        totalsSource.complaints ?? totalsSource.complained,
+        0,
+      ),
+      unsubscribes: toNumber(
+        totalsSource.unsubscribes ?? totalsSource.unsubscribed,
+        0,
+      ),
       opens_non_mpp: opensNonMpp,
       unique_engaged: uniqueEngaged,
       skipped: toNumber(totalsSource.skipped, 0),
@@ -139,7 +161,9 @@ export const normalizeDerivedMetrics = (value: unknown): DerivedMetrics | null =
       ),
       interaction: toNumber(
         scoresSource.interaction,
-        successfulReach > 0 ? Number(((uniqueEngaged / successfulReach) * 100).toFixed(2)) : 0,
+        successfulReach > 0
+          ? Number(((uniqueEngaged / successfulReach) * 100).toFixed(2))
+          : 0,
       ),
     },
     rates: {
@@ -149,15 +173,21 @@ export const normalizeDerivedMetrics = (value: unknown): DerivedMetrics | null =
       ),
       open_reported: toNumber(
         ratesSource.open_reported,
-        successfulReach > 0 ? Number(((opens / successfulReach) * 100).toFixed(2)) : 0,
+        successfulReach > 0
+          ? Number(((opens / successfulReach) * 100).toFixed(2))
+          : 0,
       ),
       open_adjusted: toNumber(
         ratesSource.open_adjusted,
-        successfulReach > 0 ? Number(((opensNonMpp / successfulReach) * 100).toFixed(2)) : 0,
+        successfulReach > 0
+          ? Number(((opensNonMpp / successfulReach) * 100).toFixed(2))
+          : 0,
       ),
       click: toNumber(
         ratesSource.click,
-        successfulReach > 0 ? Number(((clicks / successfulReach) * 100).toFixed(2)) : 0,
+        successfulReach > 0
+          ? Number(((clicks / successfulReach) * 100).toFixed(2))
+          : 0,
       ),
       bounce: toNumber(
         ratesSource.bounce,
@@ -170,31 +200,41 @@ export const normalizeDerivedMetrics = (value: unknown): DerivedMetrics | null =
       ),
     },
     diagnostics: {
-      opens_without_delivery: toNumber(diagnosticsSource.opens_without_delivery, 0),
-      clicks_without_delivery: toNumber(diagnosticsSource.clicks_without_delivery, 0),
+      opens_without_delivery: toNumber(
+        diagnosticsSource.opens_without_delivery,
+        0,
+      ),
+      clicks_without_delivery: toNumber(
+        diagnosticsSource.clicks_without_delivery,
+        0,
+      ),
       missing_send_ledger: Boolean(diagnosticsSource.missing_send_ledger),
     },
     reconciliation: {
       backfill_applied: Boolean(reconciliationSource.backfill_applied),
       backfilled_events: toNumber(reconciliationSource.backfilled_events, 0),
-      last_backfilled_at: typeof reconciliationSource.last_backfilled_at === 'string'
-        ? reconciliationSource.last_backfilled_at
-        : null,
+      last_backfilled_at:
+        typeof reconciliationSource.last_backfilled_at === "string"
+          ? reconciliationSource.last_backfilled_at
+          : null,
     },
     links: Array.isArray(candidate.links)
       ? candidate.links.map((link: any) => ({
-          link_id: typeof link?.link_id === 'string' ? link.link_id : 'unknown',
-          url: typeof link?.url === 'string' ? link.url : 'Unknown',
+          link_id: typeof link?.link_id === "string" ? link.link_id : "unknown",
+          url: typeof link?.url === "string" ? link.url : "Unknown",
           clicks: toNumber(link?.clicks, 0),
         }))
       : [],
-    computed_at: typeof candidate.computed_at === 'string'
-      ? candidate.computed_at
-      : new Date().toISOString(),
+    computed_at:
+      typeof candidate.computed_at === "string"
+        ? candidate.computed_at
+        : new Date().toISOString(),
   };
 };
 
-export const useCampaignDerivedMetrics = (campaignId: string | undefined): UseCampaignDerivedMetricsResult => {
+export const useCampaignDerivedMetrics = (
+  campaignId: string | undefined,
+): UseCampaignDerivedMetricsResult => {
   const [metrics, setMetrics] = useState<DerivedMetrics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -207,7 +247,9 @@ export const useCampaignDerivedMetrics = (campaignId: string | undefined): UseCa
   // Check if data is stale (rollup older than last event by threshold)
   const isStale = (() => {
     if (!rollupRefreshedAt || !lastEventAt) return false;
-    return lastEventAt.getTime() - rollupRefreshedAt.getTime() > STALE_THRESHOLD_MS;
+    return (
+      lastEventAt.getTime() - rollupRefreshedAt.getTime() > STALE_THRESHOLD_MS
+    );
   })();
 
   const fetchMetrics = useCallback(async () => {
@@ -222,23 +264,23 @@ export const useCampaignDerivedMetrics = (campaignId: string | undefined): UseCa
 
       // Fetch campaign with metrics
       const { data: campaign, error: campaignError } = await supabase
-        .from('crm_campaigns')
-        .select('metrics, rollup_refreshed_at')
-        .eq('id', campaignId)
+        .from("crm_campaigns")
+        .select("metrics, rollup_refreshed_at")
+        .eq("id", campaignId)
         .single();
 
       if (campaignError) throw campaignError;
 
       // Get latest event timestamp to check staleness
       const { data: latestEvent } = await supabase
-        .from('email_tracking_events')
-        .select('created_at')
-        .eq('campaign_id', campaignId)
-        .order('created_at', { ascending: false })
+        .from("email_tracking_events")
+        .select("created_at")
+        .eq("campaign_id", campaignId)
+        .order("created_at", { ascending: false })
         .limit(1)
         .single();
 
-      if (campaign?.metrics && typeof campaign.metrics === 'object') {
+      if (campaign?.metrics && typeof campaign.metrics === "object") {
         setMetrics(normalizeDerivedMetrics(campaign.metrics));
       }
 
@@ -252,7 +294,7 @@ export const useCampaignDerivedMetrics = (campaignId: string | undefined): UseCa
 
       setLastRefreshed(new Date());
     } catch (err: unknown) {
-      console.error('Error fetching derived metrics:', err);
+      console.error("Error fetching derived metrics:", err);
       setError(getErrorMessage(err));
     } finally {
       setLoading(false);
@@ -265,9 +307,12 @@ export const useCampaignDerivedMetrics = (campaignId: string | undefined): UseCa
     try {
       setLoading(true);
 
-      const { data, error: rpcError } = await supabase.rpc('recompute_campaign_metrics', {
-        p_campaign_id: campaignId
-      });
+      const { data, error: rpcError } = await supabase.rpc(
+        "recompute_campaign_metrics",
+        {
+          p_campaign_id: campaignId,
+        },
+      );
 
       if (rpcError) throw rpcError;
 
@@ -275,11 +320,11 @@ export const useCampaignDerivedMetrics = (campaignId: string | undefined): UseCa
         setMetrics(normalizeDerivedMetrics(data));
         setRollupRefreshedAt(new Date());
         setLastRefreshed(new Date());
-        toast.success('Metrics recalculated');
+        toast.success("Metrics recalculated");
       }
     } catch (err: unknown) {
-      console.error('Error recomputing metrics:', err);
-      toast.error('Failed to recalculate metrics');
+      console.error("Error recomputing metrics:", err);
+      toast.error("Failed to recalculate metrics");
       setError(getErrorMessage(err));
     } finally {
       setLoading(false);
@@ -298,16 +343,15 @@ export const useCampaignDerivedMetrics = (campaignId: string | undefined): UseCa
     const channel = supabase
       .channel(`campaign-events-${campaignId}`)
       .on(
-        'postgres_changes',
+        "postgres_changes",
         {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'email_tracking_events',
-          filter: `campaign_id=eq.${campaignId}`
+          event: "INSERT",
+          schema: "public",
+          table: "email_tracking_events",
+          filter: `campaign_id=eq.${campaignId}`,
         },
         (payload) => {
           if (import.meta.env.DEV) {
-            console.debug('New tracking event:', payload);
           }
           // Avoid rerendering this metrics card for every single tracking insert.
           const nowMs = Date.now();
@@ -316,7 +360,7 @@ export const useCampaignDerivedMetrics = (campaignId: string | undefined): UseCa
             setLastEventAt(new Date());
           }
           // Debounced refresh could be added here
-        }
+        },
       )
       .subscribe();
 
@@ -332,6 +376,6 @@ export const useCampaignDerivedMetrics = (campaignId: string | undefined): UseCa
     lastRefreshed,
     isStale,
     recompute,
-    refresh: fetchMetrics
+    refresh: fetchMetrics,
   };
 };

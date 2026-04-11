@@ -11,15 +11,15 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { 
-  Mail, 
-  Megaphone, 
-  Calendar, 
-  BarChart3, 
+import {
+  Mail,
+  Megaphone,
+  Calendar,
+  BarChart3,
   Share2,
   ChevronLeft,
   ChevronRight,
-  X
+  X,
 } from "lucide-react";
 
 interface QuickStartTourProps {
@@ -29,70 +29,87 @@ interface QuickStartTourProps {
 
 const tourSteps = [
   {
-    id: 'newsletter',
-    title: 'Send Your First Newsletter',
-    description: 'Create a beautiful email campaign in just 3 minutes',
+    id: "newsletter",
+    title: "Send Your First Newsletter",
+    description: "Create a beautiful email campaign in just 3 minutes",
     icon: <Mail className="w-8 h-8 text-blue-600" />,
-    action: 'Create Newsletter',
-    route: '/crm/campaigns/new?type=newsletter',
+    action: "Create Newsletter",
+    route: "/crm/campaigns/new?type=newsletter",
     tips: [
-      'Choose from pre-made templates',
-      'AI helps write your content',
-      'Send immediately or schedule for later'
-    ]
+      "Choose from pre-made templates",
+      "AI helps write your content",
+      "Send immediately or schedule for later",
+    ],
   },
   {
-    id: 'campaign',
-    title: 'Automate Customer Welcomes',
-    description: 'Set up automated welcome messages for new customers',
-    icon: <Megaphone className="w-8 h-8" style={{ color: 'hsl(var(--brand-teal))' }} />,
-    action: 'Build Automation',
-    route: '/crm/automations/new?mode=quick',
+    id: "campaign",
+    title: "Automate Customer Welcomes",
+    description: "Set up automated welcome messages for new customers",
+    icon: (
+      <Megaphone
+        className="w-8 h-8"
+        style={{ color: "hsl(var(--brand-teal))" }}
+      />
+    ),
+    action: "Build Automation",
+    route: "/crm/automations/new?mode=quick",
     tips: [
-      'Welcome new customers automatically',
-      'Send SMS or email sequences',
-      'Increase customer retention'
-    ]
+      "Welcome new customers automatically",
+      "Send SMS or email sequences",
+      "Increase customer retention",
+    ],
   },
   {
-    id: 'calendar',
-    title: 'Plan Holiday Content',
-    description: 'Schedule seasonal campaigns and promotions',
-    icon: <Calendar className="w-8 h-8" style={{ color: 'hsl(var(--brand-navy))' }} />,
-    action: 'Open Calendar',
-    route: '/calendar',
+    id: "calendar",
+    title: "Plan Holiday Content",
+    description: "Schedule seasonal campaigns and promotions",
+    icon: (
+      <Calendar
+        className="w-8 h-8"
+        style={{ color: "hsl(var(--brand-navy))" }}
+      />
+    ),
+    action: "Open Calendar",
+    route: "/calendar",
     tips: [
-      'See all upcoming holidays',
-      'Plan seasonal campaigns',
-      'Never miss important dates'
-    ]
+      "See all upcoming holidays",
+      "Plan seasonal campaigns",
+      "Never miss important dates",
+    ],
   },
   {
-    id: 'social',
-    title: 'Post with One Click',
-    description: 'Share beautiful content across all your social platforms',
-    icon: <Share2 className="w-8 h-8" style={{ color: 'hsl(var(--brand-teal))' }} />,
-    action: 'Create Post',
-    route: '/publish',
+    id: "social",
+    title: "Post with One Click",
+    description: "Share beautiful content across all your social platforms",
+    icon: (
+      <Share2 className="w-8 h-8" style={{ color: "hsl(var(--brand-teal))" }} />
+    ),
+    action: "Create Post",
+    route: "/publish",
     tips: [
-      'AI generates post content',
-      'Beautiful images from Unsplash',
-      'Schedule across all platforms'
-    ]
+      "AI generates post content",
+      "Beautiful images from Unsplash",
+      "Schedule across all platforms",
+    ],
   },
   {
-    id: 'analytics',
-    title: 'Track Your Results',
-    description: 'See how your campaigns are performing',
-    icon: <BarChart3 className="w-8 h-8" style={{ color: 'hsl(var(--brand-navy))' }} />,
-    action: 'View Analytics',
-    route: '/analytics',
+    id: "analytics",
+    title: "Track Your Results",
+    description: "See how your campaigns are performing",
+    icon: (
+      <BarChart3
+        className="w-8 h-8"
+        style={{ color: "hsl(var(--brand-navy))" }}
+      />
+    ),
+    action: "View Analytics",
+    route: "/analytics",
     tips: [
-      'Track email open rates',
-      'Monitor social engagement',
-      'Understand your customers better'
-    ]
-  }
+      "Track email open rates",
+      "Monitor social engagement",
+      "Understand your customers better",
+    ],
+  },
 ];
 
 export const QuickStartTour = ({ isOpen, onClose }: QuickStartTourProps) => {
@@ -113,20 +130,18 @@ export const QuickStartTour = ({ isOpen, onClose }: QuickStartTourProps) => {
 
   const handleTakeAction = () => {
     const step = tourSteps[currentStep];
-    localStorage.setItem('dashboardTourDone', 'true');
+    localStorage.setItem("dashboardTourDone", "true");
     navigate(step.route);
     onClose();
   };
 
   const handleFinishTour = () => {
-    localStorage.setItem('dashboardTourDone', 'true');
-    console.log('Tour finished - localStorage set');
+    localStorage.setItem("dashboardTourDone", "true");
     onClose();
   };
 
   const handleClose = () => {
-    localStorage.setItem('dashboardTourDone', 'true');
-    console.log('Tour closed - localStorage set');
+    localStorage.setItem("dashboardTourDone", "true");
     onClose();
   };
 
@@ -165,7 +180,7 @@ export const QuickStartTour = ({ isOpen, onClose }: QuickStartTourProps) => {
                   <p className="text-muted-foreground mb-4">
                     {currentStepData.description}
                   </p>
-                  
+
                   <div className="space-y-2 mb-4">
                     {currentStepData.tips.map((tip, index) => (
                       <div key={index} className="flex items-center gap-2">
@@ -185,8 +200,8 @@ export const QuickStartTour = ({ isOpen, onClose }: QuickStartTourProps) => {
         </div>
 
         <div className="flex items-center justify-between pt-6">
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             onClick={handlePrevious}
             disabled={currentStep === 0}
           >
@@ -199,20 +214,18 @@ export const QuickStartTour = ({ isOpen, onClose }: QuickStartTourProps) => {
               <div
                 key={index}
                 className={`w-2 h-2 rounded-full ${
-                  index === currentStep 
-                    ? 'bg-primary' 
-                    : index < currentStep 
-                      ? 'bg-primary/50' 
-                      : 'bg-gray-200'
+                  index === currentStep
+                    ? "bg-primary"
+                    : index < currentStep
+                      ? "bg-primary/50"
+                      : "bg-gray-200"
                 }`}
               />
             ))}
           </div>
 
           {currentStep === tourSteps.length - 1 ? (
-            <Button onClick={handleFinishTour}>
-              Finish Tour
-            </Button>
+            <Button onClick={handleFinishTour}>Finish Tour</Button>
           ) : (
             <Button onClick={handleNext}>
               Next

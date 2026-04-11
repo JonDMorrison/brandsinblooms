@@ -1,7 +1,6 @@
-
-import React from 'react';
-import { UnsplashImage as UnsplashImageType } from '@/services/unsplashService';
-import { UnsplashAttribution } from '@/components/image/UnsplashAttribution';
+import React from "react";
+import { UnsplashImage as UnsplashImageType } from "@/services/unsplashService";
+import { UnsplashAttribution } from "@/components/image/UnsplashAttribution";
 
 interface UnsplashImageProps {
   image: UnsplashImageType | null;
@@ -12,13 +11,13 @@ interface UnsplashImageProps {
   attributionClassName?: string;
 }
 
-export const UnsplashImage: React.FC<UnsplashImageProps> = ({ 
-  image, 
+export const UnsplashImage: React.FC<UnsplashImageProps> = ({
+  image,
   className = "rounded-md object-cover w-full h-[180px]",
   fallback = null,
   onClick,
   showAttribution = true,
-  attributionClassName = ""
+  attributionClassName = "",
 }) => {
   if (!image?.url) {
     return fallback ? <>{fallback}</> : null;
@@ -29,7 +28,7 @@ export const UnsplashImage: React.FC<UnsplashImageProps> = ({
       onClick();
     } else {
       // Default behavior: open full image in new tab
-      window.open(image.url, '_blank');
+      window.open(image.url, "_blank");
     }
   };
 
@@ -42,9 +41,8 @@ export const UnsplashImage: React.FC<UnsplashImageProps> = ({
           loading="lazy"
           className={`${className} hover:brightness-105 transition-all duration-200 group-hover:scale-[1.02]`}
           onError={(e) => {
-            console.warn('Image load error:', image.url);
             // Hide broken images gracefully
-            e.currentTarget.style.display = 'none';
+            e.currentTarget.style.display = "none";
           }}
         />
         {image.photographer && (
@@ -53,7 +51,7 @@ export const UnsplashImage: React.FC<UnsplashImageProps> = ({
           </div>
         )}
       </div>
-      
+
       {showAttribution && image.photographer && image.unsplash_id && (
         <UnsplashAttribution
           photographer={image.photographer}

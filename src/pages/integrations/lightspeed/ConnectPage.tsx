@@ -76,9 +76,7 @@ export default function LightspeedConnectPage() {
       channel.onmessage = (event) => {
         handleOAuthResult(event.data);
       };
-    } catch (e) {
-      console.log("[LS-Connect] BroadcastChannel not supported");
-    }
+    } catch (e) {}
 
     // Method 3: Listen to postMessage
     const handleMessage = (event: MessageEvent) => {

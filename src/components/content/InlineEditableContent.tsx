@@ -1,13 +1,12 @@
-
-import React, { useState, useEffect } from 'react';
-import { Textarea } from '@/components/ui/textarea';
-import { supabase } from '@/integrations/supabase/client';
+import React, { useState, useEffect } from "react";
+import { Textarea } from "@/components/ui/textarea";
+import { supabase } from "@/integrations/supabase/client";
 import { showToast } from "@/utils/toastUtils";
-import { TaskActions } from './task-item/TaskActions';
-import { SocialMediaPostPreview } from './task-item/SocialMediaPostPreview';
-import { MagazineContentDisplay } from './task-item/MagazineContentDisplay';
-import { cleanContentForDisplay } from '@/utils/contentUtils';
-import { NewsletterEditor } from './NewsletterEditor';
+import { TaskActions } from "./task-item/TaskActions";
+import { SocialMediaPostPreview } from "./task-item/SocialMediaPostPreview";
+import { MagazineContentDisplay } from "./task-item/MagazineContentDisplay";
+import { cleanContentForDisplay } from "@/utils/contentUtils";
+import { NewsletterEditor } from "./NewsletterEditor";
 
 interface InlineEditableContentProps {
   task: any;
@@ -16,77 +15,72 @@ interface InlineEditableContentProps {
 
 // Detect if task contains structured (YAML-based) newsletter content
 const isStructuredNewsletter = (task: any): boolean => {
-  const out: string = task?.ai_output || '';
-  const type: string = task?.post_type || '';
+  const out: string = task?.ai_output || "";
+  const type: string = task?.post_type || "";
   return (
-    type === 'newsletter' ||
-    out.includes('newsletter_md:') ||
-    out.includes('blocks:') ||
-    (type === 'email' && out.includes('newsletter_md:'))
+    type === "newsletter" ||
+    out.includes("newsletter_md:") ||
+    out.includes("blocks:") ||
+    (type === "email" && out.includes("newsletter_md:"))
   );
 };
 
-export const InlineEditableContent = ({ task, onTaskUpdate }: InlineEditableContentProps) => {
+export const InlineEditableContent = ({
+  task,
+  onTaskUpdate,
+}: InlineEditableContentProps) => {
   const [isEditing, setIsEditing] = useState(false);
-  const [editedContent, setEditedContent] = useState('');
+  const [editedContent, setEditedContent] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   // Only update editedContent when not editing and no unsaved changes
   useEffect(() => {
     if (task?.ai_output && !isEditing && !hasUnsavedChanges) {
-      console.log('[INLINE_EDIT] Setting content from task:', task.ai_output.substring(0, 50) + '...');
       setEditedContent(task.ai_output);
     }
   }, [task?.ai_output, isEditing, hasUnsavedChanges]);
 
   const handleEdit = () => {
-    console.log('[INLINE_EDIT] Edit button clicked');
     setIsEditing(true);
   };
 
   const handleSave = async (contentToSave?: string) => {
     const contentToUpdate = contentToSave || editedContent;
-    
-    console.log('[SAVE] Starting save operation', {
-      taskId: task?.id,
-      hasContent: !!contentToUpdate,
-      contentLength: contentToUpdate?.length,
-      isAuthenticated: !!(await supabase.auth.getUser()).data.user
-    });
 
     // Enhanced validation
     if (!task?.id) {
-      console.error('[SAVE] No task ID available');
-      toast.error('Cannot save: Missing task information');
+      console.error("[SAVE] No task ID available");
+      toast.error("Cannot save: Missing task information");
       return;
     }
 
     if (!contentToUpdate.trim()) {
-      console.error('[SAVE] Empty content');
-      toast.error('Content cannot be empty');
+      console.error("[SAVE] Empty content");
+      toast.error("Content cannot be empty");
       return;
     }
 
     // Handle content comparison more intelligently for different post types
-    const originalContent = task.ai_output || '';
+    const originalContent = task.ai_output || "";
     let hasChanges = contentToUpdate !== originalContent;
-    
+
     // For newsletters, compare normalized content to avoid false negatives
-    if (task.post_type === 'newsletter') {
+    if (task.post_type === "newsletter") {
       const normalizeNewsletter = (content: string) => {
         return content
-          .replace(/\r\n/g, '\n')  // Normalize line endings
-          .replace(/[ \t]+$/gm, '') // Remove trailing whitespace
+          .replace(/\r\n/g, "\n") // Normalize line endings
+          .replace(/[ \t]+$/gm, "") // Remove trailing whitespace
           .trim();
       };
-      
-      hasChanges = normalizeNewsletter(contentToUpdate) !== normalizeNewsletter(originalContent);
+
+      hasChanges =
+        normalizeNewsletter(contentToUpdate) !==
+        normalizeNewsletter(originalContent);
     }
 
     if (!hasChanges) {
-      console.log('[SAVE] No changes detected');
-      toast.success('No changes to save');
+      toast.success("No changes to save");
       setHasUnsavedChanges(false);
       setIsEditing(false); // Exit edit mode when no changes
       return;
@@ -95,47 +89,42 @@ export const InlineEditableContent = ({ task, onTaskUpdate }: InlineEditableCont
     setIsSaving(true);
     try {
       // Verify user authentication
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
       if (authError || !user) {
-        console.error('[SAVE] Authentication error:', authError);
-        toast.error('Please log in to save changes');
+        console.error("[SAVE] Authentication error:", authError);
+        toast.error("Please log in to save changes");
         return;
       }
 
-      console.log('[SAVE] Updating content_tasks', {
-        taskId: task.id,
-        userId: user.id,
-        newContentLength: contentToUpdate.length
-      });
-
       const { data, error } = await supabase
-        .from('content_tasks')
+        .from("content_tasks")
         .update({ ai_output: contentToUpdate })
-        .eq('id', task.id)
+        .eq("id", task.id)
         .select();
-
-      console.log('[SAVE] Database response:', { data, error });
-
       if (error) {
-        console.error('[SAVE] Database error:', error);
+        console.error("[SAVE] Database error:", error);
         toast.error(`Failed to save: ${error.message}`);
       } else {
-        console.log('[SAVE] Save successful');
-        toast.success('Content saved successfully!');
+        toast.success("Content saved successfully!");
         setIsEditing(false);
         setHasUnsavedChanges(false); // Clear unsaved changes flag
         if (onTaskUpdate) onTaskUpdate();
       }
     } catch (error) {
-      console.error('[SAVE] Unexpected error:', error);
-      toast.error(`Failed to save content: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error("[SAVE] Unexpected error:", error);
+      toast.error(
+        `Failed to save content: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
     } finally {
       setIsSaving(false);
     }
   };
 
   const handleCancel = () => {
-    setEditedContent(task?.ai_output || '');
+    setEditedContent(task?.ai_output || "");
     setIsEditing(false);
     setHasUnsavedChanges(false); // Clear unsaved changes flag
   };
@@ -155,11 +144,11 @@ export const InlineEditableContent = ({ task, onTaskUpdate }: InlineEditableCont
     }
 
     // Social media posts get special preview treatment
-    if (task.post_type === 'instagram' || task.post_type === 'facebook') {
+    if (task.post_type === "instagram" || task.post_type === "facebook") {
       return (
         <SocialMediaPostPreview
           content={task.ai_output}
-          postType={task.post_type as 'instagram' | 'facebook'}
+          postType={task.post_type as "instagram" | "facebook"}
           contentTaskId={task.id}
           campaignTitle={task.campaigns?.theme || task.campaigns?.title}
         />
@@ -184,10 +173,12 @@ export const InlineEditableContent = ({ task, onTaskUpdate }: InlineEditableCont
       <div className="flex items-start justify-between gap-4 mb-6">
         <div className="flex-1">
           <p className="text-sm text-gray-600">
-            {isEditing ? 'Edit your content below' : 'Review and manage your content'}
+            {isEditing
+              ? "Edit your content below"
+              : "Review and manage your content"}
           </p>
         </div>
-        
+
         {/* Prominent TaskActions positioned at top right */}
         <div className="flex-shrink-0">
           <TaskActions
@@ -206,9 +197,8 @@ export const InlineEditableContent = ({ task, onTaskUpdate }: InlineEditableCont
         {isEditing ? (
           isStructuredNewsletter(task) ? (
             <>
-              {console.info('[INLINE_EDIT] Using NewsletterEditor for structured newsletter')}
               <NewsletterEditor
-                yamlContent={task.ai_output || ''}
+                yamlContent={task.ai_output || ""}
                 onSave={(updatedYaml) => {
                   handleSave(updatedYaml);
                 }}

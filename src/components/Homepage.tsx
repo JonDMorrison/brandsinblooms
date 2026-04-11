@@ -19,7 +19,16 @@ import { useGlobalContentData } from "@/hooks/useGlobalContentData";
 const HomepageContent = () => {
   const { user } = useAuth();
   const { tenant, loading: tenantLoading } = useTenant();
-  const { campaigns, tasks, userCreatedCampaigns, loading, error, refreshData, isCached, isRefreshing } = useGlobalContentData();
+  const {
+    campaigns,
+    tasks,
+    userCreatedCampaigns,
+    loading,
+    error,
+    refreshData,
+    isCached,
+    isRefreshing,
+  } = useGlobalContentData();
   const [showQuickstart, setShowQuickstart] = useState(false);
   const { setLoading, clearLoading } = useLoading();
 
@@ -33,29 +42,34 @@ const HomepageContent = () => {
 
   const handleNavigateToSection = (section: string) => {
     switch (section) {
-      case 'social':
-        window.location.href = '/social';
+      case "social":
+        window.location.href = "/social";
         break;
-      case 'weekly-content':
-        const weeklyElement = document.querySelector('[data-section="weekly-content"]');
+      case "weekly-content":
+        const weeklyElement = document.querySelector(
+          '[data-section="weekly-content"]',
+        );
         if (weeklyElement) {
-          weeklyElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          weeklyElement.scrollIntoView({ behavior: "smooth", block: "start" });
         }
         break;
-      case 'ready-to-post':
-        const readyElement = document.querySelector('[data-section="ready-to-post"]');
+      case "ready-to-post":
+        const readyElement = document.querySelector(
+          '[data-section="ready-to-post"]',
+        );
         if (readyElement) {
-          readyElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          readyElement.scrollIntoView({ behavior: "smooth", block: "start" });
         }
         break;
     }
   };
 
-
   // Check if should show quickstart checklist
   useEffect(() => {
     if (user && !tenantLoading) {
-      const hasSeenChecklist = localStorage.getItem(`quickstart_dismissed_${user.id}`);
+      const hasSeenChecklist = localStorage.getItem(
+        `quickstart_dismissed_${user.id}`,
+      );
       setShowQuickstart(!hasSeenChecklist);
     }
   }, [user, tenantLoading]);
@@ -63,65 +77,60 @@ const HomepageContent = () => {
   const handleDismissQuickstart = () => {
     setShowQuickstart(false);
     if (user) {
-      localStorage.setItem(`quickstart_dismissed_${user.id}`, 'true');
+      localStorage.setItem(`quickstart_dismissed_${user.id}`, "true");
     }
   };
 
   // Manage loading states in global context
-  useEffect(() => {
-    console.log('🏠 Homepage useEffect: Loading state check', {
-      hasUser: !!user,
-      tenantLoading,
-      hasTenant: !!tenant,
-      dataLoading: loading,
-      isCached,
-      currentPath: window.location.pathname
-    });
 
     if (!user) {
-      console.log('🏠 Homepage: No user, setting auth loading');
-      setLoading('homepage', {
+      setLoading("homepage", {
         isLoading: true,
-        message: 'Please log in to access your campaigns',
-        priority: 'page'
+        message: "Please log in to access your campaigns",
+        priority: "page",
       });
       return;
     }
-    
+
     if (tenantLoading) {
-      console.log('🏠 Homepage: Tenant loading, setting tenant loading');
-      setLoading('homepage', {
+      setLoading("homepage", {
         isLoading: true,
-        message: 'Setting up your workspace...',
-        priority: 'page'
+        message: "Setting up your workspace...",
+        priority: "page",
       });
       return;
     }
-    
+
     if (!tenant) {
-      console.log('🏠 Homepage: No tenant found, setting tenant error loading');
-      setLoading('homepage', {
+      setLoading("homepage", {
         isLoading: true,
-        message: 'Setting up your workspace... Please contact support if this continues.',
-        priority: 'page'
+        message:
+          "Setting up your workspace... Please contact support if this continues.",
+        priority: "page",
       });
       return;
     }
-    
+
     if (loading && !isCached) {
-      console.log('🏠 Homepage: Data loading and not cached, setting data loading');
-      setLoading('homepage', {
+      setLoading("homepage", {
         isLoading: true,
-        message: 'Loading your campaigns and content...',
-        priority: 'page'
+        message: "Loading your campaigns and content...",
+        priority: "page",
       });
       return;
     }
-    
+
     // Clear loading when everything is ready
-    console.log('🏠 Homepage: Everything ready, clearing loading');
-    clearLoading('homepage');
-  }, [user, tenantLoading, tenant, loading, isCached, setLoading, clearLoading]);
+    clearLoading("homepage");
+  }, [
+    user,
+    tenantLoading,
+    tenant,
+    loading,
+    isCached,
+    setLoading,
+    clearLoading,
+  ]);
 
   // Handle early returns - let GlobalLoadingOverlay handle the display
   if (!user || tenantLoading || !tenant) {
@@ -136,7 +145,7 @@ const HomepageContent = () => {
           <div className="flex justify-center items-center py-20">
             <div className="text-center">
               <p className="text-red-600 font-medium text-lg">{error}</p>
-              <button 
+              <button
                 onClick={refreshData}
                 className="mt-4 px-4 py-2 bg-dark-teal text-white rounded hover:bg-dark-teal/90"
                 aria-label="Retry loading content"
@@ -155,8 +164,8 @@ const HomepageContent = () => {
   }
 
   const weekNumber = getCurrentWeekNumber();
-  let currentCampaign = campaigns.find(c => c.week_number === weekNumber);
-  
+  let currentCampaign = campaigns.find((c) => c.week_number === weekNumber);
+
   if (!currentCampaign && campaigns.length > 0) {
     // No campaign found for current week
   }
@@ -164,11 +173,12 @@ const HomepageContent = () => {
   return (
     <HomepageErrorBoundary>
       <div className="theme-core-home min-h-screen bg-offwhite p-6">
-        <div className="max-w-4xl mx-auto space-y-8 theme-core-home">{/* Double wrapper to ensure all components get the theme */}
-          
+        <div className="max-w-4xl mx-auto space-y-8 theme-core-home">
+          {/* Double wrapper to ensure all components get the theme */}
+
           {/* Auto-generate weekly content for new users */}
           <WeeklyContentUpdater />
-          
+
           {/* Section 1: 4 Steps to Use the App */}
           {showQuickstart && (
             <HomepageErrorBoundary>
@@ -182,7 +192,7 @@ const HomepageContent = () => {
           {/* Section 2: Weekly Theme Accordion */}
           <HomepageErrorBoundary>
             <div data-section="weekly-content">
-              <WeeklyThemeCarousel 
+              <WeeklyThemeCarousel
                 currentCampaign={currentCampaign}
                 tasks={tasks}
                 onTaskUpdate={handleTaskUpdate}
@@ -218,13 +228,9 @@ const HomepageContent = () => {
           {/* Section 6: Ready to Post */}
           <HomepageErrorBoundary>
             <div data-section="ready-to-post">
-              <ReadyToPostCard 
-                tasks={tasks}
-                onTaskUpdate={handleTaskUpdate}
-              />
+              <ReadyToPostCard tasks={tasks} onTaskUpdate={handleTaskUpdate} />
             </div>
           </HomepageErrorBoundary>
-
         </div>
       </div>
     </HomepageErrorBoundary>

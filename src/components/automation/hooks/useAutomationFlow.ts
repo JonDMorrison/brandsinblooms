@@ -1,4 +1,4 @@
-import { useCallback, useState, useEffect } from 'react';
+import { useCallback, useState, useEffect } from "react";
 import {
   useNodesState,
   useEdgesState,
@@ -6,20 +6,20 @@ import {
   Connection,
   Edge,
   Node,
-} from '@xyflow/react';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
+} from "@xyflow/react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 export const useAutomationFlow = (
   automationId?: string,
-  initialFlowState?: { nodes: Node[]; edges: Edge[] }
+  initialFlowState?: { nodes: Node[]; edges: Edge[] },
 ) => {
   const { toast } = useToast();
   const [nodes, setNodes, onNodesChange] = useNodesState(
-    initialFlowState?.nodes || getDefaultWelcomeFlow().nodes
+    initialFlowState?.nodes || getDefaultWelcomeFlow().nodes,
   );
   const [edges, setEdges, onEdgesChange] = useEdgesState(
-    initialFlowState?.edges || getDefaultWelcomeFlow().edges
+    initialFlowState?.edges || getDefaultWelcomeFlow().edges,
   );
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const [isDirty, setIsDirty] = useState(false);
@@ -27,7 +27,7 @@ export const useAutomationFlow = (
   // Handle connections between nodes
   const onConnect = useCallback(
     (params: Connection) => setEdges((eds) => addEdge(params, eds)),
-    [setEdges]
+    [setEdges],
   );
 
   // Generate unique node ID
@@ -39,11 +39,11 @@ export const useAutomationFlow = (
   const addNode = useCallback(
     (nodeType: string, position: { x: number; y: number }) => {
       setNodes((nds) => {
-        if (nodeType === 'trigger' && nds.some((n) => n.type === 'trigger')) {
+        if (nodeType === "trigger" && nds.some((n) => n.type === "trigger")) {
           toast({
-            title: 'Trigger already exists',
-            description: 'Only one trigger is allowed per automation.',
-            variant: 'destructive',
+            title: "Trigger already exists",
+            description: "Only one trigger is allowed per automation.",
+            variant: "destructive",
           });
           return nds;
         }
@@ -59,7 +59,7 @@ export const useAutomationFlow = (
       });
       setIsDirty(true);
     },
-    [generateNodeId, setNodes, toast]
+    [generateNodeId, setNodes, toast],
   );
 
   // Update node data
@@ -69,12 +69,12 @@ export const useAutomationFlow = (
         nds.map((node) =>
           node.id === nodeId
             ? { ...node, data: { ...node.data, ...newData } }
-            : node
-        )
+            : node,
+        ),
       );
       setIsDirty(true);
     },
-    [setNodes]
+    [setNodes],
   );
 
   // Delete node and its connections
@@ -82,11 +82,11 @@ export const useAutomationFlow = (
     (nodeId: string) => {
       setNodes((nds) => nds.filter((node) => node.id !== nodeId));
       setEdges((eds) =>
-        eds.filter((edge) => edge.source !== nodeId && edge.target !== nodeId)
+        eds.filter((edge) => edge.source !== nodeId && edge.target !== nodeId),
       );
       setIsDirty(true);
     },
-    [setNodes, setEdges]
+    [setNodes, setEdges],
   );
 
   // Auto-save to localStorage
@@ -94,8 +94,8 @@ export const useAutomationFlow = (
     if (isDirty && (nodes.length > 0 || edges.length > 0)) {
       const flowState = { nodes, edges };
       localStorage.setItem(
-        `automation-flow-${automationId || 'new'}`,
-        JSON.stringify(flowState)
+        `automation-flow-${automationId || "new"}`,
+        JSON.stringify(flowState),
       );
       setIsDirty(false);
     }
@@ -108,7 +108,6 @@ export const useAutomationFlow = (
     try {
       const flowState = { nodes, edges };
       // TODO: Update to use flow_state column once migrations are applied
-      console.log('Would save flow state:', flowState);
       // const { error } = await supabase
       //   .from('crm_automations')
       //   .update({ flow_state: flowState })
@@ -117,15 +116,15 @@ export const useAutomationFlow = (
       // if (error) throw error;
 
       toast({
-        title: 'Success',
-        description: 'Automation flow saved successfully!',
+        title: "Success",
+        description: "Automation flow saved successfully!",
       });
     } catch (error) {
-      console.error('Error saving flow:', error);
+      console.error("Error saving flow:", error);
       toast({
-        title: 'Error',
-        description: 'Failed to save automation flow.',
-        variant: 'destructive',
+        title: "Error",
+        description: "Failed to save automation flow.",
+        variant: "destructive",
       });
     }
   }, [nodes, edges, automationId, toast]);
@@ -136,11 +135,12 @@ export const useAutomationFlow = (
       const savedFlow = localStorage.getItem(`automation-flow-${automationId}`);
       if (savedFlow) {
         try {
-          const { nodes: savedNodes, edges: savedEdges } = JSON.parse(savedFlow);
+          const { nodes: savedNodes, edges: savedEdges } =
+            JSON.parse(savedFlow);
           setNodes(savedNodes || []);
           setEdges(savedEdges || []);
         } catch (error) {
-          console.error('Error loading saved flow:', error);
+          console.error("Error loading saved flow:", error);
         }
       }
     }
@@ -148,7 +148,10 @@ export const useAutomationFlow = (
 
   // Sync with initialFlowState changes (when automation data is loaded)
   useEffect(() => {
-    if (initialFlowState && (initialFlowState.nodes.length > 0 || initialFlowState.edges.length > 0)) {
+    if (
+      initialFlowState &&
+      (initialFlowState.nodes.length > 0 || initialFlowState.edges.length > 0)
+    ) {
       setNodes(initialFlowState.nodes);
       setEdges(initialFlowState.edges);
     }
@@ -180,41 +183,41 @@ export const useAutomationFlow = (
 function getDefaultWelcomeFlow(): { nodes: Node[]; edges: Edge[] } {
   return {
     nodes: [],
-    edges: []
+    edges: [],
   };
 }
 
 // Default data for different node types
 function getDefaultNodeData(nodeType: string) {
   switch (nodeType) {
-    case 'trigger':
+    case "trigger":
       return {
-        triggerType: 'loyalty_join',
-        label: 'Loyalty Program Sign-up',
+        triggerType: "loyalty_join",
+        label: "Loyalty Program Sign-up",
         conditions: {},
       };
-    case 'email':
+    case "email":
       return {
-        subject: '',
-        content: '',
-        template: '',
+        subject: "",
+        content: "",
+        template: "",
         editable: true,
       };
-    case 'sms':
+    case "sms":
       return {
-        content: '',
+        content: "",
         characterCount: 0,
         editable: true,
       };
-    case 'delay':
+    case "delay":
       return {
         delayValue: 1,
-        delayUnit: 'hours' as const,
+        delayUnit: "hours" as const,
         editable: true,
       };
-    case 'split':
+    case "split":
       return {
-        splitType: 'conditional' as const,
+        splitType: "conditional" as const,
         conditions: [],
         editable: true,
       };

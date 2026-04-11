@@ -50,11 +50,11 @@
     for (var i = scripts.length - 1; i >= 0; i--) {
       var src = scripts[i].src || '';
       // Match any embed script URL pattern
-      if (src.indexOf('/forms/embed') !== -1 || 
-          (src.indexOf('embed') !== -1 && (
-            src.indexOf('bloomsuite') !== -1 ||
-            src.indexOf('supabase.co/storage') !== -1
-          ))) {
+      if (src.indexOf('/forms/embed') !== -1 ||
+        (src.indexOf('embed') !== -1 && (
+          src.indexOf('bloomsuite') !== -1 ||
+          src.indexOf('supabase.co/storage') !== -1
+        ))) {
         // Handle Supabase Storage URLs: .../assets/forms/embed.v1.js
         // Handle standard URLs: .../forms/embed.v1.js
         // Extract base path up to and including /forms/
@@ -867,15 +867,20 @@
   /**
    * Render a single form field
    */
+  function getFieldName(field) {
+    return field.mapping_key || field.id || field.field_key;
+  }
+
   function renderField(field, compliance) {
     var wrapper = createElement('div', 'field');
     var fieldId = CSS_PREFIX + 'f-' + field.id;
+    var fieldName = getFieldName(field);
 
     // Hidden field
     if (field.type === 'hidden') {
       var hidden = createElement('input', null, {
         type: 'hidden',
-        name: field.id,
+        name: fieldName,
         value: field.default_value || ''
       });
       wrapper.appendChild(hidden);
@@ -892,7 +897,7 @@
       var checkbox = createElement('input', 'checkbox', {
         type: 'checkbox',
         id: fieldId,
-        name: field.id
+        name: fieldName
       });
       // NEVER pre-check consent checkboxes (CASL/TCPA requirement)
       checkbox.checked = false;
@@ -917,7 +922,7 @@
       var checkbox2 = createElement('input', 'checkbox', {
         type: 'checkbox',
         id: fieldId,
-        name: field.id
+        name: fieldName
       });
       checkbox2.checked = false; // Never pre-checked
 
@@ -942,7 +947,7 @@
     if (field.type === 'select') {
       var select = createElement('select', 'select', {
         id: fieldId,
-        name: field.id
+        name: fieldName
       });
       if (field.required) select.required = true;
 
@@ -965,7 +970,7 @@
     // Text/email/phone input
     var input = createElement('input', 'input', {
       id: fieldId,
-      name: field.id,
+      name: fieldName,
       placeholder: field.placeholder || ''
     });
 

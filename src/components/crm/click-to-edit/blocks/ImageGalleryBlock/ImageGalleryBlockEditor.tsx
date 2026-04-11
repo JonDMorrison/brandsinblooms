@@ -1,15 +1,15 @@
-import React, { useState, useCallback } from 'react';
-import { ContentBlock } from '@/types/emailBuilder';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Button } from '@/components/ui/button';
-import { Sparkles, Loader2, Check } from 'lucide-react';
-import { GalleryLayoutSelector, GalleryLayout } from './GalleryLayoutSelector';
-import { GalleryImageSlot } from './GalleryImageSlot';
-import { MediaSelectorSidebar } from '@/components/crm/MediaSelectorSidebar';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
-import { cn } from '@/lib/utils';
+import React, { useState, useCallback } from "react";
+import { ContentBlock } from "@/types/emailBuilder";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Sparkles, Loader2, Check } from "lucide-react";
+import { GalleryLayoutSelector, GalleryLayout } from "./GalleryLayoutSelector";
+import { GalleryImageSlot } from "./GalleryImageSlot";
+import { MediaSelectorSidebar } from "@/components/crm/MediaSelectorSidebar";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 
 interface GalleryImage {
   id: string;
@@ -24,41 +24,48 @@ interface ImageGalleryBlockEditorProps {
   isGenerating?: boolean;
 }
 
-const getImageCount = (layout: GalleryLayout, rows?: number, cols?: number): number => {
-  if (layout === 'custom' && rows && cols) {
+const getImageCount = (
+  layout: GalleryLayout,
+  rows?: number,
+  cols?: number,
+): number => {
+  if (layout === "custom" && rows && cols) {
     return rows * cols;
   }
   switch (layout) {
-    case '3-across': return 3;
-    case '6-across': return 6;
-    case '9-images': return 9;
-    default: return 3;
+    case "3-across":
+      return 3;
+    case "6-across":
+      return 6;
+    case "9-images":
+      return 9;
+    default:
+      return 3;
   }
 };
 
-export const ImageGalleryBlockEditor: React.FC<ImageGalleryBlockEditorProps> = ({
-  block,
-  onUpdate,
-  onClose,
-  isGenerating = false,
-}) => {
+export const ImageGalleryBlockEditor: React.FC<
+  ImageGalleryBlockEditorProps
+> = ({ block, onUpdate, onClose, isGenerating = false }) => {
   const { toast } = useToast();
   const [mediaSelectorOpen, setMediaSelectorOpen] = useState(false);
   const [activeSlotIndex, setActiveSlotIndex] = useState<number | null>(null);
-  const [generatingSlots, setGeneratingSlots] = useState<Set<number>>(new Set());
+  const [generatingSlots, setGeneratingSlots] = useState<Set<number>>(
+    new Set(),
+  );
   const [isGeneratingAll, setIsGeneratingAll] = useState(false);
 
-  const galleryLayout = (block as any).galleryLayout || '3-across';
+  const galleryLayout = (block as any).galleryLayout || "3-across";
   const galleryRows = (block as any).galleryRows || 2;
   const galleryColumns = (block as any).galleryColumns || 3;
   const galleryImages: GalleryImage[] = (block as any).galleryImages || [];
-  const galleryImageRadius = (block as any).galleryImageRadius || 'medium';
+  const galleryImageRadius = (block as any).galleryImageRadius || "medium";
   const imageCount = getImageCount(galleryLayout, galleryRows, galleryColumns);
 
   // Ensure we have the right number of image slots
   const imageSlots: (GalleryImage | undefined)[] = Array.from(
     { length: imageCount },
-    (_, i) => galleryImages[i]
+    (_, i) => galleryImages[i],
   );
 
   const handleLayoutChange = (layout: GalleryLayout) => {
@@ -68,29 +75,30 @@ export const ImageGalleryBlockEditor: React.FC<ImageGalleryBlockEditorProps> = (
     } as any);
   };
 
-  const handleImageSelect = (index: number, imageUrl: string, metadata?: { alt?: string }) => {
+  const handleImageSelect = (
+    index: number,
+    imageUrl: string,
+    metadata?: { alt?: string },
+  ) => {
     // Create a new array with the right length, preserving existing images
-    const newImages: GalleryImage[] = Array.from({ length: imageCount }, (_, i) => 
-      galleryImages[i] || { id: `img_placeholder_${i}`, url: '', alt: '' }
+    const newImages: GalleryImage[] = Array.from(
+      { length: imageCount },
+      (_, i) =>
+        galleryImages[i] || { id: `img_placeholder_${i}`, url: "", alt: "" },
     );
-    
+
     // Set the new image at the specified index
     newImages[index] = {
       id: `img_${Date.now()}_${index}`,
       url: imageUrl,
       alt: metadata?.alt || `Gallery image ${index + 1}`,
     };
-    
+
     // Filter out placeholder/empty images for storage, keeping only those with URLs
-    const imagesToSave = newImages.filter(img => img.url && img.url.length > 0);
-    
-    console.log('[ImageGalleryBlockEditor] Saving gallery images:', {
-      index,
-      imageUrl: imageUrl.substring(0, 50) + '...',
-      totalImages: imagesToSave.length,
-      allImages: imagesToSave.map(img => ({ id: img.id, hasUrl: !!img.url })),
-    });
-    
+    const imagesToSave = newImages.filter(
+      (img) => img.url && img.url.length > 0,
+    );
+
     onUpdate({
       galleryImages: imagesToSave,
       galleryLayout,
@@ -98,16 +106,13 @@ export const ImageGalleryBlockEditor: React.FC<ImageGalleryBlockEditorProps> = (
       galleryColumns,
       userEdited: true,
     } as any);
-    
+
     setMediaSelectorOpen(false);
     setActiveSlotIndex(null);
   };
 
   const handleImageRemove = (index: number) => {
     const newImages = galleryImages.filter((_, i) => i !== index);
-    
-    console.log('[ImageGalleryBlockEditor] Removing image at index:', index, 'remaining:', newImages.length);
-    
     onUpdate({
       galleryImages: newImages,
       userEdited: true,
@@ -120,24 +125,29 @@ export const ImageGalleryBlockEditor: React.FC<ImageGalleryBlockEditorProps> = (
   };
 
   const generateImageForSlot = async (index: number) => {
-    setGeneratingSlots(prev => new Set(prev).add(index));
-    
+    setGeneratingSlots((prev) => new Set(prev).add(index));
+
     try {
       const contentContext = [
         block.headline,
         block.body,
         `gallery image ${index + 1}`,
-      ].filter(Boolean).join(' - ');
+      ]
+        .filter(Boolean)
+        .join(" - ");
 
-      const { data, error } = await supabase.functions.invoke('generate-ai-image', {
-        body: {
-          channel: 'email',
-          contentType: 'gallery',
-          headline: block.headline || 'Gallery Image',
-          bodyText: block.body || '',
-          additionalContext: contentContext,
-        }
-      });
+      const { data, error } = await supabase.functions.invoke(
+        "generate-ai-image",
+        {
+          body: {
+            channel: "email",
+            contentType: "gallery",
+            headline: block.headline || "Gallery Image",
+            bodyText: block.body || "",
+            additionalContext: contentContext,
+          },
+        },
+      );
 
       if (error) throw error;
 
@@ -145,14 +155,14 @@ export const ImageGalleryBlockEditor: React.FC<ImageGalleryBlockEditorProps> = (
         handleImageSelect(index, data.imageUrl, { alt: data.altText });
       }
     } catch (err) {
-      console.error('Failed to generate image:', err);
+      console.error("Failed to generate image:", err);
       toast({
         title: "Image generation failed",
         description: "Please try again or upload an image manually.",
         variant: "destructive",
       });
     } finally {
-      setGeneratingSlots(prev => {
+      setGeneratingSlots((prev) => {
         const next = new Set(prev);
         next.delete(index);
         return next;
@@ -163,7 +173,7 @@ export const ImageGalleryBlockEditor: React.FC<ImageGalleryBlockEditorProps> = (
   const generateAllEmptyImages = async () => {
     const emptySlots = imageSlots
       .map((img, idx) => (!img ? idx : -1))
-      .filter(idx => idx !== -1);
+      .filter((idx) => idx !== -1);
 
     if (emptySlots.length === 0) {
       toast({
@@ -174,24 +184,24 @@ export const ImageGalleryBlockEditor: React.FC<ImageGalleryBlockEditorProps> = (
     }
 
     setIsGeneratingAll(true);
-    
+
     try {
       for (const slotIndex of emptySlots) {
         await generateImageForSlot(slotIndex);
       }
-      
+
       toast({
         title: "Images generated",
         description: `Generated ${emptySlots.length} images successfully.`,
       });
     } catch (err) {
-      console.error('Failed to generate all images:', err);
+      console.error("Failed to generate all images:", err);
     } finally {
       setIsGeneratingAll(false);
     }
   };
 
-  const emptySlotCount = imageSlots.filter(img => !img).length;
+  const emptySlotCount = imageSlots.filter((img) => !img).length;
 
   return (
     <div className="space-y-6 p-4">
@@ -211,8 +221,14 @@ export const ImageGalleryBlockEditor: React.FC<ImageGalleryBlockEditorProps> = (
         <Label htmlFor="gallery-headline">Headline</Label>
         <Input
           id="gallery-headline"
-          value={block.headline || ''}
-          onChange={(e) => onUpdate({ headline: e.target.value, title: e.target.value, userEdited: true })}
+          value={block.headline || ""}
+          onChange={(e) =>
+            onUpdate({
+              headline: e.target.value,
+              title: e.target.value,
+              userEdited: true,
+            })
+          }
           placeholder="Gallery Headline"
           className="text-lg font-semibold"
         />
@@ -223,8 +239,14 @@ export const ImageGalleryBlockEditor: React.FC<ImageGalleryBlockEditorProps> = (
         <Label htmlFor="gallery-body">Subheadline</Label>
         <Input
           id="gallery-body"
-          value={block.body || ''}
-          onChange={(e) => onUpdate({ body: e.target.value, content: e.target.value, userEdited: true })}
+          value={block.body || ""}
+          onChange={(e) =>
+            onUpdate({
+              body: e.target.value,
+              content: e.target.value,
+              userEdited: true,
+            })
+          }
           placeholder="Optional description text"
         />
       </div>
@@ -260,7 +282,7 @@ export const ImageGalleryBlockEditor: React.FC<ImageGalleryBlockEditorProps> = (
         <div
           className={cn(
             "grid gap-3",
-            "grid-cols-3" // Always 3 columns
+            "grid-cols-3", // Always 3 columns
           )}
         >
           {imageSlots.map((image, index) => (
@@ -284,20 +306,31 @@ export const ImageGalleryBlockEditor: React.FC<ImageGalleryBlockEditorProps> = (
         <Label className="text-sm font-medium">Call to Action (Optional)</Label>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="space-y-2">
-            <Label htmlFor="gallery-cta-text" className="text-xs">Button Text</Label>
+            <Label htmlFor="gallery-cta-text" className="text-xs">
+              Button Text
+            </Label>
             <Input
               id="gallery-cta-text"
-              value={block.ctaText || ''}
-              onChange={(e) => onUpdate({ ctaText: e.target.value, buttonText: e.target.value })}
+              value={block.ctaText || ""}
+              onChange={(e) =>
+                onUpdate({
+                  ctaText: e.target.value,
+                  buttonText: e.target.value,
+                })
+              }
               placeholder="View Gallery"
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="gallery-cta-url" className="text-xs">Button URL</Label>
+            <Label htmlFor="gallery-cta-url" className="text-xs">
+              Button URL
+            </Label>
             <Input
               id="gallery-cta-url"
-              value={block.ctaUrl || ''}
-              onChange={(e) => onUpdate({ ctaUrl: e.target.value, buttonUrl: e.target.value })}
+              value={block.ctaUrl || ""}
+              onChange={(e) =>
+                onUpdate({ ctaUrl: e.target.value, buttonUrl: e.target.value })
+              }
               placeholder="https://..."
             />
           </div>
@@ -307,10 +340,7 @@ export const ImageGalleryBlockEditor: React.FC<ImageGalleryBlockEditorProps> = (
       {/* Save & Close Button */}
       {onClose && (
         <div className="pt-4 border-t">
-          <Button
-            onClick={onClose}
-            className="w-full gap-2"
-          >
+          <Button onClick={onClose} className="w-full gap-2">
             <Check className="h-4 w-4" />
             Save & Close
           </Button>
@@ -326,10 +356,12 @@ export const ImageGalleryBlockEditor: React.FC<ImageGalleryBlockEditorProps> = (
         }}
         onImageSelect={(imageUrl, metadata) => {
           if (activeSlotIndex !== null) {
-            handleImageSelect(activeSlotIndex, imageUrl, { alt: metadata?.alt });
+            handleImageSelect(activeSlotIndex, imageUrl, {
+              alt: metadata?.alt,
+            });
           }
         }}
-        contentContext={block.headline || 'Gallery image'}
+        contentContext={block.headline || "Gallery image"}
       />
     </div>
   );

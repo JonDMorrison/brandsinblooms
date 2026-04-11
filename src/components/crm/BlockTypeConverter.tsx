@@ -1,11 +1,13 @@
-
-import React, { useState } from 'react';
-import { ContentBlock, BlockType, BlockLayout } from '@/types/emailBuilder';
-import { Button } from '@/components/ui/button';
-import { NativeSelect } from '@/components/ui/NativeSelect';
-import { BlockLayoutModal, LayoutType } from './BlockLayoutModal';
-import { mapModalLayoutToBlockLayout, determineBlockTypeFromLayout } from './LayoutRenderer';
-import { RefreshCw, Layout } from 'lucide-react';
+import React, { useState } from "react";
+import { ContentBlock, BlockType, BlockLayout } from "@/types/emailBuilder";
+import { Button } from "@/components/ui/button";
+import { NativeSelect } from "@/components/ui/NativeSelect";
+import { BlockLayoutModal, LayoutType } from "./BlockLayoutModal";
+import {
+  mapModalLayoutToBlockLayout,
+  determineBlockTypeFromLayout,
+} from "./LayoutRenderer";
+import { RefreshCw, Layout } from "lucide-react";
 
 interface BlockTypeConverterProps {
   block: ContentBlock;
@@ -13,50 +15,52 @@ interface BlockTypeConverterProps {
 }
 
 const blockTypeOptions = [
-  { value: 'header', label: 'Header', icon: '📄' },
-  { value: 'newsletter-header', label: 'Newsletter Header', icon: '📰' },
-  { value: 'text', label: 'Text', icon: '📝' },
-  { value: 'image', label: 'Image', icon: '🖼️' },
-  { value: 'button', label: 'Button', icon: '🔘' },
-  { value: 'divider', label: 'Divider', icon: '➖' },
-  { value: 'product', label: 'Product', icon: '📦' }
+  { value: "header", label: "Header", icon: "📄" },
+  { value: "newsletter-header", label: "Newsletter Header", icon: "📰" },
+  { value: "text", label: "Text", icon: "📝" },
+  { value: "image", label: "Image", icon: "🖼️" },
+  { value: "button", label: "Button", icon: "🔘" },
+  { value: "divider", label: "Divider", icon: "➖" },
+  { value: "product", label: "Product", icon: "📦" },
 ];
 
-export const BlockTypeConverter: React.FC<BlockTypeConverterProps> = ({ 
-  block, 
-  onUpdate 
+export const BlockTypeConverter: React.FC<BlockTypeConverterProps> = ({
+  block,
+  onUpdate,
 }) => {
   const [isLayoutModalOpen, setIsLayoutModalOpen] = useState(false);
   const handleTypeChange = (newType: BlockType) => {
-    console.log('Converting block type from', block.type, 'to', newType);
-    
     // Preserve content during type conversion
     const preservedContent = preserveContentDuringTypeChange(block, newType);
-    
+
     onUpdate({
       type: newType,
-      ...preservedContent
+      ...preservedContent,
     });
   };
 
   const handleLayoutChange = (layoutType: LayoutType) => {
-    console.log('Changing block layout to:', layoutType);
-    
     const newBlockType = determineBlockTypeFromLayout(layoutType);
     const newBlockLayout = mapModalLayoutToBlockLayout(layoutType);
-    
+
     // Force image-text type for two-column layouts
-    const finalBlockType = (newBlockLayout === 'two-column-left' || newBlockLayout === 'two-column-right') 
-      ? 'image-text' 
-      : newBlockType;
-    
+    const finalBlockType =
+      newBlockLayout === "two-column-left" ||
+      newBlockLayout === "two-column-right"
+        ? "image-text"
+        : newBlockType;
+
     // Preserve content during layout change
-    const preservedContent = preserveContentDuringLayoutChange(block, finalBlockType, newBlockLayout);
-    
+    const preservedContent = preserveContentDuringLayoutChange(
+      block,
+      finalBlockType,
+      newBlockLayout,
+    );
+
     onUpdate({
       type: finalBlockType,
       layout: newBlockLayout,
-      ...preservedContent
+      ...preservedContent,
     });
   };
 
@@ -64,18 +68,20 @@ export const BlockTypeConverter: React.FC<BlockTypeConverterProps> = ({
     <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-lg">
       <div className="flex items-center gap-2">
         <RefreshCw className="h-4 w-4 text-muted-foreground" />
-        <span className="text-sm font-medium text-muted-foreground">Convert to:</span>
+        <span className="text-sm font-medium text-muted-foreground">
+          Convert to:
+        </span>
         <NativeSelect
           value={block.type}
           onChange={(e) => handleTypeChange(e.target.value as BlockType)}
           className="w-36 h-8"
           options={blockTypeOptions.map((option) => ({
             value: option.value,
-            label: `${option.icon} ${option.label}`
+            label: `${option.icon} ${option.label}`,
           }))}
         />
       </div>
-      
+
       <div className="flex items-center gap-2">
         <Layout className="h-4 w-4 text-muted-foreground" />
         <Button
@@ -85,7 +91,7 @@ export const BlockTypeConverter: React.FC<BlockTypeConverterProps> = ({
         >
           Change Layout
         </Button>
-        <BlockLayoutModal 
+        <BlockLayoutModal
           isOpen={isLayoutModalOpen}
           onClose={() => setIsLayoutModalOpen(false)}
           onSelect={handleLayoutChange}
@@ -96,71 +102,76 @@ export const BlockTypeConverter: React.FC<BlockTypeConverterProps> = ({
 };
 
 // Helper function to preserve content when changing block types
-const preserveContentDuringTypeChange = (block: ContentBlock, newType: BlockType): Partial<ContentBlock> => {
+const preserveContentDuringTypeChange = (
+  block: ContentBlock,
+  newType: BlockType,
+): Partial<ContentBlock> => {
   const preserved: Partial<ContentBlock> = {};
-  
+
   switch (newType) {
-    case 'header':
-      preserved.title = block.title || block.content || 'Header Title';
-      preserved.content = block.content || '';
+    case "header":
+      preserved.title = block.title || block.content || "Header Title";
+      preserved.content = block.content || "";
       break;
-      
-    case 'newsletter-header':
-      preserved.title = block.title || block.content || 'Newsletter Title';
-      preserved.subtitle = block.subtitle || '';
-      preserved.issueNumber = block.issueNumber || '';
-      preserved.publishDate = block.publishDate || '';
-      preserved.backgroundImageUrl = block.backgroundImageUrl || '';
-      preserved.textAlign = block.textAlign || 'center';
-      preserved.padding = block.padding || 'large';
+
+    case "newsletter-header":
+      preserved.title = block.title || block.content || "Newsletter Title";
+      preserved.subtitle = block.subtitle || "";
+      preserved.issueNumber = block.issueNumber || "";
+      preserved.publishDate = block.publishDate || "";
+      preserved.backgroundImageUrl = block.backgroundImageUrl || "";
+      preserved.textAlign = block.textAlign || "center";
+      preserved.padding = block.padding || "large";
       break;
-      
-    case 'image-text':
-      preserved.title = block.title || '';
-      preserved.content = block.content || block.title || 'Add your content here...';
+
+    case "image-text":
+      preserved.title = block.title || "";
+      preserved.content =
+        block.content || block.title || "Add your content here...";
       break;
-      
-    case 'image':
-      preserved.title = block.title || '';
-      preserved.content = block.content || '';
-      preserved.imageUrl = block.imageUrl || '';
-      preserved.altText = block.altText || '';
-      preserved.ctaText = block.ctaText || 'Learn More';
-      preserved.ctaUrl = block.ctaUrl || '#';
+
+    case "image":
+      preserved.title = block.title || "";
+      preserved.content = block.content || "";
+      preserved.imageUrl = block.imageUrl || "";
+      preserved.altText = block.altText || "";
+      preserved.ctaText = block.ctaText || "Learn More";
+      preserved.ctaUrl = block.ctaUrl || "#";
       break;
-      
-    case 'button':
-      preserved.ctaText = block.ctaText || block.title || block.content || 'Click Here';
-      preserved.ctaUrl = block.ctaUrl || '#';
-      preserved.content = block.content || '';
+
+    case "button":
+      preserved.ctaText =
+        block.ctaText || block.title || block.content || "Click Here";
+      preserved.ctaUrl = block.ctaUrl || "#";
+      preserved.content = block.content || "";
       break;
-      
-    case 'divider':
+
+    case "divider":
       // Dividers typically don't have content, just styling
-      preserved.content = '';
+      preserved.content = "";
       break;
-      
-    case 'product':
-      preserved.title = block.title || 'Product Name';
-      preserved.content = block.content || 'Product description...';
-      preserved.imageUrl = block.imageUrl || '';
-      preserved.ctaText = block.ctaText || 'View Product';
-      preserved.ctaUrl = block.ctaUrl || '#';
+
+    case "product":
+      preserved.title = block.title || "Product Name";
+      preserved.content = block.content || "Product description...";
+      preserved.imageUrl = block.imageUrl || "";
+      preserved.ctaText = block.ctaText || "View Product";
+      preserved.ctaUrl = block.ctaUrl || "#";
       break;
   }
-  
+
   return preserved;
 };
 
 // Helper function to preserve content when changing layouts
 const preserveContentDuringLayoutChange = (
-  block: ContentBlock, 
-  newType: BlockType, 
-  newLayout: BlockLayout
+  block: ContentBlock,
+  newType: BlockType,
+  newLayout: BlockLayout,
 ): Partial<ContentBlock> => {
   // Keep all existing content but ensure it's compatible with new type
   const preserved = preserveContentDuringTypeChange(block, newType);
-  
+
   // Preserve ALL content fields during layout changes
   return {
     ...preserved,
@@ -172,9 +183,12 @@ const preserveContentDuringLayoutChange = (
     ctaText: block.ctaText || preserved.ctaText,
     ctaUrl: block.ctaUrl || preserved.ctaUrl,
     // Layout-specific settings
-    alignment: block.alignment || 'left',
-    padding: block.padding || 'medium',
-    margin: block.margin || 'medium',
-    responsiveBehavior: newLayout === 'full-width' ? 'stack' : block.responsiveBehavior || 'stack'
+    alignment: block.alignment || "left",
+    padding: block.padding || "medium",
+    margin: block.margin || "medium",
+    responsiveBehavior:
+      newLayout === "full-width"
+        ? "stack"
+        : block.responsiveBehavior || "stack",
   };
 };

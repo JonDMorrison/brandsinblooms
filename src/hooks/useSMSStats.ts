@@ -1,7 +1,7 @@
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
-import { useTenant } from '@/hooks/useTenant';
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { useTenant } from "@/hooks/useTenant";
 
 export interface SMSStats {
   subscribers: number;
@@ -19,6 +19,7 @@ export interface SMSStats {
     status: string;
     sent: number;
     delivered: number;
+    clicked: number;
     created_at: string;
   }>;
   recentMessages: Array<{
@@ -34,7 +35,7 @@ export const useSMSStats = () => {
   const { user } = useAuth();
 
   return useQuery({
-    queryKey: ['sms-stats', user?.id],
+    queryKey: ["sms-stats", user?.id],
     queryFn: async (): Promise<SMSStats> => {
       if (!user) {
         return {
@@ -48,25 +49,25 @@ export const useSMSStats = () => {
           clicksGrowth: 0,
           queuedMessages: 0,
           recentCampaigns: [],
-          recentMessages: []
+          recentMessages: [],
         };
       }
 
       // Get user's tenant_id and subscription
       const { data: userData } = await supabase
-        .from('users')
-        .select('tenant_id')
-        .eq('id', user.id)
+        .from("users")
+        .select("tenant_id")
+        .eq("id", user.id)
         .maybeSingle();
 
       const tenantId = userData?.tenant_id;
 
       // Get subscription data for credits
       const { data: subscription } = await supabase
-        .from('subscriptions')
-        .select('sms_quota, sms_usage')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
+        .from("subscriptions")
+        .select("sms_quota, sms_usage")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
 
@@ -75,35 +76,37 @@ export const useSMSStats = () => {
       const creditsRemaining = Math.max(0, smsQuota - smsUsage);
 
       // Fetch campaigns for user or tenant (exclude segment_send campaigns from dashboard)
-      const baseFilters = tenantId 
-        ? { tenant_id: tenantId } 
+      const baseFilters = tenantId
+        ? { tenant_id: tenantId }
         : { user_id: user.id };
 
       const { data: campaigns = [] } = await supabase
-        .from('crm_sms_campaigns')
-        .select('*')
+        .from("crm_sms_campaigns")
+        .select("*")
         .match(baseFilters)
-        .or('source.is.null,source.neq.segment_send')
-        .order('created_at', { ascending: false })
+        .or("source.is.null,source.neq.segment_send")
+        .order("created_at", { ascending: false })
         .limit(10);
 
       // Fetch recent messages
-      const campaignIds = campaigns.map(c => c.id);
+      const campaignIds = campaigns.map((c) => c.id);
       let messagesQuery = supabase
-        .from('sms_messages')
-        .select(`
+        .from("sms_messages")
+        .select(
+          `
           id,
           phone,
           content,
           status,
           created_at,
           campaign_id
-        `)
-        .order('created_at', { ascending: false })
+        `,
+        )
+        .order("created_at", { ascending: false })
         .limit(20);
 
       if (campaignIds.length > 0) {
-        messagesQuery = messagesQuery.in('campaign_id', campaignIds);
+        messagesQuery = messagesQuery.in("campaign_id", campaignIds);
       } else {
         // If no campaigns, get all messages (for test sends)
         messagesQuery = messagesQuery.limit(10);
@@ -113,14 +116,14 @@ export const useSMSStats = () => {
 
       // Fetch customers with SMS opt-in
       let customerQuery = supabase
-        .from('crm_customers')
-        .select('id')
-        .eq('sms_opt_in', true);
+        .from("crm_customers")
+        .select("id")
+        .eq("sms_opt_in", true);
 
       if (tenantId) {
-        customerQuery = customerQuery.eq('tenant_id', tenantId);
+        customerQuery = customerQuery.eq("tenant_id", tenantId);
       } else {
-        customerQuery = customerQuery.eq('user_id', user.id);
+        customerQuery = customerQuery.eq("user_id", user.id);
       }
 
       const { data: customers = [] } = await customerQuery;
@@ -130,59 +133,96 @@ export const useSMSStats = () => {
       const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
       const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
 
-      const getMetrics = (campaign: any) => 
-        campaign.metrics && typeof campaign.metrics === 'object' ? campaign.metrics : {};
+      type CampaignMetrics = {
+        sent?: number;
+        delivered?: number;
+        clicked?: number;
+      };
+
+      const getMetrics = (campaign: { metrics: unknown }): CampaignMetrics =>
+        campaign.metrics && typeof campaign.metrics === "object"
+          ? (campaign.metrics as CampaignMetrics)
+          : {};
 
       // Current period campaigns (last 30 days)
-      const currentPeriodCampaigns = campaigns.filter(c => 
-        new Date(c.created_at) >= thirtyDaysAgo
+      const currentPeriodCampaigns = campaigns.filter(
+        (c) => new Date(c.created_at) >= thirtyDaysAgo,
       );
 
       // Previous period campaigns (30-60 days ago)
-      const previousPeriodCampaigns = campaigns.filter(c => {
+      const previousPeriodCampaigns = campaigns.filter((c) => {
         const date = new Date(c.created_at);
         return date >= sixtyDaysAgo && date < thirtyDaysAgo;
       });
 
       // Calculate current period metrics
-      const currentSent = currentPeriodCampaigns.reduce((sum, campaign) => 
-        sum + (getMetrics(campaign).sent || 0), 0);
-      const currentDelivered = currentPeriodCampaigns.reduce((sum, campaign) => 
-        sum + (getMetrics(campaign).delivered || 0), 0);
-      const currentClicks = currentPeriodCampaigns.reduce((sum, campaign) => 
-        sum + (getMetrics(campaign).clicked || 0), 0);
+      const currentSent = currentPeriodCampaigns.reduce(
+        (sum, campaign) => sum + (getMetrics(campaign).sent || 0),
+        0,
+      );
+      const currentDelivered = currentPeriodCampaigns.reduce(
+        (sum, campaign) => sum + (getMetrics(campaign).delivered || 0),
+        0,
+      );
+      const currentClicks = currentPeriodCampaigns.reduce(
+        (sum, campaign) => sum + (getMetrics(campaign).clicked || 0),
+        0,
+      );
 
       // Calculate previous period metrics
-      const previousSent = previousPeriodCampaigns.reduce((sum, campaign) => 
-        sum + (getMetrics(campaign).sent || 0), 0);
-      const previousDelivered = previousPeriodCampaigns.reduce((sum, campaign) => 
-        sum + (getMetrics(campaign).delivered || 0), 0);
-      const previousClicks = previousPeriodCampaigns.reduce((sum, campaign) => 
-        sum + (getMetrics(campaign).clicked || 0), 0);
+      const previousSent = previousPeriodCampaigns.reduce(
+        (sum, campaign) => sum + (getMetrics(campaign).sent || 0),
+        0,
+      );
+      const previousDelivered = previousPeriodCampaigns.reduce(
+        (sum, campaign) => sum + (getMetrics(campaign).delivered || 0),
+        0,
+      );
+      const previousClicks = previousPeriodCampaigns.reduce(
+        (sum, campaign) => sum + (getMetrics(campaign).clicked || 0),
+        0,
+      );
 
       // Calculate all-time totals for display
-      const totalSent = campaigns.reduce((sum, campaign) => 
-        sum + (getMetrics(campaign).sent || 0), 0);
-      const totalDelivered = campaigns.reduce((sum, campaign) => 
-        sum + (getMetrics(campaign).delivered || 0), 0);
-      const totalClicked = campaigns.reduce((sum, campaign) => 
-        sum + (getMetrics(campaign).clicked || 0), 0);
+      const totalSent = campaigns.reduce(
+        (sum, campaign) => sum + (getMetrics(campaign).sent || 0),
+        0,
+      );
+      const totalDelivered = campaigns.reduce(
+        (sum, campaign) => sum + (getMetrics(campaign).delivered || 0),
+        0,
+      );
+      const totalClicked = campaigns.reduce(
+        (sum, campaign) => sum + (getMetrics(campaign).clicked || 0),
+        0,
+      );
 
       // Calculate growth percentages
       const subscribersGrowth = 0; // Would need historical customer data
-      
-      const currentDeliverability = currentSent > 0 ? (currentDelivered / currentSent) * 100 : 0;
-      const previousDeliverability = previousSent > 0 ? (previousDelivered / previousSent) * 100 : 0;
-      const deliverabilityGrowth = previousDeliverability > 0 
-        ? ((currentDeliverability - previousDeliverability) / previousDeliverability) * 100 
-        : 0;
 
-      const clicksGrowth = previousClicks > 0 
-        ? ((currentClicks - previousClicks) / previousClicks) * 100 
-        : (currentClicks > 0 ? 100 : 0);
+      const currentDeliverability =
+        currentSent > 0 ? (currentDelivered / currentSent) * 100 : 0;
+      const previousDeliverability =
+        previousSent > 0 ? (previousDelivered / previousSent) * 100 : 0;
+      const deliverabilityGrowth =
+        previousDeliverability > 0
+          ? ((currentDeliverability - previousDeliverability) /
+              previousDeliverability) *
+            100
+          : 0;
 
-      const queuedMessages = messages.filter(m => m.status === 'queued').length;
-      const deliverability = totalSent > 0 ? (totalDelivered / totalSent) * 100 : 0;
+      const clicksGrowth =
+        previousClicks > 0
+          ? ((currentClicks - previousClicks) / previousClicks) * 100
+          : currentClicks > 0
+            ? 100
+            : 0;
+
+      const queuedMessages = messages.filter(
+        (m) => m.status === "queued",
+      ).length;
+      const deliverability =
+        totalSent > 0 ? (totalDelivered / totalSent) * 100 : 0;
 
       return {
         subscribers: customers.length,
@@ -194,25 +234,28 @@ export const useSMSStats = () => {
         clicks: totalClicked,
         clicksGrowth: Math.round(clicksGrowth * 10) / 10,
         queuedMessages,
-        recentCampaigns: campaigns.slice(0, 5).map(campaign => ({
+        recentCampaigns: campaigns.slice(0, 5).map((campaign) => ({
           id: campaign.id,
           name: campaign.name,
           status: campaign.status,
           sent: getMetrics(campaign).sent || 0,
           delivered: getMetrics(campaign).delivered || 0,
-          created_at: campaign.created_at
+          clicked: getMetrics(campaign).clicked || 0,
+          created_at: campaign.created_at,
         })),
-        recentMessages: messages.slice(0, 10).map(message => ({
+        recentMessages: messages.slice(0, 10).map((message) => ({
           id: message.id,
           phone: message.phone,
-          content: message.content.substring(0, 50) + (message.content.length > 50 ? '...' : ''),
+          content:
+            message.content.substring(0, 50) +
+            (message.content.length > 50 ? "..." : ""),
           status: message.status,
-          created_at: message.created_at
-        }))
+          created_at: message.created_at,
+        })),
       };
     },
     enabled: !!user,
     refetchInterval: 30000, // Refresh every 30 seconds
-    staleTime: 10000 // Consider data stale after 10 seconds
+    staleTime: 10000, // Consider data stale after 10 seconds
   });
 };

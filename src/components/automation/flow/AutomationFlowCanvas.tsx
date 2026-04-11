@@ -310,25 +310,15 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
 
   const handleTestSend = useCallback(
     async (recipientEmail?: string) => {
-      console.log("🧪 Send Test button clicked!", {
-        isTestSending,
-        user: user?.email,
-        recipientEmail,
-      });
-
       if (isTestSending) {
-        console.log("❌ Already sending test, ignoring click");
         return;
       }
 
       try {
-        console.log("🚀 Starting test send process...");
         setIsTestSending(true);
 
         // Check if user is authenticated
-        console.log("🔐 Checking authentication...", user?.email);
         if (!user?.email) {
-          console.log("❌ No user email found");
           toast({
             title: "Authentication Required",
             description: "Please log in to send test emails.",
@@ -336,25 +326,6 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
           });
           return;
         }
-
-        // Find email nodes in the flow
-        console.log(
-          "📧 Looking for email nodes...",
-          nodes.length,
-          "total nodes",
-        );
-        nodes.forEach((node, index) => {
-          console.log(`📧 Node ${index}:`, {
-            id: node.id,
-            type: node.type,
-            dataKeys: Object.keys(node.data || {}),
-            hasSubject: !!node.data?.subject,
-            hasBody: !!node.data?.body,
-            hasContent: !!node.data?.content,
-            hasMessage: !!node.data?.message,
-            data: node.data,
-          });
-        });
 
         // Try different field names for email content
         const emailNodes = nodes.filter((node) => {
@@ -365,17 +336,9 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
             node.data?.content ||
             node.data?.message
           );
-          console.log(`📧 Checking ${node.id}:`, {
-            hasSubject,
-            hasContent,
-            data: node.data,
-          });
           return hasSubject && hasContent;
         });
-        console.log("📧 Found email nodes:", emailNodes.length);
-
         if (emailNodes.length === 0) {
-          console.log("❌ No email nodes with content found");
           toast({
             title: "No Email Content",
             description:
@@ -392,17 +355,10 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
           firstEmailNode.data?.body ||
           firstEmailNode.data?.content ||
           firstEmailNode.data?.message;
-        console.log("📮 Preparing to send test email:", {
-          subject,
-          contentLength:
-            typeof content === "string" ? content.length : "unknown",
-          content,
-        });
 
         const targetEmail = recipientEmail?.trim() || user.email;
 
         // Send test email using the Supabase edge function
-        console.log("🚀 Calling send-test-email function...");
         const { data, error } = await supabase.functions.invoke(
           "send-test-email",
           {
@@ -415,14 +371,9 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
             },
           },
         );
-
-        console.log("📬 Function response:", { data, error });
-
         if (error) {
-          console.log("❌ Function returned error:", error);
           try {
             const server = await (error as any)?.context?.response?.json();
-            console.log("🧾 Server error payload:", server);
             const reason = server?.reason || server?.error || error.message;
             const hint = server?.hint ? ` — ${server.hint}` : "";
             throw new Error(`${reason}${hint}`);
@@ -432,8 +383,6 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
             );
           }
         }
-
-        console.log("✅ Test email sent successfully!");
         toast({
           title: "Test Email Sent! 📧",
           description: `Sent to ${targetEmail}${(data as any)?.usedFrom ? ` — From: ${(data as any).usedFrom}` : ""}`,

@@ -1,18 +1,21 @@
-
-import React from 'react';
-import { ContentBlock } from '@/types/emailBuilder';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
-import { NativeSelect } from '@/components/ui/NativeSelect';
-import { Slider } from '@/components/ui/slider';
-import { Button } from '@/components/ui/button';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Upload, Eye, ChevronDown, Settings } from 'lucide-react';
-import { useState } from 'react';
-import { ImageSelectButton } from '@/components/image';
-import { MediaSelectorImage } from '@/components/crm/MediaSelectorImage';
+import React from "react";
+import { ContentBlock } from "@/types/emailBuilder";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { NativeSelect } from "@/components/ui/NativeSelect";
+import { Slider } from "@/components/ui/slider";
+import { Button } from "@/components/ui/button";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { Upload, Eye, ChevronDown, Settings } from "lucide-react";
+import { useState } from "react";
+import { ImageSelectButton } from "@/components/image";
+import { MediaSelectorImage } from "@/components/crm/MediaSelectorImage";
 
 interface HeaderBlockEditorProps {
   block: ContentBlock;
@@ -23,27 +26,22 @@ interface HeaderBlockEditorProps {
 export const HeaderBlockEditor: React.FC<HeaderBlockEditorProps> = ({
   block,
   onUpdate,
-  isExpanded
+  isExpanded,
 }) => {
   const [showAdvanced, setShowAdvanced] = useState(false);
 
-  const updateField = (field: string, value: any) => {
-    console.log('[HeaderBlockEditor] updateField called:', field, value);
-    console.log('[HeaderBlockEditor] Current block before update:', block);
-    
     // DETERMINISTIC IMAGE BEHAVIOR: When user manually selects a background image,
     // set autoImageMode = false to prevent system from ever auto-replacing it
-    if (field === 'backgroundImageUrl') {
-      onUpdate({ 
+    if (field === "backgroundImageUrl") {
+      onUpdate({
         [field]: value,
         autoImageMode: false,
         shouldFetchImage: false,
-        isGeneratingImage: false
+        isGeneratingImage: false,
       });
     } else {
       onUpdate({ [field]: value });
     }
-    console.log('[HeaderBlockEditor] onUpdate called with:', { [field]: value });
   };
 
   if (!isExpanded) {
@@ -54,16 +52,16 @@ export const HeaderBlockEditor: React.FC<HeaderBlockEditorProps> = ({
         </div>
         <div className="min-w-0 flex-1">
           <div className="font-medium text-sm truncate">
-            {block.headline || 'Header Block'}
+            {block.headline || "Header Block"}
           </div>
           <div className="text-xs text-muted-foreground truncate">
-            {block.body ? `${block.body.substring(0, 50)}...` : 'No body text'}
+            {block.body ? `${block.body.substring(0, 50)}...` : "No body text"}
           </div>
         </div>
         {block.backgroundImageUrl && (
-          <img 
-            src={block.backgroundImageUrl} 
-            alt="Background" 
+          <img
+            src={block.backgroundImageUrl}
+            alt="Background"
             className="w-6 h-6 rounded object-cover"
           />
         )}
@@ -82,35 +80,45 @@ export const HeaderBlockEditor: React.FC<HeaderBlockEditorProps> = ({
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          <div 
+          <div
             className="relative min-h-[120px] flex items-center justify-center"
             style={{
-              backgroundImage: block.backgroundImageUrl ? `url(${block.backgroundImageUrl})` : undefined,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-              backgroundColor: block.backgroundImageUrl ? 'transparent' : (block.backgroundColor || '#1f2937'),
+              backgroundImage: block.backgroundImageUrl
+                ? `url(${block.backgroundImageUrl})`
+                : undefined,
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+              backgroundColor: block.backgroundImageUrl
+                ? "transparent"
+                : block.backgroundColor || "#1f2937",
             }}
           >
             {block.backgroundImageUrl && (
-              <div 
+              <div
                 className="absolute inset-0"
-                style={{ 
-                  backgroundColor: block.backgroundColor || '#000000',
-                  opacity: block.backgroundOpacity || 0.4 
+                style={{
+                  backgroundColor: block.backgroundColor || "#000000",
+                  opacity: block.backgroundOpacity || 0.4,
                 }}
               />
             )}
-            <div 
-              className={`relative z-10 p-6 text-${block.alignment || 'center'} w-full`}
-              style={{ 
-                color: block.textColor || '#ffffff'
+            <div
+              className={`relative z-10 p-6 text-${block.alignment || "center"} w-full`}
+              style={{
+                color: block.textColor || "#ffffff",
               }}
             >
-              <h1 className="text-2xl font-bold mb-2" style={{ color: block.textColor || '#ffffff' }}>
-                {block.headline || 'Your Header Title'}
+              <h1
+                className="text-2xl font-bold mb-2"
+                style={{ color: block.textColor || "#ffffff" }}
+              >
+                {block.headline || "Your Header Title"}
               </h1>
               {block.body && (
-                <div className="text-sm opacity-90 leading-relaxed" style={{ color: block.textColor || '#ffffff' }}>
+                <div
+                  className="text-sm opacity-90 leading-relaxed"
+                  style={{ color: block.textColor || "#ffffff" }}
+                >
                   {block.body}
                 </div>
               )}
@@ -125,8 +133,8 @@ export const HeaderBlockEditor: React.FC<HeaderBlockEditorProps> = ({
           <Label htmlFor="headline">Headline</Label>
           <Input
             id="headline"
-            value={block.headline || ''}
-            onChange={(e) => updateField('headline', e.target.value)}
+            value={block.headline || ""}
+            onChange={(e) => updateField("headline", e.target.value)}
             placeholder="Enter your header title..."
           />
         </div>
@@ -135,8 +143,8 @@ export const HeaderBlockEditor: React.FC<HeaderBlockEditorProps> = ({
           <Label htmlFor="body">Body Text</Label>
           <Textarea
             id="body"
-            value={block.body || ''}
-            onChange={(e) => updateField('body', e.target.value)}
+            value={block.body || ""}
+            onChange={(e) => updateField("body", e.target.value)}
             placeholder="Add supporting text..."
             rows={3}
           />
@@ -145,12 +153,12 @@ export const HeaderBlockEditor: React.FC<HeaderBlockEditorProps> = ({
         <div>
           <Label htmlFor="alignment">Text Alignment</Label>
           <NativeSelect
-            value={block.alignment || 'center'}
-            onChange={(e) => updateField('alignment', e.target.value)}
+            value={block.alignment || "center"}
+            onChange={(e) => updateField("alignment", e.target.value)}
             options={[
-              { value: 'left', label: 'Left' },
-              { value: 'center', label: 'Center' },
-              { value: 'right', label: 'Right' }
+              { value: "left", label: "Left" },
+              { value: "center", label: "Center" },
+              { value: "right", label: "Right" },
             ]}
           />
         </div>
@@ -160,8 +168,8 @@ export const HeaderBlockEditor: React.FC<HeaderBlockEditorProps> = ({
           <Input
             id="textColor"
             type="color"
-            value={block.textColor || '#ffffff'}
-            onChange={(e) => updateField('textColor', e.target.value)}
+            value={block.textColor || "#ffffff"}
+            onChange={(e) => updateField("textColor", e.target.value)}
             className="h-10 w-full"
           />
         </div>
@@ -175,7 +183,9 @@ export const HeaderBlockEditor: React.FC<HeaderBlockEditorProps> = ({
               <Settings className="h-4 w-4" />
               Advanced Options
             </span>
-            <ChevronDown className={`h-4 w-4 transition-transform ${showAdvanced ? 'rotate-180' : ''}`} />
+            <ChevronDown
+              className={`h-4 w-4 transition-transform ${showAdvanced ? "rotate-180" : ""}`}
+            />
           </Button>
         </CollapsibleTrigger>
         <CollapsibleContent className="pt-4 space-y-4">
@@ -184,8 +194,7 @@ export const HeaderBlockEditor: React.FC<HeaderBlockEditorProps> = ({
             <MediaSelectorImage
               src={block.backgroundImageUrl}
               onChange={(imageUrl, metadata) => {
-                console.log('[HeaderBlockEditor] MediaSelectorImage onChange called:', imageUrl, metadata);
-                updateField('backgroundImageUrl', imageUrl);
+                updateField("backgroundImageUrl", imageUrl);
               }}
               contentContext="header background"
               className="mt-2"
@@ -197,20 +206,24 @@ export const HeaderBlockEditor: React.FC<HeaderBlockEditorProps> = ({
             <Input
               id="backgroundColor"
               type="color"
-              value={block.backgroundColor || '#1f2937'}
-              onChange={(e) => updateField('backgroundColor', e.target.value)}
+              value={block.backgroundColor || "#1f2937"}
+              onChange={(e) => updateField("backgroundColor", e.target.value)}
               className="h-10 w-full"
             />
           </div>
 
           <div>
             <Label htmlFor="opacity">
-              {block.backgroundImageUrl ? 'Overlay Opacity' : 'Background Opacity'}
+              {block.backgroundImageUrl
+                ? "Overlay Opacity"
+                : "Background Opacity"}
             </Label>
             <div className="px-3">
               <Slider
                 value={[block.backgroundOpacity || 0.4]}
-                onValueChange={(value) => updateField('backgroundOpacity', value[0])}
+                onValueChange={(value) =>
+                  updateField("backgroundOpacity", value[0])
+                }
                 max={1}
                 min={0}
                 step={0.1}
@@ -218,20 +231,23 @@ export const HeaderBlockEditor: React.FC<HeaderBlockEditorProps> = ({
               />
             </div>
             <div className="text-xs text-muted-foreground mt-1">
-              {Math.round((block.backgroundOpacity || 0.4) * 100)}% {block.backgroundImageUrl ? 'overlay darkness' : 'background opacity'}
+              {Math.round((block.backgroundOpacity || 0.4) * 100)}%{" "}
+              {block.backgroundImageUrl
+                ? "overlay darkness"
+                : "background opacity"}
             </div>
           </div>
 
           <div>
             <Label htmlFor="padding">Padding</Label>
             <NativeSelect
-              value={block.padding || 'medium'}
-              onChange={(e) => updateField('padding', e.target.value)}
+              value={block.padding || "medium"}
+              onChange={(e) => updateField("padding", e.target.value)}
               options={[
-                { value: 'none', label: 'None' },
-                { value: 'small', label: 'Small' },
-                { value: 'medium', label: 'Medium' },
-                { value: 'large', label: 'Large' }
+                { value: "none", label: "None" },
+                { value: "small", label: "Small" },
+                { value: "medium", label: "Medium" },
+                { value: "large", label: "Large" },
               ]}
             />
           </div>

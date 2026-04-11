@@ -1,20 +1,25 @@
-import React, { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Calendar } from '@/components/ui/calendar';
-import { NativeSelect } from '@/components/ui/NativeSelect';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
-import { Textarea } from '@/components/ui/textarea';
-import { 
-  Send, 
-  Clock, 
-  Image, 
-  Facebook, 
-  Instagram, 
+import React, { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Calendar } from "@/components/ui/calendar";
+import { NativeSelect } from "@/components/ui/NativeSelect";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Send,
+  Clock,
+  Image,
+  Facebook,
+  Instagram,
   Calendar as CalendarIcon,
   Zap,
   CheckCircle,
@@ -23,14 +28,14 @@ import {
   Settings,
   X,
   Shield,
-  ShieldCheck
-} from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
-import { cn } from '@/lib/utils';
-import { addHours, format, setHours, setMinutes } from 'date-fns';
-import { ImageSelectButton } from '@/components/image';
+  ShieldCheck,
+} from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { cn } from "@/lib/utils";
+import { addHours, format, setHours, setMinutes } from "date-fns";
+import { ImageSelectButton } from "@/components/image";
 
 interface GeneratedContent {
   id: string;
@@ -66,10 +71,10 @@ interface DirectSocialPublisherProps {
 }
 
 // Platform selector component
-const PlatformSelector = ({ 
-  connections, 
-  selectedPlatforms, 
-  onPlatformToggle 
+const PlatformSelector = ({
+  connections,
+  selectedPlatforms,
+  onPlatformToggle,
 }: {
   connections: SocialConnection[];
   selectedPlatforms: string[];
@@ -81,36 +86,44 @@ const PlatformSelector = ({
       <div className="grid gap-3">
         {connections.map((connection) => {
           const isSelected = selectedPlatforms.includes(connection.platform);
-          const PlatformIcon = connection.platform === 'facebook' ? Facebook : Instagram;
-          const platformName = connection.platform === 'facebook' ? 'Facebook' : 'Instagram';
-          
+          const PlatformIcon =
+            connection.platform === "facebook" ? Facebook : Instagram;
+          const platformName =
+            connection.platform === "facebook" ? "Facebook" : "Instagram";
+
           return (
             <div
               key={connection.id}
               onClick={() => onPlatformToggle(connection.platform)}
               className={cn(
                 "flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all",
-                isSelected 
-                  ? "border-primary bg-primary/5" 
-                  : "border-gray-200 hover:border-gray-300"
+                isSelected
+                  ? "border-primary bg-primary/5"
+                  : "border-gray-200 hover:border-gray-300",
               )}
             >
               <div className="flex items-center gap-3 flex-1">
-                <PlatformIcon className={cn(
-                  "w-5 h-5",
-                  connection.platform === 'facebook' ? 'text-blue-600' : 'text-pink-500'
-                )} />
+                <PlatformIcon
+                  className={cn(
+                    "w-5 h-5",
+                    connection.platform === "facebook"
+                      ? "text-blue-600"
+                      : "text-pink-500",
+                  )}
+                />
                 <div>
                   <p className="font-medium text-sm">{platformName}</p>
-                  <p className="text-xs text-gray-500">{connection.platform_account_name}</p>
+                  <p className="text-xs text-gray-500">
+                    {connection.platform_account_name}
+                  </p>
                 </div>
               </div>
-              <div className={cn(
-                "w-4 h-4 rounded-full border-2 transition-all",
-                isSelected 
-                  ? "bg-primary border-primary" 
-                  : "border-gray-300"
-              )}>
+              <div
+                className={cn(
+                  "w-4 h-4 rounded-full border-2 transition-all",
+                  isSelected ? "bg-primary border-primary" : "border-gray-300",
+                )}
+              >
                 {isSelected && <CheckCircle className="w-3 h-3 text-white" />}
               </div>
             </div>
@@ -122,50 +135,54 @@ const PlatformSelector = ({
 };
 
 // Time picker component
-const TimePicker = ({ 
-  selectedTime, 
-  onTimeChange 
-}: { 
-  selectedTime: Date; 
-  onTimeChange: (time: Date) => void; 
+const TimePicker = ({
+  selectedTime,
+  onTimeChange,
+}: {
+  selectedTime: Date;
+  onTimeChange: (time: Date) => void;
 }) => {
   const hours = Array.from({ length: 24 }, (_, i) => i);
   const minutes = [0, 15, 30, 45];
-  
+
   const currentHour = selectedTime.getHours();
   const currentMinute = selectedTime.getMinutes();
-  
+
   return (
     <div className="flex items-center gap-2">
-      <NativeSelect 
-        value={currentHour.toString()} 
-        onChange={(e) => onTimeChange(setHours(selectedTime, parseInt(e.target.value)))}
+      <NativeSelect
+        value={currentHour.toString()}
+        onChange={(e) =>
+          onTimeChange(setHours(selectedTime, parseInt(e.target.value)))
+        }
         className="w-20"
-        options={hours.map(hour => ({
+        options={hours.map((hour) => ({
           value: hour.toString(),
-          label: hour.toString().padStart(2, '0')
+          label: hour.toString().padStart(2, "0"),
         }))}
       />
-      
+
       <span className="text-gray-500">:</span>
-      
-      <NativeSelect 
-        value={currentMinute.toString()} 
-        onChange={(e) => onTimeChange(setMinutes(selectedTime, parseInt(e.target.value)))}
+
+      <NativeSelect
+        value={currentMinute.toString()}
+        onChange={(e) =>
+          onTimeChange(setMinutes(selectedTime, parseInt(e.target.value)))
+        }
         className="w-20"
-        options={minutes.map(minute => ({
+        options={minutes.map((minute) => ({
           value: minute.toString(),
-          label: minute.toString().padStart(2, '0')
+          label: minute.toString().padStart(2, "0"),
         }))}
       />
     </div>
   );
 };
 
-export const DirectSocialPublisher = ({ 
-  selectedContent, 
+export const DirectSocialPublisher = ({
+  selectedContent,
   onPublishSuccess,
-  onScheduleSuccess 
+  onScheduleSuccess,
 }: DirectSocialPublisherProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -173,10 +190,14 @@ export const DirectSocialPublisher = ({
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>([]);
   const [isPublishing, setIsPublishing] = useState(false);
   const [showScheduleDialog, setShowScheduleDialog] = useState(false);
-  const [selectedDate, setSelectedDate] = useState<Date>(addHours(new Date(), 1));
-  const [selectedTime, setSelectedTime] = useState<Date>(addHours(new Date(), 1));
+  const [selectedDate, setSelectedDate] = useState<Date>(
+    addHours(new Date(), 1),
+  );
+  const [selectedTime, setSelectedTime] = useState<Date>(
+    addHours(new Date(), 1),
+  );
   const [isScheduling, setIsScheduling] = useState(false);
-  const [editedCaption, setEditedCaption] = useState('');
+  const [editedCaption, setEditedCaption] = useState("");
   const [autoImage, setAutoImage] = useState(true);
   const [isApproving, setIsApproving] = useState(false);
 
@@ -191,28 +212,28 @@ export const DirectSocialPublisher = ({
   const loadConnections = async () => {
     try {
       const { data, error } = await supabase
-        .from('social_connections')
-        .select('*')
-        .eq('is_active', true)
-        .in('platform', ['facebook', 'instagram']);
+        .from("social_connections")
+        .select("*")
+        .eq("is_active", true)
+        .in("platform", ["facebook", "instagram"]);
 
       if (error) throw error;
-      
+
       const validConnections = (data || []).filter(
-        (conn): conn is SocialConnection => 
-          conn.platform === 'facebook' || conn.platform === 'instagram'
+        (conn): conn is SocialConnection =>
+          conn.platform === "facebook" || conn.platform === "instagram",
       );
-      
+
       setConnections(validConnections);
-      
+
       // Pre-select platforms based on content type
       if (selectedContent?.platform) {
         setSelectedPlatforms([selectedContent.platform]);
       } else {
-        setSelectedPlatforms(validConnections.map(c => c.platform));
+        setSelectedPlatforms(validConnections.map((c) => c.platform));
       }
     } catch (error) {
-      console.error('Error loading connections:', error);
+      console.error("Error loading connections:", error);
       toast({
         title: "Error",
         description: "Failed to load social media connections",
@@ -222,10 +243,10 @@ export const DirectSocialPublisher = ({
   };
 
   const handlePlatformToggle = (platform: string) => {
-    setSelectedPlatforms(prev => 
-      prev.includes(platform) 
-        ? prev.filter(p => p !== platform)
-        : [...prev, platform]
+    setSelectedPlatforms((prev) =>
+      prev.includes(platform)
+        ? prev.filter((p) => p !== platform)
+        : [...prev, platform],
     );
   };
 
@@ -244,25 +265,26 @@ export const DirectSocialPublisher = ({
       // Update content with edited caption if changed
       if (editedCaption !== selectedContent.caption) {
         await supabase
-          .from('content_tasks')
+          .from("content_tasks")
           .update({ ai_output: editedCaption })
-          .eq('id', selectedContent.id);
+          .eq("id", selectedContent.id);
       }
 
-      const { data, error } = await supabase.functions.invoke('publish-task', {
+      const { data, error } = await supabase.functions.invoke("publish-task", {
         body: {
           taskId: selectedContent.id,
           platforms: selectedPlatforms,
-          autoImage
-        }
+          autoImage,
+        },
       });
 
       if (error) throw error;
 
       if (data?.success) {
-        const successCount = data.results?.filter((r: any) => r.success).length || 0;
+        const successCount =
+          data.results?.filter((r: any) => r.success).length || 0;
         const totalCount = data.results?.length || 0;
-        
+
         if (successCount === totalCount) {
           toast({
             title: "Success!",
@@ -280,20 +302,20 @@ export const DirectSocialPublisher = ({
             variant: "destructive",
           });
         }
-        
+
         onPublishSuccess?.();
       } else {
         toast({
           title: "Error",
-          description: data?.message || 'Publishing failed',
+          description: data?.message || "Publishing failed",
           variant: "destructive",
         });
       }
     } catch (error: any) {
-      console.error('Publishing error:', error);
+      console.error("Publishing error:", error);
       toast({
         title: "Error",
-        description: error.message || 'Failed to publish content',
+        description: error.message || "Failed to publish content",
         variant: "destructive",
       });
     } finally {
@@ -303,13 +325,13 @@ export const DirectSocialPublisher = ({
 
   const handleApproveContent = async () => {
     if (!selectedContent) return;
-    
+
     setIsApproving(true);
     try {
       const { error } = await supabase
-        .from('content_tasks')
-        .update({ status: 'approved' })
-        .eq('id', selectedContent.id);
+        .from("content_tasks")
+        .update({ status: "approved" })
+        .eq("id", selectedContent.id);
 
       if (error) throw error;
 
@@ -317,12 +339,11 @@ export const DirectSocialPublisher = ({
         title: "Success!",
         description: "Content approved and ready to publish!",
       });
-      
+
       // Trigger refresh
-      window.dispatchEvent(new CustomEvent('draft-updated'));
-      
+      window.dispatchEvent(new CustomEvent("draft-updated"));
     } catch (error) {
-      console.error('Error approving content:', error);
+      console.error("Error approving content:", error);
       toast({
         title: "Error",
         description: "Failed to approve content",
@@ -354,26 +375,27 @@ export const DirectSocialPublisher = ({
       // Update content with edited caption if changed
       if (editedCaption !== selectedContent.caption) {
         await supabase
-          .from('content_tasks')
+          .from("content_tasks")
           .update({ ai_output: editedCaption })
-          .eq('id', selectedContent.id);
+          .eq("id", selectedContent.id);
       }
 
-      const { data, error } = await supabase.functions.invoke('publish-task', {
+      const { data, error } = await supabase.functions.invoke("publish-task", {
         body: {
           taskId: selectedContent.id,
           platforms: selectedPlatforms,
           publishAt: publishAt.toISOString(),
-          autoImage
-        }
+          autoImage,
+        },
       });
 
       if (error) throw error;
 
       if (data?.success) {
-        const successCount = data.results?.filter((r: any) => r.success).length || 0;
-        const formattedTime = format(publishAt, 'MMM d, h:mm a');
-        
+        const successCount =
+          data.results?.filter((r: any) => r.success).length || 0;
+        const formattedTime = format(publishAt, "MMM d, h:mm a");
+
         if (successCount > 0) {
           toast({
             title: "Success!",
@@ -391,15 +413,15 @@ export const DirectSocialPublisher = ({
       } else {
         toast({
           title: "Error",
-          description: data?.message || 'Scheduling failed',
+          description: data?.message || "Scheduling failed",
           variant: "destructive",
         });
       }
     } catch (error: any) {
-      console.error('Scheduling error:', error);
+      console.error("Scheduling error:", error);
       toast({
         title: "Error",
-        description: error.message || 'Failed to schedule content',
+        description: error.message || "Failed to schedule content",
         variant: "destructive",
       });
     } finally {
@@ -413,7 +435,9 @@ export const DirectSocialPublisher = ({
         <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
           <Send className="w-8 h-8 text-gray-400" />
         </div>
-        <h3 className="text-lg font-medium text-gray-700 mb-2">Ready to Publish</h3>
+        <h3 className="text-lg font-medium text-gray-700 mb-2">
+          Ready to Publish
+        </h3>
         <p className="text-gray-600 text-sm">
           Select content from the library to publish or schedule to social media
         </p>
@@ -425,14 +449,17 @@ export const DirectSocialPublisher = ({
     return (
       <Card className="p-6 text-center border-orange-200 bg-orange-50">
         <AlertCircle className="w-12 h-12 text-orange-500 mx-auto mb-4" />
-        <h3 className="text-lg font-medium text-orange-800 mb-2">No Social Connections</h3>
+        <h3 className="text-lg font-medium text-orange-800 mb-2">
+          No Social Connections
+        </h3>
         <p className="text-orange-700 text-sm mb-4">
-          Connect your Facebook and Instagram accounts to publish content directly
+          Connect your Facebook and Instagram accounts to publish content
+          directly
         </p>
-        <Button 
-          variant="outline" 
+        <Button
+          variant="outline"
           className="border-orange-300 text-orange-700 hover:bg-orange-100"
-          onClick={() => window.location.href = '/social'}
+          onClick={() => (window.location.href = "/social")}
         >
           <Settings className="w-4 h-4 mr-2" />
           Connect Accounts
@@ -442,8 +469,8 @@ export const DirectSocialPublisher = ({
   }
 
   // Check if content needs approval
-  const needsApproval = selectedContent.status === 'review';
-  const isApproved = selectedContent.status === 'approved';
+  const needsApproval = selectedContent.status === "review";
+  const isApproved = selectedContent.status === "approved";
 
   return (
     <div className="space-y-6">
@@ -453,7 +480,9 @@ export const DirectSocialPublisher = ({
           <div className="flex items-center gap-3">
             <Shield className="w-5 h-5 text-amber-600" />
             <div className="flex-1">
-              <h4 className="font-medium text-amber-800">Content Needs Approval</h4>
+              <h4 className="font-medium text-amber-800">
+                Content Needs Approval
+              </h4>
               <p className="text-sm text-amber-700">
                 Recent changes require approval before publishing
               </p>
@@ -485,8 +514,8 @@ export const DirectSocialPublisher = ({
         <div className="flex items-start gap-4">
           {selectedContent.mediaUrl && (
             <div className="w-20 h-20 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
-              <img 
-                src={selectedContent.mediaUrl} 
+              <img
+                src={selectedContent.mediaUrl}
                 alt="Content preview"
                 className="w-full h-full object-cover"
               />
@@ -495,16 +524,22 @@ export const DirectSocialPublisher = ({
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-2">
               <Badge variant="outline" className="capitalize">
-                {selectedContent.platform || 'Social'}
+                {selectedContent.platform || "Social"}
               </Badge>
-              <Badge 
-                variant={isApproved ? "default" : needsApproval ? "destructive" : "secondary"}
+              <Badge
+                variant={
+                  isApproved
+                    ? "default"
+                    : needsApproval
+                      ? "destructive"
+                      : "secondary"
+                }
                 className={cn(
                   isApproved && "bg-green-600 text-white",
-                  needsApproval && "bg-amber-600 text-white"
+                  needsApproval && "bg-amber-600 text-white",
                 )}
               >
-                {needsApproval ? 'Needs Approval' : selectedContent.status}
+                {needsApproval ? "Needs Approval" : selectedContent.status}
               </Badge>
             </div>
             <Textarea
@@ -519,7 +554,7 @@ export const DirectSocialPublisher = ({
 
       {/* Platform Selection */}
       <Card className="p-4">
-        <PlatformSelector 
+        <PlatformSelector
           connections={connections}
           selectedPlatforms={selectedPlatforms}
           onPlatformToggle={handlePlatformToggle}
@@ -530,7 +565,6 @@ export const DirectSocialPublisher = ({
       <ImageSelectButton
         onImageSelect={(imageUrl, metadata) => {
           // The component handles updating the task internally
-          console.log('Image selected:', imageUrl, metadata);
         }}
         selectedImageUrl={selectedContent?.mediaUrl}
         contentContext={selectedContent?.caption}
@@ -541,12 +575,14 @@ export const DirectSocialPublisher = ({
       <div className="flex items-center gap-3">
         <Button
           onClick={handlePublishNow}
-          disabled={isPublishing || selectedPlatforms.length === 0 || needsApproval}
+          disabled={
+            isPublishing || selectedPlatforms.length === 0 || needsApproval
+          }
           className={cn(
             "flex-1",
-            needsApproval 
-              ? "bg-gray-400 hover:bg-gray-400 cursor-not-allowed" 
-              : "bg-green-600 hover:bg-green-700"
+            needsApproval
+              ? "bg-gray-400 hover:bg-gray-400 cursor-not-allowed"
+              : "bg-green-600 hover:bg-green-700",
           )}
         >
           {isPublishing ? (
@@ -566,7 +602,7 @@ export const DirectSocialPublisher = ({
             </>
           )}
         </Button>
-        
+
         <Button
           onClick={() => setShowScheduleDialog(true)}
           disabled={selectedPlatforms.length === 0 || needsApproval}
@@ -587,7 +623,7 @@ export const DirectSocialPublisher = ({
               Schedule Post
             </DialogTitle>
           </DialogHeader>
-          
+
           <div className="space-y-4">
             <div className="space-y-2">
               <Label>Select Date</Label>
@@ -599,10 +635,10 @@ export const DirectSocialPublisher = ({
                 className="rounded-md border"
               />
             </div>
-            
+
             <div className="space-y-2">
               <Label>Select Time</Label>
-              <TimePicker 
+              <TimePicker
                 selectedTime={selectedTime}
                 onTimeChange={setSelectedTime}
               />
@@ -611,7 +647,8 @@ export const DirectSocialPublisher = ({
             <div className="bg-gray-50 rounded-lg p-3">
               <p className="text-sm text-gray-600">
                 <Clock className="w-4 h-4 inline mr-1" />
-                Will publish on {format(selectedDate, 'MMM d, yyyy')} at {format(selectedTime, 'h:mm a')}
+                Will publish on {format(selectedDate, "MMM d, yyyy")} at{" "}
+                {format(selectedTime, "h:mm a")}
               </p>
             </div>
 
@@ -627,10 +664,10 @@ export const DirectSocialPublisher = ({
                     Scheduling...
                   </>
                 ) : (
-                  'Schedule Post'
+                  "Schedule Post"
                 )}
               </Button>
-              
+
               <Button
                 onClick={() => setShowScheduleDialog(false)}
                 variant="outline"

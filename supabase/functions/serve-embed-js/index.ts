@@ -1,26 +1,31 @@
 /**
  * Serve Embed JS Edge Function
- * 
+ *
  * Serves the embed.v1.js file directly from the edge function.
- * This is separate from serve-embed-assets due to the large file size.
- * 
+ * This is a deprecated compatibility path. New embeds should use the
+ * storage-hosted runtime instead of this edge-served copy.
+ *
  * URL: https://udldmkqwnxhdeztyqcau.supabase.co/functions/v1/serve-embed-js
- * 
+ *
  * When updating:
  * 1. Update public/forms/embed.v1.js (source of truth)
- * 2. Update EMBED_JS constant in this file  
+ * 2. Update EMBED_JS constant in this file
  * 3. Changes auto-deploy with the edge function
- * 
+ *
  * Version: 1.5.0
  */
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'GET, OPTIONS',
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "GET, OPTIONS",
+  "Access-Control-Expose-Headers":
+    "Deprecation, Link, X-Embed-Version, X-BloomSuite-Deprecated, X-BloomSuite-Successor",
 };
 
-const EMBED_VERSION = '1.5.0';
+const EMBED_VERSION = "1.5.0";
+const STATIC_EMBED_RUNTIME_URL = `https://udldmkqwnxhdeztyqcau.supabase.co/storage/v1/object/public/assets/forms/embed.v${EMBED_VERSION}.js`;
 
 // ─── Embed JS Content ──────────────────────────────────────────────────────
 // This is the compiled embed.js content
@@ -83,7 +88,7 @@ const EMBED_JS = `/**
     SLIDE_IN: 'slide-in'
   };
 
-  // Supported trigger types  
+  // Supported trigger types
   var TRIGGER_TYPES = {
     MANUAL: 'manual',
     DELAY: 'delay',
@@ -174,118 +179,531 @@ const EMBED_JS = `/**
 
   // ─── Form Rendering ──────────────────────────────────────────────────────
 
-  function renderField(field, formConfig) {
+  function getFieldName(field) {
+    return field.mapping_key || field.id || field.field_key;
+  }
+
+  function getConfigFields(config) {
+    return config.fields_json || config.fields || [];
+  }
+
+  function getConfigSettings(config) {
+    return config.settings_json || config.settings || {};
+  }
+
+  function getConfigCompliance(config) {
+    return config.compliance_json || config.compliance || {};
+  }
+
+  function isCheckboxField(field) {
+    return field.type === 'checkbox' || field.type === 'email_consent' || field.type === 'sms_consent';
+  }
+
+  function getFieldDefaultValue(field) {
+    if (field.type === 'email_consent' || field.type === 'sms_consent') {
+      return false;
+    }
+
+    if (field.type === 'checkbox') {
+      return field.default_value === true;
+    }
+
+    return typeof field.default_value === 'string' ? field.default_value : '';
+  }
+
+  function getFieldTextValue(value) {
+    if (value === undefined || value === null) {
+      return '';
+    }
+
+    return String(value);
+  }
+
+  function getFieldMaxLength(field) {
+    return field && field.rules && typeof field.rules.max_length === 'number' && field.rules.max_length > 0
+      ? field.rules.max_length
+      : null;
+  }
+
+  function getConsentText(field, compliance) {
+    if (field.type === 'email_consent') {
+      return (compliance && compliance.email_consent_text) || field.label || 'I agree to receive email communications';
+    }
+
+    if (field.type === 'sms_consent') {
+      return (compliance && compliance.sms_consent_text) || field.label || 'I agree to receive SMS communications';
+    }
+
+    return field.label || '';
+  }
+
+  function getOptionValue(option) {
+    if (option && typeof option === 'object') {
+      if (option.value !== undefined && option.value !== null) {
+        return String(option.value);
+      }
+
+      if (option.label !== undefined && option.label !== null) {
+        return String(option.label);
+      }
+    }
+
+    return getFieldTextValue(option);
+  }
+
+  function getOptionLabel(option) {
+    if (option && typeof option === 'object' && option.label !== undefined && option.label !== null) {
+      return String(option.label);
+    }
+
+    return getOptionValue(option);
+  }
+
+  function getFieldInput(formEl, fieldName) {
+    var inputs = formEl.querySelectorAll('input, select, textarea');
+
+    for (var i = 0; i < inputs.length; i++) {
+      if (inputs[i].name === fieldName) {
+        return inputs[i];
+      }
+    }
+
+    return null;
+  }
+
+  function getFieldWrapper(formEl, fieldName) {
+    var wrappers = formEl.querySelectorAll('.' + CSS_PREFIX + 'field');
+
+    for (var i = 0; i < wrappers.length; i++) {
+      if (wrappers[i].getAttribute('data-field-name') === fieldName) {
+        return wrappers[i];
+      }
+    }
+
+    return null;
+  }
+
+  function getFieldErrorElement(formEl, fieldName) {
+    var wrapper = getFieldWrapper(formEl, fieldName);
+    if (!wrapper) {
+      return null;
+    }
+
+    var errors = wrapper.querySelectorAll('[data-field-error]');
+    for (var i = 0; i < errors.length; i++) {
+      if (errors[i].getAttribute('data-field-error') === fieldName) {
+        return errors[i];
+      }
+    }
+
+    return null;
+  }
+
+  function getInputValue(field, input) {
+    if (!input) {
+      return getFieldDefaultValue(field);
+    }
+
+    if (isCheckboxField(field)) {
+      return input.checked === true;
+    }
+
+    return input.value || '';
+  }
+
+  function clearFieldError(formEl, fieldName) {
+    var input = getFieldInput(formEl, fieldName);
+    var errorEl = getFieldErrorElement(formEl, fieldName);
+
+    if (errorEl && errorEl.parentNode) {
+      errorEl.parentNode.removeChild(errorEl);
+    }
+
+    if (input) {
+      input.removeAttribute('aria-invalid');
+      input.removeAttribute('aria-describedby');
+    }
+  }
+
+  function clearSubmissionError(formEl) {
+    var errors = formEl.querySelectorAll('[data-form-error="true"]');
+
+    for (var i = 0; i < errors.length; i++) {
+      if (errors[i].parentNode) {
+        errors[i].parentNode.removeChild(errors[i]);
+      }
+    }
+  }
+
+  function showFieldError(formEl, fieldName, message) {
+    var wrapper = getFieldWrapper(formEl, fieldName);
+    var input = getFieldInput(formEl, fieldName);
+    var errorEl = getFieldErrorElement(formEl, fieldName);
+
+    if (!wrapper) {
+      return;
+    }
+
+    if (!errorEl) {
+      errorEl = document.createElement('div');
+      errorEl.className = CSS_PREFIX + 'error-msg';
+      errorEl.setAttribute('data-field-error', fieldName);
+      wrapper.appendChild(errorEl);
+    }
+
+    errorEl.id = CSS_PREFIX + 'error-' + fieldName;
+    errorEl.textContent = message;
+
+    if (input) {
+      input.setAttribute('aria-invalid', 'true');
+      input.setAttribute('aria-describedby', errorEl.id);
+    }
+  }
+
+  function validateFieldValue(field, rawValue, compliance) {
+    var isRequired = field.required === true;
+
+    if (field.type === 'email_consent' && compliance && compliance.email_consent_required) {
+      isRequired = true;
+    }
+
+    if (field.type === 'sms_consent' && compliance && compliance.sms_consent_required) {
+      isRequired = true;
+    }
+
+    if (isCheckboxField(field)) {
+      if (isRequired && rawValue !== true) {
+        if (field.type === 'email_consent') {
+          return 'Email consent is required';
+        }
+
+        if (field.type === 'sms_consent') {
+          return 'SMS consent is required';
+        }
+
+        return 'This field is required';
+      }
+
+      return null;
+    }
+
+    var textValue = getFieldTextValue(rawValue);
+    var trimmedValue = textValue.trim();
+
+    if (isRequired && !trimmedValue) {
+      return 'This field is required';
+    }
+
+    if (!trimmedValue) {
+      return null;
+    }
+
+    if (field.type === 'email' && !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(trimmedValue)) {
+      return 'Please enter a valid email';
+    }
+
+    if (field.type === 'phone') {
+      if (!/^[\\d\\s\\-+()]+$/.test(trimmedValue)) {
+        return 'Please enter a valid phone number';
+      }
+
+      if (trimmedValue.replace(/\\D/g, '').length < 10) {
+        return 'Please enter a valid phone number';
+      }
+    }
+
+    var minLength = field.rules && field.rules.min_length;
+    if (typeof minLength === 'number' && minLength > 0 && textValue.length < minLength) {
+      return 'Please enter at least ' + minLength + ' characters';
+    }
+
+    var maxLength = getFieldMaxLength(field);
+    if (typeof maxLength === 'number' && textValue.length > maxLength) {
+      return 'Please keep this answer under ' + maxLength + ' characters';
+    }
+
+    var pattern = field.rules && field.rules.pattern;
+    if (pattern) {
+      try {
+        if (!(new RegExp(pattern)).test(textValue)) {
+          if (
+            field.rules &&
+            typeof field.rules.pattern_message === 'string' &&
+            field.rules.pattern_message.trim()
+          ) {
+            return field.rules.pattern_message.trim();
+          }
+
+          return 'Please match the expected format';
+        }
+      } catch (e) {
+        return null;
+      }
+    }
+
+    return null;
+  }
+
+  function validateFormFields(formEl, fields, compliance) {
+    var firstInvalidInput = null;
+    var isValid = true;
+
+    fields.forEach(function(field) {
+      if (field.type === 'hidden' || field.field_key === 'hp_field') {
+        return;
+      }
+
+      var fieldName = getFieldName(field);
+      clearFieldError(formEl, fieldName);
+
+      var input = getFieldInput(formEl, fieldName);
+      var error = validateFieldValue(field, getInputValue(field, input), compliance);
+
+      if (error) {
+        isValid = false;
+        showFieldError(formEl, fieldName, error);
+
+        if (!firstInvalidInput && input && typeof input.focus === 'function') {
+          firstInvalidInput = input;
+        }
+      }
+    });
+
+    return {
+      valid: isValid,
+      firstInvalidInput: firstInvalidInput
+    };
+  }
+
+  function attachValidationListeners(formEl, fields, compliance) {
+    fields.forEach(function(field) {
+      if (field.type === 'hidden' || field.field_key === 'hp_field') {
+        return;
+      }
+
+      var fieldName = getFieldName(field);
+      var input = getFieldInput(formEl, fieldName);
+      if (!input) {
+        return;
+      }
+
+      var revalidate = function() {
+        var hasError = getFieldErrorElement(formEl, fieldName);
+        if (!hasError) {
+          return;
+        }
+
+        var nextError = validateFieldValue(field, getInputValue(field, input), compliance);
+        if (nextError) {
+          showFieldError(formEl, fieldName, nextError);
+        } else {
+          clearFieldError(formEl, fieldName);
+        }
+      };
+
+      var eventName = isCheckboxField(field) || field.type === 'select' ? 'change' : 'input';
+      input.addEventListener(eventName, revalidate);
+      input.addEventListener('blur', function() {
+        var nextError = validateFieldValue(field, getInputValue(field, input), compliance);
+        if (nextError) {
+          showFieldError(formEl, fieldName, nextError);
+        } else {
+          clearFieldError(formEl, fieldName);
+        }
+      });
+    });
+  }
+
+  function renderField(field, compliance) {
     var wrapper = document.createElement('div');
+    var fieldName = getFieldName(field);
+    var defaultValue = getFieldDefaultValue(field);
+
     wrapper.className = CSS_PREFIX + 'field';
+    wrapper.setAttribute('data-field-name', fieldName);
 
     if (field.type === 'hidden' || field.field_key === 'hp_field') {
       wrapper.className += ' ' + CSS_PREFIX + 'hp';
+
+      var hidden = document.createElement('input');
+      hidden.type = 'hidden';
+      hidden.name = fieldName;
+      hidden.value = typeof defaultValue === 'string' ? defaultValue : '';
+      wrapper.appendChild(hidden);
+      return wrapper;
     }
 
-    // Label
-    if (field.label && field.type !== 'hidden' && field.type !== 'checkbox') {
+    if (field.type === 'email_consent' || field.type === 'sms_consent') {
+      wrapper.className += ' ' + CSS_PREFIX + 'consent';
+
+      var consentWrap = document.createElement('div');
+      consentWrap.className = CSS_PREFIX + 'checkbox-wrap';
+
+      var consentCheckbox = document.createElement('input');
+      consentCheckbox.type = 'checkbox';
+      consentCheckbox.className = CSS_PREFIX + 'checkbox';
+      consentCheckbox.name = fieldName;
+      consentCheckbox.id = CSS_PREFIX + 'f-' + field.id;
+      consentCheckbox.checked = false;
+
+      if (
+        field.required ||
+        (field.type === 'email_consent' && compliance && compliance.email_consent_required) ||
+        (field.type === 'sms_consent' && compliance && compliance.sms_consent_required)
+      ) {
+        consentCheckbox.required = true;
+      }
+
+      var consentLabel = document.createElement('label');
+      consentLabel.className = CSS_PREFIX + 'checkbox-text';
+      consentLabel.setAttribute('for', consentCheckbox.id);
+      consentLabel.textContent = getConsentText(field, compliance);
+
+      if (consentCheckbox.required) {
+        var consentReq = document.createElement('span');
+        consentReq.className = CSS_PREFIX + 'required';
+        consentReq.textContent = ' *';
+        consentLabel.appendChild(consentReq);
+      }
+
+      consentWrap.appendChild(consentCheckbox);
+      consentWrap.appendChild(consentLabel);
+      wrapper.appendChild(consentWrap);
+      return wrapper;
+    }
+
+    if (field.type === 'checkbox') {
+      var checkWrap = document.createElement('div');
+      checkWrap.className = CSS_PREFIX + 'checkbox-wrap';
+
+      var checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.className = CSS_PREFIX + 'checkbox';
+      checkbox.name = fieldName;
+      checkbox.id = CSS_PREFIX + 'f-' + field.id;
+      checkbox.checked = defaultValue === true;
+      if (field.required) checkbox.required = true;
+
+      var checkLabel = document.createElement('label');
+      checkLabel.className = CSS_PREFIX + 'checkbox-text';
+      checkLabel.setAttribute('for', checkbox.id);
+      checkLabel.textContent = field.label || '';
+
+      if (field.required) {
+        var checkReq = document.createElement('span');
+        checkReq.className = CSS_PREFIX + 'required';
+        checkReq.textContent = ' *';
+        checkLabel.appendChild(checkReq);
+      }
+
+      checkWrap.appendChild(checkbox);
+      checkWrap.appendChild(checkLabel);
+      wrapper.appendChild(checkWrap);
+      return wrapper;
+    }
+
+    if (field.label) {
       var label = document.createElement('label');
       label.className = CSS_PREFIX + 'label';
+      label.setAttribute('for', CSS_PREFIX + 'f-' + field.id);
       label.textContent = field.label;
+
       if (field.required) {
         var req = document.createElement('span');
         req.className = CSS_PREFIX + 'required';
         req.textContent = ' *';
         label.appendChild(req);
       }
+
       wrapper.appendChild(label);
     }
 
-    // Input element
-    var input;
-    switch (field.type) {
-      case 'textarea':
-        input = document.createElement('textarea');
-        input.className = CSS_PREFIX + 'input';
-        input.rows = 4;
-        break;
+    if (field.type === 'select') {
+      var select = document.createElement('select');
+      select.className = CSS_PREFIX + 'select';
+      select.name = fieldName;
+      select.id = CSS_PREFIX + 'f-' + field.id;
+      if (field.required) select.required = true;
 
-      case 'select':
-        input = document.createElement('select');
-        input.className = CSS_PREFIX + 'select';
-        var defaultOpt = document.createElement('option');
-        defaultOpt.value = '';
-        defaultOpt.textContent = field.placeholder || 'Select...';
-        input.appendChild(defaultOpt);
-        (field.options || []).forEach(function(opt) {
-          var option = document.createElement('option');
-          option.value = opt.value || opt;
-          option.textContent = opt.label || opt;
-          input.appendChild(option);
-        });
-        break;
+      var defaultOpt = document.createElement('option');
+      defaultOpt.value = '';
+      defaultOpt.textContent = field.placeholder || 'Select...';
+      select.appendChild(defaultOpt);
 
-      case 'checkbox':
-        var checkWrap = document.createElement('div');
-        checkWrap.className = CSS_PREFIX + 'checkbox-wrap';
-        if (field.is_consent) {
-          checkWrap.className += ' ' + CSS_PREFIX + 'consent';
-        }
-        input = document.createElement('input');
-        input.type = 'checkbox';
-        input.className = CSS_PREFIX + 'checkbox';
-        // NEVER pre-check consent checkboxes
-        input.checked = false;
-        var checkLabel = document.createElement('label');
-        checkLabel.className = CSS_PREFIX + 'checkbox-text';
-        checkLabel.textContent = field.label || '';
-        checkWrap.appendChild(input);
-        checkWrap.appendChild(checkLabel);
-        wrapper.appendChild(checkWrap);
-        break;
+      (field.options || []).forEach(function(opt) {
+        var option = document.createElement('option');
+        option.value = getOptionValue(opt);
+        option.textContent = getOptionLabel(opt);
+        select.appendChild(option);
+      });
 
-      case 'hidden':
-        input = document.createElement('input');
-        input.type = 'hidden';
-        break;
+      if (typeof defaultValue === 'string' && defaultValue) {
+        select.value = defaultValue;
+      }
 
-      default:
-        input = document.createElement('input');
-        input.type = field.type || 'text';
-        input.className = CSS_PREFIX + 'input';
-        if (field.placeholder) input.placeholder = field.placeholder;
+      wrapper.appendChild(select);
+      return wrapper;
     }
 
-    if (input && field.type !== 'checkbox') {
-      input.name = field.field_key;
-      if (field.required) input.required = true;
-      wrapper.appendChild(input);
-    } else if (input) {
-      input.name = field.field_key;
+    var input = document.createElement(field.type === 'textarea' ? 'textarea' : 'input');
+    input.className = CSS_PREFIX + 'input';
+    input.name = fieldName;
+    input.id = CSS_PREFIX + 'f-' + field.id;
+    if (field.required) input.required = true;
+    if (field.placeholder) input.placeholder = field.placeholder;
+
+    if (field.type === 'textarea') {
+      input.rows = 4;
+    } else if (field.type === 'email') {
+      input.type = 'email';
+    } else if (field.type === 'phone') {
+      input.type = 'tel';
+    } else {
+      input.type = 'text';
     }
 
+    if (typeof defaultValue === 'string' && defaultValue) {
+      input.value = defaultValue;
+    }
+
+    var maxLength = getFieldMaxLength(field);
+    if (typeof maxLength === 'number') {
+      input.maxLength = maxLength;
+    }
+
+    wrapper.appendChild(input);
     return wrapper;
   }
 
-  function renderForm(container, config) {
+  function renderForm(container, config, embedKey) {
+    var settings = getConfigSettings(config);
+    var compliance = getConfigCompliance(config);
+    var fields = getConfigFields(config);
     var form = document.createElement('form');
     form.className = CSS_PREFIX + 'wrapper';
+    form.setAttribute('novalidate', 'true');
 
     // Header
-    if (config.settings?.form_headline) {
+    if (settings.form_headline) {
       var headline = document.createElement('h2');
-      headline.textContent = config.settings.form_headline;
+      headline.textContent = settings.form_headline;
       headline.style.marginBottom = '0.5em';
       form.appendChild(headline);
     }
-    if (config.settings?.form_subheadline) {
+    if (settings.form_subheadline) {
       var sub = document.createElement('p');
-      sub.textContent = config.settings.form_subheadline;
+      sub.textContent = settings.form_subheadline;
       sub.style.marginBottom = '1.5em';
       sub.style.color = '#666';
       form.appendChild(sub);
     }
 
     // Fields
-    var fields = config.fields || [];
     fields.forEach(function(field) {
-      form.appendChild(renderField(field, config));
+      form.appendChild(renderField(field, compliance));
     });
+
+    attachValidationListeners(form, fields, compliance);
 
     // Add honeypot
     var hp = document.createElement('div');
@@ -302,10 +720,10 @@ const EMBED_JS = `/**
     var submitBtn = document.createElement('button');
     submitBtn.type = 'submit';
     submitBtn.className = CSS_PREFIX + 'submit';
-    submitBtn.textContent = config.settings?.submit_button_text || 'Submit';
+    submitBtn.textContent = settings.submit_button_text || 'Submit';
 
     // Apply theme
-    var theme = config.settings?.theme || {};
+    var theme = settings.theme || {};
     if (theme.primary_color) {
       submitBtn.style.backgroundColor = theme.primary_color;
     }
@@ -321,19 +739,30 @@ const EMBED_JS = `/**
     // Form submission
     form.addEventListener('submit', function(e) {
       e.preventDefault();
-      handleSubmit(form, container, config);
+      handleSubmit(form, container, embedKey, settings, compliance, fields);
     });
 
     container.innerHTML = '';
     container.appendChild(form);
     container.setAttribute(INITIALIZED_ATTR, 'true');
 
-    log('Form rendered', config.embed_key);
+    log('Form rendered', embedKey);
   }
 
-  function handleSubmit(form, container, config) {
+  function handleSubmit(form, container, embedKey, settings, compliance, fields) {
     var submitBtn = form.querySelector('.' + CSS_PREFIX + 'submit');
     var originalText = submitBtn.textContent;
+
+    clearSubmissionError(form);
+
+    var validationResult = validateFormFields(form, fields || [], compliance || {});
+    if (!validationResult.valid) {
+      if (validationResult.firstInvalidInput) {
+        validationResult.firstInvalidInput.focus();
+      }
+      return;
+    }
+
     submitBtn.disabled = true;
     submitBtn.textContent = 'Submitting...';
 
@@ -360,16 +789,19 @@ const EMBED_JS = `/**
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        embed_key: config.embed_key,
-        form_data: formData,
-        page_url: window.location.href,
-        referrer: document.referrer
+        embed_key: embedKey,
+        data: formData,
+        meta: {
+          page_url: window.location.href,
+          referrer: document.referrer,
+          user_agent: navigator.userAgent
+        }
       })
     })
     .then(function(res) { return res.json(); })
     .then(function(data) {
       if (data.success) {
-        showSuccess(container, config.settings?.success_message || 'Thank you!');
+        showSuccess(container, settings.success_message || 'Thank you!');
       } else {
         showError(container, data.error || 'Submission failed');
         submitBtn.disabled = false;
@@ -478,17 +910,17 @@ const EMBED_JS = `/**
         loadCSS(function() {
           if (displayMode === DISPLAY_MODES.MODAL) {
             var modal = createModal(container, data);
-            renderForm(modal.body, data);
+            renderForm(modal.body, data, embedKey);
             // Create trigger button
             var triggerBtn = document.createElement('button');
             triggerBtn.className = CSS_PREFIX + 'trigger';
-            triggerBtn.textContent = data.settings?.trigger_button_text || 'Open Form';
+            triggerBtn.textContent = getConfigSettings(data).trigger_button_text || 'Open Form';
             triggerBtn.addEventListener('click', modal.open);
             container.innerHTML = '';
             container.appendChild(triggerBtn);
             container.setAttribute(INITIALIZED_ATTR, 'true');
           } else {
-            renderForm(container, data);
+            renderForm(container, data, embedKey);
           }
         });
       })
@@ -540,8 +972,8 @@ const EMBED_JS = `/**
 
 Deno.serve(async (req: Request) => {
   // Handle CORS preflight
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
   }
 
   // Serve the JavaScript file
@@ -549,9 +981,14 @@ Deno.serve(async (req: Request) => {
     status: 200,
     headers: {
       ...corsHeaders,
-      'Content-Type': 'application/javascript; charset=utf-8',
-      'Cache-Control': 'public, max-age=3600, stale-while-revalidate=86400',
-      'X-Embed-Version': EMBED_VERSION,
+      "Content-Type": "application/javascript; charset=utf-8",
+      "Cache-Control": "public, max-age=3600, stale-while-revalidate=86400",
+      Deprecation: "true",
+      Link: `<${STATIC_EMBED_RUNTIME_URL}>; rel="successor-version"`,
+      "X-Embed-Version": EMBED_VERSION,
+      "X-BloomSuite-Deprecated":
+        "serve-embed-js is deprecated; use the storage-hosted embed runtime",
+      "X-BloomSuite-Successor": STATIC_EMBED_RUNTIME_URL,
     },
   });
 });

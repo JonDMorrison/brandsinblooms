@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { extractImageSummary } from "@/utils/imageContentSummary";
 
@@ -20,28 +19,32 @@ export interface UnsplashImage {
   };
 }
 
-export async function fetchSmartImage(keyword: string, context = '', useRawKeyword = true): Promise<UnsplashImage | null> {
+export async function fetchSmartImage(
+  keyword: string,
+  context = "",
+  useRawKeyword = true,
+): Promise<UnsplashImage | null> {
   try {
     // Trust the keyword as-is (usually from OpenAI) - changed default to true
-    const query = useRawKeyword ? keyword.trim() : 
-      extractImageSummary(keyword) || 'garden';
-    
-    console.log(`[UNSPLASH] Fetching smart image for: "${query}" (useRawKeyword: ${useRawKeyword})`);
-    
-    const { data, error } = await supabase.functions.invoke('get-unsplash-image', {
-      body: { query }
-    });
-    
+    const query = useRawKeyword
+      ? keyword.trim()
+      : extractImageSummary(keyword) || "garden";
+    const { data, error } = await supabase.functions.invoke(
+      "get-unsplash-image",
+      {
+        body: { query },
+      },
+    );
+
     if (error) {
-      console.error('[UNSPLASH] Service error:', error);
+      console.error("[UNSPLASH] Service error:", error);
       return null;
     }
-    
+
     if (!data?.urls?.regular) {
-      console.warn('[UNSPLASH] No image found for query:', query);
       return null;
     }
-    
+
     return {
       url: data.urls.regular,
       thumb: data.urls.thumb || data.urls.small,
@@ -57,23 +60,27 @@ export async function fetchSmartImage(keyword: string, context = '', useRawKeywo
         regular: data.urls.regular,
         small: data.urls.small,
         thumb: data.urls.thumb,
-      }
+      },
     };
   } catch (error) {
-    console.error('[UNSPLASH] Exception in fetchSmartImage:', error);
+    console.error("[UNSPLASH] Exception in fetchSmartImage:", error);
     return null;
   }
 }
 
-export async function fetchMultipleSmartImages(keywords: string[], context = '', count = 3): Promise<UnsplashImage[]> {
+export async function fetchMultipleSmartImages(
+  keywords: string[],
+  context = "",
+  count = 3,
+): Promise<UnsplashImage[]> {
   const images: UnsplashImage[] = [];
-  
+
   for (const keyword of keywords.slice(0, count)) {
     const image = await fetchSmartImage(keyword, context);
     if (image) {
       images.push(image);
     }
   }
-  
+
   return images;
 }

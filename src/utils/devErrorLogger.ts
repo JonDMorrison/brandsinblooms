@@ -6,7 +6,7 @@
 interface ErrorLogEntry {
   id: string;
   timestamp: string;
-  type: 'runtime' | 'network' | 'promise' | 'react' | 'supabase';
+  type: "runtime" | "network" | "promise" | "react" | "supabase";
   message: string;
   stack?: string;
   context?: Record<string, any>;
@@ -33,20 +33,24 @@ export const subscribeToErrors = (listener: ErrorListener) => {
 };
 
 const notifyListeners = () => {
-  listeners.forEach(l => l([...errorStore]));
+  listeners.forEach((l) => l([...errorStore]));
 };
 
 const generateId = () => Math.random().toString(36).substring(2, 10);
 
 const isDev = () => {
-  return import.meta.env.DEV || window.location.hostname === 'localhost';
+  return (
+    import.meta.env.DEV ||
+    window.location.hostname.includes("lovableproject.com") ||
+    window.location.hostname === "localhost"
+  );
 };
 
 /**
  * Log an error with full context
  */
 export const logDevError = (
-  type: ErrorLogEntry['type'],
+  type: ErrorLogEntry["type"],
   error: Error | string,
   context?: {
     functionName?: string;
@@ -54,13 +58,13 @@ export const logDevError = (
     statusCode?: number;
     errorBody?: any;
     extra?: Record<string, any>;
-  }
+  },
 ) => {
   if (!isDev()) return;
 
   const errorObj = error instanceof Error ? error : new Error(String(error));
   const timestamp = new Date().toISOString();
-  
+
   const entry: ErrorLogEntry = {
     id: generateId(),
     timestamp,
@@ -84,41 +88,29 @@ export const logDevError = (
   // Log to console with rich formatting
   console.group(
     `%c🔴 [${type.toUpperCase()}] ${timestamp}`,
-    'color: #ff4444; font-weight: bold; font-size: 12px;'
+    "color: #ff4444; font-weight: bold; font-size: 12px;",
   );
-  
-  console.error('%cError Message:', 'color: #ff6b6b; font-weight: bold;', errorObj.message);
-  
-  if (context?.functionName) {
-    console.log('%cFunction/Path:', 'color: #ffa94d; font-weight: bold;', context.functionName);
-  }
-  
-  if (context?.statusCode) {
-    console.log('%cStatus Code:', 'color: #ffa94d; font-weight: bold;', context.statusCode);
-  }
-  
+
+  console.error(
+    "%cError Message:",
+    "color: #ff6b6b; font-weight: bold;",
+    errorObj.message,
+  );
+
   if (context?.errorBody) {
-    console.log('%cError Body:', 'color: #ffa94d; font-weight: bold;');
     console.dir(context.errorBody);
   }
-  
+
   if (context?.requestPayload) {
-    console.log('%cRequest Payload:', 'color: #74c0fc; font-weight: bold;');
     console.dir(context.requestPayload);
   }
-  
-  if (errorObj.stack) {
-    console.log('%cStack Trace:', 'color: #ff8787; font-weight: bold;');
-    console.log(errorObj.stack);
-  }
-  
+
   if (context?.extra) {
-    console.log('%cAdditional Context:', 'color: #69db7c; font-weight: bold;');
     console.dir(context.extra);
   }
-  
+
   console.groupEnd();
-  
+
   return entry;
 };
 
@@ -128,7 +120,7 @@ export const logDevError = (
 export const logSupabaseError = (
   error: any,
   functionName: string,
-  requestPayload?: any
+  requestPayload?: any,
 ) => {
   const supabaseDetails = {
     code: error?.code,
@@ -139,7 +131,7 @@ export const logSupabaseError = (
     statusText: error?.statusText,
   };
 
-  return logDevError('supabase', error?.message || 'Supabase error', {
+  return logDevError("supabase", error?.message || "Supabase error", {
     functionName,
     requestPayload,
     statusCode: error?.status,
@@ -159,9 +151,9 @@ export const logNetworkError = (
   method: string,
   error: any,
   response?: Response,
-  responseBody?: any
+  responseBody?: any,
 ) => {
-  return logDevError('network', error?.message || `Network error: ${url}`, {
+  return logDevError("network", error?.message || `Network error: ${url}`, {
     functionName: `${method} ${url}`,
     statusCode: response?.status,
     errorBody: responseBody,
@@ -169,7 +161,9 @@ export const logNetworkError = (
       url,
       method,
       statusText: response?.statusText,
-      headers: response?.headers ? Object.fromEntries(response.headers.entries()) : undefined,
+      headers: response?.headers
+        ? Object.fromEntries(response.headers.entries())
+        : undefined,
     },
   });
 };
@@ -179,7 +173,7 @@ export const logNetworkError = (
  */
 export const logPromiseRejection = (reason: any) => {
   const error = reason instanceof Error ? reason : new Error(String(reason));
-  return logDevError('promise', error, {
+  return logDevError("promise", error, {
     extra: {
       rawReason: reason,
     },
@@ -192,10 +186,10 @@ export const logPromiseRejection = (reason: any) => {
 export const logReactError = (
   error: Error,
   componentStack?: string,
-  componentName?: string
+  componentName?: string,
 ) => {
-  return logDevError('react', error, {
-    functionName: componentName || 'Unknown Component',
+  return logDevError("react", error, {
+    functionName: componentName || "Unknown Component",
     extra: {
       componentStack,
     },

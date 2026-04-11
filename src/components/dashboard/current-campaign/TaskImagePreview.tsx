@@ -1,6 +1,5 @@
-
-import React from 'react';
-import { Image } from 'lucide-react';
+import React from "react";
+import { Image } from "lucide-react";
 
 interface TaskImage {
   id: string;
@@ -14,9 +13,11 @@ interface TaskImagePreviewProps {
   loading: boolean;
 }
 
-export const TaskImagePreview = ({ images, imageCount, loading }: TaskImagePreviewProps) => {
-  console.log('TaskImagePreview: Rendering with', imageCount, 'images, loading:', loading);
-
+export const TaskImagePreview = ({
+  images,
+  imageCount,
+  loading,
+}: TaskImagePreviewProps) => {
   if (loading) {
     return (
       <div className="flex items-center gap-1 text-xs text-gray-400">
@@ -50,9 +51,8 @@ export const TaskImagePreview = ({ images, imageCount, loading }: TaskImagePrevi
               alt={image.alt}
               className="w-full h-full object-cover"
               onError={(e) => {
-                console.log('TaskImagePreview: Image load error for', image.id);
                 // Hide broken images
-                e.currentTarget.style.display = 'none';
+                e.currentTarget.style.display = "none";
               }}
             />
           </div>

@@ -1,4 +1,3 @@
-
 import { SimplifiedOnboardingFlow } from "@/components/onboarding/SimplifiedOnboardingFlow";
 import { OnboardingFlow } from "@/components/OnboardingFlow";
 import { EnhancedErrorBoundary } from "@/components/onboarding/EnhancedErrorBoundary";
@@ -142,6 +141,9 @@ const OnboardingPage = () => {
 
   const handleOnboardingComplete = async (data: any) => {
     if (!user) {
+      console.error(
+        "❌ OnboardingPage: No user found during onboarding completion",
+      );
       navigate("/auth", { replace: true });
       return;
     }
@@ -149,7 +151,7 @@ const OnboardingPage = () => {
     try {
       localStorage.setItem(
         `garden-center-onboarding-${user.id}`,
-        JSON.stringify(data)
+        JSON.stringify(data),
       );
 
       // FIX: H2 - Do NOT call markAsCompleted() here (sets localStorage before DB write).

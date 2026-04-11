@@ -28,19 +28,11 @@ const CallbackPage = () => {
       }, 30000);
 
       try {
-        console.log("[SQUARE-Callback] Processing OAuth callback");
         setStep("Processing OAuth callback...");
 
         const code = searchParams.get("code");
         const state = searchParams.get("state");
         const error = searchParams.get("error");
-        const errorDescription = searchParams.get("error_description");
-
-        console.log("[SQUARE-Callback] Processing:", {
-          hasCode: !!code,
-          hasState: !!state,
-          error,
-        });
 
         if (error) {
           clearTimeout(timeoutId);
@@ -85,8 +77,6 @@ const CallbackPage = () => {
           });
           return;
         }
-
-        console.log("[SQUARE-Callback] Invoking callback edge function...");
         setStep("Exchanging authorization code for access tokens...");
 
         const redirectUri = `${window.location.origin}/integrations/square/callback`;
@@ -134,8 +124,6 @@ const CallbackPage = () => {
           });
           return;
         }
-
-        console.log("[SQUARE-Callback] Connection successful");
         setStatus("success");
         setMessage("Connected Successfully!");
         setStep(`Connected to ${data.merchantName || "Square"}`);
@@ -181,9 +169,7 @@ const CallbackPage = () => {
       const channel = new BroadcastChannel("square_oauth");
       channel.postMessage(result);
       channel.close();
-    } catch (e) {
-      console.log("[SQUARE-Callback] BroadcastChannel not supported");
-    }
+    } catch (e) {}
 
     if (window.opener && !window.opener.closed) {
       try {
@@ -191,9 +177,7 @@ const CallbackPage = () => {
           { type: "square_oauth_result", data: result },
           window.location.origin,
         );
-      } catch (e) {
-        console.log("[SQUARE-Callback] Could not message opener window");
-      }
+      } catch (e) {}
     }
   };
 

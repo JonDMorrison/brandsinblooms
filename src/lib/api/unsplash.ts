@@ -10,7 +10,7 @@ export interface UnsplashImageResult {
   photographer_url?: string;
   unsplash_id?: string;
   author_name?: string;
-  source: 'unsplash';
+  source: "unsplash";
   urls?: {
     raw?: string;
     full?: string;
@@ -26,24 +26,26 @@ export interface UnsplashImageResult {
  * @param query - Search keyword/phrase for the image
  * @returns Promise resolving to image data or null if no results
  */
-export async function getUnsplashImage(query: string): Promise<UnsplashImageResult | null> {
+export async function getUnsplashImage(
+  query: string,
+): Promise<UnsplashImageResult | null> {
   try {
-    console.log(`[UNSPLASH] Fetching image for query: "${query}"`);
-    
-    const { data, error } = await supabase.functions.invoke('get-unsplash-image', {
-      body: { query }
-    });
-    
+    const { data, error } = await supabase.functions.invoke(
+      "get-unsplash-image",
+      {
+        body: { query },
+      },
+    );
+
     if (error) {
-      console.error('[UNSPLASH] Service error:', error);
+      console.error("[UNSPLASH] Service error:", error);
       return null;
     }
-    
+
     if (!data?.urls?.regular) {
-      console.warn('[UNSPLASH] No image found for query:', query);
       return null;
     }
-    
+
     return {
       url: data.urls.regular,
       thumb: data.urls.thumb || data.urls.small,
@@ -53,7 +55,7 @@ export async function getUnsplashImage(query: string): Promise<UnsplashImageResu
       photographer_url: data.user?.links?.html,
       unsplash_id: data.id,
       author_name: data.user?.name,
-      source: 'unsplash',
+      source: "unsplash",
       urls: {
         raw: data.urls.raw,
         full: data.urls.full,
@@ -61,10 +63,10 @@ export async function getUnsplashImage(query: string): Promise<UnsplashImageResu
         small: data.urls.small,
         thumb: data.urls.thumb,
       },
-      download_location: data.links?.download_location
+      download_location: data.links?.download_location,
     };
   } catch (error) {
-    console.error('[UNSPLASH] Exception in getUnsplashImage:', error);
+    console.error("[UNSPLASH] Exception in getUnsplashImage:", error);
     return null;
   }
 }
