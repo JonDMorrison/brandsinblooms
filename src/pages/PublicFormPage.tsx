@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import { AlertCircle, Loader2, RefreshCw } from "lucide-react";
 import { FormPreviewRenderer } from "@/components/forms/preview/FormPreviewRenderer";
 import { Button } from "@/components/ui/button";
+import { SUPABASE_URL } from "@/integrations/supabase/config";
 import {
   FormField,
   FormSettings,
@@ -10,10 +11,6 @@ import {
   DEFAULT_FORM_SETTINGS,
   DEFAULT_FORM_COMPLIANCE,
 } from "@/types/formBuilder";
-
-const SUPABASE_URL =
-  import.meta.env.VITE_SUPABASE_URL ||
-  "https://udldmkqwnxhdeztyqcau.supabase.co";
 
 interface FormConfig {
   form_id: string;

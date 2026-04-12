@@ -134,7 +134,7 @@ describe("docs components", () => {
       screen.getByRole("button", { name: /copy bash code block/i }),
     );
     await waitFor(() => {
-      expect(screen.getByText("Copied")).toBeInTheDocument();
+      expect(screen.getByText("Copied!")).toBeInTheDocument();
     });
     expect(screen.getByRole("link", { name: "Overview" })).toHaveAttribute(
       "aria-current",

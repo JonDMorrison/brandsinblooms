@@ -1,5 +1,5 @@
 import React from "react";
-import { Routes, Route, Outlet } from "react-router-dom";
+import { Routes, Route, Outlet, Navigate } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
 import { Toaster } from "sonner";
 import { Toaster as ShadcnToaster } from "@/components/ui/toaster";
@@ -113,6 +113,7 @@ import EmailPreferences from "@/pages/EmailPreferences";
 import { ProductsPage, ProductDetailPage } from "@/pages/products";
 import FormsPage from "@/pages/crm/FormsPage";
 import FormEditorPage from "@/pages/crm/FormEditorPage";
+import FormDocumentationPage from "@/pages/crm/FormDocumentationPage";
 import ActivityCenterPage from "@/pages/ActivityCenterPage";
 import ActivityDetailsPage from "@/pages/ActivityDetailsPage";
 
@@ -518,6 +519,36 @@ function App() {
                 <ProtectedRoute>
                   <SidebarLayout>
                     <FormsPage />
+                  </SidebarLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/crm/forms/developer-guide"
+              element={
+                <ProtectedRoute>
+                  <SidebarLayout>
+                    <Navigate to="/crm/forms" replace />
+                  </SidebarLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard/forms/:formId/docs"
+              element={
+                <ProtectedRoute>
+                  <SidebarLayout>
+                    <FormDocumentationPage />
+                  </SidebarLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/crm/forms/:formId/docs"
+              element={
+                <ProtectedRoute>
+                  <SidebarLayout>
+                    <FormDocumentationPage />
                   </SidebarLayout>
                 </ProtectedRoute>
               }

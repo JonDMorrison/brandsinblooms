@@ -41,6 +41,7 @@ import { FormBuildTab } from "@/components/forms/FormBuildTab";
 import { FormComplianceTab } from "@/components/forms/FormComplianceTab";
 import { FormDesignTab } from "@/components/forms/FormDesignTab";
 import { FormPublishTab } from "@/components/forms/FormPublishTab";
+import { FormShareDialog } from "@/components/forms/FormShareDialog";
 import { FormSubmissionsTab } from "@/components/forms/FormSubmissionsTab";
 import { FormPreviewDialog } from "@/components/forms/preview/FormPreviewDialog";
 import {
@@ -660,17 +661,15 @@ export default function FormEditorPage() {
                       </TooltipContent>
                     </Tooltip>
 
-                    {form.status === "published" && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="rounded-full"
-                        onClick={() => setIsShareDialogOpen(true)}
-                      >
-                        <Share2 className="mr-2 h-4 w-4" />
-                        Share
-                      </Button>
-                    )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="rounded-full"
+                      onClick={() => setIsShareDialogOpen(true)}
+                    >
+                      <Share2 className="mr-2 h-4 w-4" />
+                      Share
+                    </Button>
 
                     <Button
                       size="sm"
@@ -772,18 +771,11 @@ export default function FormEditorPage() {
           </div>
         </Tabs>
 
-        <Dialog open={isShareDialogOpen} onOpenChange={setIsShareDialogOpen}>
-          <DialogContent className="max-w-5xl">
-            <DialogHeader>
-              <DialogTitle>Share & Embed</DialogTitle>
-              <DialogDescription>
-                Use the direct link, embed code, or test tools for your live
-                form.
-              </DialogDescription>
-            </DialogHeader>
-            <FormPublishTab form={form} />
-          </DialogContent>
-        </Dialog>
+        <FormShareDialog
+          form={form}
+          open={isShareDialogOpen}
+          onOpenChange={setIsShareDialogOpen}
+        />
 
         <Dialog
           open={isPublishValidationOpen}
@@ -886,7 +878,7 @@ export default function FormEditorPage() {
               </div>
             </div>
 
-            <FormPublishTab form={form} />
+            <FormPublishTab form={form} analyticsSurface="publish-success" />
 
             <DialogFooter>
               <Button onClick={() => setIsPublishSuccessOpen(false)}>
@@ -903,6 +895,7 @@ export default function FormEditorPage() {
           settings={settings}
           compliance={compliance}
           formName={name}
+          uploadEmbedKey={form?.embed_key}
         />
 
         <AlertDialog

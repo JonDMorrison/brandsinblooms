@@ -45,6 +45,7 @@ interface FormPreviewDialogProps {
   settings: FormSettings | null;
   compliance: FormCompliance | null;
   formName: string;
+  uploadEmbedKey?: string;
 }
 
 const PREVIEW_DEVICES: Array<{
@@ -107,6 +108,7 @@ export function FormPreviewDialog({
   settings,
   compliance,
   formName,
+  uploadEmbedKey,
 }: FormPreviewDialogProps) {
   const [device, setDevice] = useState<PreviewDevice>("desktop");
   const [orientation, setOrientation] =
@@ -490,6 +492,7 @@ export function FormPreviewDialog({
                             settings={resolvedSettings}
                             compliance={resolvedCompliance}
                             mode="preview"
+                            uploadEmbedKey={uploadEmbedKey}
                             changedIds={changedIds}
                             resetSignal={resetSignal}
                           />
