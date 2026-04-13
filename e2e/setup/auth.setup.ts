@@ -25,13 +25,16 @@ setup("authenticate", async ({ page }) => {
   await page.fill('input[type="password"]', password);
 
   // Submit the form
-  await page.click('button[type="submit"]');
+  await page.getByRole("button", { name: "Sign In" }).click();
 
   // Wait for auth to complete — the app redirects away from /auth on success.
-  // Allow up to 15s for Supabase auth round-trip + initial data load.
+  // Allow up to 45s for Supabase auth round-trip + tenant/subscription/onboarding data load.
   await page.waitForURL((url) => !url.pathname.startsWith("/auth"), {
-    timeout: 15000,
+    timeout: 45000,
   });
+
+  // Ensure the app is fully loaded before saving state
+  await page.waitForLoadState("networkidle", { timeout: 30000 });
 
   // Extra guard: make sure no error toast is showing
   const errorToast = page.locator("text=Invalid login credentials");
