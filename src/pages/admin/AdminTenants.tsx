@@ -12,6 +12,7 @@ import { TenantTable, type AdminTenant } from "@/components/admin/TenantTable";
 import { TenantDrawer } from "@/components/admin/TenantDrawer";
 import { ChangePlanModal } from "@/components/admin/ChangePlanModal";
 import { TenantOutreachModal } from "@/components/admin/TenantOutreachModal";
+import { DeleteTenantModal } from "@/components/admin/DeleteTenantModal";
 import { supabase } from "@/integrations/supabase/client";
 import { toast as sonnerToast } from "sonner";
 import {
@@ -38,6 +39,7 @@ const AdminPage = () => {
   const [currentStatus, setCurrentStatus] = useState("");
   const [changePlanTenant, setChangePlanTenant] = useState<AdminTenant | null>(null);
   const [outreachTenant, setOutreachTenant] = useState<AdminTenant | null>(null);
+  const [deletingTenant, setDeletingTenant] = useState<AdminTenant | null>(null);
 
   const {
     tenants,
@@ -205,6 +207,7 @@ const AdminPage = () => {
             onChangePlan={setChangePlanTenant}
             onOutreach={setOutreachTenant}
             onImpersonate={handleImpersonate}
+            onDelete={setDeletingTenant}
           />
 
           {/* Pagination Controls */}
@@ -308,6 +311,15 @@ const AdminPage = () => {
             companyName={outreachTenant.company_name || "Unnamed Company"}
             contactEmail={outreachTenant.primary_contact_email}
             contactFirstName={outreachTenant.primary_contact_name?.split(" ")[0] || ""}
+          />
+        )}
+
+        {deletingTenant && (
+          <DeleteTenantModal
+            open={!!deletingTenant}
+            onClose={() => setDeletingTenant(null)}
+            tenant={deletingTenant}
+            onSuccess={refetch}
           />
         )}
       </div>

@@ -17,17 +17,20 @@ import {
   CreditCard,
   MessageSquare,
   LogIn,
+  Trash2,
 } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { formatDistanceToNow, format } from "date-fns";
 
 export interface AdminTenant {
   tenant_id: string;
+  primary_contact_user_id: string | null;
   company_name: string;
   website: string;
   city: string;
@@ -63,6 +66,7 @@ interface TenantTableProps {
   onChangePlan: (tenant: AdminTenant) => void;
   onOutreach: (tenant: AdminTenant) => void;
   onImpersonate: (tenant: AdminTenant) => void;
+  onDelete: (tenant: AdminTenant) => void;
 }
 
 export const TenantTable = ({
@@ -75,6 +79,7 @@ export const TenantTable = ({
   onChangePlan,
   onOutreach,
   onImpersonate,
+  onDelete,
 }: TenantTableProps) => {
   const getStatusBadge = (tenant: AdminTenant) => {
     if (!tenant.is_active) {
@@ -313,10 +318,6 @@ export const TenantTable = ({
                     className="w-48"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <DropdownMenuItem onSelect={() => onViewTenant(tenant)}>
-                      <Eye className="mr-2 h-4 w-4" />
-                      View Details
-                    </DropdownMenuItem>
                     <DropdownMenuItem
                       className="text-amber-600 focus:text-amber-700"
                       onSelect={() => onImpersonate(tenant)}
@@ -353,6 +354,18 @@ export const TenantTable = ({
                     >
                       {tenant.is_active ? "Deactivate" : "Activate"}
                     </DropdownMenuItem>
+                    {!tenant.is_paid_active && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          className="text-destructive focus:text-destructive"
+                          onSelect={() => onDelete(tenant)}
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Delete Client
+                        </DropdownMenuItem>
+                      </>
+                    )}
                   </DropdownMenuContent>
                 </DropdownMenu>
               </TableCell>
