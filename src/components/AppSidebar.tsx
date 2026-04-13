@@ -64,6 +64,7 @@ const AppSidebar: React.FC = () => {
     useIsSuperAdmin();
   const location = useLocation();
 
+  const { state } = useSidebar();
   const currentPath = location.pathname;
   const isCollapsed = state === "collapsed";
 

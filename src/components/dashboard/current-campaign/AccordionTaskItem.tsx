@@ -33,6 +33,7 @@ export const AccordionTaskItem = ({
   }
 
   // Normalize the task for consistent display
+  const normalizedTask = normalizeTask(task);
 
   const {
     images,
