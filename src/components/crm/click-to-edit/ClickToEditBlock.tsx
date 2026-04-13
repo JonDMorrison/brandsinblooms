@@ -3,7 +3,8 @@ import { ContentBlock } from "@/types/emailBuilder";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { GripVertical, Trash2 } from "lucide-react";
+import { GripVertical, Trash2, ChevronRight, ChevronDown } from "lucide-react";
+import { BlockMiniPreview } from "../blocks/BlockMiniPreview";
 import { BlockEditToolbar } from "./BlockEditToolbar";
 import { useBlockEditMode, EditMode } from "@/hooks/useBlockEditMode";
 import { TextEditMode } from "./modes/TextEditMode";
@@ -67,6 +68,7 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
   children,
 }) => {
   const [localBlock, setLocalBlock] = useState<ContentBlock>(block);
+  const [collapsed, setCollapsed] = useState(false);
   const blockRef = useRef<HTMLDivElement>(null);
   const editingRef = useRef<HTMLDivElement>(null);
   const [isMediaSelectorOpen, setIsMediaSelectorOpen] = useState(false);
@@ -296,6 +298,11 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
   };
 
   const handleBlockClick = () => {
+    // Expand if collapsed before entering edit mode
+    if (collapsed) {
+      setCollapsed(false);
+      return;
+    }
     if (!editMode) {
       // Don't toggle edit mode for image gallery blocks - users interact with grid items directly
       if (block.type === "image-gallery") {
@@ -410,8 +417,16 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
       )}
       style={{ position: "relative", zIndex: 1 }}
     >
-      {/* Drag Handle - appears on hover */}
-      <div className="absolute -left-8 top-4 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+      {/* Collapse toggle + Drag Handle — left gutter */}
+      <div className="absolute -left-8 top-3 flex flex-col items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+        <button
+          type="button"
+          className="text-muted-foreground hover:text-foreground"
+          onClick={(e) => { e.stopPropagation(); setCollapsed((c) => !c); }}
+          title={collapsed ? "Expand block" : "Collapse block"}
+        >
+          {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+        </button>
         <div className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground">
           <GripVertical className="h-4 w-4" />
         </div>
@@ -603,7 +618,17 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
               </div>
             )}
           </div>
+        ) : collapsed ? (
+          /* ── Collapsed: mini-preview ── */
+          <div
+            className="cursor-pointer"
+            onClick={() => setCollapsed(false)}
+            style={{ pointerEvents: "auto" }}
+          >
+            <BlockMiniPreview block={localBlock} />
+          </div>
         ) : (
+          /* ── Expanded: full preview ── */
           <div
             className={cn(
               "p-0",
