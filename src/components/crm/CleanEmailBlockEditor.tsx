@@ -274,6 +274,7 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
   onFooterStylingChange,
 }) => {
   const [internalBlocks, setInternalBlocks] = useState<ContentBlock[]>([]);
+  const [hydrationComplete, setHydrationComplete] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [insertIndex, setInsertIndex] = useState<number | null>(null);
 

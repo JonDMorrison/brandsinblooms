@@ -957,6 +957,8 @@ export const CampaignSendConfirmationModal: React.FC<
     const tz = schedule.timezone || undefined;
     const date = schedule.sendAt;
 
+    if (!date) return "Scheduled";
+
     try {
       const formatter = new Intl.DateTimeFormat(undefined, {
         timeZone: tz,
