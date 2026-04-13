@@ -353,8 +353,21 @@ function unwrapContentObject(content: any): Record<string, any> {
  * CANONICAL LOAD FUNCTION - All load operations MUST use this
  */
 export function normalizeBlockFromDatabase(dbBlock: DatabaseBlock): ContentBlock {
+  if (!dbBlock || !dbBlock.id) {
+    console.warn('normalizeBlockFromDatabase: received null/invalid block, returning fallback');
+    return {
+      id: crypto.randomUUID(),
+      type: 'text',
+      headline: '',
+      title: '',
+      body: '',
+      content: '',
+      visible: false,
+    } as ContentBlock;
+  }
+
   const endTimer = newsletterDebug.startTimer('mapping', `normalizeBlockFromDatabase(${dbBlock.id})`);
-  
+
   const contentObj = unwrapContentObject(dbBlock.content);
   const isHeader = dbBlock.block_type === 'header' || dbBlock.block_type === 'newsletter-header';
   

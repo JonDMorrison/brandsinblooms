@@ -33,31 +33,41 @@ SECURITY DEFINER
 SET search_path = 'public'
 AS $function$
 BEGIN
-  -- Create team
-  INSERT INTO public.teams (owner_id, name)
-  VALUES (NEW.id, COALESCE(NEW.raw_user_meta_data->>'business_name', 'My Team'));
-  
+  -- Create team (wrapped so failure cannot block signup)
+  BEGIN
+    INSERT INTO public.teams (owner_id, name)
+    VALUES (NEW.id, COALESCE(NEW.raw_user_meta_data->>'business_name', 'My Team'));
+  EXCEPTION WHEN OTHERS THEN
+    RAISE WARNING 'handle_new_user_team: teams insert failed for % (%): %',
+      NEW.email, NEW.id, SQLERRM;
+  END;
+
   -- Create company profile with all features enabled
-  INSERT INTO public.company_profiles (
-    user_id, 
-    feature_flags
-  ) VALUES (
-    NEW.id,
-    '{
-      "crm_enabled": true,
-      "analytics_v1": true,
-      "scheduling_v1": true,
-      "social_posting_v1": true,
-      "auto_send_campaigns": true,
-      "smart_timing_enabled": true,
-      "sms_setup_completed": true,
-      "sms_compliance_configured": true,
-      "analytics_dashboard_v1": true
-    }'::jsonb
-  ) ON CONFLICT (user_id) DO UPDATE SET
-    feature_flags = EXCLUDED.feature_flags,
-    updated_at = now();
-  
+  BEGIN
+    INSERT INTO public.company_profiles (
+      user_id,
+      feature_flags
+    ) VALUES (
+      NEW.id,
+      '{
+        "crm_enabled": true,
+        "analytics_v1": true,
+        "scheduling_v1": true,
+        "social_posting_v1": true,
+        "auto_send_campaigns": true,
+        "smart_timing_enabled": true,
+        "sms_setup_completed": true,
+        "sms_compliance_configured": true,
+        "analytics_dashboard_v1": true
+      }'::jsonb
+    ) ON CONFLICT (user_id) DO UPDATE SET
+      feature_flags = EXCLUDED.feature_flags,
+      updated_at = now();
+  EXCEPTION WHEN OTHERS THEN
+    RAISE WARNING 'handle_new_user_team: company_profiles insert failed for % (%): %',
+      NEW.email, NEW.id, SQLERRM;
+  END;
+
   RETURN NEW;
 END;
 $function$;

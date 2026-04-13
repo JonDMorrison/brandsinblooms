@@ -3969,7 +3969,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
 
       // CANONICAL: Use normalizeBlockFromDatabase for consistent field mapping
       const contentBlocks: ContentBlock[] = (
-        campaignBlocks as DatabaseBlock[]
+        (campaignBlocks || []) as DatabaseBlock[]
       ).map(normalizeBlockFromDatabase);
 
       setBlocks(contentBlocks);
@@ -4386,8 +4386,9 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
 
       let renderedBlockCount = 0;
       blocks.forEach((block) => {
-        if (block.visible === false) return; // Only skip blocks explicitly set to false
+        if (!block || block.visible === false) return; // Skip null/hidden blocks
 
+        try {
         // CRITICAL: Sanitize all image URLs for email safety
         // Only allow https:// URLs from trusted sources (Supabase storage, Unsplash, etc.)
         const safeImageUrl = getEmailSafeImageUrl(block.imageUrl);
@@ -5414,6 +5415,9 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
             <tr><td style="height: 24px; font-size: 24px; line-height: 24px;">&nbsp;</td></tr>
           </table>`;
         }
+        } catch (blockErr) {
+          console.error(`[EMAIL-HTML] Block ${block.id} (${block.type}) failed to render:`, blockErr);
+        }
       });
 
       // IMPORTANT: Do NOT generate footer here - the server-side edge function
@@ -6026,8 +6030,14 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   };
 
   // Memoize email HTML to update when blocks or other dependencies change
+  // Wrapped in try/catch so a single bad block can't crash the entire page render
   const emailHTMLContent = useMemo(() => {
-    return generateEmailHTML();
+    try {
+      return generateEmailHTML();
+    } catch (err) {
+      console.error("[CRM CAMPAIGN CREATOR] Email HTML generation failed:", err);
+      return "<div style='padding:24px;color:#666;'>Unable to render email preview.</div>";
+    }
   }, [generateEmailHTML, campaignOverrides]);
 
   if (converting) {
