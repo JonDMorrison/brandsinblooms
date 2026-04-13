@@ -8,7 +8,8 @@
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@axe-core/playwright": "^4.10.2",
@@ -23,7 +24,6 @@
     "@mendable/firecrawl-js": "^1.25.5",
     "@opentelemetry/api": "^1.9.0",
     "@opentelemetry/auto-instrumentations-web": "^0.53.0",
-    "@playwright/test": "^1.54.2",
     "@radix-ui/react-accordion": "^1.2.0",
     "@radix-ui/react-alert-dialog": "^1.1.1",
     "@radix-ui/react-aspect-ratio": "^1.1.0",
@@ -107,6 +107,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.9.0",
+    "@playwright/test": "^1.59.1",
     "@tailwindcss/typography": "^0.5.16",
     "@types/node": "^22.5.5",
     "@types/react": "^18.3.3",
