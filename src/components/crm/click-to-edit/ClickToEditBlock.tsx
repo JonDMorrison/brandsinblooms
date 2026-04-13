@@ -3,7 +3,7 @@ import { ContentBlock } from "@/types/emailBuilder";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { GripVertical } from "lucide-react";
+import { GripVertical, Trash2 } from "lucide-react";
 import { BlockEditToolbar } from "./BlockEditToolbar";
 import { useBlockEditMode, EditMode } from "@/hooks/useBlockEditMode";
 import { TextEditMode } from "./modes/TextEditMode";
@@ -29,6 +29,9 @@ interface ClickToEditBlockProps {
   index: number;
   onUpdate: (id: string, updates: Partial<ContentBlock>) => void;
   onRemove: (id: string) => void;
+  onConfirmRemove?: (id: string) => void;
+  onCancelRemove?: () => void;
+  isDeletePending?: boolean;
   onDuplicate: (block: ContentBlock) => void;
   onMove: (id: string, direction: "up" | "down") => void;
   canMoveUp: boolean;
@@ -49,6 +52,9 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
   index,
   onUpdate,
   onRemove,
+  onConfirmRemove,
+  onCancelRemove,
+  isDeletePending = false,
   onDuplicate,
   onMove,
   canMoveUp,
@@ -447,6 +453,37 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
             onDelete={() => onRemove(block.id)}
             disabled={block.isGeneratingImage}
           />
+        </div>
+      )}
+
+      {/* Inline delete confirmation bar */}
+      {isDeletePending && (
+        <div
+          className="absolute top-0 left-0 right-0 z-[60] flex items-center justify-between gap-2 rounded-t-lg border-b bg-destructive/5 px-4 py-2"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <span className="text-sm font-medium text-destructive flex items-center gap-1.5">
+            <Trash2 className="h-3.5 w-3.5" />
+            Delete this block?
+          </span>
+          <div className="flex items-center gap-1.5">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2.5 text-xs"
+              onClick={() => onCancelRemove?.()}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              className="h-7 px-2.5 text-xs"
+              onClick={() => onConfirmRemove?.(block.id)}
+            >
+              Yes, delete
+            </Button>
+          </div>
         </div>
       )}
 

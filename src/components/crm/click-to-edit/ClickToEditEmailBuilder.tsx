@@ -54,6 +54,7 @@ export const ClickToEditEmailBuilder: React.FC<
   const [saving, setSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date>();
   const [saveError, setSaveError] = useState(false);
+  const [deletingBlockId, setDeletingBlockId] = useState<string | null>(null);
 
   // Debug state for MediaSelector
   const [debugMediaSelectorOpen, setDebugMediaSelectorOpen] = useState(false);
@@ -197,6 +198,8 @@ export const ClickToEditEmailBuilder: React.FC<
   // PHASE 2: Fix state update race condition - use ref to access latest blocks
   const updateBlock = useCallback(
     (id: string, updates: Partial<ContentBlock>) => {
+      // Any edit cancels a pending delete confirmation
+      setDeletingBlockId(null);
       // Use ref to get the latest blocks (avoiding stale closure)
       const latestBlocks = blocksRef.current;
       const newBlocks = latestBlocks.map((block) => {
@@ -225,9 +228,18 @@ export const ClickToEditEmailBuilder: React.FC<
     [onBlocksChange],
   );
 
-  const removeBlock = (id: string) => {
+  const requestRemoveBlock = (id: string) => {
+    setDeletingBlockId(id);
+  };
+
+  const confirmRemoveBlock = (id: string) => {
     const filteredBlocks = blocks.filter((block) => block.id !== id);
     onBlocksChange(filteredBlocks);
+    setDeletingBlockId(null);
+  };
+
+  const cancelRemoveBlock = () => {
+    setDeletingBlockId(null);
   };
 
   const duplicateBlock = (block: ContentBlock) => {
@@ -539,7 +551,10 @@ export const ClickToEditEmailBuilder: React.FC<
             index={index}
             onUpdate={updateBlock}
             campaignName={campaignName}
-            onRemove={removeBlock}
+            onRemove={requestRemoveBlock}
+            onConfirmRemove={confirmRemoveBlock}
+            onCancelRemove={cancelRemoveBlock}
+            isDeletePending={deletingBlockId === block.id}
             onDuplicate={duplicateBlock}
             onMove={moveBlock}
             canMoveUp={index > 0}
