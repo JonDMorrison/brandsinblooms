@@ -88,6 +88,7 @@ interface FormSettings {
 interface FormAudience {
   assign_personas?: string[]; // Array of persona IDs to assign
   assign_tags?: string[]; // Array of crm_tags IDs, with legacy tag-name fallback
+  segment_ids?: string[]; // Array of crm_segments IDs to auto-assign on submission
 }
 
 interface SubmissionMeta {
@@ -1591,10 +1592,48 @@ Deno.serve(async (req) => {
       }
     }
 
-    // ─── Step 10: Trigger segment evaluation (BEST-EFFORT) ──────────────────
-    // If this fails, submission still returns 200. Error is recorded for debugging.
+    // ─── Step 9b: Apply audience segments (audience_json.segment_ids) ────────
     let segmentsJoined: string[] = [];
     let segmentsLeft: string[] = [];
+
+    const audienceSegmentIds = (audience.segment_ids || []).filter(Boolean);
+    if (audienceSegmentIds.length > 0 && customerId) {
+      try {
+        for (const segmentId of audienceSegmentIds) {
+          const { error: segUpsertError } = await supabase
+            .from("customer_segments")
+            .upsert(
+              {
+                customer_id: customerId,
+                segment_id: segmentId,
+                assigned_at: new Date().toISOString(),
+              },
+              { onConflict: "customer_id,segment_id" },
+            );
+
+          if (segUpsertError) {
+            console.warn(
+              `[submit-form] Audience segment upsert failed for ${segmentId}:`,
+              segUpsertError.message,
+            );
+          } else {
+            segmentsJoined.push(segmentId);
+          }
+        }
+        console.log(
+          `[submit-form] Audience segments: assigned ${segmentsJoined.length}/${audienceSegmentIds.length}`,
+        );
+      } catch (segError) {
+        console.warn(
+          "[submit-form] Audience segment processing error:",
+          (segError as Error).message,
+        );
+        // Non-fatal
+      }
+    }
+
+    // ─── Step 10: Trigger segment evaluation (BEST-EFFORT) ──────────────────
+    // If this fails, submission still returns 200. Error is recorded for debugging.
 
     try {
       const segmentResponse = await fetch(

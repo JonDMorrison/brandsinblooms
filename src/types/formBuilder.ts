@@ -117,8 +117,9 @@ export interface FormCompliance {
 }
 
 export interface FormAudience {
-  assign_personas: string[]; // persona IDs
+  assign_personas: string[]; // persona IDs (from global personas table)
   assign_tags: string[]; // crm_tags IDs
+  segment_ids?: string[]; // crm_segments IDs to auto-assign on submission
 }
 
 export type FormStatus = "draft" | "published" | "archived";

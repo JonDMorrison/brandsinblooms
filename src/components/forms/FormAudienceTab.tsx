@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -8,49 +8,86 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useCRMPersonas } from "@/hooks/useCRMPersonas";
 import { useCRMTags } from "@/hooks/useCRMTags";
-import { ArrowRight, Tag, Users, X } from "lucide-react";
+import { useTenant } from "@/hooks/useTenant";
+import { supabase } from "@/integrations/supabase/client";
+import { ArrowRight, Layers, Tag, Users, X } from "lucide-react";
 
 interface FormAudienceTabProps {
   audience: {
     assign_personas: string[];
     assign_tags: string[];
+    segment_ids?: string[];
   };
   onAudienceChange: (audience: {
     assign_personas: string[];
     assign_tags: string[];
+    segment_ids?: string[];
   }) => void;
+}
+
+interface GlobalPersona {
+  id: string;
+  name: string;
+  description: string | null;
+}
+
+interface Segment {
+  id: string;
+  name: string;
+  description: string | null;
 }
 
 export function FormAudienceTab({
   audience,
   onAudienceChange,
 }: FormAudienceTabProps) {
-  const { personas, loading: personasLoading } = useCRMPersonas();
+  const { tenant } = useTenant();
   const { tags, loading: tagsLoading } = useCRMTags();
 
-  const sortedPersonas = useMemo(
-    () =>
-      [...personas].sort((left, right) =>
-        left.persona_name.localeCompare(right.persona_name),
-      ),
+  // ── Fetch global personas (not tenant-scoped) ──────────────
+  const [personas, setPersonas] = useState<GlobalPersona[]>([]);
+  const [personasLoading, setPersonasLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      setPersonasLoading(true);
+      const { data } = await supabase
+        .from("personas")
+        .select("id, name, description")
+        .order("name");
+      setPersonas((data as GlobalPersona[]) || []);
+      setPersonasLoading(false);
+    })();
+  }, []);
+
+  // ── Fetch tenant segments ──────────────────────────────────
+  const [segments, setSegments] = useState<Segment[]>([]);
+  const [segmentsLoading, setSegmentsLoading] = useState(true);
+
+  useEffect(() => {
+    if (!tenant?.id) return;
+    (async () => {
+      setSegmentsLoading(true);
+      const { data } = await supabase
+        .from("crm_segments")
+        .select("id, name, description")
+        .eq("tenant_id", tenant.id)
+        .order("name");
+      setSegments((data as Segment[]) || []);
+      setSegmentsLoading(false);
+    })();
+  }, [tenant?.id]);
+
+  // ── Lookups ────────────────────────────────────────────────
+  const personaLookup = useMemo(
+    () => new Map(personas.map((p) => [p.id, p])),
     [personas],
   );
 
-  const personaLookup = useMemo(
-    () =>
-      new Map(
-        sortedPersonas.map((persona) => [
-          persona.id,
-          {
-            id: persona.id,
-            name: persona.persona_name,
-            description: persona.persona_description ?? null,
-          },
-        ]),
-      ),
-    [sortedPersonas],
+  const segmentLookup = useMemo(
+    () => new Map(segments.map((s) => [s.id, s])),
+    [segments],
   );
 
   const tagLookup = useMemo(
@@ -58,39 +95,52 @@ export function FormAudienceTab({
     [tags],
   );
 
+  // ── Selected item lists (for badge display) ────────────────
   const selectedPersonas = useMemo(
     () =>
-      (audience.assign_personas || []).map((personaId) => {
-        const persona = personaLookup.get(personaId);
-        return {
-          id: personaId,
-          label: persona?.name || "Unknown persona",
-          missing: !persona,
-        };
-      }),
+      (audience.assign_personas || []).map((id) => ({
+        id,
+        label: personaLookup.get(id)?.name || "Unknown persona",
+        missing: !personaLookup.has(id),
+      })),
     [audience.assign_personas, personaLookup],
+  );
+
+  const selectedSegments = useMemo(
+    () =>
+      (audience.segment_ids || []).map((id) => ({
+        id,
+        label: segmentLookup.get(id)?.name || "Unknown segment",
+        missing: !segmentLookup.has(id),
+      })),
+    [audience.segment_ids, segmentLookup],
   );
 
   const selectedTags = useMemo(
     () =>
-      (audience.assign_tags || []).map((tagId) => {
-        const tag = tagLookup.get(tagId);
-        return {
-          id: tagId,
-          label: tag?.name || "Unknown tag",
-          missing: !tag,
-        };
-      }),
+      (audience.assign_tags || []).map((id) => ({
+        id,
+        label: tagLookup.get(id)?.name || "Unknown tag",
+        missing: !tagLookup.has(id),
+      })),
     [audience.assign_tags, tagLookup],
   );
 
+  // ── Togglers ───────────────────────────────────────────────
   const togglePersona = (personaId: string) => {
     const current = audience.assign_personas || [];
     const updated = current.includes(personaId)
       ? current.filter((id) => id !== personaId)
       : [...current, personaId];
-
     onAudienceChange({ ...audience, assign_personas: updated });
+  };
+
+  const toggleSegment = (segmentId: string) => {
+    const current = audience.segment_ids || [];
+    const updated = current.includes(segmentId)
+      ? current.filter((id) => id !== segmentId)
+      : [...current, segmentId];
+    onAudienceChange({ ...audience, segment_ids: updated });
   };
 
   const toggleTag = (tagId: string) => {
@@ -98,12 +148,49 @@ export function FormAudienceTab({
     const updated = current.includes(tagId)
       ? current.filter((id) => id !== tagId)
       : [...current, tagId];
-
     onAudienceChange({ ...audience, assign_tags: updated });
   };
 
   return (
     <div className="space-y-6">
+      {/* ── Segments ── */}
+      <AudienceSection
+        title="Auto-Assign Segments"
+        description="Selected segments will be automatically assigned to customers who submit this form."
+        icon={Layers}
+      >
+        {segmentsLoading ? (
+          <AudienceEmptyState message="Loading segments..." icon={Layers} />
+        ) : segments.length === 0 ? (
+          <AudienceEmptyState
+            message="No segments found. Create segments in the CRM to use this feature."
+            icon={Layers}
+          />
+        ) : (
+          <div className="space-y-3">
+            {segments.map((seg) => (
+              <SelectableRow
+                key={seg.id}
+                checked={(audience.segment_ids || []).includes(seg.id)}
+                title={seg.name}
+                description={
+                  seg.description || "Assign this segment on submission."
+                }
+                onSelect={() => toggleSegment(seg.id)}
+              />
+            ))}
+          </div>
+        )}
+
+        <SelectionBadgeList
+          title="Selected segments"
+          items={selectedSegments}
+          icon={Layers}
+          onRemove={toggleSegment}
+        />
+      </AudienceSection>
+
+      {/* ── Personas ── */}
       <AudienceSection
         title="Auto-Assign Personas"
         description="Selected personas will be automatically assigned to customers who submit this form."
@@ -111,20 +198,20 @@ export function FormAudienceTab({
       >
         {personasLoading ? (
           <AudienceEmptyState message="Loading personas..." icon={Users} />
-        ) : sortedPersonas.length === 0 ? (
+        ) : personas.length === 0 ? (
           <AudienceEmptyState
-            message="No personas found. Create CRM personas first to use this automation."
+            message="No personas available."
             icon={Users}
           />
         ) : (
           <div className="space-y-3">
-            {sortedPersonas.map((persona) => (
+            {personas.map((persona) => (
               <SelectableRow
                 key={persona.id}
                 checked={(audience.assign_personas || []).includes(persona.id)}
-                title={persona.persona_name}
+                title={persona.name}
                 description={
-                  persona.persona_description ?? "No description provided."
+                  persona.description ?? "No description provided."
                 }
                 onSelect={() => togglePersona(persona.id)}
               />
@@ -140,6 +227,7 @@ export function FormAudienceTab({
         />
       </AudienceSection>
 
+      {/* ── Tags ── */}
       <AudienceSection
         title="Auto-Assign Tags"
         description="Selected tags will be automatically applied to customers who submit this form."
@@ -174,6 +262,7 @@ export function FormAudienceTab({
         />
       </AudienceSection>
 
+      {/* ── Info card ── */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
@@ -195,6 +284,8 @@ export function FormAudienceTab({
     </div>
   );
 }
+
+// ── Shared sub-components ──────────────────────────────────────
 
 interface AudienceSectionProps {
   title: string;
@@ -223,19 +314,17 @@ function AudienceSection({
   );
 }
 
-interface SelectableRowProps {
-  checked: boolean;
-  title: string;
-  description: string;
-  onSelect: () => void;
-}
-
 function SelectableRow({
   checked,
   title,
   description,
   onSelect,
-}: SelectableRowProps) {
+}: {
+  checked: boolean;
+  title: string;
+  description: string;
+  onSelect: () => void;
+}) {
   return (
     <button
       type="button"
@@ -281,9 +370,7 @@ function SelectionBadgeList({
   icon: React.ComponentType<{ className?: string }>;
   onRemove: (id: string) => void;
 }) {
-  if (items.length === 0) {
-    return null;
-  }
+  if (items.length === 0) return null;
 
   return (
     <div className="space-y-2">
