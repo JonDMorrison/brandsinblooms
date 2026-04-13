@@ -151,6 +151,7 @@ export const SocialConnectionManager = () => {
       // Fetch OAuth config dynamically
       const configData = await fetchOAuthConfig();
       const clientId = configData.clientId;
+      const redirectUri = getOAuthRedirectUri();
 
       console.log("🔗 [SocialConnectionManager] Redirect URI Configuration:", {
         redirectUri,
