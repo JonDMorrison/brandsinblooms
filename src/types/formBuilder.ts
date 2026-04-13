@@ -72,8 +72,10 @@ export interface FormField {
 
 export type FormFontFamily = "inter" | "system" | "serif" | "mono";
 export type FormBorderRadius = "0px" | "4px" | "8px" | "12px" | "9999px";
-export type FormSpacing = "compact" | "normal" | "relaxed";
+export type FormSpacing = "compact" | "normal" | "relaxed" | "comfortable";
 export type FormButtonStyle = "filled" | "outlined" | "ghost";
+export type FormButtonShape = "rounded" | "pill" | "square";
+export type FormBackgroundStyle = "white" | "transparent" | "green-tint" | "custom";
 export type FormInputStyle = "outlined" | "filled" | "underlined";
 export type FormWidth = "narrow" | "medium" | "wide" | "full";
 export type FormLabelPosition = "above";
@@ -87,7 +89,10 @@ export interface FormTheme {
   border_radius?: FormBorderRadius;
   spacing?: FormSpacing;
   button_style?: FormButtonStyle;
+  button_shape?: FormButtonShape;
   input_style?: FormInputStyle;
+  background_style?: FormBackgroundStyle;
+  google_font?: string;
 }
 
 export interface FormSettings {

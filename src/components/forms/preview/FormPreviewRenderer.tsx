@@ -16,8 +16,11 @@ import {
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import {
+  getButtonShapeRadius,
   getFontFamilyCss,
   getFormWidthValue,
+  getGoogleFontCss,
+  getGoogleFontUrl,
   getSpacingValue,
   normalizeFormSettings,
 } from "@/lib/forms/designSettings";
@@ -103,6 +106,10 @@ interface ThemeTokens {
   radius: string;
   buttonTextOnPrimary: string;
   formMaxWidth: string;
+  buttonShape: string;
+  backgroundStyle: string;
+  googleFont: string;
+  googleFontCss: string;
 }
 
 type FieldControlElement = HTMLInputElement | HTMLSelectElement;
@@ -251,6 +258,10 @@ export function FormPreviewRenderer({
       radius: theme.border_radius ?? "8px",
       buttonTextOnPrimary: getReadableTextColor(primary, "#FFFFFF", text),
       formMaxWidth: getFormWidthValue(normalizedSettings.form_width),
+      buttonShape: getButtonShapeRadius(theme.button_shape),
+      backgroundStyle: theme.background_style ?? "white",
+      googleFont: theme.google_font ?? "",
+      googleFontCss: getGoogleFontCss(theme.google_font ?? ""),
     };
   }, [normalizedSettings.form_width, theme]);
 
@@ -285,6 +296,20 @@ export function FormPreviewRenderer({
     observer.observe(element);
     return () => observer.disconnect();
   }, []);
+
+  // Inject Google Font stylesheet into the document head
+  useEffect(() => {
+    const fontUrl = getGoogleFontUrl(tokens.googleFont);
+    if (!fontUrl) return;
+    const linkId = `gf-${tokens.googleFont.replace(/\s+/g, "-")}`;
+    if (document.getElementById(linkId)) return;
+    const link = document.createElement("link");
+    link.id = linkId;
+    link.rel = "stylesheet";
+    link.href = fontUrl;
+    document.head.appendChild(link);
+    return () => { link.remove(); };
+  }, [tokens.googleFont]);
 
   useEffect(() => {
     const activeKeys = new Set(resolvedVisibleFields.map((field) => field.id));
@@ -795,16 +820,28 @@ export function FormPreviewRenderer({
     })();
   };
 
-  const containerStyle: React.CSSProperties = {
-    width: "100%",
-    maxWidth: `min(${tokens.formMaxWidth}, 42rem)`,
-    margin: "0 auto",
-    backgroundColor: tokens.background,
-    color: tokens.text,
-    fontFamily: tokens.fontFamily,
-    border: `1px solid ${tokens.subtleBorder}`,
-    borderRadius: `${CARD_RADIUS}px`,
-  };
+  const containerStyle: React.CSSProperties = (() => {
+    const base: React.CSSProperties = {
+      width: "100%",
+      maxWidth: `min(${tokens.formMaxWidth}, 42rem)`,
+      margin: "0 auto",
+      color: tokens.text,
+      fontFamily: tokens.googleFontCss || tokens.fontFamily,
+      borderRadius: `${CARD_RADIUS}px`,
+    };
+
+    switch (tokens.backgroundStyle) {
+      case "transparent":
+        return { ...base, backgroundColor: "transparent", border: "none", boxShadow: "none" };
+      case "green-tint":
+        return { ...base, backgroundColor: "#f0fdf4", border: `1px solid ${tokens.subtleBorder}` };
+      case "custom":
+        return { ...base, backgroundColor: tokens.background, border: `1px solid ${tokens.subtleBorder}` };
+      case "white":
+      default:
+        return { ...base, backgroundColor: "#FFFFFF", border: `1px solid ${tokens.subtleBorder}`, boxShadow: "0 1px 3px rgba(0,0,0,0.1)" };
+    }
+  })();
 
   if (isSubmitted) {
     return (
@@ -2172,11 +2209,13 @@ function getSubmitButtonStyle(
   tokens: ThemeTokens,
   buttonStyle: "filled" | "outlined" | "ghost",
 ): React.CSSProperties {
+  const shapeRadius = tokens.buttonShape || `${CONTROL_RADIUS}px`;
+
   if (buttonStyle === "outlined") {
     return {
       minHeight: 48,
       padding: "12px 24px",
-      borderRadius: CONTROL_RADIUS,
+      borderRadius: shapeRadius,
       backgroundColor: "transparent",
       borderColor: tokens.primary,
       color: tokens.primary,
@@ -2188,7 +2227,7 @@ function getSubmitButtonStyle(
     return {
       minHeight: 48,
       padding: "12px 24px",
-      borderRadius: CONTROL_RADIUS,
+      borderRadius: shapeRadius,
       backgroundColor: toRgba(tokens.primary, 0.08),
       borderColor: "transparent",
       color: tokens.primary,
@@ -2199,7 +2238,7 @@ function getSubmitButtonStyle(
   return {
     minHeight: 48,
     padding: "12px 24px",
-    borderRadius: CONTROL_RADIUS,
+    borderRadius: shapeRadius,
     backgroundColor: tokens.primary,
     borderColor: tokens.primary,
     color: tokens.buttonTextOnPrimary,

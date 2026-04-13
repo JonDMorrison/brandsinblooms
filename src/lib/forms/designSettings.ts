@@ -1,6 +1,8 @@
 import {
   DEFAULT_FORM_SETTINGS,
+  FormBackgroundStyle,
   FormBorderRadius,
+  FormButtonShape,
   FormButtonStyle,
   FormFontFamily,
   FormInputStyle,
@@ -48,8 +50,46 @@ export const FORM_SPACING_OPTIONS: Array<{
   px: string;
 }> = [
   { value: "compact", label: "Compact", px: "12px" },
-  { value: "normal", label: "Normal", px: "16px" },
+  { value: "normal", label: "Normal", px: "20px" },
+  { value: "comfortable", label: "Comfortable", px: "32px" },
   { value: "relaxed", label: "Relaxed", px: "24px" },
+];
+
+export const FORM_BUTTON_SHAPE_OPTIONS: Array<{
+  value: FormButtonShape;
+  label: string;
+  radius: string;
+}> = [
+  { value: "rounded", label: "Rounded", radius: "8px" },
+  { value: "pill", label: "Pill", radius: "9999px" },
+  { value: "square", label: "Square", radius: "0px" },
+];
+
+export const FORM_BACKGROUND_STYLE_OPTIONS: Array<{
+  value: FormBackgroundStyle;
+  label: string;
+  description: string;
+}> = [
+  { value: "white", label: "White Card", description: "Default white background with shadow" },
+  { value: "transparent", label: "Transparent", description: "Blends with page background" },
+  { value: "green-tint", label: "Soft Green", description: "Light garden-green tint" },
+  { value: "custom", label: "Custom", description: "Pick a custom background color" },
+];
+
+export const GOOGLE_FONT_OPTIONS: Array<{ value: string; label: string }> = [
+  { value: "", label: "Inherit from website" },
+  { value: "Quicksand", label: "Quicksand" },
+  { value: "Lato", label: "Lato" },
+  { value: "Nunito", label: "Nunito" },
+  { value: "Poppins", label: "Poppins" },
+  { value: "Raleway", label: "Raleway" },
+  { value: "Playfair Display", label: "Playfair Display" },
+  { value: "Merriweather", label: "Merriweather" },
+  { value: "Source Sans 3", label: "Source Sans 3" },
+  { value: "Open Sans", label: "Open Sans" },
+  { value: "Montserrat", label: "Montserrat" },
+  { value: "DM Sans", label: "DM Sans" },
+  { value: "Inter", label: "Inter" },
 ];
 
 export const FORM_BUTTON_STYLE_OPTIONS: Array<{
@@ -313,6 +353,22 @@ export function normalizeColumns(value: unknown): 1 | 2 {
   return 1;
 }
 
+export function getButtonShapeRadius(shape?: FormButtonShape): string {
+  return (
+    FORM_BUTTON_SHAPE_OPTIONS.find((o) => o.value === shape)?.radius ?? "8px"
+  );
+}
+
+export function getGoogleFontUrl(fontName: string): string {
+  if (!fontName) return "";
+  return `https://fonts.googleapis.com/css2?family=${encodeURIComponent(fontName)}:wght@400;500;600&display=swap`;
+}
+
+export function getGoogleFontCss(fontName: string): string {
+  if (!fontName) return "";
+  return `"${fontName}", sans-serif`;
+}
+
 export function normalizeFormTheme(value: unknown): FormTheme {
   const candidate =
     typeof value === "object" && value !== null && !Array.isArray(value)
@@ -340,7 +396,14 @@ export function normalizeFormTheme(value: unknown): FormTheme {
     border_radius: normalizeBorderRadius(candidate.border_radius),
     spacing: normalizeSpacing(candidate.spacing),
     button_style: normalizeButtonStyle(candidate.button_style),
+    button_shape: (typeof candidate.button_shape === "string" &&
+      ["rounded", "pill", "square"].includes(candidate.button_shape)
+      ? candidate.button_shape : "rounded") as FormButtonShape,
     input_style: normalizeInputStyle(candidate.input_style),
+    background_style: (typeof candidate.background_style === "string" &&
+      ["white", "transparent", "green-tint", "custom"].includes(candidate.background_style)
+      ? candidate.background_style : "white") as FormBackgroundStyle,
+    google_font: typeof candidate.google_font === "string" ? candidate.google_font : "",
   };
 }
 

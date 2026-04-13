@@ -24,18 +24,23 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useBrandColors } from "@/hooks/useBrandColors";
 import {
+  FORM_BACKGROUND_STYLE_OPTIONS,
   FORM_BORDER_RADIUS_OPTIONS,
+  FORM_BUTTON_SHAPE_OPTIONS,
   FORM_BUTTON_STYLE_OPTIONS,
   FORM_FONT_FAMILY_OPTIONS,
   FORM_INPUT_STYLE_OPTIONS,
   FORM_SPACING_OPTIONS,
   FORM_WIDTH_OPTIONS,
+  GOOGLE_FONT_OPTIONS,
   isValidHexColor,
   normalizeFormSettings,
 } from "@/lib/forms/designSettings";
 import { cn } from "@/lib/utils";
 import {
   DEFAULT_FORM_SETTINGS,
+  FormBackgroundStyle,
+  FormButtonShape,
   FormButtonStyle,
   FormInputStyle,
   FormSettings,
@@ -308,6 +313,16 @@ export function FormDesignTab({
             onChange={(value) => updateTheme({ background_color: value })}
           />
         </div>
+
+        <RadioCardGroup
+          title="Background Style"
+          value={normalizedSettings.theme.background_style ?? "white"}
+          onValueChange={(value) =>
+            updateTheme({ background_style: value as FormBackgroundStyle })
+          }
+          columns={4}
+          options={FORM_BACKGROUND_STYLE_OPTIONS}
+        />
       </DesignSection>
 
       <DesignSection
@@ -338,6 +353,24 @@ export function FormDesignTab({
                 label: option.label,
               }))}
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="google_font">Google Font</Label>
+            <NativeSelect
+              label=""
+              value={normalizedSettings.theme.google_font ?? ""}
+              onChange={(event) =>
+                updateTheme({ google_font: event.target.value })
+              }
+              options={GOOGLE_FONT_OPTIONS.map((option) => ({
+                value: option.value,
+                label: option.label,
+              }))}
+            />
+            <p className="text-xs text-muted-foreground">
+              Overrides the base font with a Google Font. Leave on "Inherit" to use the system font above.
+            </p>
           </div>
 
           <RadioCardGroup
@@ -371,6 +404,20 @@ export function FormDesignTab({
             }
             columns={3}
             options={FORM_BUTTON_STYLE_OPTIONS}
+          />
+
+          <RadioCardGroup
+            title="Button Shape"
+            value={normalizedSettings.theme.button_shape ?? "rounded"}
+            onValueChange={(value) =>
+              updateTheme({ button_shape: value as FormButtonShape })
+            }
+            columns={3}
+            options={FORM_BUTTON_SHAPE_OPTIONS.map((o) => ({
+              value: o.value,
+              label: o.label,
+              description: o.radius,
+            }))}
           />
 
           <RadioCardGroup
