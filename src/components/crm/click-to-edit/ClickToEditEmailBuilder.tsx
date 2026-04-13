@@ -2,6 +2,21 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import { ContentBlock } from "@/types/emailBuilder";
 import { Button } from "@/components/ui/button";
 import { Plus, Bug, Undo2, Redo2 } from "lucide-react";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  arrayMove,
+} from "@dnd-kit/sortable";
 import { ClickToEditBlock } from "./ClickToEditBlock";
 import { HeaderBlock } from "./blocks/HeaderBlock";
 import { NewsletterHeaderBlock } from "./blocks/NewsletterHeaderBlock";
@@ -583,6 +598,28 @@ export const ClickToEditEmailBuilder: React.FC<
     }
   };
 
+  // ── Drag-to-reorder ───────────────────────────────────────
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 8 },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      const oldIndex = blocks.findIndex((b) => b.id === active.id);
+      const newIndex = blocks.findIndex((b) => b.id === over.id);
+      if (oldIndex === -1 || newIndex === -1) return;
+      pushHistory(blocks);
+      onBlocksChange(arrayMove(blocks, oldIndex, newIndex));
+    }
+  };
+  // ── End drag-to-reorder ─────────────────────────────────────
+
   const AddBlockButton: React.FC<{ afterIndex?: number }> = ({
     afterIndex,
   }) => {
@@ -638,36 +675,47 @@ export const ClickToEditEmailBuilder: React.FC<
       {/* Add block button at top */}
       <AddBlockButton afterIndex={-1} />
 
-      {/* Render all blocks */}
-      {blocks.map((block, index) => (
-        <div key={block.id}>
-          <ClickToEditBlock
-            block={block}
-            index={index}
-            onUpdate={updateBlock}
-            campaignName={campaignName}
-            onRemove={requestRemoveBlock}
-            onConfirmRemove={confirmRemoveBlock}
-            onCancelRemove={cancelRemoveBlock}
-            isDeletePending={deletingBlockId === block.id}
-            onDuplicate={duplicateBlock}
-            onMove={moveBlock}
-            canMoveUp={index > 0}
-            canMoveDown={index < blocks.length - 1}
-            isGenerating={generatingBlocks.has(block.id)}
-            allBlocks={blocks}
-            onOpenAIImageDialog={onOpenAIImageDialog}
-          >
-            {{
-              preview: renderBlockPreview(block),
-              editor: renderBlock(block),
-            }}
-          </ClickToEditBlock>
+      {/* Render all blocks — drag-to-reorder enabled */}
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={handleDragEnd}
+      >
+        <SortableContext
+          items={blocks.map((b) => b.id)}
+          strategy={verticalListSortingStrategy}
+        >
+          {blocks.map((block, index) => (
+            <div key={block.id}>
+              <ClickToEditBlock
+                block={block}
+                index={index}
+                onUpdate={updateBlock}
+                campaignName={campaignName}
+                onRemove={requestRemoveBlock}
+                onConfirmRemove={confirmRemoveBlock}
+                onCancelRemove={cancelRemoveBlock}
+                isDeletePending={deletingBlockId === block.id}
+                onDuplicate={duplicateBlock}
+                onMove={moveBlock}
+                canMoveUp={index > 0}
+                canMoveDown={index < blocks.length - 1}
+                isGenerating={generatingBlocks.has(block.id)}
+                allBlocks={blocks}
+                onOpenAIImageDialog={onOpenAIImageDialog}
+              >
+                {{
+                  preview: renderBlockPreview(block),
+                  editor: renderBlock(block),
+                }}
+              </ClickToEditBlock>
 
-          {/* Add block button between blocks */}
-          <AddBlockButton afterIndex={index} />
-        </div>
-      ))}
+              {/* Add block button between blocks */}
+              <AddBlockButton afterIndex={index} />
+            </div>
+          ))}
+        </SortableContext>
+      </DndContext>
 
       {/* Empty state */}
       {blocks.length === 0 && (

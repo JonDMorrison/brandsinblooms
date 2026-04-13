@@ -4,6 +4,8 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { GripVertical, Trash2, ChevronRight, ChevronDown } from "lucide-react";
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { BlockMiniPreview } from "../blocks/BlockMiniPreview";
 import { BlockEditToolbar } from "./BlockEditToolbar";
 import { useBlockEditMode, EditMode } from "@/hooks/useBlockEditMode";
@@ -74,6 +76,24 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
   const [isMediaSelectorOpen, setIsMediaSelectorOpen] = useState(false);
   const [isOverlayDialogOpen, setIsOverlayDialogOpen] = useState(false);
   const [isGridConfigOpen, setIsGridConfigOpen] = useState(false);
+
+  // Drag-to-reorder via @dnd-kit/sortable
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: block.id });
+
+  const sortableStyle = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    position: "relative" as const,
+    zIndex: isDragging ? 999 : ("auto" as any),
+  };
 
   // Use the new edit mode hook
   const {
@@ -411,11 +431,12 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
 
   return (
     <div
+      ref={setNodeRef}
+      style={sortableStyle}
       className={cn(
         "group relative click-to-edit-container",
         isAnyEditMode && "click-to-edit-editing",
       )}
-      style={{ position: "relative", zIndex: 1 }}
     >
       {/* Collapse toggle + Drag Handle — left gutter */}
       <div className="absolute -left-8 top-3 flex flex-col items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
@@ -427,7 +448,11 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
         >
           {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
         </button>
-        <div className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground">
+        <div
+          {...listeners}
+          {...attributes}
+          className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground touch-none"
+        >
           <GripVertical className="h-4 w-4" />
         </div>
       </div>
