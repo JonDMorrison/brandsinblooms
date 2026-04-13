@@ -2,15 +2,12 @@ import React, { useMemo, useState } from "react";
 import { format, formatDistanceToNow } from "date-fns";
 import {
   AlertTriangle,
-  Archive,
   ArrowUpDown,
   Copy,
   FileText,
   Link2,
-  MoreHorizontal,
   Pencil,
   Plus,
-  RefreshCcw,
   Search,
   Sparkles,
   Trash2,
@@ -23,7 +20,6 @@ import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
@@ -506,10 +502,6 @@ export default function FormsPage() {
                 onDuplicate={() => {
                   void handleDuplicate(form);
                 }}
-                onArchive={() => handleArchiveClick(form)}
-                onUnarchive={() => {
-                  void handleUnarchive(form);
-                }}
                 onDelete={() => handleDeleteClick(form)}
               />
             ))}
@@ -557,8 +549,6 @@ function FormCard({
   onEdit,
   onCopyLink,
   onDuplicate,
-  onArchive,
-  onUnarchive,
   onDelete,
 }: {
   form: FormWithStats;
@@ -566,8 +556,6 @@ function FormCard({
   onEdit: () => void;
   onCopyLink: () => void;
   onDuplicate: () => void;
-  onArchive: () => void;
-  onUnarchive: () => void;
   onDelete: () => void;
 }) {
   const createdLabel = format(new Date(form.created_at), "MMM d");
@@ -607,18 +595,7 @@ function FormCard({
             <div>{renderStatusBadge(form.status)}</div>
           </div>
 
-          <div className="md:hidden">
-            <FormCardMenu
-              form={form}
-              onEdit={onEdit}
-              onCopyLink={onCopyLink}
-              onDuplicate={onDuplicate}
-              onArchive={onArchive}
-              onUnarchive={onUnarchive}
-              onDelete={onDelete}
-              isBusy={isBusy}
-            />
-          </div>
+          {/* Action buttons are in the card footer below */}
         </div>
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -647,7 +624,7 @@ function FormCard({
         </p>
 
         <div className="flex items-center justify-between border-t pt-4">
-          <div className="hidden items-center gap-2 md:flex">
+          <div className="flex items-center gap-2">
             <IconActionButton label="Edit" onClick={onEdit} disabled={isBusy}>
               <Pencil className="h-4 w-4" />
             </IconActionButton>
@@ -669,92 +646,12 @@ function FormCard({
             </IconActionButton>
           </div>
 
-          <div className="hidden md:block">
-            <FormCardMenu
-              form={form}
-              onEdit={onEdit}
-              onCopyLink={onCopyLink}
-              onDuplicate={onDuplicate}
-              onArchive={onArchive}
-              onUnarchive={onUnarchive}
-              onDelete={onDelete}
-              isBusy={isBusy}
-            />
-          </div>
-
-          <p className="text-xs text-muted-foreground md:hidden">
-            Tap the menu for quick actions.
-          </p>
+          <IconActionButton label="Delete" onClick={onDelete} disabled={isBusy}>
+            <Trash2 className="h-4 w-4 text-destructive" />
+          </IconActionButton>
         </div>
       </CardContent>
     </Card>
-  );
-}
-
-function FormCardMenu({
-  form,
-  onEdit,
-  onCopyLink,
-  onDuplicate,
-  onArchive,
-  onUnarchive,
-  onDelete,
-  isBusy,
-}: {
-  form: FormWithStats;
-  onEdit: () => void;
-  onCopyLink: () => void;
-  onDuplicate: () => void;
-  onArchive: () => void;
-  onUnarchive: () => void;
-  onDelete: () => void;
-  isBusy: boolean;
-}) {
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" disabled={isBusy}>
-          <MoreHorizontal className="h-4 w-4" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-52" onClick={(e) => e.stopPropagation()}>
-        <DropdownMenuLabel>Quick actions</DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onSelect={onEdit}>
-          <Pencil className="mr-2 h-4 w-4" />
-          Edit
-        </DropdownMenuItem>
-        {form.status === "published" ? (
-          <DropdownMenuItem onSelect={onCopyLink}>
-            <Link2 className="mr-2 h-4 w-4" />
-            Copy Link
-          </DropdownMenuItem>
-        ) : null}
-        <DropdownMenuItem onSelect={onDuplicate}>
-          <Copy className="mr-2 h-4 w-4" />
-          Duplicate
-        </DropdownMenuItem>
-        {form.status === "archived" ? (
-          <DropdownMenuItem onSelect={onUnarchive}>
-            <RefreshCcw className="mr-2 h-4 w-4" />
-            Unarchive
-          </DropdownMenuItem>
-        ) : (
-          <DropdownMenuItem onSelect={onArchive}>
-            <Archive className="mr-2 h-4 w-4" />
-            Archive
-          </DropdownMenuItem>
-        )}
-        <DropdownMenuSeparator />
-        <DropdownMenuItem
-          onSelect={onDelete}
-          className="text-destructive focus:text-destructive"
-        >
-          <Trash2 className="mr-2 h-4 w-4" />
-          Delete{form.status === "published" ? " (Published)" : ""}
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
   );
 }
 
