@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { ContentBlock } from "@/types/emailBuilder";
 import { Button } from "@/components/ui/button";
-import { Plus, Bug } from "lucide-react";
+import { Plus, Bug, Undo2, Redo2 } from "lucide-react";
 import { ClickToEditBlock } from "./ClickToEditBlock";
 import { HeaderBlock } from "./blocks/HeaderBlock";
 import { NewsletterHeaderBlock } from "./blocks/NewsletterHeaderBlock";
@@ -58,6 +58,68 @@ export const ClickToEditEmailBuilder: React.FC<
 
   // Debug state for MediaSelector
   const [debugMediaSelectorOpen, setDebugMediaSelectorOpen] = useState(false);
+
+  // ── Undo / Redo history ──────────────────────────────────────
+  const MAX_HISTORY = 50;
+  const pastRef = useRef<ContentBlock[][]>([]);
+  const futureRef = useRef<ContentBlock[][]>([]);
+  const [historyCounter, setHistoryCounter] = useState(0); // trigger re-render on undo/redo
+  const isUndoRedoRef = useRef(false);
+  const isInitialLoadRef = useRef(true);
+
+  const snapshot = (b: ContentBlock[]): ContentBlock[] =>
+    JSON.parse(JSON.stringify(b));
+
+  const pushHistory = useCallback((prevBlocks: ContentBlock[]) => {
+    if (isUndoRedoRef.current || isInitialLoadRef.current) return;
+    pastRef.current = [...pastRef.current.slice(-(MAX_HISTORY - 1)), snapshot(prevBlocks)];
+    futureRef.current = [];
+    setHistoryCounter((c) => c + 1);
+  }, []);
+
+  // Mark initial load complete after first real blocks arrive
+  useEffect(() => {
+    if (blocks.length > 0 && isInitialLoadRef.current) {
+      // Use a microtask so the very first onBlocksChange from hydration is still "initial"
+      const id = setTimeout(() => { isInitialLoadRef.current = false; }, 0);
+      return () => clearTimeout(id);
+    }
+  }, [blocks.length]);
+
+  const undo = useCallback(() => {
+    if (pastRef.current.length === 0) return;
+    isUndoRedoRef.current = true;
+    futureRef.current = [...futureRef.current, snapshot(blocks)];
+    const prev = pastRef.current.pop()!;
+    onBlocksChange(prev);
+    setHistoryCounter((c) => c + 1);
+    requestAnimationFrame(() => { isUndoRedoRef.current = false; });
+  }, [blocks, onBlocksChange]);
+
+  const redo = useCallback(() => {
+    if (futureRef.current.length === 0) return;
+    isUndoRedoRef.current = true;
+    pastRef.current = [...pastRef.current, snapshot(blocks)];
+    const next = futureRef.current.pop()!;
+    onBlocksChange(next);
+    setHistoryCounter((c) => c + 1);
+    requestAnimationFrame(() => { isUndoRedoRef.current = false; });
+  }, [blocks, onBlocksChange]);
+
+  const canUndo = pastRef.current.length > 0;
+  const canRedo = futureRef.current.length > 0;
+
+  // Keyboard shortcut: Cmd+Z / Ctrl+Z / Cmd+Shift+Z / Ctrl+Shift+Z
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey) || e.key !== "z") return;
+      e.preventDefault();
+      if (e.shiftKey) { redo(); } else { undo(); }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [undo, redo]);
+  // ── End undo / redo ──────────────────────────────────────────
 
   // PHASE 2: Use ref to access latest blocks in updateBlock
   const blocksRef = useRef(blocks);
@@ -192,6 +254,7 @@ export const ClickToEditEmailBuilder: React.FC<
       newBlocks.push(newBlock);
     }
 
+    pushHistory(blocks);
     onBlocksChange(newBlocks);
   };
 
@@ -202,6 +265,9 @@ export const ClickToEditEmailBuilder: React.FC<
       setDeletingBlockId(null);
       // Use ref to get the latest blocks (avoiding stale closure)
       const latestBlocks = blocksRef.current;
+
+      pushHistory(latestBlocks);
+
       const newBlocks = latestBlocks.map((block) => {
         if (block.id !== id) return block;
 
@@ -225,7 +291,7 @@ export const ClickToEditEmailBuilder: React.FC<
 
       onBlocksChange(newBlocks);
     },
-    [onBlocksChange],
+    [onBlocksChange, pushHistory],
   );
 
   const requestRemoveBlock = (id: string) => {
@@ -233,6 +299,7 @@ export const ClickToEditEmailBuilder: React.FC<
   };
 
   const confirmRemoveBlock = (id: string) => {
+    pushHistory(blocks);
     const filteredBlocks = blocks.filter((block) => block.id !== id);
     onBlocksChange(filteredBlocks);
     setDeletingBlockId(null);
@@ -243,6 +310,7 @@ export const ClickToEditEmailBuilder: React.FC<
   };
 
   const duplicateBlock = (block: ContentBlock) => {
+    pushHistory(blocks);
     const newBlock = {
       ...block,
       id: `block_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -260,6 +328,7 @@ export const ClickToEditEmailBuilder: React.FC<
     const newIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
     if (newIndex < 0 || newIndex >= blocks.length) return;
 
+    pushHistory(blocks);
     const newBlocks = [...blocks];
     const [movedBlock] = newBlocks.splice(currentIndex, 1);
     newBlocks.splice(newIndex, 0, movedBlock);
@@ -540,6 +609,32 @@ export const ClickToEditEmailBuilder: React.FC<
 
   return (
     <div className="max-w-4xl mx-auto space-y-2">
+      {/* Undo / Redo toolbar */}
+      {(canUndo || canRedo) && (
+        <div className="flex items-center justify-end gap-1 px-1">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 w-7 p-0"
+            onClick={undo}
+            disabled={!canUndo}
+            title="Undo (Ctrl+Z)"
+          >
+            <Undo2 className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 w-7 p-0"
+            onClick={redo}
+            disabled={!canRedo}
+            title="Redo (Ctrl+Shift+Z)"
+          >
+            <Redo2 className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      )}
+
       {/* Add block button at top */}
       <AddBlockButton afterIndex={-1} />
 
