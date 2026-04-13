@@ -529,7 +529,9 @@ export default function FormsPage() {
           description={
             confirmAction?.kind === "archive"
               ? `Archive "${confirmAction.form.name}"? You can unarchive it later from the forms dashboard.`
-              : `Delete "${confirmAction?.form.name}"? This will permanently delete the form and all submissions. This action cannot be undone.`
+              : confirmAction?.form.status === "published"
+                ? `Delete "${confirmAction?.form.name}"? This form is currently PUBLISHED — active submissions will be lost. This will permanently delete the form and all submissions. This action cannot be undone.`
+                : `Delete "${confirmAction?.form.name}"? This will permanently delete the form and all submissions. This action cannot be undone.`
           }
           confirmText={confirmAction?.kind === "archive" ? "Archive" : "Delete"}
           cancelText="Cancel"
@@ -715,41 +717,41 @@ function FormCardMenu({
           <MoreHorizontal className="h-4 w-4" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-52">
+      <DropdownMenuContent align="end" className="w-52" onClick={(e) => e.stopPropagation()}>
         <DropdownMenuLabel>Quick actions</DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={onEdit}>
+        <DropdownMenuItem onSelect={onEdit}>
           <Pencil className="mr-2 h-4 w-4" />
           Edit
         </DropdownMenuItem>
         {form.status === "published" ? (
-          <DropdownMenuItem onClick={onCopyLink}>
+          <DropdownMenuItem onSelect={onCopyLink}>
             <Link2 className="mr-2 h-4 w-4" />
             Copy Link
           </DropdownMenuItem>
         ) : null}
-        <DropdownMenuItem onClick={onDuplicate}>
+        <DropdownMenuItem onSelect={onDuplicate}>
           <Copy className="mr-2 h-4 w-4" />
           Duplicate
         </DropdownMenuItem>
         {form.status === "archived" ? (
-          <DropdownMenuItem onClick={onUnarchive}>
+          <DropdownMenuItem onSelect={onUnarchive}>
             <RefreshCcw className="mr-2 h-4 w-4" />
             Unarchive
           </DropdownMenuItem>
         ) : (
-          <DropdownMenuItem onClick={onArchive}>
+          <DropdownMenuItem onSelect={onArchive}>
             <Archive className="mr-2 h-4 w-4" />
             Archive
           </DropdownMenuItem>
         )}
         <DropdownMenuSeparator />
         <DropdownMenuItem
-          onClick={onDelete}
+          onSelect={onDelete}
           className="text-destructive focus:text-destructive"
         >
           <Trash2 className="mr-2 h-4 w-4" />
-          Delete
+          Delete{form.status === "published" ? " (Published)" : ""}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
