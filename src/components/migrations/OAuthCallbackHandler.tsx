@@ -125,13 +125,21 @@ export const OAuthCallbackHandler = () => {
     return () => clearTimeout(timer);
   }, [searchParams]);
 
+  const isPopup = !!window.opener;
+
   return (
     <div className="flex items-center justify-center min-h-screen bg-background">
       <div className="text-center">
         {showFallback ? (
           <>
             <p className="text-foreground mb-4">Connection complete!</p>
-            <Button onClick={() => window.close()}>Close Window</Button>
+            {isPopup ? (
+              <Button onClick={() => window.close()}>Close Window</Button>
+            ) : (
+              <Button onClick={() => (window.location.href = "/social-accounts")}>
+                Return to Social Accounts
+              </Button>
+            )}
           </>
         ) : (
           <>
