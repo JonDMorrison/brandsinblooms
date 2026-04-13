@@ -38,11 +38,11 @@ test.describe("Campaign Builder — Core UX", () => {
 
 // ─────────────────────────────────────────────────────────────
 // The tests below require an authenticated session.
-// They are skipped by default — remove `.skip` and configure
-// auth (via storageState or the auth fixture) to run them.
+// Run with the "chromium" project in playwright.prod.config.ts
+// which depends on the auth setup project and injects storageState.
 // ─────────────────────────────────────────────────────────────
 
-test.describe.skip("Campaign Builder — Block Interactions (requires auth)", () => {
+test.describe("Campaign Builder — Block Interactions (requires auth)", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/crm/campaigns/new");
     // Wait for the builder to be ready
