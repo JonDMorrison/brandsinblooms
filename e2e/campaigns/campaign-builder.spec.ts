@@ -1,35 +1,67 @@
 import { test, expect } from "@playwright/test";
 
-test.describe("Campaign Builder — Core UX", () => {
-  // These tests navigate to the campaign builder.
-  // Without authentication the app redirects to /auth, so we verify the
-  // redirect works (the route exists and the app doesn't crash).
+// ── Helper: add a block via the layout picker modal ──────────
+async function addBlock(
+  page: import("@playwright/test").Page,
+  title: string,
+) {
+  // Click the first visible "Add Block" button
+  await page.locator("button:has-text('Add Block')").first().click();
 
+  // Wait for the layout picker dialog to appear
+  const dialog = page.locator('[role="dialog"]');
+  await expect(dialog).toBeVisible({ timeout: 5000 });
+
+  // Click the card whose <h4> matches the requested layout title
+  await dialog.locator(`h4:has-text("${title}")`).click();
+
+  // Wait for dialog to close and new block to appear
+  await expect(dialog).not.toBeVisible({ timeout: 5000 });
+  await page.waitForSelector(".click-to-edit-container", { timeout: 10000 });
+}
+
+// ── Helper: open Tools dropdown on a block and click an action ─
+async function clickToolsAction(
+  page: import("@playwright/test").Page,
+  blockIndex: number,
+  actionLabel: string,
+) {
+  const block = page.locator(".click-to-edit-container").nth(blockIndex);
+  await block.hover();
+
+  // Open the "Tools" dropdown (button with Settings icon + "Tools" text)
+  const toolsBtn = block.locator("button:has-text('Tools')");
+  await expect(toolsBtn).toBeVisible({ timeout: 3000 });
+  await toolsBtn.click();
+
+  // Click the action inside the dropdown
+  const action = page.locator(
+    `.absolute button:has-text("${actionLabel}")`,
+  );
+  await expect(action).toBeVisible({ timeout: 3000 });
+  await action.click();
+}
+
+// ─────────────────────────────────────────────────────────────
+// Smoke tests — no auth required
+// ─────────────────────────────────────────────────────────────
+
+test.describe("Campaign Builder — Core UX", () => {
   test("campaign /new route loads without crashing", async ({ page }) => {
     const response = await page.goto("/crm/campaigns/new");
-
-    // App should respond (not 500 / network error)
     expect(response?.status()).toBeLessThan(500);
-
-    // Should either show the builder (authenticated) or redirect to auth
     await page.waitForURL(/\/(crm\/campaigns|auth)/, { timeout: 15000 });
-
-    // No React error boundary should be visible
     await expect(
       page.locator("text=Something went wrong"),
     ).not.toBeVisible();
   });
 
   test("campaign /:id route loads without crashing", async ({ page }) => {
-    // Use a UUID that may or may not exist — we just verify no crash
     const response = await page.goto(
       "/crm/campaigns/d2679f4d-4bc3-4fd0-8c33-a4279668c42d",
     );
-
     expect(response?.status()).toBeLessThan(500);
-
     await page.waitForURL(/\/(crm\/campaigns|auth)/, { timeout: 15000 });
-
     await expect(
       page.locator("text=Something went wrong"),
     ).not.toBeVisible();
@@ -37,67 +69,46 @@ test.describe("Campaign Builder — Core UX", () => {
 });
 
 // ─────────────────────────────────────────────────────────────
-// The tests below require an authenticated session.
-// Run with the "chromium" project in playwright.prod.config.ts
-// which depends on the auth setup project and injects storageState.
+// Authenticated tests — require storageState from auth setup
 // ─────────────────────────────────────────────────────────────
 
 test.describe("Campaign Builder — Block Interactions (requires auth)", () => {
+  test.setTimeout(60000);
+
   test.beforeEach(async ({ page }) => {
     await page.goto("/crm/campaigns/new");
-    // Wait for the builder to be ready
-    await page.waitForSelector("text=Add Block", { timeout: 15000 });
+    // Wait for the builder to fully load
+    await page.waitForSelector("button:has-text('Add Block')", {
+      timeout: 20000,
+    });
   });
 
   test("add a block and verify it appears", async ({ page }) => {
-    // Click the first "Add Block" button
-    await page.click("button:has-text('Add Block')");
+    await addBlock(page, "Plain Text");
 
-    // Pick a text block from the layout modal
-    const textOption = page.locator(
-      '[data-testid="layout-text-plain"], text=Text',
-    );
-    await textOption.first().click();
-
-    // A new block card should appear
     await expect(
-      page.locator(".click-to-edit-block"),
+      page.locator(".click-to-edit-container"),
     ).toHaveCount(1, { timeout: 5000 });
   });
 
   test("delete confirmation — cancel preserves block", async ({ page }) => {
     // Add a block first
-    await page.click("button:has-text('Add Block')");
-    await page.locator("text=Text").first().click();
-    await page.waitForSelector(".click-to-edit-block");
+    await addBlock(page, "Plain Text");
+    await expect(page.locator(".click-to-edit-container")).toHaveCount(1);
 
-    // Hover the block to reveal the tools menu
-    const block = page.locator(".click-to-edit-container").first();
-    await block.hover();
-
-    // Click the delete/trash button in the tools dropdown
-    const trashButton = block.locator('button[title="Delete block"]');
-    if (await trashButton.isVisible()) {
-      await trashButton.click();
-    } else {
-      // Might be in ToolsDropdownMenu — open it and find delete
-      const toolsBtn = block.locator(
-        'button:has(svg.lucide-more-horizontal), button:has(svg.lucide-settings)',
-      );
-      if (await toolsBtn.isVisible()) {
-        await toolsBtn.click();
-        await page.click("text=Delete");
-      }
-    }
+    // Open Tools dropdown and click Delete
+    await clickToolsAction(page, 0, "Delete");
 
     // Inline confirmation should appear
-    await expect(page.locator("text=Delete this block?")).toBeVisible();
+    await expect(
+      page.locator("text=Delete this block?"),
+    ).toBeVisible({ timeout: 3000 });
 
     // Click Cancel
-    await page.click("button:has-text('Cancel')");
+    await page.locator("button:has-text('Cancel')").click();
 
     // Block should still exist
-    await expect(page.locator(".click-to-edit-block")).toHaveCount(1);
+    await expect(page.locator(".click-to-edit-container")).toHaveCount(1);
 
     // Confirmation should be gone
     await expect(
@@ -107,70 +118,67 @@ test.describe("Campaign Builder — Block Interactions (requires auth)", () => {
 
   test("undo reverts block deletion", async ({ page }) => {
     // Add a block
-    await page.click("button:has-text('Add Block')");
-    await page.locator("text=Text").first().click();
-    await page.waitForSelector(".click-to-edit-block");
+    await addBlock(page, "Plain Text");
+    await expect(page.locator(".click-to-edit-container")).toHaveCount(1);
 
-    // Delete it (confirm)
-    const block = page.locator(".click-to-edit-container").first();
-    await block.hover();
-    const trashButton = block.locator('button[title="Delete block"]');
-    if (await trashButton.isVisible()) {
-      await trashButton.click();
-    }
-    await page.click("button:has-text('Yes, delete')");
+    // Delete it via Tools > Delete > confirm
+    await clickToolsAction(page, 0, "Delete");
+    await expect(page.locator("text=Delete this block?")).toBeVisible();
+    await page.locator("button:has-text('Yes, delete')").click();
 
     // Block should be gone
-    await expect(page.locator(".click-to-edit-block")).toHaveCount(0);
+    await expect(
+      page.locator(".click-to-edit-container"),
+    ).toHaveCount(0, { timeout: 5000 });
 
-    // Undo with Cmd+Z
-    await page.keyboard.press("Meta+z");
+    // Undo — use Control+z which works cross-platform in headless Chromium
+    await page.keyboard.press("Control+z");
 
     // Block should reappear
     await expect(
-      page.locator(".click-to-edit-block"),
-    ).toHaveCount(1, { timeout: 3000 });
+      page.locator(".click-to-edit-container"),
+    ).toHaveCount(1, { timeout: 5000 });
   });
 
   test("drag-to-reorder changes block order", async ({ page }) => {
-    // Add two blocks
-    await page.click("button:has-text('Add Block')");
-    await page.locator("text=Text").first().click();
-    await page.waitForSelector(".click-to-edit-block");
+    // Add two blocks — Text then Divider
+    await addBlock(page, "Plain Text");
+    await expect(page.locator(".click-to-edit-container")).toHaveCount(1);
 
-    await page.click("button:has-text('Add Block')");
-    await page.locator("text=Divider").first().click();
-    await expect(page.locator(".click-to-edit-block")).toHaveCount(2);
+    await addBlock(page, "Divider");
+    await expect(
+      page.locator(".click-to-edit-container"),
+    ).toHaveCount(2, { timeout: 5000 });
 
-    // Get the drag handles (GripVertical icons in the left gutter)
-    const handles = page.locator(
-      ".click-to-edit-container .cursor-grab",
-    );
+    // Hover the first block to reveal the drag handle
+    const firstBlock = page.locator(".click-to-edit-container").first();
+    await firstBlock.hover();
+    await page.waitForTimeout(300); // let opacity transition complete
 
-    // Drag first block down past the second
-    const firstHandle = handles.first();
+    // Get the drag handle (the .cursor-grab div with GripVertical)
+    const firstHandle = firstBlock.locator(".cursor-grab").first();
     const secondBlock = page.locator(".click-to-edit-container").nth(1);
 
-    const firstBox = await firstHandle.boundingBox();
-    const secondBox = await secondBlock.boundingBox();
+    const handleBox = await firstHandle.boundingBox();
+    const targetBox = await secondBlock.boundingBox();
 
-    if (firstBox && secondBox) {
+    if (handleBox && targetBox) {
+      // Drag from the handle center to below the second block
       await page.mouse.move(
-        firstBox.x + firstBox.width / 2,
-        firstBox.y + firstBox.height / 2,
+        handleBox.x + handleBox.width / 2,
+        handleBox.y + handleBox.height / 2,
       );
       await page.mouse.down();
-      // Move past the second block
       await page.mouse.move(
-        secondBox.x + secondBox.width / 2,
-        secondBox.y + secondBox.height + 10,
-        { steps: 10 },
+        targetBox.x + targetBox.width / 2,
+        targetBox.y + targetBox.height + 20,
+        { steps: 15 },
       );
       await page.mouse.up();
     }
 
-    // Verify the order changed — undo button should appear (meaning history was pushed)
+    // If the drag succeeded, undo history was pushed — undo button should appear
     const undoBtn = page.locator('button[title="Undo (Ctrl+Z)"]');
-    await expect(undoBtn).toBeVisible({ timeout: 3000 });
+    await expect(undoBtn).toBeVisible({ timeout: 5000 });
   });
 });
