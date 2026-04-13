@@ -9,7 +9,8 @@ export type FormFieldType =
   | "file"
   | "hidden"
   | "email_consent"
-  | "sms_consent";
+  | "sms_consent"
+  | "segment_checkbox";
 
 export interface FormFieldRules {
   min_length?: number;
@@ -64,6 +65,9 @@ export interface FormField {
   rules?: FormFieldRules;
   step_index?: number;
   visibility_rules?: FormVisibilityRule[];
+  // Segment checkbox fields
+  segment_id?: string;
+  segment_name?: string;
 }
 
 export type FormFontFamily = "inter" | "system" | "serif" | "mono";

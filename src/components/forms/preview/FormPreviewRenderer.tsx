@@ -1045,6 +1045,26 @@ export function FormPreviewRenderer({
                 );
               }
 
+              if (field.type === "segment_checkbox") {
+                return (
+                  <ConsentFieldRenderer
+                    key={field.id}
+                    field={field}
+                    text={field.label || "Join this segment"}
+                    checked={
+                      getResolvedFieldValue(field, formData[field.id]) === true
+                    }
+                    onChange={(checked) => handleFieldChange(field, checked)}
+                    onBlur={() => handleFieldBlur(field)}
+                    error={errors[field.id]}
+                    tokens={tokens}
+                    isHighlighted={changedIds.has(field.id)}
+                    isDisabled={isSubmitting}
+                    registerFieldRef={registerFieldRef}
+                  />
+                );
+              }
+
               return (
                 <FieldRenderer
                   key={field.id}

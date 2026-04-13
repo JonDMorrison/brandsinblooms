@@ -37,7 +37,10 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Autocomplete } from "@/components/ui/autocomplete";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { useTenant } from "@/hooks/useTenant";
+import { supabase } from "@/integrations/supabase/client";
 import {
   createDefaultFormStep,
   getEditableFormSteps,
@@ -2595,6 +2598,10 @@ function FieldTypeConfiguration({
     );
   }
 
+  if (field.type === "segment_checkbox") {
+    return <SegmentCheckboxSettings field={field} onFieldChange={onFieldChange} />;
+  }
+
   if (field.type === "hidden") {
     return (
       <div className="space-y-2 rounded-xl border bg-muted/20 p-4">
@@ -3172,6 +3179,79 @@ function SelectOptionsEditor({
           </div>
         )}
       </Droppable>
+    </div>
+  );
+}
+
+// ── Segment Checkbox Settings ──────────────────────────────────
+function SegmentCheckboxSettings({
+  field,
+  onFieldChange,
+}: {
+  field: FormField;
+  onFieldChange: (updates: Partial<FormField>) => void;
+}) {
+  const { tenant } = useTenant();
+  const [segments, setSegments] = useState<{ id: string; name: string }[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!tenant?.id) return;
+    setLoading(true);
+    supabase
+      .from("crm_segments")
+      .select("id, name")
+      .eq("tenant_id", tenant.id)
+      .order("name")
+      .then(({ data }) => {
+        setSegments(data || []);
+        setLoading(false);
+      });
+  }, [tenant?.id]);
+
+  return (
+    <div className="space-y-4 rounded-xl border bg-muted/20 p-4">
+      <div className="space-y-2">
+        <Label htmlFor={`segment-${field.id}`}>CRM Segment</Label>
+        <Select
+          value={field.segment_id || ""}
+          onValueChange={(value) => {
+            const seg = segments.find((s) => s.id === value);
+            onFieldChange({
+              segment_id: value,
+              segment_name: seg?.name || "",
+              mapping_key: `segment_checkbox_${value.slice(0, 8)}`,
+            });
+          }}
+        >
+          <SelectTrigger id={`segment-${field.id}`}>
+            <SelectValue placeholder={loading ? "Loading segments…" : "Choose a segment"} />
+          </SelectTrigger>
+          <SelectContent>
+            {segments.map((seg) => (
+              <SelectItem key={seg.id} value={seg.id}>
+                {seg.name}
+              </SelectItem>
+            ))}
+            {segments.length === 0 && !loading && (
+              <div className="px-2 py-3 text-center text-xs text-muted-foreground">
+                No segments found. Create one in CRM first.
+              </div>
+            )}
+          </SelectContent>
+        </Select>
+        <p className="text-xs text-muted-foreground">
+          When the visitor checks this box, they will be added to the selected segment.
+        </p>
+      </div>
+
+      {field.segment_id && field.segment_name && (
+        <div className="rounded-md bg-primary/5 border border-primary/20 px-3 py-2">
+          <p className="text-xs text-primary font-medium">
+            Segment: {field.segment_name}
+          </p>
+        </div>
+      )}
     </div>
   );
 }

@@ -68,6 +68,9 @@ interface FormField {
     max_file_size_mb?: number;
     allowed_mime_types?: string[];
   };
+  // Segment checkbox fields
+  segment_id?: string;
+  segment_name?: string;
 }
 
 interface FormCompliance {
@@ -1630,6 +1633,50 @@ Deno.serve(async (req) => {
       );
       debugInfo.segment_eval_exception = errorMsg.slice(0, 100); // Truncate, no PII
       // Non-fatal - submission is still accepted
+    }
+
+    // ─── Step 10b: Process segment_checkbox fields ──────────────────────────
+    // If a segment_checkbox field is checked, add the customer to that segment.
+    if (customerId) {
+      const segmentCheckboxFields = (fields as FormField[]).filter(
+        (f: FormField) => f.type === "segment_checkbox" && f.segment_id,
+      );
+
+      for (const scField of segmentCheckboxFields) {
+        try {
+          const fieldValue = submissionData[scField.mapping_key];
+          if (fieldValue !== true && fieldValue !== "true") continue;
+
+          const { error: segInsertError } = await supabase
+            .from("customer_segments")
+            .upsert(
+              {
+                customer_id: customerId,
+                segment_id: scField.segment_id,
+                assigned_at: new Date().toISOString(),
+              },
+              { onConflict: "customer_id,segment_id" },
+            );
+
+          if (segInsertError) {
+            console.warn(
+              `[submit-form] Segment checkbox upsert failed for segment ${scField.segment_id}:`,
+              segInsertError.message,
+            );
+          } else {
+            segmentsJoined.push(scField.segment_name || scField.segment_id!);
+            console.log(
+              `[submit-form] Segment checkbox: added customer to segment ${scField.segment_name || scField.segment_id}`,
+            );
+          }
+        } catch (scError) {
+          console.warn(
+            "[submit-form] Segment checkbox processing error:",
+            (scError as Error).message,
+          );
+          // Non-fatal
+        }
+      }
     }
 
     // ─── Step 11: Update submission metadata with debug info ─────────────────
