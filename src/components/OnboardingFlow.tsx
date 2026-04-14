@@ -11,6 +11,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { createCompanyProfileFromOnboarding, saveOnboardingResponse } from "./onboarding/CompanyProfileCreator";
 import { LandingPageHeader } from "./landing/LandingPageHeader";
 import { supabase } from "@/integrations/supabase/client";
+import { enforceLocationConfirmation } from "@/lib/locationValidation";
 
 interface OnboardingFlowProps {
   onComplete: (data: any) => void;
@@ -261,7 +262,6 @@ export const OnboardingFlow = ({ onComplete, onBack }: OnboardingFlowProps) => {
       await createCompanyProfileFromOnboarding(formData, user.id);
       
       // SERVER-SIDE SAFETY CHECK: Re-verify location confirmation invariant
-      const { enforceLocationConfirmation } = await import('@/lib/locationValidation');
       const validation = await enforceLocationConfirmation(user.id);
       
       if (!validation.success) {
