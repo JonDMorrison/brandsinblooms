@@ -221,13 +221,8 @@ async function sendPaidConversionEmail(
 <tr><td align="center">
 <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:8px;overflow:hidden;border:1px solid #e5e7eb;">
 
-  <tr><td style="background:#0d1f1a;padding:24px 40px;">
-    <table cellpadding="0" cellspacing="0"><tr>
-      <td style="width:32px;height:32px;background:#1abc9c;border-radius:6px;text-align:center;vertical-align:middle;">
-        <div style="width:16px;height:16px;border:2.5px solid #ffffff;border-radius:50%;margin:6px auto;"></div>
-      </td>
-      <td style="padding-left:10px;color:#ffffff;font-size:18px;font-weight:500;letter-spacing:-0.3px;">BloomSuite</td>
-    </tr></table>
+  <tr><td style="background:#0d1f1a;padding:20px 40px;">
+    <img src="https://udldmkqwnxhdeztyqcau.supabase.co/storage/v1/object/public/content-assets/bloomsuite-logo.png" alt="BloomSuite" style="height:40px;width:auto;display:block;" />
   </td></tr>
 
   <tr><td style="background:#1abc9c;padding:32px 40px;">
@@ -246,8 +241,8 @@ async function sendPaidConversionEmail(
       <tr><td style="padding-bottom:10px;">
         <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;border-radius:8px;border:1px solid #e5e7eb;">
           <tr>
-            <td style="width:28px;height:28px;background:#1abc9c;border-radius:50%;text-align:center;vertical-align:middle;padding:12px 0 12px 16px;">
-              <span style="color:#ffffff;font-size:13px;font-weight:500;">1</span>
+            <td style="width:56px;padding:14px 0 14px 16px;vertical-align:top;">
+              <div style="width:28px;height:28px;background:#1abc9c;border-radius:50%;text-align:center;line-height:28px;font-size:13px;font-weight:500;color:#ffffff;">1</div>
             </td>
             <td style="padding:14px 16px;">
               <p style="font-size:14px;font-weight:500;margin:0 0 3px;color:#111827;">Send your first campaign</p>
@@ -259,8 +254,8 @@ async function sendPaidConversionEmail(
       <tr><td>
         <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;border-radius:8px;border:1px solid #e5e7eb;">
           <tr>
-            <td style="width:28px;height:28px;background:#1abc9c;border-radius:50%;text-align:center;vertical-align:middle;padding:12px 0 12px 16px;">
-              <span style="color:#ffffff;font-size:13px;font-weight:500;">2</span>
+            <td style="width:56px;padding:14px 0 14px 16px;vertical-align:top;">
+              <div style="width:28px;height:28px;background:#1abc9c;border-radius:50%;text-align:center;line-height:28px;font-size:13px;font-weight:500;color:#ffffff;">2</div>
             </td>
             <td style="padding:14px 16px;">
               <p style="font-size:14px;font-weight:500;margin:0 0 3px;color:#111827;">Book a call with Jon</p>
