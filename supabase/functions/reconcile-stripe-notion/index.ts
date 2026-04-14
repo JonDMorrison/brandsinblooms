@@ -59,17 +59,19 @@ serve(async () => {
     const notionStage = notionPage.properties['Stage']?.select?.name
     const wonDate = notionPage.properties['Won Date']?.date?.start
 
-    if (['Lead', 'Trial'].includes(notionStage)) {
+    // Flag if a paying Stripe subscriber is still in a non-paying Notion stage
+    const validPayingStages = ['Won', 'Account Setup & Welcome', 'Onboarding & Setup', 'Active']
+    if (notionStage && !validPayingStages.includes(notionStage) && notionStage !== 'Churned') {
       mismatches.push({
         stripe_customer_id: stripeCustomerId,
         customer_email: email,
         stripe_status: 'active',
         notion_stage: notionStage,
-        mismatch_type: 'active_not_in_notion'
+        mismatch_type: 'active_wrong_stage'
       })
     }
 
-    if (['Won', 'Account Setup & Welcome', 'Onboarding & Setup', 'Active'].includes(notionStage) && !wonDate) {
+    if (validPayingStages.includes(notionStage) && !wonDate) {
       mismatches.push({
         stripe_customer_id: stripeCustomerId,
         customer_email: email,
@@ -96,14 +98,9 @@ serve(async () => {
       headers: notionHeaders,
       body: JSON.stringify({
         filter: {
-          and: [
-            {
-              or: [
-                { property: 'External ID', rich_text: { equals: stripeCustomerId } },
-                ...(email ? [{ property: 'Email', email: { equals: email } }] : [])
-              ]
-            },
-            { property: 'Stage', select: { equals: 'Active' } }
+          or: [
+            { property: 'External ID', rich_text: { equals: stripeCustomerId } },
+            ...(email ? [{ property: 'Email', email: { equals: email } }] : [])
           ]
         }
       })
@@ -111,13 +108,18 @@ serve(async () => {
     const notionData = await notionRes.json()
 
     if (notionData.results?.length > 0) {
-      mismatches.push({
-        stripe_customer_id: stripeCustomerId,
-        customer_email: email,
-        stripe_status: 'canceled',
-        notion_stage: 'Active',
-        mismatch_type: 'cancelled_still_active'
-      })
+      const notionStage = notionData.results[0].properties['Stage']?.select?.name
+      // Only flag if the Notion record is in a non-churned paying stage
+      const payingStages = ['Won', 'Account Setup & Welcome', 'Onboarding & Setup', 'Active']
+      if (payingStages.includes(notionStage)) {
+        mismatches.push({
+          stripe_customer_id: stripeCustomerId,
+          customer_email: email,
+          stripe_status: 'canceled',
+          notion_stage: notionStage,
+          mismatch_type: 'cancelled_still_active'
+        })
+      }
     }
   }
 
