@@ -1072,18 +1072,14 @@
       submitBtn.className += ' ' + CSS_PREFIX + 'submit-rounded';
     }
 
-    // Button width
-    var btnWidth = theme.button_width || 'full';
-    if (btnWidth === 'auto') {
-      submitBtn.style.width = 'auto';
-      submitBtn.style.display = 'inline-block';
-    } else if (btnWidth === 'medium') {
-      submitBtn.style.width = '200px';
-      submitBtn.style.display = 'block';
-      submitBtn.style.margin = '0 auto';
-    }
-
-    formEl.appendChild(submitBtn);
+    // Auto-width centered button
+    submitBtn.style.width = 'auto';
+    submitBtn.style.display = 'inline-block';
+    submitBtn.style.padding = '12px 32px';
+    var submitWrap = document.createElement('div');
+    submitWrap.style.textAlign = 'center';
+    submitWrap.appendChild(submitBtn);
+    formEl.appendChild(submitWrap);
 
     // Branding
     if (settings.show_branding !== false) {

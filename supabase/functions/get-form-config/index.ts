@@ -264,7 +264,6 @@ const SETTINGS_ALLOWLIST = {
     spacing: true, // Spacing density: 'compact' | 'normal' | 'relaxed'
     button_style: true, // Button variant: 'filled' | 'outline' | 'rounded'
     button_shape: true, // Button shape: 'rounded' | 'pill' | 'square'
-    button_width: true, // Button width: 'full' | 'auto' | 'medium'
     input_style: true, // Input variant: 'default' | 'underline' | 'filled'
   },
 

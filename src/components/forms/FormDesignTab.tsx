@@ -28,7 +28,6 @@ import {
   FORM_BORDER_RADIUS_OPTIONS,
   FORM_BUTTON_SHAPE_OPTIONS,
   FORM_BUTTON_STYLE_OPTIONS,
-  FORM_BUTTON_WIDTH_OPTIONS,
   FORM_FONT_FAMILY_OPTIONS,
   FORM_INPUT_STYLE_OPTIONS,
   FORM_SPACING_OPTIONS,
@@ -43,7 +42,6 @@ import {
   FormBackgroundStyle,
   FormButtonShape,
   FormButtonStyle,
-  FormButtonWidth,
   FormInputStyle,
   FormSettings,
 } from "@/types/formBuilder";
@@ -419,19 +417,6 @@ export function FormDesignTab({
               value: o.value,
               label: o.label,
               description: o.radius,
-            }))}
-          />
-
-          <RadioCardGroup
-            title="Button Width"
-            value={normalizedSettings.theme.button_width ?? "full"}
-            onValueChange={(value) =>
-              updateTheme({ button_width: value as FormButtonWidth })
-            }
-            columns={3}
-            options={FORM_BUTTON_WIDTH_OPTIONS.map((o) => ({
-              value: o.value,
-              label: o.label,
             }))}
           />
 

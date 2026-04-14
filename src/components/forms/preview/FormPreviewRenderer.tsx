@@ -1209,7 +1209,6 @@ export function FormPreviewRenderer({
               style={getSubmitButtonStyle(
                 tokens,
                 theme.button_style ?? "filled",
-                theme.button_width,
               )}
             >
               {isSubmitting && isLastStep ? (
@@ -1234,30 +1233,32 @@ export function FormPreviewRenderer({
             </button>
           </div>
         ) : (
-          <button
-            type="submit"
-            disabled={isSubmitting || hasActiveUploads}
-            className={cn(
-              "mt-8 inline-flex items-center justify-center gap-2 rounded-lg border px-6 py-3 text-sm font-medium transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-70",
-              changedIds.has("__settings") &&
-                "ring-2 ring-primary/40 ring-offset-2",
-            )}
-            style={getSubmitButtonStyle(tokens, theme.button_style ?? "filled", theme.button_width)}
-          >
-            {isSubmitting || hasActiveUploads ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : null}
-            <span>
-              {isSubmitting
-                ? "Submitting..."
-                : hasActiveUploads
-                  ? "Uploading files..."
-                  : normalizedSettings.submit_button_text || "Submit"}
-            </span>
-            {!isSubmitting && !hasActiveUploads ? (
-              <ArrowRight className="h-4 w-4" />
-            ) : null}
-          </button>
+          <div className="mt-8 text-center">
+            <button
+              type="submit"
+              disabled={isSubmitting || hasActiveUploads}
+              className={cn(
+                "inline-flex items-center justify-center gap-2 rounded-lg border text-sm font-medium transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-70",
+                changedIds.has("__settings") &&
+                  "ring-2 ring-primary/40 ring-offset-2",
+              )}
+              style={getSubmitButtonStyle(tokens, theme.button_style ?? "filled")}
+            >
+              {isSubmitting || hasActiveUploads ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : null}
+              <span>
+                {isSubmitting
+                  ? "Submitting..."
+                  : hasActiveUploads
+                    ? "Uploading files..."
+                    : normalizedSettings.submit_button_text || "Submit"}
+              </span>
+              {!isSubmitting && !hasActiveUploads ? (
+                <ArrowRight className="h-4 w-4" />
+              ) : null}
+            </button>
+          </div>
         )}
 
         {hasActiveUploads && (
@@ -2206,59 +2207,44 @@ function getFieldControlStyle({
   };
 }
 
-function getButtonWidthStyle(buttonWidth?: string): React.CSSProperties {
-  if (buttonWidth === "auto") {
-    return { width: "auto", display: "inline-flex" };
-  }
-  if (buttonWidth === "medium") {
-    return { width: 200, display: "flex", margin: "0 auto" };
-  }
-  return { width: "100%" };
-}
-
 function getSubmitButtonStyle(
   tokens: ThemeTokens,
   buttonStyle: "filled" | "outlined" | "ghost",
-  buttonWidth?: string,
 ): React.CSSProperties {
   const shapeRadius = tokens.buttonShape || `${CONTROL_RADIUS}px`;
-  const widthStyle = getButtonWidthStyle(buttonWidth);
 
   if (buttonStyle === "outlined") {
     return {
       minHeight: 48,
-      padding: "12px 24px",
+      padding: "12px 32px",
       borderRadius: shapeRadius,
       backgroundColor: "transparent",
       borderColor: tokens.primary,
       color: tokens.primary,
       boxShadow: `0 1px 2px ${toRgba(tokens.text, 0.08)}`,
-      ...widthStyle,
     };
   }
 
   if (buttonStyle === "ghost") {
     return {
       minHeight: 48,
-      padding: "12px 24px",
+      padding: "12px 32px",
       borderRadius: shapeRadius,
       backgroundColor: toRgba(tokens.primary, 0.08),
       borderColor: "transparent",
       color: tokens.primary,
       boxShadow: "none",
-      ...widthStyle,
     };
   }
 
   return {
     minHeight: 48,
-    padding: "12px 24px",
+    padding: "12px 32px",
     borderRadius: shapeRadius,
     backgroundColor: tokens.primary,
     borderColor: tokens.primary,
     color: tokens.buttonTextOnPrimary,
     boxShadow: `0 8px 18px -12px ${toRgba(tokens.primary, 0.6)}`,
-    ...widthStyle,
   };
 }
 
