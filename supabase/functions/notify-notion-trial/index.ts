@@ -69,80 +69,8 @@ Deno.serve(async (req) => {
       }
     }
 
-    const sharedFields: Record<string, unknown> = {
-      "External ID": {
-        rich_text: [{ text: { content: supabaseUserId } }],
-      },
-      "CASL Consent": { checkbox: true },
-      "CASL Consent Date": { date: { start: today } },
-      "Trial Start Date": { date: { start: today } },
-      "Stage": { select: { name: "Trial" } },
-    };
-
-    const pageId = await findNotionRecord(supabaseUserId, userEmail);
-
-    let resultPageId: string | null = null;
-
-    if (pageId) {
-      const ok = await updateNotionRecord(
-        pageId,
-        sharedFields,
-        "notify-notion-trial:update",
-      );
-      if (!ok) {
-        return new Response(
-          JSON.stringify({ error: "Notion update failed" }),
-          {
-            status: 500,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          },
-        );
-      }
-      resultPageId = pageId;
-      console.log("notify-notion-trial: updated Notion page", pageId);
-    } else {
-      const createProps: Record<string, unknown> = {
-        ...sharedFields,
-        "Garden Center": {
-          title: [{ text: { content: userEmail } }],
-        },
-        // Preserved from existing logic — sensible defaults for a new trial record
-        "Primary Contact": {
-          rich_text: [{ text: { content: user.name || "" } }],
-        },
-        "Next Action": {
-          rich_text: [
-            { text: { content: "Trial started — follow up within 48 hours" } },
-          ],
-        },
-        "Assigned To": { select: { name: "Jon" } },
-        ...(tenantId
-          ? {
-              "Supabase Tenant ID": {
-                rich_text: [{ text: { content: tenantId } }],
-              },
-            }
-          : {}),
-      };
-
-      const newId = await createNotionRecord(
-        createProps,
-        "notify-notion-trial:create",
-      );
-      if (!newId) {
-        return new Response(
-          JSON.stringify({ error: "Notion create failed" }),
-          {
-            status: 500,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          },
-        );
-      }
-      resultPageId = newId;
-      console.log("notify-notion-trial: created Notion page", newId);
-    }
-
-    // Send welcome email — failure here must NOT block the Notion write
+    // ── PRIORITY 1: System welcome email (must always fire) ──
+    let systemEmailSent = false;
     try {
       const resendKey = Deno.env.get("RESEND_API_KEY");
       if (!resendKey) {
@@ -179,6 +107,7 @@ Deno.serve(async (req) => {
             body,
           );
         } else {
+          systemEmailSent = true;
           console.log("notify-notion-trial: welcome email sent to", userEmail);
         }
       }
@@ -186,7 +115,8 @@ Deno.serve(async (req) => {
       console.error("notify-notion-trial: welcome email error", e);
     }
 
-    // Send Jeff's personal welcome email — failure must NOT fail the function
+    // ── PRIORITY 2: Jeff's welcome email (must always fire) ──
+    let jeffEmailSent = false;
     try {
       const resendKey = Deno.env.get("RESEND_API_KEY");
       if (!resendKey) {
@@ -239,6 +169,7 @@ Deno.serve(async (req) => {
             body,
           );
         } else {
+          jeffEmailSent = true;
           console.log(
             "notify-notion-trial: Jeff welcome email sent to",
             userEmail,
@@ -249,8 +180,112 @@ Deno.serve(async (req) => {
       console.error("notify-notion-trial: Jeff welcome email error", e);
     }
 
+    // ── PRIORITY 3: Notion write (best effort — never blocks emails) ──
+    let resultPageId: string | null = null;
+    let notionError: string | null = null;
+    try {
+      const sharedFields: Record<string, unknown> = {
+        "External ID": {
+          rich_text: [{ text: { content: supabaseUserId } }],
+        },
+        "CASL Consent": { checkbox: true },
+        "CASL Consent Date": { date: { start: today } },
+        "Trial Start Date": { date: { start: today } },
+        "Stage": { select: { name: "Trial" } },
+      };
+
+      const pageId = await findNotionRecord(supabaseUserId, userEmail);
+
+      if (pageId) {
+        const ok = await updateNotionRecord(
+          pageId,
+          sharedFields,
+          "notify-notion-trial:update",
+        );
+        if (!ok) {
+          notionError = "Notion update failed";
+          console.error("notify-notion-trial: Notion update failed for page", pageId);
+        } else {
+          resultPageId = pageId;
+          console.log("notify-notion-trial: updated Notion page", pageId);
+        }
+      } else {
+        const createProps: Record<string, unknown> = {
+          ...sharedFields,
+          "Garden Center": {
+            title: [{ text: { content: userEmail } }],
+          },
+          "Primary Contact": {
+            rich_text: [{ text: { content: user.name || "" } }],
+          },
+          "Next Action": {
+            rich_text: [
+              { text: { content: "Trial started — follow up within 48 hours" } },
+            ],
+          },
+          "Assigned To": { select: { name: "Jon" } },
+          ...(tenantId
+            ? {
+                "Supabase Tenant ID": {
+                  rich_text: [{ text: { content: tenantId } }],
+                },
+              }
+            : {}),
+        };
+
+        const newId = await createNotionRecord(
+          createProps,
+          "notify-notion-trial:create",
+        );
+        if (!newId) {
+          notionError = "Notion create failed";
+          console.error("notify-notion-trial: Notion create failed for", userEmail);
+        } else {
+          resultPageId = newId;
+          console.log("notify-notion-trial: created Notion page", newId);
+        }
+      }
+    } catch (e) {
+      notionError = String(e);
+      console.error("notify-notion-trial: Notion error (non-blocking)", e);
+    }
+
+    // Send internal alert if Notion failed
+    if (notionError) {
+      try {
+        const resendKey = Deno.env.get("RESEND_API_KEY");
+        if (resendKey) {
+          await fetch("https://api.resend.com/emails", {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${resendKey}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              from: "BloomSuite Alerts <hello@brandsinblooms.com>",
+              to: "jon@brandsinblooms.com",
+              subject: `[ALERT] Notion write failed for trial signup: ${userEmail}`,
+              html: `<p>Notion write failed during notify-notion-trial for <strong>${userEmail}</strong>.</p>
+<p><strong>Error:</strong> ${notionError}</p>
+<p>System email sent: ${systemEmailSent ? "Yes" : "No"}<br>Jeff email sent: ${jeffEmailSent ? "Yes" : "No"}</p>
+<p>Manual Notion entry may be needed.</p>`,
+            }),
+          });
+          console.log("notify-notion-trial: internal alert sent for Notion failure");
+        }
+      } catch (alertErr) {
+        console.error("notify-notion-trial: failed to send internal alert", alertErr);
+      }
+    }
+
     return new Response(
-      JSON.stringify({ success: true, notion_page_id: resultPageId }),
+      JSON.stringify({
+        success: true,
+        system_email_sent: systemEmailSent,
+        jeff_email_sent: jeffEmailSent,
+        notion_page_id: resultPageId,
+        notion_error: notionError,
+      }),
       {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
