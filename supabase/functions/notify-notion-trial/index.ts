@@ -266,16 +266,20 @@ Deno.serve(async (req) => {
     let notionError: string | null = null;
     try {
       const sharedFields: Record<string, unknown> = {
-        "External ID": {
-          rich_text: [{ text: { content: supabaseUserId } }],
-        },
+        ...(supabaseUserId
+          ? {
+              "External ID": {
+                rich_text: [{ text: { content: supabaseUserId } }],
+              },
+            }
+          : {}),
         "CASL Consent": { checkbox: true },
         "CASL Consent Date": { date: { start: today } },
         "Trial Start Date": { date: { start: today } },
         "Stage": { select: { name: "Trial" } },
       };
 
-      const pageId = await findNotionRecord(supabaseUserId, userEmail);
+      const pageId = await findNotionRecord(supabaseUserId || "", userEmail);
 
       if (pageId) {
         const ok = await updateNotionRecord(
