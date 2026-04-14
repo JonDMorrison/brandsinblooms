@@ -77,6 +77,7 @@ export type FormBorderRadius = "0px" | "4px" | "8px" | "12px" | "9999px";
 export type FormSpacing = "compact" | "normal" | "relaxed" | "comfortable";
 export type FormButtonStyle = "filled" | "outlined" | "ghost";
 export type FormButtonShape = "rounded" | "pill" | "square";
+export type FormButtonWidth = "full" | "auto" | "medium";
 export type FormBackgroundStyle = "white" | "transparent" | "green-tint" | "custom";
 export type FormInputStyle = "outlined" | "filled" | "underlined";
 export type FormWidth = "narrow" | "medium" | "wide" | "full";
@@ -92,6 +93,7 @@ export interface FormTheme {
   spacing?: FormSpacing;
   button_style?: FormButtonStyle;
   button_shape?: FormButtonShape;
+  button_width?: FormButtonWidth;
   input_style?: FormInputStyle;
   background_style?: FormBackgroundStyle;
   google_font?: string;

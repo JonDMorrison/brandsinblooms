@@ -1411,6 +1411,17 @@
       submitBtn.className += ' ' + CSS_PREFIX + 'submit-rounded';
     }
 
+    // Button width
+    var btnWidth = theme.button_width || 'full';
+    if (btnWidth === 'auto') {
+      submitBtn.style.width = 'auto';
+      submitBtn.style.display = 'inline-block';
+    } else if (btnWidth === 'medium') {
+      submitBtn.style.width = '200px';
+      submitBtn.style.display = 'block';
+      submitBtn.style.margin = '0 auto';
+    }
+
     formEl.appendChild(submitBtn);
 
     // Branding

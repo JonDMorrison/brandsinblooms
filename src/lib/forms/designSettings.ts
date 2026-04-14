@@ -4,6 +4,7 @@ import {
   FormBorderRadius,
   FormButtonShape,
   FormButtonStyle,
+  FormButtonWidth,
   FormFontFamily,
   FormInputStyle,
   FormSettings,
@@ -63,6 +64,15 @@ export const FORM_BUTTON_SHAPE_OPTIONS: Array<{
   { value: "rounded", label: "Rounded", radius: "8px" },
   { value: "pill", label: "Pill", radius: "9999px" },
   { value: "square", label: "Square", radius: "0px" },
+];
+
+export const FORM_BUTTON_WIDTH_OPTIONS: Array<{
+  value: FormButtonWidth;
+  label: string;
+}> = [
+  { value: "full", label: "Full Width" },
+  { value: "auto", label: "Auto" },
+  { value: "medium", label: "Medium" },
 ];
 
 export const FORM_BACKGROUND_STYLE_OPTIONS: Array<{
@@ -399,6 +409,9 @@ export function normalizeFormTheme(value: unknown): FormTheme {
     button_shape: (typeof candidate.button_shape === "string" &&
       ["rounded", "pill", "square"].includes(candidate.button_shape)
       ? candidate.button_shape : "rounded") as FormButtonShape,
+    button_width: (typeof candidate.button_width === "string" &&
+      ["full", "auto", "medium"].includes(candidate.button_width)
+      ? candidate.button_width : "full") as FormButtonWidth,
     input_style: normalizeInputStyle(candidate.input_style),
     background_style: (typeof candidate.background_style === "string" &&
       ["white", "transparent", "green-tint", "custom"].includes(candidate.background_style)
