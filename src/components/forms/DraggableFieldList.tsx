@@ -180,7 +180,7 @@ const AddActionCardButton = React.forwardRef<
     ref={ref}
     type={type}
     className={cn(
-      "flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-muted-foreground/20 py-4 text-center text-sm font-medium text-muted-foreground transition-all duration-200 hover:border-primary/40 hover:bg-primary/5 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:ring-offset-2",
+      "flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3.5 text-center text-sm font-medium text-primary-foreground shadow-sm transition-all duration-200 hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:ring-offset-2",
       className,
     )}
     {...props}
@@ -1339,15 +1339,18 @@ export function DraggableFieldList({
         )}
       >
         {stepFields.length === 0 ? (
-          <div className="rounded-[22px] border border-dashed border-border/80 bg-muted/15 px-4 py-10 text-center">
-            <p className="text-sm font-medium text-foreground">
-              This step is empty.
+          <div className="rounded-[22px] border border-dashed border-border/80 bg-muted/15 px-6 py-14 text-center">
+            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+              <Plus className="h-6 w-6 text-primary" />
+            </div>
+            <p className="text-base font-medium text-foreground">
+              No fields yet
             </p>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Add a field to start building this step, or drag an existing field
-              into it.
+            <p className="mx-auto mt-1.5 max-w-[260px] text-sm text-muted-foreground">
+              Click below to add your first field, or drag an existing field
+              into this step.
             </p>
-            <div className="mt-4">
+            <div className="mt-5">
               {activeFieldDropIndicator ? (
                 <FieldDropIndicator
                   field={activeFieldDropIndicator.field}
@@ -1492,6 +1495,18 @@ export function DraggableFieldList({
           })
         )}
         {placeholder}
+        {stepFields.length > 0 && (
+          <div className="mt-3">
+            {renderFieldPickerTrigger(
+              getAppendFieldContext(step.index),
+              <AddActionCardButton
+                aria-label={`Add a field to ${step.title || `Step ${step.index + 1}`}`}
+              >
+                Add Field
+              </AddActionCardButton>,
+            )}
+          </div>
+        )}
       </div>
     );
   };
