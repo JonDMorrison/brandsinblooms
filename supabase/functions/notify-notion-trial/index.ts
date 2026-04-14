@@ -308,7 +308,7 @@ Deno.serve(async (req) => {
               { text: { content: "Trial started — follow up within 48 hours" } },
             ],
           },
-          "Assigned To": { select: { name: "Jon" } },
+          "Assigned To": { rich_text: [{ text: { content: "Jon" } }] },
           ...(tenantId
             ? {
                 "Supabase Tenant ID": {
@@ -318,13 +318,14 @@ Deno.serve(async (req) => {
             : {}),
         };
 
+        console.log("notify-notion-trial: createProps", JSON.stringify(createProps));
         const newId = await createNotionRecord(
           createProps,
           "notify-notion-trial:create",
         );
         if (!newId) {
-          notionError = "Notion create failed";
-          console.error("notify-notion-trial: Notion create failed for", userEmail);
+          notionError = createNotionRecord.lastError || "Notion create failed (unknown reason)";
+          console.error("notify-notion-trial: Notion create failed for", userEmail, "—", notionError);
         } else {
           resultPageId = newId;
           console.log("notify-notion-trial: created Notion page", newId);

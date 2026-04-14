@@ -72,27 +72,34 @@ export async function createNotionRecord(
   context: string
 ): Promise<string | null> {
   const maxRetries = 3
+  let lastError = ''
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
+      const requestBody = {
+        parent: { database_id: NOTION_DB_ID },
+        properties
+      }
+      console.log(`[${context}] Create attempt ${attempt} request:`, JSON.stringify(requestBody))
       const res = await fetch('https://api.notion.com/v1/pages', {
         method: 'POST',
         headers: notionHeaders,
-        body: JSON.stringify({
-          parent: { database_id: NOTION_DB_ID },
-          properties
-        })
+        body: JSON.stringify(requestBody)
       })
       if (res.ok) {
         const data = await res.json()
         return data.id
       }
-      const error = await res.json()
-      throw new Error(`Notion API error: ${JSON.stringify(error)}`)
+      const errorBody = await res.text()
+      lastError = `Notion API ${res.status}: ${errorBody}`
+      console.error(`[${context}] Create attempt ${attempt} failed — ${res.status}: ${errorBody}`)
+      throw new Error(lastError)
     } catch (err: any) {
-      console.error(`[${context}] Create attempt ${attempt} failed:`, err)
+      lastError = lastError || err.message
+      console.error(`[${context}] Create attempt ${attempt} error:`, err.message)
       if (attempt === maxRetries) {
-        await logError(context, err.message, { properties })
-        await sendInternalAlert(context, err.message, null)
+        await logError(context, lastError, { properties })
+        await sendInternalAlert(context, lastError, null)
+        createNotionRecord.lastError = lastError
         return null
       }
       await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt - 1)))
@@ -100,6 +107,7 @@ export async function createNotionRecord(
   }
   return null
 }
+createNotionRecord.lastError = ''
 
 async function createBrokenRecord(context: string, errorMsg: string, originalPageId?: string): Promise<void> {
   try {
