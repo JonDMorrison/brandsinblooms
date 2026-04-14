@@ -171,11 +171,7 @@ function App() {
             />
             <Route
               path="/reset-password"
-              element={
-                <PublicRoute>
-                  <ResetPasswordPage />
-                </PublicRoute>
-              }
+              element={<ResetPasswordPage />}
             />
             <Route
               path="/onboarding"
