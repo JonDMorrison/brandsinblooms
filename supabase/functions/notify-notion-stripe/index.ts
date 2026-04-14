@@ -95,26 +95,20 @@ async function sendPaidConversionEmail(
       logStep("Conversion email: Stripe name fetch failed", { error: String(e) });
     }
 
-    // Find the user by email, then their tenant_id from company_profiles.
+    // Find the user by email and get tenant_id from the users table
+    // (company_profiles does NOT have tenant_id — it lives on public.users)
     const { data: userRow } = await supabase
       .from("users")
-      .select("id")
+      .select("id, tenant_id")
       .eq("email", customerEmail)
       .maybeSingle();
 
-    const userId = (userRow as { id?: string } | null)?.id;
+    const userId = (userRow as { id?: string; tenant_id?: string } | null)?.id;
+    const tenantId = (userRow as { id?: string; tenant_id?: string } | null)?.tenant_id;
     if (!userId) {
       logStep("Conversion email skipped — no user found", { customerEmail });
       return;
     }
-
-    const { data: tenantRow } = await supabase
-      .from("company_profiles")
-      .select("tenant_id")
-      .eq("user_id", userId)
-      .maybeSingle();
-
-    const tenantId = (tenantRow as { tenant_id?: string } | null)?.tenant_id;
     if (!tenantId) {
       logStep("Conversion email skipped — no tenant_id found", { userId });
       return;
