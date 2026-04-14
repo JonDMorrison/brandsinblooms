@@ -233,11 +233,10 @@ export const OnboardingFlow = ({ onComplete, onBack }: OnboardingFlowProps) => {
     try {
       // Save onboarding response to database
       await saveOnboardingResponse(formData, user.id);
-      
-      // Create company profile from onboarding data
-      await createCompanyProfileFromOnboarding(formData, user.id);
-      
-      // If location was confirmed in this flow, persist it
+
+      // Persist location BEFORE creating company profile — the profile
+      // creator checks location_needs_confirmation in the DB and will
+      // reject if it's still true.
       if (needsLocationStep && isLocationConfirmed) {
         const { error: locationError } = await supabase
           .from('company_profiles')
@@ -257,6 +256,9 @@ export const OnboardingFlow = ({ onComplete, onBack }: OnboardingFlowProps) => {
           throw locationError;
         }
       }
+
+      // Create company profile from onboarding data
+      await createCompanyProfileFromOnboarding(formData, user.id);
       
       // SERVER-SIDE SAFETY CHECK: Re-verify location confirmation invariant
       const { enforceLocationConfirmation } = await import('@/lib/locationValidation');
