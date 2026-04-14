@@ -24,54 +24,58 @@ export const ResetPasswordPage = () => {
   const [isValidToken, setIsValidToken] = useState<boolean | null>(null);
 
   useEffect(() => {
-    const checkToken = async () => {
-      // PKCE flow: Supabase sends ?code=xxx in the URL
-      const urlParams = new URLSearchParams(window.location.search);
-      const code = urlParams.get("code");
+    // The Supabase client (detectSessionInUrl: true, flowType: "pkce")
+    // auto-exchanges the ?code= parameter for a session. We must NOT call
+    // exchangeCodeForSession manually — that creates a race condition where
+    // both compete to consume the same code and one fails.
+    //
+    // Instead, listen for auth state changes. When Supabase auto-exchanges
+    // successfully it emits PASSWORD_RECOVERY or SIGNED_IN. Either means the
+    // session is ready and the user can set a new password.
 
-      if (code) {
-        try {
-          const { data, error } =
-            await supabase.auth.exchangeCodeForSession(code);
-          if (error) {
-            console.error("❌ Code exchange failed:", error.message);
-            setIsValidToken(false);
-            return;
-          }
-          if (data?.session) {
-            // Clean the code from the URL so it can't be reused
-            window.history.replaceState(null, "", "/reset-password");
-            setIsValidToken(true);
-            return;
-          }
-        } catch (err) {
-          console.error("❌ Code exchange error:", err);
-          setIsValidToken(false);
-          return;
-        }
+    let resolved = false;
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (resolved) return;
+
+      if (event === "PASSWORD_RECOVERY" || (event === "SIGNED_IN" && session)) {
+        resolved = true;
+        // Clean ?code from URL so it can't be reused / bookmarked
+        window.history.replaceState(null, "", "/reset-password");
+        setIsValidToken(true);
+        return;
       }
+    });
 
-      // Fallback: check existing session (e.g. implicit flow or already exchanged)
+    // Fallback: if the session was already established (e.g. auto-exchange
+    // finished before this effect ran), check it directly after a tick.
+    const fallbackTimer = setTimeout(async () => {
+      if (resolved) return;
       const {
         data: { session },
       } = await supabase.auth.getSession();
       if (session?.user) {
+        resolved = true;
+        window.history.replaceState(null, "", "/reset-password");
         setIsValidToken(true);
-        return;
       }
+    }, 500);
 
-      // Legacy implicit flow: check hash params
-      const hashParams = new URLSearchParams(window.location.hash.substring(1));
-      const type = hashParams.get("type");
-      if (type === "recovery") {
-        setIsValidToken(true);
-        return;
+    // Timeout: if neither approach resolves within 8s, mark as invalid.
+    const timeout = setTimeout(() => {
+      if (!resolved) {
+        resolved = true;
+        setIsValidToken(false);
       }
+    }, 8000);
 
-      setIsValidToken(false);
+    return () => {
+      subscription.unsubscribe();
+      clearTimeout(fallbackTimer);
+      clearTimeout(timeout);
     };
-
-    checkToken();
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -119,7 +123,12 @@ export const ResetPasswordPage = () => {
   if (isValidToken === null) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-4" />
+          <p className="text-sm text-muted-foreground">
+            Verifying your reset link...
+          </p>
+        </div>
       </div>
     );
   }
@@ -247,7 +256,7 @@ export const ResetPasswordPage = () => {
               onClick={() => navigate("/auth")}
               className="text-sm text-gray-600 hover:underline"
             >
-              ← Back to login
+              Back to login
             </button>
           </div>
         </div>

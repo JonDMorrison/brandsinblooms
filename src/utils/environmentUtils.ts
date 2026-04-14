@@ -15,15 +15,11 @@ export function detectEnvironment(): Environment {
  * Get environment-aware OAuth redirect URI
  */
 export function getOAuthRedirectUri(path: string = '/oauth/callback'): string {
-  const origin = window.location.origin;
-  const hostname = window.location.hostname;
-
-  // Force current origin for any non-production host
-  // Production is explicitly bloomsuite.app
-  const isProdHost = hostname.includes('bloomsuite.app');
-  const baseUrl = isProdHost ? 'https://bloomsuite.app' : origin;
-  
-  return `${baseUrl}${path}`;
+  // Always use the current origin so PKCE code_verifier (stored in
+  // localStorage on this origin) matches the domain where the code
+  // will be exchanged. Previous hardcode of https://bloomsuite.app
+  // broke flows initiated from https://www.bloomsuite.app.
+  return `${window.location.origin}${path}`;
 }
 
 /**
