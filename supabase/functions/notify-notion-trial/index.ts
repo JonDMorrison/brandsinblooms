@@ -331,34 +331,6 @@ Deno.serve(async (req) => {
       console.error("notify-notion-trial: Notion error (non-blocking)", e);
     }
 
-    // Send internal alert if Notion failed
-    if (notionError) {
-      try {
-        const resendKey = Deno.env.get("RESEND_API_KEY");
-        if (resendKey) {
-          await fetch("https://api.resend.com/emails", {
-            method: "POST",
-            headers: {
-              "Authorization": `Bearer ${resendKey}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              from: "BloomSuite Alerts <hello@brandsinblooms.com>",
-              to: "jon@brandsinblooms.com",
-              subject: `[ALERT] Notion write failed for trial signup: ${userEmail}`,
-              html: `<p>Notion write failed during notify-notion-trial for <strong>${userEmail}</strong>.</p>
-<p><strong>Error:</strong> ${notionError}</p>
-<p>System email sent: ${systemEmailSent ? "Yes" : "No"}<br>Jeff email sent: ${jeffEmailSent ? "Yes" : "No"}</p>
-<p>Manual Notion entry may be needed.</p>`,
-            }),
-          });
-          console.log("notify-notion-trial: internal alert sent for Notion failure");
-        }
-      } catch (alertErr) {
-        console.error("notify-notion-trial: failed to send internal alert", alertErr);
-      }
-    }
-
     return new Response(
       JSON.stringify({
         success: true,
