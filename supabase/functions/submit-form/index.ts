@@ -68,9 +68,11 @@ interface FormField {
     max_file_size_mb?: number;
     allowed_mime_types?: string[];
   };
-  // Segment checkbox fields
+  // Segment / Persona assignment (for checkbox and segment_checkbox fields)
   segment_id?: string;
   segment_name?: string;
+  persona_id?: string;
+  persona_name?: string;
 }
 
 interface FormCompliance {
@@ -1674,44 +1676,74 @@ Deno.serve(async (req) => {
       // Non-fatal - submission is still accepted
     }
 
-    // ─── Step 10b: Process segment_checkbox fields ──────────────────────────
-    // If a segment_checkbox field is checked, add the customer to that segment.
+    // ─── Step 10b: Process checkbox/segment_checkbox fields ──────────────────
+    // If a checkbox or segment_checkbox field is checked and has segment_id or
+    // persona_id, add the customer to the corresponding segment/persona.
     if (customerId) {
-      const segmentCheckboxFields = (fields as FormField[]).filter(
-        (f: FormField) => f.type === "segment_checkbox" && f.segment_id,
+      const checkboxFields = (fields as FormField[]).filter(
+        (f: FormField) =>
+          (f.type === "segment_checkbox" || f.type === "checkbox") &&
+          (f.segment_id || f.persona_id),
       );
 
-      for (const scField of segmentCheckboxFields) {
+      for (const cbField of checkboxFields) {
         try {
-          const fieldValue = submissionData[scField.mapping_key];
+          const fieldValue = submissionData[cbField.mapping_key];
           if (fieldValue !== true && fieldValue !== "true") continue;
 
-          const { error: segInsertError } = await supabase
-            .from("customer_segments")
-            .upsert(
-              {
-                customer_id: customerId,
-                segment_id: scField.segment_id,
-                assigned_at: new Date().toISOString(),
-              },
-              { onConflict: "customer_id,segment_id" },
-            );
+          // Assign to segment
+          if (cbField.segment_id) {
+            const { error: segErr } = await supabase
+              .from("customer_segments")
+              .upsert(
+                {
+                  customer_id: customerId,
+                  segment_id: cbField.segment_id,
+                  assigned_at: new Date().toISOString(),
+                },
+                { onConflict: "customer_id,segment_id" },
+              );
 
-          if (segInsertError) {
-            console.warn(
-              `[submit-form] Segment checkbox upsert failed for segment ${scField.segment_id}:`,
-              segInsertError.message,
-            );
-          } else {
-            segmentsJoined.push(scField.segment_name || scField.segment_id!);
-            console.log(
-              `[submit-form] Segment checkbox: added customer to segment ${scField.segment_name || scField.segment_id}`,
-            );
+            if (segErr) {
+              console.warn(
+                `[submit-form] Checkbox segment upsert failed for ${cbField.segment_id}:`,
+                segErr.message,
+              );
+            } else {
+              segmentsJoined.push(cbField.segment_name || cbField.segment_id!);
+              console.log(
+                `[submit-form] Checkbox: added customer to segment ${cbField.segment_name || cbField.segment_id}`,
+              );
+            }
           }
-        } catch (scError) {
+
+          // Assign to persona
+          if (cbField.persona_id) {
+            const { error: perErr } = await supabase
+              .from("customer_personas")
+              .upsert(
+                {
+                  customer_id: customerId,
+                  persona_id: cbField.persona_id,
+                },
+                { onConflict: "customer_id,persona_id,predefined_persona_id" },
+              );
+
+            if (perErr) {
+              console.warn(
+                `[submit-form] Checkbox persona upsert failed for ${cbField.persona_id}:`,
+                perErr.message,
+              );
+            } else {
+              console.log(
+                `[submit-form] Checkbox: added customer to persona ${cbField.persona_name || cbField.persona_id}`,
+              );
+            }
+          }
+        } catch (cbError) {
           console.warn(
-            "[submit-form] Segment checkbox processing error:",
-            (scError as Error).message,
+            "[submit-form] Checkbox field processing error:",
+            (cbError as Error).message,
           );
           // Non-fatal
         }

@@ -65,9 +65,11 @@ export interface FormField {
   rules?: FormFieldRules;
   step_index?: number;
   visibility_rules?: FormVisibilityRule[];
-  // Segment checkbox fields
+  // Segment / Persona assignment (for checkbox and segment_checkbox fields)
   segment_id?: string;
   segment_name?: string;
+  persona_id?: string;
+  persona_name?: string;
 }
 
 export type FormFontFamily = "inter" | "system" | "serif" | "mono";

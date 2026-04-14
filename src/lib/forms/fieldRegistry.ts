@@ -89,9 +89,10 @@ const FIELD_TYPE_DEFINITIONS: FieldTypeDefinition[] = [
     type: "checkbox",
     category: "basic",
     label: "Checkbox",
-    description: "Single checkbox for yes/no or acknowledgment choices.",
+    description:
+      "Optional yes/no field. Use to let visitors opt into a segment or persona when they check the box.",
     helperText:
-      "Use for one-off acknowledgments, preferences, or optional toggles.",
+      "Optionally assign the customer to a segment or persona when they check this box.",
     icon: CheckSquare,
     defaultLabel: "Checkbox",
     defaultRequired: false,

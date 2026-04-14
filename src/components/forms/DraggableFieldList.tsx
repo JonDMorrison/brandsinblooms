@@ -2172,13 +2172,15 @@ function FieldCard({
                           />
                         </div>
 
-                        <MappingKeyInput
-                          fieldId={field.id}
-                          value={field.mapping_key}
-                          onChange={(mappingKey) =>
-                            onFieldChange({ mapping_key: mappingKey })
-                          }
-                        />
+                        {field.type !== "checkbox" && field.type !== "segment_checkbox" && (
+                          <MappingKeyInput
+                            fieldId={field.id}
+                            value={field.mapping_key}
+                            onChange={(mappingKey) =>
+                              onFieldChange({ mapping_key: mappingKey })
+                            }
+                          />
+                        )}
                       </div>
 
                       {!isConsentField && (
@@ -2577,25 +2579,7 @@ function FieldTypeConfiguration({
   }
 
   if (field.type === "checkbox") {
-    return (
-      <div className="rounded-xl border bg-muted/20 p-4">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <Label className="text-sm font-medium">Default Checked</Label>
-            <p className="text-xs text-muted-foreground">
-              Start the checkbox in a checked state for preview and public
-              forms.
-            </p>
-          </div>
-          <Switch
-            checked={field.default_value === true}
-            onCheckedChange={(checked) =>
-              onFieldChange({ default_value: checked })
-            }
-          />
-        </div>
-      </div>
-    );
+    return <CheckboxFieldSettings field={field} onFieldChange={onFieldChange} />;
   }
 
   if (field.type === "segment_checkbox") {
@@ -3252,6 +3236,151 @@ function SegmentCheckboxSettings({
           </p>
         </div>
       )}
+    </div>
+  );
+}
+
+// ── Checkbox Field Settings (segment + persona picker) ─────────
+function CheckboxFieldSettings({
+  field,
+  onFieldChange,
+}: {
+  field: FormField;
+  onFieldChange: (updates: Partial<FormField>) => void;
+}) {
+  const { tenant } = useTenant();
+  const [segments, setSegments] = useState<{ id: string; name: string }[]>([]);
+  const [personas, setPersonas] = useState<{ id: string; name: string }[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    setLoading(true);
+    supabase
+      .from("personas")
+      .select("id, name")
+      .order("name")
+      .then(({ data }) => setPersonas((data as any[]) || []));
+    if (tenant?.id) {
+      supabase
+        .from("crm_segments")
+        .select("id, name")
+        .eq("tenant_id", tenant.id)
+        .order("name")
+        .then(({ data }) => {
+          setSegments((data as any[]) || []);
+          setLoading(false);
+        });
+    } else {
+      setLoading(false);
+    }
+  }, [tenant?.id]);
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-xl border bg-muted/20 p-4">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <Label className="text-sm font-medium">Default Checked</Label>
+            <p className="text-xs text-muted-foreground">
+              Start the checkbox in a checked state.
+            </p>
+          </div>
+          <Switch
+            checked={field.default_value === true}
+            onCheckedChange={(checked) =>
+              onFieldChange({ default_value: checked })
+            }
+          />
+        </div>
+      </div>
+
+      <div className="rounded-xl border bg-muted/20 p-4 space-y-4">
+        <div>
+          <Label className="text-sm font-medium">When checked, add customer to</Label>
+          <p className="text-xs text-muted-foreground mt-1">
+            Optionally assign the customer to a segment and/or persona on submission.
+          </p>
+        </div>
+
+        <div className="grid gap-4 lg:grid-cols-2">
+          <div className="space-y-2">
+            <Label htmlFor={`cb-seg-${field.id}`}>Segment</Label>
+            <Select
+              value={field.segment_id || "__none__"}
+              onValueChange={(value) => {
+                if (value === "__none__") {
+                  onFieldChange({ segment_id: undefined, segment_name: undefined });
+                } else {
+                  const seg = segments.find((s) => s.id === value);
+                  onFieldChange({
+                    segment_id: value,
+                    segment_name: seg?.name || "",
+                    mapping_key: `checkbox_${field.id.slice(0, 8)}`,
+                  });
+                }
+              }}
+            >
+              <SelectTrigger id={`cb-seg-${field.id}`}>
+                <SelectValue placeholder={loading ? "Loading..." : "None"} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">None</SelectItem>
+                {segments.map((seg) => (
+                  <SelectItem key={seg.id} value={seg.id}>
+                    {seg.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor={`cb-per-${field.id}`}>Persona</Label>
+            <Select
+              value={field.persona_id || "__none__"}
+              onValueChange={(value) => {
+                if (value === "__none__") {
+                  onFieldChange({ persona_id: undefined, persona_name: undefined });
+                } else {
+                  const per = personas.find((p) => p.id === value);
+                  onFieldChange({
+                    persona_id: value,
+                    persona_name: per?.name || "",
+                    mapping_key: `checkbox_${field.id.slice(0, 8)}`,
+                  });
+                }
+              }}
+            >
+              <SelectTrigger id={`cb-per-${field.id}`}>
+                <SelectValue placeholder={loading ? "Loading..." : "None"} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">None</SelectItem>
+                {personas.map((per) => (
+                  <SelectItem key={per.id} value={per.id}>
+                    {per.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        {(field.segment_name || field.persona_name) && (
+          <div className="flex flex-wrap gap-2">
+            {field.segment_name && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
+                Segment: {field.segment_name}
+              </span>
+            )}
+            {field.persona_name && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-secondary/10 px-2.5 py-1 text-xs font-medium text-secondary">
+                Persona: {field.persona_name}
+              </span>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
