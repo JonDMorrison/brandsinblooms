@@ -175,7 +175,7 @@ export const createCompanyProfileFromOnboarding = async (
       // First, check if a profile already exists
       const { data: existingProfile, error: checkError } = await supabase
         .from("company_profiles")
-        .select("id, postal_code, location_needs_confirmation")
+        .select("id")
         .eq("user_id", userId)
         .maybeSingle();
 
@@ -184,24 +184,6 @@ export const createCompanyProfileFromOnboarding = async (
         throw new Error(
           `Failed to check existing profile: ${checkError.message}`,
         );
-      }
-
-      // CLIENT-SIDE INVARIANT CHECK (defense in depth - server enforces this too)
-      if (existingProfile) {
-        const postalCode = existingProfile.postal_code;
-        const needsConfirmation =
-          existingProfile.location_needs_confirmation === true;
-
-        if (!postalCode || needsConfirmation) {
-          console.error("❌ CLIENT INVARIANT CHECK: Location not confirmed", {
-            userId,
-            postalCode: postalCode || "NULL",
-            needsConfirmation,
-          });
-          throw new Error(
-            "Location confirmation required: Please confirm your primary location before completing setup.",
-          );
-        }
       }
 
       if (existingProfile) {
