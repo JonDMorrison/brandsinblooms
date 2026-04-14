@@ -343,7 +343,7 @@ export const DataReviewStep = ({
                       </Label>
                       <Input
                         id="postal-code"
-                        placeholder="e.g., 97215"
+                        placeholder="e.g., 97215 or V3G 1R4"
                         value={locationForm.postalCode}
                         onChange={(e) => handlePostalCodeChange(e.target.value)}
                         className={`h-10 ${validationError ? 'border-red-300' : 'border-brand-green/30'}`}
