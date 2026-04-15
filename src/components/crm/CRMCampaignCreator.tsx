@@ -4250,7 +4250,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         max-width: 100% !important;
       }
       .content-block {
-        padding: 20px 24px !important;
+        padding: 16px !important;
       }
       /* Enforce minimum readable font size on mobile */
       .content-block p,
@@ -4445,7 +4445,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                     <![endif]-->
                     <!-- Overlay div sits on top of background image -->
                     <div style="background-color: ${overlayColor}; padding: 40px 24px; text-align: ${headerAlign};">
-                      ${headerDisplayTitle ? `<h1 class="email-header-text" style="font-size: 28px; font-weight: 600; margin: 0 0 16px 0; font-family: ${fonts.headlineFont}; color: ${block.textColor || "#ffffff"} !important;">${headerDisplayTitle}</h1>` : ""}
+                      ${headerDisplayTitle ? `<h1 class="email-header-text" style="font-size: 34px; font-weight: 700; margin: 0 0 16px 0; font-family: ${fonts.headlineFont}; color: ${block.textColor || "#ffffff"} !important;">${headerDisplayTitle}</h1>` : ""}
                       ${blockBody ? `<div class="email-header-text" style="font-size: 18px; margin: 0; opacity: 0.9; font-family: ${fonts.bodyFont}; color: ${block.textColor || "#ffffff"} !important;">${blockBody}</div>` : ""}
                     </div>
                     <!--[if gte mso 9]>
@@ -4465,7 +4465,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
               <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin: 20px 0; border-radius: 8px; overflow: hidden;">
                 <tr>
                   <td style="background-color: ${headerBgColor}; padding: 40px 24px; text-align: ${headerAlign};">
-                    ${headerDisplayTitle ? `<h1 class="email-header-text" style="font-size: 28px; font-weight: 600; margin: 0 0 16px 0; font-family: ${fonts.headlineFont}; color: ${block.textColor || "#ffffff"} !important;">${headerDisplayTitle}</h1>` : ""}
+                    ${headerDisplayTitle ? `<h1 class="email-header-text" style="font-size: 34px; font-weight: 700; margin: 0 0 16px 0; font-family: ${fonts.headlineFont}; color: ${block.textColor || "#ffffff"} !important;">${headerDisplayTitle}</h1>` : ""}
                     ${blockBody ? `<div class="email-header-text" style="font-size: 18px; margin: 0; opacity: 0.9; font-family: ${fonts.bodyFont}; color: ${block.textColor || "#ffffff"} !important;">${blockBody}</div>` : ""}
                   </td>
                 </tr>
@@ -4487,7 +4487,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
             // Build text content column
             const safeHeroTextHtml = `
               ${block.eyebrow ? `<p style="font-size: 12px; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 8px 0; color: ${safeHeroTextColor} !important; opacity: 0.6;">${block.eyebrow}</p>` : ""}
-              ${blockHeadline && !isBlockTypeLabel(blockHeadline) ? `<h1 style="font-size: 28px; font-weight: 600; margin: 0 0 12px 0; font-family: ${fonts.headlineFont}; color: ${safeHeroTextColor} !important; line-height: 1.2;">${sanitizeCampaignTitle(blockHeadline)}</h1>` : ""}
+              ${blockHeadline && !isBlockTypeLabel(blockHeadline) ? `<h1 style="font-size: 34px; font-weight: 700; margin: 0 0 12px 0; font-family: ${fonts.headlineFont}; color: ${safeHeroTextColor} !important; line-height: 1.2;">${sanitizeCampaignTitle(blockHeadline)}</h1>` : ""}
               ${block.subtitle ? `<p style="font-size: 16px; margin: 0 0 8px 0; color: ${safeHeroTextColor} !important; opacity: 0.8; line-height: 1.5;">${block.subtitle}</p>` : ""}
               ${block.body ? `<div style="font-size: 16px; margin: 0 0 16px 0; color: ${safeHeroTextColor} !important; line-height: 1.6;">${block.body}</div>` : ""}
               ${block.publishDate ? `<p style="font-size: 12px; margin: 0 0 16px 0; color: ${safeHeroTextColor} !important; opacity: 0.6;">${new Date(block.publishDate).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}</p>` : ""}
@@ -5412,7 +5412,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           // Spacer row: reliable in all email clients including Outlook
           html += `
           <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation">
-            <tr><td style="height: 24px; font-size: 24px; line-height: 24px;">&nbsp;</td></tr>
+            <tr><td style="height: 8px; font-size: 8px; line-height: 8px;">&nbsp;</td></tr>
           </table>`;
         }
         } catch (blockErr) {
