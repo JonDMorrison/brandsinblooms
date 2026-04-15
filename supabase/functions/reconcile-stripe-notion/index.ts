@@ -6,7 +6,6 @@ const NOTION_DB_ID = Deno.env.get('NOTION_PIPELINE_DB_ID')!
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')!
-const INTERNAL_ALERT_EMAIL = Deno.env.get('INTERNAL_ALERT_EMAIL') || 'jon@getclear.ca'
 
 const notionHeaders = {
   'Authorization': `Bearer ${NOTION_TOKEN}`,
@@ -14,8 +13,19 @@ const notionHeaders = {
   'Notion-Version': '2022-06-28'
 }
 
+interface ReconEvent {
+  stripe_customer_id: string
+  customer_email: string | null
+  customer_name?: string | null
+  stripe_status: string
+  notion_stage: string
+  mismatch_type: string
+  auto_fixed?: boolean
+  fix_detail?: string
+}
+
 serve(async () => {
-  const mismatches: any[] = []
+  const events: ReconEvent[] = []
 
   // Step 1: Get all active Stripe subscriptions
   const stripeRes = await fetch(
@@ -29,6 +39,8 @@ serve(async () => {
   for (const sub of activeSubscriptions) {
     const stripeCustomerId = typeof sub.customer === 'string' ? sub.customer : sub.customer.id
     const email = typeof sub.customer === 'object' ? sub.customer.email : null
+    const customerName = typeof sub.customer === 'object' ? sub.customer.name : null
+    const subStartDate = sub.start_date ? new Date(sub.start_date * 1000).toISOString().split('T')[0] : null
 
     const notionRes = await fetch(`https://api.notion.com/v1/databases/${NOTION_DB_ID}/query`, {
       method: 'POST',
@@ -45,44 +57,110 @@ serve(async () => {
     const notionData = await notionRes.json()
 
     if (!notionData.results || notionData.results.length === 0) {
-      mismatches.push({
+      // ── AUTO-FIX: Create minimal Notion record ──
+      let autoFixed = false
+      let fixDetail = ''
+      try {
+        const createRes = await fetch('https://api.notion.com/v1/pages', {
+          method: 'POST',
+          headers: notionHeaders,
+          body: JSON.stringify({
+            parent: { database_id: NOTION_DB_ID },
+            properties: {
+              'Garden Center': { title: [{ text: { content: email || customerName || stripeCustomerId } }] },
+              'Stage': { select: { name: '⚠️ Broken' } },
+              ...(email ? { 'Email': { email: email } } : {}),
+              'External ID': { rich_text: [{ text: { content: stripeCustomerId } }] },
+              'Next Action': { rich_text: [{ text: { content: 'Auto-created from Stripe reconciliation — needs review' } }] },
+              'Next Action Date': { date: { start: new Date().toISOString().split('T')[0] } },
+              ...(subStartDate ? { 'Won Date': { date: { start: subStartDate } } } : {}),
+            }
+          })
+        })
+        if (createRes.ok) {
+          autoFixed = true
+          fixDetail = `Created broken record in Notion with email ${email || 'unknown'}`
+          console.log(`reconcile: auto-created Notion record for ${email}`)
+        } else {
+          fixDetail = `Failed to create Notion record: ${await createRes.text()}`
+          console.error(`reconcile: failed to create Notion record for ${email}`, fixDetail)
+        }
+      } catch (err) {
+        fixDetail = `Error creating Notion record: ${err}`
+        console.error(`reconcile: error creating Notion record for ${email}`, err)
+      }
+
+      events.push({
         stripe_customer_id: stripeCustomerId,
         customer_email: email,
+        customer_name: customerName,
         stripe_status: 'active',
         notion_stage: 'NOT FOUND',
-        mismatch_type: 'active_not_in_notion'
+        mismatch_type: 'active_not_in_notion',
+        auto_fixed: autoFixed,
+        fix_detail: fixDetail,
       })
       continue
     }
 
     const notionPage = notionData.results[0]
+    const notionPageId = notionPage.id
     const notionStage = notionPage.properties['Stage']?.select?.name
     const wonDate = notionPage.properties['Won Date']?.date?.start
 
-    // Flag if a paying Stripe subscriber is still in a non-paying Notion stage
+    // Flag wrong stage
     const validPayingStages = ['Won', 'Account Setup & Welcome', 'Onboarding & Setup', 'Active']
     if (notionStage && !validPayingStages.includes(notionStage) && notionStage !== 'Churned') {
-      mismatches.push({
+      events.push({
         stripe_customer_id: stripeCustomerId,
         customer_email: email,
         stripe_status: 'active',
         notion_stage: notionStage,
-        mismatch_type: 'active_wrong_stage'
+        mismatch_type: 'active_wrong_stage',
       })
     }
 
+    // ── AUTO-FIX: missing_won_date ──
     if (validPayingStages.includes(notionStage) && !wonDate) {
-      mismatches.push({
+      let autoFixed = false
+      let fixDetail = ''
+      const wonDateValue = subStartDate || new Date().toISOString().split('T')[0]
+
+      try {
+        const patchRes = await fetch(`https://api.notion.com/v1/pages/${notionPageId}`, {
+          method: 'PATCH',
+          headers: notionHeaders,
+          body: JSON.stringify({
+            properties: {
+              'Won Date': { date: { start: wonDateValue } }
+            }
+          })
+        })
+        if (patchRes.ok) {
+          autoFixed = true
+          fixDetail = `won_date set to ${wonDateValue}`
+          console.log(`reconcile: auto-fixed won_date for ${email} → ${wonDateValue}`)
+        } else {
+          fixDetail = `Failed to set won_date: ${await patchRes.text()}`
+          console.error(`reconcile: failed to fix won_date for ${email}`)
+        }
+      } catch (err) {
+        fixDetail = `Error setting won_date: ${err}`
+      }
+
+      events.push({
         stripe_customer_id: stripeCustomerId,
         customer_email: email,
         stripe_status: 'active',
         notion_stage: notionStage,
-        mismatch_type: 'missing_won_date'
+        mismatch_type: 'missing_won_date',
+        auto_fixed: autoFixed,
+        fix_detail: fixDetail,
       })
     }
   }
 
-  // Step 3: Check cancelled Stripe subs still Active in Notion
+  // Step 3: Check cancelled Stripe subs still in paying stage in Notion
   const cancelledRes = await fetch(
     'https://api.stripe.com/v1/subscriptions?status=canceled&limit=50&expand[]=data.customer',
     { headers: { 'Authorization': `Bearer ${STRIPE_SECRET_KEY}` } }
@@ -108,23 +186,53 @@ serve(async () => {
     const notionData = await notionRes.json()
 
     if (notionData.results?.length > 0) {
-      const notionStage = notionData.results[0].properties['Stage']?.select?.name
-      // Only flag if the Notion record is in a non-churned paying stage
+      const notionPage = notionData.results[0]
+      const notionPageId = notionPage.id
+      const notionStage = notionPage.properties['Stage']?.select?.name
       const payingStages = ['Won', 'Account Setup & Welcome', 'Onboarding & Setup', 'Active']
+
       if (payingStages.includes(notionStage)) {
-        mismatches.push({
+        // ── AUTO-FIX: Set stage to Churned ──
+        let autoFixed = false
+        let fixDetail = ''
+
+        try {
+          const patchRes = await fetch(`https://api.notion.com/v1/pages/${notionPageId}`, {
+            method: 'PATCH',
+            headers: notionHeaders,
+            body: JSON.stringify({
+              properties: {
+                'Stage': { select: { name: 'Churned' } }
+              }
+            })
+          })
+          if (patchRes.ok) {
+            autoFixed = true
+            fixDetail = `stage set to Churned (was ${notionStage})`
+            console.log(`reconcile: auto-fixed ${email} → Churned (was ${notionStage})`)
+          } else {
+            fixDetail = `Failed to set Churned: ${await patchRes.text()}`
+            console.error(`reconcile: failed to churn ${email}`)
+          }
+        } catch (err) {
+          fixDetail = `Error setting Churned: ${err}`
+        }
+
+        events.push({
           stripe_customer_id: stripeCustomerId,
           customer_email: email,
           stripe_status: 'canceled',
           notion_stage: notionStage,
-          mismatch_type: 'cancelled_still_active'
+          mismatch_type: 'cancelled_still_active',
+          auto_fixed: autoFixed,
+          fix_detail: fixDetail,
         })
       }
     }
   }
 
-  // Step 4: Write mismatches to reconciliation_log
-  if (mismatches.length > 0) {
+  // Step 4: Write to reconciliation_log
+  if (events.length > 0) {
     await fetch(`${SUPABASE_URL}/rest/v1/reconciliation_log`, {
       method: 'POST',
       headers: {
@@ -132,76 +240,87 @@ serve(async () => {
         'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify(mismatches)
+      body: JSON.stringify(events)
     })
   }
 
   // Step 5: Send reconciliation email
   const RECIPIENTS = ['jon@getclear.ca', 'jeff@brandsinblooms.com']
-
-  const actionRequired = mismatches.filter(m => m.mismatch_type === 'active_not_in_notion' || m.mismatch_type === 'active_wrong_stage')
-  const dataCleanup = mismatches.filter(m => m.mismatch_type === 'missing_won_date')
-  const billingMismatch = mismatches.filter(m => m.mismatch_type === 'cancelled_still_active' || m.mismatch_type === 'active_not_in_stripe')
-
   const esc = (s: string) => (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 
-  function renderItem(m: any): string {
-    const email = esc(m.customer_email || m.stripe_customer_id)
+  const manualItems = events.filter(e => !e.auto_fixed)
+  const autoFixedItems = events.filter(e => e.auto_fixed)
+
+  function renderItem(m: ReconEvent): string {
+    const addr = esc(m.customer_email || m.stripe_customer_id)
+    const badge = m.auto_fixed
+      ? `<span style="display:inline-block;background:#dcfce7;color:#166534;font-size:11px;padding:1px 6px;border-radius:4px;margin-left:6px;">auto-fixed</span>`
+      : ''
     switch (m.mismatch_type) {
       case 'active_not_in_notion':
-        return `<p style="font-size:14px;color:#374151;margin:0 0 10px;line-height:1.5;"><strong>${email}</strong> is paying in Stripe but has no record in the Notion pipeline. Create or update their Notion record.</p>`
+        return `<p style="font-size:14px;color:#374151;margin:0 0 10px;line-height:1.5;"><strong>${addr}</strong>${m.customer_name ? ` (${esc(m.customer_name)})` : ''} is paying in Stripe but had no Notion record.${badge}${m.auto_fixed ? ` Created as ⚠️ Broken — needs review.` : ' Create or update their Notion record.'}</p>`
       case 'active_wrong_stage':
-        return `<p style="font-size:14px;color:#374151;margin:0 0 10px;line-height:1.5;"><strong>${email}</strong> is paying in Stripe but their Notion stage is "${esc(m.notion_stage)}". Update their stage to Won or Active.</p>`
+        return `<p style="font-size:14px;color:#374151;margin:0 0 10px;line-height:1.5;"><strong>${addr}</strong> is paying in Stripe but their Notion stage is "${esc(m.notion_stage)}". Update their stage to Won or Active.</p>`
       case 'missing_won_date':
-        return `<p style="font-size:14px;color:#374151;margin:0 0 10px;line-height:1.5;"><strong>${email}</strong> is an active paying client but their Won Date is blank in Notion. Open their pipeline record and set it.</p>`
+        return `<p style="font-size:14px;color:#374151;margin:0 0 10px;line-height:1.5;"><strong>${addr}</strong> — ${m.auto_fixed ? `Won Date auto-set to ${esc(m.fix_detail?.replace('won_date set to ', '') || '')}` : 'Won Date is blank. Open their pipeline record and set it.'}.${badge}</p>`
       case 'cancelled_still_active':
-        return `<p style="font-size:14px;color:#374151;margin:0 0 10px;line-height:1.5;"><strong>${email}</strong> has cancelled in Stripe but is still marked "${esc(m.notion_stage)}" in Notion. Update their stage to Churned.</p>`
-      case 'active_not_in_stripe':
-        return `<p style="font-size:14px;color:#374151;margin:0 0 10px;line-height:1.5;"><strong>${email}</strong> is marked active in Notion but has no active Stripe subscription. Verify whether they are still paying.</p>`
+        return `<p style="font-size:14px;color:#374151;margin:0 0 10px;line-height:1.5;"><strong>${addr}</strong> cancelled in Stripe.${badge}${m.auto_fixed ? ` Stage auto-updated to Churned (was ${esc(m.notion_stage)}).` : ` Still marked "${esc(m.notion_stage)}" in Notion. Update to Churned.`}</p>`
       default:
-        return `<p style="font-size:14px;color:#374151;margin:0 0 10px;line-height:1.5;"><strong>${email}</strong> — ${esc(m.mismatch_type)}</p>`
+        return `<p style="font-size:14px;color:#374151;margin:0 0 10px;line-height:1.5;"><strong>${addr}</strong> — ${esc(m.mismatch_type)}</p>`
     }
   }
 
   let bodyHtml = ''
 
-  if (mismatches.length === 0) {
+  if (events.length === 0) {
     bodyHtml = `<div style="background:#f0fdf4;border-left:4px solid #1abc9c;padding:16px 20px;border-radius:0 8px 8px 0;margin-bottom:24px;">
       <p style="font-size:15px;font-weight:500;color:#166534;margin:0;">All systems clean — Stripe and Notion are in sync.</p>
     </div>`
   } else {
-    const categories: string[] = []
-    if (actionRequired.length > 0) categories.push('action required')
-    if (dataCleanup.length > 0) categories.push('data cleanup')
-    if (billingMismatch.length > 0) categories.push('billing mismatch')
+    const summaryParts: string[] = []
+    if (autoFixedItems.length > 0) summaryParts.push(`${autoFixedItems.length} auto-fixed`)
+    if (manualItems.length > 0) summaryParts.push(`${manualItems.length} need manual attention`)
 
-    bodyHtml = `<p style="font-size:14px;color:#374151;margin:0 0 24px;line-height:1.6;">Found <strong>${mismatches.length}</strong> item${mismatches.length === 1 ? '' : 's'} across ${categories.join(', ')}. Action Required items need to be handled today. Data Cleanup items can be batched.</p>`
+    bodyHtml = `<p style="font-size:14px;color:#374151;margin:0 0 24px;line-height:1.6;">Found <strong>${events.length}</strong> item${events.length === 1 ? '' : 's'}: ${summaryParts.join(', ')}.</p>`
 
-    if (actionRequired.length > 0) {
-      bodyHtml += `<div style="border-left:4px solid #ef4444;padding:16px 20px;border-radius:0 8px 8px 0;margin-bottom:20px;background:#fef2f2;">
-        <p style="font-size:12px;font-weight:600;color:#991b1b;text-transform:uppercase;letter-spacing:0.5px;margin:0 0 12px;">Action Required</p>
-        ${actionRequired.map(renderItem).join('')}
+    // Auto-fixed items (green)
+    if (autoFixedItems.length > 0) {
+      bodyHtml += `<div style="border-left:4px solid #1abc9c;padding:16px 20px;border-radius:0 8px 8px 0;margin-bottom:20px;background:#f0fdf4;">
+        <p style="font-size:12px;font-weight:600;color:#166534;text-transform:uppercase;letter-spacing:0.5px;margin:0 0 12px;">Auto-Fixed (${autoFixedItems.length})</p>
+        ${autoFixedItems.map(renderItem).join('')}
       </div>`
     }
 
-    if (dataCleanup.length > 0) {
-      bodyHtml += `<div style="border-left:4px solid #f59e0b;padding:16px 20px;border-radius:0 8px 8px 0;margin-bottom:20px;background:#fffbeb;">
-        <p style="font-size:12px;font-weight:600;color:#92400e;text-transform:uppercase;letter-spacing:0.5px;margin:0 0 12px;">Data Cleanup</p>
-        ${dataCleanup.map(renderItem).join('')}
-      </div>`
-    }
+    // Manual items (red/yellow)
+    if (manualItems.length > 0) {
+      const actionRequired = manualItems.filter(m => m.mismatch_type === 'active_not_in_notion' || m.mismatch_type === 'active_wrong_stage')
+      const dataCleanup = manualItems.filter(m => m.mismatch_type === 'missing_won_date')
+      const billingMismatch = manualItems.filter(m => m.mismatch_type === 'cancelled_still_active')
 
-    if (billingMismatch.length > 0) {
-      bodyHtml += `<div style="border-left:4px solid #ef4444;padding:16px 20px;border-radius:0 8px 8px 0;margin-bottom:20px;background:#fef2f2;">
-        <p style="font-size:12px;font-weight:600;color:#991b1b;text-transform:uppercase;letter-spacing:0.5px;margin:0 0 12px;">Billing Mismatch</p>
-        ${billingMismatch.map(renderItem).join('')}
-      </div>`
+      if (actionRequired.length > 0) {
+        bodyHtml += `<div style="border-left:4px solid #ef4444;padding:16px 20px;border-radius:0 8px 8px 0;margin-bottom:20px;background:#fef2f2;">
+          <p style="font-size:12px;font-weight:600;color:#991b1b;text-transform:uppercase;letter-spacing:0.5px;margin:0 0 12px;">Action Required</p>
+          ${actionRequired.map(renderItem).join('')}
+        </div>`
+      }
+      if (dataCleanup.length > 0) {
+        bodyHtml += `<div style="border-left:4px solid #f59e0b;padding:16px 20px;border-radius:0 8px 8px 0;margin-bottom:20px;background:#fffbeb;">
+          <p style="font-size:12px;font-weight:600;color:#92400e;text-transform:uppercase;letter-spacing:0.5px;margin:0 0 12px;">Data Cleanup</p>
+          ${dataCleanup.map(renderItem).join('')}
+        </div>`
+      }
+      if (billingMismatch.length > 0) {
+        bodyHtml += `<div style="border-left:4px solid #ef4444;padding:16px 20px;border-radius:0 8px 8px 0;margin-bottom:20px;background:#fef2f2;">
+          <p style="font-size:12px;font-weight:600;color:#991b1b;text-transform:uppercase;letter-spacing:0.5px;margin:0 0 12px;">Billing Mismatch</p>
+          ${billingMismatch.map(renderItem).join('')}
+        </div>`
+      }
     }
   }
 
-  const subject = mismatches.length === 0
+  const subject = events.length === 0
     ? 'BloomSuite Reconciliation — all clean'
-    : `BloomSuite Reconciliation — ${mismatches.length} item${mismatches.length === 1 ? '' : 's'} need attention`
+    : `BloomSuite Reconciliation — ${events.length} item${events.length === 1 ? '' : 's'}${autoFixedItems.length > 0 ? ` (${autoFixedItems.length} auto-fixed)` : ''}`
 
   const emailHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
 <table width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;padding:32px 16px;">
@@ -218,7 +337,7 @@ serve(async () => {
     <div style="text-align:center;margin-top:24px;">
       <a href="https://www.notion.so/344d234a0ae54f4185e19d260ac658a9" style="display:inline-block;background:#1abc9c;color:#ffffff;padding:10px 24px;border-radius:6px;font-size:14px;font-weight:500;text-decoration:none;">Open Customer Pipeline →</a>
     </div>
-    <p style="font-size:12px;color:#9ca3af;margin:24px 0 0;border-top:1px solid #e5e7eb;padding-top:16px;">This reconciliation runs automatically. Only items that need human attention are shown.</p>
+    <p style="font-size:12px;color:#9ca3af;margin:24px 0 0;border-top:1px solid #e5e7eb;padding-top:16px;">This reconciliation runs automatically. Auto-fixes are applied where safe. Only items that need human attention are flagged.</p>
   </td></tr>
 </table>
 </td></tr>
@@ -240,7 +359,12 @@ serve(async () => {
   })
 
   return new Response(
-    JSON.stringify({ mismatches_found: mismatches.length, mismatches }),
+    JSON.stringify({
+      total: events.length,
+      auto_fixed: autoFixedItems.length,
+      manual: manualItems.length,
+      events
+    }),
     { headers: { 'Content-Type': 'application/json' } }
   )
 })
