@@ -1,8 +1,8 @@
 import React from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
+import { Badge } from '@/components/ui-legacy/badge';
+import { Button } from '@/components/ui-legacy/button';
+import { Progress } from '@/components/ui-legacy/progress';
 import { AlertTriangle, RefreshCw, CheckCircle, XCircle, Mail, Ban, UserX } from 'lucide-react';
 import { DeliveryMetrics } from '@/hooks/analytics/useCampaignDeliveryMetrics';
 

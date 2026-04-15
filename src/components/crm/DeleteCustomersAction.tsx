@@ -1,4 +1,4 @@
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui-legacy/button";
 import { Trash2 } from "lucide-react";
 import { useDeleteCustomers } from "@/hooks/useDeleteCustomers";
 import { useTenant } from "@/hooks/useTenant";
@@ -12,7 +12,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+} from "@/components/ui-legacy/alert-dialog";
 
 interface DeleteCustomersActionProps {
   keepEmail: string;

@@ -1,10 +1,10 @@
 import React, { useState } from "react";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui-legacy/button";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui-legacy/tabs";
 import { Activity, ArrowLeft, Edit, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { ActionMenu, ActionMenuItem } from "@/components/ui/action-menu";
+import { ActionMenu, ActionMenuItem } from "@/components/ui-legacy/action-menu";
 import { useToast } from "@/hooks/use-toast";
 
 type TimeRange = "7d" | "30d" | "90d" | "lifetime";

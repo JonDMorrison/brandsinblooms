@@ -1,9 +1,9 @@
 
 import { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui-legacy/dialog";
+import { Button } from "@/components/ui-legacy/button";
+import { Badge } from "@/components/ui-legacy/badge";
+import { Textarea } from "@/components/ui-legacy/textarea";
 import { Instagram, Facebook, Mail, BookOpen, Video, FileText, Copy, Edit, Save, X, ExternalLink } from "lucide-react";
 // Removed sonner import - using global toast replacement
 import { supabase } from "@/integrations/supabase/client";

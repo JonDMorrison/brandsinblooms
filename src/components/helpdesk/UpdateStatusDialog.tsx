@@ -5,10 +5,10 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { NativeSelect } from '@/components/ui/native-select';
+} from '@/components/ui-legacy/dialog';
+import { Button } from '@/components/ui-legacy/button';
+import { Label } from '@/components/ui-legacy/label';
+import { NativeSelect } from '@/components/ui-legacy/native-select';
 import { TicketStatus } from '@/types/helpdesk';
 
 interface UpdateStatusDialogProps {

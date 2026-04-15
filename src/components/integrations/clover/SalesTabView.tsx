@@ -6,7 +6,7 @@ import {
   SheetDescription,
   SheetHeader,
   SheetTitle,
-} from "@/components/ui/sheet";
+} from "@/components/ui-legacy/sheet";
 import type {
   CloverSaleRow,
   CloverSalesSummary,

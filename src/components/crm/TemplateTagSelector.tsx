@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Checkbox } from '@/components/ui/checkbox';
+import { Badge } from '@/components/ui-legacy/badge';
+import { Button } from '@/components/ui-legacy/button';
+import { Input } from '@/components/ui-legacy/input';
+import { Label } from '@/components/ui-legacy/label';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui-legacy/popover';
+import { Checkbox } from '@/components/ui-legacy/checkbox';
 import { X, Plus, Tag } from 'lucide-react';
 
 interface TemplateTagSelectorProps {

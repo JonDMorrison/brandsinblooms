@@ -5,19 +5,19 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+} from "@/components/ui-legacy/dialog";
+import { Button } from "@/components/ui-legacy/button";
+import { Input } from "@/components/ui-legacy/input";
+import { Label } from "@/components/ui-legacy/label";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
+} from "@/components/ui-legacy/card";
+import { Badge } from "@/components/ui-legacy/badge";
+import { Progress } from "@/components/ui-legacy/progress";
 import {
   ExternalLink,
   Key,

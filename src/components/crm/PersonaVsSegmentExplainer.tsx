@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui-legacy/button';
+import { Card, CardContent } from '@/components/ui-legacy/card';
 import { Users, Target, ChevronDown, ChevronUp } from 'lucide-react';
 
 export function PersonaVsSegmentExplainer() {

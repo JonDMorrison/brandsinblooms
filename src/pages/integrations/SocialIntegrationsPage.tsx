@@ -1,8 +1,8 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Share2, Facebook, Instagram, Plus } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-legacy/card';
+import { Button } from '@/components/ui-legacy/button';
 
 export default function SocialIntegrationsPage() {
   const navigate = useNavigate();

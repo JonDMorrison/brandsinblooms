@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getIntegrationSeed } from "@/components/integrations/integrationsHubConfig";
 import { useIntegrationsHubData } from "@/hooks/useIntegrationsHubData";
 import { IntegrationsHubIndex } from "@/components/integrations/IntegrationsHubIndex";
-import { TooltipProvider } from "@/components/ui/tooltip";
+import { TooltipProvider } from "@/components/ui-legacy/tooltip";
 
 vi.mock("@/hooks/useIntegrationsHubData", () => ({
   useIntegrationsHubData: vi.fn(),

@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { ContentBlock, GalleryItem } from '@/types/emailBuilder';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui-legacy/input';
+import { Label } from '@/components/ui-legacy/label';
+import { Button } from '@/components/ui-legacy/button';
 import { Plus, X, Check } from 'lucide-react';
 import { MediaSelectorSidebar } from '@/components/crm/MediaSelectorSidebar';
 import { supabase } from '@/integrations/supabase/client';

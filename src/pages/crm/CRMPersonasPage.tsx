@@ -1,15 +1,15 @@
 import React, { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui-legacy/card";
+import { Button } from "@/components/ui-legacy/button";
+import { Input } from "@/components/ui-legacy/input";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
+} from "@/components/ui-legacy/dialog";
+import { Badge } from "@/components/ui-legacy/badge";
+import { ScrollArea } from "@/components/ui-legacy/scroll-area";
 import {
   Target,
   Plus,

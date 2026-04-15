@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { useSuppressionList, useSuppressionStats, useRemoveSuppression } from '@/hooks/useSuppressionList';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui-legacy/card';
+import { Button } from '@/components/ui-legacy/button';
+import { Input } from '@/components/ui-legacy/input';
+import { Badge } from '@/components/ui-legacy/badge';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui-legacy/table';
+import { Skeleton } from '@/components/ui-legacy/skeleton';
 import {
   Search,
   Trash2,

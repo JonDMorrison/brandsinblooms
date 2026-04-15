@@ -1,9 +1,9 @@
 import React, { memo } from 'react';
 import { Handle, Position, NodeProps } from '@xyflow/react';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui-legacy/card';
+import { Badge } from '@/components/ui-legacy/badge';
 import { GitBranch, Settings, Trash2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui-legacy/button';
 
 export interface SplitNodeData {
   splitType: 'conditional' | 'ab_test' | 'random';

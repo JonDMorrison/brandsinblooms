@@ -1,5 +1,5 @@
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui-legacy/card";
+import { Button } from "@/components/ui-legacy/button";
 import { 
   ArrowLeft, 
   CheckCircle2, 
@@ -23,7 +23,7 @@ import {
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-} from "@/components/ui/accordion";
+} from "@/components/ui-legacy/accordion";
 
 const SquareGuidePage = () => {
   const navigate = useNavigate();

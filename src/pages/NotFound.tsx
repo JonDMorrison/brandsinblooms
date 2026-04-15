@@ -1,6 +1,6 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { useEffect } from "react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui-legacy/button";
 import { Home, ArrowLeft } from "lucide-react";
 
 const WiltedPlantSvg = () => (

@@ -2,9 +2,9 @@ import React from 'react';
 import { cn } from '@/lib/utils';
 import { DashboardSection } from './DashboardSection';
 import { EngagementRadarChart } from '@/components/charts/EngagementRadarChart';
-import { EmptyChartOverlay } from '@/components/ui/empty-chart-overlay';
-import { Progress } from '@/components/ui/progress';
-import { Badge } from '@/components/ui/badge';
+import { EmptyChartOverlay } from '@/components/ui-legacy/empty-chart-overlay';
+import { Progress } from '@/components/ui-legacy/progress';
+import { Badge } from '@/components/ui-legacy/badge';
 import { Layers, Mail, MessageSquare, Star, Clock, AlertTriangle } from 'lucide-react';
 
 interface CrossChannelIntelligenceProps {

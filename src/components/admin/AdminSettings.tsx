@@ -1,18 +1,29 @@
-
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
+import Sheet from "@mui/joy/Sheet";
+import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
+import {
+  JoyCard,
+  JoyCardContent,
+  JoyCardHeader,
+} from "@/components/joy/JoyCard";
+import { JoyButton } from "@/components/joy/JoyButton";
+import { JoyChip } from "@/components/joy/JoyChip";
+import { JoyInput as Input } from "@/components/joy/JoyInput";
+import {
+  JoyTabs,
+  JoyTabsContent,
+  JoyTabsList,
+  JoyTabsTrigger,
+} from "@/components/joy/JoyTabs";
 import { supabase } from "@/integrations/supabase/client";
 // Removed sonner import - using global toast replacement
 import { Settings, Upload, FileText, Database, Trash2 } from "lucide-react";
-import * as XLSX from 'xlsx';
-import type { Database as DatabaseType } from '@/integrations/supabase/types';
+import * as XLSX from "xlsx";
+import type { Database as DatabaseType } from "@/integrations/supabase/types";
 
-type AIResource = DatabaseType['public']['Tables']['ai_generation_resources']['Row'];
+type AIResource =
+  DatabaseType["public"]["Tables"]["ai_generation_resources"]["Row"];
 
 export const AdminSettings = () => {
   const [resources, setResources] = useState<AIResource[]>([]);
@@ -23,72 +34,78 @@ export const AdminSettings = () => {
     setLoading(true);
     try {
       const { data, error } = await supabase
-        .from('ai_generation_resources')
-        .select('*')
-        .order('created_at', { ascending: false });
+        .from("ai_generation_resources")
+        .select("*")
+        .order("created_at", { ascending: false });
 
       if (error) {
-        console.error('Error fetching AI resources:', error);
-        toast.error('Failed to load AI resources');
+        console.error("Error fetching AI resources:", error);
+        toast.error("Failed to load AI resources");
       } else {
         setResources(data || []);
       }
     } catch (error) {
-      console.error('Error fetching AI resources:', error);
-      toast.error('An unexpected error occurred');
+      console.error("Error fetching AI resources:", error);
+      toast.error("An unexpected error occurred");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
     setUploading(true);
 
     try {
-      let content = '';
-      let fileType: 'csv' | 'pdf' | 'text' = 'text';
+      let content = "";
+      let fileType: "csv" | "pdf" | "text" = "text";
 
-      if (file.name.endsWith('.csv') || file.name.endsWith('.txt')) {
-        fileType = 'csv';
+      if (file.name.endsWith(".csv") || file.name.endsWith(".txt")) {
+        fileType = "csv";
         content = await new Promise<string>((resolve, reject) => {
           const reader = new FileReader();
           reader.onload = (e) => resolve(e.target?.result as string);
-          reader.onerror = () => reject(new Error('Failed to read file'));
+          reader.onerror = () => reject(new Error("Failed to read file"));
           reader.readAsText(file);
         });
-      } else if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
-        fileType = 'csv';
+      } else if (file.name.endsWith(".xlsx") || file.name.endsWith(".xls")) {
+        fileType = "csv";
         const data = new Uint8Array(await file.arrayBuffer());
-        const workbook = XLSX.read(data, { type: 'array' });
+        const workbook = XLSX.read(data, { type: "array" });
         const firstSheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[firstSheetName];
         content = XLSX.utils.sheet_to_csv(worksheet);
-      } else if (file.name.endsWith('.pdf')) {
-        fileType = 'pdf';
+      } else if (file.name.endsWith(".pdf")) {
+        fileType = "pdf";
         // For PDF files, we'll store the base64 content
         content = await new Promise<string>((resolve, reject) => {
           const reader = new FileReader();
           reader.onload = (e) => resolve(e.target?.result as string);
-          reader.onerror = () => reject(new Error('Failed to read file'));
+          reader.onerror = () => reject(new Error("Failed to read file"));
           reader.readAsDataURL(file);
         });
       } else {
-        toast.error('Unsupported file type.  Please upload CSV, Excel, or PDF files.');
+        toast.error(
+          "Unsupported file type.  Please upload CSV, Excel, or PDF files.",
+        );
         setUploading(false);
         return;
       }
 
       const { data, error } = await supabase
-        .from('ai_generation_resources')
-        .insert([{
-          name: file.name,
-          type: fileType,
-          content: content,
-          description: `Uploaded ${fileType.toUpperCase()} file for AI generation guidance`
-        }])
+        .from("ai_generation_resources")
+        .insert([
+          {
+            name: file.name,
+            type: fileType,
+            content: content,
+            description: `Uploaded ${fileType.toUpperCase()} file for AI generation guidance`,
+          },
+        ])
         .select();
 
       if (error) {
@@ -96,13 +113,13 @@ export const AdminSettings = () => {
       }
 
       if (data && data[0]) {
-        setResources(prev => [data[0], ...prev]);
+        setResources((prev) => [data[0], ...prev]);
       }
-      
+
       // Clear the input
-      event.target.value = '';
+      event.target.value = "";
     } catch (error: any) {
-      console.error('Upload error:', error);
+      console.error("Upload error:", error);
       toast.error(`Failed to upload file: ${error.message}`);
     } finally {
       setUploading(false);
@@ -112,17 +129,17 @@ export const AdminSettings = () => {
   const handleDeleteResource = async (id: string, name: string) => {
     try {
       const { error } = await supabase
-        .from('ai_generation_resources')
+        .from("ai_generation_resources")
         .delete()
-        .eq('id', id);
+        .eq("id", id);
 
       if (error) {
         throw error;
       }
 
-      setResources(prev => prev.filter(r => r.id !== id));
+      setResources((prev) => prev.filter((r) => r.id !== id));
     } catch (error: any) {
-      console.error('Delete error:', error);
+      console.error("Delete error:", error);
       toast.error(`Failed to delete resource: ${error.message}`);
     }
   };
@@ -132,114 +149,168 @@ export const AdminSettings = () => {
   }, []);
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-2">
+    <Stack spacing={3}>
+      <Stack direction="row" spacing={1} alignItems="center">
         <Settings className="h-6 w-6 text-blue-600" />
-        <h1 className="text-2xl font-bold text-gray-900">Master Admin Settings</h1>
-        <Badge variant="destructive" className="ml-2">Admin Only</Badge>
-      </div>
+        <Typography component="h1" level="h2">
+          Master Admin Settings
+        </Typography>
+        <JoyChip bloomVariant="destructive" sx={{ ml: 1 }}>
+          Admin Only
+        </JoyChip>
+      </Stack>
 
-      <Tabs defaultValue="resources" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="resources">AI Resources</TabsTrigger>
-          <TabsTrigger value="settings">System Settings</TabsTrigger>
-        </TabsList>
+      <JoyTabs defaultValue="resources">
+        <JoyTabsList
+          sx={{
+            display: "grid",
+            width: "100%",
+            gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+          }}
+        >
+          <JoyTabsTrigger value="resources">AI Resources</JoyTabsTrigger>
+          <JoyTabsTrigger value="settings">System Settings</JoyTabsTrigger>
+        </JoyTabsList>
 
-        <TabsContent value="resources" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Upload className="h-5 w-5" />
-                Upload AI Generation Resources
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
+        <JoyTabsContent value="resources" className="space-y-6">
+          <JoyCard>
+            <JoyCardHeader
+              title="Upload AI Generation Resources"
+              startDecorator={<Upload className="h-5 w-5" />}
+            />
+            <JoyCardContent>
+              <Stack spacing={2}>
                 <div>
-                  <Label htmlFor="resource-file">Upload CSV, Excel, or PDF File</Label>
                   <Input
                     id="resource-file"
+                    label="Upload CSV, Excel, or PDF File"
+                    helperText="Upload files containing content ideas, seasonal themes, or AI generation guidance"
                     type="file"
                     accept=".csv,.txt,.xlsx,.xls,.pdf"
                     onChange={handleFileUpload}
                     disabled={uploading}
-                    className="cursor-pointer"
+                    slotProps={{
+                      input: {
+                        className: "cursor-pointer",
+                      },
+                    }}
                   />
-                  <p className="text-sm text-gray-500 mt-1">
-                    Upload files containing content ideas, seasonal themes, or AI generation guidance
-                  </p>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+              </Stack>
+            </JoyCardContent>
+          </JoyCard>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Database className="h-5 w-5" />
-                Current AI Resources ({resources.length})
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
+          <JoyCard>
+            <JoyCardHeader
+              title={`Current AI Resources (${resources.length})`}
+              startDecorator={<Database className="h-5 w-5" />}
+            />
+            <JoyCardContent>
               {loading ? (
-                <div className="text-center py-8">
-                  <p>Loading resources...</p>
-                </div>
+                <Stack
+                  alignItems="center"
+                  justifyContent="center"
+                  sx={{ py: 8 }}
+                >
+                  <Typography level="body-md" color="neutral">
+                    Loading resources...
+                  </Typography>
+                </Stack>
               ) : resources.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
+                <Stack
+                  alignItems="center"
+                  justifyContent="center"
+                  spacing={1}
+                  sx={{ py: 8 }}
+                >
                   <FileText className="w-12 h-12 mx-auto mb-4 opacity-40" />
-                  <p className="font-medium mb-2">No AI resources found</p>
-                  <p className="text-sm">Upload your first resource file to get started</p>
-                </div>
+                  <Typography level="title-sm">
+                    No AI resources found
+                  </Typography>
+                  <Typography level="body-sm" color="neutral">
+                    Upload your first resource file to get started
+                  </Typography>
+                </Stack>
               ) : (
-                <div className="space-y-3">
+                <Stack spacing={1.5}>
                   {resources.map((resource) => (
-                    <div key={resource.id} className="border rounded-lg p-4 bg-gray-50">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <h5 className="font-medium">{resource.name}</h5>
-                            <Badge variant="outline">
+                    <Sheet
+                      key={resource.id}
+                      color="neutral"
+                      sx={{
+                        p: 2,
+                        borderRadius: "var(--joy-radius-lg)",
+                        border: "1px solid",
+                        borderColor: "neutral.200",
+                        backgroundColor: "neutral.50",
+                      }}
+                    >
+                      <Stack
+                        direction="row"
+                        justifyContent="space-between"
+                        alignItems="flex-start"
+                        spacing={2}
+                      >
+                        <Stack spacing={1} sx={{ flex: 1, minWidth: 0 }}>
+                          <Stack
+                            direction="row"
+                            spacing={1}
+                            alignItems="center"
+                            sx={{ mb: 1 }}
+                          >
+                            <Typography level="title-sm">
+                              {resource.name}
+                            </Typography>
+                            <JoyChip bloomVariant="outline">
                               {resource.type.toUpperCase()}
-                            </Badge>
-                          </div>
+                            </JoyChip>
+                          </Stack>
                           {resource.description && (
-                            <p className="text-sm text-gray-600 mb-2">{resource.description}</p>
+                            <Typography
+                              level="body-sm"
+                              color="neutral"
+                              sx={{ mb: 1 }}
+                            >
+                              {resource.description}
+                            </Typography>
                           )}
-                          <p className="text-xs text-gray-500">
-                            Uploaded: {new Date(resource.created_at).toLocaleString()}
-                          </p>
-                        </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleDeleteResource(resource.id, resource.name)}
-                          className="text-red-600 hover:text-red-700"
+                          <Typography level="body-xs" color="neutral">
+                            Uploaded:{" "}
+                            {new Date(resource.created_at).toLocaleString()}
+                          </Typography>
+                        </Stack>
+                        <JoyButton
+                          aria-label={`Delete resource ${resource.name}`}
+                          bloomVariant="destructiveOutline"
+                          onClick={() =>
+                            handleDeleteResource(resource.id, resource.name)
+                          }
+                          size="icon"
+                          sx={{ width: 32, height: 32 }}
                         >
                           <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
+                        </JoyButton>
+                      </Stack>
+                    </Sheet>
                   ))}
-                </div>
+                </Stack>
               )}
-            </CardContent>
-          </Card>
-        </TabsContent>
+            </JoyCardContent>
+          </JoyCard>
+        </JoyTabsContent>
 
-        <TabsContent value="settings" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>System Configuration</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-gray-600">
-                Additional system settings and configurations will be added here.
-              </p>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
-    </div>
+        <JoyTabsContent value="settings" className="space-y-6">
+          <JoyCard>
+            <JoyCardHeader title="System Configuration" />
+            <JoyCardContent>
+              <Typography level="body-sm" color="neutral">
+                Additional system settings and configurations will be added
+                here.
+              </Typography>
+            </JoyCardContent>
+          </JoyCard>
+        </JoyTabsContent>
+      </JoyTabs>
+    </Stack>
   );
 };

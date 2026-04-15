@@ -1,10 +1,11 @@
-import { SUPABASE_URL } from "@/integrations/supabase/config";
+import {
+  SUPABASE_PUBLISHABLE_KEY,
+  SUPABASE_URL,
+} from "@/integrations/supabase/config";
 import { FormField, FormFileUploadReference } from "@/types/formBuilder";
 
 const DEFAULT_SUPABASE_URL = SUPABASE_URL;
-const DEFAULT_SUPABASE_PUBLISHABLE_KEY =
-  import.meta.env.VITE_SUPABASE_ANON_KEY ||
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVkbGRta3F3bnhoZGV6dHlxY2F1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDkwNTg0MzQsImV4cCI6MjA2NDYzNDQzNH0.1iO2-DRx5aX_WpEcDGv9aKHGy1rdDPOZaQC6Ke4MpRM";
+const DEFAULT_SUPABASE_PUBLISHABLE_KEY = SUPABASE_PUBLISHABLE_KEY;
 
 export const FORM_UPLOAD_BUCKET = "form-uploads";
 export const FORM_UPLOAD_MAX_FILE_SIZE_MB = 25;

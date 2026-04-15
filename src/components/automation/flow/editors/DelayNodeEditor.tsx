@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { NativeSelect } from '@/components/ui/native-select';
+import { Input } from '@/components/ui-legacy/input';
+import { Label } from '@/components/ui-legacy/label';
+import { Button } from '@/components/ui-legacy/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-legacy/card';
+import { NativeSelect } from '@/components/ui-legacy/native-select';
 
 interface DelayNodeData {
   delayValue: number;

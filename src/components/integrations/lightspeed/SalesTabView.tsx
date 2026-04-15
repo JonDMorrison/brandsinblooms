@@ -1,13 +1,13 @@
 import { Receipt } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui-legacy/button";
 import {
   SheetDescription,
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
-} from "@/components/ui/sheet";
+} from "@/components/ui-legacy/sheet";
 import type {
   LightspeedPagination,
   LightspeedSaleRow,

@@ -25,16 +25,16 @@ import {
   TrendingDown,
   TrendingUp,
 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui-legacy/badge";
+import { Button } from "@/components/ui-legacy/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
+} from "@/components/ui-legacy/card";
+import { Skeleton } from "@/components/ui-legacy/skeleton";
 import { useFormAnalytics } from "@/hooks/useForms";
 import { cn } from "@/lib/utils";
 import { FormAnalyticsTrend } from "@/types/formBuilder";

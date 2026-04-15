@@ -5,17 +5,17 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+} from "@/components/ui-legacy/card";
+import { Button } from "@/components/ui-legacy/button";
+import { Badge } from "@/components/ui-legacy/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui-legacy/tabs";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
+} from "@/components/ui-legacy/dialog";
 import {
   Store,
   Users,

@@ -16,10 +16,10 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuSubContent,
   DropdownMenuSeparator,
-} from '@/components/ui/dropdown-menu';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
+} from '@/components/ui-legacy/dropdown-menu';
+import { Button } from '@/components/ui-legacy/button';
+import { Badge } from '@/components/ui-legacy/badge';
+import { Input } from '@/components/ui-legacy/input';
 import {
   User,
   ShoppingCart,

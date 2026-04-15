@@ -1,7 +1,7 @@
 import React from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui-legacy/card';
+import { Badge } from '@/components/ui-legacy/badge';
+import { Alert, AlertDescription } from '@/components/ui-legacy/alert';
 import { ComprehensiveSMSTestingPanel } from '@/components/sms/ComprehensiveSMSTestingPanel';
 import { 
   MessageSquare, 

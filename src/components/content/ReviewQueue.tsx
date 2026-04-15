@@ -1,5 +1,5 @@
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui-legacy/button";
+import { Badge } from "@/components/ui-legacy/badge";
 import { CheckCircle2, Sparkles, Leaf, AlertTriangle } from "lucide-react";
 import { ReviewQueueItem } from "./ReviewQueueItem";
 import { ReviewQueueLoading } from "./ReviewQueueLoading";

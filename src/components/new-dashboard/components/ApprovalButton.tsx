@@ -1,7 +1,7 @@
 
 import React from 'react';
-import { Button } from '@/components/ui/button';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Button } from '@/components/ui-legacy/button';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui-legacy/tooltip';
 import { CheckCircle, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 

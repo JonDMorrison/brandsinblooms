@@ -1,5 +1,5 @@
 import React from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui-legacy/dialog';
 import * as VisuallyHidden from '@radix-ui/react-visually-hidden';
 import { EmailNodeEditor } from './editors/EmailNodeEditor';
 import { SMSNodeEditor } from './editors/SMSNodeEditor';

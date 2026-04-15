@@ -1,10 +1,10 @@
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-legacy/card';
+import { Label } from '@/components/ui-legacy/label';
+import { Switch } from '@/components/ui-legacy/switch';
+import { Checkbox } from '@/components/ui-legacy/checkbox';
+import { Input } from '@/components/ui-legacy/input';
+import { Badge } from '@/components/ui-legacy/badge';
 import { Search, Eye, EyeOff } from 'lucide-react';
 
 interface CalendarPlanningFiltersProps {

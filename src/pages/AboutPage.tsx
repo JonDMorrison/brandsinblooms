@@ -1,8 +1,8 @@
 import React from 'react';
 import { LandingPageHeader } from '@/components/landing/LandingPageHeader';
 import { useNavigate } from 'react-router-dom';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui-legacy/card';
+import { Button } from '@/components/ui-legacy/button';
 import { Leaf, Users, Target, TrendingUp, Heart, Award, Sprout } from 'lucide-react';
 import brandInBloomsImage from '@/assets/brands-in-blooms-jon-and-jeff.jpg';
 

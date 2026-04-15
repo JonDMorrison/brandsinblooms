@@ -31,13 +31,13 @@ import {
   BreadcrumbList,
   BreadcrumbPage,
   BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+} from "@/components/ui-legacy/breadcrumb";
+import { Button } from "@/components/ui-legacy/button";
+import { Input } from "@/components/ui-legacy/input";
 import {
   ActionDropdown,
   type ActionDropdownSection,
-} from "@/components/ui/action-dropdown";
+} from "@/components/ui-legacy/action-dropdown";
 import { providerLogoAssets } from "@/components/integrations/providerLogoAssets";
 import { cn } from "@/lib/utils";
 import { useIntegrationsHubData } from "@/hooks/useIntegrationsHubData";

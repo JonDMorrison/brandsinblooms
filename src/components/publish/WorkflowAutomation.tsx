@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { Zap, Clock, Repeat, CheckCircle, Settings, Plus, Edit, Trash2 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
-import { NativeSelect } from '@/components/ui/NativeSelect';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Checkbox } from '@/components/ui/checkbox';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-legacy/card';
+import { Button } from '@/components/ui-legacy/button';
+import { Badge } from '@/components/ui-legacy/badge';
+import { Switch } from '@/components/ui-legacy/switch';
+import { Label } from '@/components/ui-legacy/label';
+import { NativeSelect } from '@/components/ui-legacy/NativeSelect';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui-legacy/dialog';
+import { Input } from '@/components/ui-legacy/input';
+import { Textarea } from '@/components/ui-legacy/textarea';
+import { Checkbox } from '@/components/ui-legacy/checkbox';
 // Removed sonner import - using global toast replacement
 
 interface AutomationRule {

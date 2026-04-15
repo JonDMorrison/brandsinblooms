@@ -1,7 +1,7 @@
 import React from "react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui-legacy/badge";
+import { Button } from "@/components/ui-legacy/button";
+import { Alert, AlertDescription } from "@/components/ui-legacy/alert";
 import { Shield, AlertTriangle, Settings, Mail } from "lucide-react";
 import { Link } from "react-router-dom";
 import {
@@ -9,7 +9,7 @@ import {
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@/components/ui/tooltip";
+} from "@/components/ui-legacy/tooltip";
 import type { SenderConfig } from "@/hooks/useSenderConfiguration";
 
 interface SenderStatusIndicatorProps {

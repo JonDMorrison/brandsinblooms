@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
-import { NativeSelect } from '@/components/ui/NativeSelect';
-import { Separator } from '@/components/ui/separator';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-legacy/card';
+import { Button } from '@/components/ui-legacy/button';
+import { Badge } from '@/components/ui-legacy/badge';
+import { Label } from '@/components/ui-legacy/label';
+import { Switch } from '@/components/ui-legacy/switch';
+import { NativeSelect } from '@/components/ui-legacy/NativeSelect';
+import { Separator } from '@/components/ui-legacy/separator';
+import { Alert, AlertDescription } from '@/components/ui-legacy/alert';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/utils/toast';
 import { 

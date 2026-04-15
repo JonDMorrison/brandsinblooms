@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-legacy/card';
+import { Button } from '@/components/ui-legacy/button';
+import { Input } from '@/components/ui-legacy/input';
+import { Label } from '@/components/ui-legacy/label';
+import { Badge } from '@/components/ui-legacy/badge';
+import { Alert, AlertDescription } from '@/components/ui-legacy/alert';
 import { 
   CheckCircle, 
   XCircle, 
@@ -26,7 +26,7 @@ import {
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from '@/components/ui/tooltip';
+} from '@/components/ui-legacy/tooltip';
 import { EmailSendingHelpPanel } from '@/components/crm/email/EmailSendingHelpPanel';
 import { DomainConnectWizard } from '@/components/domains/DomainConnectWizard';
 

@@ -1,23 +1,36 @@
-import { useDeliverabilityStatus, DeliverabilityStatus, DeliverabilityWarning } from '@/hooks/useDeliverabilityStatus';
-import { useDomainStats } from '@/hooks/useDomainStats';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { 
-  CheckCircle, 
-  AlertTriangle, 
-  XCircle, 
+import {
+  useDeliverabilityStatus,
+  DeliverabilityStatus,
+  DeliverabilityWarning,
+} from "@/hooks/useDeliverabilityStatus";
+import { useDomainStats } from "@/hooks/useDomainStats";
+import Grid from "@mui/joy/Grid";
+import Sheet from "@mui/joy/Sheet";
+import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
+import { JoyStatusChip } from "@/components/joy/JoyChip";
+import {
+  JoyCard,
+  JoyCardContent,
+  JoyCardHeader,
+} from "@/components/joy/JoyCard";
+import { Skeleton } from "@/components/ui-legacy/skeleton";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui-legacy/alert";
+import { JoySelect } from "@/components/joy/JoySelect";
+import {
+  CheckCircle,
+  AlertTriangle,
+  XCircle,
   TrendingDown,
   TrendingUp,
   Minus,
   Mail,
   MousePointerClick,
   AlertCircle,
-  Activity
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { useState } from 'react';
+  Activity,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { useState } from "react";
 import {
   LineChart,
   Line,
@@ -27,86 +40,129 @@ import {
   Tooltip,
   ResponsiveContainer,
   Legend,
-} from 'recharts';
+} from "recharts";
 
 interface DeliverabilityMonitorProps {
   tenantId?: string;
 }
 
-const StatusLight = ({ status }: { status: 'healthy' | 'warning' | 'critical' }) => {
+const StatusLight = ({
+  status,
+}: {
+  status: "healthy" | "warning" | "critical";
+}) => {
   const config = {
-    healthy: { color: 'bg-green-500', shadow: 'shadow-green-500/50', label: 'Healthy' },
-    warning: { color: 'bg-amber-500', shadow: 'shadow-amber-500/50', label: 'Warning' },
-    critical: { color: 'bg-red-500', shadow: 'shadow-red-500/50', label: 'Critical' },
+    healthy: {
+      color: "bg-green-500",
+      shadow: "shadow-green-500/50",
+      label: "Healthy",
+    },
+    warning: {
+      color: "bg-amber-500",
+      shadow: "shadow-amber-500/50",
+      label: "Warning",
+    },
+    critical: {
+      color: "bg-red-500",
+      shadow: "shadow-red-500/50",
+      label: "Critical",
+    },
   }[status];
 
   return (
-    <div className="flex items-center gap-3">
-      <div className={cn(
-        'w-4 h-4 rounded-full animate-pulse shadow-lg',
-        config.color,
-        config.shadow
-      )} />
-      <span className="font-semibold text-lg">{config.label}</span>
-    </div>
+    <Stack direction="row" spacing={1.5} alignItems="center">
+      <div
+        className={cn(
+          "w-4 h-4 rounded-full animate-pulse shadow-lg",
+          config.color,
+          config.shadow,
+        )}
+      />
+      <Typography level="title-md" fontWeight="lg">
+        {config.label}
+      </Typography>
+    </Stack>
   );
 };
 
-const MetricCard = ({ 
-  label, 
-  value, 
-  icon: Icon, 
+const MetricCard = ({
+  label,
+  value,
+  icon: Icon,
   trend,
-  suffix = '',
-  status = 'neutral'
-}: { 
-  label: string; 
-  value: number | string; 
+  suffix = "",
+  status = "neutral",
+}: {
+  label: string;
+  value: number | string;
   icon: React.ElementType;
-  trend?: 'up' | 'down' | 'neutral';
+  trend?: "up" | "down" | "neutral";
   suffix?: string;
-  status?: 'good' | 'warning' | 'danger' | 'neutral';
+  status?: "good" | "warning" | "danger" | "neutral";
 }) => {
-  const TrendIcon = trend === 'up' ? TrendingUp : trend === 'down' ? TrendingDown : Minus;
+  const TrendIcon =
+    trend === "up" ? TrendingUp : trend === "down" ? TrendingDown : Minus;
   const statusColors = {
-    good: 'text-green-600',
-    warning: 'text-amber-600',
-    danger: 'text-red-600',
-    neutral: 'text-foreground',
+    good: "text-green-600",
+    warning: "text-amber-600",
+    danger: "text-red-600",
+    neutral: "text-foreground",
   };
 
   return (
-    <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-      <div className="p-2 rounded-md bg-background">
-        <Icon className="h-4 w-4 text-muted-foreground" />
-      </div>
-      <div className="flex-1">
-        <p className="text-xs text-muted-foreground">{label}</p>
-        <div className="flex items-center gap-2">
-          <span className={cn('text-lg font-semibold', statusColors[status])}>
-            {value}{suffix}
-          </span>
-          {trend && trend !== 'neutral' && (
-            <TrendIcon className={cn(
-              'h-4 w-4',
-              trend === 'up' ? 'text-green-500' : 'text-red-500'
-            )} />
-          )}
-        </div>
-      </div>
-    </div>
+    <Sheet
+      variant="soft"
+      color="neutral"
+      sx={{ p: 1.5, borderRadius: "var(--joy-radius-md)" }}
+    >
+      <Stack direction="row" spacing={1.5} alignItems="center">
+        <Sheet
+          variant="plain"
+          sx={{
+            p: 1,
+            borderRadius: "var(--joy-radius-sm)",
+            backgroundColor: "background.surface",
+          }}
+        >
+          <Icon className="h-4 w-4 text-muted-foreground" />
+        </Sheet>
+        <Stack spacing={0.5} sx={{ flex: 1, minWidth: 0 }}>
+          <p className="text-xs text-muted-foreground">{label}</p>
+          <Stack direction="row" spacing={1} alignItems="center">
+            <span className={cn("text-lg font-semibold", statusColors[status])}>
+              {value}
+              {suffix}
+            </span>
+            {trend && trend !== "neutral" && (
+              <TrendIcon
+                className={cn(
+                  "h-4 w-4",
+                  trend === "up" ? "text-green-500" : "text-red-500",
+                )}
+              />
+            )}
+          </Stack>
+        </Stack>
+      </Stack>
+    </Sheet>
   );
 };
 
 const WarningCard = ({ warning }: { warning: DeliverabilityWarning }) => {
-  const Icon = warning.severity === 'critical' ? XCircle : AlertTriangle;
-  
+  const Icon = warning.severity === "critical" ? XCircle : AlertTriangle;
+
   return (
-    <Alert variant={warning.severity === 'critical' ? 'destructive' : 'default'} className={cn(
-      warning.severity === 'warning' && 'border-amber-500 bg-amber-50 text-amber-900'
-    )}>
+    <Alert
+      variant={warning.severity === "critical" ? "destructive" : "default"}
+      className={cn(
+        warning.severity === "warning" &&
+          "border-amber-500 bg-amber-50 text-amber-900",
+      )}
+    >
       <Icon className="h-4 w-4" />
-      <AlertTitle className="capitalize">{warning.type.replace('_', ' ')}</AlertTitle>
+      <AlertTitle className="capitalize">
+        {warning.type.replace("_", " ")}
+      </AlertTitle>
       <AlertDescription>{warning.message}</AlertDescription>
     </Alert>
   );
@@ -123,9 +179,11 @@ const TrendChart = ({ data }: { data: DeliverabilityStatus }) => {
 
   if (chartData.length < 2) {
     return (
-      <div className="flex items-center justify-center h-48 text-muted-foreground">
-        <p>Not enough campaign data for trend analysis</p>
-      </div>
+      <Stack alignItems="center" justifyContent="center" minHeight={192}>
+        <Typography level="body-sm" color="neutral">
+          Not enough campaign data for trend analysis
+        </Typography>
+      </Stack>
     );
   }
 
@@ -135,17 +193,24 @@ const TrendChart = ({ data }: { data: DeliverabilityStatus }) => {
         <LineChart data={chartData}>
           <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
           <XAxis dataKey="campaign" className="text-xs" />
-          <YAxis domain={[0, 'auto']} tickFormatter={(v) => `${v}%`} className="text-xs" />
-          <Tooltip 
-            formatter={(value: number) => [`${value.toFixed(1)}%`, 'Open Rate']}
-            contentStyle={{ background: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }}
+          <YAxis
+            domain={[0, "auto"]}
+            tickFormatter={(v) => `${v}%`}
+            className="text-xs"
           />
-          <Line 
-            type="monotone" 
-            dataKey="openRate" 
-            stroke="hsl(var(--primary))" 
+          <Tooltip
+            formatter={(value: number) => [`${value.toFixed(1)}%`, "Open Rate"]}
+            contentStyle={{
+              background: "hsl(var(--background))",
+              border: "1px solid hsl(var(--border))",
+            }}
+          />
+          <Line
+            type="monotone"
+            dataKey="openRate"
+            stroke="hsl(var(--primary))"
             strokeWidth={2}
-            dot={{ fill: 'hsl(var(--primary))' }}
+            dot={{ fill: "hsl(var(--primary))" }}
           />
         </LineChart>
       </ResponsiveContainer>
@@ -155,212 +220,246 @@ const TrendChart = ({ data }: { data: DeliverabilityStatus }) => {
 
 const DeliverabilityDetails = ({ data }: { data: DeliverabilityStatus }) => {
   const getBounceStatus = (rate: number) => {
-    if (rate <= 2) return 'good';
-    if (rate <= 5) return 'warning';
-    return 'danger';
+    if (rate <= 2) return "good";
+    if (rate <= 5) return "warning";
+    return "danger";
   };
 
   const getComplaintStatus = (rate: number) => {
-    if (rate <= 0.1) return 'good';
-    if (rate <= 0.2) return 'warning';
-    return 'danger';
+    if (rate <= 0.1) return "good";
+    if (rate <= 0.2) return "warning";
+    return "danger";
   };
 
   return (
-    <div className="space-y-6">
-      {/* Traffic Light Status */}
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <Activity className="h-5 w-5" />
-                {data.domain_name}
-              </CardTitle>
-              <CardDescription>
-                {data.recommendation}
-              </CardDescription>
-            </div>
-            <StatusLight status={data.status} />
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <MetricCard 
-              label="Open Rate" 
-              value={data.rates.open_rate} 
-              suffix="%" 
-              icon={Mail}
-              trend={data.trend.declining ? 'down' : 'neutral'}
-              status={data.rates.open_rate >= 20 ? 'good' : data.rates.open_rate >= 10 ? 'warning' : 'danger'}
-            />
-            <MetricCard 
-              label="Click Rate" 
-              value={data.rates.click_rate} 
-              suffix="%" 
-              icon={MousePointerClick}
-              status={data.rates.click_rate >= 2 ? 'good' : 'neutral'}
-            />
-            <MetricCard 
-              label="Bounce Rate" 
-              value={data.rates.bounce_rate} 
-              suffix="%" 
-              icon={AlertCircle}
-              status={getBounceStatus(data.rates.bounce_rate)}
-            />
-            <MetricCard 
-              label="Complaint Rate" 
-              value={data.rates.complaint_rate} 
-              suffix="%" 
-              icon={XCircle}
-              status={getComplaintStatus(data.rates.complaint_rate)}
-            />
-          </div>
-        </CardContent>
-      </Card>
+    <Stack spacing={3}>
+      <JoyCard>
+        <JoyCardHeader
+          title={data.domain_name}
+          description={data.recommendation}
+          startDecorator={<Activity className="h-5 w-5" />}
+          actions={<StatusLight status={data.status} />}
+        />
+        <JoyCardContent>
+          <Grid container spacing={1.5}>
+            <Grid xs={12} sm={6} lg={3}>
+              <MetricCard
+                label="Open Rate"
+                value={data.rates.open_rate}
+                suffix="%"
+                icon={Mail}
+                trend={data.trend.declining ? "down" : "neutral"}
+                status={
+                  data.rates.open_rate >= 20
+                    ? "good"
+                    : data.rates.open_rate >= 10
+                      ? "warning"
+                      : "danger"
+                }
+              />
+            </Grid>
+            <Grid xs={12} sm={6} lg={3}>
+              <MetricCard
+                label="Click Rate"
+                value={data.rates.click_rate}
+                suffix="%"
+                icon={MousePointerClick}
+                status={data.rates.click_rate >= 2 ? "good" : "neutral"}
+              />
+            </Grid>
+            <Grid xs={12} sm={6} lg={3}>
+              <MetricCard
+                label="Bounce Rate"
+                value={data.rates.bounce_rate}
+                suffix="%"
+                icon={AlertCircle}
+                status={getBounceStatus(data.rates.bounce_rate)}
+              />
+            </Grid>
+            <Grid xs={12} sm={6} lg={3}>
+              <MetricCard
+                label="Complaint Rate"
+                value={data.rates.complaint_rate}
+                suffix="%"
+                icon={XCircle}
+                status={getComplaintStatus(data.rates.complaint_rate)}
+              />
+            </Grid>
+          </Grid>
+        </JoyCardContent>
+      </JoyCard>
 
-      {/* Warnings */}
-      {data.warnings.length > 0 && (
-        <div className="space-y-2">
-          <h4 className="font-medium text-sm text-muted-foreground">Active Warnings</h4>
+      {data.warnings.length > 0 ? (
+        <Stack spacing={1}>
+          <Typography level="body-sm" fontWeight="md" color="neutral">
+            Active Warnings
+          </Typography>
           {data.warnings.map((warning, index) => (
             <WarningCard key={index} warning={warning} />
           ))}
-        </div>
-      )}
+        </Stack>
+      ) : null}
 
-      {/* Trend Chart */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base flex items-center gap-2">
-            Open Rate Trend
-            {data.trend.declining && (
-              <Badge variant="destructive" className="text-xs">Declining</Badge>
-            )}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
+      <JoyCard>
+        <JoyCardHeader
+          title={
+            <Stack direction="row" spacing={1} alignItems="center">
+              <span>Open Rate Trend</span>
+              {data.trend.declining ? (
+                <JoyStatusChip label="Declining" status="declining" />
+              ) : null}
+            </Stack>
+          }
+        />
+        <JoyCardContent>
           <TrendChart data={data} />
-        </CardContent>
-      </Card>
+        </JoyCardContent>
+      </JoyCard>
 
-      {/* Volume Stats */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">30-Day Volume</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-3 md:grid-cols-6 gap-3 text-center">
-            <div>
-              <p className="text-2xl font-bold">{data.metrics.sent_30d.toLocaleString()}</p>
-              <p className="text-xs text-muted-foreground">Sent</p>
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-green-600">{data.metrics.delivered_30d.toLocaleString()}</p>
-              <p className="text-xs text-muted-foreground">Delivered</p>
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-blue-600">{data.metrics.opened_30d.toLocaleString()}</p>
-              <p className="text-xs text-muted-foreground">Opened</p>
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-purple-600">{data.metrics.clicked_30d.toLocaleString()}</p>
-              <p className="text-xs text-muted-foreground">Clicked</p>
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-amber-600">{data.metrics.bounced_30d.toLocaleString()}</p>
-              <p className="text-xs text-muted-foreground">Bounced</p>
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-red-600">{data.metrics.complained_30d.toLocaleString()}</p>
-              <p className="text-xs text-muted-foreground">Complained</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+      <JoyCard>
+        <JoyCardHeader title="30-Day Volume" />
+        <JoyCardContent>
+          <Grid container spacing={1.5} sx={{ textAlign: "center" }}>
+            <Grid xs={6} md={4} lg={2}>
+              <Typography level="h2">
+                {data.metrics.sent_30d.toLocaleString()}
+              </Typography>
+              <Typography level="body-xs" color="neutral">
+                Sent
+              </Typography>
+            </Grid>
+            <Grid xs={6} md={4} lg={2}>
+              <Typography level="h2" sx={{ color: "success.600" }}>
+                {data.metrics.delivered_30d.toLocaleString()}
+              </Typography>
+              <Typography level="body-xs" color="neutral">
+                Delivered
+              </Typography>
+            </Grid>
+            <Grid xs={6} md={4} lg={2}>
+              <Typography level="h2" sx={{ color: "primary.600" }}>
+                {data.metrics.opened_30d.toLocaleString()}
+              </Typography>
+              <Typography level="body-xs" color="neutral">
+                Opened
+              </Typography>
+            </Grid>
+            <Grid xs={6} md={4} lg={2}>
+              <Typography level="h2" sx={{ color: "neutral.700" }}>
+                {data.metrics.clicked_30d.toLocaleString()}
+              </Typography>
+              <Typography level="body-xs" color="neutral">
+                Clicked
+              </Typography>
+            </Grid>
+            <Grid xs={6} md={4} lg={2}>
+              <Typography level="h2" sx={{ color: "warning.600" }}>
+                {data.metrics.bounced_30d.toLocaleString()}
+              </Typography>
+              <Typography level="body-xs" color="neutral">
+                Bounced
+              </Typography>
+            </Grid>
+            <Grid xs={6} md={4} lg={2}>
+              <Typography level="h2" sx={{ color: "danger.600" }}>
+                {data.metrics.complained_30d.toLocaleString()}
+              </Typography>
+              <Typography level="body-xs" color="neutral">
+                Complained
+              </Typography>
+            </Grid>
+          </Grid>
+        </JoyCardContent>
+      </JoyCard>
+    </Stack>
   );
 };
 
-export const DeliverabilityMonitor = ({ tenantId }: DeliverabilityMonitorProps) => {
-  const [selectedDomainId, setSelectedDomainId] = useState<string | undefined>();
+export const DeliverabilityMonitor = ({
+  tenantId,
+}: DeliverabilityMonitorProps) => {
+  const [selectedDomainId, setSelectedDomainId] = useState<
+    string | undefined
+  >();
   const { data: domains, isLoading: loadingDomains } = useDomainStats(tenantId);
-  const { data: deliverabilityData, isLoading: loadingStatus, error } = useDeliverabilityStatus(selectedDomainId);
+  const {
+    data: deliverabilityData,
+    isLoading: loadingStatus,
+    error,
+  } = useDeliverabilityStatus(selectedDomainId);
 
   if (loadingDomains) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Deliverability Monitor</CardTitle>
-        </CardHeader>
-        <CardContent>
+      <JoyCard>
+        <JoyCardHeader title="Deliverability Monitor" />
+        <JoyCardContent>
           <Skeleton className="h-32 w-full" />
-        </CardContent>
-      </Card>
+        </JoyCardContent>
+      </JoyCard>
     );
   }
 
   if (!domains || domains.length === 0) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Deliverability Monitor</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-2 text-muted-foreground">
+      <JoyCard>
+        <JoyCardHeader title="Deliverability Monitor" />
+        <JoyCardContent>
+          <Stack direction="row" spacing={1} alignItems="center">
             <AlertCircle className="h-5 w-5" />
             <span>No sending domains configured</span>
-          </div>
-        </CardContent>
-      </Card>
+          </Stack>
+        </JoyCardContent>
+      </JoyCard>
     );
   }
 
   return (
-    <div className="space-y-4">
-      <Card>
-        <CardHeader>
-          <CardTitle>Deliverability Monitor</CardTitle>
-          <CardDescription>
-            Monitor domain reputation, track delivery metrics, and get actionable warnings
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <select
-            value={selectedDomainId || ''}
-            onChange={(e) => setSelectedDomainId(e.target.value || undefined)}
-            className="w-full md:w-64 h-10 px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-          >
-            <option value="">Select a domain to analyze</option>
-            {domains.map((domain) => (
-              <option key={domain.domain_id} value={domain.domain_id}>
-                {domain.domain_name}
-              </option>
-            ))}
-          </select>
-        </CardContent>
-      </Card>
+    <Stack spacing={2}>
+      <JoyCard>
+        <JoyCardHeader
+          title="Deliverability Monitor"
+          description="Monitor domain reputation, track delivery metrics, and get actionable warnings"
+        />
+        <JoyCardContent>
+          <JoySelect
+            value={selectedDomainId ?? null}
+            onChange={(_, newValue) =>
+              setSelectedDomainId(newValue ?? undefined)
+            }
+            placeholder="Select a domain to analyze"
+            options={domains.map((domain) => ({
+              value: domain.domain_id,
+              label: domain.domain_name,
+            }))}
+            sx={{ width: { xs: "100%", md: 256 } }}
+          />
+        </JoyCardContent>
+      </JoyCard>
 
       {loadingStatus && selectedDomainId && (
-        <Card>
-          <CardContent className="p-8">
+        <JoyCard>
+          <JoyCardContent sx={{ pt: 3 }}>
             <div className="space-y-3">
               <Skeleton className="h-24 w-full" />
               <Skeleton className="h-48 w-full" />
             </div>
-          </CardContent>
-        </Card>
+          </JoyCardContent>
+        </JoyCard>
       )}
 
       {error && (
         <Alert variant="destructive">
           <XCircle className="h-4 w-4" />
           <AlertTitle>Error</AlertTitle>
-          <AlertDescription>Failed to load deliverability status</AlertDescription>
+          <AlertDescription>
+            Failed to load deliverability status
+          </AlertDescription>
         </Alert>
       )}
 
-      {deliverabilityData && <DeliverabilityDetails data={deliverabilityData} />}
-    </div>
+      {deliverabilityData && (
+        <DeliverabilityDetails data={deliverabilityData} />
+      )}
+    </Stack>
   );
 };

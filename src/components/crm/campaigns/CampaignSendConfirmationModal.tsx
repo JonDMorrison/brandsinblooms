@@ -7,10 +7,10 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
+} from "@/components/ui-legacy/dialog";
+import { Button } from "@/components/ui-legacy/button";
+import { Badge } from "@/components/ui-legacy/badge";
+import { Skeleton } from "@/components/ui-legacy/skeleton";
 import {
   AlertTriangle,
   CheckCircle2,

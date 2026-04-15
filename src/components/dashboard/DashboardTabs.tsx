@@ -1,5 +1,5 @@
 
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui-legacy/tabs";
 import { UserMenu } from "@/components/UserMenu";
 import { LandingPage } from "@/components/LandingPage";
 

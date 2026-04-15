@@ -1,16 +1,16 @@
 import React, { useState } from "react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui-legacy/button";
 import { Copy, Edit, ExternalLink, Trash2, Save, X } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@/components/ui/tooltip";
+} from "@/components/ui-legacy/tooltip";
 // Removed sonner import - using global toast replacement
 import { supabase } from "@/integrations/supabase/client";
 import { handleCopy } from "@/components/content/ContentViewerUtils";
-import { ApproveButton } from "@/components/ui/approve-button";
+import { ApproveButton } from "@/components/ui-legacy/approve-button";
 import { PostToSocialButton } from "@/components/social/PostToSocialButton";
 
 interface TaskItemActionsProps {

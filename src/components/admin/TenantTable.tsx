@@ -1,30 +1,36 @@
+import Box from "@mui/joy/Box";
+import Link from "@mui/joy/Link";
+import Skeleton from "@mui/joy/Skeleton";
+import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
+import { JoyCard, JoyCardContent } from "@/components/joy/JoyCard";
+import { JoyStatusChip } from "@/components/joy/JoyChip";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+  JoyTable,
+  JoyTableBody,
+  JoyTableCell,
+  JoyTableHead,
+  JoyTableHeaderCell,
+  JoyTableRow,
+} from "@/components/joy/JoyTable";
 import {
-  Eye,
-  Clock,
-  MoreHorizontal,
-  Mail,
+  JoyDropdownMenu,
+  JoyDropdownMenuContent,
+  JoyDropdownMenuItem,
+  JoyDropdownMenuTrigger,
+} from "@/components/joy/JoyDropdownMenu";
+import {
+  Building2,
   CreditCard,
-  MessageSquare,
+  Eye,
+  Edit3,
   LogIn,
+  Mail,
+  MessageSquare,
+  MoreHorizontal,
+  PauseCircle,
 } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { formatDistanceToNow, format } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
 
 export interface AdminTenant {
   tenant_id: string;
@@ -56,6 +62,7 @@ export interface AdminTenant {
 interface TenantTableProps {
   tenants: AdminTenant[];
   loading?: boolean;
+  pageSize?: number;
   onViewTenant: (tenant: AdminTenant) => void;
   onExtendTrial: (tenantId: string, days: number) => void;
   onToggleActive: (tenantId: string, active: boolean) => void;
@@ -65,9 +72,71 @@ interface TenantTableProps {
   onImpersonate: (tenant: AdminTenant) => void;
 }
 
+const getStatusChip = (tenant: AdminTenant) => {
+  if (!tenant.is_active) {
+    return { tone: "danger" as const, label: "Inactive" };
+  }
+
+  if (tenant.is_trialing) {
+    return { tone: "warning" as const, label: "Trialing" };
+  }
+
+  if (tenant.is_paid_active) {
+    return { tone: "success" as const, label: "Active" };
+  }
+
+  return { tone: "danger" as const, label: "Expired" };
+};
+
+const getHealthChip = (score: number | null) => {
+  if (score == null) {
+    return null;
+  }
+
+  if (score >= 80) {
+    return { tone: "success" as const, label: `${score} Health` };
+  }
+
+  if (score >= 50) {
+    return { tone: "warning" as const, label: `${score} Health` };
+  }
+
+  return { tone: "danger" as const, label: `${score} Health` };
+};
+
+const hasNoActivity = (dateStr: string | null): boolean => {
+  if (!dateStr) return true;
+  return new Date(dateStr).getFullYear() < 2000;
+};
+
+const getActivityColor = (lastActivity: string | null) => {
+  if (hasNoActivity(lastActivity)) {
+    return "neutral.400";
+  }
+
+  const hoursAgo =
+    (Date.now() - new Date(lastActivity).getTime()) / (1000 * 60 * 60);
+
+  if (hoursAgo < 24) {
+    return "success.500";
+  }
+
+  if (hoursAgo < 168) {
+    return "warning.500";
+  }
+
+  return "neutral.400";
+};
+
+const formatLocation = (city: string, region: string, country: string) => {
+  const parts = [city, region, country].filter(Boolean);
+  return parts.length > 0 ? parts.join(", ") : "—";
+};
+
 export const TenantTable = ({
   tenants,
   loading,
+  pageSize = 10,
   onViewTenant,
   onExtendTrial,
   onToggleActive,
@@ -76,290 +145,285 @@ export const TenantTable = ({
   onOutreach,
   onImpersonate,
 }: TenantTableProps) => {
-  const getStatusBadge = (tenant: AdminTenant) => {
-    if (!tenant.is_active) {
-      return <Badge variant="secondary">Inactive</Badge>;
-    }
-    if (tenant.is_trialing) {
-      return (
-        <Badge variant="outline" className="border-yellow-500 text-yellow-700">
-          Trialing
-        </Badge>
-      );
-    }
-    if (tenant.is_paid_active) {
-      return (
-        <Badge variant="default" className="bg-green-500">
-          Active
-        </Badge>
-      );
-    }
-    return <Badge variant="destructive">Expired</Badge>;
-  };
-
-  // Treat null or epoch-era dates as "no activity"
-  const hasNoActivity = (dateStr: string | null): boolean => {
-    if (!dateStr) return true;
-    return new Date(dateStr).getFullYear() < 2000;
-  };
-
-  const getActivityDot = (lastActivity: string | null) => {
-    if (hasNoActivity(lastActivity))
-      return <div className="w-2 h-2 rounded-full bg-gray-400" />;
-
-    const hoursAgo =
-      (Date.now() - new Date(lastActivity!).getTime()) / (1000 * 60 * 60);
-
-    if (hoursAgo < 24) {
-      return <div className="w-2 h-2 rounded-full bg-green-400" />;
-    } else if (hoursAgo < 168) {
-      // 7 days
-      return <div className="w-2 h-2 rounded-full bg-yellow-400" />;
-    } else {
-      return <div className="w-2 h-2 rounded-full bg-gray-400" />;
-    }
-  };
-
-  const formatLocation = (city: string, region: string, country: string) => {
-    const parts = [city, region, country].filter(Boolean);
-    return parts.length > 0 ? parts.join(", ") : "—";
-  };
-
   if (loading) {
     return (
-      <Card>
-        <CardContent className="p-6">
-          <div className="space-y-3">
-            {[...Array(5)].map((_, i) => (
-              <div key={i} className="flex items-center space-x-4">
-                <div className="h-4 bg-muted animate-pulse rounded w-1/4" />
-                <div className="h-4 bg-muted animate-pulse rounded w-1/3" />
-                <div className="h-4 bg-muted animate-pulse rounded w-1/6" />
-                <div className="h-4 bg-muted animate-pulse rounded w-1/4" />
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+      <JoyCard>
+        <JoyCardContent sx={{ pt: 3 }}>
+          <JoyTable stickyHeader containerSx={{ minWidth: 960 }}>
+            <JoyTableHead>
+              <JoyTableRow>
+                <JoyTableHeaderCell>Tenant</JoyTableHeaderCell>
+                <JoyTableHeaderCell>Domain</JoyTableHeaderCell>
+                <JoyTableHeaderCell>Plan / Status</JoyTableHeaderCell>
+                <JoyTableHeaderCell>Health</JoyTableHeaderCell>
+                <JoyTableHeaderCell>Created</JoyTableHeaderCell>
+                <JoyTableHeaderCell align="right">Actions</JoyTableHeaderCell>
+              </JoyTableRow>
+            </JoyTableHead>
+            <JoyTableBody>
+              {Array.from({ length: pageSize }).map((_, index) => (
+                <JoyTableRow key={index}>
+                  {Array.from({ length: 6 }).map((__, cellIndex) => (
+                    <JoyTableCell key={cellIndex}>
+                      <Skeleton sx={{ height: 20, width: "100%" }} />
+                    </JoyTableCell>
+                  ))}
+                </JoyTableRow>
+              ))}
+            </JoyTableBody>
+          </JoyTable>
+        </JoyCardContent>
+      </JoyCard>
     );
   }
 
   if (tenants.length === 0) {
     return (
-      <Card>
-        <CardContent className="p-12 text-center">
-          <p className="text-muted-foreground">No tenants match your filters</p>
-        </CardContent>
-      </Card>
+      <JoyCard>
+        <JoyCardContent sx={{ pt: 3 }}>
+          <Stack spacing={0.75} alignItems="center" sx={{ py: 6 }}>
+            <Building2
+              size={22}
+              style={{ color: "var(--joy-palette-neutral-400)" }}
+            />
+            <Typography level="title-sm">
+              No tenants match your filters
+            </Typography>
+            <Typography level="body-sm" color="neutral" textAlign="center">
+              Adjust the current filters or clear the current search to broaden
+              the result set.
+            </Typography>
+          </Stack>
+        </JoyCardContent>
+      </JoyCard>
     );
   }
 
   return (
-    <Card>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Company</TableHead>
-            <TableHead>Contact</TableHead>
-            <TableHead>Location</TableHead>
-            <TableHead>Plan</TableHead>
-            <TableHead>Trial Ends</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Health</TableHead>
-            <TableHead>Setup</TableHead>
-            <TableHead>Last Activity</TableHead>
-            <TableHead>Created</TableHead>
-            <TableHead className="w-[100px]">Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {tenants.map((tenant) => (
-            <TableRow
-              key={tenant.tenant_id}
-              className="cursor-pointer hover:bg-muted/50"
-              onClick={() => onViewTenant(tenant)}
-            >
-              <TableCell>
-                <div className="font-medium">
-                  <button
-                    onClick={() => onViewTenant(tenant)}
-                    className="text-primary hover:underline text-left"
-                  >
-                    {tenant.company_name || "Unnamed Company"}
-                  </button>
-                  {tenant.website && (
-                    <div className="text-sm text-muted-foreground">
-                      {tenant.website}
-                    </div>
-                  )}
-                </div>
-              </TableCell>
+    <JoyCard>
+      <JoyTable stickyHeader containerSx={{ minWidth: 960 }}>
+        <JoyTableHead>
+          <JoyTableRow>
+            <JoyTableHeaderCell>Tenant</JoyTableHeaderCell>
+            <JoyTableHeaderCell>Domain</JoyTableHeaderCell>
+            <JoyTableHeaderCell>Plan / Status</JoyTableHeaderCell>
+            <JoyTableHeaderCell>Health</JoyTableHeaderCell>
+            <JoyTableHeaderCell>Created</JoyTableHeaderCell>
+            <JoyTableHeaderCell align="right" sx={{ width: 100 }}>
+              Actions
+            </JoyTableHeaderCell>
+          </JoyTableRow>
+        </JoyTableHead>
+        <JoyTableBody>
+          {tenants.map((tenant) => {
+            const statusChip = getStatusChip(tenant);
+            const healthChip = getHealthChip(tenant.health_score);
 
-              <TableCell>
-                <div>
-                  <div className="font-medium">
-                    {tenant.primary_contact_name || "—"}
-                  </div>
-                  <a
-                    href={`mailto:${tenant.primary_contact_email}`}
-                    className="text-sm text-muted-foreground hover:text-primary"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    {tenant.primary_contact_email}
-                  </a>
-                </div>
-              </TableCell>
-
-              <TableCell className="text-sm">
-                {formatLocation(tenant.city, tenant.region, tenant.country)}
-              </TableCell>
-
-              <TableCell>
-                <div>
-                  <div className="font-medium capitalize">{tenant.plan}</div>
-                  <div className="text-sm text-muted-foreground capitalize">
-                    {tenant.subscription_status}
-                  </div>
-                </div>
-              </TableCell>
-
-              <TableCell>
-                {tenant.trial_end ? (
-                  <div className="text-sm">
-                    {format(new Date(tenant.trial_end), "MMM d, yyyy")}
-                    <div className="text-muted-foreground">
-                      {tenant.trial_not_expired
-                        ? formatDistanceToNow(new Date(tenant.trial_end)) +
-                          " left"
-                        : "Expired"}
-                    </div>
-                  </div>
-                ) : (
-                  "—"
-                )}
-              </TableCell>
-
-              <TableCell>{getStatusBadge(tenant)}</TableCell>
-
-              <TableCell>
-                {tenant.health_score != null ? (
-                  <Badge
-                    variant="outline"
-                    className={
-                      tenant.health_score >= 80
-                        ? "border-green-500 text-green-700 bg-green-50"
-                        : tenant.health_score >= 50
-                          ? "border-yellow-500 text-yellow-700 bg-yellow-50"
-                          : "border-red-500 text-red-700 bg-red-50"
-                    }
-                  >
-                    {tenant.health_score}
-                  </Badge>
-                ) : (
-                  "—"
-                )}
-              </TableCell>
-
-              <TableCell>
-                {tenant.onboarding_steps_done != null &&
-                tenant.onboarding_steps_total ? (
-                  <span className="text-sm">
-                    {tenant.onboarding_steps_done >=
-                    tenant.onboarding_steps_total
-                      ? "Complete"
-                      : `${tenant.onboarding_steps_done}/${tenant.onboarding_steps_total}`}
-                  </span>
-                ) : (
-                  "—"
-                )}
-              </TableCell>
-
-              <TableCell>
-                <div className="flex items-center gap-2">
-                  {getActivityDot(tenant.last_activity_at)}
-                  <span className="text-sm">
-                    {!hasNoActivity(tenant.last_activity_at)
-                      ? formatDistanceToNow(
-                          new Date(tenant.last_activity_at!),
-                        ) + " ago"
-                      : "Never"}
-                  </span>
-                </div>
-              </TableCell>
-
-              <TableCell className="text-sm">
-                {format(new Date(tenant.tenant_created_at), "MMM d, yyyy")}
-              </TableCell>
-
-              <TableCell
-                onClick={(e) => e.stopPropagation()}
-                onPointerDown={(e) => e.stopPropagation()}
+            return (
+              <JoyTableRow
+                key={tenant.tenant_id}
+                clickable
+                onClick={() => onViewTenant(tenant)}
               >
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="sm"
+                <JoyTableCell>
+                  <Stack spacing={0.35}>
+                    <Link
+                      component="button"
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onViewTenant(tenant);
+                      }}
+                      sx={{
+                        color: "primary.700",
+                        fontWeight: "var(--joy-fontWeight-semibold)",
+                        textDecoration: "none",
+                        textAlign: "left",
+                        "&:hover": {
+                          textDecoration: "underline",
+                        },
+                      }}
+                    >
+                      {tenant.company_name || "Unnamed Company"}
+                    </Link>
+                    <Typography level="body-sm" color="neutral">
+                      {tenant.primary_contact_email || "No contact email"}
+                    </Typography>
+                  </Stack>
+                </JoyTableCell>
+
+                <JoyTableCell>
+                  <Stack spacing={0.35}>
+                    <Typography
+                      level="body-sm"
+                      sx={{ fontWeight: "var(--joy-fontWeight-md)" }}
+                    >
+                      {tenant.website || "No website"}
+                    </Typography>
+                    <Typography level="body-xs" color="neutral">
+                      {formatLocation(
+                        tenant.city,
+                        tenant.region,
+                        tenant.country,
+                      )}
+                    </Typography>
+                  </Stack>
+                </JoyTableCell>
+
+                <JoyTableCell>
+                  <Stack spacing={0.75}>
+                    <Typography
+                      level="body-sm"
+                      sx={{
+                        fontWeight: "var(--joy-fontWeight-md)",
+                        textTransform: "capitalize",
+                      }}
+                    >
+                      {tenant.plan || "Custom"}
+                    </Typography>
+                    <Stack
+                      direction="row"
+                      spacing={0.75}
+                      useFlexGap
+                      flexWrap="wrap"
+                    >
+                      <JoyStatusChip
+                        label={statusChip.label}
+                        status={statusChip.label}
+                        tone={statusChip.tone}
+                      />
+                      {tenant.trial_end && tenant.is_trialing ? (
+                        <Typography level="body-xs" color="neutral">
+                          {formatDistanceToNow(new Date(tenant.trial_end), {
+                            addSuffix: true,
+                          })}
+                        </Typography>
+                      ) : null}
+                    </Stack>
+                  </Stack>
+                </JoyTableCell>
+
+                <JoyTableCell>
+                  {healthChip ? (
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <Box
+                        component="span"
+                        sx={{
+                          width: 8,
+                          height: 8,
+                          borderRadius: 999,
+                          backgroundColor:
+                            healthChip.tone === "success"
+                              ? "success.500"
+                              : healthChip.tone === "warning"
+                                ? "warning.500"
+                                : "danger.500",
+                          flexShrink: 0,
+                        }}
+                      />
+                      <JoyStatusChip
+                        label={healthChip.label}
+                        status={healthChip.label}
+                        tone={healthChip.tone}
+                      />
+                    </Stack>
+                  ) : (
+                    "—"
+                  )}
+                </JoyTableCell>
+
+                <JoyTableCell sx={{ whiteSpace: "nowrap" }}>
+                  <Stack spacing={0.35}>
+                    <Typography level="body-sm">
+                      {format(
+                        new Date(tenant.tenant_created_at),
+                        "MMM d, yyyy",
+                      )}
+                    </Typography>
+                    <Typography level="body-xs" color="neutral">
+                      {!hasNoActivity(tenant.last_activity_at)
+                        ? `Last active ${formatDistanceToNow(new Date(tenant.last_activity_at!), { addSuffix: true })}`
+                        : "No recent activity"}
+                    </Typography>
+                  </Stack>
+                </JoyTableCell>
+
+                <JoyTableCell
+                  sx={{ textAlign: "right" }}
+                  onClick={(event) => event.stopPropagation()}
+                  onPointerDown={(event) => event.stopPropagation()}
+                >
+                  <JoyDropdownMenu>
+                    <JoyDropdownMenuTrigger
                       aria-label={`Actions for ${tenant.company_name || "tenant"}`}
                       data-testid={`tenant-actions-${tenant.tenant_id}`}
-                      onClick={(e) => e.stopPropagation()}
-                      onPointerDown={(e) => e.stopPropagation()}
+                      onClick={(event) => event.stopPropagation()}
+                      onPointerDown={(event) => event.stopPropagation()}
+                      iconButtonSx={{ width: 32, height: 32, ml: "auto" }}
                     >
                       <MoreHorizontal className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent
-                    align="end"
-                    className="w-48"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <DropdownMenuItem onSelect={() => onViewTenant(tenant)}>
-                      <Eye className="mr-2 h-4 w-4" />
-                      View Details
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      className="text-amber-600 focus:text-amber-700"
-                      onSelect={() => onImpersonate(tenant)}
+                    </JoyDropdownMenuTrigger>
+                    <JoyDropdownMenuContent
+                      placement="bottom-end"
+                      sx={{ minWidth: 192 }}
+                      onClick={(event) => event.stopPropagation()}
                     >
-                      <LogIn className="mr-2 h-4 w-4" />
-                      Login as User
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onSelect={() => onOutreach(tenant)}>
-                      <MessageSquare className="mr-2 h-4 w-4" />
-                      Outreach
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onSelect={() => onChangePlan(tenant)}>
-                      <CreditCard className="mr-2 h-4 w-4" />
-                      Change Plan
-                    </DropdownMenuItem>
-                    {tenant.is_trialing && (
-                      <DropdownMenuItem
-                        onSelect={() => onExtendTrial(tenant.tenant_id, 7)}
+                      <JoyDropdownMenuItem
+                        startDecorator={<Eye className="h-4 w-4" />}
+                        onClick={() => onViewTenant(tenant)}
                       >
-                        <Clock className="mr-2 h-4 w-4" />
-                        Extend Trial (+7 days)
-                      </DropdownMenuItem>
-                    )}
-                    <DropdownMenuItem
-                      onSelect={() => onEmailManagement(tenant.tenant_id)}
-                    >
-                      <Mail className="mr-2 h-4 w-4" />
-                      Email Management
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onSelect={() =>
-                        onToggleActive(tenant.tenant_id, !tenant.is_active)
-                      }
-                    >
-                      {tenant.is_active ? "Deactivate" : "Activate"}
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </Card>
+                        View
+                      </JoyDropdownMenuItem>
+                      <JoyDropdownMenuItem
+                        startDecorator={<Edit3 className="h-4 w-4" />}
+                        onClick={() => onChangePlan(tenant)}
+                      >
+                        Edit Plan
+                      </JoyDropdownMenuItem>
+                      <JoyDropdownMenuItem
+                        color="warning"
+                        startDecorator={<LogIn className="h-4 w-4" />}
+                        onClick={() => onImpersonate(tenant)}
+                      >
+                        Login as User
+                      </JoyDropdownMenuItem>
+                      <JoyDropdownMenuItem
+                        startDecorator={<MessageSquare className="h-4 w-4" />}
+                        onClick={() => onOutreach(tenant)}
+                      >
+                        Outreach
+                      </JoyDropdownMenuItem>
+                      <JoyDropdownMenuItem
+                        startDecorator={<Mail className="h-4 w-4" />}
+                        onClick={() => onEmailManagement(tenant.tenant_id)}
+                      >
+                        Email Management
+                      </JoyDropdownMenuItem>
+                      <JoyDropdownMenuItem
+                        color="warning"
+                        startDecorator={<PauseCircle className="h-4 w-4" />}
+                        onClick={() =>
+                          onToggleActive(tenant.tenant_id, !tenant.is_active)
+                        }
+                      >
+                        {tenant.is_active ? "Suspend" : "Reactivate"}
+                      </JoyDropdownMenuItem>
+                      {tenant.is_trialing ? (
+                        <JoyDropdownMenuItem
+                          startDecorator={<CreditCard className="h-4 w-4" />}
+                          onClick={() => onExtendTrial(tenant.tenant_id, 7)}
+                        >
+                          Extend Trial (+7 days)
+                        </JoyDropdownMenuItem>
+                      ) : null}
+                    </JoyDropdownMenuContent>
+                  </JoyDropdownMenu>
+                </JoyTableCell>
+              </JoyTableRow>
+            );
+          })}
+        </JoyTableBody>
+      </JoyTable>
+    </JoyCard>
   );
 };

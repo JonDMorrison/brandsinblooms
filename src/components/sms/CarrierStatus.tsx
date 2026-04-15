@@ -1,6 +1,6 @@
 import React from 'react'
-import { Badge } from '@/components/ui/badge'
-import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Badge } from '@/components/ui-legacy/badge'
+import { Alert, AlertDescription } from '@/components/ui-legacy/alert'
 import { InfoIcon, AlertTriangleIcon, CheckCircleIcon } from 'lucide-react'
 import { detectCarrier, canReceiveMms, shouldUseFallback } from '@/lib/sms/carrierDetection'
 

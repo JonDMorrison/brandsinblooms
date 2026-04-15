@@ -5,8 +5,8 @@ import {
   CardHeader,
   CardTitle,
   CardDescription,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+} from "@/components/ui-legacy/card";
+import { Badge } from "@/components/ui-legacy/badge";
 import {
   Table,
   TableBody,
@@ -14,8 +14,8 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
-import { Skeleton } from "@/components/ui/skeleton";
+} from "@/components/ui-legacy/table";
+import { Skeleton } from "@/components/ui-legacy/skeleton";
 import {
   ArrowDown,
   ArrowUp,
@@ -53,17 +53,17 @@ import {
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
-import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
+} from "@/components/ui-legacy/tooltip";
+import { Button } from "@/components/ui-legacy/button";
+import { Switch } from "@/components/ui-legacy/switch";
+import { Label } from "@/components/ui-legacy/label";
+import { Checkbox } from "@/components/ui-legacy/checkbox";
+import { ConfirmationDialog } from "@/components/ui-legacy/confirmation-dialog";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+} from "@/components/ui-legacy/collapsible";
 import {
   SubmissionFilters,
   SubmissionResultFilter,

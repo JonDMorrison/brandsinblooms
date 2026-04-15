@@ -7,7 +7,7 @@ import {
   useState,
 } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { ToastAction } from "@/components/ui/toast";
+import { ToastAction } from "@/components/ui-legacy/toast";
 import { useToast } from "@/hooks/use-toast";
 import { useForm } from "@/hooks/useForms";
 import { useTenant } from "@/hooks/useTenant";

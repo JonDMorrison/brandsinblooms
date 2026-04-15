@@ -1,6 +1,6 @@
 import React from "react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui-legacy/card";
+import { Badge } from "@/components/ui-legacy/badge";
 import { useTenant } from "@/hooks/useTenant";
 import { useTenantEmailHealthDashboard } from "@/hooks/useTenantEmailHealthDashboard";
 import {

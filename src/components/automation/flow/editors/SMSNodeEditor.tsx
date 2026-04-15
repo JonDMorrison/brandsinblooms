@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Label } from '@/components/ui/label';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { TextareaWithMergeTags } from '@/components/ui/textarea-with-merge-tags';
+import { Label } from '@/components/ui-legacy/label';
+import { Button } from '@/components/ui-legacy/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-legacy/card';
+import { TextareaWithMergeTags } from '@/components/ui-legacy/textarea-with-merge-tags';
 
 interface SMSNodeData {
   content: string;

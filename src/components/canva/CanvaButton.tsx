@@ -1,8 +1,8 @@
 import React from 'react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui-legacy/button';
 import { Palette, Lock } from 'lucide-react';
 import { useUserRole } from '@/hooks/useUserRole';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui-legacy/tooltip';
 
 interface CanvaButtonProps {
   onClick: (e?: React.MouseEvent) => void;

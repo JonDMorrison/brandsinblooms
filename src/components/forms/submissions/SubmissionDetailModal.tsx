@@ -6,11 +6,11 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
-} from "@/components/ui/dialog";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Button } from "@/components/ui/button";
+} from "@/components/ui-legacy/dialog";
+import { Badge } from "@/components/ui-legacy/badge";
+import { Separator } from "@/components/ui-legacy/separator";
+import { ScrollArea } from "@/components/ui-legacy/scroll-area";
+import { Button } from "@/components/ui-legacy/button";
 import {
   CheckCircle,
   AlertCircle,

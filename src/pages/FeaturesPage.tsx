@@ -1,8 +1,8 @@
 import React from 'react';
 import { LandingPageHeader } from '@/components/landing/LandingPageHeader';
 import { useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-legacy/card';
+import { Button } from '@/components/ui-legacy/button';
 import featuresHero from '@/assets/features-hero.jpg';
 import featuresCta from '@/assets/features-cta.jpg';
 import { 

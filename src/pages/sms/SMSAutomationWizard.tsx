@@ -1,18 +1,18 @@
 import React, { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui-legacy/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { NativeSelect } from "@/components/ui/NativeSelect";
-import { Badge } from "@/components/ui/badge";
+} from "@/components/ui-legacy/card";
+import { Input } from "@/components/ui-legacy/input";
+import { Label } from "@/components/ui-legacy/label";
+import { Textarea } from "@/components/ui-legacy/textarea";
+import { NativeSelect } from "@/components/ui-legacy/NativeSelect";
+import { Badge } from "@/components/ui-legacy/badge";
 import { ArrowLeftIcon, PlusIcon, TrashIcon, SettingsIcon } from "lucide-react";
 import { SMSComposer } from "@/components/sms/SMSComposer";
 

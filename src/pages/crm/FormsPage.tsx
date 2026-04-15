@@ -16,10 +16,10 @@ import {
   Trash2,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
+import { Badge } from "@/components/ui-legacy/badge";
+import { Button } from "@/components/ui-legacy/button";
+import { Card, CardContent } from "@/components/ui-legacy/card";
+import { ConfirmationDialog } from "@/components/ui-legacy/confirmation-dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -29,15 +29,15 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
+} from "@/components/ui-legacy/dropdown-menu";
+import { Input } from "@/components/ui-legacy/input";
+import { Skeleton } from "@/components/ui-legacy/skeleton";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@/components/ui/tooltip";
+} from "@/components/ui-legacy/tooltip";
 import { FormTemplatesDialog } from "@/components/forms/FormTemplatesDialog";
 import { useForms } from "@/hooks/useForms";
 import { useToast } from "@/hooks/use-toast";

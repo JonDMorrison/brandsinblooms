@@ -1,5 +1,5 @@
 
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui-legacy/card";
 import { Loader2, Sparkles, CheckCircle } from "lucide-react";
 
 interface OnboardingContentLoaderProps {

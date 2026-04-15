@@ -2,16 +2,16 @@ import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui-legacy/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
+} from "@/components/ui-legacy/card";
+import { Badge } from "@/components/ui-legacy/badge";
+import { Input } from "@/components/ui-legacy/input";
 import { X, Search, Users } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 

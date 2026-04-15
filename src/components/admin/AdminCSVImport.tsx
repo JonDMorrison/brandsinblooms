@@ -1,22 +1,35 @@
-import { useState } from 'react';
-import { useAdmin } from '@/contexts/AdminContext';
-import { useAdminTenantActions } from '@/hooks/useAdminTenantActions';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Upload, FileText, AlertCircle } from 'lucide-react';
-import { toast } from 'sonner';
+import { useId, useRef, useState } from "react";
+import Box from "@mui/joy/Box";
+import { useAdmin } from "@/contexts/AdminContext";
+import { useAdminTenantActions } from "@/hooks/useAdminTenantActions";
+import Sheet from "@mui/joy/Sheet";
+import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
+import { JoyButton } from "@/components/joy/JoyButton";
+import {
+  JoyCard,
+  JoyCardContent,
+  JoyCardHeader,
+} from "@/components/joy/JoyCard";
+import { Upload, FileText, AlertCircle } from "lucide-react";
+import { toast } from "sonner";
 
 export const AdminCSVImport = () => {
   const { activeTenantId } = useAdmin();
   const { importCustomers } = useAdminTenantActions();
   const [file, setFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const fileInputId = useId();
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
-      if (selectedFile.type !== 'text/csv' && !selectedFile.name.endsWith('.csv')) {
-        toast.error('Please select a CSV file');
+      if (
+        selectedFile.type !== "text/csv" &&
+        !selectedFile.name.endsWith(".csv")
+      ) {
+        toast.error("Please select a CSV file");
         return;
       }
       setFile(selectedFile);
@@ -24,40 +37,41 @@ export const AdminCSVImport = () => {
   };
 
   const parseCSV = (text: string): any[] => {
-    const lines = text.split('\n');
-    const headers = lines[0].split(',').map(h => h.trim());
-    
+    const lines = text.split("\n");
+    const headers = lines[0].split(",").map((h) => h.trim());
+
     const customers = [];
     for (let i = 1; i < lines.length; i++) {
       if (!lines[i].trim()) continue;
-      
-      const values = lines[i].split(',').map(v => v.trim());
+
+      const values = lines[i].split(",").map((v) => v.trim());
       const customer: any = {};
-      
+
       headers.forEach((header, index) => {
-        const value = values[index] || '';
-        
+        const value = values[index] || "";
+
         // Map common CSV headers to our schema
         switch (header.toLowerCase()) {
-          case 'email':
-          case 'email address':
+          case "email":
+          case "email address":
             customer.email = value;
             break;
-          case 'first name':
-          case 'firstname':
+          case "first name":
+          case "firstname":
             customer.first_name = value;
             break;
-          case 'last name':
-          case 'lastname':
+          case "last name":
+          case "lastname":
             customer.last_name = value;
             break;
-          case 'phone':
-          case 'phone number':
+          case "phone":
+          case "phone number":
             customer.phone = value;
             break;
-          case 'sms opt-in':
-          case 'sms_opt_in':
-            customer.sms_opt_in = value.toLowerCase() === 'true' || value === '1';
+          case "sms opt-in":
+          case "sms_opt_in":
+            customer.sms_opt_in =
+              value.toLowerCase() === "true" || value === "1";
             break;
           default:
             // Store unknown fields in custom_fields
@@ -65,23 +79,23 @@ export const AdminCSVImport = () => {
             customer.custom_fields[header] = value;
         }
       });
-      
+
       if (customer.email) {
         customers.push(customer);
       }
     }
-    
+
     return customers;
   };
 
   const handleImport = async () => {
     if (!file) {
-      toast.error('Please select a file first');
+      toast.error("Please select a file first");
       return;
     }
 
     if (!activeTenantId) {
-      toast.error('Please select a tenant first');
+      toast.error("Please select a tenant first");
       return;
     }
 
@@ -92,7 +106,7 @@ export const AdminCSVImport = () => {
       const customers = parseCSV(text);
 
       if (customers.length === 0) {
-        toast.error('No valid customer records found in CSV');
+        toast.error("No valid customer records found in CSV");
         setIsProcessing(false);
         return;
       }
@@ -101,94 +115,167 @@ export const AdminCSVImport = () => {
 
       if (!result.error) {
         setFile(null);
-        // Reset file input
-        const fileInput = document.getElementById('csv-file-input') as HTMLInputElement;
-        if (fileInput) fileInput.value = '';
+        if (fileInputRef.current) {
+          fileInputRef.current.value = "";
+        }
       }
     } catch (error: any) {
-      console.error('CSV import error:', error);
-      toast.error(error.message || 'Failed to import CSV');
+      console.error("CSV import error:", error);
+      toast.error(error.message || "Failed to import CSV");
     } finally {
       setIsProcessing(false);
     }
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Upload className="h-5 w-5" />
-          Import Customers from CSV
-        </CardTitle>
-        <CardDescription>
-          Upload a CSV file to import customers for the selected tenant
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
+    <JoyCard>
+      <JoyCardHeader
+        title="Import Customers from CSV"
+        description="Upload a CSV file to import customers for the selected tenant"
+        startDecorator={<Upload className="h-5 w-5" />}
+      />
+      <JoyCardContent>
         {!activeTenantId ? (
-          <div className="flex items-center gap-2 p-4 bg-warning/10 rounded-md">
-            <AlertCircle className="h-5 w-5 text-warning" />
-            <p className="text-sm">Please select a tenant first to import customers</p>
-          </div>
+          <Sheet
+            variant="soft"
+            color="warning"
+            sx={{ p: 2, borderRadius: "var(--joy-radius-lg)" }}
+          >
+            <Stack direction="row" spacing={1.25} alignItems="flex-start">
+              <AlertCircle className="h-5 w-5" />
+              <Stack spacing={0.25}>
+                <Typography level="title-sm">
+                  Select a tenant before importing
+                </Typography>
+                <Typography level="body-sm" color="neutral">
+                  Tenant context determines where the imported customer records
+                  will be written.
+                </Typography>
+              </Stack>
+            </Stack>
+          </Sheet>
         ) : (
-          <div className="space-y-4">
-            <div className="border-2 border-dashed rounded-lg p-6 text-center">
+          <Stack spacing={2}>
+            <Sheet
+              variant="outlined"
+              sx={{
+                p: 3,
+                borderRadius: "var(--joy-radius-xl)",
+                borderStyle: "dashed",
+                borderWidth: 2,
+                textAlign: "center",
+              }}
+            >
               <input
-                id="csv-file-input"
+                ref={fileInputRef}
+                id={fileInputId}
                 type="file"
                 accept=".csv"
                 onChange={handleFileChange}
-                className="hidden"
+                hidden
               />
-              <label
-                htmlFor="csv-file-input"
-                className="cursor-pointer flex flex-col items-center gap-2"
-              >
-                <FileText className="h-12 w-12 text-muted-foreground" />
-                <div>
-                  <p className="text-sm font-medium">
-                    {file ? file.name : 'Click to select CSV file'}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    CSV should have headers: email, first_name, last_name, phone, sms_opt_in
-                  </p>
-                </div>
-              </label>
-            </div>
+              <Stack spacing={1.5} alignItems="center">
+                <Sheet
+                  variant="soft"
+                  color="primary"
+                  sx={{
+                    width: 56,
+                    height: 56,
+                    borderRadius: 999,
+                    display: "grid",
+                    placeItems: "center",
+                  }}
+                >
+                  <FileText className="h-7 w-7" />
+                </Sheet>
+                <Stack spacing={0.5} alignItems="center">
+                  <Typography level="title-sm">
+                    {file ? file.name : "Choose a CSV file to import"}
+                  </Typography>
+                  <Typography level="body-sm" color="neutral">
+                    Supported columns include email, first_name, last_name,
+                    phone, and sms_opt_in.
+                  </Typography>
+                </Stack>
+                <JoyButton
+                  bloomVariant="outline"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  Select CSV
+                </JoyButton>
+              </Stack>
+            </Sheet>
 
             {file && (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between p-3 bg-muted rounded-md">
-                  <div className="flex items-center gap-2">
-                    <FileText className="h-4 w-4" />
-                    <span className="text-sm font-medium">{file.name}</span>
-                  </div>
-                  <span className="text-xs text-muted-foreground">
-                    {(file.size / 1024).toFixed(2)} KB
-                  </span>
-                </div>
+              <Stack spacing={1}>
+                <Sheet
+                  variant="soft"
+                  color="neutral"
+                  sx={{ p: 1.5, borderRadius: "var(--joy-radius-lg)" }}
+                >
+                  <Stack
+                    direction="row"
+                    alignItems="center"
+                    justifyContent="space-between"
+                    spacing={2}
+                  >
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <FileText className="h-4 w-4" />
+                      <Stack spacing={0.25}>
+                        <Typography level="body-sm" fontWeight="lg">
+                          {file.name}
+                        </Typography>
+                        <Typography level="body-xs" color="neutral">
+                          Ready for import
+                        </Typography>
+                      </Stack>
+                    </Stack>
+                    <Typography level="body-xs" color="neutral">
+                      {(file.size / 1024).toFixed(2)} KB
+                    </Typography>
+                  </Stack>
+                </Sheet>
 
-                <Button
+                <JoyButton
                   onClick={handleImport}
                   disabled={isProcessing}
-                  className="w-full"
+                  loading={isProcessing}
+                  loadingPosition="start"
+                  fullWidth
                 >
-                  {isProcessing ? 'Importing...' : 'Import Customers'}
-                </Button>
-              </div>
+                  {isProcessing ? "Importing customers..." : "Import Customers"}
+                </JoyButton>
+              </Stack>
             )}
 
-            <div className="p-4 bg-muted rounded-md">
-              <p className="text-sm font-medium mb-2">CSV Format Example:</p>
-              <code className="text-xs bg-background p-2 rounded block">
-                email,first_name,last_name,phone,sms_opt_in<br/>
-                john@example.com,John,Doe,+15551234567,true<br/>
-                jane@example.com,Jane,Smith,+15557654321,false
-              </code>
-            </div>
-          </div>
+            <Sheet
+              variant="soft"
+              color="neutral"
+              sx={{ p: 2, borderRadius: "var(--joy-radius-lg)" }}
+            >
+              <Typography level="body-sm" fontWeight="lg" sx={{ mb: 1 }}>
+                CSV Format Example
+              </Typography>
+              <Box
+                component="pre"
+                sx={{
+                  m: 0,
+                  p: 1.5,
+                  borderRadius: "var(--joy-radius-md)",
+                  backgroundColor: "background.surface",
+                  fontSize: "var(--joy-fontSize-xs)",
+                  fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+                  whiteSpace: "pre-wrap",
+                }}
+              >
+                {"email,first_name,last_name,phone,sms_opt_in\n"}
+                {"john@example.com,John,Doe,+15551234567,true\n"}
+                {"jane@example.com,Jane,Smith,+15557654321,false"}
+              </Box>
+            </Sheet>
+          </Stack>
         )}
-      </CardContent>
-    </Card>
+      </JoyCardContent>
+    </JoyCard>
   );
 };

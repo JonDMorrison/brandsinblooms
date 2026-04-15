@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui-legacy/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui-legacy/card";
+import { Badge } from "@/components/ui-legacy/badge";
 import { ArrowLeft, Copy, Users, Calendar, Send, MessageSquare, Image } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";

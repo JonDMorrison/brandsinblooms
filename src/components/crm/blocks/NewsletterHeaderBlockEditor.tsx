@@ -1,12 +1,12 @@
 import React from 'react';
 import { ContentBlock, NewsletterHeaderBlock } from '@/types/emailBuilder';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
-import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui-legacy/input';
+import { Textarea } from '@/components/ui-legacy/textarea';
+import { Label } from '@/components/ui-legacy/label';
+import { Card } from '@/components/ui-legacy/card';
 import { MediaSelectorImage } from '@/components/crm/MediaSelectorImage';
 import { Calendar } from 'lucide-react';
-import { Slider } from '@/components/ui/slider';
+import { Slider } from '@/components/ui-legacy/slider';
 import { HeaderImageLoadingOverlay } from './HeaderImageLoadingOverlay';
 
 interface NewsletterHeaderBlockEditorProps {

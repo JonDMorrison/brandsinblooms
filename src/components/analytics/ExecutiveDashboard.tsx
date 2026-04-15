@@ -1,6 +1,6 @@
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-legacy/card';
+import { Badge } from '@/components/ui-legacy/badge';
 import { TrendingUp, TrendingDown, DollarSign, Users, Target, BarChart3, ShoppingCart, Store, Heart } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { usePOSAnalytics } from '@/hooks/usePOSAnalytics';

@@ -47,11 +47,11 @@ import {
   BreadcrumbList,
   BreadcrumbPage,
   BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+} from "@/components/ui-legacy/breadcrumb";
+import { Alert, AlertDescription } from "@/components/ui-legacy/alert";
+import { Badge } from "@/components/ui-legacy/badge";
+import { Button } from "@/components/ui-legacy/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui-legacy/card";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -61,14 +61,14 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { ActionDropdown } from "@/components/ui/action-dropdown";
+} from "@/components/ui-legacy/alert-dialog";
+import { ActionDropdown } from "@/components/ui-legacy/action-dropdown";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@/components/ui/tooltip";
+} from "@/components/ui-legacy/tooltip";
 import { toast } from "sonner";
 import {
   extractBounceReason,

@@ -1,6 +1,6 @@
 import { Routes, Route } from "react-router-dom";
 import { lazy, Suspense } from "react";
-import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { LoadingSpinner } from "@/components/ui-legacy/loading-spinner";
 
 // Lazy load SMS components
 const SMSDashboard = lazy(() => import("@/pages/sms/SMSDashboard"));

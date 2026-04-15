@@ -1,6 +1,6 @@
 import React from 'react';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui-legacy/card';
+import { Badge } from '@/components/ui-legacy/badge';
 import { 
   Users, 
   Crown, 
@@ -10,7 +10,7 @@ import {
   TrendingUp,
   ArrowRight
 } from 'lucide-react';
-import { NavLink } from '@/components/ui/link';
+import { NavLink } from '@/components/ui-legacy/link';
 import { useSegmentCounts } from '@/hooks/useSegmentCounts';
 import { usePersonaCustomerCounts } from '@/hooks/usePersonaCustomerCounts';
 import { useCRMRealStats } from '@/hooks/useCRMRealStats';

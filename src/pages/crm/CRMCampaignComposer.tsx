@@ -2,26 +2,26 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { CRMAccessGate } from "@/components/crm/CRMAccessGate";
 import { SubscriptionGate } from "@/components/SubscriptionGate";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { NativeSelect } from "@/components/ui/NativeSelect";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui-legacy/card";
+import { Button } from "@/components/ui-legacy/button";
+import { Input } from "@/components/ui-legacy/input";
+import { Label } from "@/components/ui-legacy/label";
+import { Textarea } from "@/components/ui-legacy/textarea";
+import { NativeSelect } from "@/components/ui-legacy/NativeSelect";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog";
-import { Calendar } from "@/components/ui/calendar";
+} from "@/components/ui-legacy/dialog";
+import { Calendar } from "@/components/ui-legacy/calendar";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover";
-import { Badge } from "@/components/ui/badge";
+} from "@/components/ui-legacy/popover";
+import { Badge } from "@/components/ui-legacy/badge";
 import { useToast } from "@/hooks/use-toast";
 import { sanitizeHtml } from "@/utils/htmlSanitizer";
 import { supabase } from "@/integrations/supabase/client";

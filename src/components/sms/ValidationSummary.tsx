@@ -1,6 +1,6 @@
 import React from 'react'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Badge } from '@/components/ui/badge'
+import { Alert, AlertDescription } from '@/components/ui-legacy/alert'
+import { Badge } from '@/components/ui-legacy/badge'
 import { CheckCircle, AlertTriangle, XCircle, Lightbulb } from 'lucide-react'
 import { ImageValidationResult } from '@/lib/validation/imageValidation'
 

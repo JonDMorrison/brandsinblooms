@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui-legacy/sheet';
+import { Button } from '@/components/ui-legacy/button';
+import { Badge } from '@/components/ui-legacy/badge';
+import { Separator } from '@/components/ui-legacy/separator';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { 

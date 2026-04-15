@@ -1,6 +1,6 @@
 
-import { Textarea } from "@/components/ui/textarea";
-import { SafeHtml } from "@/components/ui/safe-html";
+import { Textarea } from "@/components/ui-legacy/textarea";
+import { SafeHtml } from "@/components/ui-legacy/safe-html";
 import { cleanContentForDisplay } from "@/utils/contentUtils";
 import { convertMarkdownToHtml } from "@/utils/markdownUtils";
 import { MagazineNewsletterDisplay } from "./MagazineNewsletterDisplay";

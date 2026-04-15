@@ -1,9 +1,9 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
-import { RadialGauge } from '@/components/ui/radial-gauge';
-import { Sparkline } from '@/components/ui/sparkline';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui-legacy/avatar';
+import { Badge } from '@/components/ui-legacy/badge';
+import { RadialGauge } from '@/components/ui-legacy/radial-gauge';
+import { Sparkline } from '@/components/ui-legacy/sparkline';
 import { Mail, Phone, MessageSquare, Calendar, MapPin } from 'lucide-react';
 
 interface CustomerSnapshotProps {

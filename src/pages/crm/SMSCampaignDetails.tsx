@@ -1,9 +1,9 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui-legacy/card";
+import { Button } from "@/components/ui-legacy/button";
+import { Badge } from "@/components/ui-legacy/badge";
 import { ArrowLeft, MessageSquare, Eye, MousePointer, TrendingUp, Users, DollarSign } from "lucide-react";
 
 interface SMSCampaign {

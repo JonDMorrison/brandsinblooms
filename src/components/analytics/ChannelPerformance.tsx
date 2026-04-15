@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-legacy/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui-legacy/tabs';
+import { Badge } from '@/components/ui-legacy/badge';
 import { Globe, Mail, Share2, Megaphone, BarChart3 } from 'lucide-react';
 import { GoogleAnalyticsCard } from './GoogleAnalyticsCard';
 import { CRMAnalyticsCard } from './CRMAnalyticsCard';

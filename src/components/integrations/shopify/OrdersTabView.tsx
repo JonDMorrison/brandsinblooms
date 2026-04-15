@@ -1,14 +1,14 @@
 import { useState } from "react";
 import { Receipt } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@/components/ui-legacy/badge";
 import {
   Sheet,
   SheetContent,
   SheetDescription,
   SheetHeader,
   SheetTitle,
-} from "@/components/ui/sheet";
+} from "@/components/ui-legacy/sheet";
 import type {
   LightspeedPagination,
   LightspeedSortDirection,

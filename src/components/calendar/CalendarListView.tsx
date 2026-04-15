@@ -1,9 +1,9 @@
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Checkbox } from '@/components/ui/checkbox';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-legacy/card';
+import { Badge } from '@/components/ui-legacy/badge';
+import { Button } from '@/components/ui-legacy/button';
+import { ScrollArea } from '@/components/ui-legacy/scroll-area';
+import { Checkbox } from '@/components/ui-legacy/checkbox';
 import { UnifiedCalendarEvent } from '@/hooks/useUnifiedCalendarData';
 import { 
   Calendar, 

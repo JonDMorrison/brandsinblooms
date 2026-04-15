@@ -1,11 +1,13 @@
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
+import Box from "@mui/joy/Box";
+import CircularProgress from "@mui/joy/CircularProgress";
+import Sheet from "@mui/joy/Sheet";
+import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
 import { useNavigate } from "react-router-dom";
 import { useOnboardingStatus } from "@/contexts/OnboardingStatusContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { Loader2 } from "lucide-react";
-import { DashboardCard } from "@/components/dashboard/DashboardCard";
 import { LaunchpadModal } from "@/components/dashboard/LaunchpadModal";
-import { NewsletterTemplateDrawer } from "@/components/dashboard/NewsletterTemplateDrawer";
 import { QuickStartTour } from "@/components/dashboard/QuickStartTour";
 import { PostComposerModal } from "@/components/dashboard/PostComposerModal";
 import {
@@ -16,13 +18,22 @@ import {
   useTwilioSetup,
   getTwilioStatus,
 } from "@/components/dashboard/TwilioSetupChecker";
-import { getDynamicIcon } from "@/components/dashboard/DynamicIcons";
-import { Button } from "@/components/ui/button";
+import { JoyButton } from "@/components/joy/JoyButton";
 import {
+  JoyCard,
+  JoyCardContent,
+  JoyCardHeader,
+} from "@/components/joy/JoyCard";
+import { JoyChip } from "@/components/joy/JoyChip";
+import { JoyStatCard } from "@/components/joy/JoyStatCard";
+import { useCRMDashboardMetrics } from "@/hooks/useCRMDashboardMetrics";
+import { usePOSAnalytics } from "@/hooks/usePOSAnalytics";
+import {
+  ArrowRight,
+  BarChart3,
   Mail,
   Megaphone,
   Calendar,
-  BarChart3,
   Share2,
   Globe,
   HelpCircle,
@@ -40,7 +51,6 @@ export const BloomSuiteDashboard = () => {
     isLoading: onboardingLoading,
   } = useOnboardingStatus();
   const [showLaunchpad, setShowLaunchpad] = useState(false);
-  const [showNewsletterDrawer, setShowNewsletterDrawer] = useState(false);
   const [showPostComposer, setShowPostComposer] = useState(false);
   const [showQuickTour, setShowQuickTour] = useState(false);
   const [showCreateFlow, setShowCreateFlow] = useState(false);
@@ -49,6 +59,19 @@ export const BloomSuiteDashboard = () => {
   const { data: socialConnections = [], isLoading: loadingConnections } =
     useConnectedAccounts();
   const { data: twilioData, isLoading: loadingTwilio } = useTwilioSetup();
+  const { data: crmMetrics, isLoading: loadingMetrics } =
+    useCRMDashboardMetrics();
+  const { data: posAnalytics, isLoading: loadingPOSAnalytics } =
+    usePOSAnalytics();
+
+  const displayName = useMemo(() => {
+    const fullName =
+      typeof user?.user_metadata?.full_name === "string"
+        ? user.user_metadata.full_name
+        : user?.email?.split("@")[0];
+
+    return fullName?.split(" ")[0] || "there";
+  }, [user?.email, user?.user_metadata]);
 
   // OnboardingGuard redirects incomplete users to /onboarding,
   // so if we reach the dashboard, onboarding is complete.
@@ -70,7 +93,7 @@ export const BloomSuiteDashboard = () => {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-white to-gray-50/30">
         <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
+          <CircularProgress size="md" sx={{ mb: 2 }} />
           <p className="text-primary font-medium">Loading dashboard...</p>
         </div>
       </div>
@@ -79,6 +102,7 @@ export const BloomSuiteDashboard = () => {
 
   const socialStatus = getConnectionStatus(socialConnections);
   const twilioStatus = getTwilioStatus(twilioData?.isSetup || false);
+  const cardsLoading = loadingMetrics || loadingPOSAnalytics;
 
   const handleSelectAction = (action: string) => {
     switch (action) {
@@ -103,240 +127,458 @@ export const BloomSuiteDashboard = () => {
         break;
       case "dashboard":
       default:
-        // Stay on current page
         break;
     }
   };
 
-  const dashboardActions = [
+  const quickActions = [
     {
-      id: "plan-marketing",
-      title: "Plan My Marketing",
+      id: "newsletter",
+      title: "Send a Newsletter",
       description:
-        "Create a complete monthly marketing plan with email campaigns, SMS, and social posts. AI-powered seasonal themes.",
-      icon: <Calendar className="w-6 h-6 text-emerald-600" />,
-
+        "Create an email campaign, review templates, and keep seasonal sends moving.",
+      icon: Mail,
       primaryAction: {
-        label: "Get Started",
-        onClick: () => navigate("/plan"),
+        label: "Create newsletter",
+        onClick: () => navigate("/newsletters/new"),
       },
       secondaryAction: {
-        label: "View Calendar",
-        onClick: () => navigate("/calendar"),
+        label: "View campaigns",
+        onClick: () => navigate("/crm/campaigns"),
       },
-      status: "ready" as const,
-      statusMessage: "Monthly planning ready",
     },
     {
       id: "create-flow",
       title: "Create Any Content",
       description:
-        "We will give you ideas and write all the content for you. For social, your blog, video script, or newsletter.",
-      icon: <Sparkles className="w-6 h-6 text-indigo-600" />,
-
+        "Generate social posts, newsletters, and campaign ideas without leaving the dashboard.",
+      icon: Sparkles,
       primaryAction: {
-        label: "Get Started",
+        label: "Open assistant",
         onClick: () => setShowCreateFlow(true),
       },
       secondaryAction: {
-        label: "Browse Past Content",
+        label: "Browse content",
         onClick: () => navigate("/content/library"),
       },
-      status: "ready" as const,
-      statusMessage: "AI assistant ready",
-    },
-    {
-      id: "newsletter",
-      title: "Send A Newsletter",
-      description:
-        "Create and send email campaigns to your customers with personalized content and automated scheduling.",
-      icon: <Mail className="w-6 h-6 text-blue-600" />,
-
-      primaryAction: {
-        label: "Create Newsletter",
-        onClick: () => {
-          navigate("/newsletters/new");
-        },
-      },
-      secondaryAction: {
-        label: "Previous Newsletters",
-        onClick: () => navigate("/crm/campaigns"),
-      },
-      status: "ready" as const,
-      statusMessage: "Email system ready",
     },
     {
       id: "campaign",
-      title: "Build A Campaign",
+      title: "Build an Automation",
       description:
-        "Design automated customer journeys with SMS, email sequences, and personalized messaging flows.",
-      icon: <Megaphone className="w-6 h-6 text-green-600" />,
-
+        "Design automated customer journeys with SMS and email sequences tied to customer behavior.",
+      icon: Megaphone,
       primaryAction: {
-        label: "Build Campaign",
+        label: "Build campaign",
         onClick: () => navigate("/crm/automations/new?mode=quick"),
       },
       secondaryAction: {
-        label: "View Automations",
+        label: "View automations",
         onClick: () => navigate("/crm/automations"),
       },
-      status: twilioStatus.status,
-      statusMessage: twilioStatus.statusMessage,
-    },
-    {
-      id: "analytics",
-      title: "Track Progress",
-      description:
-        "Monitor campaign performance, customer engagement, and ROI across all your marketing efforts.",
-      icon: (
-        <BarChart3
-          className="w-6 h-6"
-          style={{ color: "hsl(var(--brand-navy))" }}
-        />
-      ),
-
-      primaryAction: {
-        label: "View Analytics",
-        onClick: () => navigate("/analytics"),
-      },
-      secondaryAction: {
-        label: "Customer Insights",
-        onClick: () => navigate("/crm/personas/analytics"),
-      },
-      status: "ready" as const,
-      statusMessage: "Analytics available",
     },
     {
       id: "social",
-      title: "Post On Social Media",
+      title: "Post on Social Media",
       description:
-        "Create, schedule, and publish content across all your social media platforms with AI assistance.",
-      icon: (
-        <Share2
-          className="w-6 h-6"
-          style={{ color: "hsl(var(--brand-teal))" }}
-        />
-      ),
-
+        "Create, schedule, and publish content across your connected social channels.",
+      icon: Share2,
       primaryAction: {
-        label: "Create Post",
+        label: "Create post",
         onClick: () => setShowPostComposer(true),
       },
       secondaryAction: {
         label: "Manage Accounts",
         onClick: () => navigate("/social-accounts"),
       },
-      status: socialStatus.status,
-      statusMessage: socialStatus.statusMessage,
-      connectionCount: socialConnections.length,
     },
     {
-      id: "website",
-      title: "Build & Manage Website",
+      id: "planner",
+      title: "Plan the Month",
       description:
-        "Use AI to build your site in just minutes. Create stunning, professional websites without any coding knowledge.",
-      icon: <Globe className="w-6 h-6 text-teal-600" />,
-
+        "Map campaigns, content, and timing for the next month from the planning workspace.",
+      icon: Calendar,
       primaryAction: {
-        label: "Join the Waitlist",
-        onClick: () => navigate("/website"),
+        label: "Open planner",
+        onClick: () => navigate("/plan"),
       },
       secondaryAction: {
-        label: "Learn More",
-        onClick: () => navigate("/website"),
+        label: "View calendar",
+        onClick: () => navigate("/calendar"),
       },
-      status: "setup-needed" as const,
-      statusMessage: "Feature coming soon",
     },
   ];
 
+  const overviewStats = [
+    {
+      label: "Customers",
+      value: cardsLoading
+        ? "..."
+        : (crmMetrics?.totalCustomers ?? 0).toLocaleString(),
+      icon: <Mail />,
+      change:
+        crmMetrics && Number.isFinite(crmMetrics.totalCustomersGrowth)
+          ? {
+              value: `${Math.abs(crmMetrics.totalCustomersGrowth).toFixed(1)}% vs last month`,
+              direction:
+                crmMetrics.totalCustomersGrowth >= 0
+                  ? ("up" as const)
+                  : ("down" as const),
+            }
+          : undefined,
+      onClick: () => navigate("/crm/customers"),
+    },
+    {
+      label: "Orders",
+      value: cardsLoading
+        ? "..."
+        : (posAnalytics?.totalOrders ?? 0).toLocaleString(),
+      icon: <Calendar />,
+      change: posAnalytics?.hasIntegration
+        ? {
+            value: `${posAnalytics.integrationName ?? "POS"} connected`,
+            direction: "up" as const,
+          }
+        : undefined,
+      onClick: () => navigate("/products"),
+    },
+    {
+      label: "Active campaigns",
+      value: cardsLoading
+        ? "..."
+        : (crmMetrics?.activeCampaigns ?? 0).toLocaleString(),
+      icon: <Megaphone />,
+      change:
+        crmMetrics && Number.isFinite(crmMetrics.activeCampaignsGrowth)
+          ? {
+              value: `${Math.abs(crmMetrics.activeCampaignsGrowth).toFixed(1)}% vs last month`,
+              direction:
+                crmMetrics.activeCampaignsGrowth >= 0
+                  ? ("up" as const)
+                  : ("down" as const),
+            }
+          : undefined,
+      onClick: () => navigate("/crm/campaigns"),
+    },
+    {
+      label: "Revenue",
+      value: cardsLoading
+        ? "..."
+        : new Intl.NumberFormat("en-US", {
+            style: "currency",
+            currency: "USD",
+            maximumFractionDigits: 0,
+          }).format(crmMetrics?.totalRevenue ?? 0),
+      icon: <BarChart3 />,
+      change:
+        crmMetrics && Number.isFinite(crmMetrics.totalRevenueGrowth)
+          ? {
+              value: `${Math.abs(crmMetrics.totalRevenueGrowth).toFixed(1)}% vs last month`,
+              direction:
+                crmMetrics.totalRevenueGrowth >= 0
+                  ? ("up" as const)
+                  : ("down" as const),
+            }
+          : undefined,
+      onClick: () => navigate("/analytics"),
+    },
+  ];
+
+  const todayItems = [
+    {
+      label: "Social accounts",
+      value: socialStatus.statusMessage,
+      tone: socialStatus.status === "ready" ? "success" : "warning",
+    },
+    {
+      label: "SMS readiness",
+      value: twilioStatus.statusMessage,
+      tone: twilioStatus.status === "ready" ? "success" : "warning",
+    },
+    {
+      label: "POS sync",
+      value: posAnalytics?.hasIntegration
+        ? `${posAnalytics.integrationName ?? "POS"} connected`
+        : "No POS integration connected",
+      tone: posAnalytics?.hasIntegration ? "success" : "warning",
+    },
+    {
+      label: "Website tools",
+      value: "Website builder remains available from the workspace shell.",
+      tone: "neutral",
+    },
+  ] as const;
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-gray-50/30 p-6">
-      <div className="max-w-6xl mx-auto">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="flex items-center justify-center gap-3 mb-4">
-            <h1 className="text-4xl font-bold text-gray-900">
-              BloomSuite Dashboard
-            </h1>
-          </div>
-          <p className="text-xl text-gray-600 mb-6">
-            Your complete marketing command center
-          </p>
+    <Stack spacing={3.5}>
+      <Sheet
+        variant="plain"
+        sx={{
+          p: { xs: 3, md: 4 },
+          borderRadius: "28px",
+          border: "1px solid",
+          borderColor: "neutral.200",
+          background:
+            "linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(239, 246, 255, 0.88) 45%, rgba(255, 255, 255, 1) 100%)",
+        }}
+      >
+        <Stack spacing={1.5}>
+          <Typography
+            level="body-sm"
+            sx={{
+              textTransform: "uppercase",
+              letterSpacing: "0.08em",
+              color: "primary.700",
+              fontWeight: 700,
+            }}
+          >
+            Tenant Dashboard
+          </Typography>
+          <Stack
+            direction={{ xs: "column", lg: "row" }}
+            spacing={2}
+            justifyContent="space-between"
+            alignItems={{ xs: "flex-start", lg: "center" }}
+          >
+            <Stack spacing={1}>
+              <Typography level="h1">Welcome back, {displayName}</Typography>
+              <Typography level="body-md" color="neutral">
+                Keep customers, campaigns, and store operations moving from one
+                Joy dashboard.
+              </Typography>
+              <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+                <JoyChip color="success" variant="soft">
+                  Social{" "}
+                  {loadingConnections ? "checking" : socialStatus.statusMessage}
+                </JoyChip>
+                <JoyChip
+                  color={
+                    loadingTwilio
+                      ? "neutral"
+                      : twilioStatus.status === "ready"
+                        ? "success"
+                        : "warning"
+                  }
+                  variant="soft"
+                >
+                  SMS {loadingTwilio ? "checking" : twilioStatus.statusMessage}
+                </JoyChip>
+              </Stack>
+            </Stack>
 
-          {!isCompleted && !hasEverCompleted && (
-            <div className="mb-6 flex items-center justify-center gap-4">
-              <Button
-                onClick={() => setShowSetupWizard(true)}
-                className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
+              <JoyButton
+                bloomVariant="outline"
+                onClick={() => setShowLaunchpad(true)}
+                startDecorator={<HelpCircle />}
               >
-                <Sparkles className="w-4 h-4 mr-2" />
-                Complete Your Setup
-              </Button>
-            </div>
-          )}
-        </div>
+                Open launchpad
+              </JoyButton>
+              {!isCompleted && !hasEverCompleted ? (
+                <JoyButton
+                  onClick={() => setShowSetupWizard(true)}
+                  startDecorator={<Sparkles />}
+                >
+                  Complete Setup
+                </JoyButton>
+              ) : null}
+            </Stack>
+          </Stack>
+        </Stack>
+      </Sheet>
 
-        {/* Dashboard Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
-          {dashboardActions.map((action, index) => {
-            // Define botanical accents for variety
-            const botanicalAccents = [
-              "sage",
-              "mint",
-              "forest",
-              "earth",
-            ] as const;
-            const accent = botanicalAccents[index % botanicalAccents.length];
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: {
+            xs: "minmax(0, 1fr)",
+            md: "repeat(2, minmax(0, 1fr))",
+            xl: "repeat(4, minmax(0, 1fr))",
+          },
+          gap: 3,
+        }}
+      >
+        {overviewStats.map((stat) => (
+          <JoyStatCard
+            key={stat.label}
+            icon={stat.icon}
+            label={stat.label}
+            value={stat.value}
+            change={stat.change}
+            onClick={stat.onClick}
+          />
+        ))}
+      </Box>
 
-            return (
-              <DashboardCard
-                key={action.id}
-                title={action.title}
-                description={action.description}
-                icon={action.icon}
-                primaryAction={action.primaryAction}
-                secondaryAction={action.secondaryAction}
-                status={action.status}
-                statusMessage={action.statusMessage}
-                variant="botanical"
-                accent={accent}
-                cardId={action.id}
-                dynamicIcon={getDynamicIcon(
-                  action.id,
-                  action.status,
-                  (action as any).connectionCount,
-                )}
-                hasPendingAction={false}
-              />
-            );
-          })}
-        </div>
-
-        {/* Quick Stats or Recent Activity could go here */}
-        <div className="mt-12 text-center">
-          <p className="text-gray-500 text-sm">
-            Need help? Check out our{" "}
-            <button
-              onClick={() => setShowLaunchpad(true)}
-              className="text-blue-600 hover:text-blue-700 underline"
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: {
+            xs: "minmax(0, 1fr)",
+            xl: "minmax(0, 2fr) minmax(320px, 1fr)",
+          },
+          gap: 3,
+        }}
+      >
+        <JoyCard>
+          <JoyCardHeader
+            title="What would you like to do today?"
+            description="Jump straight into the most common tenant workflows."
+          />
+          <JoyCardContent>
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: {
+                  xs: "minmax(0, 1fr)",
+                  md: "repeat(2, minmax(0, 1fr))",
+                },
+                gap: 2,
+              }}
             >
-              getting started guide
-            </button>
-          </p>
-        </div>
-      </div>
+              {quickActions.map((action) => {
+                const Icon = action.icon;
 
-      {/* Modals and Drawers */}
+                return (
+                  <JoyCard
+                    key={action.id}
+                    variant="plain"
+                    sx={{
+                      borderColor: "neutral.200",
+                      backgroundColor: "neutral.50",
+                    }}
+                  >
+                    <JoyCardContent sx={{ pt: 3 }}>
+                      <Stack spacing={2}>
+                        <Stack
+                          direction="row"
+                          spacing={1.5}
+                          alignItems="flex-start"
+                        >
+                          <Box
+                            sx={{
+                              width: 40,
+                              height: 40,
+                              borderRadius: "16px",
+                              display: "grid",
+                              placeItems: "center",
+                              backgroundColor: "primary.50",
+                              color: "primary.700",
+                              flexShrink: 0,
+                            }}
+                          >
+                            <Icon className="h-5 w-5" />
+                          </Box>
+                          <Stack spacing={0.5} sx={{ minWidth: 0 }}>
+                            <Typography level="title-sm">
+                              {action.title}
+                            </Typography>
+                            <Typography level="body-sm" color="neutral">
+                              {action.description}
+                            </Typography>
+                          </Stack>
+                        </Stack>
+                        <Stack
+                          direction={{ xs: "column", sm: "row" }}
+                          spacing={1.25}
+                        >
+                          <JoyButton
+                            size="sm"
+                            onClick={action.primaryAction.onClick}
+                          >
+                            {action.primaryAction.label}
+                          </JoyButton>
+                          <JoyButton
+                            bloomVariant="outline"
+                            size="sm"
+                            onClick={action.secondaryAction.onClick}
+                          >
+                            {action.secondaryAction.label}
+                          </JoyButton>
+                        </Stack>
+                      </Stack>
+                    </JoyCardContent>
+                  </JoyCard>
+                );
+              })}
+            </Box>
+          </JoyCardContent>
+        </JoyCard>
+
+        <Stack spacing={3}>
+          <JoyCard>
+            <JoyCardHeader
+              title="Today's focus"
+              description="A quick tenant-level readiness check across the main channels."
+            />
+            <JoyCardContent>
+              <Stack spacing={1.5}>
+                {todayItems.map((item) => (
+                  <Sheet
+                    key={item.label}
+                    variant="outlined"
+                    sx={{
+                      p: 1.75,
+                      borderRadius: "16px",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      gap: 1.5,
+                      alignItems: "center",
+                    }}
+                  >
+                    <Stack spacing={0.25} sx={{ minWidth: 0 }}>
+                      <Typography level="title-sm">{item.label}</Typography>
+                      <Typography level="body-xs" color="neutral">
+                        {item.value}
+                      </Typography>
+                    </Stack>
+                    <JoyChip color={item.tone} variant="soft">
+                      {item.tone === "success"
+                        ? "Ready"
+                        : item.tone === "warning"
+                          ? "Needs attention"
+                          : "Info"}
+                    </JoyChip>
+                  </Sheet>
+                ))}
+              </Stack>
+            </JoyCardContent>
+          </JoyCard>
+
+          <JoyCard>
+            <JoyCardHeader
+              title="Quick links"
+              description="Tenant actions that are usually a click away after login."
+            />
+            <JoyCardContent>
+              <Stack spacing={1}>
+                {[
+                  { label: "Open analytics", to: "/analytics" },
+                  { label: "Review products", to: "/products" },
+                  { label: "Update settings", to: "/settings" },
+                  { label: "Website workspace", to: "/website/app" },
+                ].map((item) => (
+                  <JoyButton
+                    key={item.to}
+                    bloomVariant="ghost"
+                    color="neutral"
+                    onClick={() => navigate(item.to)}
+                    sx={{ justifyContent: "space-between" }}
+                  >
+                    {item.label}
+                    <ArrowRight className="h-4 w-4" />
+                  </JoyButton>
+                ))}
+              </Stack>
+            </JoyCardContent>
+          </JoyCard>
+        </Stack>
+      </Box>
+
       <LaunchpadModal
         isOpen={showLaunchpad}
         onClose={() => setShowLaunchpad(false)}
         onSelectAction={handleSelectAction}
-      />
-
-      <NewsletterTemplateDrawer
-        isOpen={showNewsletterDrawer}
-        onClose={() => setShowNewsletterDrawer(false)}
       />
 
       <PostComposerModal
@@ -358,6 +600,6 @@ export const BloomSuiteDashboard = () => {
         isOpen={showSetupWizard}
         onClose={() => setShowSetupWizard(false)}
       />
-    </div>
+    </Stack>
   );
 };

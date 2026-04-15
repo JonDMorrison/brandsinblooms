@@ -1,17 +1,23 @@
 import { useCallback, useEffect, useState } from "react";
+import Divider from "@mui/joy/Divider";
+import Grid from "@mui/joy/Grid";
+import Stack from "@mui/joy/Stack";
+import Tab from "@mui/joy/Tab";
+import TabList from "@mui/joy/TabList";
+import TabPanel from "@mui/joy/TabPanel";
+import Tabs from "@mui/joy/Tabs";
+import Typography from "@mui/joy/Typography";
+import { JoyStatusChip } from "@/components/joy/JoyChip";
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
+  JoyCard,
+  JoyCardContent,
+  JoyCardHeader,
+} from "@/components/joy/JoyCard";
+import { JoyDrawer } from "@/components/joy/JoyDrawer";
+import { JoyButton } from "@/components/joy/JoyButton";
+import { JoyFormSection } from "@/components/joy/JoyFormSection";
+import { JoyInput as Input } from "@/components/joy/JoyInput";
+import { JoySwitch } from "@/components/joy/JoySwitch";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
@@ -27,13 +33,7 @@ import {
   ExternalLink,
   Save,
   RotateCcw,
-  ChevronDown,
 } from "lucide-react";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
 import { format, formatDistanceToNow } from "date-fns";
 
 interface AdminTenant {
@@ -234,7 +234,9 @@ export const TenantDrawer = ({
   );
   const [loadingOverrides, setLoadingOverrides] = useState(false);
   const [savingOverrides, setSavingOverrides] = useState(false);
-  const [governanceOpen, setGovernanceOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<"overview" | "governance">(
+    "overview",
+  );
 
   const loadOverrides = useCallback(async () => {
     if (!tenant?.tenant_id) return;
@@ -266,6 +268,12 @@ export const TenantDrawer = ({
     void loadOverrides();
   }, [open, tenant?.tenant_id, loadOverrides]);
 
+  useEffect(() => {
+    if (open) {
+      setActiveTab("overview");
+    }
+  }, [open, tenant?.tenant_id]);
+
   if (!tenant) return null;
 
   const formatLocation = (city: string, region: string, country: string) => {
@@ -275,23 +283,15 @@ export const TenantDrawer = ({
 
   const getStatusBadge = () => {
     if (!tenant.is_active) {
-      return <Badge variant="secondary">Inactive</Badge>;
+      return <JoyStatusChip status="inactive" />;
     }
     if (tenant.is_trialing) {
-      return (
-        <Badge variant="outline" className="border-yellow-500 text-yellow-700">
-          Trialing
-        </Badge>
-      );
+      return <JoyStatusChip label="Trialing" status="trialing" />;
     }
     if (tenant.is_paid_active) {
-      return (
-        <Badge variant="default" className="bg-green-500">
-          Active
-        </Badge>
-      );
+      return <JoyStatusChip status="active" />;
     }
-    return <Badge variant="destructive">Expired</Badge>;
+    return <JoyStatusChip status="expired" />;
   };
 
   const toggleField = (key: keyof OverrideFormState, enabled: boolean) => {
@@ -499,421 +499,533 @@ export const TenantDrawer = ({
     label: string,
     stateKey: keyof OverrideFormState,
     placeholder: string,
+    helperText = "Enable the override to apply a tenant-specific value instead of the global governance default.",
   ) => {
     const field = overrideState[stateKey];
     return (
-      <div className="space-y-2">
-        <div className="flex items-center justify-between gap-2">
-          <Label>{label}</Label>
-          <div className="flex items-center gap-2">
-            <Label className="text-xs text-muted-foreground">Override</Label>
-            <Switch
+      <Stack spacing={1.25}>
+        <Stack
+          direction="row"
+          alignItems="center"
+          justifyContent="space-between"
+          spacing={1}
+        >
+          <Typography level="body-xs" color="neutral">
+            Use a tenant-specific override
+          </Typography>
+          <Stack direction="row" alignItems="center" spacing={1}>
+            <Typography level="body-xs" color="neutral">
+              {field.enabled ? "Enabled" : "Disabled"}
+            </Typography>
+            <JoySwitch
               checked={field.enabled}
               onCheckedChange={(checked) => toggleField(stateKey, checked)}
             />
-          </div>
-        </div>
+          </Stack>
+        </Stack>
         <Input
+          label={label}
+          helperText={helperText}
           value={field.value}
-          onChange={(event) => updateField(stateKey, event.target.value)}
+          onValueChange={(value) => updateField(stateKey, value)}
           placeholder={placeholder}
           type="number"
           step="any"
           disabled={!field.enabled || savingOverrides || loadingOverrides}
         />
-      </div>
+      </Stack>
     );
   };
 
   return (
-    <Sheet open={open} onOpenChange={onClose}>
-      <SheetContent className="w-full sm:max-w-2xl overflow-y-auto">
-        <SheetHeader className="pb-6">
-          <SheetTitle className="flex items-center gap-2">
-            <Building2 className="h-5 w-5" />
-            {tenant.company_name || "Unnamed Company"}
-          </SheetTitle>
-        </SheetHeader>
+    <JoyDrawer
+      open={open}
+      onClose={() => onClose()}
+      size="md"
+      title={tenant.company_name || "Unnamed Company"}
+      startDecorator={<Building2 className="h-5 w-5" />}
+    >
+      <Stack spacing={3}>
+        <JoyCard>
+          <JoyCardHeader title="Status & Actions" actions={getStatusBadge()} />
+          <JoyCardContent>
+            <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+              {tenant.is_trialing ? (
+                <JoyButton
+                  bloomVariant="outline"
+                  size="sm"
+                  onClick={() => onExtendTrial(tenant.tenant_id, 7)}
+                  startDecorator={<Clock className="h-4 w-4" />}
+                >
+                  Extend Trial (+7 days)
+                </JoyButton>
+              ) : null}
+              {onChangePlan ? (
+                <JoyButton
+                  bloomVariant="outline"
+                  size="sm"
+                  onClick={() => onChangePlan(tenant)}
+                  startDecorator={<CreditCard className="h-4 w-4" />}
+                >
+                  Change Plan
+                </JoyButton>
+              ) : null}
+              <JoyButton
+                bloomVariant="outline"
+                size="sm"
+                onClick={() => {
+                  onClose();
+                  navigate(`/admin/tenants/${tenant.tenant_id}/email`);
+                }}
+                startDecorator={<Globe className="h-4 w-4" />}
+              >
+                Email Management
+              </JoyButton>
+              <JoyButton
+                bloomVariant={tenant.is_active ? "destructive" : "default"}
+                size="sm"
+                onClick={() =>
+                  onToggleActive(tenant.tenant_id, !tenant.is_active)
+                }
+              >
+                {tenant.is_active ? "Deactivate Tenant" : "Activate Tenant"}
+              </JoyButton>
+            </Stack>
+          </JoyCardContent>
+        </JoyCard>
 
-        <div className="space-y-6">
-          {/* Status and Actions */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <span>Status & Actions</span>
-                {getStatusBadge()}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex flex-wrap gap-2">
-                {tenant.is_trialing && (
-                  <Button
-                    variant="outline"
+        <Tabs
+          value={activeTab}
+          onChange={(_event, value) =>
+            setActiveTab((value as "overview" | "governance") ?? "overview")
+          }
+        >
+          <TabList
+            sx={{
+              borderRadius: "var(--joy-radius-lg)",
+              backgroundColor: "neutral.50",
+              p: 0.5,
+              gap: 0.5,
+            }}
+          >
+            <Tab disableIndicator value="overview">
+              Overview
+            </Tab>
+            <Tab disableIndicator value="governance">
+              Governance
+            </Tab>
+          </TabList>
+
+          <TabPanel value="overview" sx={{ px: 0, pt: 2.5 }}>
+            <Stack spacing={3}>
+              <JoyCard>
+                <JoyCardHeader title="Company Information" />
+                <JoyCardContent>
+                  <Stack spacing={2}>
+                    {tenant.website ? (
+                      <Stack direction="row" spacing={1.5} alignItems="center">
+                        <Globe className="h-4 w-4 text-muted-foreground" />
+                        <Stack spacing={0.5}>
+                          <Typography level="body-sm" fontWeight="lg">
+                            Website
+                          </Typography>
+                          <Typography
+                            component="a"
+                            level="body-sm"
+                            href={`https://${tenant.website.replace(/https?:\/\//, "")}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            sx={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: 0.5,
+                              color: "primary.600",
+                              textDecoration: "none",
+                              "&:hover": {
+                                color: "primary.700",
+                                textDecoration: "underline",
+                              },
+                            }}
+                          >
+                            {tenant.website}
+                            <ExternalLink className="h-3 w-3" />
+                          </Typography>
+                        </Stack>
+                      </Stack>
+                    ) : null}
+
+                    <Stack direction="row" spacing={1.5} alignItems="center">
+                      <MapPin className="h-4 w-4 text-muted-foreground" />
+                      <Stack spacing={0.5}>
+                        <Typography level="body-sm" fontWeight="lg">
+                          Location
+                        </Typography>
+                        <Typography level="body-sm" color="neutral">
+                          {formatLocation(
+                            tenant.city,
+                            tenant.region,
+                            tenant.country,
+                          )}
+                        </Typography>
+                      </Stack>
+                    </Stack>
+
+                    <Stack direction="row" spacing={1.5} alignItems="center">
+                      <Calendar className="h-4 w-4 text-muted-foreground" />
+                      <Stack spacing={0.5}>
+                        <Typography level="body-sm" fontWeight="lg">
+                          Created
+                        </Typography>
+                        <Typography level="body-sm" color="neutral">
+                          {format(new Date(tenant.tenant_created_at), "PPP")}
+                        </Typography>
+                      </Stack>
+                    </Stack>
+
+                    {tenant.onboarding_completed_at ? (
+                      <Stack direction="row" spacing={1.5} alignItems="center">
+                        <Calendar className="h-4 w-4 text-muted-foreground" />
+                        <Stack spacing={0.5}>
+                          <Typography level="body-sm" fontWeight="lg">
+                            Onboarding Completed
+                          </Typography>
+                          <Typography level="body-sm" color="neutral">
+                            {format(
+                              new Date(tenant.onboarding_completed_at),
+                              "PPP",
+                            )}
+                          </Typography>
+                        </Stack>
+                      </Stack>
+                    ) : null}
+                  </Stack>
+                </JoyCardContent>
+              </JoyCard>
+
+              <JoyCard>
+                <JoyCardHeader title="Primary Contact" />
+                <JoyCardContent>
+                  <Stack spacing={2}>
+                    <Stack direction="row" spacing={1.5} alignItems="center">
+                      <User className="h-4 w-4 text-muted-foreground" />
+                      <Stack spacing={0.5}>
+                        <Typography level="body-sm" fontWeight="lg">
+                          Name
+                        </Typography>
+                        <Typography level="body-sm" color="neutral">
+                          {tenant.primary_contact_name || "Not specified"}
+                        </Typography>
+                      </Stack>
+                    </Stack>
+
+                    <Stack direction="row" spacing={1.5} alignItems="center">
+                      <Mail className="h-4 w-4 text-muted-foreground" />
+                      <Stack spacing={0.5}>
+                        <Typography level="body-sm" fontWeight="lg">
+                          Email
+                        </Typography>
+                        <Typography
+                          component="a"
+                          level="body-sm"
+                          href={`mailto:${tenant.primary_contact_email}`}
+                          sx={{
+                            color: "primary.600",
+                            textDecoration: "none",
+                            "&:hover": {
+                              color: "primary.700",
+                              textDecoration: "underline",
+                            },
+                          }}
+                        >
+                          {tenant.primary_contact_email}
+                        </Typography>
+                      </Stack>
+                    </Stack>
+
+                    <Stack direction="row" spacing={1.5} alignItems="center">
+                      <Clock className="h-4 w-4 text-muted-foreground" />
+                      <Stack spacing={0.5}>
+                        <Typography level="body-sm" fontWeight="lg">
+                          Last Login
+                        </Typography>
+                        <Typography level="body-sm" color="neutral">
+                          {tenant.primary_contact_last_login
+                            ? format(
+                                new Date(tenant.primary_contact_last_login),
+                                "PPP",
+                              )
+                            : "Never"}
+                        </Typography>
+                      </Stack>
+                    </Stack>
+
+                    <Stack direction="row" spacing={1.5} alignItems="center">
+                      <Clock className="h-4 w-4 text-muted-foreground" />
+                      <Stack spacing={0.5}>
+                        <Typography level="body-sm" fontWeight="lg">
+                          Last Activity
+                        </Typography>
+                        <Typography level="body-sm" color="neutral">
+                          {tenant.last_activity_at &&
+                          new Date(tenant.last_activity_at).getFullYear() >=
+                            2000
+                            ? `${formatDistanceToNow(new Date(tenant.last_activity_at))} ago`
+                            : "Never"}
+                        </Typography>
+                      </Stack>
+                    </Stack>
+                  </Stack>
+                </JoyCardContent>
+              </JoyCard>
+
+              <JoyCard>
+                <JoyCardHeader title="Subscription Details" />
+                <JoyCardContent>
+                  <Stack spacing={2}>
+                    <Stack direction="row" spacing={1.5} alignItems="center">
+                      <CreditCard className="h-4 w-4 text-muted-foreground" />
+                      <Stack spacing={0.5}>
+                        <Typography level="body-sm" fontWeight="lg">
+                          Plan
+                        </Typography>
+                        <Typography
+                          level="body-sm"
+                          color="neutral"
+                          textTransform="capitalize"
+                        >
+                          {tenant.plan}
+                        </Typography>
+                      </Stack>
+                    </Stack>
+
+                    <Stack direction="row" spacing={1.5} alignItems="center">
+                      <Calendar className="h-4 w-4 text-muted-foreground" />
+                      <Stack spacing={0.5}>
+                        <Typography level="body-sm" fontWeight="lg">
+                          Status
+                        </Typography>
+                        <Typography
+                          level="body-sm"
+                          color="neutral"
+                          textTransform="capitalize"
+                        >
+                          {tenant.subscription_status}
+                        </Typography>
+                      </Stack>
+                    </Stack>
+
+                    {tenant.trial_start ? (
+                      <Stack direction="row" spacing={1.5} alignItems="center">
+                        <Calendar className="h-4 w-4 text-muted-foreground" />
+                        <Stack spacing={0.5}>
+                          <Typography level="body-sm" fontWeight="lg">
+                            Trial Started
+                          </Typography>
+                          <Typography level="body-sm" color="neutral">
+                            {format(new Date(tenant.trial_start), "PPP")}
+                          </Typography>
+                        </Stack>
+                      </Stack>
+                    ) : null}
+
+                    {tenant.trial_end ? (
+                      <Stack direction="row" spacing={1.5} alignItems="center">
+                        <Calendar className="h-4 w-4 text-muted-foreground" />
+                        <Stack spacing={0.5}>
+                          <Typography level="body-sm" fontWeight="lg">
+                            {tenant.is_trialing ? "Trial Ends" : "Trial Ended"}
+                          </Typography>
+                          <Typography level="body-sm" color="neutral">
+                            {format(new Date(tenant.trial_end), "PPP")}
+                          </Typography>
+                        </Stack>
+                      </Stack>
+                    ) : null}
+
+                    {tenant.current_period_end ? (
+                      <Stack direction="row" spacing={1.5} alignItems="center">
+                        <Calendar className="h-4 w-4 text-muted-foreground" />
+                        <Stack spacing={0.5}>
+                          <Typography level="body-sm" fontWeight="lg">
+                            Current Period End
+                          </Typography>
+                          <Typography level="body-sm" color="neutral">
+                            {format(new Date(tenant.current_period_end), "PPP")}
+                          </Typography>
+                        </Stack>
+                      </Stack>
+                    ) : null}
+                  </Stack>
+                </JoyCardContent>
+              </JoyCard>
+            </Stack>
+          </TabPanel>
+
+          <TabPanel value="governance" sx={{ px: 0, pt: 2.5 }}>
+            <JoyFormSection
+              title="Governance Overrides"
+              description="Optional per-tenant overrides. Disabled fields automatically use global governance configuration."
+              actions={
+                <>
+                  <JoyButton
+                    bloomVariant="default"
                     size="sm"
-                    onClick={() => onExtendTrial(tenant.tenant_id, 7)}
+                    onClick={saveOverrides}
+                    disabled={savingOverrides || loadingOverrides}
+                    loading={savingOverrides}
+                    loadingPosition="start"
+                    startDecorator={<Save className="h-4 w-4" />}
                   >
-                    <Clock className="mr-2 h-4 w-4" />
-                    Extend Trial (+7 days)
-                  </Button>
-                )}
-                {onChangePlan && (
-                  <Button
-                    variant="outline"
+                    {savingOverrides ? "Saving..." : "Save Overrides"}
+                  </JoyButton>
+                  <JoyButton
+                    bloomVariant="outline"
                     size="sm"
-                    onClick={() => onChangePlan(tenant)}
+                    onClick={clearOverrides}
+                    disabled={savingOverrides || loadingOverrides}
+                    startDecorator={<RotateCcw className="h-4 w-4" />}
                   >
-                    <CreditCard className="mr-2 h-4 w-4" />
-                    Change Plan
-                  </Button>
-                )}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    onClose();
-                    navigate(`/admin/tenants/${tenant.tenant_id}/email`);
-                  }}
-                >
-                  <Globe className="mr-2 h-4 w-4" />
-                  Manage Domains
-                </Button>
-                <Button
-                  variant={tenant.is_active ? "destructive" : "default"}
-                  size="sm"
-                  onClick={() =>
-                    onToggleActive(tenant.tenant_id, !tenant.is_active)
-                  }
-                >
-                  {tenant.is_active ? "Deactivate Tenant" : "Activate Tenant"}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+                    Clear Overrides
+                  </JoyButton>
+                </>
+              }
+            >
+              <Stack spacing={3}>
+                <Grid container spacing={2}>
+                  <Grid xs={12} md={4}>
+                    {renderOverrideField(
+                      "Hard Bounce Threshold (%)",
+                      "hardBounceRate",
+                      "5",
+                    )}
+                  </Grid>
+                  <Grid xs={12} md={4}>
+                    {renderOverrideField(
+                      "Complaint Threshold (%)",
+                      "complaintRate",
+                      "0.2",
+                    )}
+                  </Grid>
+                  <Grid xs={12} md={4}>
+                    {renderOverrideField(
+                      "Spam Threshold (%)",
+                      "spamRate",
+                      "0.3",
+                    )}
+                  </Grid>
+                </Grid>
 
-          {/* Company Information */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Company Information</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 gap-4">
-                {tenant.website && (
-                  <div className="flex items-center gap-3">
-                    <Globe className="h-4 w-4 text-muted-foreground" />
-                    <div>
-                      <p className="text-sm font-medium">Website</p>
-                      <a
-                        href={`https://${tenant.website.replace(/https?:\/\//, "")}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-sm text-primary hover:underline flex items-center gap-1"
-                      >
-                        {tenant.website}
-                        <ExternalLink className="h-3 w-3" />
-                      </a>
-                    </div>
-                  </div>
-                )}
+                <Divider />
 
-                <div className="flex items-center gap-3">
-                  <MapPin className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm font-medium">Location</p>
-                    <p className="text-sm text-muted-foreground">
-                      {formatLocation(
-                        tenant.city,
-                        tenant.region,
-                        tenant.country,
-                      )}
-                    </p>
-                  </div>
-                </div>
+                <Grid container spacing={2}>
+                  <Grid xs={12} md={4}>
+                    {renderOverrideField(
+                      "Healthy Min Score",
+                      "healthyMin",
+                      "90",
+                    )}
+                  </Grid>
+                  <Grid xs={12} md={4}>
+                    {renderOverrideField(
+                      "Warning Min Score",
+                      "warningMin",
+                      "75",
+                    )}
+                  </Grid>
+                  <Grid xs={12} md={4}>
+                    {renderOverrideField("Risk Min Score", "riskMin", "60")}
+                  </Grid>
+                </Grid>
 
-                <div className="flex items-center gap-3">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm font-medium">Created</p>
-                    <p className="text-sm text-muted-foreground">
-                      {format(new Date(tenant.tenant_created_at), "PPP")}
-                    </p>
-                  </div>
-                </div>
+                <Grid container spacing={2}>
+                  <Grid xs={12} md={4}>
+                    {renderOverrideField(
+                      "Throttled Recipient Cap",
+                      "throttledRecipientCap",
+                      "10000",
+                    )}
+                  </Grid>
+                  <Grid xs={12} md={4}>
+                    {renderOverrideField(
+                      "Throttled Job Batch Size",
+                      "throttledJobBatchSize",
+                      "25",
+                    )}
+                  </Grid>
+                  <Grid xs={12} md={4}>
+                    {renderOverrideField(
+                      "Throttled Pacing Multiplier",
+                      "throttledPacingMultiplier",
+                      "2",
+                    )}
+                  </Grid>
+                </Grid>
 
-                {tenant.onboarding_completed_at && (
-                  <div className="flex items-center gap-3">
-                    <Calendar className="h-4 w-4 text-muted-foreground" />
-                    <div>
-                      <p className="text-sm font-medium">
-                        Onboarding Completed
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        {format(
-                          new Date(tenant.onboarding_completed_at),
-                          "PPP",
-                        )}
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+                <Grid container spacing={2}>
+                  <Grid xs={12} md={4}>
+                    {renderOverrideField(
+                      "Restricted Recipient Cap",
+                      "restrictedRecipientCap",
+                      "2000",
+                    )}
+                  </Grid>
+                  <Grid xs={12} md={4}>
+                    {renderOverrideField(
+                      "Restricted Job Batch Size",
+                      "restrictedJobBatchSize",
+                      "10",
+                    )}
+                  </Grid>
+                  <Grid xs={12} md={4}>
+                    {renderOverrideField(
+                      "Restricted Pacing Multiplier",
+                      "restrictedPacingMultiplier",
+                      "4",
+                    )}
+                  </Grid>
+                </Grid>
 
-          <Card>
-            <Collapsible open={governanceOpen} onOpenChange={setGovernanceOpen}>
-            <CardHeader>
-              <CollapsibleTrigger asChild>
-                <button className="flex items-center justify-between w-full text-left">
-                  <CardTitle>Governance Overrides</CardTitle>
-                  <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform ${governanceOpen ? "rotate-180" : ""}`} />
-                </button>
-              </CollapsibleTrigger>
-              <p className="text-sm text-muted-foreground">
-                Optional per-tenant overrides. Disabled fields automatically use
-                global governance configuration.
-              </p>
-            </CardHeader>
-            <CollapsibleContent>
-            <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {renderOverrideField(
-                  "Hard Bounce Threshold (%)",
-                  "hardBounceRate",
-                  "5",
-                )}
-                {renderOverrideField(
-                  "Complaint Threshold (%)",
-                  "complaintRate",
-                  "0.2",
-                )}
-                {renderOverrideField("Spam Threshold (%)", "spamRate", "0.3")}
-              </div>
+                <Grid container spacing={2}>
+                  <Grid xs={12} md={4}>
+                    {renderOverrideField(
+                      "Critical Recipient Cap",
+                      "criticalRecipientCap",
+                      "0",
+                    )}
+                  </Grid>
+                  <Grid xs={12} md={4}>
+                    {renderOverrideField(
+                      "Critical Job Batch Size",
+                      "criticalJobBatchSize",
+                      "10",
+                    )}
+                  </Grid>
+                  <Grid xs={12} md={4}>
+                    {renderOverrideField(
+                      "Critical Pacing Multiplier",
+                      "criticalPacingMultiplier",
+                      "4",
+                    )}
+                  </Grid>
+                </Grid>
 
-              <Separator />
+                <Divider />
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {renderOverrideField("Healthy Min Score", "healthyMin", "90")}
-                {renderOverrideField("Warning Min Score", "warningMin", "75")}
-                {renderOverrideField("Risk Min Score", "riskMin", "60")}
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {renderOverrideField(
-                  "Throttled Recipient Cap",
-                  "throttledRecipientCap",
-                  "10000",
-                )}
-                {renderOverrideField(
-                  "Throttled Job Batch Size",
-                  "throttledJobBatchSize",
-                  "25",
-                )}
-                {renderOverrideField(
-                  "Throttled Pacing Multiplier",
-                  "throttledPacingMultiplier",
-                  "2",
-                )}
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {renderOverrideField(
-                  "Restricted Recipient Cap",
-                  "restrictedRecipientCap",
-                  "2000",
-                )}
-                {renderOverrideField(
-                  "Restricted Job Batch Size",
-                  "restrictedJobBatchSize",
-                  "10",
-                )}
-                {renderOverrideField(
-                  "Restricted Pacing Multiplier",
-                  "restrictedPacingMultiplier",
-                  "4",
-                )}
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {renderOverrideField(
-                  "Critical Recipient Cap",
-                  "criticalRecipientCap",
-                  "0",
-                )}
-                {renderOverrideField(
-                  "Critical Job Batch Size",
-                  "criticalJobBatchSize",
-                  "10",
-                )}
-                {renderOverrideField(
-                  "Critical Pacing Multiplier",
-                  "criticalPacingMultiplier",
-                  "4",
-                )}
-              </div>
-
-              <Separator />
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {renderOverrideField("Batch Max Size", "batchMaxSize", "5000")}
-              </div>
-
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  variant="default"
-                  size="sm"
-                  onClick={saveOverrides}
-                  disabled={savingOverrides || loadingOverrides}
-                >
-                  <Save className="h-4 w-4 mr-2" />
-                  {savingOverrides ? "Saving..." : "Save Overrides"}
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={clearOverrides}
-                  disabled={savingOverrides || loadingOverrides}
-                >
-                  <RotateCcw className="h-4 w-4 mr-2" />
-                  Clear Overrides
-                </Button>
-              </div>
-            </CardContent>
-            </CollapsibleContent>
-            </Collapsible>
-          </Card>
-
-          {/* Primary Contact */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Primary Contact</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center gap-3">
-                <User className="h-4 w-4 text-muted-foreground" />
-                <div>
-                  <p className="text-sm font-medium">Name</p>
-                  <p className="text-sm text-muted-foreground">
-                    {tenant.primary_contact_name || "Not specified"}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <Mail className="h-4 w-4 text-muted-foreground" />
-                <div>
-                  <p className="text-sm font-medium">Email</p>
-                  <a
-                    href={`mailto:${tenant.primary_contact_email}`}
-                    className="text-sm text-primary hover:underline"
-                  >
-                    {tenant.primary_contact_email}
-                  </a>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <Clock className="h-4 w-4 text-muted-foreground" />
-                <div>
-                  <p className="text-sm font-medium">Last Login</p>
-                  <p className="text-sm text-muted-foreground">
-                    {tenant.primary_contact_last_login
-                      ? format(
-                          new Date(tenant.primary_contact_last_login),
-                          "PPP",
-                        )
-                      : "Never"}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <Clock className="h-4 w-4 text-muted-foreground" />
-                <div>
-                  <p className="text-sm font-medium">Last Activity</p>
-                  <p className="text-sm text-muted-foreground">
-                    {tenant.last_activity_at && new Date(tenant.last_activity_at).getFullYear() >= 2000
-                      ? formatDistanceToNow(new Date(tenant.last_activity_at)) +
-                        " ago"
-                      : "Never"}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Subscription Details */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Subscription Details</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center gap-3">
-                <CreditCard className="h-4 w-4 text-muted-foreground" />
-                <div>
-                  <p className="text-sm font-medium">Plan</p>
-                  <p className="text-sm text-muted-foreground capitalize">
-                    {tenant.plan}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-                <div>
-                  <p className="text-sm font-medium">Status</p>
-                  <p className="text-sm text-muted-foreground capitalize">
-                    {tenant.subscription_status}
-                  </p>
-                </div>
-              </div>
-
-              {tenant.trial_start && (
-                <div className="flex items-center gap-3">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm font-medium">Trial Started</p>
-                    <p className="text-sm text-muted-foreground">
-                      {format(new Date(tenant.trial_start), "PPP")}
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {tenant.trial_end && (
-                <div className="flex items-center gap-3">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm font-medium">
-                      {tenant.is_trialing ? "Trial Ends" : "Trial Ended"}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      {format(new Date(tenant.trial_end), "PPP")}
-                      {tenant.trial_not_expired && (
-                        <span className="text-yellow-600 ml-2">
-                          ({formatDistanceToNow(new Date(tenant.trial_end))}{" "}
-                          remaining)
-                        </span>
-                      )}
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {tenant.current_period_end && (
-                <div className="flex items-center gap-3">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm font-medium">Current Period Ends</p>
-                    <p className="text-sm text-muted-foreground">
-                      {format(new Date(tenant.current_period_end), "PPP")}
-                    </p>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      </SheetContent>
-    </Sheet>
+                <Grid container spacing={2}>
+                  <Grid xs={12} md={4}>
+                    {renderOverrideField(
+                      "Batch Max Size",
+                      "batchMaxSize",
+                      "5000",
+                      "Maximum recipients per send batch before pacing pauses are applied.",
+                    )}
+                  </Grid>
+                </Grid>
+              </Stack>
+            </JoyFormSection>
+          </TabPanel>
+        </Tabs>
+      </Stack>
+    </JoyDrawer>
   );
 };

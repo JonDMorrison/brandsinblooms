@@ -1,11 +1,11 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
 import { DashboardSection } from './DashboardSection';
-import { RadialGauge } from '@/components/ui/radial-gauge';
-import { EmptyChartOverlay } from '@/components/ui/empty-chart-overlay';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { RadialGauge } from '@/components/ui-legacy/radial-gauge';
+import { EmptyChartOverlay } from '@/components/ui-legacy/empty-chart-overlay';
+import { Badge } from '@/components/ui-legacy/badge';
+import { Progress } from '@/components/ui-legacy/progress';
+import { ScrollArea } from '@/components/ui-legacy/scroll-area';
 import { 
   AlertTriangle, 
   ShieldAlert, 

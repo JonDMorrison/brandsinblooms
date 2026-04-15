@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui-legacy/card';
+import { Button } from '@/components/ui-legacy/button';
+import { Badge } from '@/components/ui-legacy/badge';
+import { Progress } from '@/components/ui-legacy/progress';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui-legacy/alert';
 import { 
   Mail, 
   Users, 

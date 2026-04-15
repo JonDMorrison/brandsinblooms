@@ -1,10 +1,10 @@
 
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui-legacy/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui-legacy/card";
 import { Building2, User, ArrowRight } from "lucide-react";
-import { HeadlineLarge, BodyMedium } from "@/components/ui/typography";
+import { HeadlineLarge, BodyMedium } from "@/components/ui-legacy/typography";
 
 interface CompanyProfileSetupProps {
   onComplete: () => void;

@@ -2,7 +2,7 @@
 import React from 'react';
 import { ImageSelectButton } from '@/components/image';
 import { extractImageSummary } from '@/utils/imageContentSummary';
-import { SafeHtml } from '@/components/ui/safe-html';
+import { SafeHtml } from '@/components/ui-legacy/safe-html';
 
 interface NewsletterBlock {
   title: string;

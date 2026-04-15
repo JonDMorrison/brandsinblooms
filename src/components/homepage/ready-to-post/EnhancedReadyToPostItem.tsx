@@ -1,16 +1,16 @@
 
 import React, { useState } from "react";
-import { EnhancedAppleButton } from "@/components/ui/enhanced-apple-button";
-import { Badge } from "@/components/ui/badge";
+import { EnhancedAppleButton } from "@/components/ui-legacy/enhanced-apple-button";
+import { Badge } from "@/components/ui-legacy/badge";
 import { Copy, ExternalLink, Trash2, Edit } from "lucide-react";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui-legacy/tooltip";
 // Removed sonner import - using global toast replacement
 import { supabase } from "@/integrations/supabase/client";
 import { getPostTypeIcon, getPostTypeColor } from "./postTypeUtils";
 import { stripHtmlAndFormat } from "./contentUtils";
-import { ApproveButton } from "@/components/ui/approve-button";
+import { ApproveButton } from "@/components/ui-legacy/approve-button";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { CaptionMedium, BodySmall } from "@/components/ui/typography";
+import { CaptionMedium, BodySmall } from "@/components/ui-legacy/typography";
 
 interface EnhancedReadyToPostItemProps {
   task: any;

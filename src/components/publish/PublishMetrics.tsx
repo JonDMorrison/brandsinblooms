@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Card } from '@/components/ui-legacy/card';
+import { Badge } from '@/components/ui-legacy/badge';
 import { 
   TrendingUp, 
   Clock, 

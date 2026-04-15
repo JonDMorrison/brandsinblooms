@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card, CardContent } from '@/components/ui/card';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui-legacy/sheet';
+import { Button } from '@/components/ui-legacy/button';
+import { Input } from '@/components/ui-legacy/input';
+import { Badge } from '@/components/ui-legacy/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui-legacy/tabs';
+import { Card, CardContent } from '@/components/ui-legacy/card';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { EmailBlock, BlockType } from '@/types/emailBuilder';

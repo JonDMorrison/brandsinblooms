@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui-legacy/tooltip';
 import { Info } from 'lucide-react';
 
 interface ConceptTooltipProps {

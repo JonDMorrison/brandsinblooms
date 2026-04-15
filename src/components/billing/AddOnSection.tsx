@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-legacy/card';
+import { Button } from '@/components/ui-legacy/button';
+import { Switch } from '@/components/ui-legacy/switch';
+import { Badge } from '@/components/ui-legacy/badge';
 import { useSubscription } from '@/hooks/useSubscription';
 import { supabase } from '@/integrations/supabase/client';
 import { Mail, MessageSquare, CheckCircle, ExternalLink, AlertTriangle } from 'lucide-react';
-import { Progress } from '@/components/ui/progress';
+import { Progress } from '@/components/ui-legacy/progress';
 
 export const AddOnSection = () => {
   const { subscription, loading } = useSubscription();

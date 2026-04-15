@@ -1,9 +1,9 @@
 import React, { useEffect, useRef, useState } from "react";
 import { AlertTriangle, LayoutTemplate, ShieldCheck } from "lucide-react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
+import { Alert, AlertDescription } from "@/components/ui-legacy/alert";
+import { Badge } from "@/components/ui-legacy/badge";
+import { Button } from "@/components/ui-legacy/button";
+import { Switch } from "@/components/ui-legacy/switch";
 import { isConsentFieldType } from "@/lib/forms/fieldRegistry";
 import {
   createDefaultFormStep,

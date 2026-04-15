@@ -1,7 +1,7 @@
 import React from 'react';
 import { SupportComment } from '@/types/helpdesk';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback } from '@/components/ui-legacy/avatar';
+import { Badge } from '@/components/ui-legacy/badge';
 import { User } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 

@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import { Card } from "@/components/ui/card";
-import { Switch } from "@/components/ui/switch";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui-legacy/dialog";
+import { Button } from "@/components/ui-legacy/button";
+import { Progress } from "@/components/ui-legacy/progress";
+import { Card } from "@/components/ui-legacy/card";
+import { Switch } from "@/components/ui-legacy/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import {

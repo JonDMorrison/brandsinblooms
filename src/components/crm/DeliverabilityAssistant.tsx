@@ -1,9 +1,9 @@
 
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Progress } from '@/components/ui/progress';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-legacy/card';
+import { Badge } from '@/components/ui-legacy/badge';
+import { Alert, AlertDescription } from '@/components/ui-legacy/alert';
+import { Progress } from '@/components/ui-legacy/progress';
 import { AlertTriangle, CheckCircle, XCircle, Info } from 'lucide-react';
 
 interface DeliverabilityScore {

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ContentBlock } from '@/types/emailBuilder';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui-legacy/button';
 import { Palette, RotateCcw } from 'lucide-react';
 import { hasFooterStylingOverrides } from '@/types/footerStyling';
 import { useFooterSettings } from '@/hooks/useFooterSettings';

@@ -1,5 +1,5 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-legacy/card';
+import { Badge } from '@/components/ui-legacy/badge';
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend } from 'recharts';
 import { Users, TrendingUp, Sparkles, BarChart3 } from 'lucide-react';
 import { SYSTEM_SEGMENTS } from '@/config/segmentDefinitions';

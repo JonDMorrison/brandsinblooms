@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-legacy/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui-legacy/tabs';
 import { SuccessMetricsDashboard } from '@/components/metrics/SuccessMetricsDashboard';
 import { EngagementBooster } from '@/components/retention/EngagementBooster';
 import { PostPerformanceTracker } from '@/components/analytics/PostPerformanceTracker';

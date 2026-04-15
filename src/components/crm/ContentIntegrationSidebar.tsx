@@ -1,17 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { NativeSelect } from '@/components/ui/NativeSelect';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui-legacy/sheet';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui-legacy/tabs';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-legacy/card';
+import { Button } from '@/components/ui-legacy/button';
+import { Input } from '@/components/ui-legacy/input';
+import { Textarea } from '@/components/ui-legacy/textarea';
+import { Badge } from '@/components/ui-legacy/badge';
+import { ScrollArea } from '@/components/ui-legacy/scroll-area';
+import { NativeSelect } from '@/components/ui-legacy/NativeSelect';
 import { EmailBlock } from '@/types/emailBuilder';
 import { supabase } from '@/integrations/supabase/client';
 import { Search, FileText, Sparkles, Bookmark, Calendar, Plus, Loader2, Image, ExternalLink, GripVertical, Edit3, Copy, Trash2, MoreVertical } from 'lucide-react';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui-legacy/dropdown-menu';
 import { TemplateManagementModal } from '@/components/crm/TemplateManagementModal';
 import { toast } from 'sonner';
 

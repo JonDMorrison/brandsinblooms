@@ -5,10 +5,10 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
+} from "@/components/ui-legacy/card";
+import { Button } from "@/components/ui-legacy/button";
+import { Badge } from "@/components/ui-legacy/badge";
+import { Separator } from "@/components/ui-legacy/separator";
 import { RefreshCw, Plus, Trash2, Upload, Settings } from "lucide-react";
 import { usePOSConnections } from "@/hooks/usePOSConnections";
 import { POSConnectionForm } from "@/components/crm/pos/POSConnectionForm";
@@ -21,7 +21,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog";
+} from "@/components/ui-legacy/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,7 +32,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+} from "@/components/ui-legacy/alert-dialog";
 
 const LEGACY_SHOPIFY_DEPRECATED = true;
 

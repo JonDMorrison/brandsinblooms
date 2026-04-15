@@ -1,10 +1,10 @@
 import React from 'react';
 import { ContentBlock, QuoteBlock } from '@/types/emailBuilder';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
-import { NativeSelect } from '@/components/ui/NativeSelect';
-import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui-legacy/input';
+import { Textarea } from '@/components/ui-legacy/textarea';
+import { Label } from '@/components/ui-legacy/label';
+import { NativeSelect } from '@/components/ui-legacy/NativeSelect';
+import { Card } from '@/components/ui-legacy/card';
 import { Quote } from 'lucide-react';
 
 interface QuoteBlockEditorProps {

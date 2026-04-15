@@ -1,10 +1,10 @@
 
 import React from "react";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@/components/ui-legacy/badge";
 import { getPostTypeIcon, getPostTypeColor } from "./postTypeUtils";
 import { stripHtmlAndFormat } from "./contentUtils";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { CaptionMedium, BodySmall } from "@/components/ui/typography";
+import { CaptionMedium, BodySmall } from "@/components/ui-legacy/typography";
 
 interface SimpleReadyToPostCardProps {
   task: any;

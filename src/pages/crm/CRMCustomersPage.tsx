@@ -1,60 +1,75 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
-import { EmptyState } from '@/components/ui/empty-state';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Progress } from '@/components/ui/progress';
-import { Users, Plus, Search, Mail, Phone, Calendar, DollarSign, Upload, MoreVertical, Eye, Trash2, X, RefreshCw } from 'lucide-react';
+import React, { useCallback, useEffect, useState } from "react";
+import Checkbox from "@mui/joy/Checkbox";
+import CircularProgress from "@mui/joy/CircularProgress";
+import LinearProgress from "@mui/joy/LinearProgress";
+import Box from "@mui/joy/Box";
+import Sheet from "@mui/joy/Sheet";
+import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
+import { format } from "date-fns";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+  Calendar,
+  DollarSign,
+  Eye,
+  Mail,
+  MoreVertical,
+  Phone,
+  Plus,
+  RefreshCw,
+  Trash2,
+  Upload,
+  Users,
+  X,
+} from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { SyncFromCRMModal } from "@/components/crm/customers/SyncFromCRMModal";
+import { EnhancedSegmentImportDialog } from "@/components/crm/segments/EnhancedSegmentImportDialog";
+import { JoyAlertDialog } from "@/components/joy/JoyAlertDialog";
+import { JoyButton } from "@/components/joy/JoyButton";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import { EnhancedSegmentImportDialog } from '@/components/crm/segments/EnhancedSegmentImportDialog';
-import { SyncFromCRMModal } from '@/components/crm/customers/SyncFromCRMModal';
-import { useCustomers } from '@/hooks/useCustomers';
-import { useAllPersonas } from '@/hooks/useAllPersonas';
-import { useAllSegments } from '@/hooks/useAllSegments';
-import { useDeleteCustomer } from '@/hooks/useDeleteCustomer';
-import { useBulkCustomerOperations } from '@/hooks/useBulkCustomerOperations';
-import { format } from 'date-fns';
-import { 
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-  PaginationEllipsis,
-} from '@/components/ui/pagination';
+  JoyCard,
+  JoyCardContent,
+  JoyCardHeader,
+} from "@/components/joy/JoyCard";
+import { JoyChip } from "@/components/joy/JoyChip";
+import {
+  JoyDropdownMenu,
+  JoyDropdownMenuContent,
+  JoyDropdownMenuItem,
+  JoyDropdownMenuTrigger,
+} from "@/components/joy/JoyDropdownMenu";
+import { JoySearchInput } from "@/components/joy/JoySearchInput";
+import {
+  JoyTable,
+  JoyTableBody,
+  JoyTableCell,
+  JoyTableHead,
+  JoyTableHeaderCell,
+  JoyTablePagination,
+  JoyTableRow,
+} from "@/components/joy/JoyTable";
+import { useAllPersonas } from "@/hooks/useAllPersonas";
+import { useAllSegments } from "@/hooks/useAllSegments";
+import { useBulkCustomerOperations } from "@/hooks/useBulkCustomerOperations";
+import { useCustomers } from "@/hooks/useCustomers";
+import { useDeleteCustomer } from "@/hooks/useDeleteCustomer";
 
 export const CRMCustomersPage: React.FC = () => {
   const navigate = useNavigate();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchInput, setSearchInput] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchInput, setSearchInput] = useState("");
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [showSyncFromCRM, setShowSyncFromCRM] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
-  const [customerToDelete, setCustomerToDelete] = useState<{ id: string; name: string; email: string } | null>(null);
+  const [customerToDelete, setCustomerToDelete] = useState<{
+    id: string;
+    name: string;
+    email: string;
+  } | null>(null);
   const pageSize = 15;
-  
+
   const deleteCustomer = useDeleteCustomer();
   const {
     selectedIds,
@@ -65,114 +80,132 @@ export const CRMCustomersPage: React.FC = () => {
     clearSelection,
     bulkDeleteCustomers,
   } = useBulkCustomerOperations();
-  
-  const { data: customers = [], totalCount = 0, isLoading, invalidateCustomers } = useCustomers({
+
+  const {
+    data: customers = [],
+    totalCount = 0,
+    isLoading,
+    invalidateCustomers,
+  } = useCustomers({
     search: searchQuery,
     page: currentPage,
-    pageSize
+    pageSize,
   });
   const { personas } = useAllPersonas();
   const { segments: allSegments } = useAllSegments();
 
   // Check if all visible customers are selected
-  const allVisibleSelected = customers.length > 0 && customers.every(c => selectedIds.has(c.id));
-
-  const totalPages = Math.ceil(totalCount / pageSize);
+  const allVisibleSelected =
+    customers.length > 0 && customers.every((c) => selectedIds.has(c.id));
 
   // Get persona details for a customer using unified approach
   const getCustomerPersona = (customer: any) => {
     // First check the new junction table for persona assignments
     if (customer.customer_personas && customer.customer_personas.length > 0) {
       const assignment = customer.customer_personas[0]; // Get first persona assignment
-      
+
       // Check if it's a predefined persona
       if (assignment.predefined_persona_id && personas) {
-        return personas.find(p => p.id === assignment.predefined_persona_id);
+        return personas.find((p) => p.id === assignment.predefined_persona_id);
       }
-      
+
       // Check if it's a custom persona
       if (assignment.persona_id && personas) {
-        return personas.find(p => p.id === assignment.persona_id);
+        return personas.find((p) => p.id === assignment.persona_id);
       }
     }
-    
+
     // Fallback to legacy persona_id field
     if (customer.persona_id && personas) {
-      return personas.find(p => p.id === customer.persona_id);
+      return personas.find((p) => p.id === customer.persona_id);
     }
-    
+
     return null;
   };
 
   // Get all assigned persona names for display (in case multiple are assigned)
   const getCustomerPersonas = (customer: any) => {
-    if (!customer.customer_personas || customer.customer_personas.length === 0) {
+    if (
+      !customer.customer_personas ||
+      customer.customer_personas.length === 0
+    ) {
       return [];
     }
-    
+
     const personaNames = [];
     for (const assignment of customer.customer_personas) {
       let persona = null;
-      
+
       if (assignment.predefined_persona_id && personas) {
-        persona = personas.find(p => p.id === assignment.predefined_persona_id);
+        persona = personas.find(
+          (p) => p.id === assignment.predefined_persona_id,
+        );
       } else if (assignment.persona_id && personas) {
-        persona = personas.find(p => p.id === assignment.persona_id);
+        persona = personas.find((p) => p.id === assignment.persona_id);
       }
-      
+
       if (persona) {
         personaNames.push(persona.persona_name);
       }
     }
-    
+
     return personaNames;
   };
 
   // Get all assigned segment names for display
   const getCustomerSegments = (customer: any) => {
-    if (!customer.customer_segments || customer.customer_segments.length === 0) {
+    if (
+      !customer.customer_segments ||
+      customer.customer_segments.length === 0
+    ) {
       return [];
     }
-    
+
     const segmentNames = [];
     for (const assignment of customer.customer_segments) {
       // Look up segment name from allSegments by matching segment_id
-      const segment = allSegments.find(s => s.id === assignment.segment_id);
+      const segment = allSegments.find((s) => s.id === assignment.segment_id);
       if (segment?.name) {
         segmentNames.push(segment.name);
       }
     }
-    
+
     return segmentNames;
   };
 
   // Dynamic persona colors based on the actual personas
   const getPersonaColor = (personaName: string) => {
-    const colorMap: Record<string, string> = {
-      'Plant-Killer Pam': 'bg-green-100 text-green-800',
-      'Pet-Friendly Hannah': 'bg-purple-100 text-purple-800',
-      'Vegetable Garden Veronica': 'bg-amber-100 text-amber-800',
-      'Sustainable Susie': 'bg-teal-100 text-teal-800',
-      'Patio Gardener Gail': 'bg-red-100 text-red-800',
-      'Pollinator Paula': 'bg-orange-100 text-orange-800',
-      'Curb Appeal Ashley': 'bg-pink-100 text-pink-800',
-      'DIY Dana': 'bg-indigo-100 text-indigo-800',
-      'Wellness Whitney': 'bg-cyan-100 text-cyan-800',
+    const colorMap: Record<
+      string,
+      "success" | "primary" | "warning" | "danger" | "neutral"
+    > = {
+      "Plant-Killer Pam": "success",
+      "Pet-Friendly Hannah": "primary",
+      "Vegetable Garden Veronica": "warning",
+      "Sustainable Susie": "success",
+      "Patio Gardener Gail": "danger",
+      "Pollinator Paula": "warning",
+      "Curb Appeal Ashley": "primary",
+      "DIY Dana": "neutral",
+      "Wellness Whitney": "primary",
     };
-    return colorMap[personaName] || 'bg-gray-100 text-gray-800';
+    return colorMap[personaName] || "neutral";
   };
 
   // Dynamic segment colors for visual variety
   const getSegmentColor = (segmentName: string) => {
-    const colorMap: Record<string, string> = {
-      'Loyalty Members': 'bg-blue-100 text-blue-800',
-      'High-Value Customers': 'bg-emerald-100 text-emerald-800',
-      'New Customers': 'bg-sky-100 text-sky-800',
-      'Lapsed Customers': 'bg-orange-100 text-orange-800',
-      'Seasonal Shoppers': 'bg-violet-100 text-violet-800',
-      'Frequent Buyers': 'bg-rose-100 text-rose-800',
+    const colorMap: Record<
+      string,
+      "success" | "primary" | "warning" | "danger" | "neutral"
+    > = {
+      "Loyalty Members": "primary",
+      "High-Value Customers": "success",
+      "New Customers": "primary",
+      "Lapsed Customers": "warning",
+      "Seasonal Shoppers": "primary",
+      "Frequent Buyers": "success",
     };
-    return colorMap[segmentName] || 'bg-slate-100 text-slate-800';
+    return colorMap[segmentName] || "neutral";
   };
 
   const handleImportComplete = () => {
@@ -196,354 +229,477 @@ export const CRMCustomersPage: React.FC = () => {
   }, [searchInput]);
 
   const handleClearSearch = useCallback(() => {
-    setSearchInput('');
-    setSearchQuery('');
+    setSearchInput("");
+    setSearchQuery("");
     setCurrentPage(1);
   }, []);
 
-  // Generate pagination items
-  const getPaginationItems = () => {
-    const items = [];
-    const maxVisible = 5;
-    
-    if (totalPages <= maxVisible) {
-      for (let i = 1; i <= totalPages; i++) {
-        items.push(i);
-      }
-    } else {
-      if (currentPage <= 3) {
-        items.push(1, 2, 3, 4, '...', totalPages);
-      } else if (currentPage >= totalPages - 2) {
-        items.push(1, '...', totalPages - 3, totalPages - 2, totalPages - 1, totalPages);
-      } else {
-        items.push(1, '...', currentPage - 1, currentPage, currentPage + 1, '...', totalPages);
-      }
-    }
-    
-    return items;
-  };
-
   if (isLoading) {
     return (
-      <div className="p-6 space-y-6">
-        <div className="flex justify-between items-center">
-          <h1 className="text-3xl font-bold">Customers</h1>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setShowImportDialog(true)}>
-              <Upload className="h-4 w-4 mr-2" />
-              Upload List
-            </Button>
-            <Button variant="outline" onClick={() => setShowSyncFromCRM(true)}>
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Sync From CRM
-            </Button>
-            <Button onClick={() => navigate('/crm/customers/new')}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Customer
-            </Button>
-          </div>
-        </div>
-        <div className="flex items-center justify-center h-64">
-          <p className="text-muted-foreground">Loading customers...</p>
-        </div>
-      </div>
+      <Stack spacing={3.5}>
+        <Sheet
+          variant="plain"
+          sx={{
+            p: { xs: 3, md: 4 },
+            borderRadius: "24px",
+            border: "1px solid",
+            borderColor: "neutral.200",
+            background:
+              "linear-gradient(135deg, rgba(14, 165, 233, 0.08) 0%, rgba(236, 253, 245, 0.9) 48%, rgba(255, 255, 255, 1) 100%)",
+          }}
+        >
+          <Stack
+            direction={{ xs: "column", lg: "row" }}
+            spacing={2}
+            justifyContent="space-between"
+            alignItems={{ xs: "flex-start", lg: "center" }}
+          >
+            <Stack spacing={1}>
+              <Typography level="h1">Customers</Typography>
+              <Typography level="body-md" color="neutral">
+                Loading customer records, bulk actions, and CRM sync state.
+              </Typography>
+            </Stack>
+          </Stack>
+        </Sheet>
+        <JoyCard>
+          <JoyCardContent>
+            <Stack
+              direction="row"
+              spacing={1.5}
+              alignItems="center"
+              sx={{ py: 4 }}
+            >
+              <CircularProgress size="sm" />
+              <Typography level="body-md">Loading customers...</Typography>
+            </Stack>
+          </JoyCardContent>
+        </JoyCard>
+      </Stack>
     );
   }
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">Customers</h1>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setShowImportDialog(true)}>
-            <Upload className="h-4 w-4 mr-2" />
-            Upload List
-          </Button>
-          <Button variant="outline" onClick={() => setShowSyncFromCRM(true)}>
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Sync From CRM
-          </Button>
-          <Button onClick={() => navigate('/crm/customers/new')}>
-            <Plus className="h-4 w-4 mr-2" />
-            Add Customer
-          </Button>
-        </div>
-      </div>
-      
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Users className="h-5 w-5" />
-            Customer Management ({totalCount} total)
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between gap-4">
-              <div className="relative flex-1 max-w-md">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input 
-                  placeholder="Search by name, email, or phone..." 
-                  className="pl-9 pr-9" 
-                  value={searchInput}
-                  onChange={(e) => setSearchInput(e.target.value)}
-                />
-                {searchInput && (
-                  <Button
-                    variant="ghost"
+    <Stack spacing={3.5}>
+      <Sheet
+        variant="plain"
+        sx={{
+          p: { xs: 3, md: 4 },
+          borderRadius: "24px",
+          border: "1px solid",
+          borderColor: "neutral.200",
+          background:
+            "linear-gradient(135deg, rgba(2, 132, 199, 0.08) 0%, rgba(236, 253, 245, 0.92) 45%, rgba(255, 255, 255, 1) 100%)",
+        }}
+      >
+        <Stack
+          direction={{ xs: "column", lg: "row" }}
+          spacing={2}
+          justifyContent="space-between"
+          alignItems={{ xs: "flex-start", lg: "center" }}
+        >
+          <Stack spacing={1}>
+            <Typography level="h1">Customers</Typography>
+            <Typography level="body-md" color="neutral">
+              Search, segment, and clean up tenant customer records with Joy
+              table controls and bulk actions.
+            </Typography>
+            <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+              <JoyChip color="primary" variant="soft">
+                {totalCount.toLocaleString()} total customers
+              </JoyChip>
+              <JoyChip color="success" variant="soft">
+                CRM sync ready
+              </JoyChip>
+            </Stack>
+          </Stack>
+
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
+            <JoyButton
+              bloomVariant="outline"
+              onClick={() => setShowImportDialog(true)}
+              startDecorator={<Upload />}
+            >
+              Upload List
+            </JoyButton>
+            <JoyButton
+              bloomVariant="outline"
+              onClick={() => setShowSyncFromCRM(true)}
+              startDecorator={<RefreshCw />}
+            >
+              Sync From CRM
+            </JoyButton>
+            <JoyButton
+              onClick={() => navigate("/crm/customers/new")}
+              startDecorator={<Plus />}
+            >
+              Add Customer
+            </JoyButton>
+          </Stack>
+        </Stack>
+      </Sheet>
+
+      <JoyCard>
+        <JoyCardHeader
+          title={`Customer Management (${totalCount} total)`}
+          description="Use search, segmentation badges, and bulk actions to keep customer records clean and current."
+          startDecorator={
+            <Box
+              sx={{
+                width: 40,
+                height: 40,
+                borderRadius: "16px",
+                display: "grid",
+                placeItems: "center",
+                backgroundColor: "primary.50",
+                color: "primary.700",
+              }}
+            >
+              <Users className="h-5 w-5" />
+            </Box>
+          }
+        />
+        <JoyCardContent>
+          <Stack spacing={2.5}>
+            <Stack
+              direction={{ xs: "column", xl: "row" }}
+              spacing={1.5}
+              justifyContent="space-between"
+              alignItems={{ xs: "stretch", xl: "center" }}
+            >
+              <JoySearchInput
+                value={searchInput}
+                onValueChange={setSearchInput}
+                onClear={handleClearSearch}
+                placeholder="Search by name, email, or phone..."
+                sx={{ width: { xs: "100%", xl: 420 } }}
+              />
+
+              {selectedIds.size > 0 ? (
+                <Sheet
+                  variant="soft"
+                  color="warning"
+                  sx={{
+                    px: 2,
+                    py: 1.25,
+                    borderRadius: "16px",
+                    display: "flex",
+                    flexWrap: "wrap",
+                    gap: 1,
+                    alignItems: "center",
+                  }}
+                >
+                  <Typography level="body-sm" sx={{ fontWeight: 600 }}>
+                    {selectedIds.size} selected
+                  </Typography>
+                  <JoyButton
                     size="sm"
-                    className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 p-0"
-                    onClick={handleClearSearch}
-                  >
-                    <X className="h-3 w-3" />
-                  </Button>
-                )}
-              </div>
-              
-              {selectedIds.size > 0 && (
-                <div className="flex items-center gap-3 bg-muted px-4 py-2 rounded-md">
-                  <span className="text-sm font-medium">{selectedIds.size} selected</span>
-                  <Button 
-                    variant="destructive" 
-                    size="sm"
+                    bloomVariant="destructive"
                     onClick={() => setBulkDeleteDialogOpen(true)}
+                    startDecorator={<Trash2 />}
                   >
-                    <Trash2 className="h-4 w-4 mr-2" />
                     Delete Selected
-                  </Button>
-                  <Button 
-                    variant="ghost" 
+                  </JoyButton>
+                  <JoyButton
                     size="sm"
+                    bloomVariant="ghost"
                     onClick={clearSelection}
                   >
-                    <X className="h-4 w-4 mr-1" />
                     Clear
-                  </Button>
-                </div>
-              )}
-            </div>
-            
-            {customers.length === 0 ? (
-              <EmptyState
-                icon={Users}
-                title="No customers found"
-                description={searchQuery ? 
-                  "No customers match your search criteria. Try adjusting your search or add a new customer." :
-                  "Start building your customer base by adding your first customer or importing a customer list."
-                }
-                action={{
-                  label: "Add Customer",
-                  onClick: () => navigate('/crm/customers/new')
-                }}
-              />
-            ) : (
-              <div className="w-full overflow-x-auto overflow-y-visible rounded-md border">
-                <Table data-testid="customers-table" className="min-w-[800px]">
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="w-[40px]">
-                            <Checkbox
-                              checked={allVisibleSelected}
-                              onCheckedChange={(checked) => {
-                                if (checked) {
-                                  selectAll(customers.map(c => c.id));
-                                } else {
-                                  clearSelection();
-                                }
-                              }}
-                            />
-                          </TableHead>
-                          <TableHead>Customer</TableHead>
-                          <TableHead className="hidden md:table-cell">Contact</TableHead>
-                          <TableHead>Persona</TableHead>
-                          <TableHead className="hidden lg:table-cell">Segments</TableHead>
-                          <TableHead className="hidden sm:table-cell">Total Spent</TableHead>
-                          <TableHead className="hidden xl:table-cell">Last Purchase</TableHead>
-                          <TableHead className="hidden lg:table-cell">Added</TableHead>
-                          <TableHead className="w-[50px]">Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {customers.map((customer) => (
-                           <TableRow 
-                             key={customer.id}
-                             className={`cursor-pointer hover:bg-muted/50 ${selectedIds.has(customer.id) ? 'bg-muted/30' : ''}`}
-                             onClick={() => handleCustomerClick(customer)}
-                           >
-                            <TableCell onClick={(e) => e.stopPropagation()}>
-                              <Checkbox
-                                checked={selectedIds.has(customer.id)}
-                                onCheckedChange={() => toggleSelection(customer.id)}
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <div>
-                                <div className="font-medium">
-                                  {customer.first_name || customer.last_name 
-                                    ? `${customer.first_name || ''} ${customer.last_name || ''}`.trim()
-                                    : 'No name'
-                                  }
-                                </div>
-                                <div className="text-sm text-muted-foreground flex items-center gap-1">
-                                  <Mail className="h-3 w-3" />
-                                  {customer.email}
-                                </div>
-                              </div>
-                            </TableCell>
-                            <TableCell className="hidden md:table-cell">
-                              {customer.phone ? (
-                                <div className="flex items-center gap-1 text-sm">
-                                  <Phone className="h-3 w-3" />
-                                  {customer.phone}
-                                </div>
-                              ) : (
-                                <span className="text-muted-foreground text-sm">No phone</span>
-                              )}
-                            </TableCell>
-                             <TableCell>
-                               {(() => {
-                                 const assignedPersonas = getCustomerPersonas(customer);
-                                 return assignedPersonas.length > 0 ? (
-                                   <div className="flex flex-wrap gap-1">
-                                     {assignedPersonas.map((personaName, index) => (
-                                       <Badge 
-                                         key={index}
-                                         variant="secondary" 
-                                         className={getPersonaColor(personaName)}
-                                       >
-                                         {personaName}
-                                       </Badge>
-                                     ))}
-                                   </div>
-                                 ) : (
-                                   <span className="text-muted-foreground text-sm whitespace-nowrap">No persona</span>
-                                 );
-                               })()}
-                             </TableCell>
-                             <TableCell className="hidden lg:table-cell">
-                               {(() => {
-                                 const assignedSegments = getCustomerSegments(customer);
-                                 return assignedSegments.length > 0 ? (
-                                   <div className="flex flex-wrap gap-1">
-                                     {assignedSegments.map((segmentName, index) => (
-                                       <Badge 
-                                         key={index}
-                                         variant="secondary" 
-                                         className={getSegmentColor(segmentName)}
-                                       >
-                                         {segmentName}
-                                       </Badge>
-                                     ))}
-                                   </div>
-                                 ) : (
-                                   <span className="text-muted-foreground text-sm whitespace-nowrap">No segments</span>
-                                 );
-                               })()}
-                             </TableCell>
-                            <TableCell className="hidden sm:table-cell">
-                              {customer.total_spent ? (
-                                <div className="flex items-center gap-1">
-                                  <DollarSign className="h-3 w-3" />
-                                  ${customer.total_spent.toFixed(2)}
-                                </div>
-                              ) : (
-                                <span className="text-muted-foreground text-sm">$0.00</span>
-                              )}
-                            </TableCell>
-                            <TableCell className="hidden xl:table-cell whitespace-nowrap">
-                              {customer.last_purchase_date ? (
-                                <div className="flex items-center gap-1 text-sm">
-                                  <Calendar className="h-3 w-3" />
-                                  {format(new Date(customer.last_purchase_date), 'MMM d, yyyy')}
-                                </div>
-                              ) : (
-                                <span className="text-muted-foreground text-sm">No purchases</span>
-                              )}
-                            </TableCell>
-                            <TableCell className="hidden lg:table-cell whitespace-nowrap">
-                              <span className="text-sm text-muted-foreground">
-                                {format(new Date(customer.created_at), 'MMM d, yyyy')}
-                              </span>
-                            </TableCell>
-                            <TableCell onClick={(e) => e.stopPropagation()}>
-                              <DropdownMenu modal={false}>
-                                <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="h-8 w-8">
-                                    <MoreVertical className="h-4 w-4" />
-                                    <span className="sr-only">Open menu</span>
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" side="bottom" className="w-48 z-[1000020]">
-                                  <DropdownMenuItem onClick={() => navigate(`/crm/customers/${customer.id}`)}>
-                                    <Eye className="h-4 w-4 mr-2" />
-                                    View Customer
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem 
-                                    onClick={() => {
-                                      const name = customer.first_name || customer.last_name 
-                                        ? `${customer.first_name || ''} ${customer.last_name || ''}`.trim()
-                                        : 'This customer';
-                                      setCustomerToDelete({ id: customer.id, name, email: customer.email });
-                                      setDeleteDialogOpen(true);
-                                    }}
-                                    className="text-destructive focus:text-destructive"
-                                  >
-                                    <Trash2 className="h-4 w-4 mr-2" />
-                                    Delete Customer
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-            )}
+                  </JoyButton>
+                </Sheet>
+              ) : null}
+            </Stack>
 
-            {totalPages > 1 && (
-              <div className="flex items-center justify-between pt-4">
-                <div className="text-sm text-muted-foreground">
-                  Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, totalCount)} of {totalCount} customers
-                </div>
-                <Pagination>
-                  <PaginationContent>
-                    <PaginationItem>
-                      <PaginationPrevious 
-                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                        className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
-                      />
-                    </PaginationItem>
-                    
-                    {getPaginationItems().map((item, index) => (
-                      <PaginationItem key={index}>
-                        {item === '...' ? (
-                          <PaginationEllipsis />
-                        ) : (
-                          <PaginationLink
-                            onClick={() => setCurrentPage(item as number)}
-                            isActive={currentPage === item}
-                            className="cursor-pointer"
+            {customers.length === 0 ? (
+              <Stack
+                spacing={2}
+                alignItems="center"
+                justifyContent="center"
+                sx={{ py: { xs: 5, md: 7 }, textAlign: "center" }}
+              >
+                <Box
+                  sx={{
+                    width: 64,
+                    height: 64,
+                    borderRadius: "20px",
+                    display: "grid",
+                    placeItems: "center",
+                    backgroundColor: "neutral.100",
+                    color: "neutral.500",
+                  }}
+                >
+                  <Users className="h-8 w-8" />
+                </Box>
+                <Stack spacing={0.5}>
+                  <Typography level="title-md">No customers found</Typography>
+                  <Typography level="body-sm" color="neutral">
+                    {searchQuery
+                      ? "No customers match your search criteria. Adjust the search or add a new customer."
+                      : "Add your first customer or import a list to start building segments and personas."}
+                  </Typography>
+                </Stack>
+                <JoyButton
+                  onClick={() => navigate("/crm/customers/new")}
+                  startDecorator={<Plus />}
+                >
+                  Add Customer
+                </JoyButton>
+              </Stack>
+            ) : (
+              <>
+                <JoyTable stickyHeader data-testid="customers-table">
+                  <JoyTableHead>
+                    <JoyTableRow>
+                      <JoyTableHeaderCell sx={{ width: 56 }}>
+                        <Checkbox
+                          checked={allVisibleSelected}
+                          onChange={(event) => {
+                            if (event.target.checked) {
+                              selectAll(
+                                customers.map((customer) => customer.id),
+                              );
+                            } else {
+                              clearSelection();
+                            }
+                          }}
+                        />
+                      </JoyTableHeaderCell>
+                      <JoyTableHeaderCell>Customer</JoyTableHeaderCell>
+                      <JoyTableHeaderCell>Contact</JoyTableHeaderCell>
+                      <JoyTableHeaderCell>Persona</JoyTableHeaderCell>
+                      <JoyTableHeaderCell>Segments</JoyTableHeaderCell>
+                      <JoyTableHeaderCell>Total Spent</JoyTableHeaderCell>
+                      <JoyTableHeaderCell>Last Purchase</JoyTableHeaderCell>
+                      <JoyTableHeaderCell>Added</JoyTableHeaderCell>
+                      <JoyTableHeaderCell align="right">
+                        Actions
+                      </JoyTableHeaderCell>
+                    </JoyTableRow>
+                  </JoyTableHead>
+                  <JoyTableBody>
+                    {customers.map((customer) => {
+                      const assignedPersonas = getCustomerPersonas(customer);
+                      const assignedSegments = getCustomerSegments(customer);
+                      const customerName =
+                        customer.first_name || customer.last_name
+                          ? `${customer.first_name || ""} ${customer.last_name || ""}`.trim()
+                          : "No name";
+
+                      return (
+                        <JoyTableRow
+                          key={customer.id}
+                          clickable
+                          hoverColor={
+                            selectedIds.has(customer.id)
+                              ? "rgba(2, 132, 199, 0.06)"
+                              : undefined
+                          }
+                          onClick={() => handleCustomerClick(customer)}
+                          sx={
+                            selectedIds.has(customer.id)
+                              ? {
+                                  "& > td": {
+                                    backgroundColor: "rgba(2, 132, 199, 0.04)",
+                                  },
+                                }
+                              : undefined
+                          }
+                        >
+                          <JoyTableCell
+                            onClick={(event) => event.stopPropagation()}
                           >
-                            {item}
-                          </PaginationLink>
-                        )}
-                      </PaginationItem>
-                    ))}
-                    
-                    <PaginationItem>
-                      <PaginationNext 
-                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                        className={currentPage === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
-                      />
-                    </PaginationItem>
-                  </PaginationContent>
-                </Pagination>
-              </div>
+                            <Checkbox
+                              checked={selectedIds.has(customer.id)}
+                              onChange={() => toggleSelection(customer.id)}
+                            />
+                          </JoyTableCell>
+                          <JoyTableCell>
+                            <Stack spacing={0.35}>
+                              <Typography level="title-sm">
+                                {customerName}
+                              </Typography>
+                              <Stack
+                                direction="row"
+                                spacing={0.75}
+                                alignItems="center"
+                              >
+                                <Mail className="h-3.5 w-3.5" />
+                                <Typography level="body-xs" color="neutral">
+                                  {customer.email}
+                                </Typography>
+                              </Stack>
+                            </Stack>
+                          </JoyTableCell>
+                          <JoyTableCell>
+                            {customer.phone ? (
+                              <Stack
+                                direction="row"
+                                spacing={0.75}
+                                alignItems="center"
+                              >
+                                <Phone className="h-3.5 w-3.5" />
+                                <Typography level="body-sm">
+                                  {customer.phone}
+                                </Typography>
+                              </Stack>
+                            ) : (
+                              <Typography level="body-sm" color="neutral">
+                                No phone
+                              </Typography>
+                            )}
+                          </JoyTableCell>
+                          <JoyTableCell>
+                            {assignedPersonas.length > 0 ? (
+                              <Stack
+                                direction="row"
+                                spacing={0.75}
+                                useFlexGap
+                                flexWrap="wrap"
+                              >
+                                {assignedPersonas.map((personaName, index) => (
+                                  <JoyChip
+                                    key={`${customer.id}-persona-${index}`}
+                                    color={getPersonaColor(personaName)}
+                                    variant="soft"
+                                    size="sm"
+                                  >
+                                    {personaName}
+                                  </JoyChip>
+                                ))}
+                              </Stack>
+                            ) : (
+                              <Typography level="body-sm" color="neutral">
+                                No persona
+                              </Typography>
+                            )}
+                          </JoyTableCell>
+                          <JoyTableCell>
+                            {assignedSegments.length > 0 ? (
+                              <Stack
+                                direction="row"
+                                spacing={0.75}
+                                useFlexGap
+                                flexWrap="wrap"
+                              >
+                                {assignedSegments.map((segmentName, index) => (
+                                  <JoyChip
+                                    key={`${customer.id}-segment-${index}`}
+                                    color={getSegmentColor(segmentName)}
+                                    variant="soft"
+                                    size="sm"
+                                  >
+                                    {segmentName}
+                                  </JoyChip>
+                                ))}
+                              </Stack>
+                            ) : (
+                              <Typography level="body-sm" color="neutral">
+                                No segments
+                              </Typography>
+                            )}
+                          </JoyTableCell>
+                          <JoyTableCell>
+                            <Stack
+                              direction="row"
+                              spacing={0.5}
+                              alignItems="center"
+                            >
+                              <DollarSign className="h-3.5 w-3.5" />
+                              <Typography level="body-sm">
+                                {customer.total_spent
+                                  ? customer.total_spent.toFixed(2)
+                                  : "0.00"}
+                              </Typography>
+                            </Stack>
+                          </JoyTableCell>
+                          <JoyTableCell>
+                            {customer.last_purchase_date ? (
+                              <Stack
+                                direction="row"
+                                spacing={0.5}
+                                alignItems="center"
+                              >
+                                <Calendar className="h-3.5 w-3.5" />
+                                <Typography level="body-sm">
+                                  {format(
+                                    new Date(customer.last_purchase_date),
+                                    "MMM d, yyyy",
+                                  )}
+                                </Typography>
+                              </Stack>
+                            ) : (
+                              <Typography level="body-sm" color="neutral">
+                                No purchases
+                              </Typography>
+                            )}
+                          </JoyTableCell>
+                          <JoyTableCell>
+                            <Typography level="body-sm" color="neutral">
+                              {format(
+                                new Date(customer.created_at),
+                                "MMM d, yyyy",
+                              )}
+                            </Typography>
+                          </JoyTableCell>
+                          <JoyTableCell
+                            align="right"
+                            onClick={(event) => event.stopPropagation()}
+                          >
+                            <JoyDropdownMenu>
+                              <JoyDropdownMenuTrigger
+                                aria-label={`Actions for ${customerName}`}
+                              >
+                                <MoreVertical className="h-4 w-4" />
+                              </JoyDropdownMenuTrigger>
+                              <JoyDropdownMenuContent>
+                                <JoyDropdownMenuItem
+                                  startDecorator={<Eye className="h-4 w-4" />}
+                                  onClick={() =>
+                                    navigate(`/crm/customers/${customer.id}`)
+                                  }
+                                >
+                                  View Customer
+                                </JoyDropdownMenuItem>
+                                <JoyDropdownMenuItem
+                                  destructive
+                                  startDecorator={
+                                    <Trash2 className="h-4 w-4" />
+                                  }
+                                  onClick={() => {
+                                    setCustomerToDelete({
+                                      id: customer.id,
+                                      name:
+                                        customerName === "No name"
+                                          ? "This customer"
+                                          : customerName,
+                                      email: customer.email,
+                                    });
+                                    setDeleteDialogOpen(true);
+                                  }}
+                                >
+                                  Delete Customer
+                                </JoyDropdownMenuItem>
+                              </JoyDropdownMenuContent>
+                            </JoyDropdownMenu>
+                          </JoyTableCell>
+                        </JoyTableRow>
+                      );
+                    })}
+                  </JoyTableBody>
+                </JoyTable>
+
+                <JoyTablePagination
+                  page={currentPage}
+                  pageSize={pageSize}
+                  totalCount={totalCount}
+                  onPageChange={setCurrentPage}
+                />
+              </>
             )}
-          </div>
-        </CardContent>
-      </Card>
+          </Stack>
+        </JoyCardContent>
+      </JoyCard>
 
       <EnhancedSegmentImportDialog
         open={showImportDialog}
@@ -557,67 +713,60 @@ export const CRMCustomersPage: React.FC = () => {
         onSyncComplete={invalidateCustomers}
       />
 
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Customer</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete <strong>{customerToDelete?.name}</strong> ({customerToDelete?.email})? 
-              This action cannot be undone and will permanently remove all associated data.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                if (customerToDelete) {
-                  deleteCustomer.mutate(customerToDelete.id);
-                  setDeleteDialogOpen(false);
-                  setCustomerToDelete(null);
-                }
-              }}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              disabled={deleteCustomer.isPending}
-            >
-              {deleteCustomer.isPending ? 'Deleting...' : 'Delete'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <JoyAlertDialog
+        open={deleteDialogOpen}
+        onClose={() => {
+          setDeleteDialogOpen(false);
+          setCustomerToDelete(null);
+        }}
+        title="Delete Customer"
+        description={`Are you sure you want to delete ${customerToDelete?.name ?? "this customer"} (${customerToDelete?.email ?? "no email"})? This action cannot be undone.`}
+        confirmLabel={deleteCustomer.isPending ? "Deleting..." : "Delete"}
+        cancelLabel="Cancel"
+        onConfirm={async () => {
+          if (customerToDelete) {
+            await deleteCustomer.mutateAsync(customerToDelete.id);
+            setDeleteDialogOpen(false);
+            setCustomerToDelete(null);
+          }
+        }}
+        loading={deleteCustomer.isPending}
+        variant="danger"
+      />
 
-      <AlertDialog open={bulkDeleteDialogOpen} onOpenChange={(open) => !isProcessing && setBulkDeleteDialogOpen(open)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete {selectedIds.size} Customers</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete {selectedIds.size} customer(s)? 
-              This action cannot be undone and will permanently remove all associated data.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          {isProcessing && (
-            <div className="py-4">
-              <Progress value={(progress.completed / progress.total) * 100} />
-              <p className="text-sm text-muted-foreground mt-2">
-                Deleting {progress.completed} of {progress.total}...
-                {progress.failed > 0 && ` (${progress.failed} failed)`}
-              </p>
-            </div>
-          )}
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isProcessing}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={async () => {
-                await bulkDeleteCustomers(Array.from(selectedIds));
-                setBulkDeleteDialogOpen(false);
-              }}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              disabled={isProcessing}
-            >
-              {isProcessing ? 'Deleting...' : `Delete ${selectedIds.size} Customers`}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </div>
+      <JoyAlertDialog
+        open={bulkDeleteDialogOpen}
+        onClose={() => {
+          if (!isProcessing) {
+            setBulkDeleteDialogOpen(false);
+          }
+        }}
+        title={`Delete ${selectedIds.size} Customers`}
+        description={`Are you sure you want to delete ${selectedIds.size} customer(s)? This action cannot be undone.`}
+        confirmLabel={
+          isProcessing ? "Deleting..." : `Delete ${selectedIds.size} Customers`
+        }
+        cancelLabel="Cancel"
+        onConfirm={async () => {
+          await bulkDeleteCustomers(Array.from(selectedIds));
+          setBulkDeleteDialogOpen(false);
+        }}
+        loading={isProcessing}
+        variant="danger"
+        disableClose={isProcessing}
+      >
+        {isProcessing ? (
+          <Stack spacing={1.25}>
+            <LinearProgress
+              value={(progress.completed / Math.max(progress.total, 1)) * 100}
+            />
+            <Typography level="body-sm" color="neutral">
+              Deleting {progress.completed} of {progress.total}...
+              {progress.failed > 0 ? ` (${progress.failed} failed)` : ""}
+            </Typography>
+          </Stack>
+        ) : null}
+      </JoyAlertDialog>
+    </Stack>
   );
 };

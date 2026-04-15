@@ -4,9 +4,9 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
+} from "@/components/ui-legacy/dialog";
+import { Button } from "@/components/ui-legacy/button";
+import { Textarea } from "@/components/ui-legacy/textarea";
 import { Save, X } from "lucide-react";
 import { FacebookPostPreview } from "./FacebookPostPreview";
 import { InstagramPostPreview } from "./InstagramPostPreview";

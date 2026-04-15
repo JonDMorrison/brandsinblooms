@@ -1,7 +1,7 @@
 
 import { Check, Clock } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { CaptionMedium } from "@/components/ui/typography";
+import { Badge } from "@/components/ui-legacy/badge";
+import { CaptionMedium } from "@/components/ui-legacy/typography";
 
 interface SuccessIndicatorProps {
   stepNumber: number;

@@ -5,8 +5,8 @@ import {
   isVideoScriptContent,
 } from "@/utils/videoContentCleaner";
 import { convertMarkdownToHtml } from "@/utils/markdownUtils";
-import { SafeHtml } from "@/components/ui/safe-html";
-import { RichTextEditor } from "@/components/ui/rich-text-editor";
+import { SafeHtml } from "@/components/ui-legacy/safe-html";
+import { RichTextEditor } from "@/components/ui-legacy/rich-text-editor";
 import { stripEmojis } from "@/utils/contentValidation";
 import {
   validateFormattedContent,
@@ -15,13 +15,13 @@ import {
 import { useNewsletterRenderer } from "@/hooks/useNewsletterRenderer";
 import { MagazineNewsletterRenderer } from "@/components/newsletter/MagazineNewsletterRenderer";
 import { PlainEmailRenderer } from "@/components/newsletter/PlainEmailRenderer";
-import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { LoadingSpinner } from "@/components/ui-legacy/loading-spinner";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@/components/ui/tooltip";
+} from "@/components/ui-legacy/tooltip";
 
 interface MagazineContentDisplayProps {
   content: string;

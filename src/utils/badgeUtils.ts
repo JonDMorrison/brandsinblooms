@@ -1,5 +1,5 @@
 
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@/components/ui-legacy/badge";
 
 // Status mapping for content tasks
 export const getStatusBadgeVariant = (status: string) => {

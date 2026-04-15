@@ -5,9 +5,9 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { NativeSelect } from "@/components/ui/NativeSelect";
+} from "@/components/ui-legacy/dialog";
+import { Button } from "@/components/ui-legacy/button";
+import { NativeSelect } from "@/components/ui-legacy/NativeSelect";
 import {
   Table,
   TableBody,
@@ -15,9 +15,9 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
-import { Progress } from "@/components/ui/progress";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+} from "@/components/ui-legacy/table";
+import { Progress } from "@/components/ui-legacy/progress";
+import { Alert, AlertDescription } from "@/components/ui-legacy/alert";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -28,7 +28,7 @@ import {
   Loader2,
   X,
 } from "lucide-react";
-import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { LoadingSpinner } from "@/components/ui-legacy/loading-spinner";
 import {
   parseCSVFile,
   isValidEmail,

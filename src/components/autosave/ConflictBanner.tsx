@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { AlertTriangle, FileDiff, Check, Undo2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui-legacy/button';
 
 type Conflict = { path: string; base: any; local: any; remote: any };
 

@@ -1,5 +1,5 @@
 
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui-legacy/accordion";
 
 export const FAQSection = () => {
   const faqs = [

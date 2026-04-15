@@ -1,16 +1,16 @@
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Switch } from "@/components/ui/switch";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui-legacy/card";
+import { Button } from "@/components/ui-legacy/button";
+import { Badge } from "@/components/ui-legacy/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui-legacy/table";
+import { Switch } from "@/components/ui-legacy/switch";
 import { Plus, Edit, Calendar, RefreshCw, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
 import { DashboardError } from "@/components/dashboard/DashboardError";
 import { useAuth } from "@/hooks/useAuth";
-import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
+import { ConfirmationDialog } from "@/components/ui-legacy/confirmation-dialog";
 
 interface Automation {
   id: string;

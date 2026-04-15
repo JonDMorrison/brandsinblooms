@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { useTypingEffect } from "@/hooks/useTypingEffect";
-import { DisplayMedium, BodyMedium } from "@/components/ui/typography";
+import { DisplayMedium, BodyMedium } from "@/components/ui-legacy/typography";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Autoplay, Navigation } from "swiper/modules";
 import { Sparkles, Calendar, Target } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { NewsletterIdea } from "@/types/newsletter";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui-legacy/button";
 
 // @ts-ignore - Swiper CSS imports
 import "swiper/css";

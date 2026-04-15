@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Badge } from '@/components/ui/badge';
+import { Badge } from '@/components/ui-legacy/badge';
 import { CheckCircle, Circle, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { SenderVerificationModal } from '@/components/crm/campaigns/SenderVerificationModal';

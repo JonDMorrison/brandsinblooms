@@ -4,8 +4,8 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+} from "@/components/ui-legacy/card";
+import { Badge } from "@/components/ui-legacy/badge";
 import { CheckCircle2, Clock, Leaf, Send } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -16,8 +16,8 @@ import { AccordionReadyToPostItem } from "./ready-to-post/AccordionReadyToPostIt
 import { ContentViewerDialog } from "@/components/content/ContentViewerDialog";
 import { SocialConnectionStatus } from "@/components/social/SocialConnectionStatus";
 import { useToast } from "@/hooks/use-toast";
-import { Button } from "@/components/ui/button";
-import { HeadlineLarge, BodyMedium } from "@/components/ui/typography";
+import { Button } from "@/components/ui-legacy/button";
+import { HeadlineLarge, BodyMedium } from "@/components/ui-legacy/typography";
 import { useNavigate } from "react-router-dom";
 
 interface ReadyToPostCardProps {

@@ -1,10 +1,10 @@
 import React from 'react';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { NativeSelect } from '@/components/ui/NativeSelect';
-import { Separator } from '@/components/ui/separator';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui-legacy/sheet';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-legacy/card';
+import { Input } from '@/components/ui-legacy/input';
+import { Label } from '@/components/ui-legacy/label';
+import { NativeSelect } from '@/components/ui-legacy/NativeSelect';
+import { Separator } from '@/components/ui-legacy/separator';
 import { GlobalSettings } from '@/types/emailBuilder';
 
 interface GlobalSettingsPanelProps {

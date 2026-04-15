@@ -1,9 +1,9 @@
 
 import * as React from "react";
 import { cn } from "@/lib/utils";
-import { PremiumIcon } from "@/components/ui/premium-icons";
-import { EnhancedProgress } from "@/components/ui/enhanced-progress";
-import { HeadlineLarge, CaptionMedium } from "@/components/ui/typography";
+import { PremiumIcon } from "@/components/ui-legacy/premium-icons";
+import { EnhancedProgress } from "@/components/ui-legacy/enhanced-progress";
+import { HeadlineLarge, CaptionMedium } from "@/components/ui-legacy/typography";
 
 interface EnhancedSuccessIndicatorProps {
   stepNumber: number;

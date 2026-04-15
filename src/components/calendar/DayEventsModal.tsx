@@ -5,8 +5,8 @@ import {
   DialogHeader,
   DialogTitle,
   DialogClose,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
+} from '@/components/ui-legacy/dialog';
+import { Button } from '@/components/ui-legacy/button';
 import { CalendarListView } from './CalendarListView';
 import { format } from 'date-fns';
 import { UnifiedCalendarEvent } from '@/hooks/useUnifiedCalendarData';

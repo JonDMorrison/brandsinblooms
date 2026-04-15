@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { ContentBlock } from "@/types/emailBuilder";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui-legacy/button";
 import { Plus, Bug } from "lucide-react";
 import { ClickToEditBlock } from "./ClickToEditBlock";
 import { HeaderBlock } from "./blocks/HeaderBlock";

@@ -6,11 +6,11 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
+} from "@/components/ui-legacy/dialog";
+import { Button } from "@/components/ui-legacy/button";
+import { Card, CardContent } from "@/components/ui-legacy/card";
+import { Badge } from "@/components/ui-legacy/badge";
+import { Progress } from "@/components/ui-legacy/progress";
 import {
   Mail,
   Megaphone,

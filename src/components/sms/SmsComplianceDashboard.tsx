@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui-legacy/card';
+import { Badge } from '@/components/ui-legacy/badge';
+import { Button } from '@/components/ui-legacy/button';
+import { Skeleton } from '@/components/ui-legacy/skeleton';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui-legacy/alert';
 import { useSmsComplianceStats } from '@/hooks/useSmsComplianceStats';
 import { 
   Ban, 

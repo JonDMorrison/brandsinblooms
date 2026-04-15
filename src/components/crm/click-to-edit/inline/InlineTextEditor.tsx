@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { RichTextEditor } from '@/components/ui/rich-text-editor';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import { RichTextEditor } from '@/components/ui-legacy/rich-text-editor';
+import { Button } from '@/components/ui-legacy/button';
+import { Card } from '@/components/ui-legacy/card';
 
 interface InlineTextEditorProps {
   value: string;

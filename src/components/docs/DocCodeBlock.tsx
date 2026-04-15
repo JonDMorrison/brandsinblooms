@@ -12,7 +12,7 @@ import {
 } from "@/hooks/useCopyFeedback";
 import { cn } from "@/lib/utils";
 
-import { CopyButton } from "@/components/ui/copy-button";
+import { CopyButton } from "@/components/ui-legacy/copy-button";
 
 interface DocCodeBlockProps {
   ariaLabel?: string;

@@ -3,9 +3,9 @@ import { useSegmentResolution } from '@/hooks/useSegmentResolution';
 import { SYSTEM_SEGMENTS } from '@/config/segmentDefinitions';
 import { SystemSegmentCard } from './SystemSegmentCard';
 import { ResolvedSegment } from '@/utils/segmentResolution';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Skeleton } from '@/components/ui-legacy/skeleton';
 import { useToast } from '@/hooks/use-toast';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui-legacy/tooltip';
 import { Info } from 'lucide-react';
 
 interface SystemSegmentsGridProps {

@@ -5,16 +5,16 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+} from "@/components/ui-legacy/dialog";
+import { Button } from "@/components/ui-legacy/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+} from "@/components/ui-legacy/card";
+import { Badge } from "@/components/ui-legacy/badge";
 import { ArrowRight, FileText, Plus, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {

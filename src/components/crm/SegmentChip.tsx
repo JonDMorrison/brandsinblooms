@@ -1,6 +1,6 @@
 
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui-legacy/badge";
+import { Button } from "@/components/ui-legacy/button";
 import { X, Users, Sparkles, Lock } from "lucide-react";
 
 interface SegmentChipProps {

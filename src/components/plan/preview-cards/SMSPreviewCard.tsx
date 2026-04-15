@@ -1,6 +1,6 @@
 import React from 'react';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui-legacy/card';
+import { Button } from '@/components/ui-legacy/button';
 import { MessageSquare, Edit2, RefreshCw, Image as ImageIcon } from 'lucide-react';
 import { PlanItem } from '../constants';
 import { format } from 'date-fns';

@@ -6,21 +6,21 @@ import type { MinimalForm } from "@/lib/forms/documentation";
 import { trackFormBuilderAnalyticsEvent } from "@/lib/forms/analytics";
 
 import { FormPublishTab } from "./FormPublishTab";
-import { Button } from "../ui/button";
+import { Button } from "../ui-legacy/button";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from "../ui/dialog";
+} from "../ui-legacy/dialog";
 import {
   Sheet,
   SheetContent,
   SheetDescription,
   SheetHeader,
   SheetTitle,
-} from "../ui/sheet";
+} from "../ui-legacy/sheet";
 
 interface FormShareDialogProps {
   form: MinimalForm;

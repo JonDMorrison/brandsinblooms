@@ -1,8 +1,8 @@
 
 import React from 'react';
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@/components/ui-legacy/badge";
 import { Image } from "lucide-react";
-import { PlatformChip } from "@/components/ui/platform-chip";
+import { PlatformChip } from "@/components/ui-legacy/platform-chip";
 import { getStatusConfig, extractBlogMetadata } from "@/utils/contentUtils";
 
 interface TaskItemHeaderProps {

@@ -1,7 +1,7 @@
 
 import React from 'react';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui-legacy/badge';
+import { Button } from '@/components/ui-legacy/button';
 import { AlertTriangle, CheckCircle, ExternalLink, RefreshCw } from 'lucide-react';
 
 interface SocialConnectionStatusProps {

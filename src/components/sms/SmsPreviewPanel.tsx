@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-legacy/card';
+import { Button } from '@/components/ui-legacy/button';
+import { Input } from '@/components/ui-legacy/input';
+import { Label } from '@/components/ui-legacy/label';
+import { Badge } from '@/components/ui-legacy/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui-legacy/tabs';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui-legacy/collapsible';
 import { Smartphone, Send, AlertTriangle, Image, ChevronDown, ChevronUp, User, Search, Check, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { renderSmsPreview, sendTestSms, RenderPreviewResponse, SampleCustomer } from '@/lib/sms/smsPreviewService';

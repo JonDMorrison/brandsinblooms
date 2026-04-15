@@ -5,19 +5,19 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
+} from "@/components/ui-legacy/dialog";
 import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
   SheetTrigger,
-} from "@/components/ui/sheet";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
-import { ScrollArea } from "@/components/ui/scroll-area";
+} from "@/components/ui-legacy/sheet";
+import { Button } from "@/components/ui-legacy/button";
+import { Textarea } from "@/components/ui-legacy/textarea";
+import { Label } from "@/components/ui-legacy/label";
+import { Separator } from "@/components/ui-legacy/separator";
+import { ScrollArea } from "@/components/ui-legacy/scroll-area";
 import { IdeaGrid } from "./IdeaGrid";
 import { NewsletterLayoutPicker } from "../NewsletterLayoutPicker";
 import { NewsletterIdea, NewsletterTemplate } from "@/types/newsletter";

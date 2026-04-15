@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui-legacy/button";
 import { Loader2, X } from "lucide-react";
 import { useCanvaAuth } from "@/hooks/useCanvaAuth";
 import { useUserRole } from "@/hooks/useUserRole";

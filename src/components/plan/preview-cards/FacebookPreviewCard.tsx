@@ -1,10 +1,10 @@
 import React from 'react';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui-legacy/card';
+import { Button } from '@/components/ui-legacy/button';
 import { Facebook, Edit2, RefreshCw, Image as ImageIcon, ThumbsUp, MessageCircle, Share2 } from 'lucide-react';
 import { PlanItem } from '../constants';
 import { format } from 'date-fns';
-import { AIImageLoadingOverlay } from '@/components/ui/AIImageLoadingOverlay';
+import { AIImageLoadingOverlay } from '@/components/ui-legacy/AIImageLoadingOverlay';
 
 interface FacebookPreviewCardProps {
   item: PlanItem;

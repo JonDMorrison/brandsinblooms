@@ -14,8 +14,8 @@ import {
   CommandItem,
   CommandList,
   CommandSeparator,
-} from '@/components/ui/command';
-import { Badge } from '@/components/ui/badge';
+} from '@/components/ui-legacy/command';
+import { Badge } from '@/components/ui-legacy/badge';
 import {
   User,
   ShoppingCart,

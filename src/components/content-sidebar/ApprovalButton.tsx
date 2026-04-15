@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui-legacy/button';
 import { CheckCircle, Loader2 } from 'lucide-react';
 import { usePublishFlow } from '@/hooks/usePublishFlow';
 

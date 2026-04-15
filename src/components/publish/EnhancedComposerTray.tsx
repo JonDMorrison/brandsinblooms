@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { NativeSelect } from '@/components/ui/NativeSelect';
+import { ScrollArea } from '@/components/ui-legacy/scroll-area';
+import { Badge } from '@/components/ui-legacy/badge';
+import { Button } from '@/components/ui-legacy/button';
+import { Input } from '@/components/ui-legacy/input';
+import { NativeSelect } from '@/components/ui-legacy/NativeSelect';
 import { Search, Filter, SortAsc, Calendar, Image, Send, CheckCircle, Facebook, Instagram } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';

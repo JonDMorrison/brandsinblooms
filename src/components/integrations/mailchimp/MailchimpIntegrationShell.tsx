@@ -37,7 +37,7 @@ import {
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-} from "@/components/ui/accordion";
+} from "@/components/ui-legacy/accordion";
 import {
   AlertDialogAction,
   AlertDialog,
@@ -47,8 +47,8 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
+} from "@/components/ui-legacy/alert-dialog";
+import { Badge } from "@/components/ui-legacy/badge";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -56,17 +56,17 @@ import {
   BreadcrumbList,
   BreadcrumbPage,
   BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+} from "@/components/ui-legacy/breadcrumb";
+import { Button } from "@/components/ui-legacy/button";
+import { Card } from "@/components/ui-legacy/card";
+import { Progress } from "@/components/ui-legacy/progress";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui-legacy/tabs";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@/components/ui/tooltip";
+} from "@/components/ui-legacy/tooltip";
 import { SyncLogsTabView } from "@/components/integrations/mailchimp/SyncLogsTabView";
 import { ImportedDataTabView } from "@/components/integrations/mailchimp/ImportedDataTabView";
 

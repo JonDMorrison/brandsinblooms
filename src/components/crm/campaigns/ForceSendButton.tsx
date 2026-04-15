@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui-legacy/button';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -9,7 +9,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+} from '@/components/ui-legacy/alert-dialog';
 import { Zap, ShieldAlert, Loader2 } from 'lucide-react';
 import { useIsSuperAdmin } from '@/hooks/useIsSuperAdmin';
 import { useForceSendCampaign } from '@/hooks/crm/useForceSendCampaign';

@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui-legacy/card';
+import { Button } from '@/components/ui-legacy/button';
+import { Input } from '@/components/ui-legacy/input';
+import { Label } from '@/components/ui-legacy/label';
+import { Textarea } from '@/components/ui-legacy/textarea';
+import { Badge } from '@/components/ui-legacy/badge';
+import { Alert, AlertDescription } from '@/components/ui-legacy/alert';
 import { MessageSquare, Zap, ExternalLink, QrCode, Copy } from 'lucide-react';
 import { useSMSProcessor } from '@/hooks/useSMSProcessor';
 import { useToast } from '@/hooks/use-toast';

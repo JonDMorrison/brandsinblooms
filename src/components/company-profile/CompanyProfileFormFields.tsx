@@ -1,7 +1,7 @@
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui-legacy/label";
+import { Input } from "@/components/ui-legacy/input";
+import { Textarea } from "@/components/ui-legacy/textarea";
+import { Button } from "@/components/ui-legacy/button";
 import { Plus, X } from "lucide-react";
 
 interface CompanyProfileFormFieldsProps {

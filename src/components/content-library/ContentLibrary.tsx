@@ -1,10 +1,10 @@
 
 import { useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui-legacy/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui-legacy/tabs";
+import { Button } from "@/components/ui-legacy/button";
+import { Input } from "@/components/ui-legacy/input";
+import { Badge } from "@/components/ui-legacy/badge";
 import { Search, Plus, FileText, Image, BookOpen, Upload, FolderPlus } from "lucide-react";
 import { TemplateGrid } from "./TemplateGrid";
 import { AssetManager } from "./AssetManager";

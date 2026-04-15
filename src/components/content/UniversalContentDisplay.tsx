@@ -1,7 +1,7 @@
 import React from 'react';
-import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui-legacy/card';
+import { Badge } from '@/components/ui-legacy/badge';
+import { Button } from '@/components/ui-legacy/button';
 import { Clock, Eye, Image as ImageIcon, Play, Mail, Calendar } from 'lucide-react';
 import { ContentTask, ContentBlock } from '@/types/content';
 import { MediaSelectorImage } from '@/components/crm/MediaSelectorImage';

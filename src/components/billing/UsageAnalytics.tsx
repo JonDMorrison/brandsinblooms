@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { EnhancedAppleCard } from '@/components/ui/enhanced-apple-card';
-import { Progress } from '@/components/ui/progress';
-import { Badge } from '@/components/ui/badge';
+import { EnhancedAppleCard } from '@/components/ui-legacy/enhanced-apple-card';
+import { Progress } from '@/components/ui-legacy/progress';
+import { Badge } from '@/components/ui-legacy/badge';
 import { BarChart3, TrendingUp, Zap, Users, Activity, Calendar, FileText } from 'lucide-react';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { useAuth } from '@/contexts/AuthContext';

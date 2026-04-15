@@ -1,6 +1,6 @@
 import { TeamPage as TeamPageComponent } from "@/components/TeamPage";
 import { ProtectedPageWrapper } from "@/components/ProtectedPageWrapper";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui-legacy/button";
 import { Users, UserPlus, Settings, Shield, Clock, Mail } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";

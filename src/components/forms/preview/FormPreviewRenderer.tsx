@@ -13,7 +13,7 @@ import {
   Upload,
   X,
 } from "lucide-react";
-import { Progress } from "@/components/ui/progress";
+import { Progress } from "@/components/ui-legacy/progress";
 import { cn } from "@/lib/utils";
 import {
   getFontFamilyCss,

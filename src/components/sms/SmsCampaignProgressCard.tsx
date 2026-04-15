@@ -1,8 +1,8 @@
 import React from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Progress } from '@/components/ui/progress'
-import { Badge } from '@/components/ui/badge'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui-legacy/card'
+import { Progress } from '@/components/ui-legacy/progress'
+import { Badge } from '@/components/ui-legacy/badge'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui-legacy/alert'
 import { 
   MessageSquareIcon, 
   CheckCircle2Icon, 

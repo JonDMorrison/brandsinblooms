@@ -6,12 +6,12 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
-import { NativeSelect } from "@/components/ui/native-select";
+} from "@/components/ui-legacy/dialog";
+import { Button } from "@/components/ui-legacy/button";
+import { Input } from "@/components/ui-legacy/input";
+import { Label } from "@/components/ui-legacy/label";
+import { Checkbox } from "@/components/ui-legacy/checkbox";
+import { NativeSelect } from "@/components/ui-legacy/native-select";
 import { supabase } from "@/integrations/supabase/client";
 import { useCreateFlow } from "@/state/useCreateFlow";
 import { useToast } from "@/hooks/use-toast";

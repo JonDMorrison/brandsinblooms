@@ -1,14 +1,14 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { NativeSelect } from '@/components/ui/NativeSelect';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Separator } from '@/components/ui/separator';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-legacy/card';
+import { Button } from '@/components/ui-legacy/button';
+import { Input } from '@/components/ui-legacy/input';
+import { Label } from '@/components/ui-legacy/label';
+import { Textarea } from '@/components/ui-legacy/textarea';
+import { NativeSelect } from '@/components/ui-legacy/NativeSelect';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui-legacy/tabs';
+import { Separator } from '@/components/ui-legacy/separator';
 import { toast } from 'sonner';
 import { Save, Send, ArrowLeft, Settings, Wand2, Calendar, Eye, Loader2 } from 'lucide-react';
 

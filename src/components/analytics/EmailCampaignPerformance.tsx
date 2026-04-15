@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-legacy/card';
+import { Button } from '@/components/ui-legacy/button';
+import { Badge } from '@/components/ui-legacy/badge';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui-legacy/table';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui-legacy/collapsible';
 import { Mail, Send, Eye, MousePointerClick, TrendingUp, ArrowRight, RefreshCw, ChevronDown, ChevronRight, AlertTriangle, Ban } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Skeleton } from '@/components/ui-legacy/skeleton';
 import { useCampaignDeliveryMetrics } from '@/hooks/analytics/useCampaignDeliveryMetrics';
 import { CampaignDeliveryBreakdown } from './CampaignDeliveryBreakdown';
 

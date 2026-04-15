@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui-legacy/button";
 import { Facebook, Instagram, CheckCircle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { fetchOAuthConfig } from "@/lib/api/oauth";

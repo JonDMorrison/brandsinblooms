@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@/components/ui-legacy/badge";
 import { ChevronRight, Loader2, Target, Users } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/hooks/useTenant";

@@ -1,8 +1,8 @@
 import { Link } from 'react-router-dom';
 import { ArrowLeft, ExternalLink, CheckCircle, AlertCircle, BookOpen } from 'lucide-react';
-import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Card } from '@/components/ui-legacy/card';
+import { Button } from '@/components/ui-legacy/button';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui-legacy/accordion';
 
 export default function GuidePage() {
   return (

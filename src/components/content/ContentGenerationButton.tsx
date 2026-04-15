@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui-legacy/button';
 import { Sparkles, Loader2, CheckSquare } from 'lucide-react';
 import { ImprovedContentGenerationModal } from './ImprovedContentGenerationModal';
 import { useCreateFlow } from '@/state/useCreateFlow';
-import { Badge } from '@/components/ui/badge';
+import { Badge } from '@/components/ui-legacy/badge';
 
 interface ContentGenerationButtonProps {
   campaignId?: string;

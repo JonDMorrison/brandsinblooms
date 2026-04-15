@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-legacy/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui-legacy/tabs';
+import { ScrollArea } from '@/components/ui-legacy/scroll-area';
 import { Lightbulb, Calendar, Filter } from 'lucide-react';
 import { CalendarPlanningFilters } from './CalendarPlanningFilters';
 import { CalendarHolidaysList } from './CalendarHolidaysList';

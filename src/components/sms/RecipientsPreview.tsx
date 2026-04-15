@@ -1,7 +1,7 @@
 import React from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui-legacy/dialog';
+import { Badge } from '@/components/ui-legacy/badge';
+import { ScrollArea } from '@/components/ui-legacy/scroll-area';
 import { User, Phone, Mail } from 'lucide-react';
 import { useAllPersonas } from '@/hooks/useAllPersonas';
 

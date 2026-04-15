@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui-legacy/card";
+import { Button } from "@/components/ui-legacy/button";
 import { Target, ArrowRight } from "lucide-react";
 import { SegmentOverviewCard } from "./SegmentOverviewCard";
 import { SegmentCustomersModal } from "./SegmentCustomersModal";

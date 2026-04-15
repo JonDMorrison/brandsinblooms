@@ -5,10 +5,10 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
+} from "@/components/ui-legacy/card";
+import { Badge } from "@/components/ui-legacy/badge";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui-legacy/alert";
+import { Button } from "@/components/ui-legacy/button";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,7 +18,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+} from "@/components/ui-legacy/alert-dialog";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { toZonedTime } from "date-fns-tz";

@@ -1,8 +1,8 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui-legacy/card";
+import { Progress } from "@/components/ui-legacy/progress";
+import { Button } from "@/components/ui-legacy/button";
+import { Badge } from "@/components/ui-legacy/badge";
+import { Separator } from "@/components/ui-legacy/separator";
 import { useUsageTracking } from "@/hooks/useUsageTracking";
 import { useNavigate } from "react-router-dom";
 import { Mail, MessageSquare, AlertTriangle, CheckCircle2, TrendingUp, Sparkles, Leaf } from "lucide-react";

@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui-legacy/dialog';
+import { Button } from '@/components/ui-legacy/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui-legacy/card';
+import { Input } from '@/components/ui-legacy/input';
+import { Label } from '@/components/ui-legacy/label';
+import { Badge } from '@/components/ui-legacy/badge';
 import { CheckCircle, Circle, Smartphone, TestTube, Shield, ArrowRight, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { twilioClient } from '@/lib/sms/twilioClient';

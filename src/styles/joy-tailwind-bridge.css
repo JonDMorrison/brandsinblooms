@@ -1,0 +1,61 @@
+:root,
+body {
+  --background: var(--joy-palette-bridge-background-hsl);
+  --foreground: var(--joy-palette-bridge-foreground-hsl);
+  --card: var(--joy-palette-bridge-card-hsl);
+  --card-foreground: var(--joy-palette-bridge-card-foreground-hsl);
+  --popover: var(--joy-palette-bridge-popover-hsl);
+  --popover-foreground: var(--joy-palette-bridge-popover-foreground-hsl);
+  --primary: var(--joy-palette-bridge-primary-hsl);
+  --primary-foreground: var(--joy-palette-bridge-primary-foreground-hsl);
+  --secondary: var(--joy-palette-bridge-secondary-hsl);
+  --secondary-foreground: var(--joy-palette-bridge-secondary-foreground-hsl);
+  --muted: var(--joy-palette-bridge-muted-hsl);
+  --muted-foreground: var(--joy-palette-bridge-muted-foreground-hsl);
+  --accent: var(--joy-palette-bridge-accent-hsl);
+  --accent-foreground: var(--joy-palette-bridge-accent-foreground-hsl);
+  --destructive: var(--joy-palette-bridge-destructive-hsl);
+  --destructive-foreground: var(--joy-palette-bridge-destructive-foreground-hsl);
+  --border: var(--joy-palette-bridge-border-hsl);
+  --input: var(--joy-palette-bridge-input-hsl);
+  --ring: var(--joy-palette-bridge-ring-hsl);
+
+  --brand-navy: var(--joy-palette-bridge-brand-navy-hsl);
+  --brand-teal: var(--joy-palette-bridge-brand-teal-hsl);
+  --brand-blue: var(--joy-palette-bridge-brand-blue-hsl);
+  --brand-green: var(--brand-teal);
+  --brand-success: var(--brand-teal);
+  --brand-warning: var(--brand-navy);
+
+  --mint-100: var(--joy-palette-bridge-mint-100-hsl);
+  --mint-600: var(--joy-palette-bridge-mint-600-hsl);
+  --sand-50: var(--joy-palette-bridge-sand-50-hsl);
+
+  --gray-50: var(--joy-palette-bridge-gray-50-hsl);
+  --gray-100: var(--joy-palette-bridge-gray-100-hsl);
+  --gray-200: var(--joy-palette-bridge-gray-200-hsl);
+  --gray-300: var(--joy-palette-bridge-gray-300-hsl);
+  --gray-400: var(--joy-palette-bridge-gray-400-hsl);
+  --gray-500: var(--joy-palette-bridge-gray-500-hsl);
+  --gray-600: var(--joy-palette-bridge-gray-600-hsl);
+  --gray-700: var(--joy-palette-bridge-gray-700-hsl);
+  --gray-800: var(--joy-palette-bridge-gray-800-hsl);
+  --gray-900: var(--joy-palette-bridge-gray-900-hsl);
+
+  --chip-draft: var(--joy-palette-bridge-chip-draft-hsl);
+  --chip-generated: var(--joy-palette-bridge-chip-generated-hsl);
+  --chip-approved: var(--joy-palette-bridge-chip-approved-hsl);
+  --chip-scheduled: var(--joy-palette-bridge-chip-scheduled-hsl);
+  --chip-posted: var(--joy-palette-bridge-chip-posted-hsl);
+
+  --radius: var(--joy-radius-lg);
+  --bloom-radius-2xl: var(--joy-radius-2xl);
+  --bloom-radius-cta: var(--joy-radius-cta);
+  --bloom-shadow-hover: var(--joy-shadow-hover);
+  --bloom-z-header: var(--joy-zIndex-header);
+  --bloom-z-sidebar: var(--joy-zIndex-sidebar);
+  --bloom-z-overlay: var(--joy-zIndex-overlay);
+  --bloom-z-popover: var(--joy-zIndex-popover);
+  --bloom-z-modal: var(--joy-zIndex-modal);
+  --bloom-z-toast: var(--joy-zIndex-toast);
+}

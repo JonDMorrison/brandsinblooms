@@ -1,9 +1,9 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
 import { DashboardSection } from './DashboardSection';
-import { Sparkline } from '@/components/ui/sparkline';
+import { Sparkline } from '@/components/ui-legacy/sparkline';
 import { TimelineChart } from '@/components/charts/TimelineChart';
-import { EmptyChartOverlay } from '@/components/ui/empty-chart-overlay';
+import { EmptyChartOverlay } from '@/components/ui-legacy/empty-chart-overlay';
 import { Activity, TrendingUp, TrendingDown, Clock } from 'lucide-react';
 
 interface EngagementHealthOverviewProps {

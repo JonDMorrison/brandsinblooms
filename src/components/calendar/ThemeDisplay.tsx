@@ -1,6 +1,6 @@
 
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui-legacy/button";
+import { Badge } from "@/components/ui-legacy/badge";
 import { Edit2, FileText, Lightbulb } from "lucide-react";
 import { GenerateContentPackButton } from "@/components/content/GenerateContentPackButton";
 

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { X, Plus, GripVertical, AlertCircle } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui-legacy/button';
+import { Alert, AlertDescription } from '@/components/ui-legacy/alert';
 import { ImageSelectButton } from '@/components/image';
 
 interface CarouselImageSelectorProps {

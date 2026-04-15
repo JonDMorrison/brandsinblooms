@@ -1,14 +1,14 @@
 import React, { useState } from "react";
 import { AlertCircle, CheckCircle, Users, ExternalLink } from "lucide-react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui-legacy/alert";
+import { Badge } from "@/components/ui-legacy/badge";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+} from "@/components/ui-legacy/dialog";
+import { Button } from "@/components/ui-legacy/button";
 import { Node, Edge } from "@xyflow/react";
 
 interface FlowValidationProps {

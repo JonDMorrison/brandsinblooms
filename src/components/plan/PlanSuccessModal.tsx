@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui-legacy/dialog';
+import { Button } from '@/components/ui-legacy/button';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { CelebrationConfetti } from '@/components/ui/celebration-confetti';
+import { CelebrationConfetti } from '@/components/ui-legacy/celebration-confetti';
 import { Calendar, ArrowLeft } from 'lucide-react';
 
 interface PlanSuccessModalProps {

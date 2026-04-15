@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui-legacy/button";
 import { RefreshCw, AlertCircle } from "lucide-react";
 import { generateCampaignContent } from "@/components/homepage/ContentGenerationServices";
 import { useAuth } from "@/contexts/AuthContext";

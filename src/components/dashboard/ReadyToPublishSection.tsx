@@ -1,9 +1,9 @@
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-legacy/card';
+import { Button } from '@/components/ui-legacy/button';
+import { Badge } from '@/components/ui-legacy/badge';
 import { Send, Clock, Calendar, Zap } from 'lucide-react';
-import { StatusIndicator } from '@/components/ui/status-indicator';
+import { StatusIndicator } from '@/components/ui-legacy/status-indicator';
 import { TASK_STATUS } from '@/constants/taskStatus';
 import { format } from 'date-fns';
 

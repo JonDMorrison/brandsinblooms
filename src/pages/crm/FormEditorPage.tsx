@@ -11,17 +11,17 @@ import {
   useParams,
   useSearchParams,
 } from "react-router-dom";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui-legacy/badge";
+import { Button } from "@/components/ui-legacy/button";
+import { Input } from "@/components/ui-legacy/input";
+import { Skeleton } from "@/components/ui-legacy/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui-legacy/tabs";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@/components/ui/tooltip";
+} from "@/components/ui-legacy/tooltip";
 import {
   AlertCircle,
   ArrowLeft,
@@ -51,7 +51,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+} from "@/components/ui-legacy/alert-dialog";
 import {
   Dialog,
   DialogContent,
@@ -59,7 +59,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
+} from "@/components/ui-legacy/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useBeforeUnload } from "@/hooks/useBeforeUnload";
 import { useFormEditor } from "@/hooks/useFormEditor";

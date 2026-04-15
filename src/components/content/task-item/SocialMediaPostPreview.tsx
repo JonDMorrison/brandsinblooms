@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@/components/ui-legacy/badge";
 import {
   Heart,
   MessageCircle,

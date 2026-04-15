@@ -4,13 +4,13 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { ScrollArea } from "@/components/ui/scroll-area";
+} from "@/components/ui-legacy/dialog";
+import { Button } from "@/components/ui-legacy/button";
+import { Input } from "@/components/ui-legacy/input";
+import { Badge } from "@/components/ui-legacy/badge";
+import { Card, CardContent } from "@/components/ui-legacy/card";
+import { Avatar, AvatarFallback } from "@/components/ui-legacy/avatar";
+import { ScrollArea } from "@/components/ui-legacy/scroll-area";
 import {
   Search,
   Mail,

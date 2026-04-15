@@ -1,7 +1,7 @@
 
 import React from 'react';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui-legacy/card';
+import { Badge } from '@/components/ui-legacy/badge';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { Mail, Calendar, Clock, Users, Eye } from 'lucide-react';

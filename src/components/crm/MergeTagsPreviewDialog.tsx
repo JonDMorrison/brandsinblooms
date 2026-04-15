@@ -5,15 +5,15 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+} from '@/components/ui-legacy/dialog';
+import { Button } from '@/components/ui-legacy/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-legacy/card';
+import { Badge } from '@/components/ui-legacy/badge';
 import { Monitor, Smartphone, User } from 'lucide-react';
 import { useCustomers } from '@/hooks/useCustomers';
 import { useAllPersonas } from '@/hooks/useAllPersonas';
 import { renderMergeTags, createPreviewData, type MergeTagData } from '@/lib/mergeTagEngine';
-import { SafeHtml } from '@/components/ui/safe-html';
+import { SafeHtml } from '@/components/ui-legacy/safe-html';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 

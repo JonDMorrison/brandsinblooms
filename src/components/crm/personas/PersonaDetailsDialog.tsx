@@ -1,8 +1,8 @@
 import React, { useState, useMemo } from "react";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent } from "@/components/ui-legacy/dialog";
+import { Button } from "@/components/ui-legacy/button";
+import { Badge } from "@/components/ui-legacy/badge";
+import { Input } from "@/components/ui-legacy/input";
 import { X, Users, UserPlus, Search, Loader2 } from "lucide-react";
 import { usePaginatedCustomers } from "@/hooks/usePaginatedCustomers";
 import { LazyCustomerList } from "@/components/shared/LazyCustomerList";

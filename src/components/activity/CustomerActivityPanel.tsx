@@ -1,8 +1,8 @@
 import React from "react";
 import { useActivityFeed } from "@/hooks/useActivityFeed";
 import { ActivityRow } from "@/components/activity/ActivityRow";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui-legacy/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui-legacy/card";
 import { Loader2 } from "lucide-react";
 import { useIntersectionSentinel } from "@/hooks/useIntersectionSentinel";
 import { supabase } from "@/integrations/supabase/client";

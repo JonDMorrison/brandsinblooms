@@ -3,7 +3,7 @@
  * Replaces dangerous HTML rendering with secure alternatives
  */
 
-import { SafeHtml } from "@/components/ui/safe-html";
+import { SafeHtml } from "@/components/ui-legacy/safe-html";
 
 export const removeConsoleLogging = () => {
   if (process.env.NODE_ENV === "production") {

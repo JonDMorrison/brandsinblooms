@@ -1,9 +1,9 @@
 
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui-legacy/button";
 import { ChevronDown, ChevronUp, FileText, AlertCircle, Eye } from "lucide-react";
 import { ContentViewer } from "@/components/content/ContentViewer";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@/components/ui-legacy/badge";
 import { ContentPackReviewModal } from "./ContentPackReviewModal";
 
 interface CampaignContentSectionProps {

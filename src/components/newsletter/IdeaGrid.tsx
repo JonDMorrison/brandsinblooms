@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { getCurrentWeekNumber } from "@/utils/dateUtils";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui-legacy/button";
 
 // @ts-ignore - Swiper CSS imports
 import "swiper/css";

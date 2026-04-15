@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui-legacy/input";
+import { Button } from "@/components/ui-legacy/button";
+import { Badge } from "@/components/ui-legacy/badge";
+import { Card } from "@/components/ui-legacy/card";
 import {
   Trash2,
   Search,
@@ -11,12 +11,12 @@ import {
   CheckCircle2,
   ChevronRight,
 } from "lucide-react";
-import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { LoadingSpinner } from "@/components/ui-legacy/loading-spinner";
 import { useContentLibrary, useDeleteBundle } from "@/hooks/useContentLibrary";
 import type { Channel } from "@/lib/content/libraryTypes";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useToast } from "@/hooks/use-toast";
-import { ToastAction } from "@/components/ui/toast";
+import { ToastAction } from "@/components/ui-legacy/toast";
 import { useLocation, useNavigate } from "react-router-dom";
 import { GeneratedContentModal } from "@/components/create-flow/GeneratedContentModal";
 import { CreateFlowDialog } from "@/components/create-flow/CreateFlowDialog";
@@ -35,7 +35,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+} from "@/components/ui-legacy/alert-dialog";
 
 const channelLabels: Record<Channel, string> = {
   instagram: "IG",

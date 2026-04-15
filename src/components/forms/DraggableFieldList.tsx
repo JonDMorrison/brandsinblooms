@@ -16,27 +16,27 @@ import {
   ShieldCheck,
   Trash2,
 } from "lucide-react";
-import { Alert } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
+import { Alert } from "@/components/ui-legacy/alert";
+import { Badge } from "@/components/ui-legacy/badge";
+import { Button } from "@/components/ui-legacy/button";
+import { ConfirmationDialog } from "@/components/ui-legacy/confirmation-dialog";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+} from "@/components/ui-legacy/collapsible";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
-import { Autocomplete } from "@/components/ui/autocomplete";
+} from "@/components/ui-legacy/dialog";
+import { Input } from "@/components/ui-legacy/input";
+import { Label } from "@/components/ui-legacy/label";
+import { Switch } from "@/components/ui-legacy/switch";
+import { Textarea } from "@/components/ui-legacy/textarea";
+import { Autocomplete } from "@/components/ui-legacy/autocomplete";
 import { useToast } from "@/hooks/use-toast";
 import {
   createDefaultFormStep,

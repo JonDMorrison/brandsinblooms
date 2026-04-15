@@ -13,15 +13,15 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { NativeSelect } from "@/components/ui/native-select";
+import { Badge } from "@/components/ui-legacy/badge";
+import { Button } from "@/components/ui-legacy/button";
+import { Checkbox } from "@/components/ui-legacy/checkbox";
+import { NativeSelect } from "@/components/ui-legacy/native-select";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover";
+} from "@/components/ui-legacy/popover";
 import { cn } from "@/lib/utils";
 
 export type SortOption<T extends string> = {

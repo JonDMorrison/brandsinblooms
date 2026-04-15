@@ -15,9 +15,9 @@ import { useTenant } from "@/hooks/useTenant";
 import { getUserFacingIntegrationError } from "@/components/integrations/integrationDetailModel";
 import type { MarketingImportDetailData } from "@/hooks/useIntegrationDetailData";
 import { supabase } from "@/integrations/supabase/client";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui-legacy/badge";
+import { Button } from "@/components/ui-legacy/button";
+import { Checkbox } from "@/components/ui-legacy/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -25,7 +25,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
+} from "@/components/ui-legacy/dialog";
 
 type MailchimpImportDialogMode = "import" | "preview";
 type MailchimpImportStep = "select" | "preview" | "validate" | "started";

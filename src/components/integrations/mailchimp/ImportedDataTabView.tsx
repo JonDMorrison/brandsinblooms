@@ -19,8 +19,8 @@ import {
   formatDateTimeValue,
   formatRelativeTimestamp,
 } from "@/components/integrations/shared/dataTabPrimitives";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui-legacy/badge";
+import { Button } from "@/components/ui-legacy/button";
 import { cn } from "@/lib/utils";
 import {
   type MailchimpImportedSection,

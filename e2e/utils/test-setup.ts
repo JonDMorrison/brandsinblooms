@@ -1,22 +1,31 @@
-import { Page } from '@playwright/test';
+import { expect, Page } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
 
+import { E2E_BASE_URL } from './runtime-config';
+
 // Test environment configuration
+const ONBOARDING_CACHE_KEY_PREFIX = 'onboarding-completed:';
+
 export const TEST_CONFIG = {
   supabaseUrl: 'https://udldmkqwnxhdeztyqcau.supabase.co',
-  supabaseKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVkbGRta3F3bnhoZGV6dHlxY2F1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDkwNTg0MzQsImV4cCI6MjA2NDYzNDQzNH0.1iO2-DRx5aX_WpEcDGv9aKHGy1rdDPOZaQC6Ke4MpRM',
+  supabaseKey: 'sb_publishable_iKrafIfqem0wBWT51FqNpQ_KBHmF2El',
   testUserEmail: 'test-user@example.com',
   testUserPassword: 'testpassword123',
   testPhoneNumbers: ['6048393258', '6041234567'],
-  baseUrl: 'http://localhost:5173',
+  baseUrl: E2E_BASE_URL,
 };
+
+const sleep = (milliseconds: number) =>
+  new Promise((resolve) => setTimeout(resolve, milliseconds));
 
 // Test data factory
 export class TestDataFactory {
   static generateTestUser() {
     const timestamp = Date.now();
+    const nonce = Math.random().toString(36).slice(2, 8);
+
     return {
-      email: `test-user-${timestamp}@example.com`,
+      email: `playwright-${timestamp}-${nonce}@example.com`,
       password: 'TestPassword123!',
       fullName: `Test User ${timestamp}`,
       companyName: `Test Company ${timestamp}`,
@@ -49,7 +58,42 @@ export class TestDatabaseUtils {
   private supabase;
 
   constructor() {
-    this.supabase = createClient(TEST_CONFIG.supabaseUrl, TEST_CONFIG.supabaseKey);
+    this.supabase = this.createSupabaseClient();
+  }
+
+  private createSupabaseClient() {
+    return createClient(TEST_CONFIG.supabaseUrl, TEST_CONFIG.supabaseKey, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+        detectSessionInUrl: false,
+      },
+    });
+  }
+
+  private async waitForCompanyProfile(userId: string) {
+    const timeoutAt = Date.now() + 15000;
+
+    while (Date.now() < timeoutAt) {
+      const { data, error } = await this.supabase
+        .from('company_profiles')
+        .select('id')
+        .eq('user_id', userId)
+        .limit(1)
+        .maybeSingle();
+
+      if (error) {
+        throw error;
+      }
+
+      if (data?.id) {
+        return data.id;
+      }
+
+      await sleep(500);
+    }
+
+    throw new Error(`Timed out waiting for company profile for user ${userId}`);
   }
 
   async createTestUser(userData: ReturnType<typeof TestDataFactory.generateTestUser>) {
@@ -68,23 +112,92 @@ export class TestDatabaseUtils {
     return data;
   }
 
-  async cleanupTestData(userEmail: string) {
-    // Sign in as the test user first
-    const { data: authData } = await this.supabase.auth.signInWithPassword({
-      email: userEmail,
-      password: 'TestPassword123!',
+  async completeOnboarding(
+    userData: ReturnType<typeof TestDataFactory.generateTestUser>,
+  ) {
+    const { data: authData, error: signInError } =
+      await this.supabase.auth.signInWithPassword({
+        email: userData.email,
+        password: userData.password,
+      });
+
+    if (signInError) {
+      throw signInError;
+    }
+
+    if (!authData.user) {
+      throw new Error('Failed to authenticate newly created user');
+    }
+
+    await this.waitForCompanyProfile(authData.user.id);
+
+    const { error: updateError } = await this.supabase
+      .from('company_profiles')
+      .update({
+        company_name: userData.companyName,
+        first_content_generated: true,
+      })
+      .eq('user_id', authData.user.id);
+
+    if (updateError) {
+      throw updateError;
+    }
+
+    const { data: userRecord } = await this.supabase
+      .from('users')
+      .select('tenant_id')
+      .eq('id', authData.user.id)
+      .limit(1)
+      .maybeSingle();
+
+    await this.supabase.auth.signOut();
+
+    return {
+      userId: authData.user.id,
+      tenantId: userRecord?.tenant_id ?? null,
+    };
+  }
+
+  async cleanupTestData(
+    userData: ReturnType<typeof TestDataFactory.generateTestUser>,
+  ) {
+    const cleanupClient = this.createSupabaseClient();
+    const { data: authData } = await cleanupClient.auth.signInWithPassword({
+      email: userData.email,
+      password: userData.password,
     });
 
     if (authData.user) {
-      // Delete test data in order (respecting foreign keys)
-      await this.supabase.from('crm_outbox').delete().eq('user_id', authData.user.id);
-      await this.supabase.from('crm_customers').delete().eq('user_id', authData.user.id);
-      await this.supabase.from('crm_campaigns').delete().eq('user_id', authData.user.id);
-      await this.supabase.from('crm_automations').delete().eq('user_id', authData.user.id);
-      await this.supabase.from('company_profiles').delete().eq('user_id', authData.user.id);
-      
-      // Sign out and delete the auth user
-      await this.supabase.auth.signOut();
+      await Promise.allSettled([
+        cleanupClient.from('crm_outbox').delete().eq('user_id', authData.user.id),
+        cleanupClient
+          .from('crm_customers')
+          .delete()
+          .eq('user_id', authData.user.id),
+        cleanupClient
+          .from('crm_campaigns')
+          .delete()
+          .eq('user_id', authData.user.id),
+        cleanupClient
+          .from('crm_sms_campaigns')
+          .delete()
+          .eq('user_id', authData.user.id),
+        cleanupClient
+          .from('crm_automations')
+          .delete()
+          .eq('user_id', authData.user.id),
+        cleanupClient
+          .from('custom_segments')
+          .delete()
+          .eq('user_id', authData.user.id),
+        cleanupClient
+          .from('company_profiles')
+          .delete()
+          .eq('user_id', authData.user.id),
+        cleanupClient.from('users').delete().eq('id', authData.user.id),
+      ]);
+
+      await cleanupClient.auth.signOut();
     }
   }
 
@@ -111,22 +224,124 @@ export class TestDatabaseUtils {
 export class PageUtils {
   constructor(private page: Page) {}
 
-  async waitForApp() {
-    // Wait for the app to load and authentication to complete
-    await this.page.waitForSelector('[data-testid="app-loaded"]', { timeout: 10000 });
+  private normalizePath(path: string) {
+    const legacyPathMap: Array<[string, string]> = [
+      ['/app/settings/compliance', '/settings'],
+      ['/app/customers', '/crm/customers'],
+      ['/app/segments', '/crm/segments'],
+      ['/app/personas', '/crm/personas'],
+      ['/app/forms', '/crm/forms'],
+      ['/app/campaigns', '/crm/campaigns'],
+      ['/app/automations', '/crm/automations'],
+      ['/app/messages/tracking', '/sms'],
+      ['/app/settings', '/settings'],
+      ['/app', '/dashboard'],
+    ];
+
+    const matchedPath = legacyPathMap.find(([legacyPath]) =>
+      path === legacyPath || path.startsWith(`${legacyPath}/`),
+    );
+
+    if (!matchedPath) {
+      return path;
+    }
+
+    const [legacyPrefix, currentPrefix] = matchedPath;
+    return path.replace(legacyPrefix, currentPrefix);
   }
 
-  async login(email: string, password: string) {
+  async waitForAuthenticatedRoute() {
+    await this.page.waitForFunction(
+      () =>
+        Object.keys(window.localStorage).some((key) => key.includes('-auth-token')),
+      undefined,
+      { timeout: 15000 },
+    );
+
+    await this.page.waitForFunction(
+      () => /^\/(dashboard|onboarding|settings)(?:\/.*)?$/.test(window.location.pathname),
+      undefined,
+      { timeout: 15000 },
+    );
+
+    await this.page.waitForLoadState('domcontentloaded');
+    await sleep(3000);
+  }
+
+  async login(
+    email: string,
+    password: string,
+    options?: { userId?: string },
+  ) {
     await this.page.goto('/auth');
-    await this.page.fill('input[type="email"]', email);
-    await this.page.fill('input[type="password"]', password);
-    await this.page.click('button[type="submit"]');
-    await this.waitForApp();
+    await expect(this.page.locator('#signin-email')).toBeVisible();
+
+    if (options?.userId) {
+      await this.page.evaluate(
+        (cacheKey) => window.localStorage.setItem(cacheKey, '1'),
+        `${ONBOARDING_CACHE_KEY_PREFIX}${options.userId}`,
+      );
+    }
+
+    await this.page.fill('#signin-email', email);
+    await this.page.fill('#signin-password', password);
+    await this.page.getByRole('button', { name: 'Sign In' }).click();
+    await this.waitForAuthenticatedRoute();
   }
 
   async navigateTo(path: string) {
-    await this.page.goto(path);
-    await this.page.waitForLoadState('networkidle');
+    const normalizedPath = this.normalizePath(path);
+
+    const waitForTargetPath = async () => {
+      await this.page.waitForFunction(
+        ({ targetPath }) => {
+          const currentPath = window.location.pathname;
+          const hasPersistedAuthToken = Object.keys(window.localStorage).some((key) =>
+            key.includes('-auth-token'),
+          );
+
+          if (hasPersistedAuthToken && currentPath === '/auth') {
+            return false;
+          }
+
+          return currentPath === targetPath || currentPath.startsWith(`${targetPath}/`);
+        },
+        { targetPath: normalizedPath },
+        { timeout: 15000 },
+      );
+    };
+
+    await this.page.goto(normalizedPath);
+
+    if (normalizedPath !== '/auth') {
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          await waitForTargetPath();
+          break;
+        } catch (error) {
+          const routeState = await this.page.evaluate(() => ({
+            currentPath: window.location.pathname,
+            hasPersistedAuthToken: Object.keys(window.localStorage).some((key) =>
+              key.includes('-auth-token'),
+            ),
+          }));
+
+          const shouldRetry =
+            routeState.hasPersistedAuthToken &&
+            routeState.currentPath === '/auth' &&
+            attempt < 2;
+
+          if (!shouldRetry) {
+            throw error;
+          }
+
+          await sleep(2000);
+          await this.page.goto(normalizedPath);
+        }
+      }
+    }
+
+    await this.page.waitForLoadState('domcontentloaded');
   }
 
   async fillForm(formData: Record<string, string>) {

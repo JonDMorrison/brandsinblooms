@@ -1,6 +1,6 @@
 import { useMigrationJobs } from '@/hooks/useMigrationJobs';
 import { MigrationJobCard } from './MigrationJobCard';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui-legacy/tabs';
 import { Loader2 } from 'lucide-react';
 
 export const MigrationDashboard = () => {

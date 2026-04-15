@@ -1,5 +1,5 @@
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui-legacy/card";
+import { Badge } from "@/components/ui-legacy/badge";
 import { Globe, Users, Eye, MousePointer } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useGoogleAnalytics } from "@/hooks/useGoogleAnalytics";

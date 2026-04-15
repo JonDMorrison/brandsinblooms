@@ -1,8 +1,8 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { AlertTriangle, Clock, ChevronRight, RefreshCw } from 'lucide-react';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui-legacy/alert';
+import { Button } from '@/components/ui-legacy/button';
 import { useOverdueCampaigns } from '@/hooks/crm/useOverdueCampaigns';
 import { formatDistanceToNow } from 'date-fns';
 

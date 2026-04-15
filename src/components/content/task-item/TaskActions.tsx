@@ -1,13 +1,13 @@
 import React, { useState } from "react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui-legacy/button";
 import { Edit, MoreHorizontal, Copy, Trash2, Save, X } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { ApproveButton } from "@/components/ui/approve-button";
+} from "@/components/ui-legacy/dropdown-menu";
+import { ApproveButton } from "@/components/ui-legacy/approve-button";
 import { PostToSocialButton } from "@/components/social/PostToSocialButton";
 import { PostToCRMButton } from "@/components/crm/PostToCRMButton";
 // Removed sonner import - using global toast replacement

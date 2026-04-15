@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { NativeSelect } from '@/components/ui/NativeSelect';
+import { Button } from '@/components/ui-legacy/button';
+import { Input } from '@/components/ui-legacy/input';
+import { Label } from '@/components/ui-legacy/label';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-legacy/card';
+import { Badge } from '@/components/ui-legacy/badge';
+import { Separator } from '@/components/ui-legacy/separator';
+import { NativeSelect } from '@/components/ui-legacy/NativeSelect';
 import { toast } from '@/utils/toast';
 import { usePersonaAwareGeneration } from '@/hooks/usePersonaAwareGeneration';
 import { useEnhancedSmartTime } from '@/hooks/useEnhancedSmartTime';

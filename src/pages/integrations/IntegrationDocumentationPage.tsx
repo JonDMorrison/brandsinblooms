@@ -15,7 +15,7 @@ import {
   BreadcrumbList,
   BreadcrumbPage,
   BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
+} from "@/components/ui-legacy/breadcrumb";
 import { getDocumentationContent } from "@/pages/integrations/documentation/content";
 
 export default function IntegrationDocumentationPage() {

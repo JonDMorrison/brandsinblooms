@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui-legacy/card';
+import { Button } from '@/components/ui-legacy/button';
 import { CheckCircle2, Circle, Wifi, FileCheck, Send, TrendingUp, X, Rocket } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';

@@ -26,13 +26,13 @@ import { AIAssistant } from "./AIAssistant";
 import { ReviewLaunchModal } from "./ReviewLaunchModal";
 import { NodeEditorDialog } from "./NodeEditorDialog";
 import { useAutomationFlow } from "../hooks/useAutomationFlow";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui-legacy/button";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@/components/ui/tooltip";
+} from "@/components/ui-legacy/tooltip";
 
 import { AudienceSelector } from "@/components/crm/AudienceSelector";
 import { useSegmentSelector } from "@/hooks/useSegmentSelector";

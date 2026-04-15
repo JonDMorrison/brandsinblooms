@@ -1,9 +1,9 @@
 
 import { useState } from "react";
-import { EnhancedAppleCard } from "@/components/ui/enhanced-apple-card";
-import { AppleCardContent, AppleCardHeader } from "@/components/ui/apple-card";
-import { EnhancedAppleButton } from "@/components/ui/enhanced-apple-button";
-import { HeadlineLarge, BodyMedium, CaptionMedium } from "@/components/ui/typography";
+import { EnhancedAppleCard } from "@/components/ui-legacy/enhanced-apple-card";
+import { AppleCardContent, AppleCardHeader } from "@/components/ui-legacy/apple-card";
+import { EnhancedAppleButton } from "@/components/ui-legacy/enhanced-apple-button";
+import { HeadlineLarge, BodyMedium, CaptionMedium } from "@/components/ui-legacy/typography";
 import { Sparkles, Eye, Leaf, Droplets, Sun, Snowflake } from "lucide-react";
 import { ContentViewer } from "@/components/content/ContentViewer";
 import { EditableTheme } from "@/components/calendar/EditableTheme";

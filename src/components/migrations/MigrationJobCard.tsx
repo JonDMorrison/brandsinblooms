@@ -7,10 +7,10 @@ import {
   Play,
   Clock
 } from 'lucide-react';
-import { Card } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { Card } from '@/components/ui-legacy/card';
+import { Progress } from '@/components/ui-legacy/progress';
+import { Button } from '@/components/ui-legacy/button';
+import { Badge } from '@/components/ui-legacy/badge';
 import { MigrationJob } from '@/hooks/useMigrationJobs';
 import { formatDistanceToNow } from 'date-fns';
 

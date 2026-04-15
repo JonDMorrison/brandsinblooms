@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { NativeSelect } from '@/components/ui/NativeSelect';
+import { Button } from '@/components/ui-legacy/button';
+import { Badge } from '@/components/ui-legacy/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui-legacy/dialog';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui-legacy/tooltip';
+import { NativeSelect } from '@/components/ui-legacy/NativeSelect';
 import { Copy, Download, ExternalLink, Info, Check, Camera } from 'lucide-react';
 import { downloadUnsplashImage, copyAttributionToClipboard, generateAttributionText, UnsplashDownloadData } from '@/services/unsplashDownloadService';
 import { toast } from '@/hooks/use-toast';

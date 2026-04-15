@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { ChevronDown, HelpCircle } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Button } from '@/components/ui-legacy/button';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui-legacy/tooltip';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui-legacy/collapsible';
 
 interface DashboardSectionProps {
   title: string;

@@ -1,5 +1,5 @@
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui-legacy/button";
+import { Card, CardContent } from "@/components/ui-legacy/card";
 import { CheckCircle } from "lucide-react";
 import { useState } from "react";
 import { toast } from "@/hooks/use-toast";

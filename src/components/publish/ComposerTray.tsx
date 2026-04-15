@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui-legacy/scroll-area';
+import { Badge } from '@/components/ui-legacy/badge';
 import { cn } from '@/lib/utils';
 
 // Small thumbnail image component with proper error handling

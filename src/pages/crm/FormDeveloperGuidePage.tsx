@@ -5,8 +5,8 @@ import { ArrowLeft, BookOpen, Braces, Lightbulb, Terminal } from "lucide-react";
 import { DocScrollProgress } from "@/components/docs/DocScrollProgress";
 import { DocSection } from "@/components/docs/DocSection";
 import { DocShell } from "@/components/docs/DocShell";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui-legacy/badge";
+import { Button } from "@/components/ui-legacy/button";
 import {
   buildCurlSubmissionSnippet,
   buildNextJsSubmissionSnippet,

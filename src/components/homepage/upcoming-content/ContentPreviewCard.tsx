@@ -1,8 +1,8 @@
 
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui-legacy/button";
+import { Badge } from "@/components/ui-legacy/badge";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui-legacy/card";
+import { Textarea } from "@/components/ui-legacy/textarea";
 import { Copy, Check, Edit, Save, X, Instagram, Facebook } from "lucide-react";
 
 interface ContentType {

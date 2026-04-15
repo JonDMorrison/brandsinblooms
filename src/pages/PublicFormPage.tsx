@@ -2,7 +2,7 @@ import { type ReactNode, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { AlertCircle, Loader2, RefreshCw } from "lucide-react";
 import { FormPreviewRenderer } from "@/components/forms/preview/FormPreviewRenderer";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui-legacy/button";
 import { SUPABASE_URL } from "@/integrations/supabase/config";
 import {
   FormField,

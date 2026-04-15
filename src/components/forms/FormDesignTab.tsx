@@ -10,18 +10,18 @@ import {
   Type,
   X,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui-legacy/button";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@/components/ui/collapsible";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { NativeSelect } from "@/components/ui/NativeSelect";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Switch } from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
+} from "@/components/ui-legacy/collapsible";
+import { Input } from "@/components/ui-legacy/input";
+import { Label } from "@/components/ui-legacy/label";
+import { NativeSelect } from "@/components/ui-legacy/NativeSelect";
+import { RadioGroup, RadioGroupItem } from "@/components/ui-legacy/radio-group";
+import { Switch } from "@/components/ui-legacy/switch";
+import { Textarea } from "@/components/ui-legacy/textarea";
 import { useBrandColors } from "@/hooks/useBrandColors";
 import {
   FORM_BORDER_RADIUS_OPTIONS,

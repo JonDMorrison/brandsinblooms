@@ -1,8 +1,8 @@
 import React, { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui-legacy/button";
+import { Input } from "@/components/ui-legacy/input";
+import { Badge } from "@/components/ui-legacy/badge";
+import { Label } from "@/components/ui-legacy/label";
 import {
   Search,
   Filter,
@@ -20,13 +20,13 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "@/components/ui-legacy/dropdown-menu";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover";
-import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+} from "@/components/ui-legacy/popover";
+import { Calendar as CalendarComponent } from "@/components/ui-legacy/calendar";
 import { format, subDays, startOfDay, endOfDay } from "date-fns";
 import { SubmissionResult } from "@/types/formBuilder";
 

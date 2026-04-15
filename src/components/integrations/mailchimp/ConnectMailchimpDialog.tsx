@@ -3,7 +3,7 @@ import { ArrowRight, CheckCircle2, Loader2, RotateCcw } from "lucide-react";
 
 import mailchimpLogo from "@/assets/logos/mailchimp-new.png";
 import { getUserFacingIntegrationError } from "@/components/integrations/integrationDetailModel";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui-legacy/button";
 import {
   Dialog,
   DialogContent,
@@ -11,7 +11,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
+} from "@/components/ui-legacy/dialog";
 import { supabase } from "@/integrations/supabase/client";
 
 type ConnectMailchimpDialogPhase =

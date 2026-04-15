@@ -1,5 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
+import { E2E_BASE_URL } from './e2e/utils/runtime-config';
+
 /**
  * @see https://playwright.dev/docs/test-configuration
  */
@@ -19,7 +21,7 @@ export default defineConfig({
     timeout: 10000,
   },
   use: {
-    baseURL: 'http://localhost:5173',
+    baseURL: E2E_BASE_URL,
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
@@ -55,7 +57,7 @@ export default defineConfig({
 
   webServer: {
     command: 'npm run dev',
-    url: 'http://localhost:5173',
+    url: E2E_BASE_URL,
     reuseExistingServer: !process.env.CI,
   },
 });

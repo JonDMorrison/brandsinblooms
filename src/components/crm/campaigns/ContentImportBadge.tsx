@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Badge } from '@/components/ui/badge';
+import { Badge } from '@/components/ui-legacy/badge';
 import { FileText, Globe, Mail } from 'lucide-react';
 
 interface ContentImportBadgeProps {

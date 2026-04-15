@@ -1,6 +1,6 @@
 import React from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui-legacy/card";
+import { Badge } from "@/components/ui-legacy/badge";
 import { AlertTriangle, ArrowDownRight, ArrowRight, ArrowUpRight, Clock3 } from "lucide-react";
 import { useTenant } from "@/hooks/useTenant";
 import { useTenantEmailHealthDashboard } from "@/hooks/useTenantEmailHealthDashboard";

@@ -1,5 +1,5 @@
 
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@/components/ui-legacy/badge";
 import { dateToWeekNumber } from "@/utils/dateUtils";
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";

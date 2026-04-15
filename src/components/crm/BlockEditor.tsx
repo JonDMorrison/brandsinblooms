@@ -1,11 +1,11 @@
 import React from 'react';
 import { EmailBlock, GlobalSettings } from '@/types/emailBuilder';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
-import { NativeSelect } from '@/components/ui/NativeSelect';
-import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-legacy/card';
+import { Input } from '@/components/ui-legacy/input';
+import { Textarea } from '@/components/ui-legacy/textarea';
+import { Label } from '@/components/ui-legacy/label';
+import { NativeSelect } from '@/components/ui-legacy/NativeSelect';
+import { Button } from '@/components/ui-legacy/button';
 import { Upload } from 'lucide-react';
 
 interface BlockEditorProps {

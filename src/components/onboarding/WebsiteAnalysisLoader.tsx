@@ -1,6 +1,6 @@
 
 import { useEffect, useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui-legacy/card";
 import { Loader2, CheckCircle } from "lucide-react";
 
 interface WebsiteAnalysisLoaderProps {

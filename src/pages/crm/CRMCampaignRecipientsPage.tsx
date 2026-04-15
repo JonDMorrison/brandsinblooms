@@ -51,19 +51,19 @@ import {
   BreadcrumbList,
   BreadcrumbPage,
   BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+} from "@/components/ui-legacy/breadcrumb";
+import { Badge } from "@/components/ui-legacy/badge";
+import { Button } from "@/components/ui-legacy/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui-legacy/card";
 import { CRMMetricCard } from "@/components/crm/CRMMetricCard";
 import {
   ActionDropdown,
   FilterDropdown,
-} from "@/components/ui/action-dropdown";
-import { Input } from "@/components/ui/input";
-import { NativeSelect } from "@/components/ui/NativeSelect";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Checkbox } from "@/components/ui/checkbox";
+} from "@/components/ui-legacy/action-dropdown";
+import { Input } from "@/components/ui-legacy/input";
+import { NativeSelect } from "@/components/ui-legacy/NativeSelect";
+import { Skeleton } from "@/components/ui-legacy/skeleton";
+import { Checkbox } from "@/components/ui-legacy/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -71,7 +71,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
+} from "@/components/ui-legacy/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -81,7 +81,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+} from "@/components/ui-legacy/alert-dialog";
 import {
   Table,
   TableBody,
@@ -89,13 +89,13 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
+} from "@/components/ui-legacy/table";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@/components/ui/tooltip";
+} from "@/components/ui-legacy/tooltip";
 import { toast } from "sonner";
 import {
   applyRealtimeMetricsDelta,

@@ -1,5 +1,5 @@
 import React from 'react';
-import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { LoadingSpinner } from '@/components/ui-legacy/loading-spinner';
 import { cn } from '@/lib/utils';
 
 interface BlockLoadingOverlayProps {

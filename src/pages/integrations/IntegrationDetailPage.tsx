@@ -95,9 +95,9 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { ActionDropdown } from "@/components/ui/action-dropdown";
-import { Badge } from "@/components/ui/badge";
+} from "@/components/ui-legacy/alert-dialog";
+import { ActionDropdown } from "@/components/ui-legacy/action-dropdown";
+import { Badge } from "@/components/ui-legacy/badge";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -105,20 +105,20 @@ import {
   BreadcrumbList,
   BreadcrumbPage,
   BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
-import { Button } from "@/components/ui/button";
+} from "@/components/ui-legacy/breadcrumb";
+import { Button } from "@/components/ui-legacy/button";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+} from "@/components/ui-legacy/collapsible";
 import {
   Pagination,
   PaginationContent,
   PaginationItem,
   PaginationNext,
   PaginationPrevious,
-} from "@/components/ui/pagination";
+} from "@/components/ui-legacy/pagination";
 import {
   Table,
   TableBody,
@@ -126,9 +126,9 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
-import { Tabs, TabsContent } from "@/components/ui/tabs";
-import { TooltipProvider } from "@/components/ui/tooltip";
+} from "@/components/ui-legacy/table";
+import { Tabs, TabsContent } from "@/components/ui-legacy/tabs";
+import { TooltipProvider } from "@/components/ui-legacy/tooltip";
 import {
   type CloverCustomerTableRow,
   type LightspeedCustomerSortField,

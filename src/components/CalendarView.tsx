@@ -10,8 +10,8 @@ import { NewsletterSchedulingModal } from './calendar/NewsletterSchedulingModal'
 import { NewsletterEditDrawer } from './calendar/NewsletterEditDrawer';
 import { WeeklyThemesReferenceModal } from './calendar/WeeklyThemesReferenceModal';
 import { HolidayContentViewer } from './dashboard/seasonal-holidays/HolidayContentViewer';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui-legacy/button';
+import { Badge } from '@/components/ui-legacy/badge';
 import { useUnifiedCalendarData } from '@/hooks/useUnifiedCalendarData';
 import { useNewsletterCalendar } from '@/hooks/useNewsletterCalendar';
 import { useSeasonalHolidays } from '@/hooks/useSeasonalHolidays';

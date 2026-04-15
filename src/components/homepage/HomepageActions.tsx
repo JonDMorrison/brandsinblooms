@@ -1,5 +1,5 @@
 
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui-legacy/button";
 import { PlusCircle } from "lucide-react";
 import { MasterTemplateImportDialog } from "../content-import/MasterTemplateImportDialog";
 import { CsvUploadDialog } from "../content-import/CsvUploadDialog";

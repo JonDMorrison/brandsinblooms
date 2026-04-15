@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { ContentBlock } from "@/types/emailBuilder";
-import { Label } from "@/components/ui/label";
-import { RichTextEditor } from "@/components/ui/rich-text-editor";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { InputWithMergeTags } from "@/components/ui/input-with-merge-tags";
-import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui-legacy/label";
+import { RichTextEditor } from "@/components/ui-legacy/rich-text-editor";
+import { Card } from "@/components/ui-legacy/card";
+import { Button } from "@/components/ui-legacy/button";
+import { InputWithMergeTags } from "@/components/ui-legacy/input-with-merge-tags";
+import { Input } from "@/components/ui-legacy/input";
 import { AlignLeft, AlignCenter, AlignRight } from "lucide-react";
 import { useCompanyInfo } from "@/hooks/useCompanyInfo";
 import { cn } from "@/lib/utils";

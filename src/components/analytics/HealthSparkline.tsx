@@ -1,7 +1,7 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Skeleton } from '@/components/ui-legacy/skeleton';
 import { LineChart, Line, ResponsiveContainer, Tooltip } from 'recharts';
 
 interface HealthSparklineProps {

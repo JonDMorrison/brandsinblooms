@@ -9,10 +9,12 @@ import { LoadingProvider } from "@/contexts/LoadingContext";
 import { GlobalLoadingOverlay } from "@/components/loading/GlobalLoadingOverlay";
 import { StartupLoadingManager } from "@/components/loading/StartupLoadingManager";
 import { GlobalVisibilityManager } from "@/components/GlobalVisibilityManager";
-import { TooltipProvider } from "@/components/ui/tooltip";
+import { TooltipProvider } from "@/components/ui-legacy/tooltip";
+import { JoyThemeProvider } from "@/providers/JoyThemeProvider";
 // Analytics completely disabled to prevent Firebase/RudderStack errors
 import App from "./App.tsx";
 import "./index.css";
+import "./styles/joy-tailwind-bridge.css";
 
 import "./utils/globalToastReplace";
 import { initUptrace } from "@/utils/uptrace";
@@ -82,24 +84,26 @@ const queryClient = new QueryClient({
 });
 
 createRoot(document.getElementById("root")!).render(
-  <QueryClientProvider client={queryClient}>
-    <BrowserRouter>
-      <TooltipProvider delayDuration={300} skipDelayDuration={100}>
-        <LoadingProvider>
-          <AuthProvider>
-            <AdminProvider>
-              <SubscriptionProvider>
-                <OnboardingStatusProvider>
-                  <App />
-                  <GlobalLoadingOverlay />
-                  <StartupLoadingManager />
-                  <GlobalVisibilityManager />
-                </OnboardingStatusProvider>
-              </SubscriptionProvider>
-            </AdminProvider>
-          </AuthProvider>
-        </LoadingProvider>
-      </TooltipProvider>
-    </BrowserRouter>
-  </QueryClientProvider>,
+  <JoyThemeProvider>
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        <TooltipProvider delayDuration={300} skipDelayDuration={100}>
+          <LoadingProvider>
+            <AuthProvider>
+              <AdminProvider>
+                <SubscriptionProvider>
+                  <OnboardingStatusProvider>
+                    <App />
+                    <GlobalLoadingOverlay />
+                    <StartupLoadingManager />
+                    <GlobalVisibilityManager />
+                  </OnboardingStatusProvider>
+                </SubscriptionProvider>
+              </AdminProvider>
+            </AuthProvider>
+          </LoadingProvider>
+        </TooltipProvider>
+      </BrowserRouter>
+    </QueryClientProvider>
+  </JoyThemeProvider>,
 );

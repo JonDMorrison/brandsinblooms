@@ -1,11 +1,14 @@
 import React from "react";
-import { Routes, Route, Outlet, Navigate } from "react-router-dom";
+import { Routes, Route, Outlet, Navigate, useLocation } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
 import { Toaster } from "sonner";
-import { Toaster as ShadcnToaster } from "@/components/ui/toaster";
+import { Toaster as ShadcnToaster } from "@/components/ui-legacy/toaster";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { SidebarProvider } from "@/components/ui/sidebar";
 import { SidebarLayout } from "@/components/SidebarLayout";
+import {
+  DashboardShell,
+  resolveAdminDashboardContentWidth,
+} from "@/components/layout/DashboardShell";
 
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { PublicRoute } from "@/components/PublicRoute";
@@ -123,14 +126,34 @@ import { PrivacyPage } from "@/pages/public/PrivacyPage";
 import { TermsPage } from "@/pages/public/TermsPage";
 
 function IntegrationsRouteLayout() {
+  return <TenantRouteLayout />;
+}
+
+function TenantRouteLayout() {
   return (
     <ProtectedRoute>
-      <SidebarLayout>
+      <DashboardShell mode="tenant">
         <Outlet />
-      </SidebarLayout>
+      </DashboardShell>
     </ProtectedRoute>
   );
 }
+
+function AdminRouteLayout() {
+  const location = useLocation();
+
+  return (
+    <ProtectedRoute>
+      <DashboardShell
+        mode="admin"
+        contentWidth={resolveAdminDashboardContentWidth(location.pathname)}
+      >
+        <Outlet />
+      </DashboardShell>
+    </ProtectedRoute>
+  );
+}
+
 import { PlatformAgreementPage } from "@/pages/public/PlatformAgreementPage";
 import { EcommPage } from "@/pages/public/EcommPage";
 import { TwilioCopyPage } from "@/pages/admin/TwilioCopyPage";
@@ -912,148 +935,38 @@ function App() {
                 </ProtectedRoute>
               }
             />
-            <Route
-              path="/admin"
-              element={
-                <ProtectedRoute>
-                  <AdminHub />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/tenants"
-              element={
-                <ProtectedRoute>
-                  <AdminTenants />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/search"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <AdminDashboard />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/manage"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <AdminManage />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/governance-config"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <AdminGovernanceConfig />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/tenants/:tenantId/email"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <TenantEmailManagement />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/reports"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <AdminReportsPage />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/costs"
-              element={
-                <ProtectedRoute>
-                  <AdminCostsPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/audit-logs"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <AdminAuditLogsPage />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/reported-problems"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <ReportedProblemsPage />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/reported-problems/:problemId"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <ReportedProblemDetailPage />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/oauth-debug"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <OAuthDebugPage />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/seed-demo"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <SeedDemoCustomers />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/twilio-copy"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <TwilioCopyPage />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/analytics-health"
-              element={
-                <ProtectedRoute>
-                  <AnalyticsHealthPage />
-                </ProtectedRoute>
-              }
-            />
+            <Route path="/admin" element={<AdminRouteLayout />}>
+              <Route index element={<AdminHub />} />
+              <Route path="tenants" element={<AdminTenants />} />
+              <Route path="search" element={<AdminDashboard />} />
+              <Route path="manage" element={<AdminManage />} />
+              <Route
+                path="governance-config"
+                element={<AdminGovernanceConfig />}
+              />
+              <Route
+                path="tenants/:tenantId/email"
+                element={<TenantEmailManagement />}
+              />
+              <Route path="reports" element={<AdminReportsPage />} />
+              <Route path="costs" element={<AdminCostsPage />} />
+              <Route path="audit-logs" element={<AdminAuditLogsPage />} />
+              <Route
+                path="reported-problems"
+                element={<ReportedProblemsPage />}
+              />
+              <Route
+                path="reported-problems/:problemId"
+                element={<ReportedProblemDetailPage />}
+              />
+              <Route path="oauth-debug" element={<OAuthDebugPage />} />
+              <Route path="seed-demo" element={<SeedDemoCustomers />} />
+              <Route path="twilio-copy" element={<TwilioCopyPage />} />
+              <Route
+                path="analytics-health"
+                element={<AnalyticsHealthPage />}
+              />
+            </Route>
             <Route
               path="/community"
               element={

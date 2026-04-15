@@ -12,9 +12,9 @@ import { LoyaltyIncentivesImpact } from "@/components/crm/customer-dashboard/Loy
 import { RiskNegativeSignals } from "@/components/crm/customer-dashboard/RiskNegativeSignals";
 import { AIInsightsActions } from "@/components/crm/customer-dashboard/AIInsightsActions";
 import { EditCustomerDialog } from "@/components/crm/customer-dashboard/EditCustomerDialog";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton } from "@/components/ui-legacy/skeleton";
 import { AlertCircle, RefreshCw } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui-legacy/button";
 import { useCustomerDashboard } from "@/hooks/useCustomerDashboard";
 import {
   transformToSnapshotMetrics,

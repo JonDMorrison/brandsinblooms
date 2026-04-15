@@ -7,10 +7,10 @@ import React, {
 } from "react";
 import { useParams } from "react-router-dom";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui-legacy/button";
+import { Input } from "@/components/ui-legacy/input";
+import { Label } from "@/components/ui-legacy/label";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui-legacy/card";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useSegmentCounts } from "@/hooks/useSegmentCounts";
@@ -94,7 +94,7 @@ import {
   BreadcrumbList,
   BreadcrumbPage,
   BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
+} from "@/components/ui-legacy/breadcrumb";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -104,7 +104,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+} from "@/components/ui-legacy/alert-dialog";
 import { generateCampaignSessionId } from "@/types/campaign";
 import { sanitizeCampaignTitle } from "@/utils/weekNumberSanitizer";
 

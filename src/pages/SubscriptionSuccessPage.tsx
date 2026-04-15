@@ -1,8 +1,8 @@
 
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui-legacy/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui-legacy/card";
 import { CheckCircle, Crown, ArrowRight } from "lucide-react";
 import { useSubscription } from "@/contexts/SubscriptionContext";
 // Removed sonner import - using global toast replacement

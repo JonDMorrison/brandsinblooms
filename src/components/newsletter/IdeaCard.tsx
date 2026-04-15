@@ -1,6 +1,6 @@
 import React from 'react';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui-legacy/badge';
+import { Button } from '@/components/ui-legacy/button';
 import { Clock, ChevronRight, Mail, Calendar, Sparkles, Target, BarChart3 } from 'lucide-react';
 import { NewsletterIdea } from '@/types/newsletter';
 import { cn } from '@/lib/utils';

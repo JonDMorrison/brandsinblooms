@@ -1,11 +1,15 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui-legacy/button';
+import { Input } from '@/components/ui-legacy/input';
+import { Card, CardContent } from '@/components/ui-legacy/card';
+import { Badge } from '@/components/ui-legacy/badge';
 import { Globe, Zap, Sparkles, Users, ArrowRight, Check, ArrowLeft } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import {
+  SUPABASE_PUBLISHABLE_KEY,
+  SUPABASE_URL,
+} from '@/integrations/supabase/config';
 import { toast } from 'sonner';
 
 export const WebsiteWaitlistPage = () => {
@@ -21,16 +25,12 @@ export const WebsiteWaitlistPage = () => {
     setIsSubmitting(true);
     
     try {
-      // Use direct REST API call until types are generated
-      const SUPABASE_URL = 'https://udldmkqwnxhdeztyqcau.supabase.co';
-      const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVkbGRta3F3bnhoZGV6dHlxY2F1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDkwNTg0MzQsImV4cCI6MjA2NDYzNDQzNH0.1iO2-DRx5aX_WpEcDGv9aKHGy1rdDPOZaQC6Ke4MpRM';
-      
       const response = await fetch(`${SUPABASE_URL}/rest/v1/website_waitlist`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-          'apikey': SUPABASE_ANON_KEY
+          'Authorization': `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
+          'apikey': SUPABASE_PUBLISHABLE_KEY
         },
         body: JSON.stringify({ email, source: 'dashboard' })
       });

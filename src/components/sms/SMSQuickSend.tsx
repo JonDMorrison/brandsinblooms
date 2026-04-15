@@ -1,8 +1,8 @@
 import React, { useState, useRef } from "react";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { Button } from "@/components/ui-legacy/button";
+import { Textarea } from "@/components/ui-legacy/textarea";
+import { Label } from "@/components/ui-legacy/label";
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui-legacy/dialog";
 import {
   Send,
   X,

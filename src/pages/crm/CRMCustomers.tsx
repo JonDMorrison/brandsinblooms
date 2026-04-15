@@ -1,15 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { SubscriptionGate } from '@/components/SubscriptionGate';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { NativeSelect } from '@/components/ui/NativeSelect';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
-import { Textarea } from '@/components/ui/textarea';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-legacy/card';
+import { Button } from '@/components/ui-legacy/button';
+import { Input } from '@/components/ui-legacy/input';
+import { Badge } from '@/components/ui-legacy/badge';
+import { NativeSelect } from '@/components/ui-legacy/NativeSelect';
+import { Switch } from '@/components/ui-legacy/switch';
+import { Label } from '@/components/ui-legacy/label';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui-legacy/table';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui-legacy/sheet';
+import { Textarea } from '@/components/ui-legacy/textarea';
 
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';

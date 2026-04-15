@@ -1,5 +1,5 @@
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-legacy/card';
 import { BarChart3, Mail, Users, TrendingUp } from 'lucide-react';
 
 export const CRMAnalyticsPage: React.FC = () => {

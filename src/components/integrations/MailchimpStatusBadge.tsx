@@ -1,6 +1,6 @@
 import React from "react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui-legacy/badge";
+import { Button } from "@/components/ui-legacy/button";
 import { CheckCircle2, Loader2, RefreshCw, ShieldAlert } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useMailchimpConnectionSummary } from "@/hooks/useMailchimpConnectionSummary";

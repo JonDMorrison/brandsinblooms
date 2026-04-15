@@ -1,18 +1,18 @@
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import { ContentBlock } from "@/types/emailBuilder";
 import { cn } from "@/lib/utils";
-import { SafeHtml } from "@/components/ui/safe-html";
+import { SafeHtml } from "@/components/ui-legacy/safe-html";
 import { sanitizeWeekNumbers } from "@/utils/weekNumberSanitizer";
 
 import { EditMode } from "@/hooks/useBlockEditMode";
-import { CTAButton } from "@/components/ui/CTAButton";
+import { CTAButton } from "@/components/ui-legacy/CTAButton";
 import { BlockGeneratingOverlay } from "./BlockGeneratingOverlay";
 
-import { ImageSkeleton } from "@/components/ui/image-skeleton";
-import { TextContentSkeleton } from "@/components/ui/text-content-skeleton";
+import { ImageSkeleton } from "@/components/ui-legacy/image-skeleton";
+import { TextContentSkeleton } from "@/components/ui-legacy/text-content-skeleton";
 import { Image as ImageIcon } from "lucide-react";
 import { useBlockImageGeneration } from "@/hooks/useBlockImageGeneration";
-import { AIImageLoadingOverlay } from "@/components/ui/AIImageLoadingOverlay";
+import { AIImageLoadingOverlay } from "@/components/ui-legacy/AIImageLoadingOverlay";
 import { useAIImageGeneration } from "@/hooks/useAIImageGeneration";
 import { ImageActionMenu } from "../ImageActionMenu";
 import { Sparkles } from "lucide-react";

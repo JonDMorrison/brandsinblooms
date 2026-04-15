@@ -6,12 +6,12 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+} from '@/components/ui-legacy/dialog';
+import { Button } from '@/components/ui-legacy/button';
+import { Textarea } from '@/components/ui-legacy/textarea';
+import { Label } from '@/components/ui-legacy/label';
+import { Badge } from '@/components/ui-legacy/badge';
+import { Alert, AlertDescription } from '@/components/ui-legacy/alert';
 import { Users, MessageSquare, Loader2, AlertTriangle, Image as ImageIcon, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';

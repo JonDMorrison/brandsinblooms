@@ -3,9 +3,9 @@ import React from 'react';
 import { useNewsletterRenderer } from '@/hooks/useNewsletterRenderer';
 import { convertNewsletterMarkdownToHtml } from '@/utils/newsletterContentProcessor';
 import { ImageSelectButton } from '@/components/image/ImageSelectButton';
-import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { Badge } from '@/components/ui/badge';
-import { SafeHtml } from '@/components/ui/safe-html';
+import { LoadingSpinner } from '@/components/ui-legacy/loading-spinner';
+import { Badge } from '@/components/ui-legacy/badge';
+import { SafeHtml } from '@/components/ui-legacy/safe-html';
 import { Clock, Palette, Target } from 'lucide-react';
 
 interface OptimizedNewsletterDisplayProps {

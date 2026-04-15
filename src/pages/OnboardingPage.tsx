@@ -16,8 +16,8 @@ import {
   Video,
   Newspaper,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui-legacy/button";
+import { Card, CardContent } from "@/components/ui-legacy/card";
 
 interface ContentPreviewItem {
   id: string;

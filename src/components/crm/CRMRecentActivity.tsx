@@ -1,7 +1,7 @@
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-legacy/card';
+import { Badge } from '@/components/ui-legacy/badge';
+import { Button } from '@/components/ui-legacy/button';
 import { 
   Activity, 
   UserPlus, 
@@ -12,7 +12,7 @@ import {
   ExternalLink,
   Clock
 } from 'lucide-react';
-import { NavLink } from '@/components/ui/link';
+import { NavLink } from '@/components/ui-legacy/link';
 
 interface ActivityItem {
   id: string;

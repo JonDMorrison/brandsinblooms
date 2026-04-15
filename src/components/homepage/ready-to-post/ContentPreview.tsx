@@ -1,8 +1,8 @@
 
 import { useState } from "react";
-import { EnhancedAppleButton } from "@/components/ui/enhanced-apple-button";
+import { EnhancedAppleButton } from "@/components/ui-legacy/enhanced-apple-button";
 import { ChevronDown, ChevronUp } from "lucide-react";
-import { BodySmall, CaptionMedium } from "@/components/ui/typography";
+import { BodySmall, CaptionMedium } from "@/components/ui-legacy/typography";
 import { stripHtmlAndFormat } from "./contentUtils";
 
 interface ContentPreviewProps {

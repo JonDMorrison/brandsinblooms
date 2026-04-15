@@ -23,11 +23,11 @@ import {
 } from "lucide-react";
 
 import { DocCodeBlock } from "@/components/docs/DocCodeBlock";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { CopyButton } from "@/components/ui/copy-button";
-import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui-legacy/badge";
+import { Button } from "@/components/ui-legacy/button";
+import { CopyButton } from "@/components/ui-legacy/copy-button";
+import { Input } from "@/components/ui-legacy/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui-legacy/tabs";
 import {
   useCopyFeedback,
   type CopyFeedbackState,

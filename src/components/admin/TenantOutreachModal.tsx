@@ -1,16 +1,16 @@
 import { useState } from "react";
+import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
+import { JoyButton } from "@/components/joy/JoyButton";
+import { JoyDialog, JoyDialogContent } from "@/components/joy/JoyDialog";
+import { JoyInput as Input } from "@/components/joy/JoyInput";
+import { JoyTextarea as Textarea } from "@/components/joy/JoyTextarea";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent } from "@/components/ui/card";
-import { Loader2, Send, Check } from "lucide-react";
+  JoyCard,
+  JoyCardContent,
+  JoyCardHeader,
+} from "@/components/joy/JoyCard";
+import { Send, Check } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -124,7 +124,11 @@ export const TenantOutreachModal = ({
     // Convert plain text body to HTML
     const htmlContent = body
       .split("\n")
-      .map((line) => (line.trim() ? `<p style="margin: 0 0 12px 0; font-family: sans-serif; font-size: 15px; color: #374151; line-height: 1.6;">${line}</p>` : `<br/>`))
+      .map((line) =>
+        line.trim()
+          ? `<p style="margin: 0 0 12px 0; font-family: sans-serif; font-size: 15px; color: #374151; line-height: 1.6;">${line}</p>`
+          : `<br/>`,
+      )
       .join("\n");
 
     setSendingId(template.id);
@@ -174,105 +178,121 @@ export const TenantOutreachModal = ({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>
-            Outreach — {companyName}
-          </DialogTitle>
-          <p className="text-sm text-muted-foreground">
-            Send a personalized email to{" "}
-            <span className="font-medium">{contactEmail}</span>
-          </p>
-        </DialogHeader>
-
-        {/* Sender selector */}
-        <div className="flex gap-2 pb-2">
-          {SENDERS.map((s) => (
-            <Button
-              key={s.id}
-              variant={senderId === s.id ? "default" : "outline"}
-              size="sm"
-              onClick={() => handleSenderChange(s.id as SenderId)}
-            >
-              {s.name}
-            </Button>
-          ))}
-        </div>
-
-        {/* Template cards */}
-        <div className="space-y-4">
-          {TEMPLATES.map((template) => {
-            const isSent = sentIds.has(template.id);
-            const isSending = sendingId === template.id;
-
-            return (
-              <Card
-                key={template.id}
-                className={isSent ? "border-green-200 bg-green-50/50" : ""}
+    <JoyDialog
+      open={open}
+      onClose={() => onClose()}
+      size="lg"
+      title={`Outreach — ${companyName}`}
+      description={
+        <>
+          Send a personalized email to <strong>{contactEmail}</strong>
+        </>
+      }
+      dialogSx={{ maxHeight: "90vh" }}
+    >
+      <JoyDialogContent>
+        <Stack spacing={2}>
+          <Stack direction="row" spacing={1} sx={{ pb: 1 }}>
+            {SENDERS.map((s) => (
+              <JoyButton
+                key={s.id}
+                bloomVariant={senderId === s.id ? "default" : "outline"}
+                size="sm"
+                onClick={() => handleSenderChange(s.id as SenderId)}
               >
-                <CardContent className="p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-semibold">{template.name}</p>
-                    {isSent && (
-                      <span className="text-xs text-green-600 flex items-center gap-1">
-                        <Check className="h-3 w-3" /> Sent
-                      </span>
-                    )}
-                  </div>
+                {s.name}
+              </JoyButton>
+            ))}
+          </Stack>
 
-                  <div>
-                    <Label className="text-xs">Subject</Label>
-                    <Input
-                      value={getSubject(template)}
-                      onChange={(e) =>
-                        updateEdit(template.id, "subject", e.target.value)
-                      }
-                      className="mt-1 text-sm"
-                    />
-                  </div>
+          <Stack spacing={2}>
+            {TEMPLATES.map((template) => {
+              const isSent = sentIds.has(template.id);
+              const isSending = sendingId === template.id;
 
-                  <div>
-                    <Label className="text-xs">Body</Label>
-                    <Textarea
-                      value={getBody(template)}
-                      onChange={(e) =>
-                        updateEdit(template.id, "body", e.target.value)
-                      }
-                      rows={5}
-                      className="mt-1 text-sm"
-                    />
-                  </div>
+              return (
+                <JoyCard
+                  key={template.id}
+                  sx={
+                    isSent
+                      ? {
+                          borderColor: "success.200",
+                          backgroundColor: "success.50",
+                        }
+                      : undefined
+                  }
+                >
+                  <JoyCardHeader
+                    title={template.name}
+                    titleProps={{ level: "title-sm" }}
+                    actions={
+                      isSent ? (
+                        <Stack
+                          direction="row"
+                          spacing={0.5}
+                          alignItems="center"
+                        >
+                          <Check className="h-3 w-3 text-green-600" />
+                          <Typography
+                            level="body-xs"
+                            sx={{ color: "success.600" }}
+                          >
+                            Sent
+                          </Typography>
+                        </Stack>
+                      ) : null
+                    }
+                  />
+                  <JoyCardContent>
+                    <Stack spacing={2}>
+                      <Input
+                        label="Subject"
+                        size="sm"
+                        value={getSubject(template)}
+                        onChange={(e) =>
+                          updateEdit(template.id, "subject", e.target.value)
+                        }
+                      />
 
-                  <Button
-                    size="sm"
-                    onClick={() => handleSend(template)}
-                    disabled={isSending || isSent}
-                    className="w-full"
-                  >
-                    {isSending ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Sending...
-                      </>
-                    ) : isSent ? (
-                      <>
-                        <Check className="mr-2 h-4 w-4" />
-                        Sent
-                      </>
-                    ) : (
-                      <>
-                        <Send className="mr-2 h-4 w-4" />
-                        Send as {sender.name}
-                      </>
-                    )}
-                  </Button>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-      </DialogContent>
-    </Dialog>
+                      <Textarea
+                        label="Body"
+                        value={getBody(template)}
+                        onChange={(e) =>
+                          updateEdit(template.id, "body", e.target.value)
+                        }
+                        rows={5}
+                        minRows={5}
+                      />
+
+                      <JoyButton
+                        fullWidth
+                        loading={isSending}
+                        loadingPosition="start"
+                        size="sm"
+                        onClick={() => handleSend(template)}
+                        disabled={isSending || isSent}
+                        startDecorator={
+                          isSent ? (
+                            <Check className="h-4 w-4" />
+                          ) : (
+                            <Send className="h-4 w-4" />
+                          )
+                        }
+                      >
+                        {isSending
+                          ? "Sending..."
+                          : isSent
+                            ? "Sent"
+                            : `Send as ${sender.name}`}
+                      </JoyButton>
+                    </Stack>
+                  </JoyCardContent>
+                </JoyCard>
+              );
+            })}
+          </Stack>
+        </Stack>
+      </JoyDialogContent>
+    </JoyDialog>
   );
 };

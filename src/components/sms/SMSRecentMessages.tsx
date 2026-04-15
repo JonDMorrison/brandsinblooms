@@ -6,10 +6,10 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
+} from "@/components/ui-legacy/card";
+import { Badge } from "@/components/ui-legacy/badge";
+import { Button } from "@/components/ui-legacy/button";
+import { ScrollArea } from "@/components/ui-legacy/scroll-area";
 import { ChevronRight, MessageSquare, Phone } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import type { SMSStats } from "@/hooks/useSMSStats";

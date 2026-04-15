@@ -1,8 +1,8 @@
 
 import React from 'react';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
-import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui-legacy/sheet';
+import { Button } from '@/components/ui-legacy/button';
+import { Checkbox } from '@/components/ui-legacy/checkbox';
 import { Filter } from 'lucide-react';
 import { FocusFilters } from '@/hooks/useFocusThemes';
 

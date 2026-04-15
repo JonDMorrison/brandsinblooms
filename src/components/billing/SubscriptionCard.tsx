@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { EnhancedAppleCard } from '@/components/ui/enhanced-apple-card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { EnhancedAppleCard } from '@/components/ui-legacy/enhanced-apple-card';
+import { Badge } from '@/components/ui-legacy/badge';
+import { Button } from '@/components/ui-legacy/button';
 import { Calendar, Crown, Zap, Users, Sparkles, Clock, CheckCircle } from 'lucide-react';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { CustomerPortalButton } from '@/components/subscription/CustomerPortalButton';

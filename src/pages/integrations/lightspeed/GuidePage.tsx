@@ -1,5 +1,5 @@
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui-legacy/card";
+import { Button } from "@/components/ui-legacy/button";
 import {
   ArrowLeft,
   CheckCircle2,

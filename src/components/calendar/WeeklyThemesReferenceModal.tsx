@@ -5,13 +5,13 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Input } from '@/components/ui/input';
-import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
+} from '@/components/ui-legacy/dialog';
+import { Button } from '@/components/ui-legacy/button';
+import { Badge } from '@/components/ui-legacy/badge';
+import { Card, CardContent } from '@/components/ui-legacy/card';
+import { ScrollArea } from '@/components/ui-legacy/scroll-area';
+import { Input } from '@/components/ui-legacy/input';
+import { ConfirmationDialog } from '@/components/ui-legacy/confirmation-dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { 

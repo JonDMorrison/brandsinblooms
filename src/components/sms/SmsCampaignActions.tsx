@@ -1,12 +1,12 @@
 import React, { useState } from 'react'
-import { Button } from '@/components/ui/button'
+import { Button } from '@/components/ui-legacy/button'
 import { 
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger 
-} from '@/components/ui/dropdown-menu'
+} from '@/components/ui-legacy/dropdown-menu'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -16,7 +16,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
+} from '@/components/ui-legacy/alert-dialog'
 import { 
   RefreshCwIcon, 
   DownloadIcon, 

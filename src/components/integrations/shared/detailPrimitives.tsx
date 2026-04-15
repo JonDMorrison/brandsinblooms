@@ -14,13 +14,13 @@ import type {
   IntegrationDetailTimelineEntry,
   IntegrationDetailTone,
 } from "@/components/integrations/integrationDetailModel";
-import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
+import { Button } from "@/components/ui-legacy/button";
+import { Separator } from "@/components/ui-legacy/separator";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from "@/components/ui/tooltip";
+} from "@/components/ui-legacy/tooltip";
 import { cn } from "@/lib/utils";
 
 import { getIntegrationToneClasses } from "./tokens";

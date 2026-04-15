@@ -1,6 +1,6 @@
 import React from 'react';
 import { Check, AlertTriangle, RotateCcw } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui-legacy/button';
 
 interface AutoSaveIndicatorProps {
   status: 'saved' | 'saving' | 'error';

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui-legacy/button';
 import {
   Drawer,
   DrawerTrigger,
@@ -8,7 +8,7 @@ import {
   DrawerTitle,
   DrawerDescription,
   DrawerClose,
-} from '@/components/ui/drawer';
+} from '@/components/ui-legacy/drawer';
 import { Lightbulb } from 'lucide-react';
 import { AIGuidancePanel } from './AIGuidancePanel';
 import { triggerRequiresAudience } from '@/lib/automation/triggerCatalog';

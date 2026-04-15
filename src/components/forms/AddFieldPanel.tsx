@@ -1,7 +1,7 @@
 import React from "react";
 import { Plus } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui-legacy/badge";
+import { Button } from "@/components/ui-legacy/button";
 import {
   BASIC_FIELD_DEFINITIONS,
   COMPLIANCE_FIELD_DEFINITIONS,

@@ -1,11 +1,11 @@
 
 import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-legacy/card';
+import { Button } from '@/components/ui-legacy/button';
 import { SocialConnectionCard } from './SocialConnectionCard';
 import { ConnectMetaButton } from './ConnectMetaButton';
 import { SubscriptionGate } from '@/components/SubscriptionGate';
-import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
+import { ConfirmationDialog } from '@/components/ui-legacy/confirmation-dialog';
 import { FacebookAppSetupGuide } from './FacebookAppSetupGuide';
 import { AlertCircle, Wifi, Facebook, Instagram } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';

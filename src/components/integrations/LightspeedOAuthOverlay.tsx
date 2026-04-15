@@ -1,6 +1,6 @@
 import React from 'react';
 import { Plug, Loader2, X } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui-legacy/button';
 
 interface LightspeedOAuthOverlayProps {
   isVisible: boolean;

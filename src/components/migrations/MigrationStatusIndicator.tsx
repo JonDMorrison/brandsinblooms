@@ -1,8 +1,8 @@
 import { Loader2, CheckCircle2, AlertCircle, Pause } from "lucide-react";
 import { useMigrationJobs } from "@/hooks/useMigrationJobs";
-import { Progress } from "@/components/ui/progress";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { Progress } from "@/components/ui-legacy/progress";
+import { Button } from "@/components/ui-legacy/button";
+import { Card } from "@/components/ui-legacy/card";
 
 export const MigrationStatusIndicator = () => {
   const { activeJobs, pauseJob, cancelJob, isControlling } = useMigrationJobs();

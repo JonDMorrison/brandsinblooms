@@ -1,5 +1,5 @@
 import React from 'react';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui-legacy/card';
 import { Check } from 'lucide-react';
 import { NewsletterTemplate } from '@/types/newsletter';
 import { cn } from '@/lib/utils';

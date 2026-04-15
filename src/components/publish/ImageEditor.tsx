@@ -1,8 +1,8 @@
 import React, { useState, useRef, useCallback } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Slider } from '@/components/ui/slider';
+import { Button } from '@/components/ui-legacy/button';
+import { Card } from '@/components/ui-legacy/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui-legacy/dialog';
+import { Slider } from '@/components/ui-legacy/slider';
 import { Crop, RotateCw, Filter, Scissors, Download, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 // Removed sonner import - using global toast replacement

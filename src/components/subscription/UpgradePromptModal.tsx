@@ -1,6 +1,6 @@
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui-legacy/dialog";
+import { Button } from "@/components/ui-legacy/button";
+import { Badge } from "@/components/ui-legacy/badge";
 import { useNavigate } from "react-router-dom";
 import { TrendingUp, Mail, MessageSquare, Globe, Zap, ArrowRight } from "lucide-react";
 

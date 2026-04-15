@@ -1,5 +1,5 @@
 
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui-legacy/button";
 import { Edit, Save, X } from "lucide-react";
 
 interface CompanyProfileFormActionsProps {

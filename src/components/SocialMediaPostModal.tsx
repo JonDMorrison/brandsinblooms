@@ -1,9 +1,9 @@
 
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui-legacy/dialog";
+import { Button } from "@/components/ui-legacy/button";
+import { Textarea } from "@/components/ui-legacy/textarea";
+import { Badge } from "@/components/ui-legacy/badge";
 import { Copy, ExternalLink, Facebook, Instagram } from "lucide-react";
 
 

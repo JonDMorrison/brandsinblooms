@@ -20,8 +20,8 @@ import { ActivityRow } from "@/components/activity/ActivityRow";
 import { cn } from "@/lib/utils";
 import type { ActivityGroupMode } from "@/lib/activityGrouping";
 import { getCampaignId, getCampaignName } from "@/lib/activityGrouping";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui-legacy/button";
+import { Badge } from "@/components/ui-legacy/badge";
 import { supabase } from "@/integrations/supabase/client";
 
 type FeedLike = Pick<

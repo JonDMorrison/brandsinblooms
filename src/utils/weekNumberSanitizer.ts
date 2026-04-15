@@ -1,6 +1,6 @@
 /**
  * Universal Week Number Sanitizer
- * 
+ *
  * This utility ensures NO "Week" followed by numbers appears in any content
  * across the entire application - titles, generated content, UI displays, etc.
  */
@@ -12,38 +12,44 @@ export const WEEK_NUMBER_PATTERNS = [
   /Week\s+\d+(?!\s*\w)/gi, // Week followed by number not followed by letter
   /Week\s+#?\d+/gi,
   /Week\s+\(\d+\)/gi,
-  
+
   // Seasonal focus patterns
   /Seasonal\s+\w+\s+Focus\s*[-:]?\s*Week\s+\d+/gi,
   /Week\s+\d+\s+of\s+\d+/gi,
   /Week\s+\d+\s*[-:]\s*\w+/gi,
-  
+
   // This week patterns
   /This\s+Week\s*\(\s*Week\s+\d+\s*\)/gi,
   /This\s+Week\s*[-:]\s*/gi,
-  
+
   // Weekly patterns
   /Weekly\s*[-:]\s*/gi,
   /Weekly\s+\w+\s*[-:]\s*/gi,
-  
+
   // Week of patterns
   /Week\s+of\s+\w+\s*[-:]\s*/gi,
   /Week\s+of\s+\d{1,2}\/\d{1,2}/gi,
-  
+
   // Common prefixes with week numbers
   /Welcome\s+to\s+Week\s+\d+/gi,
   /Happy\s+Week\s+\d+/gi,
   /In\s+Week\s+\d+/gi,
   /For\s+Week\s+\d+/gi,
-  
+
   // Week ranges
   /Week\s+\d+\s*-\s*\d+/gi,
   /Weeks\s+\d+\s*-\s*\d+/gi,
-  
+
   // Numbered week references in titles
   /^\s*Week\s+\d+\s*[-:]?\s*/gi, // At start of line
-  /Week\s+\d+\s*[-:]?\s*$/gi,    // At end of line
+  /Week\s+\d+\s*[-:]?\s*$/gi, // At end of line
 ];
+
+const WEEK_NUMBER_TRIM_CLASS_TOKENS = ["\\-", ":", "\\s", ","].join("");
+const WEEK_NUMBER_TRIM_PATTERN = new RegExp(
+  `^[${WEEK_NUMBER_TRIM_CLASS_TOKENS}]+|[${WEEK_NUMBER_TRIM_CLASS_TOKENS}]+$`,
+  "gm",
+);
 
 /**
  * Removes all week number references from content while preserving readability
@@ -54,20 +60,20 @@ export function sanitizeWeekNumbers(content: string): string {
   let sanitized = content;
 
   // Apply all patterns to remove week number references
-  WEEK_NUMBER_PATTERNS.forEach(pattern => {
-    sanitized = sanitized.replace(pattern, '');
+  WEEK_NUMBER_PATTERNS.forEach((pattern) => {
+    sanitized = sanitized.replace(pattern, "");
   });
 
   // Clean up formatting issues caused by removal
   sanitized = sanitized
     // Remove leading/trailing punctuation left behind
-    .replace(/^[-:\s,]+|[-:\s,]+$/gm, '')
+    .replace(WEEK_NUMBER_TRIM_PATTERN, "")
     // Remove double spaces
-    .replace(/\s{2,}/g, ' ')
+    .replace(/\s{2,}/g, " ")
     // Remove empty lines created by removal
-    .replace(/\n\s*\n\s*\n/g, '\n\n')
+    .replace(/\n\s*\n\s*\n/g, "\n\n")
     // Trim each line
-    .replace(/^\s+|\s+$/gm, '')
+    .replace(/^\s+|\s+$/gm, "")
     .trim();
 
   return sanitized;
@@ -85,19 +91,19 @@ export function validateNoWeekNumbers(content: string | any): {
   const foundPatterns: string[] = [];
 
   // Handle non-string content gracefully
-  if (!content || typeof content !== 'string') {
+  if (!content || typeof content !== "string") {
     return {
       isValid: true,
       issues: [],
-      foundPatterns: []
+      foundPatterns: [],
     };
   }
 
   // Check each pattern
-  WEEK_NUMBER_PATTERNS.forEach(pattern => {
+  WEEK_NUMBER_PATTERNS.forEach((pattern) => {
     const matches = content.match(pattern);
     if (matches) {
-      matches.forEach(match => {
+      matches.forEach((match) => {
         if (!foundPatterns.includes(match.trim())) {
           foundPatterns.push(match.trim());
           issues.push(`Contains week number reference: "${match.trim()}"`);
@@ -109,7 +115,7 @@ export function validateNoWeekNumbers(content: string | any): {
   return {
     isValid: issues.length === 0,
     issues,
-    foundPatterns
+    foundPatterns,
   };
 }
 
@@ -157,5 +163,7 @@ CRITICAL WEEK NUMBER RESTRICTIONS:
 /**
  * Logs week number violations for monitoring
  */
-export function logWeekNumberViolation(content: string, context: string): void {
-}
+export function logWeekNumberViolation(
+  content: string,
+  context: string,
+): void {}

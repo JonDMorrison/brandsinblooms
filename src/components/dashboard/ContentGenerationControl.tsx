@@ -1,8 +1,8 @@
 
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui-legacy/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui-legacy/card";
+import { Badge } from "@/components/ui-legacy/badge";
 import { Loader2, Sparkles, Calendar, CheckCircle, ArrowRight } from "lucide-react";
 import { generateRequiredTasks } from "@/components/homepage/TaskManagementUtils";
 import { toast } from "@/hooks/use-toast";

@@ -1,8 +1,8 @@
 
-import { EnhancedAppleCard } from "@/components/ui/enhanced-apple-card";
-import { AppleCardContent } from "@/components/ui/apple-card";
-import { EnhancedAppleButton } from "@/components/ui/enhanced-apple-button";
-import { HeadlineLarge, BodyMedium, CaptionMedium } from "@/components/ui/typography";
+import { EnhancedAppleCard } from "@/components/ui-legacy/enhanced-apple-card";
+import { AppleCardContent } from "@/components/ui-legacy/apple-card";
+import { EnhancedAppleButton } from "@/components/ui-legacy/enhanced-apple-button";
+import { HeadlineLarge, BodyMedium, CaptionMedium } from "@/components/ui-legacy/typography";
 import { PlusCircle, Calendar, BarChart3, CalendarPlus, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { AddEventDialog } from "./AddEventDialog";

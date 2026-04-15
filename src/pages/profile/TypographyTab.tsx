@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui-legacy/card';
+import { Button } from '@/components/ui-legacy/button';
+import { Label } from '@/components/ui-legacy/label';
 import { useTypographySettings } from '@/hooks/useTypographySettings';
-import { NativeSelect } from '@/components/ui/native-select';
+import { NativeSelect } from '@/components/ui-legacy/native-select';
 import { Loader2 } from 'lucide-react';
 
 export const TypographyTab = () => {

@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui-legacy/dialog';
+import { Button } from '@/components/ui-legacy/button';
+import { Checkbox } from '@/components/ui-legacy/checkbox';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/utils/toast';
 

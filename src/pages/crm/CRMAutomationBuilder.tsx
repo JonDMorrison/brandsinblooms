@@ -1,8 +1,8 @@
 import React, { useEffect, useState, lazy, Suspense } from "react";
 import { useParams, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui-legacy/button";
+import { Input } from "@/components/ui-legacy/input";
 import { useToast } from "@/hooks/use-toast";
 import { ReviewLaunchModal } from "@/components/automation/flow/ReviewLaunchModal";
 import { AutomationFlowCanvas } from "@/components/automation/flow/AutomationFlowCanvas";
@@ -20,7 +20,7 @@ import {
   SheetContent,
   SheetHeader,
   SheetTitle,
-} from "@/components/ui/sheet";
+} from "@/components/ui-legacy/sheet";
 
 const GuidedAutomationBuilder = lazy(() =>
   import("@/components/automation/GuidedAutomationBuilder").then((m) => ({

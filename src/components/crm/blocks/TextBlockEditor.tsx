@@ -7,15 +7,15 @@ import {
   ImageSizeType,
   ImagePositionType,
 } from "@/types/emailBuilder";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { NativeSelect } from "@/components/ui/NativeSelect";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Switch } from "@/components/ui/switch";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui-legacy/input";
+import { Textarea } from "@/components/ui-legacy/textarea";
+import { Label } from "@/components/ui-legacy/label";
+import { NativeSelect } from "@/components/ui-legacy/NativeSelect";
+import { Button } from "@/components/ui-legacy/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui-legacy/card";
+import { Switch } from "@/components/ui-legacy/switch";
+import { Badge } from "@/components/ui-legacy/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui-legacy/tabs";
 import {
   Eye,
   EyeOff,

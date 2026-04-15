@@ -1,8 +1,8 @@
 import React, { useState, useCallback } from "react";
 import { ContentBlock } from "@/types/emailBuilder";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui-legacy/input";
+import { Label } from "@/components/ui-legacy/label";
+import { Button } from "@/components/ui-legacy/button";
 import { Sparkles, Loader2, Check } from "lucide-react";
 import { GalleryLayoutSelector, GalleryLayout } from "./GalleryLayoutSelector";
 import { GalleryImageSlot } from "./GalleryImageSlot";

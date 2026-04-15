@@ -1,12 +1,12 @@
 import React, { useCallback } from 'react';
 import { ContentBlock } from '@/types/emailBuilder';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { NativeSelect } from '@/components/ui/NativeSelect';
-import { Slider } from '@/components/ui/slider';
+import { Input } from '@/components/ui-legacy/input';
+import { Label } from '@/components/ui-legacy/label';
+import { NativeSelect } from '@/components/ui-legacy/NativeSelect';
+import { Slider } from '@/components/ui-legacy/slider';
 import { MediaSelectorImage } from '@/components/crm/MediaSelectorImage';
 import { useBlockImageGeneration } from '@/hooks/useBlockImageGeneration';
-import { AIImageLoadingOverlay } from '@/components/ui/AIImageLoadingOverlay';
+import { AIImageLoadingOverlay } from '@/components/ui-legacy/AIImageLoadingOverlay';
 
 interface ImageBlockEditorProps {
   block: ContentBlock;

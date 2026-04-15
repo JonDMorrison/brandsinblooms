@@ -1,9 +1,9 @@
 
 import React from 'react';
 import { ContentBlock } from '@/types/emailBuilder';
-import { Label } from '@/components/ui/label';
-import { NativeSelect } from '@/components/ui/NativeSelect';
-import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui-legacy/label';
+import { NativeSelect } from '@/components/ui-legacy/NativeSelect';
+import { Input } from '@/components/ui-legacy/input';
 
 interface DividerBlockEditorProps {
   block: ContentBlock;

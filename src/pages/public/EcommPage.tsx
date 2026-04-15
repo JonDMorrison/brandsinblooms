@@ -1,13 +1,13 @@
 import { useNavigate } from 'react-router-dom';
 import { LandingPageHeader } from '@/components/landing/LandingPageHeader';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui-legacy/button';
+import { Card, CardContent } from '@/components/ui-legacy/card';
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-} from '@/components/ui/accordion';
+} from '@/components/ui-legacy/accordion';
 import {
   ShoppingCart,
   CreditCard,

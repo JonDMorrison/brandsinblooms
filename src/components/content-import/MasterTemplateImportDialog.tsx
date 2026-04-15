@@ -5,10 +5,10 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+} from "@/components/ui-legacy/dialog";
+import { Button } from "@/components/ui-legacy/button";
+import { Input } from "@/components/ui-legacy/input";
+import { Label } from "@/components/ui-legacy/label";
 import { Upload, FileText, CheckCircle, Database, Copy } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -16,7 +16,7 @@ import { useTenant } from "@/hooks/useTenant";
 import { getDateForWeek } from "@/utils/dateUtils";
 import { useToast } from "@/hooks/use-toast";
 // Removed sonner import - using global toast replacement
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@/components/ui-legacy/badge";
 import * as XLSX from "xlsx";
 
 interface MasterTemplateImportDialogProps {

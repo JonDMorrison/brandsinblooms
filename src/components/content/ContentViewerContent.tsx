@@ -1,5 +1,5 @@
 import React from "react";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { ScrollArea } from "@/components/ui-legacy/scroll-area";
 import { Sparkles } from "lucide-react";
 import { ContentTaskItem } from "./ContentTaskItem";
 

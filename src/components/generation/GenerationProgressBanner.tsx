@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { Card, CardContent } from '@/components/ui-legacy/card';
+import { Button } from '@/components/ui-legacy/button';
+import { LoadingSpinner } from '@/components/ui-legacy/loading-spinner';
 import { CheckCircle, AlertCircle, X, Eye } from 'lucide-react';
 import { useGenerationJobTracker, GenerationJob } from '@/state/useGenerationJobTracker';
 import { useNavigate } from 'react-router-dom';

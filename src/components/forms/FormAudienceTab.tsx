@@ -1,13 +1,13 @@
 import React, { useMemo } from "react";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@/components/ui-legacy/badge";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
+} from "@/components/ui-legacy/card";
+import { Checkbox } from "@/components/ui-legacy/checkbox";
 import { useCRMPersonas } from "@/hooks/useCRMPersonas";
 import { useCRMTags } from "@/hooks/useCRMTags";
 import { ArrowRight, Tag, Users, X } from "lucide-react";

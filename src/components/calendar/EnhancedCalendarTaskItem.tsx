@@ -1,10 +1,10 @@
 
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@/components/ui-legacy/badge";
 import { GripVertical, Check, Clock, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLongPress } from "@/hooks/useLongPress";
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui-legacy/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 

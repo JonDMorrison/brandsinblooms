@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-legacy/card';
 import { useParams } from 'react-router-dom';
 
 const BlogPostPage = () => {

@@ -1,6 +1,6 @@
 
-import { Skeleton } from "@/components/ui/skeleton";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui-legacy/skeleton";
+import { Card, CardContent, CardHeader } from "@/components/ui-legacy/card";
 
 export const DashboardSkeleton = () => {
   return (

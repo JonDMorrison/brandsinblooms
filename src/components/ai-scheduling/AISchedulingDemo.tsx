@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui-legacy/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-legacy/card';
+import { Badge } from '@/components/ui-legacy/badge';
 import { Loader2, Brain, Clock, TrendingUp, Sparkles } from 'lucide-react';
 import { format } from 'date-fns';
 import { useEnhancedSmartTime } from '@/hooks/useEnhancedSmartTime';

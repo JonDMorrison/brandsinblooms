@@ -1,8 +1,8 @@
 import React, { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { ImageCarousel } from "@/components/ui/image-carousel";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui-legacy/card";
+import { Button } from "@/components/ui-legacy/button";
+import { Input } from "@/components/ui-legacy/input";
+import { ImageCarousel } from "@/components/ui-legacy/image-carousel";
 import { useImageSuggestions } from "@/hooks/useImageSuggestions";
 import { Search, Image, RefreshCw } from "lucide-react";
 import { extractDynamicQuery } from "@/utils/dynamicImageSearch";

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui-legacy/button';
+import { Textarea } from '@/components/ui-legacy/textarea';
+import { Badge } from '@/components/ui-legacy/badge';
 import { useDashboardContext } from '@/contexts/DashboardContext';
 import { PulsePanel } from '@/components/dashboard-social/PulsePanel';
 import { 
@@ -17,7 +17,7 @@ import {
   X
 } from 'lucide-react';
 // Removed sonner import - using global toast replacement
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui-legacy/dropdown-menu';
 
 export const ComposerPanel = () => {
   const { 

@@ -1,15 +1,15 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { NativeSelect } from "@/components/ui/NativeSelect";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui-legacy/card";
+import { Button } from "@/components/ui-legacy/button";
+import { Label } from "@/components/ui-legacy/label";
+import { NativeSelect } from "@/components/ui-legacy/NativeSelect";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+} from "@/components/ui-legacy/popover";
+import { Calendar } from "@/components/ui-legacy/calendar";
+import { RadioGroup, RadioGroupItem } from "@/components/ui-legacy/radio-group";
 import { Clock, Calendar as CalendarIcon, Globe, Zap } from "lucide-react";
 import { format, setHours, setMinutes, startOfDay } from "date-fns";
 import { fromZonedTime, toZonedTime } from "date-fns-tz";

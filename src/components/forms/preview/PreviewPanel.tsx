@@ -7,8 +7,8 @@ import {
 } from "@/types/formBuilder";
 import { normalizeFormSettings } from "@/lib/forms/designSettings";
 import { FormPreviewRenderer } from "./FormPreviewRenderer";
-import { Button } from "@/components/ui/button";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Button } from "@/components/ui-legacy/button";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui-legacy/toggle-group";
 import {
   Monitor,
   Smartphone,
@@ -25,7 +25,7 @@ import {
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@/components/ui/tooltip";
+} from "@/components/ui-legacy/tooltip";
 
 interface PreviewPanelProps {
   fields: FormField[];

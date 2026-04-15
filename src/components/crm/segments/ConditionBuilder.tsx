@@ -1,14 +1,14 @@
 import React from 'react';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { NativeSelect } from '@/components/ui/NativeSelect';
-import { Input } from '@/components/ui/input';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Card, CardContent } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
-import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui-legacy/button';
+import { Label } from '@/components/ui-legacy/label';
+import { NativeSelect } from '@/components/ui-legacy/NativeSelect';
+import { Input } from '@/components/ui-legacy/input';
+import { Checkbox } from '@/components/ui-legacy/checkbox';
+import { Calendar } from '@/components/ui-legacy/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui-legacy/popover';
+import { Card, CardContent } from '@/components/ui-legacy/card';
+import { Separator } from '@/components/ui-legacy/separator';
+import { Badge } from '@/components/ui-legacy/badge';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { 

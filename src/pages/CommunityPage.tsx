@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui-legacy/tabs";
 import { Camera, Sparkles } from 'lucide-react';
 import { UGCGallery } from '@/components/community/UGCGallery';
 import { UGCUploadForm } from '@/components/community/UGCUploadForm';

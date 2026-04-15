@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Textarea } from "@/components/ui/textarea";
+import { Textarea } from "@/components/ui-legacy/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { showToast } from "@/utils/toastUtils";
 import { TaskActions } from "./task-item/TaskActions";

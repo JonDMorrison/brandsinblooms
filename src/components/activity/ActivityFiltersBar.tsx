@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui-legacy/button";
+import { Input } from "@/components/ui-legacy/input";
+import { Badge } from "@/components/ui-legacy/badge";
 import {
   Command,
   CommandEmpty,
@@ -10,12 +10,12 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-} from "@/components/ui/command";
-import { Calendar } from "@/components/ui/calendar";
+} from "@/components/ui-legacy/command";
+import { Calendar } from "@/components/ui-legacy/calendar";
 import {
   CustomDropdown,
   CustomDropdownItem,
-} from "@/components/ui/custom-dropdown";
+} from "@/components/ui-legacy/custom-dropdown";
 import { useCRMCustomers } from "@/hooks/useCRMCustomers";
 import { parseCsvParam, parseDateParam, toCsvParam } from "@/lib/activityUtils";
 import { Calendar as CalendarIcon, Filter, X } from "lucide-react";

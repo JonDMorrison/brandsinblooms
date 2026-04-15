@@ -3,7 +3,7 @@ import { getSeasonalGreeting, getWelcomeMessage } from "./SeasonalContent";
 import { EditableBusinessName } from "@/components/EditableBusinessName";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { DisplayMedium, BodyLarge } from "@/components/ui/typography";
+import { DisplayMedium, BodyLarge } from "@/components/ui-legacy/typography";
 import { extractCompanyName } from "@/utils/companyNameUtils";
 import { isSuperAdmin } from "@/utils/adminUtils";
 

@@ -1,17 +1,23 @@
+import Box from "@mui/joy/Box";
+import Chip from "@mui/joy/Chip";
+import Skeleton from "@mui/joy/Skeleton";
 import { useDomainStats, DomainStats } from "@/hooks/useDomainStats";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
+import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { AlertTriangle, CheckCircle, XCircle, Clock } from "lucide-react";
-import { cn } from "@/lib/utils";
+  JoyCard,
+  JoyCardContent,
+  JoyCardHeader,
+} from "@/components/joy/JoyCard";
+import {
+  JoyTable,
+  JoyTableBody,
+  JoyTableCell,
+  JoyTableHead,
+  JoyTableHeaderCell,
+  JoyTableRow,
+} from "@/components/joy/JoyTable";
+import { AlertTriangle, XCircle, Clock } from "lucide-react";
 
 interface DomainReputationDashboardProps {
   tenantId?: string;
@@ -20,47 +26,60 @@ interface DomainReputationDashboardProps {
 const getStatusBadge = (status: string) => {
   switch (status) {
     case "active":
-      return (
-        <Badge variant="default" className="bg-green-600">
-          Active
-        </Badge>
-      );
     case "warming_up":
       return (
-        <Badge variant="default" className="bg-green-600">
+        <Chip color="success" size="sm" variant="soft">
           Active
-        </Badge>
+        </Chip>
       );
     case "verifying":
       return (
-        <Badge variant="secondary" className="bg-blue-500 text-white">
+        <Chip color="info" size="sm" variant="soft">
           Verifying
-        </Badge>
+        </Chip>
       );
     case "pending_dns":
       return (
-        <Badge variant="outline" className="border-amber-500 text-amber-600">
+        <Chip color="warning" size="sm" variant="soft">
           Pending DNS
-        </Badge>
+        </Chip>
       );
     case "paused":
-      return <Badge variant="destructive">Paused</Badge>;
+      return (
+        <Chip color="danger" size="sm" variant="soft">
+          Paused
+        </Chip>
+      );
     case "blocked":
-      return <Badge variant="destructive">Blocked</Badge>;
+      return (
+        <Chip color="danger" size="sm" variant="soft">
+          Blocked
+        </Chip>
+      );
     default:
-      return <Badge variant="outline">{status}</Badge>;
+      return (
+        <Chip color="neutral" size="sm" variant="soft">
+          {status}
+        </Chip>
+      );
   }
 };
 
 const getRateDisplay = (rate: number, type: "good" | "warning" | "danger") => {
-  const colorClass = {
-    good: "text-green-600",
-    warning: "text-amber-600",
-    danger: "text-red-600",
+  const color = {
+    good: "success.700",
+    warning: "warning.700",
+    danger: "danger.700",
   }[type];
 
   return (
-    <span className={cn("font-medium", colorClass)}>{rate.toFixed(2)}%</span>
+    <Typography
+      component="span"
+      level="body-sm"
+      sx={{ color, fontWeight: "var(--joy-fontWeight-semibold)" }}
+    >
+      {rate.toFixed(2)}%
+    </Typography>
   );
 };
 
@@ -92,39 +111,54 @@ const DomainRow = ({ domain }: { domain: DomainStats }) => {
   const hasWarning = bounceStatus !== "good" || complaintStatus !== "good";
 
   return (
-    <TableRow className={cn(hasWarning && "bg-amber-50/50")}>
-      <TableCell className="font-medium">
-        <div className="flex items-center gap-2">
-          {hasWarning && <AlertTriangle className="h-4 w-4 text-amber-500" />}
+    <JoyTableRow
+      sx={
+        hasWarning
+          ? {
+              "& > td": {
+                backgroundColor: "warning.50",
+              },
+            }
+          : undefined
+      }
+    >
+      <JoyTableCell sx={{ fontWeight: "var(--joy-fontWeight-md)" }}>
+        <Stack direction="row" spacing={1} alignItems="center">
+          {hasWarning ? (
+            <AlertTriangle
+              className="h-4 w-4"
+              style={{ color: "var(--joy-palette-warning-600)" }}
+            />
+          ) : null}
           {domain.domain_name}
-        </div>
-      </TableCell>
-      <TableCell>{getStatusBadge(domain.verification_status)}</TableCell>
-      <TableCell className="text-right">
+        </Stack>
+      </JoyTableCell>
+      <JoyTableCell>{getStatusBadge(domain.verification_status)}</JoyTableCell>
+      <JoyTableCell sx={{ textAlign: "right" }}>
         {domain.emails_sent_30d.toLocaleString()}
-      </TableCell>
-      <TableCell className="text-right">
+      </JoyTableCell>
+      <JoyTableCell sx={{ textAlign: "right" }}>
         {domain.emails_delivered_30d.toLocaleString()}
-      </TableCell>
-      <TableCell className="text-right">
+      </JoyTableCell>
+      <JoyTableCell sx={{ textAlign: "right" }}>
         {getRateDisplay(
           domain.open_rate_30d,
           getOpenClickRateStatus(domain.open_rate_30d),
         )}
-      </TableCell>
-      <TableCell className="text-right">
+      </JoyTableCell>
+      <JoyTableCell sx={{ textAlign: "right" }}>
         {getRateDisplay(
           domain.click_rate_30d,
           getOpenClickRateStatus(domain.click_rate_30d),
         )}
-      </TableCell>
-      <TableCell className="text-right">
+      </JoyTableCell>
+      <JoyTableCell sx={{ textAlign: "right" }}>
         {getRateDisplay(domain.bounce_rate_30d, bounceStatus)}
-      </TableCell>
-      <TableCell className="text-right">
+      </JoyTableCell>
+      <JoyTableCell sx={{ textAlign: "right" }}>
         {getRateDisplay(domain.complaint_rate_30d, complaintStatus)}
-      </TableCell>
-    </TableRow>
+      </JoyTableCell>
+    </JoyTableRow>
   );
 };
 
@@ -135,50 +169,84 @@ export const DomainReputationDashboard = ({
 
   if (isLoading) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Domain Reputation (30-Day)</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-10 w-full" />
-          </div>
-        </CardContent>
-      </Card>
+      <JoyCard>
+        <JoyCardHeader title="Domain Reputation (30-Day)" />
+        <JoyCardContent>
+          <JoyTable containerSx={{ minWidth: 920 }}>
+            <JoyTableHead>
+              <JoyTableRow>
+                <JoyTableHeaderCell>Domain</JoyTableHeaderCell>
+                <JoyTableHeaderCell>Status</JoyTableHeaderCell>
+                <JoyTableHeaderCell align="right">Sent</JoyTableHeaderCell>
+                <JoyTableHeaderCell align="right">Delivered</JoyTableHeaderCell>
+                <JoyTableHeaderCell align="right">Open Rate</JoyTableHeaderCell>
+                <JoyTableHeaderCell align="right">
+                  Click Rate
+                </JoyTableHeaderCell>
+                <JoyTableHeaderCell align="right">
+                  Bounce Rate
+                </JoyTableHeaderCell>
+                <JoyTableHeaderCell align="right">
+                  Complaint Rate
+                </JoyTableHeaderCell>
+              </JoyTableRow>
+            </JoyTableHead>
+            <JoyTableBody>
+              {Array.from({ length: 4 }).map((_, index) => (
+                <JoyTableRow key={index}>
+                  {Array.from({ length: 8 }).map((__, cellIndex) => (
+                    <JoyTableCell key={cellIndex}>
+                      <Skeleton sx={{ height: 20, width: "100%" }} />
+                    </JoyTableCell>
+                  ))}
+                </JoyTableRow>
+              ))}
+            </JoyTableBody>
+          </JoyTable>
+        </JoyCardContent>
+      </JoyCard>
     );
   }
 
   if (error) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Domain Reputation (30-Day)</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-2 text-destructive">
+      <JoyCard>
+        <JoyCardHeader title="Domain Reputation (30-Day)" />
+        <JoyCardContent>
+          <Stack
+            direction="row"
+            spacing={1}
+            alignItems="center"
+            sx={{ color: "danger.600" }}
+          >
             <XCircle className="h-5 w-5" />
             <span>Failed to load domain stats</span>
-          </div>
-        </CardContent>
-      </Card>
+          </Stack>
+        </JoyCardContent>
+      </JoyCard>
     );
   }
 
   if (!domains || domains.length === 0) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Domain Reputation (30-Day)</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <Clock className="h-5 w-5" />
-            <span>No sending domains configured</span>
-          </div>
-        </CardContent>
-      </Card>
+      <JoyCard>
+        <JoyCardHeader title="Domain Reputation (30-Day)" />
+        <JoyCardContent>
+          <Stack spacing={0.75} alignItems="center" sx={{ py: 4 }}>
+            <Clock
+              className="h-5 w-5"
+              style={{ color: "var(--joy-palette-neutral-400)" }}
+            />
+            <Typography level="title-sm">
+              No sending domains configured
+            </Typography>
+            <Typography level="body-sm" color="neutral" textAlign="center">
+              Add and verify a sending domain before reviewing reputation
+              metrics.
+            </Typography>
+          </Stack>
+        </JoyCardContent>
+      </JoyCard>
     );
   }
 
@@ -189,62 +257,98 @@ export const DomainReputationDashboard = ({
   );
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2">
-            Domain Reputation (30-Day)
-            {domainsWithIssues.length > 0 && (
-              <Badge variant="destructive">
+    <JoyCard>
+      <JoyCardHeader
+        title={
+          <Stack direction="row" spacing={1} alignItems="center">
+            <span>Domain Reputation (30-Day)</span>
+            {domainsWithIssues.length > 0 ? (
+              <Chip color="danger" size="sm" variant="soft">
                 {domainsWithIssues.length} Issue(s)
-              </Badge>
-            )}
-          </CardTitle>
-          <div className="flex items-center gap-4 text-sm text-muted-foreground">
-            <div className="flex items-center gap-1">
-              <span className="h-2 w-2 rounded-full bg-green-500" />
-              Good
-            </div>
-            <div className="flex items-center gap-1">
-              <span className="h-2 w-2 rounded-full bg-amber-500" />
-              Warning
-            </div>
-            <div className="flex items-center gap-1">
-              <span className="h-2 w-2 rounded-full bg-red-500" />
-              Danger
-            </div>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Domain</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Sent</TableHead>
-                <TableHead className="text-right">Delivered</TableHead>
-                <TableHead className="text-right">Open Rate</TableHead>
-                <TableHead className="text-right">Click Rate</TableHead>
-                <TableHead className="text-right">Bounce Rate</TableHead>
-                <TableHead className="text-right">Complaint Rate</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+              </Chip>
+            ) : null}
+          </Stack>
+        }
+        actions={
+          <Stack direction="row" spacing={2} alignItems="center">
+            <Stack direction="row" spacing={0.5} alignItems="center">
+              <Box
+                component="span"
+                sx={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: 999,
+                  backgroundColor: "success.500",
+                }}
+              />
+              <Typography level="body-xs" color="neutral">
+                Good
+              </Typography>
+            </Stack>
+            <Stack direction="row" spacing={0.5} alignItems="center">
+              <Box
+                component="span"
+                sx={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: 999,
+                  backgroundColor: "warning.500",
+                }}
+              />
+              <Typography level="body-xs" color="neutral">
+                Warning
+              </Typography>
+            </Stack>
+            <Stack direction="row" spacing={0.5} alignItems="center">
+              <Box
+                component="span"
+                sx={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: 999,
+                  backgroundColor: "danger.500",
+                }}
+              />
+              <Typography level="body-xs" color="neutral">
+                Danger
+              </Typography>
+            </Stack>
+          </Stack>
+        }
+      />
+      <JoyCardContent>
+        <Sheet variant="outlined" sx={{ borderRadius: "var(--joy-radius-lg)" }}>
+          <JoyTable containerSx={{ minWidth: 920 }}>
+            <JoyTableHead>
+              <JoyTableRow>
+                <JoyTableHeaderCell>Domain</JoyTableHeaderCell>
+                <JoyTableHeaderCell>Status</JoyTableHeaderCell>
+                <JoyTableHeaderCell align="right">Sent</JoyTableHeaderCell>
+                <JoyTableHeaderCell align="right">Delivered</JoyTableHeaderCell>
+                <JoyTableHeaderCell align="right">Open Rate</JoyTableHeaderCell>
+                <JoyTableHeaderCell align="right">
+                  Click Rate
+                </JoyTableHeaderCell>
+                <JoyTableHeaderCell align="right">
+                  Bounce Rate
+                </JoyTableHeaderCell>
+                <JoyTableHeaderCell align="right">
+                  Complaint Rate
+                </JoyTableHeaderCell>
+              </JoyTableRow>
+            </JoyTableHead>
+            <JoyTableBody>
               {domains.map((domain) => (
                 <DomainRow key={domain.domain_id} domain={domain} />
               ))}
-            </TableBody>
-          </Table>
-        </div>
-        <div className="mt-4 text-xs text-muted-foreground">
-          <p>
-            <strong>Thresholds:</strong> Bounce rate &gt;2% = warning, &gt;5% =
-            danger. Complaint rate &gt;0.1% = warning, &gt;0.2% = danger.
-          </p>
-        </div>
-      </CardContent>
-    </Card>
+            </JoyTableBody>
+          </JoyTable>
+        </Sheet>
+        <Typography level="body-xs" color="neutral" sx={{ mt: 2 }}>
+          <strong>Thresholds:</strong> Bounce rate &gt;2% = warning, &gt;5% =
+          danger. Complaint rate &gt;0.1% = warning, &gt;0.2% = danger.
+        </Typography>
+      </JoyCardContent>
+    </JoyCard>
   );
 };

@@ -6,11 +6,11 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+} from '@/components/ui-legacy/dialog';
+import { Button } from '@/components/ui-legacy/button';
+import { Input } from '@/components/ui-legacy/input';
+import { Label } from '@/components/ui-legacy/label';
+import { Alert, AlertDescription } from '@/components/ui-legacy/alert';
 import { Loader2, Mail, Info } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useEmailDomainManagement } from '@/hooks/useEmailDomainManagement';

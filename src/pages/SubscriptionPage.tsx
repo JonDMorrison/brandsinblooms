@@ -1,7 +1,7 @@
 
 import { ProtectedPageWrapper } from "@/components/ProtectedPageWrapper";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui-legacy/card";
+import { Button } from "@/components/ui-legacy/button";
 import { CreditCard, Star, Shield, Link, Crown, Settings } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useSubscription } from "@/contexts/SubscriptionContext";

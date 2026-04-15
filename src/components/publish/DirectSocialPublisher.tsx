@@ -1,19 +1,19 @@
 import React, { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui-legacy/button";
+import { Card } from "@/components/ui-legacy/card";
+import { Badge } from "@/components/ui-legacy/badge";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Calendar } from "@/components/ui/calendar";
-import { NativeSelect } from "@/components/ui/NativeSelect";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
+} from "@/components/ui-legacy/dialog";
+import { Calendar } from "@/components/ui-legacy/calendar";
+import { NativeSelect } from "@/components/ui-legacy/NativeSelect";
+import { Input } from "@/components/ui-legacy/input";
+import { Label } from "@/components/ui-legacy/label";
+import { Switch } from "@/components/ui-legacy/switch";
+import { Textarea } from "@/components/ui-legacy/textarea";
 import {
   Send,
   Clock,

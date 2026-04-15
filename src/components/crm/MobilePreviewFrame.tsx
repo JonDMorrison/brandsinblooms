@@ -1,5 +1,5 @@
 import React from 'react';
-import { Card } from '@/components/ui/card';
+import { Card } from '@/components/ui-legacy/card';
 
 interface MobilePreviewFrameProps {
   children: React.ReactNode;

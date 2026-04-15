@@ -1,5 +1,5 @@
 
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui-legacy/button";
 import { Users, Plus, ChevronDown } from "lucide-react";
 import { SegmentChip } from "./SegmentChip";
 

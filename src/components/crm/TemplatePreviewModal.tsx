@@ -1,8 +1,8 @@
 import React from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Card } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui-legacy/dialog';
+import { Button } from '@/components/ui-legacy/button';
+import { Badge } from '@/components/ui-legacy/badge';
+import { Card } from '@/components/ui-legacy/card';
 import { EmailBlock, GlobalSettings } from '@/types/emailBuilder';
 import { EmailBlockRenderer } from '@/components/crm/EmailBlockRenderer';
 import { Eye, Download, Calendar, User } from 'lucide-react';

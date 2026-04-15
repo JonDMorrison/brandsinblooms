@@ -1,8 +1,8 @@
 import React from 'react';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Card, CardContent } from '@/components/ui-legacy/card';
+import { Button } from '@/components/ui-legacy/button';
+import { Badge } from '@/components/ui-legacy/badge';
+import { Skeleton } from '@/components/ui-legacy/skeleton';
 import { Users, Mail, ShoppingBag, Gift, TrendingUp, Crown, EyeOff, Eye, MessageSquare } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 

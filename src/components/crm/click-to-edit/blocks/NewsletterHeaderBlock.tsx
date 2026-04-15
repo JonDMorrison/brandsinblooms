@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { ContentBlock } from '@/types/emailBuilder';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { NativeSelect } from '@/components/ui/NativeSelect';
-import { Slider } from '@/components/ui/slider';
+import { Input } from '@/components/ui-legacy/input';
+import { Label } from '@/components/ui-legacy/label';
+import { Textarea } from '@/components/ui-legacy/textarea';
+import { NativeSelect } from '@/components/ui-legacy/NativeSelect';
+import { Slider } from '@/components/ui-legacy/slider';
 import { MediaSelectorImage } from '@/components/crm/MediaSelectorImage';
-import { CTAButton } from '@/components/ui/CTAButton';
+import { CTAButton } from '@/components/ui-legacy/CTAButton';
 import { cn } from '@/lib/utils';
 import { ContextualToolbar } from '../contextual/ContextualToolbar';
 import { EditMode } from '@/hooks/useBlockEditMode';

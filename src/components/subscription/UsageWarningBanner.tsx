@@ -1,5 +1,5 @@
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui-legacy/alert";
+import { Button } from "@/components/ui-legacy/button";
 import { useNavigate } from "react-router-dom";
 import { useUsageTracking } from "@/hooks/useUsageTracking";
 import { AlertTriangle, TrendingUp, X } from "lucide-react";

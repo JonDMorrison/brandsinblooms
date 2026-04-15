@@ -1,8 +1,8 @@
 import React from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { Progress } from '@/components/ui/progress';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from '@/components/ui-legacy/dialog';
+import { Button } from '@/components/ui-legacy/button';
+import { LoadingSpinner } from '@/components/ui-legacy/loading-spinner';
+import { Progress } from '@/components/ui-legacy/progress';
 import { Sparkles, FileText, Users, Mail, Video, X } from 'lucide-react';
 
 interface ContentGenerationLoadingModalProps {

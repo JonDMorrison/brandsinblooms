@@ -1,10 +1,10 @@
 import React from 'react';
 import { ContentBlock } from '@/types/emailBuilder';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { NativeSelect } from '@/components/ui/NativeSelect';
-import { Switch } from '@/components/ui/switch';
-import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui-legacy/input';
+import { Label } from '@/components/ui-legacy/label';
+import { NativeSelect } from '@/components/ui-legacy/NativeSelect';
+import { Switch } from '@/components/ui-legacy/switch';
+import { Card } from '@/components/ui-legacy/card';
 
 interface FormatEditModeProps {
   block: ContentBlock;

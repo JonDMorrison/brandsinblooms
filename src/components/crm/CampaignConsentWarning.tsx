@@ -1,7 +1,7 @@
 import React from 'react';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui-legacy/alert';
+import { Button } from '@/components/ui-legacy/button';
+import { Badge } from '@/components/ui-legacy/badge';
 import { AlertTriangle, CheckCircle, ShieldCheck, Send } from 'lucide-react';
 
 interface CampaignConsentWarningProps {

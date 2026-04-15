@@ -1,9 +1,9 @@
 import React, { useMemo, useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { NativeSelect } from '@/components/ui/NativeSelect';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-legacy/card';
+import { Button } from '@/components/ui-legacy/button';
+import { Badge } from '@/components/ui-legacy/badge';
+import { Input } from '@/components/ui-legacy/input';
+import { NativeSelect } from '@/components/ui-legacy/NativeSelect';
 import { useCampaignAnalytics } from '@/hooks/useCampaignAnalytics';
 import { useCampaignCloning } from '@/hooks/useCampaignCloning';
 import { 

@@ -1,91 +1,66 @@
 import { test, expect } from './fixtures/auth.fixture';
 
-test.describe('Sidebar Navigation', () => {
-  test('all sidebar links navigate correctly', async ({ page, authenticatedUser }) => {
-    // Start at dashboard
-    await page.goto('/dashboard');
-    await expect(page).toHaveURL('/dashboard');
+test.describe('Dashboard shell navigation', () => {
+  test('integrations route exposes the current shell controls', async ({
+    page,
+    pageUtils,
+  }) => {
+    await pageUtils.navigateTo('/integrations');
 
-    // Test main navigation items
-    const navigationTests = [
-      { label: 'Dashboard', url: '/', expectedHeading: /dashboard|overview/i },
-      { label: 'Analytics', url: '/analytics', expectedHeading: /analytics/i },
-      { label: 'Calendar', url: '/calendar', expectedHeading: /calendar/i },
-      
-      // CRM & Marketing
-      { label: 'Customers', url: '/crm/customers', expectedHeading: /customers/i },
-      { label: 'Campaigns', url: '/crm/campaigns', expectedHeading: /campaigns/i },
-      { label: 'Automations', url: '/crm/automations', expectedHeading: /automations/i },
-      { label: 'Segments', url: '/crm/segments', expectedHeading: /segments/i },
-      { label: 'Personas', url: '/crm/personas', expectedHeading: /personas/i },
-      
-      // Content & Publishing
-      { label: 'Social Media', url: '/social-accounts', expectedHeading: /social|accounts/i },
-      { label: 'Newsletter', url: '/newsletters/new', expectedHeading: /newsletter/i },
-      { label: 'SMS Campaigns', url: '/sms', expectedHeading: /sms/i },
-      
-      // Settings & Support
-      { label: 'Integrations', url: '/integrations', expectedHeading: /integrations/i },
-      { label: 'Profile', url: '/profile', expectedHeading: /profile/i },
-      { label: 'Account', url: '/account', expectedHeading: /account/i },
-      { label: 'Support', url: '/support', expectedHeading: /support/i },
-    ];
+    const isMobile = (page.viewportSize()?.width ?? 0) < 768;
 
-    for (const nav of navigationTests) {
-      // Click the sidebar link
-      await page.click(`a[href="${nav.url}"]`);
-      
-      // Wait for navigation and verify URL
-      await expect(page).toHaveURL(nav.url);
-      
-      // Verify page content loaded by checking for expected heading
-      await expect(page.locator('h1, h2, h3').first()).toContainText(nav.expectedHeading);
-      
-      console.log(`✅ ${nav.label} navigation working - URL: ${nav.url}`);
+    await expect(page.locator('[data-testid="dashboard-shell-root"]')).toBeVisible();
+
+    if (!isMobile) {
+      await expect(page.locator('[data-testid="dashboard-shell-topbar"]')).toContainText('Integrations');
     }
+
+    if (isMobile) {
+      await page.getByLabel('Open sidebar').click();
+      await expect(page.getByLabel('Close sidebar')).toBeVisible();
+      await expect(page.locator('[data-testid="dashboard-shell-sidebar-mobile"]')).toBeVisible();
+      await expect(page.locator('[data-testid="dashboard-shell-backdrop"]')).toBeVisible();
+      await page.locator('[data-testid="dashboard-shell-backdrop"]').click();
+      await expect(page.getByLabel('Open sidebar')).toBeVisible();
+      return;
+    }
+
+    const sidebar = page.locator('[data-testid="dashboard-shell-sidebar"]');
+
+    await expect(sidebar).toBeVisible();
+    await expect(sidebar.locator('a[href="/integrations"]')).toHaveAttribute('aria-current', 'page');
   });
 
-  test('CRM group stays expanded when navigating to CRM subroutes', async ({ page, authenticatedUser }) => {
-    await page.goto('/dashboard');
+  test('sidebar arrow-key navigation follows the live focus model', async ({
+    page,
+    pageUtils,
+  }) => {
+    await pageUtils.navigateTo('/integrations');
 
-    // Navigate to a CRM route
-    await page.click('a[href="/crm/customers"]');
-    await expect(page).toHaveURL('/crm/customers');
-    
-    // Verify CRM group is expanded by checking if other CRM links are visible
-    await expect(page.locator('a[href="/crm/campaigns"]')).toBeVisible();
-    await expect(page.locator('a[href="/crm/segments"]')).toBeVisible();
-    await expect(page.locator('a[href="/crm/personas"]')).toBeVisible();
+    const isMobile = (page.viewportSize()?.width ?? 0) < 768;
 
-    // Navigate to another CRM route
-    await page.click('a[href="/crm/segments"]');
-    await expect(page).toHaveURL('/crm/segments');
-    
-    // CRM group should still be expanded
-    await expect(page.locator('a[href="/crm/customers"]')).toBeVisible();
-    await expect(page.locator('a[href="/crm/campaigns"]')).toBeVisible();
-  });
+    if (isMobile) {
+      await page.getByLabel('Open sidebar').click();
+      await expect(page.getByLabel('Close sidebar')).toBeVisible();
+    }
 
-  test('sidebar trigger is accessible and functional', async ({ page, authenticatedUser }) => {
-    await page.goto('/dashboard');
-    
-    // Find the sidebar trigger button
-    const sidebarTrigger = page.locator('button[data-sidebar="trigger"]').first();
-    await expect(sidebarTrigger).toBeVisible();
-    
-    // Test that it's clickable (won't test actual collapse as it's complex to verify reliably)
-    await expect(sidebarTrigger).toBeEnabled();
-  });
+    const container = page.locator(
+      isMobile
+        ? '[data-testid="dashboard-shell-sidebar-mobile"]'
+        : '[data-testid="dashboard-shell-sidebar"]',
+    );
+    const focusables = container.locator(
+      '[data-dashboard-sidebar-focus-scope="sidebar-main"] [data-dashboard-sidebar-focusable="true"]',
+    );
 
-  test('active route highlighting works correctly', async ({ page, authenticatedUser }) => {
-    // Test Dashboard active state
-    await page.goto('/dashboard');
-    const dashboardLink = page.locator('a[href="/"]');
-    await expect(dashboardLink.locator('..')).toHaveAttribute('data-active', 'true');
+    await expect(focusables.nth(1)).toBeVisible();
+    await focusables.first().focus();
+    await expect(focusables.first()).toBeFocused();
 
-    // Test CRM route active state
-    await page.goto('/crm/customers');
-    const customersLink = page.locator('a[href="/crm/customers"]');
-    await expect(customersLink.locator('..')).toHaveAttribute('data-active', 'true');
+    await page.keyboard.press('ArrowDown');
+    await expect(focusables.nth(1)).toBeFocused();
+
+    await page.keyboard.press('ArrowUp');
+    await expect(focusables.first()).toBeFocused();
   });
 });

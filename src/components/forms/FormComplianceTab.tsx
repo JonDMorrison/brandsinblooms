@@ -1,16 +1,16 @@
 import React from "react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui-legacy/alert";
+import { Badge } from "@/components/ui-legacy/badge";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
+} from "@/components/ui-legacy/card";
+import { Label } from "@/components/ui-legacy/label";
+import { Switch } from "@/components/ui-legacy/switch";
+import { Textarea } from "@/components/ui-legacy/textarea";
 import { AlertTriangle, Info, Mail, MessageSquare, Shield } from "lucide-react";
 import { FormCompliance } from "@/types/formBuilder";
 

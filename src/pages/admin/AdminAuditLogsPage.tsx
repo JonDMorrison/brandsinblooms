@@ -1,26 +1,44 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Box from "@mui/joy/Box";
+import CircularProgress from "@mui/joy/CircularProgress";
+import Grid from "@mui/joy/Grid";
+import Sheet from "@mui/joy/Sheet";
+import Skeleton from "@mui/joy/Skeleton";
+import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
 import { Navigate, useNavigate } from "react-router-dom";
-import { ArrowLeft, FileText, RefreshCw } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowLeft,
+  Clock3,
+  FileText,
+  RefreshCw,
+  Search,
+  Shield,
+} from "lucide-react";
+import { JoyButton } from "@/components/joy/JoyButton";
+import { JoyStatusChip } from "@/components/joy/JoyChip";
+import {
+  JoyCard,
+  JoyCardContent,
+  JoyCardHeader,
+} from "@/components/joy/JoyCard";
+import { JoyInput } from "@/components/joy/JoyInput";
+import { PageContainer } from "@/components/joy/PageContainer";
+import { JoySearchInput } from "@/components/joy/JoySearchInput";
+import { JoySelect } from "@/components/joy/JoySelect";
+import { JoyStatCard } from "@/components/joy/JoyStatCard";
+import {
+  JoyTable,
+  JoyTableBody,
+  JoyTableCell,
+  JoyTableHead,
+  JoyTableHeaderCell,
+  JoyTablePagination,
+  JoyTableRow,
+} from "@/components/joy/JoyTable";
 import { useIsSuperAdmin } from "@/hooks/useIsSuperAdmin";
 import { supabase } from "@/integrations/supabase/client";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 
 interface InternalAuditRow {
   id: string;
@@ -72,6 +90,7 @@ export default function AdminAuditLogsPage() {
 
   const [rows, setRows] = useState<InternalAuditRow[]>([]);
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [page, setPage] = useState(0);
   const [count, setCount] = useState(0);
 
@@ -86,8 +105,21 @@ export default function AdminAuditLogsPage() {
     return Math.ceil(count / PAGE_SIZE);
   }, [count]);
 
+  const activeFilterCount = useMemo(
+    () =>
+      [tenantIdFilter, actionFilter, fromFilter, toFilter].filter(Boolean)
+        .length + (actorTypeFilter !== "all" ? 1 : 0),
+    [actionFilter, actorTypeFilter, fromFilter, tenantIdFilter, toFilter],
+  );
+
+  const uniqueActorTypes = useMemo(
+    () => new Set(rows.map((row) => row.actor_type)).size,
+    [rows],
+  );
+
   const fetchLogs = useCallback(async () => {
     setLoading(true);
+    setErrorMessage(null);
     try {
       const params = {
         p_tenant_id: tenantIdFilter.trim() || null,
@@ -119,6 +151,11 @@ export default function AdminAuditLogsPage() {
       console.error("Failed to load internal governance audit logs", error);
       setRows([]);
       setCount(0);
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Failed to load internal governance audit logs",
+      );
     } finally {
       setLoading(false);
     }
@@ -137,11 +174,30 @@ export default function AdminAuditLogsPage() {
     }
   }, [fetchLogs, isSuperAdmin]);
 
+  const clearFilters = () => {
+    setTenantIdFilter("");
+    setActionFilter("");
+    setActorTypeFilter("all");
+    setFromFilter("");
+    setToFilter("");
+    setPage(0);
+  };
+
   if (adminLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-primary" />
-      </div>
+      <PageContainer fullWidth sx={{ px: 0, py: 0 }}>
+        <Stack
+          minHeight="40vh"
+          alignItems="center"
+          justifyContent="center"
+          spacing={2}
+        >
+          <CircularProgress size="md" />
+          <Typography level="body-sm" color="neutral">
+            Loading audit logs...
+          </Typography>
+        </Stack>
+      </PageContainer>
     );
   }
 
@@ -150,235 +206,440 @@ export default function AdminAuditLogsPage() {
   }
 
   return (
-    <div className="space-y-6 p-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <FileText className="h-7 w-7 text-primary" />
-          <div>
-            <h1 className="text-2xl font-semibold">Governance Audit Logs</h1>
-            <p className="text-sm text-muted-foreground">
-              Internal forensic trail for super-admin and automation governance
-              actions.
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={() => navigate("/admin")}>
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back
-          </Button>
-          <Button variant="outline" onClick={fetchLogs} disabled={loading}>
-            <RefreshCw
-              className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`}
+    <PageContainer fullWidth sx={{ px: 0, py: 0 }}>
+      <Stack spacing={3}>
+        <JoyCard
+          sx={{
+            borderColor: "primary.200",
+            background:
+              "linear-gradient(135deg, rgba(var(--joy-palette-primary-mainChannel) / 0.12) 0%, #FFFFFF 58%, rgba(var(--joy-palette-warning-mainChannel) / 0.1) 100%)",
+          }}
+        >
+          <JoyCardContent sx={{ pt: 3 }}>
+            <Stack
+              direction={{ xs: "column", lg: "row" }}
+              alignItems={{ xs: "flex-start", lg: "center" }}
+              justifyContent="space-between"
+              spacing={2}
+            >
+              <Stack direction="row" spacing={1.5} alignItems="flex-start">
+                <Sheet
+                  variant="soft"
+                  color="primary"
+                  sx={{
+                    width: 52,
+                    height: 52,
+                    borderRadius: 999,
+                    display: "grid",
+                    placeItems: "center",
+                    flexShrink: 0,
+                  }}
+                >
+                  <FileText className="h-6 w-6" />
+                </Sheet>
+                <Stack spacing={0.75}>
+                  <Typography level="h2">Governance Audit Logs</Typography>
+                  <Typography level="body-sm" color="neutral">
+                    Internal forensic trail for super-admin actions, automation
+                    precedence changes, and governance override updates.
+                  </Typography>
+                  <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+                    <JoyStatusChip
+                      status={activeFilterCount > 0 ? "filtered" : "all"}
+                      tone={activeFilterCount > 0 ? "info" : "neutral"}
+                      label={
+                        activeFilterCount > 0
+                          ? `${activeFilterCount} active filters`
+                          : "No filters"
+                      }
+                    />
+                    <JoyStatusChip
+                      status="page"
+                      tone="neutral"
+                      label={`Page ${page + 1} of ${totalPages}`}
+                    />
+                  </Stack>
+                </Stack>
+              </Stack>
+
+              <Stack direction="row" spacing={1} flexWrap="wrap">
+                <JoyButton
+                  bloomVariant="outline"
+                  onClick={() => navigate("/admin")}
+                  startDecorator={<ArrowLeft className="h-4 w-4" />}
+                >
+                  Back
+                </JoyButton>
+                <JoyButton
+                  bloomVariant="outline"
+                  onClick={() => void fetchLogs()}
+                  disabled={loading}
+                  loading={loading}
+                  loadingPosition="start"
+                  startDecorator={<RefreshCw className="h-4 w-4" />}
+                >
+                  Refresh
+                </JoyButton>
+              </Stack>
+            </Stack>
+          </JoyCardContent>
+        </JoyCard>
+
+        <Grid container spacing={2}>
+          <Grid xs={12} sm={6} xl={3}>
+            <JoyStatCard
+              icon={<FileText size={20} />}
+              iconColor="neutral"
+              label="Matched events"
+              value={count}
             />
-            Refresh
-          </Button>
-        </div>
-      </div>
+          </Grid>
+          <Grid xs={12} sm={6} xl={3}>
+            <JoyStatCard
+              icon={<Clock3 size={20} />}
+              iconColor="primary"
+              label="Rows on page"
+              value={rows.length}
+            />
+          </Grid>
+          <Grid xs={12} sm={6} xl={3}>
+            <JoyStatCard
+              icon={<Shield size={20} />}
+              iconColor="warning"
+              label="Actor types"
+              value={uniqueActorTypes}
+            />
+          </Grid>
+          <Grid xs={12} sm={6} xl={3}>
+            <JoyStatCard
+              icon={<Search size={20} />}
+              iconColor="success"
+              label="Active filters"
+              value={activeFilterCount}
+            />
+          </Grid>
+        </Grid>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Filters</CardTitle>
-          <CardDescription>
-            Filter by tenant, action, actor type, and time range.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3 lg:grid-cols-6">
-            <div className="space-y-2">
-              <Label htmlFor="tenant-filter">Tenant ID</Label>
-              <Input
-                id="tenant-filter"
-                value={tenantIdFilter}
-                onChange={(event) => {
-                  setPage(0);
-                  setTenantIdFilter(event.target.value);
-                }}
-                placeholder="Optional UUID"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="action-filter">Action</Label>
-              <Input
-                id="action-filter"
-                value={actionFilter}
-                onChange={(event) => {
-                  setPage(0);
-                  setActionFilter(event.target.value);
-                }}
-                placeholder="Contains text"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="actor-filter">Actor Type</Label>
-              <select
-                id="actor-filter"
-                className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                value={actorTypeFilter}
-                onChange={(event) => {
-                  setPage(0);
-                  setActorTypeFilter(event.target.value);
-                }}
-              >
-                <option value="all">All</option>
-                <option value="admin">Admin</option>
-                <option value="system">System</option>
-                <option value="automation">Automation</option>
-                <option value="service">Service</option>
-                <option value="unknown">Unknown</option>
-              </select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="from-filter">From</Label>
-              <Input
-                id="from-filter"
-                type="datetime-local"
-                value={fromFilter}
-                onChange={(event) => {
-                  setPage(0);
-                  setFromFilter(event.target.value);
-                }}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="to-filter">To</Label>
-              <Input
-                id="to-filter"
-                type="datetime-local"
-                value={toFilter}
-                onChange={(event) => {
-                  setPage(0);
-                  setToFilter(event.target.value);
-                }}
-              />
-            </div>
-            <div className="flex items-end">
-              <Button onClick={fetchLogs} disabled={loading} className="w-full">
-                Apply
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+        <JoyCard>
+          <JoyCardHeader
+            title="Filters"
+            description="Filter by tenant, action type, actor, and time range. Results refresh automatically as filters change."
+          />
+          <JoyCardContent>
+            <Grid container spacing={2}>
+              <Grid xs={12} md={4} lg={2}>
+                <JoyInput
+                  id="tenant-filter"
+                  label="Tenant ID"
+                  value={tenantIdFilter}
+                  onChange={(event) => {
+                    setPage(0);
+                    setTenantIdFilter(event.target.value);
+                  }}
+                  placeholder="Optional UUID"
+                />
+              </Grid>
+              <Grid xs={12} md={8} lg={4}>
+                <JoySearchInput
+                  value={actionFilter}
+                  placeholder="Search action type or affected table..."
+                  onValueChange={(value) => {
+                    setPage(0);
+                    setActionFilter(value);
+                  }}
+                />
+              </Grid>
+              <Grid xs={12} md={4} lg={2}>
+                <JoySelect
+                  id="actor-filter"
+                  label="Actor Type"
+                  value={actorTypeFilter}
+                  onValueChange={(value) => {
+                    setPage(0);
+                    setActorTypeFilter(value);
+                  }}
+                  options={[
+                    { value: "all", label: "All" },
+                    { value: "admin", label: "Admin" },
+                    { value: "system", label: "System" },
+                    { value: "automation", label: "Automation" },
+                    { value: "service", label: "Service" },
+                    { value: "unknown", label: "Unknown" },
+                  ]}
+                />
+              </Grid>
+              <Grid xs={12} md={6} lg={2}>
+                <JoyInput
+                  id="from-filter"
+                  label="From"
+                  type="datetime-local"
+                  value={fromFilter}
+                  onChange={(event) => {
+                    setPage(0);
+                    setFromFilter(event.target.value);
+                  }}
+                />
+              </Grid>
+              <Grid xs={12} md={6} lg={2}>
+                <JoyInput
+                  id="to-filter"
+                  label="To"
+                  type="datetime-local"
+                  value={toFilter}
+                  onChange={(event) => {
+                    setPage(0);
+                    setToFilter(event.target.value);
+                  }}
+                />
+              </Grid>
+              <Grid xs={12} lg={2}>
+                <Stack
+                  direction={{ xs: "column", sm: "row", lg: "column" }}
+                  justifyContent="flex-end"
+                  spacing={1}
+                  sx={{ height: "100%" }}
+                >
+                  <JoyButton
+                    onClick={() => void fetchLogs()}
+                    disabled={loading}
+                    fullWidth
+                  >
+                    Apply
+                  </JoyButton>
+                  <JoyButton
+                    bloomVariant="ghost"
+                    onClick={clearFilters}
+                    disabled={activeFilterCount === 0}
+                    fullWidth
+                  >
+                    Clear
+                  </JoyButton>
+                </Stack>
+              </Grid>
+            </Grid>
+          </JoyCardContent>
+        </JoyCard>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Events</CardTitle>
-          <CardDescription>
-            Showing {rows.length} of {count} events.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Occurred</TableHead>
-                  <TableHead>Action</TableHead>
-                  <TableHead>Tenant</TableHead>
-                  <TableHead>Actor</TableHead>
-                  <TableHead>Precedence</TableHead>
-                  <TableHead>Expires</TableHead>
-                  <TableHead>Reason</TableHead>
-                  <TableHead>Previous</TableHead>
-                  <TableHead>New</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {rows.length === 0 ? (
-                  <TableRow>
-                    <TableCell
-                      colSpan={9}
-                      className="text-center text-muted-foreground"
-                    >
-                      {loading
-                        ? "Loading logs..."
-                        : "No audit logs found for current filters."}
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  rows.map((row) => (
-                    <TableRow key={row.id}>
-                      <TableCell className="whitespace-nowrap">
-                        {formatDateTime(row.occurred_at)}
-                      </TableCell>
-                      <TableCell className="min-w-[220px]">
-                        <div className="font-medium">{row.action_type}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {row.affected_table}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {row.affected_record_id ?? "—"}
-                        </div>
-                      </TableCell>
-                      <TableCell className="min-w-[220px]">
-                        <div className="font-medium">
-                          {row.company_name ?? "—"}
-                        </div>
-                        <div className="text-xs text-muted-foreground break-all">
-                          {row.tenant_id ?? "global"}
-                        </div>
-                      </TableCell>
-                      <TableCell className="min-w-[220px]">
-                        <div className="font-medium capitalize">
-                          {row.actor_type}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {row.actor_email ?? "—"}
-                        </div>
-                        <div className="text-xs text-muted-foreground break-all">
-                          {row.actor_id ?? "—"}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {row.automation_precedence_mode ?? "—"}
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap">
-                        {formatDateTime(row.expires_at)}
-                      </TableCell>
-                      <TableCell className="max-w-[280px] break-words">
-                        {row.reason ?? "—"}
-                      </TableCell>
-                      <TableCell className="min-w-[260px] align-top">
-                        <pre className="max-h-40 overflow-auto rounded bg-muted p-2 text-xs">
-                          {toPretty(row.previous_value)}
-                        </pre>
-                      </TableCell>
-                      <TableCell className="min-w-[260px] align-top">
-                        <pre className="max-h-40 overflow-auto rounded bg-muted p-2 text-xs">
-                          {toPretty(row.new_value)}
-                        </pre>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
+        {errorMessage ? (
+          <JoyCard variant="soft" color="danger">
+            <JoyCardContent sx={{ pt: 3 }}>
+              <Stack
+                direction={{ xs: "column", md: "row" }}
+                spacing={2}
+                alignItems={{ xs: "flex-start", md: "center" }}
+                justifyContent="space-between"
+              >
+                <Stack direction="row" spacing={1.25} alignItems="flex-start">
+                  <AlertTriangle className="h-5 w-5" />
+                  <Stack spacing={0.35}>
+                    <Typography level="title-sm" color="danger">
+                      Failed to load audit events
+                    </Typography>
+                    <Typography level="body-sm" color="danger">
+                      {errorMessage}
+                    </Typography>
+                  </Stack>
+                </Stack>
+                <JoyButton
+                  bloomVariant="outline"
+                  color="danger"
+                  onClick={() => void fetchLogs()}
+                >
+                  Retry
+                </JoyButton>
+              </Stack>
+            </JoyCardContent>
+          </JoyCard>
+        ) : null}
 
-          <div className="mt-4 flex items-center justify-between">
-            <div className="text-sm text-muted-foreground">
-              Page {page + 1} of {totalPages}
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                disabled={page <= 0 || loading}
-                onClick={() => setPage((current) => Math.max(0, current - 1))}
-              >
-                Previous
-              </Button>
-              <Button
-                variant="outline"
-                disabled={page + 1 >= totalPages || loading}
-                onClick={() => setPage((current) => current + 1)}
-              >
-                Next
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+        <JoyCard>
+          <JoyCardHeader
+            title="Events"
+            description={`Showing ${rows.length} records on page ${page + 1} out of ${count} matched events.`}
+          />
+          <JoyCardContent>
+            <Sheet
+              variant="outlined"
+              sx={{ borderRadius: "var(--joy-radius-lg)" }}
+            >
+              <JoyTable stickyHeader containerSx={{ minWidth: 1860 }}>
+                <JoyTableHead>
+                  <JoyTableRow>
+                    <JoyTableHeaderCell>Occurred</JoyTableHeaderCell>
+                    <JoyTableHeaderCell>Action</JoyTableHeaderCell>
+                    <JoyTableHeaderCell>Tenant</JoyTableHeaderCell>
+                    <JoyTableHeaderCell>Actor</JoyTableHeaderCell>
+                    <JoyTableHeaderCell>Precedence</JoyTableHeaderCell>
+                    <JoyTableHeaderCell>Expires</JoyTableHeaderCell>
+                    <JoyTableHeaderCell>Reason</JoyTableHeaderCell>
+                    <JoyTableHeaderCell>Previous</JoyTableHeaderCell>
+                    <JoyTableHeaderCell>New</JoyTableHeaderCell>
+                  </JoyTableRow>
+                </JoyTableHead>
+                <JoyTableBody>
+                  {loading ? (
+                    Array.from({ length: PAGE_SIZE }).map((_, index) => (
+                      <JoyTableRow key={index}>
+                        {Array.from({ length: 9 }).map((__, cellIndex) => (
+                          <JoyTableCell key={cellIndex}>
+                            <Skeleton sx={{ height: 20, width: "100%" }} />
+                          </JoyTableCell>
+                        ))}
+                      </JoyTableRow>
+                    ))
+                  ) : rows.length === 0 ? (
+                    <JoyTableRow>
+                      <JoyTableCell colSpan={9} sx={{ py: 5 }}>
+                        <Stack spacing={0.75} alignItems="center">
+                          <FileText
+                            className="h-5 w-5"
+                            style={{ color: "var(--joy-palette-neutral-400)" }}
+                          />
+                          <Typography level="title-sm">
+                            No audit logs found
+                          </Typography>
+                          <Typography
+                            level="body-sm"
+                            color="neutral"
+                            textAlign="center"
+                          >
+                            Try broadening the current filters or refreshing the
+                            log query.
+                          </Typography>
+                        </Stack>
+                      </JoyTableCell>
+                    </JoyTableRow>
+                  ) : (
+                    rows.map((row) => (
+                      <JoyTableRow key={row.id}>
+                        <JoyTableCell sx={{ whiteSpace: "nowrap" }}>
+                          {formatDateTime(row.occurred_at)}
+                        </JoyTableCell>
+                        <JoyTableCell sx={{ minWidth: 220 }}>
+                          <Stack spacing={0.35}>
+                            <Typography
+                              sx={{ fontWeight: "var(--joy-fontWeight-md)" }}
+                            >
+                              {row.action_type}
+                            </Typography>
+                            <Typography level="body-xs" color="neutral">
+                              {row.affected_table}
+                            </Typography>
+                            <Typography level="body-xs" color="neutral">
+                              {row.affected_record_id ?? "—"}
+                            </Typography>
+                          </Stack>
+                        </JoyTableCell>
+                        <JoyTableCell sx={{ minWidth: 220 }}>
+                          <Stack spacing={0.35}>
+                            <Typography
+                              sx={{ fontWeight: "var(--joy-fontWeight-md)" }}
+                            >
+                              {row.company_name ?? "—"}
+                            </Typography>
+                            <Typography
+                              level="body-xs"
+                              color="neutral"
+                              sx={{ overflowWrap: "anywhere" }}
+                            >
+                              {row.tenant_id ?? "global"}
+                            </Typography>
+                          </Stack>
+                        </JoyTableCell>
+                        <JoyTableCell sx={{ minWidth: 220 }}>
+                          <Stack spacing={0.35}>
+                            <JoyStatusChip status={row.actor_type} />
+                            <Typography level="body-xs" color="neutral">
+                              {row.actor_email ?? "—"}
+                            </Typography>
+                            <Typography
+                              level="body-xs"
+                              color="neutral"
+                              sx={{ overflowWrap: "anywhere" }}
+                            >
+                              {row.actor_id ?? "—"}
+                            </Typography>
+                          </Stack>
+                        </JoyTableCell>
+                        <JoyTableCell>
+                          {row.automation_precedence_mode ? (
+                            <JoyStatusChip
+                              status={row.automation_precedence_mode}
+                            />
+                          ) : (
+                            "—"
+                          )}
+                        </JoyTableCell>
+                        <JoyTableCell sx={{ whiteSpace: "nowrap" }}>
+                          {formatDateTime(row.expires_at)}
+                        </JoyTableCell>
+                        <JoyTableCell sx={{ maxWidth: 280 }}>
+                          {row.reason ?? "—"}
+                        </JoyTableCell>
+                        <JoyTableCell
+                          sx={{ minWidth: 260, verticalAlign: "top" }}
+                        >
+                          <Box
+                            component="pre"
+                            sx={{
+                              m: 0,
+                              maxHeight: 160,
+                              overflow: "auto",
+                              borderRadius: "var(--joy-radius-md)",
+                              backgroundColor: "neutral.100",
+                              p: 1.5,
+                              fontSize: "var(--joy-fontSize-xs)",
+                              fontFamily:
+                                "ui-monospace, SFMono-Regular, Menlo, monospace",
+                              whiteSpace: "pre-wrap",
+                              overflowWrap: "anywhere",
+                            }}
+                          >
+                            {toPretty(row.previous_value)}
+                          </Box>
+                        </JoyTableCell>
+                        <JoyTableCell
+                          sx={{ minWidth: 260, verticalAlign: "top" }}
+                        >
+                          <Box
+                            component="pre"
+                            sx={{
+                              m: 0,
+                              maxHeight: 160,
+                              overflow: "auto",
+                              borderRadius: "var(--joy-radius-md)",
+                              backgroundColor: "neutral.100",
+                              p: 1.5,
+                              fontSize: "var(--joy-fontSize-xs)",
+                              fontFamily:
+                                "ui-monospace, SFMono-Regular, Menlo, monospace",
+                              whiteSpace: "pre-wrap",
+                              overflowWrap: "anywhere",
+                            }}
+                          >
+                            {toPretty(row.new_value)}
+                          </Box>
+                        </JoyTableCell>
+                      </JoyTableRow>
+                    ))
+                  )}
+                </JoyTableBody>
+              </JoyTable>
+            </Sheet>
+
+            <JoyTablePagination
+              page={page}
+              pageIndexBase={0}
+              pageSize={PAGE_SIZE}
+              totalCount={count}
+              disabled={loading}
+              showPageSizeSelector={false}
+              onPageChange={setPage}
+              sx={{ mt: 2 }}
+            />
+          </JoyCardContent>
+        </JoyCard>
+      </Stack>
+    </PageContainer>
   );
 }

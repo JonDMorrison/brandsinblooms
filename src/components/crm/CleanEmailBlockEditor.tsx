@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { ContentBlock } from "@/types/emailBuilder";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui-legacy/card";
+import { Button } from "@/components/ui-legacy/button";
 import { Plus } from "lucide-react";
 import { ClickToEditEmailBuilder } from "./click-to-edit/ClickToEditEmailBuilder";
 import { FooterBlock } from "./click-to-edit/blocks/FooterBlock";

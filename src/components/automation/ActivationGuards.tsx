@@ -1,7 +1,7 @@
 import React from 'react';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription } from '@/components/ui-legacy/alert';
+import { Button } from '@/components/ui-legacy/button';
+import { Badge } from '@/components/ui-legacy/badge';
 import { AlertCircle, CheckCircle, Mail, MessageSquare, ShoppingCart, Settings, AlertTriangle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { ActivationGuard, ProviderReadiness, getProviderSetupInfo } from '@/lib/automation/guardrails';

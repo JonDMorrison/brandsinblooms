@@ -1,7 +1,7 @@
 import { UsageDashboard } from "@/components/subscription/UsageDashboard";
 import { UsageWarningBanner } from "@/components/subscription/UsageWarningBanner";
 import { UsageAlertSettings } from "@/components/settings/UsageAlertSettings";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui-legacy/tabs";
 import { BarChart3, Settings } from "lucide-react";
 
 const UsagePage = () => {

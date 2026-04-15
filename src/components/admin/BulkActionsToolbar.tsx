@@ -1,19 +1,12 @@
-
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { useState } from "react";
+import { JoyButton } from "@/components/joy/JoyButton";
+import { JoyAlertDialog } from "@/components/joy/JoyAlertDialog";
+import LinearProgress from "@mui/joy/LinearProgress";
+import Sheet from "@mui/joy/Sheet";
+import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
+import { JoyCard, JoyCardContent } from "@/components/joy/JoyCard";
 import { Trash2, X } from "lucide-react";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import { Progress } from "@/components/ui/progress";
 import { SUPER_ADMIN_EMAILS } from "@/utils/adminUtils";
 
 interface AdminUserData {
@@ -26,7 +19,7 @@ interface AdminUserData {
 interface BulkActionsToolbarProps {
   selectedUserIds: Set<string>;
   users: AdminUserData[];
-  onBulkDelete: (users: Array<{id: string, email: string}>) => Promise<void>;
+  onBulkDelete: (users: Array<{ id: string; email: string }>) => Promise<void>;
   onClearSelection: () => void;
   isProcessing: boolean;
   progress: {
@@ -42,17 +35,21 @@ export const BulkActionsToolbar = ({
   onBulkDelete,
   onClearSelection,
   isProcessing,
-  progress
+  progress,
 }: BulkActionsToolbarProps) => {
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+
   // Filter out admin users from selection
-  const selectedUsers = users.filter(user => 
-    selectedUserIds.has(user.id) && !SUPER_ADMIN_EMAILS.includes(user.email)
+  const selectedUsers = users.filter(
+    (user) =>
+      selectedUserIds.has(user.id) && !SUPER_ADMIN_EMAILS.includes(user.email),
   );
   const selectedCount = selectedUsers.length;
 
   // Check if any admin users were selected (for warning)
-  const selectedAdminUsers = users.filter(user => 
-    selectedUserIds.has(user.id) && SUPER_ADMIN_EMAILS.includes(user.email)
+  const selectedAdminUsers = users.filter(
+    (user) =>
+      selectedUserIds.has(user.id) && SUPER_ADMIN_EMAILS.includes(user.email),
   );
 
   if (selectedCount === 0 && !isProcessing && selectedAdminUsers.length === 0) {
@@ -60,124 +57,210 @@ export const BulkActionsToolbar = ({
   }
 
   const handleBulkDelete = () => {
-    onBulkDelete(selectedUsers.map(user => ({ id: user.id, email: user.email })));
+    onBulkDelete(
+      selectedUsers.map((user) => ({ id: user.id, email: user.email })),
+    );
   };
 
-  const duplicateCount = selectedUsers.filter(user => user.is_duplicate).length;
+  const duplicateCount = selectedUsers.filter(
+    (user) => user.is_duplicate,
+  ).length;
 
   return (
-    <Card className="p-4 mb-4 bg-blue-50 border-blue-200">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <div className="text-sm font-medium">
+    <JoyCard
+      sx={{ mb: 2, backgroundColor: "primary.50", borderColor: "primary.200" }}
+    >
+      <JoyCardContent sx={{ pt: 3 }}>
+        <Stack
+          direction={{ xs: "column", lg: "row" }}
+          alignItems={{ xs: "flex-start", lg: "center" }}
+          justifyContent="space-between"
+          spacing={2}
+        >
+          <Stack
+            direction={{ xs: "column", md: "row" }}
+            spacing={1.5}
+            alignItems={{ xs: "flex-start", md: "center" }}
+          >
+            <Typography level="body-sm" fontWeight="md">
+              {isProcessing
+                ? "Processing bulk deletion..."
+                : `${selectedCount} user${selectedCount !== 1 ? "s" : ""} selected`}
+            </Typography>
+
+            {selectedAdminUsers.length > 0 && !isProcessing ? (
+              <Sheet
+                variant="soft"
+                color="warning"
+                sx={{ px: 1, py: 0.5, borderRadius: "var(--joy-radius-sm)" }}
+              >
+                <Typography level="body-xs" sx={{ color: "warning.700" }}>
+                  {selectedAdminUsers.length} admin user
+                  {selectedAdminUsers.length !== 1 ? "s" : ""} excluded from
+                  deletion
+                </Typography>
+              </Sheet>
+            ) : null}
+
+            {duplicateCount > 0 && !isProcessing ? (
+              <Sheet
+                variant="soft"
+                color="neutral"
+                sx={{ px: 1, py: 0.5, borderRadius: "var(--joy-radius-sm)" }}
+              >
+                <Typography level="body-xs" color="neutral">
+                  {duplicateCount} duplicate account
+                  {duplicateCount !== 1 ? "s" : ""}
+                </Typography>
+              </Sheet>
+            ) : null}
+
             {isProcessing ? (
-              <span>Processing bulk deletion...</span>
-            ) : (
-              <span>{selectedCount} user{selectedCount !== 1 ? 's' : ''} selected</span>
-            )}
-          </div>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <LinearProgress
+                  determinate
+                  value={(progress.completed / progress.total) * 100}
+                  sx={{ width: 128, flexShrink: 0 }}
+                />
+                <Typography level="body-xs" color="neutral">
+                  {progress.completed}/{progress.total} completed
+                  {progress.failed > 0 && `, ${progress.failed} failed`}
+                </Typography>
+              </Stack>
+            ) : null}
+          </Stack>
 
-          {selectedAdminUsers.length > 0 && !isProcessing && (
-            <div className="text-xs text-orange-600 bg-orange-100 px-2 py-1 rounded">
-              {selectedAdminUsers.length} admin user{selectedAdminUsers.length !== 1 ? 's' : ''} excluded from deletion
-            </div>
-          )}
-          
-          {duplicateCount > 0 && !isProcessing && (
-            <div className="text-xs text-gray-600 bg-gray-100 px-2 py-1 rounded">
-              {duplicateCount} duplicate account{duplicateCount !== 1 ? 's' : ''}
-            </div>
-          )}
-
-          {isProcessing && (
-            <div className="flex items-center gap-2">
-              <Progress value={(progress.completed / progress.total) * 100} className="w-32" />
-              <span className="text-xs text-gray-600">
-                {progress.completed}/{progress.total} completed
-                {progress.failed > 0 && `, ${progress.failed} failed`}
-              </span>
-            </div>
-          )}
-        </div>
-
-        <div className="flex items-center gap-2">
-          {!isProcessing && selectedCount > 0 && (
-            <>
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="destructive" size="sm" className="gap-2">
-                    <Trash2 className="w-4 h-4" />
-                    Delete Selected
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Delete {selectedCount} User{selectedCount !== 1 ? 's' : ''}?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      You are about to permanently delete {selectedCount} user account{selectedCount !== 1 ? 's' : ''}:
-                      
-                      <div className="mt-3 max-h-32 overflow-y-auto bg-gray-50 p-2 rounded text-sm">
-                        {selectedUsers.map(user => (
-                          <div key={user.id} className="flex items-center justify-between py-1">
-                            <span>{user.email}</span>
-                            {user.is_duplicate && (
-                              <span className="text-xs text-gray-500">
-                                Account #{user.account_number}
-                              </span>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-
-                      {selectedAdminUsers.length > 0 && (
-                        <div className="mt-3 p-2 bg-green-50 rounded text-green-800 text-sm">
-                          <strong>Protected:</strong> {selectedAdminUsers.length} admin account{selectedAdminUsers.length !== 1 ? 's' : ''} will NOT be deleted:
-                          <ul className="mt-1 list-disc list-inside">
-                            {selectedAdminUsers.map(user => (
-                              <li key={user.id}>{user.email}</li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-
-                      <div className="mt-3 p-2 bg-red-50 rounded text-red-800 text-sm">
-                        <strong>Warning:</strong> This will permanently delete all their data including campaigns, content, and subscriptions.  This action cannot be undone.
-                      </div>
-
-                      {duplicateCount > 0 && (
-                        <div className="mt-2 p-2 bg-gray-50 rounded text-gray-800 text-sm">
-                          <strong>Note:</strong> {duplicateCount} of these users have duplicate accounts.  Consider using the Duplicate Management section to merge accounts instead.
-                        </div>
-                      )}
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={handleBulkDelete}
-                      className="bg-red-600 hover:bg-red-700"
+          <Stack direction="row" spacing={1} alignItems="center">
+            {!isProcessing && selectedCount > 0 && (
+              <>
+                <JoyButton
+                  bloomVariant="destructive"
+                  size="sm"
+                  startDecorator={<Trash2 className="w-4 h-4" />}
+                  onClick={() => setDeleteDialogOpen(true)}
+                >
+                  Delete Selected
+                </JoyButton>
+                <JoyAlertDialog
+                  open={deleteDialogOpen}
+                  onClose={() => setDeleteDialogOpen(false)}
+                  onConfirm={() => {
+                    setDeleteDialogOpen(false);
+                    handleBulkDelete();
+                  }}
+                  title={`Delete ${selectedCount} User${selectedCount !== 1 ? "s" : ""}?`}
+                  description={`You are about to permanently delete ${selectedCount} user account${selectedCount !== 1 ? "s" : ""}.`}
+                  variant="danger"
+                  confirmLabel={`Delete ${selectedCount} User${selectedCount !== 1 ? "s" : ""}`}
+                >
+                  <Sheet
+                    variant="outlined"
+                    sx={{ p: 1.5, borderRadius: "var(--joy-radius-md)" }}
+                  >
+                    <Stack
+                      spacing={0.75}
+                      sx={{ maxHeight: 160, overflowY: "auto" }}
                     >
-                      Delete {selectedCount} User{selectedCount !== 1 ? 's' : ''}
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+                      {selectedUsers.map((user) => (
+                        <Stack
+                          key={user.id}
+                          direction="row"
+                          justifyContent="space-between"
+                          alignItems="center"
+                          spacing={1}
+                        >
+                          <Typography level="body-sm">{user.email}</Typography>
+                          {user.is_duplicate ? (
+                            <Typography level="body-xs" color="neutral">
+                              Account #{user.account_number}
+                            </Typography>
+                          ) : null}
+                        </Stack>
+                      ))}
+                    </Stack>
+                  </Sheet>
 
-              <Button variant="outline" size="sm" onClick={onClearSelection}>
-                <X className="w-4 h-4 mr-1" />
-                Clear
-              </Button>
-            </>
-          )}
+                  {selectedAdminUsers.length > 0 ? (
+                    <Sheet
+                      color="success"
+                      variant="soft"
+                      sx={{ p: 1.5, borderRadius: "var(--joy-radius-md)" }}
+                    >
+                      <Stack spacing={0.75}>
+                        <Typography level="body-sm" fontWeight="lg">
+                          Protected accounts will not be deleted
+                        </Typography>
+                        <Stack
+                          component="ul"
+                          spacing={0.5}
+                          sx={{ pl: 2.5, m: 0 }}
+                        >
+                          {selectedAdminUsers.map((user) => (
+                            <Typography
+                              component="li"
+                              key={user.id}
+                              level="body-sm"
+                            >
+                              {user.email}
+                            </Typography>
+                          ))}
+                        </Stack>
+                      </Stack>
+                    </Sheet>
+                  ) : null}
 
-          {selectedAdminUsers.length > 0 && selectedCount === 0 && !isProcessing && (
-            <Button variant="outline" size="sm" onClick={onClearSelection}>
-              <X className="w-4 h-4 mr-1" />
-              Clear
-            </Button>
-          )}
-        </div>
-      </div>
-    </Card>
+                  <Sheet
+                    color="danger"
+                    variant="soft"
+                    sx={{ p: 1.5, borderRadius: "var(--joy-radius-md)" }}
+                  >
+                    <Typography level="body-sm">
+                      <strong>Warning:</strong> This permanently deletes
+                      campaigns, content, subscriptions, and related user data.
+                    </Typography>
+                  </Sheet>
+
+                  {duplicateCount > 0 ? (
+                    <Sheet
+                      color="neutral"
+                      variant="soft"
+                      sx={{ p: 1.5, borderRadius: "var(--joy-radius-md)" }}
+                    >
+                      <Typography level="body-sm">
+                        <strong>Note:</strong> {duplicateCount} selected user
+                        {duplicateCount !== 1 ? "s have" : " has"} duplicate
+                        accounts. Consider merging instead of deleting.
+                      </Typography>
+                    </Sheet>
+                  ) : null}
+                </JoyAlertDialog>
+
+                <JoyButton
+                  bloomVariant="outline"
+                  size="sm"
+                  onClick={onClearSelection}
+                  startDecorator={<X className="w-4 h-4" />}
+                >
+                  Clear
+                </JoyButton>
+              </>
+            )}
+
+            {selectedAdminUsers.length > 0 &&
+              selectedCount === 0 &&
+              !isProcessing && (
+                <JoyButton
+                  bloomVariant="outline"
+                  size="sm"
+                  onClick={onClearSelection}
+                  startDecorator={<X className="w-4 h-4" />}
+                >
+                  Clear
+                </JoyButton>
+              )}
+          </Stack>
+        </Stack>
+      </JoyCardContent>
+    </JoyCard>
   );
 };

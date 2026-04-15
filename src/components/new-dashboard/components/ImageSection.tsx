@@ -1,6 +1,6 @@
 import React from "react";
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Button } from "@/components/ui-legacy/button";
+import { Checkbox } from "@/components/ui-legacy/checkbox";
 import { Loader2, AlertCircle, X } from "lucide-react";
 import { MediaSelector } from "@/components/image/MediaSelector";
 

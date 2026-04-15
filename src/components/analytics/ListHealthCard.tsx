@@ -1,11 +1,11 @@
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-legacy/card';
+import { Badge } from '@/components/ui-legacy/badge';
+import { Progress } from '@/components/ui-legacy/progress';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui-legacy/tooltip';
 import { AlertTriangle, CheckCircle, XCircle, Info, Shield } from 'lucide-react';
 import { useListHealth } from '@/hooks/analytics/useListHealth';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Skeleton } from '@/components/ui-legacy/skeleton';
 import SuppressionBreakdown from './SuppressionBreakdown';
 import HealthSparkline from './HealthSparkline';
 

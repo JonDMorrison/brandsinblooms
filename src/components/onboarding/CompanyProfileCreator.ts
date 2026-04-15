@@ -214,7 +214,6 @@ export const createCompanyProfileFromOnboarding = async (
             ...profileData,
             updated_at: new Date().toISOString(),
             // onboarding_completed_at is set by finalize-onboarding edge function
-            updated_at: new Date().toISOString(),
           })
           .eq("user_id", userId)
           .select()

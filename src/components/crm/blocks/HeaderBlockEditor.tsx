@@ -1,17 +1,17 @@
 import React from "react";
 import { ContentBlock } from "@/types/emailBuilder";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { NativeSelect } from "@/components/ui/NativeSelect";
-import { Slider } from "@/components/ui/slider";
-import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui-legacy/card";
+import { Input } from "@/components/ui-legacy/input";
+import { Textarea } from "@/components/ui-legacy/textarea";
+import { Label } from "@/components/ui-legacy/label";
+import { NativeSelect } from "@/components/ui-legacy/NativeSelect";
+import { Slider } from "@/components/ui-legacy/slider";
+import { Button } from "@/components/ui-legacy/button";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+} from "@/components/ui-legacy/collapsible";
 import { Upload, Eye, ChevronDown, Settings } from "lucide-react";
 import { useState } from "react";
 import { ImageSelectButton } from "@/components/image";

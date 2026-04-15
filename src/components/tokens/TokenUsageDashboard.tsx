@@ -1,7 +1,7 @@
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui-legacy/card";
+import { Badge } from "@/components/ui-legacy/badge";
+import { Progress } from "@/components/ui-legacy/progress";
 import { Coins, TrendingUp, Calendar, AlertTriangle } from "lucide-react";
 import { useTokens } from "@/hooks/useTokens";
 import { format, formatDistanceToNow } from "date-fns";

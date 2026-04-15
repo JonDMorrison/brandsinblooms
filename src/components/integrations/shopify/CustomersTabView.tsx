@@ -1,14 +1,14 @@
 import { useState } from "react";
 import { RefreshCw, Users } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui-legacy/button";
 import {
   Sheet,
   SheetContent,
   SheetDescription,
   SheetHeader,
   SheetTitle,
-} from "@/components/ui/sheet";
+} from "@/components/ui-legacy/sheet";
 import type {
   LightspeedPagination,
   LightspeedSortDirection,

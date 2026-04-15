@@ -1,11 +1,11 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
 import { DashboardSection } from './DashboardSection';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui-legacy/tabs';
 import { FunnelChart } from '@/components/charts/FunnelChart';
 import { EngagementHeatmap } from '@/components/charts/EngagementHeatmap';
-import { EmptyChartOverlay } from '@/components/ui/empty-chart-overlay';
-import { Badge } from '@/components/ui/badge';
+import { EmptyChartOverlay } from '@/components/ui-legacy/empty-chart-overlay';
+import { Badge } from '@/components/ui-legacy/badge';
 import { Mail, MessageSquare, Clock, TrendingUp, TrendingDown } from 'lucide-react';
 
 interface ChannelDeepDiveProps {

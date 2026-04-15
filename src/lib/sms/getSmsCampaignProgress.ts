@@ -1,3 +1,7 @@
+import {
+  SUPABASE_PUBLISHABLE_KEY,
+  SUPABASE_URL,
+} from '@/integrations/supabase/config'
 import { supabase } from '@/integrations/supabase/client'
 
 export interface SmsCampaignProgress {
@@ -38,16 +42,8 @@ export interface SmsCampaignProgress {
  * Fetch real-time progress data for an SMS campaign
  */
 export async function getSmsCampaignProgress(campaignId: string): Promise<SmsCampaignProgress> {
-  const { data, error } = await supabase.functions.invoke<SmsCampaignProgress>('sms-campaign-progress', {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: null,
-  })
-
   // Since GET requests with body don't work well, use query params via custom fetch
-  const url = `${import.meta.env.VITE_SUPABASE_URL || 'https://udldmkqwnxhdeztyqcau.supabase.co'}/functions/v1/sms-campaign-progress?campaignId=${encodeURIComponent(campaignId)}`
+  const url = `${SUPABASE_URL}/functions/v1/sms-campaign-progress?campaignId=${encodeURIComponent(campaignId)}`
   
   const session = await supabase.auth.getSession()
   const accessToken = session.data.session?.access_token
@@ -56,7 +52,7 @@ export async function getSmsCampaignProgress(campaignId: string): Promise<SmsCam
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
-      'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVkbGRta3F3bnhoZGV6dHlxY2F1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDkwNTg0MzQsImV4cCI6MjA2NDYzNDQzNH0.1iO2-DRx5aX_WpEcDGv9aKHGy1rdDPOZaQC6Ke4MpRM',
+      'apikey': SUPABASE_PUBLISHABLE_KEY,
       ...(accessToken ? { 'Authorization': `Bearer ${accessToken}` } : {}),
     },
   })

@@ -5,12 +5,12 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Badge } from "@/components/ui/badge";
+} from "@/components/ui-legacy/card";
+import { Button } from "@/components/ui-legacy/button";
+import { Input } from "@/components/ui-legacy/input";
+import { Label } from "@/components/ui-legacy/label";
+import { Checkbox } from "@/components/ui-legacy/checkbox";
+import { Badge } from "@/components/ui-legacy/badge";
 import {
   Calendar as CalendarIcon,
   Leaf,
@@ -26,8 +26,8 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
+} from "@/components/ui-legacy/popover";
+import { Calendar } from "@/components/ui-legacy/calendar";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { PlanTheme } from "../constants";

@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { DashboardSection } from './DashboardSection';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { Badge } from '@/components/ui-legacy/badge';
+import { Button } from '@/components/ui-legacy/button';
+import { ScrollArea } from '@/components/ui-legacy/scroll-area';
 import { 
   History, 
   Mail, 
@@ -24,7 +24,7 @@ import {
   DropdownMenuContent,
   DropdownMenuCheckboxItem,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+} from '@/components/ui-legacy/dropdown-menu';
 
 interface TimelineEvent {
   id: string;

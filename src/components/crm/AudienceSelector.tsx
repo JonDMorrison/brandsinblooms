@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
+import { Button } from "@/components/ui-legacy/button";
+import { Badge } from "@/components/ui-legacy/badge";
+import { Checkbox } from "@/components/ui-legacy/checkbox";
+import { Input } from "@/components/ui-legacy/input";
+import { Separator } from "@/components/ui-legacy/separator";
 import { Search, Users, Lightbulb, X, Plus, Check, Lock } from "lucide-react";
 import { PersonaTag } from "./PersonaTag";
 import { SegmentChip } from "./SegmentChip";

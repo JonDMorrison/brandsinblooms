@@ -1,6 +1,6 @@
 
 import { format } from "date-fns";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@/components/ui-legacy/badge";
 import { cn } from "@/lib/utils";
 
 interface CalendarDayHeaderProps {

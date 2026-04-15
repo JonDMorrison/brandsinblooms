@@ -1,5 +1,5 @@
 import React from 'react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui-legacy/button';
 import { Edit, Copy, Trash2 } from 'lucide-react';
 
 interface BlockInlineToolbarProps {

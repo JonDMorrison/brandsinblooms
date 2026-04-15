@@ -1,4 +1,4 @@
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui-legacy/card";
 import { LandingPageIcon } from "./LandingPageIcon";
 import { Calendar, Sparkles, TrendingUp, Leaf, Clock, Star, Users, Zap, LifeBuoy } from "lucide-react";
 export const BenefitsSection = () => {

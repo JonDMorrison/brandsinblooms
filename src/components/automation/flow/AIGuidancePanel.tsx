@@ -1,5 +1,5 @@
 import React from 'react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui-legacy/button';
 import { Lightbulb, Users, Zap, Mail, MessageSquare, CheckCircle, ArrowRight, Info } from 'lucide-react';
 import { Node } from '@xyflow/react';
 import { triggerRequiresAudience } from '@/lib/automation/triggerCatalog';

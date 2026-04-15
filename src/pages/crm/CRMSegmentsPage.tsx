@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui-legacy/card";
+import { Button } from "@/components/ui-legacy/button";
+import { Input } from "@/components/ui-legacy/input";
+import { Badge } from "@/components/ui-legacy/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui-legacy/tabs";
 import {
   Target,
   Plus,
@@ -30,7 +30,7 @@ import { useNavigate } from "react-router-dom";
 import {
   CustomDropdown,
   CustomDropdownItem,
-} from "@/components/ui/custom-dropdown";
+} from "@/components/ui-legacy/custom-dropdown";
 import { DomainHealthBanner } from "@/components/crm/email/DomainHealthBanner";
 
 // Predefined segments data (without hardcoded counts)

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui-legacy/card";
+import { Button } from "@/components/ui-legacy/button";
 import {
   Zap,
   Mail,
@@ -11,7 +11,7 @@ import {
   Plus,
   X,
 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@/components/ui-legacy/badge";
 
 interface FloatingToolbarProps {
   onAddNode: (nodeType: string, position?: { x: number; y: number }) => void;

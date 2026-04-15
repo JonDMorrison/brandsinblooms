@@ -1,5 +1,5 @@
 import React from 'react';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui-legacy/alert';
 import { AlertTriangle, Info, ShieldAlert, Phone } from 'lucide-react';
 
 interface SmsComplianceWarningsProps {

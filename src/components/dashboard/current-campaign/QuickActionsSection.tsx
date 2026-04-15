@@ -1,6 +1,6 @@
 
-import { AppleCard, AppleCardContent } from "@/components/ui/apple-card";
-import { HeadlineLarge } from "@/components/ui/typography";
+import { AppleCard, AppleCardContent } from "@/components/ui-legacy/apple-card";
+import { HeadlineLarge } from "@/components/ui-legacy/typography";
 import { Sparkles } from "lucide-react";
 import { QuickActionItem } from "./QuickActionItem";
 import { useQuickActions } from "./useQuickActions";

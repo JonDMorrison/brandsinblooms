@@ -1,4 +1,4 @@
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui-legacy/button";
 import { ArrowRight, Leaf } from "lucide-react";
 interface PricingPreviewSectionProps {
   onSeePricing: () => void;

@@ -1,12 +1,12 @@
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui-legacy/button";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui-legacy/accordion";
+import { Card, CardContent } from "@/components/ui-legacy/card";
+import { Badge } from "@/components/ui-legacy/badge";
 import { ArrowUp, Calendar, MessageCircle, Sprout, DollarSign, Shield, Users, Settings, ShoppingCart, MessageSquare, Zap } from "lucide-react";
 import { LandingPageHeader } from "@/components/landing/LandingPageHeader";
 import { useNavigate } from "react-router-dom";
-import { VideoModal } from "@/components/ui/video-modal";
+import { VideoModal } from "@/components/ui-legacy/video-modal";
 import faqHero from "@/assets/faq-hero.jpg";
 const FAQPage = () => {
   const navigate = useNavigate();

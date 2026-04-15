@@ -1,7 +1,7 @@
 import React from 'react';
-import { EnhancedAppleCard } from '@/components/ui/enhanced-apple-card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { EnhancedAppleCard } from '@/components/ui-legacy/enhanced-apple-card';
+import { Button } from '@/components/ui-legacy/button';
+import { Badge } from '@/components/ui-legacy/badge';
 import { Receipt, Download, ExternalLink, Calendar, CreditCard, FileText, Eye } from 'lucide-react';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 

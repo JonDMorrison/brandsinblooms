@@ -17,14 +17,14 @@ import {
   PlayCircle,
   Rocket
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui-legacy/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "@/components/ui-legacy/dropdown-menu";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -34,8 +34,8 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+} from "@/components/ui-legacy/alert-dialog";
+import { Avatar, AvatarFallback } from "@/components/ui-legacy/avatar";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase, signOutCompletely } from "@/integrations/supabase/client";
 import { useOnboardingStatus } from "@/contexts/OnboardingStatusContext";
