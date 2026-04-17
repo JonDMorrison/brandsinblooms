@@ -47,6 +47,7 @@ import { SaveIndicator } from "@/components/crm/SaveIndicator";
 // Footer HTML is generated server-side in send-test-email and send-email-campaign edge functions
 import { useFooterSettings } from "@/hooks/useFooterSettings";
 import { useCompanyInfo } from "@/hooks/useCompanyInfo";
+import { useBrandDefaults } from "@/hooks/useBrandDefaults";
 import {
   generateNewsletterBlocks,
   getFallbackBlocks,
@@ -1464,6 +1465,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   const { footerSettings, campaignOverrides, setCampaignOverrides } =
     useFooterSettings(existingCampaignId || undefined);
   const { companyInfo } = useCompanyInfo();
+  const brandDefaults = useBrandDefaults();
 
   // Log company info changes for debugging footer issues
   useEffect(() => {
@@ -6391,7 +6393,19 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           )}
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle>Email Content</CardTitle>
+              <div className="flex items-center gap-2">
+                <CardTitle>Email Content</CardTitle>
+                {brandDefaults.loaded && (
+                  <a
+                    href="/profile/brand-colors"
+                    className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-[11px] font-medium text-primary hover:bg-primary/20 transition-colors"
+                    title="Brand colors auto-applied to new blocks. Click to update brand settings."
+                  >
+                    <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: brandDefaults.primaryColor }} />
+                    Brand Applied
+                  </a>
+                )}
+              </div>
               {!existingCampaignId && (
                 <Button
                   variant="outline"
@@ -6407,6 +6421,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           <CardContent>
             <CleanEmailBlockEditor
               blocks={blocks}
+              brandDefaults={brandDefaults}
               onBlocksChange={(newBlocks) => {
                 // Block changes when content is locked
                 if (isContentLocked) {

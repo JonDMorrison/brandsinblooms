@@ -9,6 +9,17 @@ import { BlockLayoutModal, LayoutType } from "./BlockLayoutModal";
 import { mediaSelector } from "@/utils/mediaSelector";
 import { RegenerateBlockButton } from "./RegenerateBlockButton";
 
+interface BrandDefaults {
+  primaryColor: string;
+  secondaryColor: string;
+  textColor: string;
+  buttonColor: string;
+  headerBgColor: string;
+  logoUrl: string;
+  fontFamily: string;
+  loaded: boolean;
+}
+
 interface CleanEmailBlockEditorProps {
   blocks: ContentBlock[];
   onBlocksChange: (blocks: ContentBlock[]) => void;
@@ -21,6 +32,7 @@ interface CleanEmailBlockEditorProps {
   onFooterStylingChange?: (
     styling: import("@/types/footerStyling").FooterStyling,
   ) => void;
+  brandDefaults?: BrandDefaults;
 }
 
 // Enhanced mapping function to convert layout types to block types and configurations
@@ -272,6 +284,7 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
   footerBackgroundColor,
   onFooterColorChange,
   onFooterStylingChange,
+  brandDefaults,
 }) => {
   const [internalBlocks, setInternalBlocks] = useState<ContentBlock[]>([]);
   const [hydrationComplete, setHydrationComplete] = useState(false);
@@ -460,13 +473,28 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
     try {
       const { type, config } = await mapLayoutToBlock(layoutType);
 
+      // Apply brand defaults to block types that benefit from them
+      const brandOverrides: Partial<ContentBlock> = {};
+      if (brandDefaults?.loaded) {
+        if (type === "header" || type === "newsletter-header") {
+          brandOverrides.backgroundColor = brandDefaults.headerBgColor;
+          brandOverrides.textColor = "#ffffff";
+        }
+        if (type === "email-safe-hero") {
+          brandOverrides.buttonColor = brandDefaults.buttonColor;
+        }
+        if (type === "button") {
+          brandOverrides.buttonColor = brandDefaults.buttonColor;
+        }
+      }
+
       const newBlock: ContentBlock = {
         id: `block_${Date.now()}`,
         type,
         layout: "full-width",
         title: "",
         content: "",
-        body: "", // Always initialize body to empty string
+        body: "",
         imageUrl: config.imageUrl || "",
         ctaText: "",
         ctaUrl: "",
@@ -478,12 +506,13 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
         responsiveBehavior: "stack",
         visible: true,
         animation: "fade-in",
-        shouldFetchImage: false, // User adds images manually via AI Assistant
-        isGeneratingImage: false, // No auto-generation on manual block add
-        autoImageMode: false, // Prevent any auto-regeneration
-        backgroundColor: undefined, // Ensure new blocks default to white background
-        // Apply layout-specific configuration
+        shouldFetchImage: false,
+        isGeneratingImage: false,
+        autoImageMode: false,
+        backgroundColor: undefined,
+        // Apply layout-specific configuration, then brand overrides
         ...config,
+        ...brandOverrides,
       };
 
       const newBlocks = [...internalBlocks];
