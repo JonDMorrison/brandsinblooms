@@ -31,6 +31,7 @@ import { SenderVerificationModal } from "./campaigns/SenderVerificationModal";
 import { CampaignSendConfirmationModal } from "./campaigns/CampaignSendConfirmationModal";
 import { CleanEmailBlockEditor } from "./CleanEmailBlockEditor";
 import { StructurePicker } from "./StructurePicker";
+import { EmailHealthScore } from "./EmailHealthScore";
 import { FullEmailPreview } from "./FullEmailPreview";
 import { ContentBlock } from "@/types/emailBuilder";
 import { convertNewsletterToCRM } from "@/utils/newsletterToCrmSync";
@@ -6406,6 +6407,11 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                     Brand Applied
                   </a>
                 )}
+                <EmailHealthScore
+                  blocks={blocks}
+                  subjectLine={subjectLine}
+                  preheaderText={preheaderText}
+                />
               </div>
               {!existingCampaignId && (
                 <Button
