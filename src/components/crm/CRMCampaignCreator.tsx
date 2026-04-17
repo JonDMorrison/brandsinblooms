@@ -4396,6 +4396,10 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           block.backgroundImageUrl,
         );
 
+        // Image styling from block properties
+        const imgBorderRadius = ({ none: '0px', soft: '8px', round: '16px', circle: '50%' } as Record<string, string>)[(block as any).imageBorderRadius] || '8px';
+        const imgMaxWidth = ({ full: '100%', large: '80%', medium: '60%', small: '40%' } as Record<string, string>)[(block as any).imageMaxWidth] || '100%';
+
         // DEBUG: Log block data for newsletter-header blocks
         if (block.type === "newsletter-header" || block.type === "header") {
         }
@@ -4647,7 +4651,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
               `;
               } else {
                 // Build image cell HTML - USE SAFE URL
-                let imgTcImageHtml = `<img src="${safeImageUrl}" alt="${block.altText || ""}" style="width: 100%; height: auto; border-radius: 8px; display: block;" />`;
+                let imgTcImageHtml = `<img src="${safeImageUrl}" alt="${block.altText || ""}" style="width: ${imgMaxWidth}; height: auto; border-radius: ${imgBorderRadius}; display: block;${imgMaxWidth !== '100%' ? ' margin: 0 auto;' : ''}" />`;
 
                 // Build text content HTML
                 let imgTcCleanBody = blockBody || "";
@@ -4792,7 +4796,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                 </table>
               `;
               } else {
-                imageHtml = `<img src="${safeImageUrl}" alt="${block.altText || ""}" style="max-width: 100%; height: auto; border-radius: 8px; display: block;" />`;
+                imageHtml = `<img src="${safeImageUrl}" alt="${block.altText || ""}" style="max-width: ${imgMaxWidth}; height: auto; border-radius: ${imgBorderRadius}; display: block;${imgMaxWidth !== '100%' ? ' margin: 0 auto;' : ''}" />`;
               }
 
               html += `
@@ -4891,7 +4895,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                 </table>
               `;
               } else {
-                imageCellHtml = `<img src="${safeImageUrl}" alt="${block.altText || ""}" style="width: 100%; height: auto; border-radius: 8px; display: block;" />`;
+                imageCellHtml = `<img src="${safeImageUrl}" alt="${block.altText || ""}" style="width: ${imgMaxWidth}; height: auto; border-radius: ${imgBorderRadius}; display: block;${imgMaxWidth !== '100%' ? ' margin: 0 auto;' : ''}" />`;
               }
 
               // Build text content HTML with proper table structure for email compatibility

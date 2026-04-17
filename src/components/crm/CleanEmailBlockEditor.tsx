@@ -324,15 +324,17 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
 
       return {
         ...block,
-        // CRITICAL: If hasGeneratedContent, preserve exact values (no normalization)
+        // Standardized field naming: headline is canonical for titles, content for body text
+        // Read priority: headline > title > heading. Write always to headline.
         headline: (block as any).hasGeneratedContent
-          ? block.headline // Preserve exact value, even if undefined
-          : block.headline || block.heading || block.title || "",
+          ? block.headline
+          : block.headline || block.title || block.heading || "",
         body: (block as any).hasGeneratedContent
-          ? block.body // Preserve exact value, even if undefined
+          ? block.body
           : block.body || block.content || "",
-        title: block.title || block.headline || block.heading || "",
-        content: block.content || block.body || "",
+        // Mirror to title/content for backward compat with DB columns
+        title: block.headline || block.title || block.heading || "",
+        content: block.body || block.content || "",
         // Preserve newsletter-specific fields
         subtitle: block.subtitle || "",
         issueNumber: block.issueNumber || "",
