@@ -30,6 +30,7 @@ import { useSenderConfiguration } from "@/hooks/useSenderConfiguration";
 import { SenderVerificationModal } from "./campaigns/SenderVerificationModal";
 import { CampaignSendConfirmationModal } from "./campaigns/CampaignSendConfirmationModal";
 import { CleanEmailBlockEditor } from "./CleanEmailBlockEditor";
+import { StructurePicker } from "./StructurePicker";
 import { FullEmailPreview } from "./FullEmailPreview";
 import { ContentBlock } from "@/types/emailBuilder";
 import { convertNewsletterToCRM } from "@/utils/newsletterToCrmSync";
@@ -6419,6 +6420,18 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
             </div>
           </CardHeader>
           <CardContent>
+            {/* Structure picker for new campaigns with no blocks */}
+            {blocks.length === 0 && !existingCampaignId && !showAIWriter && (
+              <StructurePicker
+                gardenCenterName={companyInfo?.name || "Your Garden Center"}
+                primaryColor={brandDefaults.primaryColor}
+                onSelect={(selectedBlocks, name, subject) => {
+                  setBlocks(selectedBlocks);
+                  if (name) setCampaignName(name);
+                  if (subject) setSubjectLine(subject);
+                }}
+              />
+            )}
             <CleanEmailBlockEditor
               blocks={blocks}
               brandDefaults={brandDefaults}
