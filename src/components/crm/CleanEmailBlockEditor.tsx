@@ -8,6 +8,7 @@ import { FooterBlock } from "./click-to-edit/blocks/FooterBlock";
 import { BlockLayoutModal, LayoutType } from "./BlockLayoutModal";
 import { mediaSelector } from "@/utils/mediaSelector";
 import { RegenerateBlockButton } from "./RegenerateBlockButton";
+import { NextBlockSuggestion } from "./NextBlockSuggestion";
 
 interface BrandDefaults {
   primaryColor: string;
@@ -33,6 +34,8 @@ interface CleanEmailBlockEditorProps {
     styling: import("@/types/footerStyling").FooterStyling,
   ) => void;
   brandDefaults?: BrandDefaults;
+  preheaderText?: string;
+  suggestionsEnabled?: boolean;
 }
 
 // Enhanced mapping function to convert layout types to block types and configurations
@@ -285,6 +288,8 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
   onFooterColorChange,
   onFooterStylingChange,
   brandDefaults,
+  preheaderText = "",
+  suggestionsEnabled = true,
 }) => {
   const [internalBlocks, setInternalBlocks] = useState<ContentBlock[]>([]);
   const [hydrationComplete, setHydrationComplete] = useState(false);
@@ -687,6 +692,15 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
         onFooterColorChange={onFooterColorChange}
         onFooterStylingChange={onFooterStylingChange}
       />
+
+      {/* Smart next-block suggestion */}
+      {suggestionsEnabled && (
+        <NextBlockSuggestion
+          blocks={internalBlocks}
+          preheaderText={preheaderText}
+          onAddBlock={(layoutType) => addBlockWithLayout(layoutType as LayoutType)}
+        />
+      )}
 
       {/* Block Layout Modal */}
       <BlockLayoutModal

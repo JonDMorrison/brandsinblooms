@@ -1031,6 +1031,9 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   const [loading, setLoading] = useState(false);
   const [converting, setConverting] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [suggestionsOn, setSuggestionsOn] = useState(() => {
+    try { return localStorage.getItem("bloom_suggestions") !== "off"; } catch { return true; }
+  });
   const [lastSaved, setLastSaved] = useState<Date | undefined>();
   const [saveError, setSaveError] = useState(false);
   const [sourceContentInfo, setSourceContentInfo] = useState<{
@@ -6412,6 +6415,24 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                   subjectLine={subjectLine}
                   preheaderText={preheaderText}
                 />
+                {blocks.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next = !suggestionsOn;
+                      setSuggestionsOn(next);
+                      try { localStorage.setItem("bloom_suggestions", next ? "on" : "off"); } catch {}
+                    }}
+                    className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-medium transition-colors ${
+                      suggestionsOn
+                        ? "border-amber-200 bg-amber-50 text-amber-700"
+                        : "border-border bg-muted text-muted-foreground"
+                    }`}
+                    title={suggestionsOn ? "Click to hide suggestions" : "Click to show suggestions"}
+                  >
+                    💡 Suggestions {suggestionsOn ? "on" : "off"}
+                  </button>
+                )}
               </div>
               {!existingCampaignId && (
                 <Button
@@ -6441,6 +6462,8 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
             <CleanEmailBlockEditor
               blocks={blocks}
               brandDefaults={brandDefaults}
+              preheaderText={preheaderText}
+              suggestionsEnabled={suggestionsOn}
               onBlocksChange={(newBlocks) => {
                 // Block changes when content is locked
                 if (isContentLocked) {
