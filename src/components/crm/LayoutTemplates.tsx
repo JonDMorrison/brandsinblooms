@@ -2,6 +2,7 @@
 import React from 'react';
 import { ContentBlock } from '@/types/emailBuilder';
 import { cn } from '@/lib/utils';
+import { useBrandDefaults } from '@/hooks/useBrandDefaults';
 
 interface LayoutProps {
   block: ContentBlock;
@@ -447,11 +448,12 @@ export const Layout7: React.FC<LayoutProps> = ({ block, className, editable, onU
 };
 
 // Layout: Email Safe Hero - text on solid background, image below
-// Uses light neutral (#f5f5f7) and near-black (#111111) for dark mode compatibility
+// Uses brand primary color as default, falls back to light neutral for dark mode compatibility
 export const EmailSafeHeroLayout: React.FC<LayoutProps> = ({ block, className }) => {
+  const brand = useBrandDefaults();
   const alignment = block.alignment || 'center';
-  const backgroundColor = block.backgroundColor || '#f5f5f7';
-  const textColor = block.textColor || '#111111';
+  const backgroundColor = block.backgroundColor || (brand.loaded ? brand.primaryColor : '#f5f5f7');
+  const textColor = block.textColor || (brand.loaded ? '#ffffff' : '#111111');
   
   return (
     <div className={cn('overflow-hidden rounded-lg', className)}>

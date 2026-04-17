@@ -4492,12 +4492,11 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
             break;
 
           // Email Safe Hero - two-column on desktop (text left, image right), stacked on mobile
-          // Uses light neutral background (#f5f5f7) and near-black text (#111111) to prevent
-          // dark mode inversion issues in email clients like Gmail mobile
+          // Uses brand primary color as default background with white text
           case "email-safe-hero":
             const safeHeroAlign = block.alignment || "left";
-            const safeHeroBgColor = block.backgroundColor || "#f5f5f7";
-            const safeHeroTextColor = block.textColor || "#111111";
+            const safeHeroBgColor = block.backgroundColor || companyInfo?.brandPrimaryColor || "#f5f5f7";
+            const safeHeroTextColor = block.textColor || (companyInfo?.brandPrimaryColor ? "#ffffff" : "#111111");
             const safeHeroButtonColor =
               block.buttonColor || companyInfo?.brandPrimaryColor || "#22c55e";
 

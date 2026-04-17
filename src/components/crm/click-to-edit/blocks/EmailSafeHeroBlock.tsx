@@ -12,6 +12,7 @@ import { ContextualToolbar } from '../contextual/ContextualToolbar';
 import { EditMode } from '@/hooks/useBlockEditMode';
 import { sanitizeWeekNumbers } from '@/utils/weekNumberSanitizer';
 import { SafeHtml } from '@/components/ui/safe-html';
+import { useBrandDefaults } from '@/hooks/useBrandDefaults';
 
 interface EmailSafeHeroBlockProps {
   block: ContentBlock;
@@ -35,10 +36,11 @@ export const EmailSafeHeroBlock: React.FC<EmailSafeHeroBlockProps> = ({
   isGenerating = false
 }) => {
   const mediaSelectorRef = useRef<MediaSelectorImageHandle>(null);
+  const brand = useBrandDefaults();
 
-  // Get background color with fallback - use light neutral and near-black for dark mode compatibility
-  const backgroundColor = block.backgroundColor || '#f5f5f7';
-  const textColor = block.textColor || '#111111';
+  // Use brand primary as default background, white text on brand color
+  const backgroundColor = block.backgroundColor || (brand.loaded ? brand.primaryColor : '#f5f5f7');
+  const textColor = block.textColor || (brand.loaded ? '#ffffff' : '#111111');
 
   // Get alignment class
   const alignClass = block.textAlign === 'center' ? 'text-center' 

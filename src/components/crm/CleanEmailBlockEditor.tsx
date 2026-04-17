@@ -44,7 +44,7 @@ const mapLayoutToBlock = async (
 ): Promise<{ type: ContentBlock["type"]; config: Partial<ContentBlock> }> => {
   switch (layoutType) {
     // NEW: Email-safe hero - recommended for dark mode compatibility
-    // Uses light neutral (#f5f5f7) and near-black (#111111) to prevent dark mode inversion
+    // Brand primary color applied via brandDefaults override in addBlockWithLayout
     case "email-safe-hero":
       return {
         type: "email-safe-hero",
@@ -58,8 +58,8 @@ const mapLayoutToBlock = async (
           ctaText: "",
           ctaUrl: "",
           textAlign: "center",
-          backgroundColor: "#f5f5f7",
-          textColor: "#111111",
+          backgroundColor: undefined,
+          textColor: undefined,
           padding: "large",
           shouldFetchImage: false,
           isGeneratingImage: false,
@@ -486,6 +486,8 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
           brandOverrides.textColor = "#ffffff";
         }
         if (type === "email-safe-hero") {
+          brandOverrides.backgroundColor = brandDefaults.primaryColor;
+          brandOverrides.textColor = "#ffffff";
           brandOverrides.buttonColor = brandDefaults.buttonColor;
         }
         if (type === "button") {

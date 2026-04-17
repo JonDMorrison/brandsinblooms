@@ -54,7 +54,7 @@ function buildOptions(
           subtitle: "What's new, what's blooming, and what to do this week.",
           body: "", content: "", title: "", imageUrl: "", ctaText: "", ctaUrl: "",
           source: "manual", visible: true, collapsed: false,
-          backgroundColor: "#f5f5f7", textColor: "#111111",
+          backgroundColor: color, textColor: "#ffffff",
           shouldFetchImage: false, isGeneratingImage: false, autoImageMode: false,
         },
         {
@@ -139,7 +139,7 @@ function buildOptions(
           subtitle: "Because you've been with us, we wanted to give you something first.",
           body: "", content: "", title: "", imageUrl: "", ctaText: "", ctaUrl: "",
           source: "manual", visible: true, collapsed: false,
-          backgroundColor: "#f5f5f7", textColor: "#111111",
+          backgroundColor: color, textColor: "#ffffff",
           shouldFetchImage: false, isGeneratingImage: false, autoImageMode: false,
         },
         {
@@ -207,7 +207,7 @@ function buildOptions(
           subtitle: "Just in — new plants, colours, and varieties you won't want to miss.",
           body: "", content: "", title: "", imageUrl: "", ctaText: "", ctaUrl: "",
           source: "manual", visible: true, collapsed: false,
-          backgroundColor: "#f5f5f7", textColor: "#111111",
+          backgroundColor: color, textColor: "#ffffff",
           shouldFetchImage: false, isGeneratingImage: false, autoImageMode: false,
         },
         {
