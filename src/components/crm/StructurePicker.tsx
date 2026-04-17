@@ -12,6 +12,7 @@ import {
 interface StructurePickerProps {
   gardenCenterName: string;
   primaryColor: string;
+  weeklyThemeTitle?: string;
   onSelect: (
     blocks: ContentBlock[],
     campaignName?: string,
@@ -279,6 +280,7 @@ const diagramMap: Record<string, string[]> = {
 export const StructurePicker: React.FC<StructurePickerProps> = ({
   gardenCenterName,
   primaryColor,
+  weeklyThemeTitle,
   onSelect,
 }) => {
   const options = React.useMemo(
@@ -295,6 +297,11 @@ export const StructurePicker: React.FC<StructurePickerProps> = ({
         <p className="text-sm text-muted-foreground mt-1">
           Pick a layout to start with — you can change everything after.
         </p>
+        {weeklyThemeTitle && (
+          <p className="text-xs text-green-700 mt-2">
+            🌱 This week's theme: <strong>{weeklyThemeTitle}</strong> — it'll be used as your starting headline
+          </p>
+        )}
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">

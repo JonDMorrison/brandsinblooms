@@ -32,6 +32,8 @@ import { CampaignSendConfirmationModal } from "./campaigns/CampaignSendConfirmat
 import { CleanEmailBlockEditor } from "./CleanEmailBlockEditor";
 import { StructurePicker } from "./StructurePicker";
 import { EmailHealthScore } from "./EmailHealthScore";
+import { WeeklyThemeCard } from "./WeeklyThemeCard";
+import { getCurrentSeasonalTemplate } from "@/utils/seasonalTemplateService";
 import { FullEmailPreview } from "./FullEmailPreview";
 import { ContentBlock } from "@/types/emailBuilder";
 import { convertNewsletterToCRM } from "@/utils/newsletterToCrmSync";
@@ -1034,6 +1036,10 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   const [suggestionsOn, setSuggestionsOn] = useState(() => {
     try { return localStorage.getItem("bloom_suggestions") !== "off"; } catch { return true; }
   });
+  const [weeklyThemeTitle, setWeeklyThemeTitle] = useState("");
+  useEffect(() => {
+    getCurrentSeasonalTemplate().then((t) => { if (t) setWeeklyThemeTitle(t.title); });
+  }, []);
   const [lastSaved, setLastSaved] = useState<Date | undefined>();
   const [saveError, setSaveError] = useState(false);
   const [sourceContentInfo, setSourceContentInfo] = useState<{
@@ -6447,11 +6453,31 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
             </div>
           </CardHeader>
           <CardContent>
+            {/* Weekly theme card for new campaigns */}
+            {!existingCampaignId && (
+              <WeeklyThemeCard
+                onUseTheme={(title, focus) => {
+                  setSubjectLine(title);
+                  setCampaignName(title);
+                  // If blocks exist, update the first hero/header headline
+                  if (blocks.length > 0) {
+                    const first = blocks[0];
+                    if (["header", "email-safe-hero", "newsletter-header"].includes(first.type)) {
+                      setBlocks(blocks.map((b, i) =>
+                        i === 0 ? { ...b, headline: title, subtitle: focus, title } : b,
+                      ));
+                    }
+                  }
+                }}
+              />
+            )}
+
             {/* Structure picker for new campaigns with no blocks */}
             {blocks.length === 0 && !existingCampaignId && !showAIWriter && (
               <StructurePicker
                 gardenCenterName={companyInfo?.name || "Your Garden Center"}
                 primaryColor={brandDefaults.primaryColor}
+                weeklyThemeTitle={weeklyThemeTitle}
                 onSelect={(selectedBlocks, name, subject) => {
                   setBlocks(selectedBlocks);
                   if (name) setCampaignName(name);
