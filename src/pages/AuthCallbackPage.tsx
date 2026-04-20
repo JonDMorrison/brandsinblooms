@@ -15,6 +15,74 @@ import { useAuth } from "@/contexts/AuthContext";
 import { FacebookAppSetupGuide } from "@/components/social/FacebookAppSetupGuide";
 import { getOAuthRedirectUri } from "@/utils/environmentUtils";
 
+interface ProviderResults {
+  facebook?: {
+    connected: boolean;
+    pages: Array<{ id: string; name: string }>;
+    error: string | null;
+  };
+  instagram?: {
+    connected: boolean;
+    accounts: Array<{ id: string; username: string }>;
+    error: string | null;
+    errorCode: string | null;
+  };
+}
+
+type ProviderIntent = "facebook" | "instagram";
+
+function getMetaFailureMessage(
+  providerIntent: ProviderIntent,
+  providerResults?: ProviderResults,
+  fallback?: string,
+) {
+  if (providerIntent === "instagram") {
+    return (
+      providerResults?.instagram?.error ||
+      fallback ||
+      "Instagram connection failed. Please try again."
+    );
+  }
+
+  return (
+    providerResults?.facebook?.error ||
+    fallback ||
+    "Facebook connection failed. Please try again."
+  );
+}
+
+function getMetaSuccessMessage(
+  providerIntent: ProviderIntent,
+  providerResults?: ProviderResults,
+) {
+  const facebookPages = providerResults?.facebook?.pages || [];
+  const instagramAccounts = providerResults?.instagram?.accounts || [];
+
+  if (providerIntent === "instagram") {
+    if (instagramAccounts.length > 0 && facebookPages.length > 0) {
+      return `Instagram connected successfully (${instagramAccounts
+        .map((account) => `@${account.username}`)
+        .join(", ")}). Facebook Page access is ready too.`;
+    }
+
+    if (instagramAccounts.length > 0) {
+      return `Instagram connected successfully (${instagramAccounts
+        .map((account) => `@${account.username}`)
+        .join(", ")}).`;
+    }
+
+    return "Instagram connected successfully.";
+  }
+
+  if (facebookPages.length > 0) {
+    return `Facebook connected successfully (${facebookPages
+      .map((page) => page.name)
+      .join(", ")}).`;
+  }
+
+  return "Facebook connected successfully.";
+}
+
 export const AuthCallbackPage = () => {
   // ──────────────────────────────────────────────
   // HOT-FIX: Facebook sometimes returns /auth/callback#/?code=…&state=…
@@ -166,6 +234,10 @@ export const AuthCallbackPage = () => {
       const storedState = sessionStorage.getItem("oauth_state");
       const backupState = localStorage.getItem("oauth_state_backup");
       const primaryBackup = localStorage.getItem("oauth_state_primary");
+      const storedProviderIntent =
+        (sessionStorage.getItem(
+          "oauth_provider_intent",
+        ) as ProviderIntent | null) || "facebook";
 
       const hasStoredState = !!(storedState || backupState || primaryBackup);
       const stateMatches =
@@ -189,6 +261,7 @@ export const AuthCallbackPage = () => {
       sessionStorage.removeItem("oauth_state");
       localStorage.removeItem("oauth_state_backup");
       localStorage.removeItem("oauth_state_primary");
+      sessionStorage.removeItem("oauth_provider_intent");
 
       // CRITICAL: Set ref IMMEDIATELY before any async work
       exchangeStartedRef.current = true;
@@ -203,7 +276,7 @@ export const AuthCallbackPage = () => {
           code,
           state,
           // Must match the URL authorized with Facebook
-          redirect_uri: getOAuthRedirectUri(),
+          redirect_uri: getOAuthRedirectUri("/auth/callback"),
         };
         const { data, error: exchangeError } = await supabase.functions.invoke(
           "exchange-oauth-code",
@@ -212,11 +285,19 @@ export const AuthCallbackPage = () => {
           },
         );
 
+        const providerIntent =
+          (data?.providerIntent as ProviderIntent | undefined) ||
+          storedProviderIntent;
+        const providerResults = data?.providerResults as
+          | ProviderResults
+          | undefined;
+
         if (exchangeError || !data?.success) {
-          let errorMessage =
-            exchangeError?.message ||
-            data?.error ||
-            "Failed to connect social account";
+          let errorMessage = getMetaFailureMessage(
+            providerIntent,
+            providerResults,
+            exchangeError?.message || data?.error || data?.message,
+          );
 
           // Handle specific error stages with user-friendly messages
           if (data?.stage === "fetch_pages") {
@@ -225,38 +306,45 @@ export const AuthCallbackPage = () => {
             errorMessage = `No Facebook Pages were found for your account.\n\nPlease ensure:\n• You are an admin on at least one Facebook Page\n• You selected your Page(s) during the Meta authorization\n• You're using the correct Facebook account\n\nTry:\n1. Logging into the Facebook account that owns your Page\n2. Reconnecting from BloomSuite\n3. Selecting all Pages you want to connect when prompted`;
           }
 
-          // Store failure state for diagnostic display
-          if (data?.stage) {
-            sessionStorage.setItem(
-              "social_connection_failure",
-              JSON.stringify({
-                timestamp: Date.now(),
-                stage: data.stage,
-                message: data.error || data.message,
-              }),
-            );
-          }
+          sessionStorage.setItem(
+            "social_connection_failure",
+            JSON.stringify({
+              errorCode: providerResults?.instagram?.errorCode || null,
+              message: errorMessage,
+              providerIntent,
+              providerResults,
+              timestamp: Date.now(),
+            }),
+          );
 
           throw new Error(errorMessage);
         }
 
         // Success!
         setStatus("success");
-        const successMessage =
-          data.message || "Successfully connected to Meta platform!";
+        const successMessage = getMetaSuccessMessage(
+          providerIntent,
+          providerResults,
+        );
         setMessage(successMessage);
 
-        // Extract connected platforms from response
-        if (data.connections && Array.isArray(data.connections)) {
-          setConnectedPlatforms(data.connections);
+        const successfulPlatforms: string[] = [];
+        if (providerResults?.facebook?.connected) {
+          successfulPlatforms.push("facebook");
         }
+        if (providerResults?.instagram?.connected) {
+          successfulPlatforms.push("instagram");
+        }
+        setConnectedPlatforms(successfulPlatforms);
 
         // Set success flag for social accounts page with platform details
         sessionStorage.setItem(
           "social_connection_success",
           JSON.stringify({
             message: successMessage,
-            platforms: data.connections || [],
+            platforms: successfulPlatforms,
+            providerIntent,
+            providerResults,
             timestamp: Date.now(),
           }),
         );

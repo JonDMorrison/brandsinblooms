@@ -25,11 +25,34 @@ import { getOAuthRedirectUri } from "@/utils/environmentUtils";
 
 interface SocialConnection {
   id: string;
+  deleted_at?: string | null;
   platform: string;
   platform_account_name: string;
   is_active: boolean;
   expires_at: string;
   created_at: string;
+}
+
+interface ProviderResults {
+  facebook?: {
+    connected: boolean;
+    pages: Array<{ id: string; name: string }>;
+    error: string | null;
+  };
+  instagram?: {
+    connected: boolean;
+    accounts: Array<{ id: string; username: string }>;
+    error: string | null;
+    errorCode: string | null;
+  };
+}
+
+interface StoredConnectionFeedback {
+  errorCode?: string | null;
+  message?: string;
+  providerIntent?: string;
+  providerResults?: ProviderResults;
+  timestamp: number;
 }
 
 export const SocialConnectionManager = () => {
@@ -38,6 +61,10 @@ export const SocialConnectionManager = () => {
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState<string | null>(null);
   const [showSuccessView, setShowSuccessView] = useState(true);
+  const [instagramFailure, setInstagramFailure] = useState<{
+    errorCode: string;
+    message: string;
+  } | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -77,10 +104,34 @@ export const SocialConnectionManager = () => {
 
     if (successData) {
       try {
-        const data = JSON.parse(successData);
+        const data = JSON.parse(successData) as StoredConnectionFeedback;
         // Only refresh if it's recent (within 30 seconds)
         if (Date.now() - data.timestamp < 30000) {
           fetchConnections(); // Refresh connections
+
+          const facebookPages =
+            data.providerResults?.facebook?.pages.map((page) => page.name) ||
+            [];
+          const instagramAccounts =
+            data.providerResults?.instagram?.accounts.map(
+              (account) => `@${account.username}`,
+            ) || [];
+
+          if (facebookPages.length > 0 && instagramAccounts.length > 0) {
+            toast.success(
+              `Connected Facebook (${facebookPages.join(", ")}) and Instagram (${instagramAccounts.join(", ")}).`,
+            );
+            setInstagramFailure(null);
+          } else if (facebookPages.length > 0) {
+            toast.success(`Facebook connected: ${facebookPages.join(", ")}.`);
+          } else if (instagramAccounts.length > 0) {
+            toast.success(
+              `Instagram connected: ${instagramAccounts.join(", ")}.`,
+            );
+            setInstagramFailure(null);
+          } else if (data.message) {
+            toast.success(data.message);
+          }
 
           // Check if there's a returnTo URL parameter and set connected=true
           const currentUrl = new URL(window.location.href);
@@ -100,11 +151,34 @@ export const SocialConnectionManager = () => {
 
     if (failureData) {
       try {
-        const data = JSON.parse(failureData);
+        const data = JSON.parse(failureData) as StoredConnectionFeedback;
         // Only show error if it's recent (within 30 seconds)
         if (Date.now() - data.timestamp < 30000) {
-          if (data.stage === "no_pages" || data.stage === "fetch_pages") {
-            toast.error(data.message || "Failed to connect. No Pages found.");
+          const instagramResult = data.providerResults?.instagram;
+
+          if (instagramResult?.errorCode === "NO_IG_BUSINESS_ACCOUNT") {
+            const remediationMessage =
+              instagramResult.error ||
+              "No linked Instagram Business Account was found for your Facebook Pages.";
+            setInstagramFailure({
+              errorCode: instagramResult.errorCode,
+              message: remediationMessage,
+            });
+            toast.error(remediationMessage, { duration: Infinity });
+          } else if (instagramResult?.errorCode === "IG_DETAIL_FETCH_FAILED") {
+            toast.error(
+              instagramResult.error ||
+                "Instagram connection failed while verifying the linked account. Please try again.",
+              { duration: 10000 },
+            );
+          } else if (instagramResult?.errorCode === "IG_SAVE_FAILED") {
+            toast.error(
+              instagramResult.error ||
+                "Instagram connection could not be saved. Please try again.",
+              { duration: 10000 },
+            );
+          } else {
+            toast.error(data.message || "Failed to connect social account.");
           }
         }
         sessionStorage.removeItem("social_connection_failure");
@@ -119,10 +193,21 @@ export const SocialConnectionManager = () => {
       const { data, error } = await supabase
         .from("social_connections")
         .select("*")
+        .is("deleted_at", null)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
       setConnections(data || []);
+      if (
+        (data || []).some(
+          (connection) =>
+            connection.platform === "instagram" &&
+            connection.is_active &&
+            !connection.deleted_at,
+        )
+      ) {
+        setInstagramFailure(null);
+      }
     } catch (error) {
       console.error("Error fetching connections:", error);
     } finally {
@@ -142,16 +227,17 @@ export const SocialConnectionManager = () => {
       // Generate secure state parameter
       const state = crypto.randomUUID();
       const timestamp = Date.now().toString();
-      const combinedState = `${state}-${timestamp}`;
+      const combinedState = `${state}::${platformId}::${timestamp}`;
 
       // Store state with redundancy
       sessionStorage.setItem("oauth_state", combinedState);
+      sessionStorage.setItem("oauth_provider_intent", platformId);
       localStorage.setItem("oauth_state_backup", combinedState);
 
       // Fetch OAuth config dynamically
       const configData = await fetchOAuthConfig();
       const clientId = configData.clientId;
-      const redirectUri = getOAuthRedirectUri();
+      const redirectUri = getOAuthRedirectUri("/auth/callback");
 
       console.log("🔗 [SocialConnectionManager] Redirect URI Configuration:", {
         redirectUri,
@@ -179,7 +265,7 @@ export const SocialConnectionManager = () => {
 
       if (!oauthTab) {
         toast.error(
-          "Please allow new tabs to connect Facebook. Click the button again after allowing.",
+          "Please allow new tabs to connect Meta. Click the button again after allowing.",
         );
       }
     } catch (error) {
@@ -202,6 +288,11 @@ export const SocialConnectionManager = () => {
   };
 
   const disconnectPlatform = async (connectionId: string, platform: string) => {
+    const previousConnections = connections;
+    setConnections((currentConnections) =>
+      currentConnections.filter((connection) => connection.id !== connectionId),
+    );
+
     try {
       const { error } = await supabase
         .from("social_connections")
@@ -213,6 +304,7 @@ export const SocialConnectionManager = () => {
       fetchConnections();
     } catch (error) {
       console.error("Error disconnecting platform:", error);
+      setConnections(previousConnections);
     }
   };
 
@@ -277,10 +369,10 @@ export const SocialConnectionManager = () => {
 
   // Check if both Facebook and Instagram are connected
   const facebookConnection = connections.find(
-    (c) => c.platform === "facebook" && c.is_active,
+    (c) => c.platform === "facebook" && c.is_active && !c.deleted_at,
   );
   const instagramConnection = connections.find(
-    (c) => c.platform === "instagram" && c.is_active,
+    (c) => c.platform === "instagram" && c.is_active && !c.deleted_at,
   );
   const bothMetaConnected = facebookConnection && instagramConnection;
 
@@ -365,7 +457,7 @@ export const SocialConnectionManager = () => {
 
         {platforms.map((platform) => {
           const connection = connections.find(
-            (c) => c.platform === platform.id,
+            (c) => c.platform === platform.id && c.is_active && !c.deleted_at,
           );
           const isConnected = !!connection;
           const isExpired =
@@ -412,6 +504,32 @@ export const SocialConnectionManager = () => {
                       Connected as: {connection.platform_account_name}
                     </p>
                   )}
+                  {platform.id === "instagram" &&
+                    !isConnected &&
+                    instagramFailure?.errorCode ===
+                      "NO_IG_BUSINESS_ACCOUNT" && (
+                      <div className="mt-3 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+                        <p className="font-medium">
+                          Instagram connection needs additional setup
+                        </p>
+                        <p className="mt-1 text-amber-800">
+                          {instagramFailure.message}
+                        </p>
+                        <ol className="mt-2 list-decimal space-y-1 pl-5 text-amber-800">
+                          <li>
+                            Your Instagram account must be a Business or Creator
+                            account.
+                          </li>
+                          <li>
+                            Your Instagram account must be linked to a Facebook
+                            Page you manage.
+                          </li>
+                          <li>
+                            After linking, return here and click Connect again.
+                          </li>
+                        </ol>
+                      </div>
+                    )}
                 </div>
               </div>
 
