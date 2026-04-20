@@ -61,6 +61,19 @@ function dedupeById<T extends { id: string }>(items: T[]): T[] {
   return Array.from(new Map(items.map((item) => [item.id, item])).values());
 }
 
+function isExpectedProductionRedirectUri(redirectUri: string): boolean {
+  try {
+    const parsed = new URL(redirectUri);
+    return (
+      (parsed.origin === "https://bloomsuite.app" ||
+        parsed.origin === "https://www.bloomsuite.app") &&
+      parsed.pathname === "/auth/callback"
+    );
+  } catch {
+    return false;
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     console.log("📋 Handling CORS preflight request");
@@ -190,11 +203,11 @@ serve(async (req) => {
       expectedPattern:
         environment === "development"
           ? "https://*.lovableproject.com/auth/callback"
-          : "https://bloomsuite.app/auth/callback",
+          : "https://www.bloomsuite.app/auth/callback or https://bloomsuite.app/auth/callback",
       matches:
         environment === "development"
           ? redirect_uri.includes("lovableproject.com/auth/callback")
-          : redirect_uri === "https://bloomsuite.app/auth/callback",
+          : isExpectedProductionRedirectUri(redirect_uri),
     });
 
     const credentialResolution = resolveFacebookCredentials(environment);
