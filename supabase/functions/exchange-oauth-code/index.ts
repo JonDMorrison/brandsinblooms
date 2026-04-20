@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
 import {
   detectEnvironment,
-  getFacebookCredentials,
+  resolveFacebookCredentials,
 } from "../_shared/environment.ts";
 
 type ProviderIntent = "facebook" | "instagram";
@@ -197,7 +197,11 @@ serve(async (req) => {
           : redirect_uri === "https://bloomsuite.app/auth/callback",
     });
 
-    const { clientId, clientSecret } = getFacebookCredentials(environment);
+    const credentialResolution = resolveFacebookCredentials(environment);
+
+    for (const warning of credentialResolution.warnings) {
+      console.warn(warning);
+    }
 
     const expectedDevSecrets = {
       clientId: Deno.env.get("FB_CLIENT_ID_DEV"),
@@ -226,16 +230,18 @@ serve(async (req) => {
         clientId: !!legacySecrets.clientId,
         clientSecret: !!legacySecrets.clientSecret,
       },
-      credentialsReturnedByHelper: {
-        clientId: !!clientId,
-        clientSecret: !!clientSecret,
-        clientIdPreview: clientId?.substring(0, 10) + "...",
+      credentialsReturnedByResolver: {
+        clientId: !!credentialResolution.clientId,
+        clientSecret: !!credentialResolution.clientSecret,
+        clientIdPreview: credentialResolution.clientId
+          ? `${credentialResolution.clientId.substring(0, 10)}...`
+          : null,
       },
       expectedSuffix: environment === "development" ? "_DEV" : "_PROD",
     });
 
-    const finalClientId = clientId || Deno.env.get("FB_CLIENT_ID");
-    const finalClientSecret = clientSecret || Deno.env.get("FB_CLIENT_SECRET");
+    const finalClientId = credentialResolution.clientId;
+    const finalClientSecret = credentialResolution.clientSecret;
     const allEnvKeys = Object.keys(Deno.env.toObject()).filter((key) =>
       key.includes("FB"),
     );
@@ -243,16 +249,8 @@ serve(async (req) => {
     console.log("🔑 All Facebook-related environment variables:", allEnvKeys);
     console.log("🔑 Final Credentials Selection:", {
       environment,
-      clientIdSource: clientId
-        ? `FB_CLIENT_ID_${environment.toUpperCase()}`
-        : legacySecrets.clientId
-          ? "FB_CLIENT_ID (legacy)"
-          : "NONE",
-      clientSecretSource: clientSecret
-        ? `FB_CLIENT_SECRET_${environment.toUpperCase()}`
-        : legacySecrets.clientSecret
-          ? "FB_CLIENT_SECRET (legacy)"
-          : "NONE",
+      clientIdSource: credentialResolution.clientIdSource || "NONE",
+      clientSecretSource: credentialResolution.clientSecretSource || "NONE",
       finalClientIdPresent: !!finalClientId,
       finalClientSecretPresent: !!finalClientSecret,
       finalClientIdPreview: finalClientId?.substring(0, 10) + "...",
@@ -263,8 +261,15 @@ serve(async (req) => {
       allEnvVarCount: Object.keys(Deno.env.toObject()).length,
     });
 
+    console.log(
+      `📋 OAuth exchange credentials: env=${environment}, clientId=${finalClientId?.substring(0, 6) || "missing"}..., clientIdSource=${credentialResolution.clientIdSource || "missing"}, clientSecretSource=${credentialResolution.clientSecretSource || "missing"}`,
+    );
+
     if (!finalClientId || !finalClientSecret) {
-      const errorMessage = `Facebook/Instagram app credentials not configured for ${environment}. Missing: ${!finalClientId ? "FB_CLIENT_ID " : ""}${!finalClientSecret ? "FB_CLIENT_SECRET" : ""}. Please add these to your Supabase Edge Function secrets.`;
+      const isProduction = environment === "production";
+      const errorMessage = isProduction
+        ? "Facebook OAuth credentials are not configured for the production environment. Please contact support."
+        : `Facebook/Instagram app credentials not configured for ${environment}. Missing: ${!finalClientId ? "FB_CLIENT_ID " : ""}${!finalClientSecret ? "FB_CLIENT_SECRET" : ""}. Please add these to your Supabase Edge Function secrets.`;
       console.error(`❌ Missing Facebook credentials for ${environment}:`, {
         clientId: finalClientId ? "present" : "MISSING",
         clientSecret: finalClientSecret ? "present" : "MISSING",
@@ -276,6 +281,7 @@ serve(async (req) => {
         JSON.stringify({
           success: false,
           error: errorMessage,
+          stage: "credentials",
           providerIntent,
           providerResults,
           debug: {

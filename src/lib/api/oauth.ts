@@ -1,6 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 
 export interface OAuthConfig {
+  environment: "development" | "production";
   provider: string;
   clientId: string;
   success: boolean;

@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.208.0/http/server.ts"
-import { detectEnvironment, getFacebookCredentials } from '../_shared/environment.ts'
+import { detectEnvironment, resolveFacebookCredentials } from '../_shared/environment.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -16,10 +16,13 @@ serve(async (req) => {
   try {
     // Detect environment and get appropriate credentials
     const environment = detectEnvironment(req)
-    const { clientId, clientSecret } = getFacebookCredentials(environment)
-    
-    // Fallback to legacy secrets for backward compatibility
-    const finalClientId = clientId || Deno.env.get('FB_CLIENT_ID')
+    const credentialResolution = resolveFacebookCredentials(environment)
+
+    for (const warning of credentialResolution.warnings) {
+      console.warn(warning)
+    }
+
+    const finalClientId = credentialResolution.clientId
     
     if (!finalClientId) {
       console.error(`❌ FB_CLIENT_ID not configured for ${environment} environment`)
@@ -35,7 +38,8 @@ serve(async (req) => {
       )
     }
 
-    console.log(`✅ Providing OAuth config for ${environment} - Client ID configured`)
+    console.log(`📋 OAuth config response: env=${environment}, clientId=${finalClientId.substring(0, 6)}...`)
+    console.log(`✅ Providing OAuth config for ${environment} - Client ID source: ${credentialResolution.clientIdSource || 'missing'}`)
 
     return new Response(
       JSON.stringify({ 

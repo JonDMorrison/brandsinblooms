@@ -272,11 +272,14 @@ export const AuthCallbackPage = () => {
       try {
         setMessage("Exchanging authorization code...");
 
+        const redirectUri = getOAuthRedirectUri("/auth/callback");
+        console.log(`🔁 OAuth exchange redirect URI: ${redirectUri}`);
+
         const exchangePayload = {
           code,
           state,
           // Must match the URL authorized with Facebook
-          redirect_uri: getOAuthRedirectUri("/auth/callback"),
+          redirect_uri: redirectUri,
         };
         const { data, error: exchangeError } = await supabase.functions.invoke(
           "exchange-oauth-code",

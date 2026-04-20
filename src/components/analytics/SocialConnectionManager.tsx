@@ -239,6 +239,13 @@ export const SocialConnectionManager = () => {
       const clientId = configData.clientId;
       const redirectUri = getOAuthRedirectUri("/auth/callback");
 
+      console.log("📋 [SocialConnectionManager] OAuth config fetched:", {
+        clientId: configData.clientId,
+        environment: configData.environment,
+      });
+
+      console.log(`🔗 OAuth redirect URI: ${redirectUri}`);
+
       console.log("🔗 [SocialConnectionManager] Redirect URI Configuration:", {
         redirectUri,
         origin: window.location.origin,
@@ -261,6 +268,13 @@ export const SocialConnectionManager = () => {
 
       // Open OAuth in new tab (not popup)
       const oauthUrlStr = authUrl.toString();
+      console.log("🔗 [SocialConnectionManager] OAuth authorize URL params:", {
+        clientId,
+        redirectUri,
+        scope,
+        responseType: "code",
+        state: combinedState,
+      });
       const oauthTab = window.open(oauthUrlStr, "_blank");
 
       if (!oauthTab) {

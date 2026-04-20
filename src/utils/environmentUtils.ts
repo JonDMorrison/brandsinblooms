@@ -7,14 +7,17 @@ export type Environment = 'development' | 'production';
  */
 export function detectEnvironment(): Environment {
   const hostname = window.location.hostname;
-  const isDev = hostname.includes('localhost');
+  const isDev =
+    hostname.includes('localhost') ||
+    hostname === '127.0.0.1' ||
+    hostname.endsWith('.local');
   return isDev ? 'development' : 'production';
 }
 
 /**
  * Get environment-aware OAuth redirect URI
  */
-export function getOAuthRedirectUri(path: string = '/oauth/callback'): string {
+export function getOAuthRedirectUri(path: string = '/auth/callback'): string {
   // Always use the current origin so PKCE code_verifier (stored in
   // localStorage on this origin) matches the domain where the code
   // will be exchanged. Previous hardcode of https://bloomsuite.app
