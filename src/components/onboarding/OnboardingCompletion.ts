@@ -29,10 +29,13 @@ export const useOnboardingCompletion = () => {
         websiteUrl: websiteUrl,
       };
       // STEP 1: Save onboarding response to database (quick operation)
+      // Mark as completed FIRST (localStorage) — this is the authoritative
+      // signal that prevents the OnboardingGuard from redirecting back.
+      // Must happen before any async operation that could fail.
+      markAsCompleted();
+
       try {
         await saveOnboardingResponse(finalData, userId);
-        // Mark as completed immediately to prevent race conditions
-        markAsCompleted();
       } catch (saveError) {
         console.error("❌ Failed to save onboarding response:", saveError);
         toast({
