@@ -20,7 +20,7 @@ serve(async () => {
       .select("id, tenant_id, last_sync_at")
       .eq("platform", "vmx")
       .eq("is_active", true)
-      .eq("status", "active");
+      .neq("sync_status", "error");
 
     if (error) throw error;
     if (!connections || connections.length === 0) {

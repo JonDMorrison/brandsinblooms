@@ -72,16 +72,15 @@ serve(async (req) => {
           user_id: user.id,
           platform: "vmx",
           name: connection_name || "VMX POS",
-          status: "active",
           is_active: true,
           credentials_encrypted: JSON.stringify({ api_key: encryptedKey }),
           settings: { api_version: "1.11.0", auth_method: "header" },
-          sync_status: "ready",
+          sync_status: "pending",
           updated_at: new Date().toISOString(),
         },
         { onConflict: "tenant_id,platform" },
       )
-      .select("id, status")
+      .select("id, sync_status")
       .single();
 
     if (connError) {
@@ -93,25 +92,24 @@ serve(async (req) => {
           user_id: user.id,
           platform: "vmx",
           name: connection_name || "VMX POS",
-          status: "active",
           is_active: true,
           credentials_encrypted: JSON.stringify({ api_key: encryptedKey }),
           settings: { api_version: "1.11.0", auth_method: "header" },
-          sync_status: "ready",
+          sync_status: "pending",
         })
-        .select("id, status")
+        .select("id, sync_status")
         .single();
 
       if (insertErr) throw insertErr;
 
       return new Response(
-        JSON.stringify({ connection_id: inserted!.id, status: inserted!.status }),
+        JSON.stringify({ connection_id: inserted!.id, status: inserted!.sync_status }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
     return new Response(
-      JSON.stringify({ connection_id: connection!.id, status: connection!.status }),
+      JSON.stringify({ connection_id: connection!.id, status: connection!.sync_status }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (err) {

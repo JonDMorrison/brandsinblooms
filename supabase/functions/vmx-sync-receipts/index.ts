@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { decryptToken } from "../_shared/crypto/tokens.ts";
+import { decryptToken, encryptToken } from "../_shared/crypto/tokens.ts";
 import { createVmxClient, parseVmxDate } from "../_shared/vmx/client.ts";
 
 const corsHeaders = {
@@ -35,7 +35,16 @@ serve(async (req) => {
     if (conn.platform !== "vmx") throw new Error("Connection is not VMX");
 
     const creds = JSON.parse(conn.credentials_encrypted);
-    const apiKey = await decryptToken(creds.api_key);
+    let apiKey: string;
+    if (creds.api_key_plain) {
+      apiKey = creds.api_key_plain;
+      const encrypted = await encryptToken(apiKey);
+      await supabase.from("pos_connections").update({
+        credentials_encrypted: JSON.stringify({ api_key: encrypted }),
+      }).eq("id", connection_id);
+    } else {
+      apiKey = await decryptToken(creds.api_key);
+    }
 
     let start = "1990-01-01";
     if (!full_sync && conn.last_sync_at) {
@@ -89,10 +98,7 @@ serve(async (req) => {
         }
       }
 
-      await supabase
-        .from("pos_connections")
-        .update({ cursor: String(page) })
-        .eq("id", connection_id);
+      console.log(`vmx-sync-receipts: completed page ${page}`);
 
       page = result.nextPage;
     }
@@ -155,7 +161,6 @@ serve(async (req) => {
       .update({
         last_sync_at: new Date().toISOString(),
         sync_status: "success",
-        cursor: null,
         updated_at: new Date().toISOString(),
       })
       .eq("id", connection_id);
