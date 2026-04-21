@@ -18,11 +18,13 @@ import type { POSConnectionStatus } from "@/hooks/useUnifiedPOSConnections";
 import squareLogo from "@/assets/logos/square-new.png";
 import lightspeedLogo from "@/assets/logos/lightspeed-x-series.svg";
 import cloverLogo from "@/assets/logos/clover.svg";
+import vmxLogo from "@/assets/logos/vmx-pos.png";
 
 const logoMap: Record<string, string> = {
   square: squareLogo,
   lightspeed: lightspeedLogo,
   clover: cloverLogo,
+  vmx: vmxLogo,
 };
 
 interface ProviderCardProps {
@@ -63,7 +65,7 @@ export const ProviderCard: React.FC<ProviderCardProps> = ({
               <img
                 src={logo}
                 alt={provider.name}
-                className="h-10 w-10 object-contain rounded"
+                className="max-h-10 w-auto max-w-[120px] object-contain rounded"
               />
             ) : (
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
