@@ -82,6 +82,9 @@ serve(async (req) => {
           phone: c.cellPhone?.trim() || c.phone?.trim() || null,
           email_consent: c.wantsEMail === "1",
           sms_consent: c.wantsTexts === "1",
+          loyalty_member: c.isLoyalty === "1",
+          loyalty_rewards_balance: parseFloat(c.rewardDollars || "0"),
+          tags: c.isLoyalty === "1" ? ["loyalty"] : null,
           custom_fields: {
             is_loyalty: c.isLoyalty === "1",
             reward_dollars: parseFloat(c.rewardDollars || "0"),
@@ -118,6 +121,11 @@ serve(async (req) => {
         updated_at: new Date().toISOString(),
       })
       .eq("id", connection_id);
+
+    // Generate/refresh system segments for this tenant
+    supabase.functions.invoke("generate-system-segments", {
+      body: { tenant_id: conn.tenant_id, pos_source: "vmx" },
+    }).catch((err) => console.error("system segments generation failed:", err));
 
     const duration = Date.now() - startTime;
     console.log(`vmx-sync-customers: ${totalProcessed} customers, ${page - 1} pages, ${duration}ms`);

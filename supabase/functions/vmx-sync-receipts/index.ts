@@ -139,6 +139,11 @@ serve(async (req) => {
       })
       .eq("id", connection_id);
 
+    // Generate/refresh system segments for this tenant
+    supabase.functions.invoke("generate-system-segments", {
+      body: { tenant_id: conn.tenant_id, pos_source: "vmx" },
+    }).catch((err) => console.error("system segments generation failed:", err));
+
     const duration = Date.now() - startTime;
     console.log(`vmx-sync-receipts: ${totalProcessed} receipts, ${page - 1} pages, ${affectedCustomerIds.size} customers, ${duration}ms`);
 
