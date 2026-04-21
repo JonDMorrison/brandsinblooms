@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { decryptToken, encryptToken } from "../_shared/crypto/tokens.ts";
+import { decryptToken } from "../_shared/crypto/tokens.ts";
 import { createVmxClient, parseVmxDate } from "../_shared/vmx/client.ts";
 
 const corsHeaders = {
@@ -22,7 +22,6 @@ serve(async (req) => {
 
     const { connection_id, full_sync } = await req.json();
     connectionId = connection_id;
-
     if (!connection_id) throw new Error("connection_id is required");
 
     const { data: conn, error: connErr } = await supabase
@@ -34,17 +33,9 @@ serve(async (req) => {
     if (connErr || !conn) throw new Error("Connection not found");
     if (conn.platform !== "vmx") throw new Error("Connection is not VMX");
 
+    // Decrypt API key
     const creds = JSON.parse(conn.credentials_encrypted);
-    let apiKey: string;
-    if (creds.api_key_plain) {
-      apiKey = creds.api_key_plain;
-      const encrypted = await encryptToken(apiKey);
-      await supabase.from("pos_connections").update({
-        credentials_encrypted: JSON.stringify({ api_key: encrypted }),
-      }).eq("id", connection_id);
-    } else {
-      apiKey = await decryptToken(creds.api_key);
-    }
+    const apiKey = await decryptToken(creds.api_key);
 
     let start = "1990-01-01";
     if (!full_sync && conn.last_sync_at) {
@@ -68,67 +59,46 @@ serve(async (req) => {
       const result = await client.listReceipts({ start, page });
       hasMore = result.hasMore;
 
-      for (const r of result.data) {
-        if (r.customerNum) {
-          affectedCustomerIds.add(r.customerNum);
-        }
+      // Batch upsert entire page at once
+      const rows = result.data.map((r) => {
+        if (r.customerNum) affectedCustomerIds.add(r.customerNum);
+        return {
+          tenant_id: conn.tenant_id,
+          pos_connection_id: conn.id,
+          external_receipt_id: r.id,
+          external_customer_id: r.customerNum || null,
+          post_date: parseVmxDate(r.postDate),
+          subtotal: parseFloat(r.subtotal) || 0,
+          tax: parseFloat(r.tax) || 0,
+          division_id: r.divisionId || null,
+          line_items: r.items || [],
+          raw_payload: r,
+        };
+      });
 
+      if (rows.length > 0) {
         const { error: upsertErr } = await supabase
           .from("pos_receipts")
-          .upsert(
-            {
-              tenant_id: conn.tenant_id,
-              pos_connection_id: conn.id,
-              external_receipt_id: r.id,
-              external_customer_id: r.customerNum || null,
-              post_date: parseVmxDate(r.postDate),
-              subtotal: parseFloat(r.subtotal) || 0,
-              tax: parseFloat(r.tax) || 0,
-              division_id: r.divisionId || null,
-              line_items: r.items || [],
-              raw_payload: r,
-            },
-            { onConflict: "tenant_id,pos_connection_id,external_receipt_id" },
-          );
-
+          .upsert(rows, { onConflict: "tenant_id,pos_connection_id,external_receipt_id" });
         if (upsertErr) {
-          console.error(`vmx-sync-receipts: upsert error for receipt ${r.id}:`, upsertErr.message);
+          console.error(`vmx-sync-receipts: batch upsert error page ${page}:`, upsertErr.message);
         } else {
-          totalProcessed++;
+          totalProcessed += rows.length;
         }
       }
 
-      console.log(`vmx-sync-receipts: completed page ${page}`);
-
+      console.log(`vmx-sync-receipts: page ${page} — ${rows.length} rows`);
       page = result.nextPage;
     }
 
     // Recompute total_spent and last_visit_date for affected customers
     if (affectedCustomerIds.size > 0) {
-      const { error: rollupErr } = await supabase.rpc("exec_sql", {
-        sql: `
-          UPDATE crm_customers c SET
-            total_spent = s.total,
-            last_visit_date = s.last_visit
-          FROM (
-            SELECT external_customer_id,
-                   SUM(COALESCE(subtotal, 0) + COALESCE(tax, 0)) AS total,
-                   MAX(post_date) AS last_visit
-            FROM pos_receipts
-            WHERE tenant_id = '${conn.tenant_id}'
-              AND external_customer_id IS NOT NULL
-            GROUP BY external_customer_id
-          ) s
-          WHERE c.tenant_id = '${conn.tenant_id}'
-            AND c.pos_source = 'vmx'
-            AND c.external_id = s.external_customer_id
-        `,
-      });
-
-      if (rollupErr) {
-        // Fallback: update one by one if RPC doesn't exist
-        console.warn("vmx-sync-receipts: rollup RPC failed, using per-customer fallback:", rollupErr.message);
-        for (const custId of affectedCustomerIds) {
+      // Per-customer rollup — works without RPC
+      const custIds = [...affectedCustomerIds];
+      // Process in chunks of 50
+      for (let i = 0; i < custIds.length; i += 50) {
+        const chunk = custIds.slice(i, i + 50);
+        for (const custId of chunk) {
           const { data: totals } = await supabase
             .from("pos_receipts")
             .select("subtotal, tax, post_date")
@@ -136,8 +106,11 @@ serve(async (req) => {
             .eq("external_customer_id", custId);
 
           if (totals && totals.length > 0) {
-            const totalSpent = totals.reduce((sum, r) => sum + (parseFloat(r.subtotal) || 0) + (parseFloat(r.tax) || 0), 0);
-            const lastVisit = totals.reduce((latest, r) => {
+            const totalSpent = totals.reduce(
+              (sum, r) => sum + (parseFloat(r.subtotal) || 0) + (parseFloat(r.tax) || 0),
+              0,
+            );
+            const lastVisit = totals.reduce((latest: Date | null, r) => {
               const d = r.post_date ? new Date(r.post_date) : null;
               return d && (!latest || d > latest) ? d : latest;
             }, null as Date | null);
@@ -161,12 +134,13 @@ serve(async (req) => {
       .update({
         last_sync_at: new Date().toISOString(),
         sync_status: "success",
+        sync_error: null,
         updated_at: new Date().toISOString(),
       })
       .eq("id", connection_id);
 
     const duration = Date.now() - startTime;
-    console.log(`vmx-sync-receipts: ${totalProcessed} receipts, ${page - 1} pages, ${affectedCustomerIds.size} customers updated, ${duration}ms`);
+    console.log(`vmx-sync-receipts: ${totalProcessed} receipts, ${page - 1} pages, ${affectedCustomerIds.size} customers, ${duration}ms`);
 
     return new Response(
       JSON.stringify({
@@ -179,18 +153,14 @@ serve(async (req) => {
     );
   } catch (err) {
     console.error("vmx-sync-receipts error:", err);
-
     if (connectionId) {
       const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-      await supabase
-        .from("pos_connections")
-        .update({
-          sync_status: "error",
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", connectionId);
+      await supabase.from("pos_connections").update({
+        sync_status: "error",
+        sync_error: (err as Error).message,
+        updated_at: new Date().toISOString(),
+      }).eq("id", connectionId);
     }
-
     return new Response(
       JSON.stringify({ error: (err as Error).message }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
