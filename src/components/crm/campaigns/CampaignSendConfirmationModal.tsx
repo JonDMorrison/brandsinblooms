@@ -897,8 +897,20 @@ export const CampaignSendConfirmationModal: React.FC<
         ? preflightSummary.checks
         : fallbackPreflightChecks;
 
-    return [domainCheck, ...preflightChecks];
-  }, [buildDomainCheck, preflightSummary?.checks, shouldLoadPreflight]);
+    // Audience targeting check — warn if sending to all contacts with no segments
+    const hasAudience = selectedSegments.length > 0 || selectedPersonas.length > 0;
+    const audienceCheck: FinalPreflightCheck = {
+      id: "audience",
+      label: "Audience targeted",
+      loading: false,
+      state: hasAudience ? "ok" : "warn",
+      detail: hasAudience
+        ? `${selectedSegments.length + selectedPersonas.length} segment(s) selected`
+        : `No segments selected — sending to ALL contacts. Targeted campaigns perform better and reduce unsubscribes.`,
+    };
+
+    return [domainCheck, audienceCheck, ...preflightChecks];
+  }, [buildDomainCheck, preflightSummary?.checks, shouldLoadPreflight, selectedSegments, selectedPersonas]);
 
   const finalPreflightChecking =
     shouldLoadPreflight && finalPreflightChecks.some((c) => c.loading);

@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { CreateFlowDialog } from "@/components/create-flow/CreateFlowDialog";
 import { DashboardSetupWizard } from "@/components/dashboard/DashboardSetupWizard";
+import { POSInsightsCard } from "@/components/dashboard/POSInsightsCard";
 
 export const BloomSuiteDashboard = () => {
   const navigate = useNavigate();
@@ -275,6 +276,11 @@ export const BloomSuiteDashboard = () => {
               </Button>
             </div>
           )}
+        </div>
+
+        {/* POS Insights Card — appears above grid when POS data exists */}
+        <div className="max-w-5xl mx-auto">
+          <POSInsightsCard />
         </div>
 
         {/* Dashboard Cards Grid */}
