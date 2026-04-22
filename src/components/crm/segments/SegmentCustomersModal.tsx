@@ -110,7 +110,7 @@ export const SegmentCustomersModal: React.FC<SegmentCustomersModalProps> = ({
             criteriaBasedCustomers =
               allCustomers?.filter(
                 (customer) =>
-                  customer.tags && customer.tags.includes("loyalty"),
+                  customer.loyalty_member === true || (customer.tags && customer.tags.includes("loyalty")),
               ) || [];
             break;
           case "high-value":

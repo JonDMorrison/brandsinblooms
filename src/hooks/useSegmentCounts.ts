@@ -49,7 +49,7 @@ export const useSegmentCounts = () => {
       const { data: customers, error } = await supabase
         .from("crm_customers")
         .select(
-          "id, tags, total_spent, created_at, last_purchase_date, order_history",
+          "id, tags, total_spent, created_at, last_purchase_date, order_history, loyalty_member",
         )
         .eq("tenant_id", tenant.id);
 
@@ -77,7 +77,7 @@ export const useSegmentCounts = () => {
         (customer) => new Date(customer.created_at) >= thirtyDaysAgo,
       );
       const loyaltyCustomers = customers.filter(
-        (customer) => customer.tags && customer.tags.includes("loyalty"),
+        (customer) => customer.loyalty_member === true || (customer.tags && customer.tags.includes("loyalty")),
       );
       const highValueCustomers = customers.filter(
         (customer) => customer.total_spent && customer.total_spent > 500,

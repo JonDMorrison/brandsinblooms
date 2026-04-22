@@ -379,7 +379,7 @@ export const IntegrationHub = () => {
                 ]}
               >
                 <Button
-                  onClick={() => (window.location.href = "/crm/pos")}
+                  onClick={() => (window.location.href = "/integrations/pos")}
                   className="mt-2"
                 >
                   <Store className="w-4 h-4 mr-2" />

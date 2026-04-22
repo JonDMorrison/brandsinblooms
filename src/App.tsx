@@ -58,6 +58,7 @@ import AccountPage from "@/pages/AccountPage";
 import ProfilePage from "@/pages/ProfilePage";
 import IntegrationsPage from "@/pages/IntegrationsPage";
 import POSIntegrationsPage from "@/pages/integrations/POSIntegrationsPage";
+import POSIntegrationsHub from "@/pages/integrations/POSIntegrationsHub";
 import CRMIntegrationsPage from "@/pages/integrations/CRMIntegrationsPage";
 import SocialIntegrationsPage from "@/pages/integrations/SocialIntegrationsPage";
 import AutomationsIntegrationsPage from "@/pages/integrations/AutomationsIntegrationsPage";
@@ -711,7 +712,7 @@ function App() {
             />
             <Route path="/integrations" element={<IntegrationsRouteLayout />}>
               <Route index element={<IntegrationsPage />} />
-              <Route path="pos" element={<POSIntegrationsPage />} />
+              <Route path="pos" element={<POSIntegrationsHub />} />
               <Route path="crm" element={<CRMIntegrationsPage />} />
               <Route path="social" element={<SocialIntegrationsPage />} />
               <Route
@@ -776,11 +777,7 @@ function App() {
             <Route
               path="/crm/pos"
               element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <POSIntegrationsPage />
-                  </SidebarLayout>
-                </ProtectedRoute>
+                <Navigate to="/integrations/pos" replace />
               }
             />
 
