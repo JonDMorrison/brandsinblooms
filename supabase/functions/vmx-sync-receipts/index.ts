@@ -139,10 +139,37 @@ serve(async (req) => {
       })
       .eq("id", connection_id);
 
-    // Generate/refresh system segments for this tenant
-    supabase.functions.invoke("generate-system-segments", {
-      body: { tenant_id: conn.tenant_id, pos_source: "vmx" },
-    }).catch((err) => console.error("system segments generation failed:", err));
+    // Targeted segment refresh for visit/spend-driven segments
+    if (affectedCustomerIds.size > 0) {
+      const { data: visitSpendSegs } = await supabase
+        .from("crm_segments")
+        .select("id, name")
+        .eq("tenant_id", conn.tenant_id)
+        .eq("is_system_segment", true)
+        .is("deleted_at", null);
+
+      const targetNames = ["Active Customers", "Lapsed Customers", "Dormant Customers",
+        "VIP Customers", "Lapsed with Rewards to Spend", "Dormant with Rewards to Spend"];
+      const targetIds = (visitSpendSegs || []).filter((s) => targetNames.includes(s.name)).map((s) => s.id);
+
+      if (targetIds.length > 0) {
+        // Convert external_customer_ids to crm_customer UUIDs
+        const extIds = [...affectedCustomerIds];
+        const { data: custRows } = await supabase
+          .from("crm_customers")
+          .select("id")
+          .eq("tenant_id", conn.tenant_id)
+          .eq("pos_source", "vmx")
+          .in("external_id", extIds.slice(0, 200));
+
+        const custUuids = (custRows || []).map((c) => c.id);
+        if (custUuids.length > 0) {
+          supabase.functions.invoke("recompute-segment-memberships", {
+            body: { tenant_id: conn.tenant_id, segment_ids: targetIds, customer_ids: custUuids },
+          }).catch((err) => console.error("targeted segment refresh failed:", err));
+        }
+      }
+    }
 
     const duration = Date.now() - startTime;
     console.log(`vmx-sync-receipts: ${totalProcessed} receipts, ${page - 1} pages, ${affectedCustomerIds.size} customers, ${duration}ms`);

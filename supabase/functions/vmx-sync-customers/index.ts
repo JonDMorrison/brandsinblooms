@@ -122,10 +122,22 @@ serve(async (req) => {
       })
       .eq("id", connection_id);
 
-    // Generate/refresh system segments for this tenant
-    supabase.functions.invoke("generate-system-segments", {
-      body: { tenant_id: conn.tenant_id, pos_source: "vmx" },
-    }).catch((err) => console.error("system segments generation failed:", err));
+    // Targeted segment refresh for profile-driven segments
+    const { data: profileSegs } = await supabase
+      .from("crm_segments")
+      .select("id, name")
+      .eq("tenant_id", conn.tenant_id)
+      .eq("is_system_segment", true)
+      .is("deleted_at", null);
+
+    const profileNames = ["Loyalty Members", "Loyalty Members with Unused Rewards", "Email Subscribers"];
+    const profileSegIds = (profileSegs || []).filter((s) => profileNames.includes(s.name)).map((s) => s.id);
+
+    if (profileSegIds.length > 0) {
+      supabase.functions.invoke("recompute-segment-memberships", {
+        body: { tenant_id: conn.tenant_id, segment_ids: profileSegIds },
+      }).catch((err) => console.error("targeted segment refresh failed:", err));
+    }
 
     const duration = Date.now() - startTime;
     console.log(`vmx-sync-customers: ${totalProcessed} customers, ${page - 1} pages, ${duration}ms`);
