@@ -757,6 +757,9 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
 
   const [preheaderText, setPreheaderText] = useState("");
 
+  const [emailBorderColor, setEmailBorderColor] = useState("");
+  const [emailBorderThickness, setEmailBorderThickness] = useState(0);
+
   const [blocks, setBlocks] = useState<ContentBlock[]>([]);
 
   // Track used images to prevent duplicates
@@ -4344,7 +4347,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   ${emailContent}
 </body>
 </html>`;
-  }, [blocks, subjectLine, senderConfig, companyInfo, footerSettings]);
+  }, [blocks, subjectLine, senderConfig, companyInfo, footerSettings, emailBorderColor, emailBorderThickness]);
 
   // Helper function to convert hex color + opacity to RGBA for email compatibility
   const hexToRgba = (hex: string, opacity: number): string => {
@@ -4389,8 +4392,12 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         );
       };
 
+      const borderStyle = emailBorderThickness > 0 && emailBorderColor
+        ? `border: ${emailBorderThickness}px solid ${emailBorderColor};`
+        : "";
+
       let html = `
-      <div class="email-container" style="width: 100%; background: white;">
+      <div class="email-container" style="width: 100%; background: white; ${borderStyle}">
         <div class="content-block" style="padding: 30px 32px;">
     `;
 
@@ -5021,7 +5028,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
             break;
 
           case "divider":
-            const divColor = block.textColor || "#e2e8f0";
+            const divColor = block.dividerColor || block.textColor || "#e5e7eb";
             const divStyle = (typeof block.content === "string" && block.content) || "solid";
             const divThickness = block.dividerThickness || 1;
             const divSpacingMap: Record<string, string> = { none: "0", small: "8px", medium: "16px", large: "32px" };
@@ -6328,6 +6335,40 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                 placeholder="Optional preheader text"
                 className="mt-1"
               />
+            </div>
+            <div>
+              <Label>Email Border</Label>
+              <div className="flex items-center gap-3 mt-1">
+                <div className="flex gap-1">
+                  {([
+                    { value: 0, label: "None" },
+                    { value: 4, label: "Thin" },
+                    { value: 8, label: "Medium" },
+                    { value: 12, label: "Heavy" },
+                  ] as const).map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setEmailBorderThickness(opt.value)}
+                      className={`px-2.5 py-1 text-xs rounded-md border transition-colors ${
+                        emailBorderThickness === opt.value
+                          ? "border-primary bg-primary/10 text-primary font-medium"
+                          : "border-border text-muted-foreground hover:border-primary/40"
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+                {emailBorderThickness > 0 && (
+                  <Input
+                    type="color"
+                    value={emailBorderColor || "#22c55e"}
+                    onChange={(e) => setEmailBorderColor(e.target.value)}
+                    className="w-8 h-8 p-0.5 cursor-pointer rounded border"
+                  />
+                )}
+              </div>
             </div>
           </div>
 
