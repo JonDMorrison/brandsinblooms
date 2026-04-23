@@ -1562,9 +1562,9 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
 
       setExistingCampaignId(inserted.id);
 
-      // Update URL to include the new campaign ID
-      const url = new URL(window.location.href);
-      navigate(`/crm/campaigns/${inserted.id}`, { replace: true });
+      // Update URL without triggering React Router remount — preserves
+      // in-flight AI content generation and block state
+      window.history.replaceState({}, "", `/crm/campaigns/${inserted.id}`);
 
       return inserted.id;
     } catch (error) {
