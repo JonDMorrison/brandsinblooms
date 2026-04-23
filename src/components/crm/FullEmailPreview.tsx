@@ -369,11 +369,11 @@ export const FullEmailPreview: React.FC<FullEmailPreviewProps> = ({
                 </p>
               </div>
             ) : (
-              <div className="mx-auto max-w-2xl bg-white shadow-lg rounded-lg overflow-hidden">
+              <div className="mx-auto max-w-2xl bg-white shadow-lg rounded-lg overflow-hidden" style={{ minWidth: 640 }}>
                 <iframe
                   srcDoc={completeEmailHtml}
                   className="w-full border-0"
-                  style={{ minHeight: 600, height: 800 }}
+                  style={{ minHeight: 600, height: 800, minWidth: 640 }}
                   title="Full Email Preview"
                   sandbox="allow-same-origin"
                 />
