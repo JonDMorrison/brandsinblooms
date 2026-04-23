@@ -5157,8 +5157,8 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                           ? `
                         <table cellpadding="0" cellspacing="0" border="0" ${nhTextAlign === "center" ? 'align="center"' : ""} style="margin-top: 32px;">
                           <tr>
-                            <td style="background-color: ${block.buttonColor || companyInfo?.brandPrimaryColor || "#22c55e"}; border-radius: 6px; padding: 14px 32px;">
-                              <a href="${block.ctaUrl || block.buttonUrl}" style="display: inline-block; color: white; text-decoration: none; font-weight: 600; font-size: 16px; font-family: ${fonts.buttonFont};">
+                            <td align="center" style="background-color: ${block.buttonColor || companyInfo?.brandPrimaryColor || "#22c55e"}; border-radius: 6px; padding: 14px 32px; text-align: center;">
+                              <a href="${block.ctaUrl || block.buttonUrl}" class="cta-button" style="display: inline-block; color: white; text-decoration: none; font-weight: 600; font-size: 16px; font-family: ${fonts.buttonFont}; text-align: center;">
                                 ${block.ctaText || block.buttonText}
                               </a>
                             </td>
@@ -5203,8 +5203,8 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                         ? `
                       <table cellpadding="0" cellspacing="0" border="0" ${nhTextAlign === "center" ? 'align="center"' : ""} style="margin-top: 32px;">
                         <tr>
-                          <td style="background-color: ${block.buttonColor || companyInfo?.brandPrimaryColor || "#22c55e"}; border-radius: 6px; padding: 14px 32px;">
-                            <a href="${block.ctaUrl || block.buttonUrl}" style="display: inline-block; color: white; text-decoration: none; font-weight: 600; font-size: 16px; font-family: ${fonts.buttonFont};">
+                          <td align="center" style="background-color: ${block.buttonColor || companyInfo?.brandPrimaryColor || "#22c55e"}; border-radius: 6px; padding: 14px 32px; text-align: center;">
+                            <a href="${block.ctaUrl || block.buttonUrl}" class="cta-button" style="display: inline-block; color: white; text-decoration: none; font-weight: 600; font-size: 16px; font-family: ${fonts.buttonFont}; text-align: center;">
                               ${block.ctaText || block.buttonText}
                             </a>
                           </td>
