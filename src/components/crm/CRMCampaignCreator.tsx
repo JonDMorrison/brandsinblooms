@@ -1569,9 +1569,10 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
       return inserted.id;
     } catch (error) {
       console.error("❌ Error creating draft campaign:", error);
-      return null;
-    } finally {
+      // Only reset the guard on error — on success, keep it true
+      // to prevent duplicate creation before existingCampaignId state updates
       isCreatingDraftRef.current = false;
+      return null;
     }
   }, [
     user?.id,
@@ -6584,7 +6585,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                       subject_line: subjectLine,
                       preheader: preheaderText,
                     });
-                  } else if (campaignName && newBlocks.length > 1) {
+                  } else if (campaignName && newBlocks.length > 1 && !isCreatingDraftRef.current) {
                     // Auto-create draft for new campaigns with meaningful content
                     createDraftCampaign();
                   }
