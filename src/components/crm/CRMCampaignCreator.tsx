@@ -1767,6 +1767,8 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
             showPreview,
             selectedPersonas,
             selectedSegments,
+            emailBorderColor,
+            emailBorderThickness,
           },
           lastModifiedAt,
         );
@@ -1806,6 +1808,11 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                 name: campaignData.campaign_name,
                 subject_line: campaignData.subject_line,
                 preheader: campaignData.preheader,
+                metadata: {
+                  ...(campaignData as any).metadata,
+                  email_border_color: emailBorderColor || null,
+                  email_border_thickness: emailBorderThickness || 0,
+                },
                 updated_at: new Date().toISOString(),
               })
               .eq("id", existingCampaignId);
@@ -2814,6 +2821,8 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         setPreheaderText(persistedState.preheaderText);
         setBlocks(persistedState.blocks);
         setShowPreview(persistedState.showPreview);
+        if (persistedState.emailBorderColor) setEmailBorderColor(persistedState.emailBorderColor);
+        if (persistedState.emailBorderThickness) setEmailBorderThickness(persistedState.emailBorderThickness);
 
         // Restore flow parameter if persisted
         if (persistedState.flow && !searchParams.get("flow")) {
@@ -3475,6 +3484,11 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                       templateCampaign.preheader ||
                         generatePreheaderText(topic, description),
                     );
+
+                    // Restore border settings from metadata
+                    const meta = templateCampaign.metadata as any;
+                    if (meta?.email_border_color) setEmailBorderColor(meta.email_border_color);
+                    if (meta?.email_border_thickness) setEmailBorderThickness(meta.email_border_thickness);
 
                     return; // Skip AI generation since we have template content
                   }
@@ -5454,7 +5468,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
 
       return html;
     },
-    [blocks, senderConfig, companyInfo, footerSettings, campaignOverrides],
+    [blocks, senderConfig, companyInfo, footerSettings, campaignOverrides, emailBorderColor, emailBorderThickness],
   );
 
   const handleSave = async () => {
@@ -6398,6 +6412,8 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
               showPreview,
               selectedPersonas,
               selectedSegments,
+              emailBorderColor,
+              emailBorderThickness,
             });
           }}
           selectedPersonas={selectedPersonas}
