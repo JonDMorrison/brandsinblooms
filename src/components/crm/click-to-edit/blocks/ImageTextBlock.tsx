@@ -633,21 +633,30 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
                   className="text-2xl font-bold"
                 />
 
-                {/* Body text — double-click to edit inline */}
-                <div style={{ color: "#475569" }}>
-                  <InlineEditable
-                    value={sanitizeWeekNumbers(
+                {/* Body text — rendered as HTML, editable via sidebar TextEditMode */}
+                <div
+                  style={{ color: "#475569" }}
+                  className="cursor-pointer hover:bg-background/50 rounded-md transition-colors p-1 -m-1"
+                  onClick={(e) => {
+                    if (onModeChange && editMode !== "text") {
+                      e.stopPropagation();
+                      onModeChange("text");
+                    }
+                  }}
+                  title="Click to edit body text"
+                >
+                  <SafeHtml
+                    content={sanitizeWeekNumbers(
                       (() => {
                         if (typeof block.content === "object" && block.content && (block.content as any).body) return (block.content as any).body;
                         if (block.body && block.body.trim()) return block.body;
                         if (typeof block.content === "string" && block.content.trim()) return block.content;
                         if ((block as any).hasGeneratedContent && lastKnownContentRef.current.body) return lastKnownContentRef.current.body;
-                        return "";
+                        return "Add body text";
                       })(),
                     )}
-                    placeholder="Add body text"
-                    onSave={(text) => onUpdate?.({ body: text, content: text })}
-                    className="prose max-w-none text-sm leading-relaxed"
+                    type="newsletter"
+                    className="prose max-w-none text-sm leading-relaxed prose-p:my-2 prose-strong:font-bold prose-em:italic"
                   />
                 </div>
 
