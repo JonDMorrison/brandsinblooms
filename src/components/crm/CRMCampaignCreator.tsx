@@ -4667,7 +4667,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
               // If no image, render as text-only block
               if (!safeImageUrl) {
                 html += `
-                <div style="margin: 20px 0; padding: 20px; ${block.backgroundColor ? `background-color: ${block.backgroundColor};` : ""} border-radius: 8px; text-align: ${imgTcTextAlign};">
+                <div style="margin: 20px 0; padding: 20px; border-radius: 8px; text-align: ${imgTcTextAlign};">
                   ${blockHeadline && !isBlockTypeLabel(blockHeadline) ? `<h2 style="font-size: 24px; font-weight: 600; margin: 0 0 16px 0; color: ${imgTcHeadlineColor}; font-family: ${fonts.subheadingFont};">${blockHeadline}</h2>` : ""}
                   ${blockBody ? `<div style="color: ${imgTcTextColor}; line-height: 1.6; margin: 0; font-family: ${fonts.bodyFont};">${blockBody}</div>` : ""}
                   ${
@@ -4746,7 +4746,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
 
                 // Render with image and text in two-column layout
                 html += `
-                <div style="margin: 20px 0; padding: 20px; ${block.backgroundColor ? `background-color: ${block.backgroundColor};` : ""} border-radius: 8px;">
+                <div style="margin: 20px 0; padding: 20px; border-radius: 8px;">
                   <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="border-collapse: collapse;" class="mobile-stack">
                     <tr>
                       ${
@@ -4836,7 +4836,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
               html += `
               <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation">
                 <tr>
-                  <td style="padding-top: 16px; padding-bottom: 20px; text-align: ${imgAlign}; ${block.backgroundColor ? `background-color: ${block.backgroundColor}; padding: 16px 20px 20px 20px; border-radius: 8px;` : ""}">
+                  <td style="padding-top: 16px; padding-bottom: 20px; text-align: ${imgAlign};">
                 ${imageHtml}
                 ${!shouldHideContent(block) && blockHeadline && !isBlockTypeLabel(blockHeadline) ? `<h2 style="font-size: 24px; font-weight: 600; margin: 16px 0; color: ${imgHeadlineColor}; font-family: ${fonts.subheadingFont}; text-align: ${imgAlign};">${blockHeadline}</h2>` : ""}
                 ${!shouldHideContent(block) && blockBody ? `<div style="color: ${imgTextColor}; line-height: 1.6; margin: 0; font-family: ${fonts.bodyFont}; text-align: ${imgAlign};">${blockBody}</div>` : ""}
@@ -4990,7 +4990,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
 
               // Render with image and text in two-column layout using mobile-responsive table structure
               html += `
-              <div style="margin: 20px 0; padding: 20px; ${block.backgroundColor ? `background-color: ${block.backgroundColor};` : ""} border-radius: 8px;">
+              <div style="margin: 20px 0; padding: 20px; border-radius: 8px;">
                 <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="border-collapse: collapse;" class="mobile-stack">
                   <tr>
                     ${
