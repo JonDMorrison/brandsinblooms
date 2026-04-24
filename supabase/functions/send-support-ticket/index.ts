@@ -76,6 +76,7 @@ const handler = async (req: Request): Promise<Response> => {
     // ── AI auto-response to the client ──────────────────────────────
     // Isolated in its own try/catch — failure here must NOT fail the
     // function. The internal support@ email is the source of truth.
+    let aiReplyText: string | null = null;
     try {
       const openAiKey = Deno.env.get("OPENAI_API_KEY")!;
 
@@ -137,6 +138,7 @@ KNOWLEDGE BASE SUMMARY:
       const openAiData = await openAiResponse.json();
       const aiReply: string | null =
         openAiData?.choices?.[0]?.message?.content ?? null;
+      aiReplyText = aiReply;
 
       if (aiReply) {
         const htmlBody = aiReply
@@ -180,6 +182,41 @@ KNOWLEDGE BASE SUMMARY:
         "send-support-ticket: AI auto-reply failed (non-fatal):",
         autoReplyErr,
       );
+    }
+
+    // ── Log to Notion support tickets database (non-blocking) ──────
+    try {
+      const notionToken = Deno.env.get("NOTION_TOKEN");
+      if (notionToken) {
+        const notionRes = await fetch("https://api.notion.com/v1/pages", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${notionToken}`,
+            "Content-Type": "application/json",
+            "Notion-Version": "2022-06-28",
+          },
+          body: JSON.stringify({
+            parent: { database_id: "a1e64597-0d7a-4bd1-b51c-9413e0a86af4" },
+            properties: {
+              "Subject": { title: [{ text: { content: (subject || "Support Request").substring(0, 200) } }] },
+              "Status": { select: { name: "Open" } },
+              "Garden Center": { rich_text: [{ text: { content: (name || "").substring(0, 200) } }] },
+              "Client Email": { email: email },
+              "Question": { rich_text: [{ text: { content: (message || "").substring(0, 2000) } }] },
+              "AI Response Sent": { rich_text: [{ text: { content: (aiReplyText || "No AI response generated").substring(0, 2000) } }] },
+              "Ticket Date": { date: { start: new Date().toISOString().split("T")[0] } },
+            },
+          }),
+        });
+        if (!notionRes.ok) {
+          const errBody = await notionRes.text();
+          console.error("send-support-ticket: Notion logging failed", notionRes.status, errBody);
+        } else {
+          console.log("send-support-ticket: ticket logged to Notion");
+        }
+      }
+    } catch (notionErr) {
+      console.error("send-support-ticket: Notion logging error (non-fatal):", notionErr);
     }
 
     return corsJsonResponse({

@@ -68,6 +68,11 @@ interface FormField {
     max_file_size_mb?: number;
     allowed_mime_types?: string[];
   };
+  // Segment / Persona assignment (for checkbox and segment_checkbox fields)
+  segment_id?: string;
+  segment_name?: string;
+  persona_id?: string;
+  persona_name?: string;
 }
 
 interface FormCompliance {
@@ -85,6 +90,7 @@ interface FormSettings {
 interface FormAudience {
   assign_personas?: string[]; // Array of persona IDs to assign
   assign_tags?: string[]; // Array of crm_tags IDs, with legacy tag-name fallback
+  segment_ids?: string[]; // Array of crm_segments IDs to auto-assign on submission
 }
 
 interface SubmissionMeta {
@@ -1588,10 +1594,48 @@ Deno.serve(async (req) => {
       }
     }
 
-    // ─── Step 10: Trigger segment evaluation (BEST-EFFORT) ──────────────────
-    // If this fails, submission still returns 200. Error is recorded for debugging.
+    // ─── Step 9b: Apply audience segments (audience_json.segment_ids) ────────
     let segmentsJoined: string[] = [];
     let segmentsLeft: string[] = [];
+
+    const audienceSegmentIds = (audience.segment_ids || []).filter(Boolean);
+    if (audienceSegmentIds.length > 0 && customerId) {
+      try {
+        for (const segmentId of audienceSegmentIds) {
+          const { error: segUpsertError } = await supabase
+            .from("customer_segments")
+            .upsert(
+              {
+                customer_id: customerId,
+                segment_id: segmentId,
+                assigned_at: new Date().toISOString(),
+              },
+              { onConflict: "customer_id,segment_id" },
+            );
+
+          if (segUpsertError) {
+            console.warn(
+              `[submit-form] Audience segment upsert failed for ${segmentId}:`,
+              segUpsertError.message,
+            );
+          } else {
+            segmentsJoined.push(segmentId);
+          }
+        }
+        console.log(
+          `[submit-form] Audience segments: assigned ${segmentsJoined.length}/${audienceSegmentIds.length}`,
+        );
+      } catch (segError) {
+        console.warn(
+          "[submit-form] Audience segment processing error:",
+          (segError as Error).message,
+        );
+        // Non-fatal
+      }
+    }
+
+    // ─── Step 10: Trigger segment evaluation (BEST-EFFORT) ──────────────────
+    // If this fails, submission still returns 200. Error is recorded for debugging.
 
     try {
       const segmentResponse = await fetch(
@@ -1630,6 +1674,80 @@ Deno.serve(async (req) => {
       );
       debugInfo.segment_eval_exception = errorMsg.slice(0, 100); // Truncate, no PII
       // Non-fatal - submission is still accepted
+    }
+
+    // ─── Step 10b: Process checkbox/segment_checkbox fields ──────────────────
+    // If a checkbox or segment_checkbox field is checked and has segment_id or
+    // persona_id, add the customer to the corresponding segment/persona.
+    if (customerId) {
+      const checkboxFields = (fields as FormField[]).filter(
+        (f: FormField) =>
+          (f.type === "segment_checkbox" || f.type === "checkbox") &&
+          (f.segment_id || f.persona_id),
+      );
+
+      for (const cbField of checkboxFields) {
+        try {
+          const fieldValue = submissionData[cbField.mapping_key];
+          if (fieldValue !== true && fieldValue !== "true") continue;
+
+          // Assign to segment
+          if (cbField.segment_id) {
+            const { error: segErr } = await supabase
+              .from("customer_segments")
+              .upsert(
+                {
+                  customer_id: customerId,
+                  segment_id: cbField.segment_id,
+                  assigned_at: new Date().toISOString(),
+                },
+                { onConflict: "customer_id,segment_id" },
+              );
+
+            if (segErr) {
+              console.warn(
+                `[submit-form] Checkbox segment upsert failed for ${cbField.segment_id}:`,
+                segErr.message,
+              );
+            } else {
+              segmentsJoined.push(cbField.segment_name || cbField.segment_id!);
+              console.log(
+                `[submit-form] Checkbox: added customer to segment ${cbField.segment_name || cbField.segment_id}`,
+              );
+            }
+          }
+
+          // Assign to persona
+          if (cbField.persona_id) {
+            const { error: perErr } = await supabase
+              .from("customer_personas")
+              .upsert(
+                {
+                  customer_id: customerId,
+                  persona_id: cbField.persona_id,
+                },
+                { onConflict: "customer_id,persona_id,predefined_persona_id" },
+              );
+
+            if (perErr) {
+              console.warn(
+                `[submit-form] Checkbox persona upsert failed for ${cbField.persona_id}:`,
+                perErr.message,
+              );
+            } else {
+              console.log(
+                `[submit-form] Checkbox: added customer to persona ${cbField.persona_name || cbField.persona_id}`,
+              );
+            }
+          }
+        } catch (cbError) {
+          console.warn(
+            "[submit-form] Checkbox field processing error:",
+            (cbError as Error).message,
+          );
+          // Non-fatal
+        }
+      }
     }
 
     // ─── Step 11: Update submission metadata with debug info ─────────────────

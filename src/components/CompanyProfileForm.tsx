@@ -54,7 +54,8 @@ const buildFormDataFromProfile = (profile: any): CompanyProfileFormData => ({
   location_info: profile?.location_info || "",
 });
 
-const serializeFormData = (value: CompanyProfileFormData) => JSON.stringify(value);
+const serializeFormData = (value: CompanyProfileFormData) =>
+  JSON.stringify(value);
 
 export const CompanyProfileForm = ({
   profile,
@@ -152,10 +153,12 @@ export const CompanyProfileForm = ({
         if (error) {
           // Error generating profile
         } else if (data.profileData) {
-          setFormData((current) => buildFormDataFromProfile({
-            ...current,
-            ...data.profileData,
-          }));
+          setFormData((current) =>
+            buildFormDataFromProfile({
+              ...current,
+              ...data.profileData,
+            }),
+          );
         }
       } else {
         // No meaningful onboarding data found - skipping auto-populate
@@ -167,7 +170,10 @@ export const CompanyProfileForm = ({
     }
   };
 
-  const handleInputChange = (field: keyof CompanyProfileFormData, value: string) => {
+  const handleInputChange = (
+    field: keyof CompanyProfileFormData,
+    value: string,
+  ) => {
     setFormData((prev) => ({
       ...prev,
       [field]: value,
@@ -331,38 +337,38 @@ export const CompanyProfileForm = ({
 
   const readOnlyGroups = [
     {
-      title: 'Brand & Audience',
+      title: "Brand & Audience",
       items: [
-        { label: 'Brand Voice', value: displayFields.brandVoice },
-        { label: 'Tone of Writing', value: displayFields.tone },
-        { label: 'Target Audience', value: displayFields.audience },
-        { label: 'Ideal Customer Profile', value: displayFields.idealCustomer },
+        { label: "Brand Voice", value: displayFields.brandVoice },
+        { label: "Tone of Writing", value: displayFields.tone },
+        { label: "Target Audience", value: displayFields.audience },
+        { label: "Ideal Customer Profile", value: displayFields.idealCustomer },
       ].filter((item) => item.value),
     },
     {
-      title: 'Operational Context',
+      title: "Operational Context",
       items: [
-        { label: 'Seasonal Focus', value: displayFields.seasonalFocus },
-        { label: 'Specializations', value: displayFields.specializations },
-        { label: 'Mission Statement', value: displayFields.mission },
+        { label: "Seasonal Focus", value: displayFields.seasonalFocus },
+        { label: "Specializations", value: displayFields.specializations },
+        { label: "Mission Statement", value: displayFields.mission },
       ].filter((item) => item.value),
     },
   ].filter((group) => group.items.length > 0);
 
   const hasVisibleContent = Boolean(
     displayFields.companyName ||
-      displayFields.phone ||
-      displayFields.overview ||
-      displayFields.mission ||
-      displayFields.brandVoice ||
-      displayFields.tone ||
-      displayFields.audience ||
-      displayFields.idealCustomer ||
-      displayFields.seasonalFocus ||
-      displayFields.specializations ||
-      displayFields.locationInfo ||
-      displayFields.uniqueSellingPoints.length ||
-      displayFields.companyValues.length,
+    displayFields.phone ||
+    displayFields.overview ||
+    displayFields.mission ||
+    displayFields.brandVoice ||
+    displayFields.tone ||
+    displayFields.audience ||
+    displayFields.idealCustomer ||
+    displayFields.seasonalFocus ||
+    displayFields.specializations ||
+    displayFields.locationInfo ||
+    displayFields.uniqueSellingPoints.length ||
+    displayFields.companyValues.length,
   );
 
   if (isLoading) {
@@ -375,11 +381,11 @@ export const CompanyProfileForm = ({
         variant="outlined"
         sx={{
           p: { xs: 4, md: 6 },
-          borderRadius: 'xl',
-          bgcolor: 'background.surface',
+          borderRadius: "xl",
+          bgcolor: "background.surface",
           minHeight: 360,
-          display: 'grid',
-          placeItems: 'center',
+          display: "grid",
+          placeItems: "center",
         }}
       >
         <JoyEmptyState
@@ -387,9 +393,9 @@ export const CompanyProfileForm = ({
           title="Set up your company profile"
           description="Add your business story, audience cues, and local context so the platform can tailor voice, recommendations, and seasonal guidance."
           primaryAction={{
-            label: 'Set Up Profile',
+            label: "Set Up Profile",
             onClick: handleStartEdit,
-            variant: 'solid',
+            variant: "solid",
           }}
         />
       </Sheet>
@@ -407,22 +413,23 @@ export const CompanyProfileForm = ({
       variant="outlined"
       sx={{
         p: { xs: 3, md: 4 },
-        borderRadius: 'xl',
-        bgcolor: 'background.surface',
-        overflow: 'visible',
+        borderRadius: "xl",
+        bgcolor: "background.surface",
+        overflow: "visible",
       }}
     >
       <Stack spacing={3}>
         <Stack
-          direction={{ xs: 'column', sm: 'row' }}
+          direction={{ xs: "column", sm: "row" }}
           justifyContent="space-between"
-          alignItems={{ xs: 'flex-start', sm: 'center' }}
+          alignItems={{ xs: "flex-start", sm: "center" }}
           spacing={2}
         >
           <Stack spacing={0.5}>
             <Typography level="title-lg">Company Information</Typography>
-            <Typography level="body-sm" sx={{ color: 'neutral.500' }}>
-              Shape how your business is represented across content, campaigns, and recommendations.
+            <Typography level="body-sm" sx={{ color: "neutral.500" }}>
+              Shape how your business is represented across content, campaigns,
+              and recommendations.
             </Typography>
           </Stack>
 
@@ -451,16 +458,17 @@ export const CompanyProfileForm = ({
             {showStickyActionBar ? (
               <Box
                 sx={{
-                  position: 'sticky',
+                  position: "sticky",
                   bottom: 0,
                   mx: { xs: -3, md: -4 },
                   px: { xs: 3, md: 4 },
                   py: 2,
-                  bgcolor: 'background.surface',
-                  borderTop: '1px solid',
-                  borderColor: 'neutral.200',
-                  boxShadow: '0 -10px 30px rgba(15 23 42 / 0.08)',
-                  zIndex: (theme) => (theme.vars.zIndex.modal ?? theme.zIndex.modal) - 1,
+                  bgcolor: "background.surface",
+                  borderTop: "1px solid",
+                  borderColor: "neutral.200",
+                  boxShadow: "0 -10px 30px rgba(15 23 42 / 0.08)",
+                  zIndex: (theme) =>
+                    (theme.vars.zIndex.modal ?? theme.zIndex.modal) - 1,
                 }}
               >
                 <Stack direction="row" justifyContent="flex-end">
@@ -474,30 +482,40 @@ export const CompanyProfileForm = ({
             ) : null}
           </>
         ) : !hasVisibleContent ? (
-          <Sheet variant="soft" sx={{ borderRadius: 'xl', p: { xs: 3, md: 4 } }}>
+          <Sheet
+            variant="soft"
+            sx={{ borderRadius: "xl", p: { xs: 3, md: 4 } }}
+          >
             <JoyEmptyState
               icon={<Sparkles />}
               title="No company details yet"
               description="Add your brand voice, audience context, and seasonal notes so future content is tailored to your business."
               primaryAction={{
-                label: 'Edit company info',
+                label: "Edit company info",
                 onClick: handleStartEdit,
-                variant: 'solid',
+                variant: "solid",
               }}
             />
           </Sheet>
         ) : (
           <Stack spacing={3}>
-            <Sheet variant="soft" sx={{ p: { xs: 2.5, md: 3 }, borderRadius: 'xl' }}>
-              <Stack direction={{ xs: 'column', md: 'row' }} spacing={2.5} alignItems={{ md: 'center' }}>
+            <Sheet
+              variant="soft"
+              sx={{ p: { xs: 2.5, md: 3 }, borderRadius: "xl" }}
+            >
+              <Stack
+                direction={{ xs: "column", md: "row" }}
+                spacing={2.5}
+                alignItems={{ md: "center" }}
+              >
                 <Avatar
                   color="neutral"
                   variant="soft"
                   sx={{
                     width: 72,
                     height: 72,
-                    borderRadius: 'xl',
-                    fontSize: '1.5rem',
+                    borderRadius: "xl",
+                    fontSize: "1.5rem",
                     fontWeight: 700,
                     flexShrink: 0,
                   }}
@@ -507,26 +525,34 @@ export const CompanyProfileForm = ({
 
                 <Stack spacing={1.25} sx={{ minWidth: 0, flex: 1 }}>
                   <Typography level="h2">
-                    {displayFields.companyName || 'Company Profile'}
+                    {displayFields.companyName || "Company Profile"}
                   </Typography>
 
                   {displayFields.overview ? (
                     <Typography
                       level="body-lg"
-                      sx={{ color: 'neutral.700', maxWidth: '72ch', whiteSpace: 'pre-line' }}
+                      sx={{
+                        color: "neutral.700",
+                        maxWidth: "72ch",
+                        whiteSpace: "pre-line",
+                      }}
                     >
                       {displayFields.overview}
                     </Typography>
                   ) : null}
 
                   <Stack
-                    direction={{ xs: 'column', sm: 'row' }}
+                    direction={{ xs: "column", sm: "row" }}
                     spacing={1}
                     useFlexGap
                     flexWrap="wrap"
                   >
                     {displayFields.phone ? (
-                      <Chip color="neutral" startDecorator={<Phone className="h-4 w-4" />} variant="soft">
+                      <Chip
+                        color="neutral"
+                        startDecorator={<Phone className="h-4 w-4" />}
+                        variant="soft"
+                      >
                         {displayFields.phone}
                       </Chip>
                     ) : null}
@@ -535,10 +561,10 @@ export const CompanyProfileForm = ({
                         color="neutral"
                         startDecorator={<MapPin className="h-4 w-4" />}
                         sx={{
-                          maxWidth: '100%',
-                          '& .MuiChip-label': {
-                            display: 'block',
-                            whiteSpace: 'normal',
+                          maxWidth: "100%",
+                          "& .MuiChip-label": {
+                            display: "block",
+                            whiteSpace: "normal",
                           },
                         }}
                         variant="soft"
@@ -556,13 +582,20 @@ export const CompanyProfileForm = ({
                 <Typography level="title-sm">{group.title}</Typography>
                 <Box
                   sx={{
-                    display: 'grid',
-                    gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' },
+                    display: "grid",
+                    gridTemplateColumns: {
+                      xs: "1fr",
+                      md: "repeat(2, minmax(0, 1fr))",
+                    },
                     gap: 1.5,
                   }}
                 >
                   {group.items.map((item) => (
-                    <ReadOnlyFieldCard key={item.label} label={item.label} value={item.value} />
+                    <ReadOnlyFieldCard
+                      key={item.label}
+                      label={item.label}
+                      value={item.value}
+                    />
                   ))}
                 </Box>
               </Stack>
@@ -585,14 +618,17 @@ export const CompanyProfileForm = ({
         )}
       </Stack>
 
-      <Modal open={isDiscardDialogOpen} onClose={() => setIsDiscardDialogOpen(false)}>
+      <Modal
+        open={isDiscardDialogOpen}
+        onClose={() => setIsDiscardDialogOpen(false)}
+      >
         <ModalDialog
           sx={{
-            borderRadius: 'xl',
+            borderRadius: "xl",
             p: 3,
             maxWidth: 420,
-            width: 'calc(100vw - 2rem)',
-            bgcolor: 'background.surface',
+            width: "calc(100vw - 2rem)",
+            bgcolor: "background.surface",
           }}
         >
           <Stack spacing={1.5}>
@@ -601,10 +637,18 @@ export const CompanyProfileForm = ({
               You have unsaved changes that will be lost.
             </Typography>
             <Stack direction="row" justifyContent="flex-end" spacing={1}>
-              <Button color="neutral" onClick={() => setIsDiscardDialogOpen(false)} variant="plain">
+              <Button
+                color="neutral"
+                onClick={() => setIsDiscardDialogOpen(false)}
+                variant="plain"
+              >
                 Keep Editing
               </Button>
-              <Button color="danger" onClick={handleDiscardChanges} variant="solid">
+              <Button
+                color="danger"
+                onClick={handleDiscardChanges}
+                variant="solid"
+              >
                 Discard
               </Button>
             </Stack>
@@ -613,9 +657,9 @@ export const CompanyProfileForm = ({
       </Modal>
 
       <Snackbar
-        anchorOrigin={{ horizontal: 'center', vertical: 'bottom' }}
+        anchorOrigin={{ horizontal: "center", vertical: "bottom" }}
         autoHideDuration={3000}
-        color={feedback?.color ?? 'neutral'}
+        color={feedback?.color ?? "neutral"}
         onClose={() => setFeedback(null)}
         open={Boolean(feedback)}
         variant="soft"
@@ -638,11 +682,16 @@ function EditActionButtons({
   return (
     <ButtonGroup
       sx={{
-        '--ButtonGroup-radius': '40px',
+        "--ButtonGroup-radius": "40px",
         gap: 1,
       }}
     >
-      <Button color="neutral" disabled={isSaving} onClick={onCancel} variant="plain">
+      <Button
+        color="neutral"
+        disabled={isSaving}
+        onClick={onCancel}
+        variant="plain"
+      >
         Cancel
       </Button>
       <Button
@@ -654,7 +703,7 @@ function EditActionButtons({
         }}
         variant="solid"
       >
-        {isSaving ? 'Saving...' : 'Save'}
+        {isSaving ? "Saving..." : "Save"}
       </Button>
     </ButtonGroup>
   );
@@ -670,32 +719,29 @@ function getCompanyInitials(companyName: string) {
     .filter(Boolean)
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase())
-    .join('');
+    .join("");
 
   return initials || <Building2 className="h-8 w-8" />;
 }
 
-function ReadOnlyFieldCard({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
+function ReadOnlyFieldCard({ label, value }: { label: string; value: string }) {
   return (
-    <Sheet variant="soft" sx={{ p: 2.25, borderRadius: 'lg' }}>
+    <Sheet variant="soft" sx={{ p: 2.25, borderRadius: "lg" }}>
       <Stack spacing={0.75}>
         <Typography
           level="body-xs"
           sx={{
-            color: 'neutral.500',
-            letterSpacing: '0.08em',
-            textTransform: 'uppercase',
+            color: "neutral.500",
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
           }}
         >
           {label}
         </Typography>
-        <Typography level="body-sm" sx={{ color: 'neutral.800', whiteSpace: 'pre-line' }}>
+        <Typography
+          level="body-sm"
+          sx={{ color: "neutral.800", whiteSpace: "pre-line" }}
+        >
           {value}
         </Typography>
       </Stack>
@@ -713,17 +759,17 @@ function ReadOnlyChipSection({
   return (
     <Stack spacing={1.5}>
       <Typography level="title-sm">{title}</Typography>
-      <Sheet variant="soft" sx={{ p: 2.25, borderRadius: 'lg' }}>
+      <Sheet variant="soft" sx={{ p: 2.25, borderRadius: "lg" }}>
         <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
           {items.map((item) => (
             <Chip
               key={`${title}-${item}`}
               color="neutral"
               sx={{
-                '& .MuiChip-label': {
-                  whiteSpace: 'normal',
+                "& .MuiChip-label": {
+                  whiteSpace: "normal",
                 },
-                height: 'auto',
+                height: "auto",
                 py: 0.5,
               }}
               variant="soft"

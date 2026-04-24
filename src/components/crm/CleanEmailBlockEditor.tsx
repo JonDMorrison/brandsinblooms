@@ -8,6 +8,18 @@ import { FooterBlock } from "./click-to-edit/blocks/FooterBlock";
 import { BlockLayoutModal, LayoutType } from "./BlockLayoutModal";
 import { mediaSelector } from "@/utils/mediaSelector";
 import { RegenerateBlockButton } from "./RegenerateBlockButton";
+import { NextBlockSuggestion } from "./NextBlockSuggestion";
+
+interface BrandDefaults {
+  primaryColor: string;
+  secondaryColor: string;
+  textColor: string;
+  buttonColor: string;
+  headerBgColor: string;
+  logoUrl: string;
+  fontFamily: string;
+  loaded: boolean;
+}
 
 interface CleanEmailBlockEditorProps {
   blocks: ContentBlock[];
@@ -22,6 +34,9 @@ interface CleanEmailBlockEditorProps {
   onFooterStylingChange?: (
     styling: import("@/types/footerStyling").FooterStyling,
   ) => void;
+  brandDefaults?: BrandDefaults;
+  preheaderText?: string;
+  suggestionsEnabled?: boolean;
 }
 
 // Enhanced mapping function to convert layout types to block types and configurations
@@ -30,7 +45,7 @@ const mapLayoutToBlock = async (
 ): Promise<{ type: ContentBlock["type"]; config: Partial<ContentBlock> }> => {
   switch (layoutType) {
     // NEW: Email-safe hero - recommended for dark mode compatibility
-    // Uses light neutral (#f5f5f7) and near-black (#111111) to prevent dark mode inversion
+    // Brand primary color applied via brandDefaults override in addBlockWithLayout
     case "email-safe-hero":
       return {
         type: "email-safe-hero",
@@ -44,8 +59,8 @@ const mapLayoutToBlock = async (
           ctaText: "",
           ctaUrl: "",
           textAlign: "center",
-          backgroundColor: "#f5f5f7",
-          textColor: "#111111",
+          backgroundColor: undefined,
+          textColor: undefined,
           padding: "large",
           shouldFetchImage: false,
           isGeneratingImage: false,
@@ -274,6 +289,9 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
   footerBackgroundColor,
   onFooterColorChange,
   onFooterStylingChange,
+  brandDefaults,
+  preheaderText = "",
+  suggestionsEnabled = true,
 }) => {
   const [internalBlocks, setInternalBlocks] = useState<ContentBlock[]>([]);
   const [hydrationComplete, setHydrationComplete] = useState(false);
@@ -326,15 +344,17 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
 
       return {
         ...block,
-        // CRITICAL: If hasGeneratedContent, preserve exact values (no normalization)
+        // Standardized field naming: headline is canonical for titles, content for body text
+        // Read priority: headline > title > heading. Write always to headline.
         headline: (block as any).hasGeneratedContent
-          ? block.headline // Preserve exact value, even if undefined
-          : block.headline || block.heading || block.title || "",
+          ? block.headline
+          : block.headline || block.title || block.heading || "",
         body: (block as any).hasGeneratedContent
-          ? block.body // Preserve exact value, even if undefined
+          ? block.body
           : block.body || block.content || "",
-        title: block.title || block.headline || block.heading || "",
-        content: block.content || block.body || "",
+        // Mirror to title/content for backward compat with DB columns
+        title: block.headline || block.title || block.heading || "",
+        content: block.body || block.content || "",
         // Preserve newsletter-specific fields
         subtitle: block.subtitle || "",
         issueNumber: block.issueNumber || "",
@@ -460,13 +480,30 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
     try {
       const { type, config } = await mapLayoutToBlock(layoutType);
 
+      // Apply brand defaults to block types that benefit from them
+      const brandOverrides: Partial<ContentBlock> = {};
+      if (brandDefaults?.loaded) {
+        if (type === "header" || type === "newsletter-header") {
+          brandOverrides.backgroundColor = brandDefaults.headerBgColor;
+          brandOverrides.textColor = "#ffffff";
+        }
+        if (type === "email-safe-hero") {
+          brandOverrides.backgroundColor = brandDefaults.primaryColor;
+          brandOverrides.textColor = "#ffffff";
+          brandOverrides.buttonColor = brandDefaults.buttonColor;
+        }
+        if (type === "button") {
+          brandOverrides.buttonColor = brandDefaults.buttonColor;
+        }
+      }
+
       const newBlock: ContentBlock = {
         id: `block_${Date.now()}`,
         type,
         layout: "full-width",
         title: "",
         content: "",
-        body: "", // Always initialize body to empty string
+        body: "",
         imageUrl: config.imageUrl || "",
         ctaText: "",
         ctaUrl: "",
@@ -478,12 +515,13 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
         responsiveBehavior: "stack",
         visible: true,
         animation: "fade-in",
-        shouldFetchImage: false, // User adds images manually via AI Assistant
-        isGeneratingImage: false, // No auto-generation on manual block add
-        autoImageMode: false, // Prevent any auto-regeneration
-        backgroundColor: undefined, // Ensure new blocks default to white background
-        // Apply layout-specific configuration
+        shouldFetchImage: false,
+        isGeneratingImage: false,
+        autoImageMode: false,
+        backgroundColor: undefined,
+        // Apply layout-specific configuration, then brand overrides
         ...config,
+        ...brandOverrides,
       };
 
       const newBlocks = [...internalBlocks];
@@ -663,6 +701,15 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
         onFooterColorChange={onFooterColorChange}
         onFooterStylingChange={onFooterStylingChange}
       />
+
+      {/* Smart next-block suggestion */}
+      {suggestionsEnabled && (
+        <NextBlockSuggestion
+          blocks={internalBlocks}
+          preheaderText={preheaderText}
+          onAddBlock={(layoutType) => addBlockWithLayout(layoutType as LayoutType)}
+        />
+      )}
 
       {/* Block Layout Modal */}
       {onRequestAddBlock ? null : (

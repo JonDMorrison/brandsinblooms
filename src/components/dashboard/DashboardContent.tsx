@@ -59,6 +59,7 @@ export const DashboardContent = ({
     usePostConnectionFlow();
 
   const currentWeekNumber = getCurrentWeekNumber();
+  const isDevelopment = import.meta.env.DEV;
 
   const fetchCampaignData = async () => {
     if (!user) {

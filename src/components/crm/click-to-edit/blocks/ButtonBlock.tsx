@@ -8,6 +8,7 @@ import { Button } from '@/components/ui-legacy/button';
 import { cn } from '@/lib/utils';
 import { sanitizeWeekNumbers } from '@/utils/weekNumberSanitizer';
 import { ColorPickerWithSwatches } from '../shared/ColorPickerWithSwatches';
+import { TipBox } from '@/components/ui/TipBox';
 
 interface ButtonBlockProps {
   block: ContentBlock;
@@ -98,7 +99,7 @@ export const ButtonBlock: React.FC<ButtonBlockProps> = ({ block, onUpdate, isPre
       </div>
 
       <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
+        <div className="space-y-1">
           <Label htmlFor="buttonText">Button Text</Label>
           <Input
             id="buttonText"
@@ -106,8 +107,9 @@ export const ButtonBlock: React.FC<ButtonBlockProps> = ({ block, onUpdate, isPre
             onChange={(e) => onUpdate({ buttonText: e.target.value })}
             placeholder="Enter button text"
           />
+          <TipBox>Action verbs work best: "Get the guide", "Book a call", "See the offer"</TipBox>
         </div>
-        <div className="space-y-2">
+        <div className="space-y-1">
           <Label htmlFor="buttonUrl">Link URL</Label>
           <Input
             id="buttonUrl"
@@ -115,6 +117,7 @@ export const ButtonBlock: React.FC<ButtonBlockProps> = ({ block, onUpdate, isPre
             onChange={(e) => onUpdate({ buttonUrl: e.target.value })}
             placeholder="https://example.com"
           />
+          <TipBox>Add UTM parameters to track clicks: ?utm_source=email&utm_medium=newsletter</TipBox>
         </div>
       </div>
 

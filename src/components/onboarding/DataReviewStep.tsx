@@ -180,6 +180,31 @@ export const DataReviewStep = ({
     (showLocationPrompt && !isLocationConfirmedLocal) ||
     (showLocationPrompt && !!validationError);
 
+  // Determine if any fields were pre-filled by website analysis
+  const hasPrefilledData = Boolean(
+    extractedData.businessName ||
+    extractedData.aboutBusiness ||
+    extractedData.brandVoice ||
+    extractedData.annualEvents
+  );
+
+  // While analyzing, show a clear loading state instead of empty form fields
+  if (isAnalyzing) {
+    return (
+      <Card className="w-full max-w-lg mx-auto border-brand-green/30 bg-white/95 backdrop-blur-sm rounded-2xl">
+        <CardContent className="py-16 text-center">
+          <Loader2 className="h-10 w-10 animate-spin text-brand-green mx-auto mb-6" />
+          <h2 className="text-xl font-semibold text-foreground mb-2">
+            Analyzing your website...
+          </h2>
+          <p className="text-gray-500 max-w-sm mx-auto">
+            We're reading your site and filling in your details automatically. This takes about 15–30 seconds.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card className="w-full max-w-lg mx-auto border-brand-green/30 bg-white/95 backdrop-blur-sm rounded-2xl">
       <CardHeader className="text-center pb-6">
@@ -190,10 +215,19 @@ export const DataReviewStep = ({
           Review Your Content
         </CardTitle>
         <p className="text-gray-600 mt-2">
-          Instantly receive ready-to-go posts, emails, and more — all editable and fully tailored.
+          {hasPrefilledData
+            ? "We've pre-filled your details from your website. Review and edit anything that needs updating."
+            : "Fill in your details below — you can always update these later."}
         </p>
       </CardHeader>
       <CardContent className="space-y-6">
+        {hasPrefilledData && (
+          <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 p-3 rounded-lg border border-green-200">
+            <CheckCircle className="h-4 w-4 flex-shrink-0" />
+            <span>Fields pre-filled from your website analysis.</span>
+          </div>
+        )}
+
         <div className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="business-name" className="text-gray-700 font-medium">
@@ -343,7 +377,7 @@ export const DataReviewStep = ({
                       </Label>
                       <Input
                         id="postal-code"
-                        placeholder="e.g., 97215"
+                        placeholder="e.g., 97215 or V3G 1R4"
                         value={locationForm.postalCode}
                         onChange={(e) => handlePostalCodeChange(e.target.value)}
                         className={`h-10 ${validationError ? 'border-red-300' : 'border-brand-green/30'}`}

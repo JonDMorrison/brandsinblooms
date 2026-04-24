@@ -8,6 +8,7 @@ import {
   Phone,
   ShieldCheck,
   Type,
+  Users,
   type LucideIcon,
 } from "lucide-react";
 import { FormCompliance, FormField, FormFieldType } from "@/types/formBuilder";
@@ -88,9 +89,10 @@ const FIELD_TYPE_DEFINITIONS: FieldTypeDefinition[] = [
     type: "checkbox",
     category: "basic",
     label: "Checkbox",
-    description: "Single checkbox for yes/no or acknowledgment choices.",
+    description:
+      "Optional yes/no field. Use to let visitors opt into a segment or persona when they check the box.",
     helperText:
-      "Use for one-off acknowledgments, preferences, or optional toggles.",
+      "Optionally assign the customer to a segment or persona when they check this box.",
     icon: CheckSquare,
     defaultLabel: "Checkbox",
     defaultRequired: false,
@@ -147,6 +149,18 @@ const FIELD_TYPE_DEFINITIONS: FieldTypeDefinition[] = [
     defaultRequired: true,
     defaultMappingKey: "sms_consent",
     singleInstance: true,
+  },
+  {
+    type: "segment_checkbox",
+    category: "basic",
+    label: "Segment Checkbox",
+    description: "Add the submitter to a CRM segment when checked.",
+    helperText:
+      "Select a segment from your CRM. When the visitor checks this box, they are automatically added to that segment on submission.",
+    icon: Users,
+    defaultLabel: "Join our mailing list",
+    defaultRequired: false,
+    defaultMappingKey: "segment_checkbox",
   },
 ];
 
@@ -218,7 +232,9 @@ export function createFieldFromType(
     mapping_key:
       type === "file"
         ? `file_${fieldId.slice(0, 8)}`
-        : definition.defaultMappingKey,
+        : type === "segment_checkbox"
+          ? `segment_checkbox_${fieldId.slice(0, 8)}`
+          : definition.defaultMappingKey,
     default_value:
       type === "checkbox" ? false : type === "file" ? undefined : "",
     rules:

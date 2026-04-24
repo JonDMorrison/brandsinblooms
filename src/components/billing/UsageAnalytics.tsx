@@ -7,7 +7,14 @@ import Sheet from "@mui/joy/Sheet";
 import Skeleton from "@mui/joy/Skeleton";
 import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
-import { Activity, BarChart3, FileText, Sparkles, Users, Zap } from "lucide-react";
+import {
+  Activity,
+  BarChart3,
+  FileText,
+  Sparkles,
+  Users,
+  Zap,
+} from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSubscription } from "@/contexts/SubscriptionContext";
 import { useSubscription as useLegacySubscription } from "@/hooks/useSubscription";
@@ -52,7 +59,8 @@ const getUsageStatus = (percentage: number, unlimited: boolean) => {
 
 export const UsageAnalytics = () => {
   const { subscription, loading } = useSubscription();
-  const { subscription: subscriptionLimits, loading: limitsLoading } = useLegacySubscription();
+  const { subscription: subscriptionLimits, loading: limitsLoading } =
+    useLegacySubscription();
   const { user } = useAuth();
   const [usageData, setUsageData] = useState<UsageData>({
     postsCreated: 0,
@@ -77,30 +85,34 @@ export const UsageAnalytics = () => {
         startOfMonth.setHours(0, 0, 0, 0);
 
         const { count: postsCount } = await supabase
-          .from('content_tasks')
-          .select('*', { count: 'exact', head: true })
-          .eq('user_id', user.id)
-          .gte('created_at', startOfMonth.toISOString());
+          .from("content_tasks")
+          .select("*", { count: "exact", head: true })
+          .eq("user_id", user.id)
+          .gte("created_at", startOfMonth.toISOString());
 
         const { count: connectionsCount } = await supabase
-          .from('social_connections')
-          .select('*', { count: 'exact', head: true })
-          .eq('user_id', user.id)
-          .eq('is_active', true);
+          .from("social_connections")
+          .select("*", { count: "exact", head: true })
+          .eq("user_id", user.id)
+          .eq("is_active", true);
 
         const { data: profile } = await supabase
-          .from('company_profiles')
-          .select('tokens_balance')
-          .eq('user_id', user.id)
+          .from("company_profiles")
+          .select("tokens_balance")
+          .eq("user_id", user.id)
           .single();
 
-        const isExpiredPlan = (subscription.tier ?? subscription.plan) === 'expired';
+        const isExpiredPlan =
+          (subscription.tier ?? subscription.plan) === "expired";
         const fallbackPosts = isExpiredPlan ? 0 : 200;
         const fallbackConnections = isExpiredPlan ? 0 : 4;
         const fallbackTokens = isExpiredPlan ? 0 : 200;
-        const maxPosts = subscriptionLimits?.max_posts_per_month ?? fallbackPosts;
-        const maxConnections = subscriptionLimits?.max_connections ?? fallbackConnections;
-        const maxTokens = subscriptionLimits?.max_posts_per_month ?? fallbackTokens;
+        const maxPosts =
+          subscriptionLimits?.max_posts_per_month ?? fallbackPosts;
+        const maxConnections =
+          subscriptionLimits?.max_connections ?? fallbackConnections;
+        const maxTokens =
+          subscriptionLimits?.max_posts_per_month ?? fallbackTokens;
 
         setUsageData({
           postsCreated: postsCount || 0,
@@ -111,7 +123,7 @@ export const UsageAnalytics = () => {
           maxTokens,
         });
       } catch (error) {
-        console.error('Error fetching usage data:', error);
+        console.error("Error fetching usage data:", error);
       } finally {
         setUsageLoading(false);
       }
@@ -123,7 +135,12 @@ export const UsageAnalytics = () => {
   if (loading || limitsLoading || usageLoading) {
     return (
       <Stack spacing={3}>
-        <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={2}>
+        <Stack
+          direction="row"
+          justifyContent="space-between"
+          alignItems="flex-start"
+          spacing={2}
+        >
           <Stack spacing={0.75}>
             <Skeleton variant="text" width={180} level="h2" />
             <Skeleton variant="text" width={240} />
@@ -139,9 +156,17 @@ export const UsageAnalytics = () => {
           }}
         >
           {[1, 2, 3].map((metricIndex) => (
-            <Sheet key={metricIndex} variant="soft" sx={{ ...surfaceStyles, p: 2.5 }}>
+            <Sheet
+              key={metricIndex}
+              variant="soft"
+              sx={{ ...surfaceStyles, p: 2.5 }}
+            >
               <Stack spacing={1.5}>
-                <Stack direction="row" justifyContent="space-between" spacing={1.5}>
+                <Stack
+                  direction="row"
+                  justifyContent="space-between"
+                  spacing={1.5}
+                >
                   <Skeleton variant="text" width={120} />
                   <Skeleton variant="rectangular" width={82} height={24} />
                 </Stack>
@@ -156,7 +181,10 @@ export const UsageAnalytics = () => {
     );
   }
 
-  const postsPercentage = getUsagePercentage(usageData.postsCreated, usageData.maxPosts);
+  const postsPercentage = getUsagePercentage(
+    usageData.postsCreated,
+    usageData.maxPosts,
+  );
   const connectionsPercentage = getUsagePercentage(
     usageData.connectionsUsed,
     usageData.maxConnections,
@@ -165,7 +193,10 @@ export const UsageAnalytics = () => {
     usageData.maxTokens <= 0 || usageData.maxTokens === -1
       ? 0
       : Math.max(0, usageData.maxTokens - usageData.tokensRemaining);
-  const tokensPercentage = getUsagePercentage(tokensConsumed, usageData.maxTokens);
+  const tokensPercentage = getUsagePercentage(
+    tokensConsumed,
+    usageData.maxTokens,
+  );
 
   const usageMetrics = [
     {
@@ -190,7 +221,10 @@ export const UsageAnalytics = () => {
           : `${Math.max(usageData.maxConnections - usageData.connectionsUsed, 0).toLocaleString()} remaining of ${usageData.maxConnections.toLocaleString()}`,
       percentage: connectionsPercentage,
       finite: usageData.maxConnections !== -1,
-      status: getUsageStatus(connectionsPercentage, usageData.maxConnections === -1),
+      status: getUsageStatus(
+        connectionsPercentage,
+        usageData.maxConnections === -1,
+      ),
     },
     {
       label: "Tokens Remaining",
@@ -208,14 +242,25 @@ export const UsageAnalytics = () => {
 
   return (
     <Stack spacing={3}>
-      <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={2}>
+      <Stack
+        direction="row"
+        justifyContent="space-between"
+        alignItems="flex-start"
+        spacing={2}
+      >
         <Stack spacing={0.75}>
           <Typography level="title-lg">Usage Analytics</Typography>
           <Typography level="body-sm" textColor="text.secondary">
-            Monitor publishing activity, connected channels, and remaining token balance.
+            Monitor publishing activity, connected channels, and remaining token
+            balance.
           </Typography>
         </Stack>
-        <Chip color="neutral" size="sm" startDecorator={<Activity size={14} />} variant="soft">
+        <Chip
+          color="neutral"
+          size="sm"
+          startDecorator={<Activity size={14} />}
+          variant="soft"
+        >
           Live Tracking
         </Chip>
       </Stack>
@@ -231,9 +276,18 @@ export const UsageAnalytics = () => {
           const Icon = metric.icon;
 
           return (
-            <Sheet key={metric.label} variant="soft" sx={{ ...surfaceStyles, p: 2.5 }}>
+            <Sheet
+              key={metric.label}
+              variant="soft"
+              sx={{ ...surfaceStyles, p: 2.5 }}
+            >
               <Stack spacing={1.75}>
-                <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1.5}>
+                <Stack
+                  direction="row"
+                  justifyContent="space-between"
+                  alignItems="flex-start"
+                  spacing={1.5}
+                >
                   <Stack direction="row" spacing={1} alignItems="center">
                     <Icon size={18} color="var(--joy-palette-neutral-500)" />
                     <Typography level="title-sm">{metric.label}</Typography>
@@ -287,11 +341,12 @@ export const UsageAnalytics = () => {
                   : "No active social connections are linked right now."}
               </Typography>
             </Stack>
-            {(subscription.tier ?? subscription.plan) === 'free_trial' ? (
+            {(subscription.tier ?? subscription.plan) === "free_trial" ? (
               <Stack direction="row" spacing={1} alignItems="flex-start">
                 <Sparkles size={16} color="var(--joy-palette-neutral-500)" />
                 <Typography level="body-sm" textColor="text.secondary">
-                  Upgrade from trial to raise your account limits and keep billing features active.
+                  Upgrade from trial to raise your account limits and keep
+                  billing features active.
                 </Typography>
               </Stack>
             ) : null}

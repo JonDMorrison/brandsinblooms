@@ -1025,6 +1025,37 @@
     honeypot.innerHTML = '<input type="text" name="_hp_website" tabindex="-1" autocomplete="off">';
     formEl.appendChild(honeypot);
 
+    // Headline and subheadline
+    if (settings.form_headline || settings.form_subheadline) {
+      var headerBlock = createElement('div', 'header');
+      headerBlock.style.textAlign = 'center';
+      headerBlock.style.marginBottom = '16px';
+
+      if (settings.form_headline) {
+        var headlineEl = document.createElement('h2');
+        headlineEl.className = CSS_PREFIX + 'headline';
+        headlineEl.textContent = settings.form_headline;
+        headlineEl.style.cssText = 'font-size:clamp(1.75rem,2vw,2.15rem);font-weight:700;line-height:1.15;margin:0 0 4px;color:' + (theme.text_color || '#1f2937');
+        if (theme.font_family && theme.font_family !== 'inherit') {
+          headlineEl.style.fontFamily = theme.font_family;
+        }
+        headerBlock.appendChild(headlineEl);
+      }
+
+      if (settings.form_subheadline) {
+        var subheadlineEl = document.createElement('p');
+        subheadlineEl.className = CSS_PREFIX + 'subheadline';
+        subheadlineEl.textContent = settings.form_subheadline;
+        subheadlineEl.style.cssText = 'font-size:1rem;line-height:1.6;margin:0;color:#6b7280';
+        if (theme.font_family && theme.font_family !== 'inherit') {
+          subheadlineEl.style.fontFamily = theme.font_family;
+        }
+        headerBlock.appendChild(subheadlineEl);
+      }
+
+      formEl.appendChild(headerBlock);
+    }
+
     // Render each field
     fields.forEach(function (field) {
       formEl.appendChild(renderField(field, compliance));
@@ -1041,7 +1072,14 @@
       submitBtn.className += ' ' + CSS_PREFIX + 'submit-rounded';
     }
 
-    formEl.appendChild(submitBtn);
+    // Auto-width centered button
+    submitBtn.style.width = 'auto';
+    submitBtn.style.display = 'inline-block';
+    submitBtn.style.padding = '12px 32px';
+    var submitWrap = document.createElement('div');
+    submitWrap.style.textAlign = 'center';
+    submitWrap.appendChild(submitBtn);
+    formEl.appendChild(submitWrap);
 
     // Branding
     if (settings.show_branding !== false) {

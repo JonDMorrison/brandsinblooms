@@ -9,7 +9,8 @@ export type FormFieldType =
   | "file"
   | "hidden"
   | "email_consent"
-  | "sms_consent";
+  | "sms_consent"
+  | "segment_checkbox";
 
 export interface FormFieldRules {
   min_length?: number;
@@ -65,12 +66,19 @@ export interface FormField {
   rules?: FormFieldRules;
   step_index?: number;
   visibility_rules?: FormVisibilityRule[];
+  // Segment / Persona assignment (for checkbox and segment_checkbox fields)
+  segment_id?: string;
+  segment_name?: string;
+  persona_id?: string;
+  persona_name?: string;
 }
 
 export type FormFontFamily = "inter" | "system" | "serif" | "mono";
 export type FormBorderRadius = "0px" | "4px" | "8px" | "12px" | "9999px";
-export type FormSpacing = "compact" | "normal" | "relaxed";
+export type FormSpacing = "compact" | "normal" | "relaxed" | "comfortable";
 export type FormButtonStyle = "filled" | "outlined" | "ghost";
+export type FormButtonShape = "rounded" | "pill" | "square";
+export type FormBackgroundStyle = "white" | "transparent" | "green-tint" | "custom";
 export type FormInputStyle = "outlined" | "filled" | "underlined";
 export type FormWidth = "narrow" | "medium" | "wide" | "full";
 export type FormLabelPosition = "above";
@@ -84,7 +92,10 @@ export interface FormTheme {
   border_radius?: FormBorderRadius;
   spacing?: FormSpacing;
   button_style?: FormButtonStyle;
+  button_shape?: FormButtonShape;
   input_style?: FormInputStyle;
+  background_style?: FormBackgroundStyle;
+  google_font?: string;
 }
 
 export interface FormSettings {
@@ -114,8 +125,9 @@ export interface FormCompliance {
 }
 
 export interface FormAudience {
-  assign_personas: string[]; // persona IDs
+  assign_personas: string[]; // persona IDs (from global personas table)
   assign_tags: string[]; // crm_tags IDs
+  segment_ids?: string[]; // crm_segments IDs to auto-assign on submission
 }
 
 export type FormStatus = "draft" | "published" | "archived";

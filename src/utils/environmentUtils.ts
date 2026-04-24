@@ -1,4 +1,4 @@
-export type Environment = 'development' | 'production';
+export type Environment = "development" | "production";
 
 /**
  * Detect the current environment based on the window location
@@ -7,35 +7,34 @@ export type Environment = 'development' | 'production';
  */
 export function detectEnvironment(): Environment {
   const hostname = window.location.hostname;
-  const isDev = hostname.includes('localhost');
-  return isDev ? 'development' : 'production';
+  const isDev =
+    hostname.includes("localhost") ||
+    hostname === "127.0.0.1" ||
+    hostname.endsWith(".local");
+  return isDev ? "development" : "production";
 }
 
 /**
  * Get environment-aware OAuth redirect URI
  */
-export function getOAuthRedirectUri(path: string = '/oauth/callback'): string {
-  const origin = window.location.origin;
-  const hostname = window.location.hostname;
-
-  // Force current origin for any non-production host
-  // Production is explicitly bloomsuite.app
-  const isProdHost = hostname.includes('bloomsuite.app');
-  const baseUrl = isProdHost ? 'https://bloomsuite.app' : origin;
-  
-  return `${baseUrl}${path}`;
+export function getOAuthRedirectUri(path: string = "/auth/callback"): string {
+  // Always use the current origin so PKCE code_verifier (stored in
+  // localStorage on this origin) matches the domain where the code
+  // will be exchanged. Previous hardcode of https://bloomsuite.app
+  // broke flows initiated from https://www.bloomsuite.app.
+  return `${window.location.origin}${path}`;
 }
 
 /**
  * Get a display-friendly name for the current environment
  */
 export function getEnvironmentName(): string {
-  return detectEnvironment() === 'development' ? 'Development' : 'Production';
+  return detectEnvironment() === "development" ? "Development" : "Production";
 }
 
 /**
  * Check if currently in development environment
  */
 export function isDevelopment(): boolean {
-  return detectEnvironment() === 'development';
+  return detectEnvironment() === "development";
 }

@@ -10,6 +10,7 @@ import {
   MediaSelectorImageHandle,
 } from "@/components/crm/MediaSelectorImage";
 import { Edit, Copy, Trash2, RefreshCw, Sparkles } from "lucide-react";
+import { TipBox } from "@/components/ui/TipBox";
 import { cn } from "@/lib/utils";
 import { ContextualToolbar } from "../contextual/ContextualToolbar";
 import { EditMode } from "@/hooks/useBlockEditMode";
@@ -187,14 +188,16 @@ export const HeaderBlock: React.FC<HeaderBlockProps> = ({
 
       {/* Editor Controls */}
       <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
+        <div className="space-y-1">
           <Label htmlFor="headline">Headline</Label>
           <Input
             id="headline"
             value={block.headline || ""}
             onChange={(e) => onUpdate({ headline: e.target.value })}
             placeholder="Enter headline"
+            maxLength={80}
           />
+          <TipBox>Keep under 60 characters — longer headlines get cut on mobile</TipBox>
         </div>
         <div className="space-y-2">
           <Label htmlFor="alignment">Text Alignment</Label>
@@ -298,37 +301,54 @@ export const HeaderBlock: React.FC<HeaderBlockProps> = ({
         )}
       </div>
 
-      <div className="space-y-4">
-        <Label>Color Overlay</Label>
-        <div className="grid grid-cols-2 gap-4">
-          <ColorPickerWithSwatches
-            label="Overlay Color"
-            id="bgColor"
-            value={block.backgroundColor || "#000000"}
-            onChange={(color) => {
-              onUpdate({ backgroundColor: color });
-            }}
-            defaultValue="#000000"
-          />
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="colorOpacity">Overlay Opacity</Label>
-              <span className="text-sm text-muted-foreground">
-                {block.colorOverlayOpacity || 50}%
-              </span>
-            </div>
-            <Slider
-              value={[block.colorOverlayOpacity || 50]}
-              onValueChange={(value) =>
-                onUpdate({ colorOverlayOpacity: value[0] })
-              }
-              max={100}
-              min={1}
-              step={1}
-              className="w-full"
-            />
-          </div>
+      <div className="space-y-3">
+        <Label>Text Contrast</Label>
+        <div className="grid grid-cols-4 gap-2">
+          {([
+            { key: "none", label: "None", bg: "#000000", opacity: 0 },
+            { key: "light", label: "Light", bg: "#ffffff", opacity: 30 },
+            { key: "dark", label: "Dark", bg: "#000000", opacity: 40 },
+            { key: "strong", label: "Strong", bg: "#000000", opacity: 65 },
+          ] as const).map((preset) => {
+            const current = block.colorOverlayOpacity ?? 50;
+            const currentBg = (block.backgroundColor || "#000000").toLowerCase();
+            const isActive =
+              (preset.key === "none" && current <= 5) ||
+              (preset.key === "light" && currentBg.startsWith("#fff") && current > 5 && current <= 35) ||
+              (preset.key === "dark" && !currentBg.startsWith("#fff") && current > 5 && current <= 50) ||
+              (preset.key === "strong" && current > 50);
+            return (
+              <button
+                key={preset.key}
+                type="button"
+                onClick={() =>
+                  onUpdate({
+                    backgroundColor: preset.bg,
+                    colorOverlayOpacity: preset.opacity,
+                  })
+                }
+                className={cn(
+                  "flex flex-col items-center gap-1 rounded-lg border-2 px-2 py-2 text-xs font-medium transition-all",
+                  isActive
+                    ? "border-primary bg-primary/5 text-primary"
+                    : "border-border bg-background text-muted-foreground hover:border-primary/40",
+                )}
+              >
+                <div
+                  className="h-6 w-full rounded"
+                  style={{
+                    background:
+                      preset.key === "none"
+                        ? "linear-gradient(135deg,#f97316,#ec4899)"
+                        : `linear-gradient(135deg, rgba(${preset.bg === "#ffffff" ? "255,255,255" : "0,0,0"},${preset.opacity / 100}), rgba(${preset.bg === "#ffffff" ? "255,255,255" : "0,0,0"},${preset.opacity / 100})), linear-gradient(135deg,#f97316,#ec4899)`,
+                  }}
+                />
+                {preset.label}
+              </button>
+            );
+          })}
         </div>
+        <TipBox>Dark backgrounds with white text increase readability for promotional emails</TipBox>
       </div>
 
       <div className="space-y-2">

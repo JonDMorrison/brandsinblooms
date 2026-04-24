@@ -44,12 +44,22 @@ export const OnboardingStatusProvider = ({
   children,
 }: OnboardingStatusProviderProps) => {
   const { user } = useAuth();
-  // Single localStorage cache key: onboarding-completed:<userId>
-  const [hasEverCompleted, setHasEverCompleted] = useState(false);
 
-  // Initialize from cache + clean up legacy keys
+  // Initialize hasEverCompleted SYNCHRONOUSLY from localStorage so it's
+  // available on the very first render — before any useEffect runs.
+  // This prevents the OnboardingGuard from redirecting during the first
+  // render cycle when the DB query hasn't resolved yet.
+  const [hasEverCompleted, setHasEverCompleted] = useState(() => {
+    if (!user) return false;
+    // Check current key format
+    if (localStorage.getItem(`${CACHE_KEY_PREFIX}${user.id}`) === "1") return true;
+    // Check legacy key format
+    if (localStorage.getItem(`onboarding-has-completed:${user.id}`) === "1") return true;
+    return false;
+  });
+
+  // Clean up legacy keys and keep state in sync when user changes
   useEffect(() => {
-    // Clean up all legacy flags (one-time migration)
     localStorage.removeItem("onboarding-has-completed");
     if (user) {
       // Migrate old key format if present
@@ -63,7 +73,9 @@ export const OnboardingStatusProvider = ({
 
       const cached =
         localStorage.getItem(`${CACHE_KEY_PREFIX}${user.id}`) === "1";
-      setHasEverCompleted(cached);
+      if (cached !== hasEverCompleted) {
+        setHasEverCompleted(cached);
+      }
     } else {
       setHasEverCompleted(false);
     }

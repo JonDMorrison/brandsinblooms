@@ -24,12 +24,16 @@ export const PaymentMethods = () => {
   const [loading, setLoading] = useState(false);
 
   const effectivePlan = subscription?.tier ?? subscription?.plan;
-  const isTrialOrExpired = !subscription || effectivePlan === "free_trial" || effectivePlan === "expired";
+  const isTrialOrExpired =
+    !subscription ||
+    effectivePlan === "free_trial" ||
+    effectivePlan === "expired";
 
   const handleAddPaymentMethod = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("customer-portal");
+      const { data, error } =
+        await supabase.functions.invoke("customer-portal");
 
       if (error) {
         throw error;
@@ -67,12 +71,20 @@ export const PaymentMethods = () => {
             <Skeleton variant="text" width={160} />
           </Stack>
         ) : isTrialOrExpired ? (
-          <Stack spacing={2} alignItems="center" textAlign="center" sx={{ py: 3 }}>
+          <Stack
+            spacing={2}
+            alignItems="center"
+            textAlign="center"
+            sx={{ py: 3 }}
+          >
             <CreditCard size={32} color="var(--joy-palette-neutral-400)" />
             <Stack spacing={0.75}>
-              <Typography level="title-sm">No payment method on file.</Typography>
+              <Typography level="title-sm">
+                No payment method on file.
+              </Typography>
               <Typography level="body-sm" textColor="text.secondary">
-                Add a card now so renewals and account reactivation can complete without interruption.
+                Add a card now so renewals and account reactivation can complete
+                without interruption.
               </Typography>
             </Stack>
             <Button
@@ -94,7 +106,12 @@ export const PaymentMethods = () => {
               p: 2,
             }}
           >
-            <Stack direction="row" spacing={1.5} justifyContent="space-between" alignItems="center">
+            <Stack
+              direction="row"
+              spacing={1.5}
+              justifyContent="space-between"
+              alignItems="center"
+            >
               <Stack direction="row" spacing={1.5} alignItems="center">
                 <Sheet
                   color="neutral"
@@ -105,7 +122,11 @@ export const PaymentMethods = () => {
                     py: 0.75,
                   }}
                 >
-                  <Typography level="body-xs" fontWeight={700} textColor="common.white">
+                  <Typography
+                    level="body-xs"
+                    fontWeight={700}
+                    textColor="common.white"
+                  >
                     VISA
                   </Typography>
                 </Sheet>
@@ -121,7 +142,10 @@ export const PaymentMethods = () => {
 
               <Stack direction="row" spacing={1.25} alignItems="center">
                 <Stack direction="row" spacing={0.5} alignItems="center">
-                  <CheckCircle2 size={16} color="var(--joy-palette-success-500)" />
+                  <CheckCircle2
+                    size={16}
+                    color="var(--joy-palette-success-500)"
+                  />
                   <Typography level="body-sm" textColor="text.secondary">
                     Default
                   </Typography>
@@ -137,7 +161,8 @@ export const PaymentMethods = () => {
         <Stack direction="row" spacing={1} alignItems="flex-start">
           <Lock size={16} color="var(--joy-palette-neutral-500)" />
           <Typography level="body-xs" textColor="text.secondary">
-            Payments are securely processed by Stripe. BloomSuite does not store your full card details.
+            Payments are securely processed by Stripe. BloomSuite does not store
+            your full card details.
           </Typography>
         </Stack>
       </Stack>

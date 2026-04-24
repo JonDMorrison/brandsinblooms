@@ -3,7 +3,10 @@ import { ContentBlock } from "@/types/emailBuilder";
 import { Card } from "@/components/ui-legacy/card";
 import { Button } from "@/components/ui-legacy/button";
 import { cn } from "@/lib/utils";
-import { GripVertical } from "lucide-react";
+import { GripVertical, Trash2, ChevronRight, ChevronDown } from "lucide-react";
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { BlockMiniPreview } from "../blocks/BlockMiniPreview";
 import { BlockEditToolbar } from "./BlockEditToolbar";
 import { useBlockEditMode, EditMode } from "@/hooks/useBlockEditMode";
 import { TextEditMode } from "./modes/TextEditMode";
@@ -29,6 +32,9 @@ interface ClickToEditBlockProps {
   index: number;
   onUpdate: (id: string, updates: Partial<ContentBlock>) => void;
   onRemove: (id: string) => void;
+  onConfirmRemove?: (id: string) => void;
+  onCancelRemove?: () => void;
+  isDeletePending?: boolean;
   onDuplicate: (block: ContentBlock) => void;
   onMove: (id: string, direction: "up" | "down") => void;
   canMoveUp: boolean;
@@ -49,6 +55,9 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
   index,
   onUpdate,
   onRemove,
+  onConfirmRemove,
+  onCancelRemove,
+  isDeletePending = false,
   onDuplicate,
   onMove,
   canMoveUp,
@@ -61,11 +70,30 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
   children,
 }) => {
   const [localBlock, setLocalBlock] = useState<ContentBlock>(block);
+  const [collapsed, setCollapsed] = useState(false);
   const blockRef = useRef<HTMLDivElement>(null);
   const editingRef = useRef<HTMLDivElement>(null);
   const [isMediaSelectorOpen, setIsMediaSelectorOpen] = useState(false);
   const [isOverlayDialogOpen, setIsOverlayDialogOpen] = useState(false);
   const [isGridConfigOpen, setIsGridConfigOpen] = useState(false);
+
+  // Drag-to-reorder via @dnd-kit/sortable
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: block.id });
+
+  const sortableStyle = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    position: "relative" as const,
+    zIndex: isDragging ? 999 : ("auto" as any),
+  };
 
   // Use the new edit mode hook
   const {
@@ -290,6 +318,11 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
   };
 
   const handleBlockClick = () => {
+    // Expand if collapsed before entering edit mode
+    if (collapsed) {
+      setCollapsed(false);
+      return;
+    }
     if (!editMode) {
       // Don't toggle edit mode for image gallery blocks - users interact with grid items directly
       if (block.type === "image-gallery") {
@@ -398,15 +431,28 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
 
   return (
     <div
+      ref={setNodeRef}
+      style={sortableStyle}
       className={cn(
         "group relative click-to-edit-container",
         isAnyEditMode && "click-to-edit-editing",
       )}
-      style={{ position: "relative", zIndex: 1 }}
     >
-      {/* Drag Handle - appears on hover */}
-      <div className="absolute -left-8 top-4 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-        <div className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground">
+      {/* Collapse toggle + Drag Handle — left gutter */}
+      <div className="absolute -left-8 top-3 flex flex-col items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+        <button
+          type="button"
+          className="text-muted-foreground hover:text-foreground"
+          onClick={(e) => { e.stopPropagation(); setCollapsed((c) => !c); }}
+          title={collapsed ? "Expand block" : "Collapse block"}
+        >
+          {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+        </button>
+        <div
+          {...listeners}
+          {...attributes}
+          className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground touch-none"
+        >
           <GripVertical className="h-4 w-4" />
         </div>
       </div>
@@ -447,6 +493,37 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
             onDelete={() => onRemove(block.id)}
             disabled={block.isGeneratingImage}
           />
+        </div>
+      )}
+
+      {/* Inline delete confirmation bar */}
+      {isDeletePending && (
+        <div
+          className="absolute top-0 left-0 right-0 z-[60] flex items-center justify-between gap-2 rounded-t-lg border-b bg-destructive/5 px-4 py-2"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <span className="text-sm font-medium text-destructive flex items-center gap-1.5">
+            <Trash2 className="h-3.5 w-3.5" />
+            Delete this block?
+          </span>
+          <div className="flex items-center gap-1.5">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2.5 text-xs"
+              onClick={() => onCancelRemove?.()}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              className="h-7 px-2.5 text-xs"
+              onClick={() => onConfirmRemove?.(block.id)}
+            >
+              Yes, delete
+            </Button>
+          </div>
         </div>
       )}
 
@@ -566,7 +643,17 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
               </div>
             )}
           </div>
+        ) : collapsed ? (
+          /* ── Collapsed: mini-preview ── */
+          <div
+            className="cursor-pointer"
+            onClick={() => setCollapsed(false)}
+            style={{ pointerEvents: "auto" }}
+          >
+            <BlockMiniPreview block={localBlock} />
+          </div>
         ) : (
+          /* ── Expanded: full preview ── */
           <div
             className={cn(
               "p-0",

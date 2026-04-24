@@ -1,4 +1,3 @@
-
 import { useMemo, useState } from "react";
 import Button from "@mui/joy/Button";
 import { CreditCard, ExternalLink } from "lucide-react";
@@ -35,7 +34,8 @@ export const CustomerPortalButton = ({
   const handleManageSubscription = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("customer-portal");
+      const { data, error } =
+        await supabase.functions.invoke("customer-portal");
 
       if (error) {
         throw error;

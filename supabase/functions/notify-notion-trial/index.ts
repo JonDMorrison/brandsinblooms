@@ -69,80 +69,8 @@ Deno.serve(async (req) => {
       }
     }
 
-    const sharedFields: Record<string, unknown> = {
-      "External ID": {
-        rich_text: [{ text: { content: supabaseUserId } }],
-      },
-      "CASL Consent": { checkbox: true },
-      "CASL Consent Date": { date: { start: today } },
-      "Trial Start Date": { date: { start: today } },
-      "Stage": { select: { name: "Trial" } },
-    };
-
-    const pageId = await findNotionRecord(supabaseUserId, userEmail);
-
-    let resultPageId: string | null = null;
-
-    if (pageId) {
-      const ok = await updateNotionRecord(
-        pageId,
-        sharedFields,
-        "notify-notion-trial:update",
-      );
-      if (!ok) {
-        return new Response(
-          JSON.stringify({ error: "Notion update failed" }),
-          {
-            status: 500,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          },
-        );
-      }
-      resultPageId = pageId;
-      console.log("notify-notion-trial: updated Notion page", pageId);
-    } else {
-      const createProps: Record<string, unknown> = {
-        ...sharedFields,
-        "Garden Center": {
-          title: [{ text: { content: userEmail } }],
-        },
-        // Preserved from existing logic — sensible defaults for a new trial record
-        "Primary Contact": {
-          rich_text: [{ text: { content: user.name || "" } }],
-        },
-        "Next Action": {
-          rich_text: [
-            { text: { content: "Trial started — follow up within 48 hours" } },
-          ],
-        },
-        "Assigned To": { select: { name: "Jon" } },
-        ...(tenantId
-          ? {
-              "Supabase Tenant ID": {
-                rich_text: [{ text: { content: tenantId } }],
-              },
-            }
-          : {}),
-      };
-
-      const newId = await createNotionRecord(
-        createProps,
-        "notify-notion-trial:create",
-      );
-      if (!newId) {
-        return new Response(
-          JSON.stringify({ error: "Notion create failed" }),
-          {
-            status: 500,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          },
-        );
-      }
-      resultPageId = newId;
-      console.log("notify-notion-trial: created Notion page", newId);
-    }
-
-    // Send welcome email — failure here must NOT block the Notion write
+    // ── PRIORITY 1: System welcome email (must always fire) ──
+    let systemEmailSent = false;
     try {
       const resendKey = Deno.env.get("RESEND_API_KEY");
       if (!resendKey) {
@@ -179,6 +107,7 @@ Deno.serve(async (req) => {
             body,
           );
         } else {
+          systemEmailSent = true;
           console.log("notify-notion-trial: welcome email sent to", userEmail);
         }
       }
@@ -186,7 +115,8 @@ Deno.serve(async (req) => {
       console.error("notify-notion-trial: welcome email error", e);
     }
 
-    // Send Jeff's personal welcome email — failure must NOT fail the function
+    // ── PRIORITY 2: Jeff's welcome email (must always fire) ──
+    let jeffEmailSent = false;
     try {
       const resendKey = Deno.env.get("RESEND_API_KEY");
       if (!resendKey) {
@@ -197,24 +127,100 @@ Deno.serve(async (req) => {
         const firstName =
           (user.name?.trim().split(/\s+/)[0]) || "there";
 
-        const jeffHtml = `
-<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:600px;margin:0 auto;color:#1f2937;padding:24px;">
-  <p style="margin:0 0 16px 0;line-height:1.6;">Hi ${firstName},</p>
-  <p style="margin:0 0 16px 0;line-height:1.6;">Welcome to BloomSuite. We're really glad you're here.</p>
-  <p style="margin:0 0 16px 0;line-height:1.6;">A bit of background on why we built this. Jon and I spent years watching independent garden centers struggle to compete with big box stores, not because they had worse products or less passion, but because they didn't have the marketing tools to stay in front of their customers year-round. BloomSuite exists to give independent garden centers the same kind of marketing power that used to take a full-time marketing team.</p>
-  <p style="margin:0 0 16px 0;line-height:1.6;">You're exactly who we built this for.</p>
-  <p style="margin:0 0 16px 0;line-height:1.6;">Start with the setup wizard. It walks you through five steps that take about 20 minutes and get everything connected: your brand colors, your company profile, your POS system, your customer list, and your email domain. Once those are done, you're ready to send your first campaign.</p>
-  <p style="margin:0 0 16px 0;line-height:1.6;">👉 <a href="https://www.bloomsuite.app/account-setup" style="color:#1abc9c;">Start the setup wizard</a></p>
-  <p style="margin:0 0 16px 0;line-height:1.6;">If you get stuck at any point, our Knowledge Base has step-by-step guides for everything:</p>
-  <p style="margin:0 0 16px 0;line-height:1.6;">👉 <a href="https://bloomsuite.notion.site/bloomsuite-help" style="color:#1abc9c;">Visit the Knowledge Base</a></p>
-  <p style="margin:0 0 16px 0;line-height:1.6;">If you'd like a hand getting set up, our co-founder Jon Morrison does a free 30-minute kickoff call with every new member. You'll walk through your setup together, connect your accounts, and have your first campaign ready before you hang up.</p>
-  <p style="margin:0 0 16px 0;line-height:1.6;">👉 <a href="https://calendly.com/jonmorrison/chat-with-jon" style="color:#1abc9c;">Book a Time with Jon</a></p>
-  <p style="margin:0 0 16px 0;line-height:1.6;">Looking forward to seeing what you build this season.</p>
-  <p style="margin:0 0 4px 0;line-height:1.6;">Jeff</p>
-  <p style="margin:0 0 4px 0;line-height:1.6;">Co-Founder, BloomSuite</p>
-  <p style="margin:0;line-height:1.6;"><a href="mailto:jeff@brandsinblooms.com" style="color:#1abc9c;">jeff@brandsinblooms.com</a></p>
-</div>
-`;
+        const jeffHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;padding:32px 16px;">
+<tr><td align="center">
+<table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:8px;overflow:hidden;border:1px solid #e5e7eb;">
+
+  <tr><td style="background:#0d1f1a;padding:20px 40px;">
+    <img src="https://udldmkqwnxhdeztyqcau.supabase.co/storage/v1/object/public/content-assets/bloomsuite-logo.png" alt="BloomSuite" style="height:40px;width:auto;display:block;" />
+  </td></tr>
+
+  <tr><td style="background:#1abc9c;padding:32px 40px;">
+    <p style="color:#ffffff;font-size:22px;font-weight:500;margin:0 0 8px;line-height:1.3;">Welcome to BloomSuite.</p>
+    <p style="color:rgba(255,255,255,0.85);font-size:15px;margin:0;line-height:1.5;">We're really glad you're here.</p>
+  </td></tr>
+
+  <tr><td style="padding:36px 40px;">
+    <p style="font-size:15px;line-height:1.7;margin:0 0 20px;color:#374151;">A bit of background on why we built this. Jon and I spent years watching independent garden centers struggle to compete with big box stores — not because they had worse products or less passion, but because they didn't have the marketing tools to stay in front of their customers year-round. BloomSuite exists to give independent garden centers the same kind of marketing power that used to take a full-time marketing team.</p>
+    <p style="font-size:15px;line-height:1.7;margin:0 0 32px;color:#374151;">You're exactly who we built this for.</p>
+
+    <p style="font-size:13px;font-weight:500;color:#6b7280;text-transform:uppercase;letter-spacing:0.6px;margin:0 0 16px;">Get started</p>
+
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
+      <tr><td style="padding-bottom:10px;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;border-radius:8px;border:1px solid #e5e7eb;">
+          <tr>
+            <td style="width:56px;padding:14px 0 14px 16px;vertical-align:top;">
+              <div style="width:28px;height:28px;background:#1abc9c;border-radius:50%;text-align:center;line-height:28px;font-size:13px;font-weight:500;color:#ffffff;">1</div>
+            </td>
+            <td style="padding:14px 16px;">
+              <p style="font-size:14px;font-weight:500;margin:0 0 3px;color:#111827;">Complete the setup wizard</p>
+              <p style="font-size:13px;color:#6b7280;margin:0;">Brand colors, company profile, POS, contacts, and email domain. Takes about 20 minutes.</p>
+            </td>
+          </tr>
+        </table>
+      </td></tr>
+      <tr><td style="padding-bottom:10px;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;border-radius:8px;border:1px solid #e5e7eb;">
+          <tr>
+            <td style="width:56px;padding:14px 0 14px 16px;vertical-align:top;">
+              <div style="width:28px;height:28px;background:#1abc9c;border-radius:50%;text-align:center;line-height:28px;font-size:13px;font-weight:500;color:#ffffff;">2</div>
+            </td>
+            <td style="padding:14px 16px;">
+              <p style="font-size:14px;font-weight:500;margin:0 0 3px;color:#111827;">Send your first campaign</p>
+              <p style="font-size:13px;color:#6b7280;margin:0;">A simple spring newsletter to your full list is all you need to start.</p>
+            </td>
+          </tr>
+        </table>
+      </td></tr>
+      <tr><td>
+        <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;border-radius:8px;border:1px solid #e5e7eb;">
+          <tr>
+            <td style="width:56px;padding:14px 0 14px 16px;vertical-align:top;">
+              <div style="width:28px;height:28px;background:#1abc9c;border-radius:50%;text-align:center;line-height:28px;font-size:13px;font-weight:500;color:#ffffff;">3</div>
+            </td>
+            <td style="padding:14px 16px;">
+              <p style="font-size:14px;font-weight:500;margin:0 0 3px;color:#111827;">Book a call with Jon</p>
+              <p style="font-size:13px;color:#6b7280;margin:0;">Free 30-minute kickoff. Most people leave with their first campaign scheduled.</p>
+            </td>
+          </tr>
+        </table>
+      </td></tr>
+    </table>
+
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:32px;">
+      <tr><td style="padding-bottom:10px;">
+        <a href="https://www.bloomsuite.app/account-setup" style="display:block;background:#1abc9c;color:#ffffff;text-align:center;padding:13px 24px;border-radius:6px;font-size:15px;font-weight:500;text-decoration:none;">Start the setup wizard</a>
+      </td></tr>
+      <tr><td>
+        <a href="https://calendly.com/jonmorrison/chat-with-jon" style="display:block;background:#ffffff;color:#1abc9c;text-align:center;padding:12px 24px;border-radius:6px;font-size:15px;font-weight:500;text-decoration:none;border:1.5px solid #1abc9c;">Book a time with Jon</a>
+      </td></tr>
+    </table>
+
+    <table cellpadding="0" cellspacing="0" style="border-top:1px solid #e5e7eb;padding-top:24px;width:100%;">
+      <tr>
+        <td style="width:44px;vertical-align:top;">
+          <div style="width:44px;height:44px;border-radius:50%;background:#0d1f1a;text-align:center;line-height:44px;font-size:14px;font-weight:500;color:#1abc9c;">JM</div>
+        </td>
+        <td style="padding-left:14px;vertical-align:top;">
+          <p style="font-size:14px;font-weight:500;margin:0;color:#111827;">Jeff &amp; Jon</p>
+          <p style="font-size:13px;color:#6b7280;margin:4px 0 0;">Co-founders, BloomSuite</p>
+          <p style="font-size:13px;color:#6b7280;margin:2px 0 0;"><a href="mailto:jeff@brandsinblooms.com" style="color:#1abc9c;text-decoration:none;">jeff@brandsinblooms.com</a></p>
+        </td>
+      </tr>
+    </table>
+  </td></tr>
+
+  <tr><td style="background:#f9fafb;border-top:1px solid #e5e7eb;padding:20px 40px;text-align:center;">
+    <p style="font-size:12px;color:#9ca3af;margin:0 0 6px;">BloomSuite &middot; brandsinblooms.com</p>
+    <p style="font-size:12px;color:#9ca3af;margin:0;">You received this because you started a BloomSuite trial. <a href="https://www.bloomsuite.app/unsubscribe" style="color:#9ca3af;">Unsubscribe</a></p>
+  </td></tr>
+
+</table>
+</td></tr>
+</table>
+</body></html>`;
 
         const jeffRes = await fetch("https://api.resend.com/emails", {
           method: "POST",
@@ -239,6 +245,7 @@ Deno.serve(async (req) => {
             body,
           );
         } else {
+          jeffEmailSent = true;
           console.log(
             "notify-notion-trial: Jeff welcome email sent to",
             userEmail,
@@ -249,8 +256,89 @@ Deno.serve(async (req) => {
       console.error("notify-notion-trial: Jeff welcome email error", e);
     }
 
+    // ── PRIORITY 3: Notion write (best effort — never blocks emails) ──
+    let resultPageId: string | null = null;
+    let notionError: string | null = null;
+    try {
+      const sharedFields: Record<string, unknown> = {
+        ...(supabaseUserId
+          ? {
+              "External ID": {
+                rich_text: [{ text: { content: supabaseUserId } }],
+              },
+            }
+          : {}),
+        "CASL Consent": { checkbox: true },
+        "CASL Consent Date": { date: { start: today } },
+        "Trial Start Date": { date: { start: today } },
+        "Stage": { select: { name: "Trial" } },
+      };
+
+      const pageId = await findNotionRecord(supabaseUserId || "", userEmail);
+
+      if (pageId) {
+        const ok = await updateNotionRecord(
+          pageId,
+          sharedFields,
+          "notify-notion-trial:update",
+        );
+        if (!ok) {
+          notionError = "Notion update failed";
+          console.error("notify-notion-trial: Notion update failed for page", pageId);
+        } else {
+          resultPageId = pageId;
+          console.log("notify-notion-trial: updated Notion page", pageId);
+        }
+      } else {
+        const createProps: Record<string, unknown> = {
+          ...sharedFields,
+          "Garden Center": {
+            title: [{ text: { content: userEmail } }],
+          },
+          "Primary Contact": {
+            rich_text: [{ text: { content: user.name || "" } }],
+          },
+          "Next Action": {
+            rich_text: [
+              { text: { content: "Trial started — follow up within 48 hours" } },
+            ],
+          },
+          "Assigned To": { rich_text: [{ text: { content: "Jon" } }] },
+          ...(tenantId
+            ? {
+                "Supabase Tenant ID": {
+                  rich_text: [{ text: { content: tenantId } }],
+                },
+              }
+            : {}),
+        };
+
+        console.log("notify-notion-trial: createProps", JSON.stringify(createProps));
+        const newId = await createNotionRecord(
+          createProps,
+          "notify-notion-trial:create",
+        );
+        if (!newId) {
+          notionError = createNotionRecord.lastError || "Notion create failed (unknown reason)";
+          console.error("notify-notion-trial: Notion create failed for", userEmail, "—", notionError);
+        } else {
+          resultPageId = newId;
+          console.log("notify-notion-trial: created Notion page", newId);
+        }
+      }
+    } catch (e) {
+      notionError = String(e);
+      console.error("notify-notion-trial: Notion error (non-blocking)", e);
+    }
+
     return new Response(
-      JSON.stringify({ success: true, notion_page_id: resultPageId }),
+      JSON.stringify({
+        success: true,
+        system_email_sent: systemEmailSent,
+        jeff_email_sent: jeffEmailSent,
+        notion_page_id: resultPageId,
+        notion_error: notionError,
+      }),
       {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },

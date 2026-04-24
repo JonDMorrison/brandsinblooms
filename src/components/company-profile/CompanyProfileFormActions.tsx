@@ -10,12 +10,12 @@ interface CompanyProfileFormActionsProps {
   onCancel: () => void;
 }
 
-export const CompanyProfileFormActions = ({ 
-  isEditing, 
-  isSaving, 
-  onToggleEdit, 
-  onSave, 
-  onCancel 
+export const CompanyProfileFormActions = ({
+  isEditing,
+  isSaving,
+  onToggleEdit,
+  onSave,
+  onCancel,
 }: CompanyProfileFormActionsProps) => {
   return (
     <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
@@ -29,14 +29,21 @@ export const CompanyProfileFormActions = ({
             loading={isSaving}
             loadingPosition="start"
             onClick={onSave}
-            startDecorator={!isSaving ? <Save className="w-4 h-4" /> : undefined}
+            startDecorator={
+              !isSaving ? <Save className="w-4 h-4" /> : undefined
+            }
             variant="solid"
           >
             Save changes
           </JoyButton>
         </>
       ) : (
-        <JoyButton color="neutral" onClick={onToggleEdit} startDecorator={<Edit className="w-4 h-4" />} variant="plain">
+        <JoyButton
+          color="neutral"
+          onClick={onToggleEdit}
+          startDecorator={<Edit className="w-4 h-4" />}
+          variant="plain"
+        >
           Edit
         </JoyButton>
       )}

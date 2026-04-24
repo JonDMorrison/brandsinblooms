@@ -8,6 +8,7 @@ import {
 import { Button } from "@/components/ui-legacy/button";
 import { Card, CardContent } from "@/components/ui-legacy/card";
 import { Globe, Sparkles, ArrowRight, Loader2 } from "lucide-react";
+import { enforceLocationConfirmation } from "@/lib/locationValidation";
 import { UrlInputStep } from "../onboarding/UrlInputStep";
 import { DataReviewStep } from "../onboarding/DataReviewStep";
 import { useWebsiteAnalysis } from "@/hooks/useWebsiteAnalysis";
@@ -73,8 +74,6 @@ export const DashboardSetupWizard = ({
     setIsCompleting(true);
     try {
       // SERVER-SIDE SAFETY CHECK: Re-verify location confirmation invariant
-      const { enforceLocationConfirmation } =
-        await import("@/lib/locationValidation");
       const validation = await enforceLocationConfirmation(user.id);
 
       if (!validation.success) {

@@ -68,6 +68,7 @@ export const FullEmailPreview: React.FC<FullEmailPreviewProps> = ({
       content.includes('viewBox="0 0 24 24"');
 
     // If we have unsubscribe AND either footer structure or social icons, don't add another footer
+    const hasFooter = hasUnsubscribe && (hasFooterStructure || hasSocialIcons);
 
     if (hasFooter) {
       return content;
@@ -154,6 +155,8 @@ export const FullEmailPreview: React.FC<FullEmailPreviewProps> = ({
   }, [companyInfo]);
 
   const hasSocialLinks = Object.values(socialLinksStatus).some(Boolean);
+
+  const hasImageTextBlocks = content.includes("mobile-full-width") || content.includes("mobile-stack") || content.includes("width: 50%");
 
   const sendTestEmailHandler = async () => {
     const email = testEmail.trim();
@@ -330,23 +333,52 @@ export const FullEmailPreview: React.FC<FullEmailPreviewProps> = ({
 
           {/* Email Preview */}
           <div className="flex-1 overflow-auto p-4 bg-muted/50">
-            <div
-              className={cn(
-                "mx-auto bg-white shadow-lg transition-all duration-300 rounded-lg overflow-hidden",
-                viewMode === "mobile" ? "max-w-sm" : "max-w-2xl",
-              )}
-            >
-              <iframe
-                srcDoc={completeEmailHtml}
-                className="w-full border-0"
-                style={{
-                  minHeight: "600px",
-                  height: viewMode === "mobile" ? "700px" : "800px",
-                }}
-                title="Full Email Preview"
-                sandbox="allow-same-origin"
-              />
-            </div>
+            {viewMode === "mobile" ? (
+              <div className="mx-auto" style={{ width: 390 }}>
+                {hasImageTextBlocks && (
+                  <div className="mb-3 flex items-center gap-1.5 rounded-md bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800">
+                    <span>💡</span>
+                    <span>Two-column blocks will stack on mobile</span>
+                  </div>
+                )}
+                <div
+                  className="relative mx-auto overflow-hidden rounded-[2.5rem] shadow-2xl"
+                  style={{ border: "10px solid #1a1a2e", background: "#1a1a2e" }}
+                >
+                  {/* Notch */}
+                  <div className="flex items-center justify-center py-2">
+                    <div className="h-[5px] w-[90px] rounded-full bg-gray-700" />
+                  </div>
+                  {/* Screen */}
+                  <div className="bg-white overflow-hidden rounded-b-[1.8rem]">
+                    <iframe
+                      srcDoc={completeEmailHtml}
+                      className="w-full border-0"
+                      style={{ height: 680, width: 370 }}
+                      title="Mobile Email Preview"
+                      sandbox="allow-same-origin"
+                    />
+                  </div>
+                  {/* Bottom bar */}
+                  <div className="flex items-center justify-center py-1.5">
+                    <div className="h-[4px] w-[100px] rounded-full bg-gray-600" />
+                  </div>
+                </div>
+                <p className="mt-2 text-center text-[11px] text-muted-foreground">
+                  390px · iPhone
+                </p>
+              </div>
+            ) : (
+              <div className="mx-auto max-w-2xl bg-white shadow-lg rounded-lg overflow-hidden" style={{ minWidth: 640 }}>
+                <iframe
+                  srcDoc={completeEmailHtml}
+                  className="w-full border-0"
+                  style={{ minHeight: 600, height: 800, minWidth: 640 }}
+                  title="Full Email Preview"
+                  sandbox="allow-same-origin"
+                />
+              </div>
+            )}
           </div>
 
           {/* Footer */}

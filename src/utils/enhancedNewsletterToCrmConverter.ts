@@ -152,6 +152,7 @@ export const enhancedNewsletterToCRM = async (
     processed: any,
     contentTask: any,
   ): ContentBlock[] => {
+    const blocks: ContentBlock[] = [];
 
     // Add header block first
     const headerTitle = processed.newsletter_md?.match(/^#\s+(.+)$/m)?.[1];
@@ -173,7 +174,9 @@ export const enhancedNewsletterToCRM = async (
     }
 
     // Extract main image for use across blocks
-{
+    const mainImage = extractImageFromTask(contentTask);
+
+    {
       // Convert markdown content to text blocks
       const sections =
         processed.newsletter_md

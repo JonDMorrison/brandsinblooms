@@ -32,3 +32,6 @@ dist-ssr
 .env.local
 .env.production
 supabase/.temp/
+
+# Playwright auth state (contains session tokens)
+e2e/.auth/

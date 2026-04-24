@@ -151,6 +151,7 @@ export const useCompanyInfo = () => {
         const headlineFont = profile.headline_font as any;
         const subheadingFont = profile.subheading_font as any;
         const bodyFont = profile.body_font as any;
+        const buttonFont = profile.button_font as any;
 
         // Build full address from structured fields
         const addressParts = [

@@ -12,6 +12,7 @@ import { createCompanyProfileFromOnboarding, saveOnboardingResponse } from "./on
 import { LandingPageHeader } from "./landing/LandingPageHeader";
 import { supabase } from "@/integrations/supabase/client";
 
+
 interface OnboardingFlowProps {
   onComplete: (data: any) => void;
   onBack?: () => void;
@@ -233,11 +234,10 @@ export const OnboardingFlow = ({ onComplete, onBack }: OnboardingFlowProps) => {
     try {
       // Save onboarding response to database
       await saveOnboardingResponse(formData, user.id);
-      
-      // Create company profile from onboarding data
-      await createCompanyProfileFromOnboarding(formData, user.id);
-      
-      // If location was confirmed in this flow, persist it
+
+      // Persist location BEFORE creating company profile — the profile
+      // creator checks location_needs_confirmation in the DB and will
+      // reject if it's still true.
       if (needsLocationStep && isLocationConfirmed) {
         const { error: locationError } = await supabase
           .from('company_profiles')
@@ -257,18 +257,10 @@ export const OnboardingFlow = ({ onComplete, onBack }: OnboardingFlowProps) => {
           throw locationError;
         }
       }
-      
-      // SERVER-SIDE SAFETY CHECK: Re-verify location confirmation invariant
-      const { enforceLocationConfirmation } = await import('@/lib/locationValidation');
-      const validation = await enforceLocationConfirmation(user.id);
-      
-      if (!validation.success) {
-        console.error('❌ Server-side location validation failed:', validation.error);
-        setLocationValidationError(validation.error || 'Location confirmation required');
-        setIsSubmitting(false);
-        return;
-      }
-      
+
+      // Create company profile from onboarding data
+      await createCompanyProfileFromOnboarding(formData, user.id);
+
       // Store the onboarding data in localStorage as backup
       localStorage.setItem(`garden-center-onboarding-${user.id}`, JSON.stringify(formData));
       

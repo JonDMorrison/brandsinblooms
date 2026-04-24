@@ -3,6 +3,8 @@ import { getCurrentWeekNumber } from "@/utils/dateUtils";
 export const getCurrentWeekCampaign = (campaigns: any[]) => {
   if (campaigns.length === 0) return null;
 
+  const currentWeekNumber = getCurrentWeekNumber();
+
   // Only look for a campaign that matches the current week number
   const currentWeekCampaign = campaigns.find((campaign) => {
     return campaign.week_number === currentWeekNumber;

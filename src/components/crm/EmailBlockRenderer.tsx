@@ -250,20 +250,57 @@ export const EmailBlockRenderer: React.FC<EmailBlockRendererProps> = ({
     
     switch (block.block_type) {
       case 'header':
+      case 'newsletter-header':
         return renderHeader();
+      case 'email-safe-hero':
+        return renderHeader();
+      case 'graphic-hero':
+        // Graphic hero is a single clickable image
+        return block.image_url ? (
+          <div style={{ padding: '0', textAlign: 'center' as const }}>
+            {block.content?.ctaUrl || block.cta_url ? (
+              <a href={block.content?.ctaUrl || block.cta_url} target="_blank" rel="noopener noreferrer" style={{ display: 'block' }}>
+                <img src={block.image_url} alt={block.content?.altText || ''} style={{ maxWidth: '100%', height: 'auto', display: 'block' }} />
+              </a>
+            ) : (
+              <img src={block.image_url} alt={block.content?.altText || ''} style={{ maxWidth: '100%', height: 'auto', display: 'block' }} />
+            )}
+          </div>
+        ) : (
+          <div style={{ padding: '40px 20px', backgroundColor: '#f1f5f9', textAlign: 'center' as const, borderRadius: '8px' }}>
+            <p style={{ margin: 0, fontSize: '14px', color: '#94a3b8' }}>Add your graphic hero image</p>
+          </div>
+        );
       case 'text':
+      case 'image-text':
         return renderText();
       case 'image':
         // Don't render image blocks if they're actually text blocks
         return isTextBlock ? renderText() : renderImage();
+      case 'image-gallery':
+        return renderImage();
       case 'button':
         return renderButton();
       case 'divider':
         return renderDivider();
       case 'product':
         return renderProduct();
+      case 'quote':
+        return (
+          <div style={{ ...baseStyle, padding: '24px', borderLeft: '4px solid #d1d5db', margin: '16px 24px', fontStyle: 'italic' }}>
+            <p style={{ margin: '0 0 8px 0', fontSize: '18px', lineHeight: 1.6 }}>
+              "{block.content?.quote || block.content?.content || ''}"
+            </p>
+            {block.content?.author && (
+              <p style={{ margin: 0, fontSize: '14px', color: '#6B7280', fontStyle: 'normal' }}>
+                — {block.content.author}
+              </p>
+            )}
+          </div>
+        );
       default:
-        return <div>Unknown block type</div>;
+        // Render as text block for any unrecognized type rather than "Unknown"
+        return renderText();
     }
   };
 

@@ -61,12 +61,16 @@ export const BillingHistory = () => {
   const [portalLoading, setPortalLoading] = useState(false);
 
   const effectivePlan = subscription?.tier ?? subscription?.plan;
-  const isTrialOrExpired = !subscription || effectivePlan === "free_trial" || effectivePlan === "expired";
+  const isTrialOrExpired =
+    !subscription ||
+    effectivePlan === "free_trial" ||
+    effectivePlan === "expired";
 
   const handleViewAll = async () => {
     setPortalLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("customer-portal");
+      const { data, error } =
+        await supabase.functions.invoke("customer-portal");
 
       if (error) {
         throw error;
@@ -88,11 +92,17 @@ export const BillingHistory = () => {
   return (
     <Sheet variant="outlined" sx={surfaceStyles}>
       <Stack spacing={2.5}>
-        <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={2}>
+        <Stack
+          direction="row"
+          justifyContent="space-between"
+          alignItems="flex-start"
+          spacing={2}
+        >
           <Stack spacing={0.75}>
             <Typography level="title-md">Billing History</Typography>
             <Typography level="body-sm" textColor="text.secondary">
-              Review recent invoices and jump into the Stripe portal for the full ledger.
+              Review recent invoices and jump into the Stripe portal for the
+              full ledger.
             </Typography>
           </Stack>
           {!isTrialOrExpired && !loading ? (
@@ -119,7 +129,12 @@ export const BillingHistory = () => {
             <Skeleton variant="rectangular" height={48} />
           </Stack>
         ) : isTrialOrExpired ? (
-          <Stack spacing={1.5} alignItems="center" textAlign="center" sx={{ py: 3 }}>
+          <Stack
+            spacing={1.5}
+            alignItems="center"
+            textAlign="center"
+            sx={{ py: 3 }}
+          >
             <Receipt size={32} color="var(--joy-palette-neutral-400)" />
             <Typography level="title-sm">No billing history yet.</Typography>
             <Typography level="body-sm" textColor="text.secondary">
@@ -129,7 +144,8 @@ export const BillingHistory = () => {
         ) : (
           <Stack spacing={1.25}>
             {mockBillingHistory.map((invoice) => {
-              const downloadDisabled = !invoice.invoiceUrl || invoice.invoiceUrl === "#";
+              const downloadDisabled =
+                !invoice.invoiceUrl || invoice.invoiceUrl === "#";
 
               return (
                 <Sheet
@@ -140,13 +156,21 @@ export const BillingHistory = () => {
                     p: 1.75,
                   }}
                 >
-                  <Stack direction="row" spacing={1.5} justifyContent="space-between" alignItems="center">
+                  <Stack
+                    direction="row"
+                    spacing={1.5}
+                    justifyContent="space-between"
+                    alignItems="center"
+                  >
                     <Stack spacing={0.5} sx={{ minWidth: 0 }}>
                       <Typography level="body-md" fontWeight={600}>
                         {invoice.description}
                       </Typography>
                       <Stack direction="row" spacing={0.75} alignItems="center">
-                        <Calendar size={14} color="var(--joy-palette-neutral-500)" />
+                        <Calendar
+                          size={14}
+                          color="var(--joy-palette-neutral-500)"
+                        />
                         <Typography level="body-xs" textColor="text.secondary">
                           {formatDate(invoice.date)}
                         </Typography>
@@ -155,7 +179,8 @@ export const BillingHistory = () => {
 
                     <Stack direction="row" spacing={1.25} alignItems="center">
                       <Chip color="success" size="sm" variant="soft">
-                        {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
+                        {invoice.status.charAt(0).toUpperCase() +
+                          invoice.status.slice(1)}
                       </Chip>
                       <Typography level="body-md" fontWeight={700}>
                         {invoice.amount}
@@ -165,7 +190,11 @@ export const BillingHistory = () => {
                         disabled={downloadDisabled}
                         onClick={() => {
                           if (!downloadDisabled) {
-                            window.open(invoice.invoiceUrl, "_blank", "noopener,noreferrer");
+                            window.open(
+                              invoice.invoiceUrl,
+                              "_blank",
+                              "noopener,noreferrer",
+                            );
                           }
                         }}
                         size="sm"

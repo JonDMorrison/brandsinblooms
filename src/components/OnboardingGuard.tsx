@@ -150,20 +150,36 @@ export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
     return <>{children}</>;
   }
 
-  // If onboarding is not complete and has never been completed, redirect
-  if (!isCompleted && !hasEverCompleted && !error) {
-    debug("Onboarding incomplete — redirecting to /onboarding", {
-      isCompleted,
-      hasEverCompleted,
+  // hasEverCompleted (from localStorage) is the authoritative signal.
+  // Once set, the user completed onboarding — even if the background
+  // edge function hasn't written onboarding_completed_at to the DB yet.
+  if (hasEverCompleted) {
+    debug("hasEverCompleted=true — allowing access", {
       pathname: location.pathname,
     });
-    navigate("/onboarding", { replace: true });
-    return null;
+    return <>{children}</>;
   }
 
-  debug("Onboarding complete — allowing access", {
+  // DB says complete — allow through
+  if (isCompleted) {
+    debug("isCompleted=true — allowing access", {
+      pathname: location.pathname,
+    });
+    return <>{children}</>;
+  }
+
+  // If there was an error checking status, don't trap the user
+  if (error) {
+    debug("Error checking onboarding status — allowing access", { error });
+    return <>{children}</>;
+  }
+
+  // Onboarding genuinely not complete — redirect
+  debug("Onboarding incomplete — redirecting to /onboarding", {
+    isCompleted,
+    hasEverCompleted,
     pathname: location.pathname,
   });
-
-  return <>{children}</>;
+  navigate("/onboarding", { replace: true });
+  return null;
 };

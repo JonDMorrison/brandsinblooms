@@ -80,9 +80,7 @@ BEGIN
   ON CONFLICT (email) DO UPDATE SET
     id = EXCLUDED.id,
     name = COALESCE(EXCLUDED.name, public.users.name),
-    tenant_id = COALESCE(public.users.tenant_id, EXCLUDED.tenant_id),
-    updated_at = now()
-  WHERE public.users.email = EXCLUDED.email;
+    tenant_id = COALESCE(public.users.tenant_id, EXCLUDED.tenant_id);
 
   RETURN NEW;
 END;

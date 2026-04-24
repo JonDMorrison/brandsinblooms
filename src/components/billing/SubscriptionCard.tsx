@@ -56,7 +56,8 @@ const formatBillingInterval = (value?: string | null) => {
 };
 
 export const SubscriptionCard = () => {
-  const { subscription, loading, trialDaysLeft, isTrialExpired } = useSubscription();
+  const { subscription, loading, trialDaysLeft, isTrialExpired } =
+    useSubscription();
   const [upgradeLoading, setUpgradeLoading] = useState(false);
 
   const handleUpgrade = async (
@@ -65,9 +66,12 @@ export const SubscriptionCard = () => {
   ) => {
     setUpgradeLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("create-checkout", {
-        body: { plan, billingInterval },
-      });
+      const { data, error } = await supabase.functions.invoke(
+        "create-checkout",
+        {
+          body: { plan, billingInterval },
+        },
+      );
 
       if (error) {
         throw error;
@@ -98,7 +102,11 @@ export const SubscriptionCard = () => {
     return (
       <Sheet variant="outlined" sx={surfaceStyles}>
         <Stack spacing={2.5}>
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={2} justifyContent="space-between">
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            spacing={2}
+            justifyContent="space-between"
+          >
             <Stack spacing={1.25} sx={{ flex: 1 }}>
               <Skeleton variant="text" width={180} level="h2" />
               <Skeleton variant="text" width="45%" />
@@ -111,7 +119,10 @@ export const SubscriptionCard = () => {
             sx={{
               display: "grid",
               gap: 2,
-              gridTemplateColumns: { xs: "1fr", sm: "repeat(3, minmax(0, 1fr))" },
+              gridTemplateColumns: {
+                xs: "1fr",
+                sm: "repeat(3, minmax(0, 1fr))",
+              },
             }}
           >
             <Skeleton variant="rectangular" height={56} />
@@ -126,10 +137,16 @@ export const SubscriptionCard = () => {
   if (!subscription) {
     return (
       <Sheet variant="outlined" sx={surfaceStyles}>
-        <Stack spacing={2} alignItems="center" textAlign="center" sx={{ py: 3 }}>
+        <Stack
+          spacing={2}
+          alignItems="center"
+          textAlign="center"
+          sx={{ py: 3 }}
+        >
           <Typography level="title-lg">No active plan</Typography>
           <Typography level="body-sm" textColor="text.secondary">
-            Choose a plan to unlock billing, analytics, and account-level usage controls.
+            Choose a plan to unlock billing, analytics, and account-level usage
+            controls.
           </Typography>
           <Button
             color="neutral"
@@ -149,7 +166,11 @@ export const SubscriptionCard = () => {
   const isExpiredState = effectivePlan === "expired" || isTrialExpired;
   const isTrialPlan = effectivePlan === "free_trial" && !isExpiredState;
   const isPaidPlan = !isTrialPlan && !isExpiredState;
-  const statusColor = isExpiredState ? "danger" : isTrialPlan ? "warning" : "success";
+  const statusColor = isExpiredState
+    ? "danger"
+    : isTrialPlan
+      ? "warning"
+      : "success";
   const statusLabel = isExpiredState
     ? "Expired"
     : isTrialPlan
@@ -166,12 +187,19 @@ export const SubscriptionCard = () => {
           alignItems={{ xs: "flex-start", sm: "center" }}
         >
           <Stack spacing={0.75}>
-            <Typography level="title-lg">{planNames[effectivePlan] ?? "Subscription"}</Typography>
+            <Typography level="title-lg">
+              {planNames[effectivePlan] ?? "Subscription"}
+            </Typography>
             <Typography level="body-sm" textColor="text.secondary">
-              Manage your current plan, renewal cadence, and Stripe billing details.
+              Manage your current plan, renewal cadence, and Stripe billing
+              details.
             </Typography>
           </Stack>
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={1.25} alignItems={{ sm: "center" }}>
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            spacing={1.25}
+            alignItems={{ sm: "center" }}
+          >
             <Chip color={statusColor} size="sm" variant="soft">
               {statusLabel}
             </Chip>
@@ -192,8 +220,14 @@ export const SubscriptionCard = () => {
         </Stack>
 
         {isTrialPlan ? (
-          <Alert color="warning" size="sm" startDecorator={<Clock size={16} />} variant="soft">
-            Your trial ends on {formatDate(subscription.end_date)}. Upgrade before it expires to keep billing and account access uninterrupted.
+          <Alert
+            color="warning"
+            size="sm"
+            startDecorator={<Clock size={16} />}
+            variant="soft"
+          >
+            Your trial ends on {formatDate(subscription.end_date)}. Upgrade
+            before it expires to keep billing and account access uninterrupted.
           </Alert>
         ) : null}
 
@@ -211,7 +245,9 @@ export const SubscriptionCard = () => {
               Billing Interval
             </Typography>
             <Typography level="body-md" fontWeight={600}>
-              {isTrialPlan ? "Trial" : formatBillingInterval(subscription.billing_interval)}
+              {isTrialPlan
+                ? "Trial"
+                : formatBillingInterval(subscription.billing_interval)}
             </Typography>
           </Stack>
           <Stack spacing={0.5}>
@@ -226,7 +262,11 @@ export const SubscriptionCard = () => {
             <Typography level="body-xs" textColor="text.tertiary">
               End Date
             </Typography>
-            <Typography level="body-md" fontWeight={600} startDecorator={<Calendar size={16} />}>
+            <Typography
+              level="body-md"
+              fontWeight={600}
+              startDecorator={<Calendar size={16} />}
+            >
               {formatDate(subscription.end_date)}
             </Typography>
           </Stack>

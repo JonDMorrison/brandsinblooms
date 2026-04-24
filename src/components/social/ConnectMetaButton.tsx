@@ -48,6 +48,32 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({
     }
   };
 
+  // Listen for postMessage from the OAuth popup/tab
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin) return;
+      const { type, provider } = event.data || {};
+      if (provider !== "meta") return;
+
+      if (type === "oauth-success") {
+        setLoading(false);
+        setIsMetaConnected(true);
+        toast.success("Meta account connected successfully!");
+        onSuccess();
+        fetchMetaConnectionStatus();
+      } else if (type === "oauth-error") {
+        setLoading(false);
+        const msg = event.data?.error || "Connection failed";
+        setOauthError(msg);
+        setCanRetry(true);
+        toast.error(msg);
+      }
+    };
+
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, [onSuccess]);
+
   // Check for success callback and fetch connection status
   useEffect(() => {
     const successData = sessionStorage.getItem("social_connection_success");
@@ -180,6 +206,7 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({
       ].join(",");
 
       // Dynamic redirect URI based on current domain
+      const redirectUri = getOAuthRedirectUri();
 
       // Fetch OAuth config
       const configData = await fetchOAuthConfig();
@@ -196,14 +223,20 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({
       setLoadingStep("redirecting");
 
       const oauthUrlStr = authUrl.toString();
-      // Use same-window redirect to preserve sessionStorage and auth state
-      // This is more reliable than opening a new tab which loses sessionStorage
-      toast.success("Redirecting to Meta for authorization...");
 
-      // Small delay to show toast before redirect
-      setTimeout(() => {
-        window.location.href = oauthUrlStr;
-      }, 500);
+      // Open in a popup/new tab — NOT same-window redirect.
+      // Same-window redirect causes Supabase's detectSessionInUrl to
+      // misinterpret the Facebook ?code= as a PKCE code, destroying the
+      // user's session. A popup keeps the parent tab's session intact.
+      const oauthPopup = window.open(oauthUrlStr, "_blank");
+
+      if (!oauthPopup) {
+        toast.error(
+          "Pop-up blocked — please allow pop-ups for this site and try again.",
+        );
+        setLoading(false);
+        return;
+      }
     } catch (error) {
       console.error("❌ OAuth initiation error:", error);
       const errorMessage =

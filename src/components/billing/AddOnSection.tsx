@@ -34,26 +34,34 @@ export const AddOnSection = () => {
   const [processingCRM, setProcessingCRM] = useState(false);
   const [processingSMS, setProcessingSMS] = useState(false);
 
-  const handleToggleAddOn = async (addOnType: "crm" | "sms", enabled: boolean) => {
+  const handleToggleAddOn = async (
+    addOnType: "crm" | "sms",
+    enabled: boolean,
+  ) => {
     if (enabled) {
-      const setLoading = addOnType === 'crm' ? setProcessingCRM : setProcessingSMS;
+      const setLoading =
+        addOnType === "crm" ? setProcessingCRM : setProcessingSMS;
       setLoading(true);
-      
+
       try {
-        const priceId = addOnType === 'crm' ? 'crm_addon_monthly' : 'sms_addon_monthly';
-        const { data, error } = await supabase.functions.invoke('create-checkout', {
-          body: { 
-            plan: priceId,
-            billing_interval: 'monthly'
-          }
-        });
-        
+        const priceId =
+          addOnType === "crm" ? "crm_addon_monthly" : "sms_addon_monthly";
+        const { data, error } = await supabase.functions.invoke(
+          "create-checkout",
+          {
+            body: {
+              plan: priceId,
+              billing_interval: "monthly",
+            },
+          },
+        );
+
         if (error) throw error;
-        
+
         if (data?.url) {
-          window.open(data.url, '_blank', 'noopener,noreferrer');
+          window.open(data.url, "_blank", "noopener,noreferrer");
         } else {
-          throw new Error('No checkout URL received');
+          throw new Error("No checkout URL received");
         }
       } catch (error) {
         console.error(`Error enabling ${addOnType} add-on:`, error);
@@ -62,21 +70,23 @@ export const AddOnSection = () => {
         setLoading(false);
       }
     } else {
-      const setLoading = addOnType === 'crm' ? setProcessingCRM : setProcessingSMS;
+      const setLoading =
+        addOnType === "crm" ? setProcessingCRM : setProcessingSMS;
       setLoading(true);
       try {
-        const { data, error } = await supabase.functions.invoke('customer-portal');
-        
+        const { data, error } =
+          await supabase.functions.invoke("customer-portal");
+
         if (error) throw error;
-        
+
         if (data?.url) {
-          window.open(data.url, '_blank', 'noopener,noreferrer');
+          window.open(data.url, "_blank", "noopener,noreferrer");
         } else {
-          throw new Error('No portal URL received');
+          throw new Error("No portal URL received");
         }
       } catch (error) {
-        console.error('Error accessing customer portal:', error);
-        toast.error('Failed to access billing portal. Please try again.');
+        console.error("Error accessing customer portal:", error);
+        toast.error("Failed to access billing portal. Please try again.");
       } finally {
         setLoading(false);
       }
@@ -101,11 +111,11 @@ export const AddOnSection = () => {
 
   const crmEnabled = subscription?.crm_enabled || false;
   const smsEnabled = subscription?.sms_enabled || false;
-  
+
   const emailUsage = subscription?.email_usage || 0;
   const emailQuota = subscription?.email_quota || 1000;
   const emailUsagePercent = getPercent(emailUsage, emailQuota);
-  
+
   const smsUsage = subscription?.sms_usage || 0;
   const smsQuota = subscription?.sms_quota || 250;
   const smsUsagePercent = getPercent(smsUsage, smsQuota);
@@ -120,25 +130,34 @@ export const AddOnSection = () => {
           </Chip>
         </Stack>
         <Typography level="body-sm" textColor="text.secondary">
-          Add CRM email tools or SMS campaigns without changing your base subscription.
+          Add CRM email tools or SMS campaigns without changing your base
+          subscription.
         </Typography>
 
         <Divider />
 
         <Sheet variant="soft" sx={{ borderRadius: "18px", p: 2.25 }}>
           <Stack spacing={2}>
-            <Stack direction="row" spacing={2} justifyContent="space-between" alignItems="flex-start">
+            <Stack
+              direction="row"
+              spacing={2}
+              justifyContent="space-between"
+              alignItems="flex-start"
+            >
               <Stack direction="row" spacing={1.5} alignItems="flex-start">
                 <Mail size={18} color="var(--joy-palette-neutral-500)" />
                 <Stack spacing={0.5}>
                   <Stack direction="row" spacing={1} alignItems="center">
-                    <Typography level="title-sm">CRM + Email Marketing</Typography>
+                    <Typography level="title-sm">
+                      CRM + Email Marketing
+                    </Typography>
                     <Typography level="body-xs" textColor="text.secondary">
                       $29/month
                     </Typography>
                   </Stack>
                   <Typography level="body-sm" textColor="text.secondary">
-                    Customer management, campaign sending, and email performance reporting.
+                    Customer management, campaign sending, and email performance
+                    reporting.
                   </Typography>
                 </Stack>
               </Stack>
@@ -146,14 +165,22 @@ export const AddOnSection = () => {
                 checked={crmEnabled}
                 color="neutral"
                 disabled={processingCRM}
-                onChange={(event) => handleToggleAddOn("crm", event.target.checked)}
+                onChange={(event) =>
+                  handleToggleAddOn("crm", event.target.checked)
+                }
               />
             </Stack>
 
             {crmEnabled ? (
               <Stack spacing={1.25}>
-                <Stack direction="row" justifyContent="space-between" spacing={1}>
-                  <Typography level="body-sm">Email usage this month</Typography>
+                <Stack
+                  direction="row"
+                  justifyContent="space-between"
+                  spacing={1}
+                >
+                  <Typography level="body-sm">
+                    Email usage this month
+                  </Typography>
                   <Typography level="body-sm" fontWeight={600}>
                     {emailUsage} / {emailQuota}
                   </Typography>
@@ -166,7 +193,12 @@ export const AddOnSection = () => {
                   variant="soft"
                 />
                 {emailUsagePercent > 80 ? (
-                  <Alert color="warning" size="sm" startDecorator={<AlertTriangle size={16} />} variant="soft">
+                  <Alert
+                    color="warning"
+                    size="sm"
+                    startDecorator={<AlertTriangle size={16} />}
+                    variant="soft"
+                  >
                     You&apos;re nearing your email limit.
                   </Alert>
                 ) : null}
@@ -177,9 +209,17 @@ export const AddOnSection = () => {
 
         <Sheet variant="soft" sx={{ borderRadius: "18px", p: 2.25 }}>
           <Stack spacing={2}>
-            <Stack direction="row" spacing={2} justifyContent="space-between" alignItems="flex-start">
+            <Stack
+              direction="row"
+              spacing={2}
+              justifyContent="space-between"
+              alignItems="flex-start"
+            >
               <Stack direction="row" spacing={1.5} alignItems="flex-start">
-                <MessageSquare size={18} color="var(--joy-palette-neutral-500)" />
+                <MessageSquare
+                  size={18}
+                  color="var(--joy-palette-neutral-500)"
+                />
                 <Stack spacing={0.5}>
                   <Stack direction="row" spacing={1} alignItems="center">
                     <Typography level="title-sm">SMS Marketing</Typography>
@@ -188,7 +228,8 @@ export const AddOnSection = () => {
                     </Typography>
                   </Stack>
                   <Typography level="body-sm" textColor="text.secondary">
-                    Text campaigns and customer notifications sent through your billing account.
+                    Text campaigns and customer notifications sent through your
+                    billing account.
                   </Typography>
                 </Stack>
               </Stack>
@@ -196,13 +237,19 @@ export const AddOnSection = () => {
                 checked={smsEnabled}
                 color="neutral"
                 disabled={processingSMS}
-                onChange={(event) => handleToggleAddOn("sms", event.target.checked)}
+                onChange={(event) =>
+                  handleToggleAddOn("sms", event.target.checked)
+                }
               />
             </Stack>
 
             {smsEnabled ? (
               <Stack spacing={1.25}>
-                <Stack direction="row" justifyContent="space-between" spacing={1}>
+                <Stack
+                  direction="row"
+                  justifyContent="space-between"
+                  spacing={1}
+                >
                   <Typography level="body-sm">SMS usage this month</Typography>
                   <Typography level="body-sm" fontWeight={600}>
                     {smsUsage} / {smsQuota}
@@ -216,7 +263,12 @@ export const AddOnSection = () => {
                   variant="soft"
                 />
                 {smsUsagePercent > 80 ? (
-                  <Alert color="warning" size="sm" startDecorator={<AlertTriangle size={16} />} variant="soft">
+                  <Alert
+                    color="warning"
+                    size="sm"
+                    startDecorator={<AlertTriangle size={16} />}
+                    variant="soft"
+                  >
                     You&apos;re nearing your SMS limit.
                   </Alert>
                 ) : null}

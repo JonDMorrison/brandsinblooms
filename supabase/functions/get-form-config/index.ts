@@ -263,6 +263,7 @@ const SETTINGS_ALLOWLIST = {
     border_radius: true, // Border radius (px or rem)
     spacing: true, // Spacing density: 'compact' | 'normal' | 'relaxed'
     button_style: true, // Button variant: 'filled' | 'outline' | 'rounded'
+    button_shape: true, // Button shape: 'rounded' | 'pill' | 'square'
     input_style: true, // Input variant: 'default' | 'underline' | 'filled'
   },
 

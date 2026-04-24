@@ -16,7 +16,7 @@ const predefinedSegments = [
     id: "loyalty-members" as const,
     name: "Loyalty Members",
     description:
-      "Customers enrolled in your loyalty program with active engagement",
+      "Customers enrolled in your POS loyalty program",
     icon: "crown" as const,
   },
   {

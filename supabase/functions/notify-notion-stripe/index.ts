@@ -95,26 +95,20 @@ async function sendPaidConversionEmail(
       logStep("Conversion email: Stripe name fetch failed", { error: String(e) });
     }
 
-    // Find the user by email, then their tenant_id from company_profiles.
+    // Find the user by email and get tenant_id from the users table
+    // (company_profiles does NOT have tenant_id — it lives on public.users)
     const { data: userRow } = await supabase
       .from("users")
-      .select("id")
+      .select("id, tenant_id")
       .eq("email", customerEmail)
       .maybeSingle();
 
-    const userId = (userRow as { id?: string } | null)?.id;
+    const userId = (userRow as { id?: string; tenant_id?: string } | null)?.id;
+    const tenantId = (userRow as { id?: string; tenant_id?: string } | null)?.tenant_id;
     if (!userId) {
       logStep("Conversion email skipped — no user found", { customerEmail });
       return;
     }
-
-    const { data: tenantRow } = await supabase
-      .from("company_profiles")
-      .select("tenant_id")
-      .eq("user_id", userId)
-      .maybeSingle();
-
-    const tenantId = (tenantRow as { tenant_id?: string } | null)?.tenant_id;
     if (!tenantId) {
       logStep("Conversion email skipped — no tenant_id found", { userId });
       return;
@@ -184,7 +178,6 @@ async function sendPaidConversionEmail(
 
     // Determine first incomplete step in priority order.
     let incompleteStepHtml = "";
-    let oncePara = `<p style="margin:0 0 16px 0;line-height:1.6;">Once that is done, you are ready to send. A simple "what's new this spring" newsletter to your full list is all you need to start.</p>`;
 
     if (!domainConfigured) {
       incompleteStepHtml = `<p style="margin:0 0 12px 0;line-height:1.6;"><strong>One thing to finish before your first campaign:</strong> Your email domain is not connected yet. This is what gets your emails into inboxes instead of spam folders. It takes about 15 minutes and makes everything else work better.</p><p style="margin:0 0 16px 0;line-height:1.6;">👉 <a href="https://www.bloomsuite.app/crm/settings/email-sending" style="color:#1abc9c;">Connect your email domain</a></p>`;
@@ -198,7 +191,6 @@ async function sendPaidConversionEmail(
       incompleteStepHtml = `<p style="margin:0 0 12px 0;line-height:1.6;"><strong>One thing to finish before your first campaign:</strong> Your brand colors are not set yet. These appear in every email you send to make sure everything looks like your business.</p><p style="margin:0 0 16px 0;line-height:1.6;">👉 <a href="https://www.bloomsuite.app/profile/brand-colors" style="color:#1abc9c;">Set your brand colors</a></p>`;
     } else {
       incompleteStepHtml = "";
-      oncePara = `<p style="margin:0 0 16px 0;line-height:1.6;">Everything looks set up on your end. You are ready to go.</p>`;
     }
 
     const companyName =
@@ -218,20 +210,88 @@ async function sendPaidConversionEmail(
       seasonLine = "Summer is a great time to build loyalty with educational content and keep your customers engaged between the big selling seasons.";
     }
 
-    const emailHtml = `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:600px;margin:0 auto;color:#1f2937;padding:24px;">
-  <p style="margin:0 0 16px 0;line-height:1.6;">Hi ${firstName},</p>
-  <p style="margin:0 0 16px 0;line-height:1.6;">${companyName} is now a full BloomSuite member. Your account is fully unlocked and you are ready to start marketing to your customers in a way most independent garden centers never get to.</p>
-  <p style="margin:0 0 16px 0;line-height:1.6;">${seasonLine}</p>
-  ${incompleteStepHtml}
-  ${oncePara}
-  <p style="margin:0 0 16px 0;line-height:1.6;">👉 <a href="https://www.bloomsuite.app/newsletters/new" style="color:#1abc9c;">Start a new campaign</a></p>
-  <p style="margin:0 0 16px 0;line-height:1.6;">If you would like to walk through any of this with someone, Jon Morrison does a free 30-minute call with every new member. Most people leave with their first campaign scheduled.</p>
-  <p style="margin:0 0 16px 0;line-height:1.6;">👉 <a href="https://calendly.com/jonmorrison/chat-with-jon" style="color:#1abc9c;">Book a time with Jon</a></p>
-  <p style="margin:0 0 16px 0;line-height:1.6;">This is going to be a great season. Let's make it count.</p>
-  <p style="margin:0 0 4px 0;line-height:1.6;">Jeff</p>
-  <p style="margin:0 0 4px 0;line-height:1.6;">Co-Founder, BloomSuite</p>
-  <p style="margin:0;line-height:1.6;"><a href="mailto:jeff@brandsinblooms.com" style="color:#1abc9c;">jeff@brandsinblooms.com</a></p>
-</div>`;
+    const emailHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;padding:32px 16px;">
+<tr><td align="center">
+<table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:8px;overflow:hidden;border:1px solid #e5e7eb;">
+
+  <tr><td style="background:#0d1f1a;padding:20px 40px;">
+    <img src="https://udldmkqwnxhdeztyqcau.supabase.co/storage/v1/object/public/content-assets/bloomsuite-logo.png" alt="BloomSuite" style="height:40px;width:auto;display:block;" />
+  </td></tr>
+
+  <tr><td style="background:#1abc9c;padding:32px 40px;">
+    <p style="color:#ffffff;font-size:22px;font-weight:500;margin:0 0 8px;line-height:1.3;">${companyName} is officially on BloomSuite.</p>
+    <p style="color:rgba(255,255,255,0.85);font-size:15px;margin:0;line-height:1.5;">Your account is fully unlocked.</p>
+  </td></tr>
+
+  <tr><td style="padding:36px 40px;">
+    <p style="font-size:15px;line-height:1.7;margin:0 0 16px;color:#374151;">Hi ${firstName},</p>
+    <p style="font-size:15px;line-height:1.7;margin:0 0 16px;color:#374151;">${companyName} is now a full BloomSuite member. You're ready to start marketing to your customers in a way most independent garden centers never get to.</p>
+    <p style="font-size:15px;line-height:1.7;margin:0 0 28px;color:#374151;">${seasonLine}</p>
+
+    ${incompleteStepHtml}
+
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
+      <tr><td style="padding-bottom:10px;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;border-radius:8px;border:1px solid #e5e7eb;">
+          <tr>
+            <td style="width:56px;padding:14px 0 14px 16px;vertical-align:top;">
+              <div style="width:28px;height:28px;background:#1abc9c;border-radius:50%;text-align:center;line-height:28px;font-size:13px;font-weight:500;color:#ffffff;">1</div>
+            </td>
+            <td style="padding:14px 16px;">
+              <p style="font-size:14px;font-weight:500;margin:0 0 3px;color:#111827;">Send your first campaign</p>
+              <p style="font-size:13px;color:#6b7280;margin:0;">A simple "what's new this spring" newsletter to your full list is all you need to start.</p>
+            </td>
+          </tr>
+        </table>
+      </td></tr>
+      <tr><td>
+        <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;border-radius:8px;border:1px solid #e5e7eb;">
+          <tr>
+            <td style="width:56px;padding:14px 0 14px 16px;vertical-align:top;">
+              <div style="width:28px;height:28px;background:#1abc9c;border-radius:50%;text-align:center;line-height:28px;font-size:13px;font-weight:500;color:#ffffff;">2</div>
+            </td>
+            <td style="padding:14px 16px;">
+              <p style="font-size:14px;font-weight:500;margin:0 0 3px;color:#111827;">Book a call with Jon</p>
+              <p style="font-size:13px;color:#6b7280;margin:0;">Free 30-minute kickoff. Most people leave with their first campaign scheduled.</p>
+            </td>
+          </tr>
+        </table>
+      </td></tr>
+    </table>
+
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:32px;">
+      <tr><td style="padding-bottom:10px;">
+        <a href="https://www.bloomsuite.app/newsletters/new" style="display:block;background:#1abc9c;color:#ffffff;text-align:center;padding:13px 24px;border-radius:6px;font-size:15px;font-weight:500;text-decoration:none;">Start a new campaign</a>
+      </td></tr>
+      <tr><td>
+        <a href="https://calendly.com/jonmorrison/chat-with-jon" style="display:block;background:#ffffff;color:#1abc9c;text-align:center;padding:12px 24px;border-radius:6px;font-size:15px;font-weight:500;text-decoration:none;border:1.5px solid #1abc9c;">Book a time with Jon</a>
+      </td></tr>
+    </table>
+
+    <table cellpadding="0" cellspacing="0" style="border-top:1px solid #e5e7eb;padding-top:24px;width:100%;">
+      <tr>
+        <td style="width:44px;vertical-align:top;">
+          <div style="width:44px;height:44px;border-radius:50%;background:#0d1f1a;text-align:center;line-height:44px;font-size:14px;font-weight:500;color:#1abc9c;">JM</div>
+        </td>
+        <td style="padding-left:14px;vertical-align:top;">
+          <p style="font-size:14px;font-weight:500;margin:0;color:#111827;">Jeff &amp; Jon</p>
+          <p style="font-size:13px;color:#6b7280;margin:4px 0 0;">Co-founders, BloomSuite</p>
+          <p style="font-size:13px;color:#6b7280;margin:2px 0 0;"><a href="mailto:jeff@brandsinblooms.com" style="color:#1abc9c;text-decoration:none;">jeff@brandsinblooms.com</a></p>
+        </td>
+      </tr>
+    </table>
+  </td></tr>
+
+  <tr><td style="background:#f9fafb;border-top:1px solid #e5e7eb;padding:20px 40px;text-align:center;">
+    <p style="font-size:12px;color:#9ca3af;margin:0 0 6px;">BloomSuite &middot; brandsinblooms.com</p>
+    <p style="font-size:12px;color:#9ca3af;margin:0;">You received this because you subscribed to BloomSuite. <a href="https://www.bloomsuite.app/unsubscribe" style="color:#9ca3af;">Unsubscribe</a></p>
+  </td></tr>
+
+</table>
+</td></tr>
+</table>
+</body></html>`;
 
     const resendRes = await fetch("https://api.resend.com/emails", {
       method: "POST",
